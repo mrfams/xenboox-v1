@@ -18,6 +18,8 @@ import {
   BarChart3,
   HardHat,
   Boxes,
+  Shield,
+  AlertCircle,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -93,6 +95,14 @@ const navigation: NavGroup[] = [
     label: "Documents",
     items: [
       { label: "All Documents", href: "/dashboard/documents", icon: FolderOpen },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { label: "Admin Dashboard", href: "/admin", icon: Shield },
+      { label: "AI Comparison", href: "/admin/ai-comparison", icon: AlertCircle },
+      { label: "Spending", href: "/admin/spending", icon: CreditCard },
     ],
   },
 ]
