@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Dialog } from "@/components/ui/dialog"
-import { Button } from "@xenboox/ui"
+import { Button, Alert, AlertDescription } from "@xenboox/ui"
 import { trpc } from "@/lib/trpc"
 
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
@@ -12,18 +12,28 @@ export function AddInventoryItemDialog({ open, onClose, onSuccess }: Props) {
   const [unitOfMeasure, setUnitOfMeasure] = useState("unit")
   const [standardCost, setStandardCost] = useState("")
   const [reorderLevel, setReorderLevel] = useState("0")
+  const [error, setError] = useState<string | null>(null)
   const utils = trpc.useUtils()
   const mutation = trpc.inventory.createItem.useMutation({
     onSuccess: () => {
+      setError(null)
       utils.inventory.listItems.invalidate()
       setName(""); setSku(""); setCategory("general"); setStandardCost(""); setReorderLevel("0")
       onSuccess()
+    },
+    onError: (err) => {
+      setError(err.message)
     }
   })
 
   return (
     <Dialog open={open} onClose={onClose} title="Add Inventory Item">
       <div className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium">Name *</label>

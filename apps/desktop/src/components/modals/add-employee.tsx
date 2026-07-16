@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Dialog } from "@/components/ui/dialog"
-import { Button } from "@xenboox/ui"
+import { Button, Alert, AlertDescription } from "@xenboox/ui"
 import { trpc } from "@/lib/trpc"
 
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
@@ -11,18 +11,28 @@ export function AddEmployeeDialog({ open, onClose, onSuccess }: Props) {
   const [email, setEmail] = useState("")
   const [department, setDepartment] = useState("")
   const [jobTitle, setJobTitle] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const utils = trpc.useUtils()
   const mutation = trpc.payroll.createEmployee.useMutation({
     onSuccess: () => {
+      setError(null)
       utils.payroll.listEmployees.invalidate()
       setFirstName(""); setLastName(""); setEmail(""); setDepartment(""); setJobTitle("")
       onSuccess()
+    },
+    onError: (err) => {
+      setError(err.message)
     }
   })
 
   return (
     <Dialog open={open} onClose={onClose} title="Add Employee">
       <div className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium">First Name *</label>

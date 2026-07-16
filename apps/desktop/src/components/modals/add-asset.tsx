@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Dialog } from "@/components/ui/dialog"
-import { Button } from "@xenboox/ui"
+import { Button, Alert, AlertDescription } from "@xenboox/ui"
 import { trpc } from "@/lib/trpc"
 
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
@@ -13,18 +13,28 @@ export function AddAssetDialog({ open, onClose, onSuccess }: Props) {
   const [salvageValue, setSalvageValue] = useState("0")
   const [usefulLife, setUsefulLife] = useState("5")
   const [location, setLocation] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const utils = trpc.useUtils()
   const mutation = trpc.fixedAssets.createAsset.useMutation({
     onSuccess: () => {
+      setError(null)
       utils.fixedAssets.listAssets.invalidate()
       setName(""); setDescription(""); setCost(""); setSalvageValue("0"); setUsefulLife("5"); setLocation("")
       onSuccess()
+    },
+    onError: (err) => {
+      setError(err.message)
     }
   })
 
   return (
     <Dialog open={open} onClose={onClose} title="Add Fixed Asset">
       <div className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <div>
           <label className="text-sm font-medium">Name *</label>
           <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" />
