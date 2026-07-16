@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui";
 import { Button } from "@xenboox/ui";
 import { Badge } from "@xenboox/ui";

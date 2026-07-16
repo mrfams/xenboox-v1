@@ -1,35 +1,60 @@
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from "@xenboox/ui"
-import { AlertCircle, CheckCircle2, Shield, Settings, RefreshCw } from "lucide-react"
-import { trpc } from "@/lib/trpc/client"
-import { useState } from "react"
+"use client";
 
-function Alert({ children, className }: { children: React.ReactNode; className?: string }) {
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Button,
+} from "@xenboox/ui";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Shield,
+  Settings,
+  RefreshCw,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import { useState } from "react";
+
+function Alert({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`p-4 rounded-lg border ${className || ''}`}>
-      {children}
-    </div>
-  )
+    <div className={`p-4 rounded-lg border ${className || ""}`}>{children}</div>
+  );
 }
 
 function AlertDescription({ children }: { children: React.ReactNode }) {
-  return <div className="mt-2 text-sm">{children}</div>
+  return <div className="mt-2 text-sm">{children}</div>;
 }
 
 export default function AlertsPage() {
-  const [showResolved, setShowResolved] = useState(false)
-  const { data: alerts } = trpc.admin.getSpendAlerts.useQuery()
+  const [showResolved, setShowResolved] = useState(false);
+  const { data: alerts } = trpc.admin.getSpendAlerts.useQuery();
 
-  const criticalAlerts = alerts?.filter((a: typeof alerts[0]) => a.alertLevel === "critical") || []
-  const warningAlerts = alerts?.filter((a: typeof alerts[0]) => a.alertLevel === "warning") || []
-  const lowAlerts = alerts?.filter((a: typeof alerts[0]) => a.alertLevel === "low") || []
-  const activeAlerts = [...criticalAlerts, ...warningAlerts, ...lowAlerts]
+  const criticalAlerts =
+    alerts?.filter((a: (typeof alerts)[0]) => a.alertLevel === "critical") ||
+    [];
+  const warningAlerts =
+    alerts?.filter((a: (typeof alerts)[0]) => a.alertLevel === "warning") || [];
+  const lowAlerts =
+    alerts?.filter((a: (typeof alerts)[0]) => a.alertLevel === "low") || [];
+  const activeAlerts = [...criticalAlerts, ...warningAlerts, ...lowAlerts];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">System Alerts</h1>
-          <p className="text-muted-foreground mt-1">Monitor and manage system alerts across all services</p>
+          <p className="text-muted-foreground mt-1">
+            Monitor and manage system alerts across all services
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline">
@@ -50,8 +75,12 @@ export default function AlertsPage() {
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{criticalAlerts.length}</div>
-            <p className="text-xs text-muted-foreground">Requires immediate attention</p>
+            <div className="text-2xl font-bold text-red-600">
+              {criticalAlerts.length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Requires immediate attention
+            </p>
           </CardContent>
         </Card>
 
@@ -61,7 +90,9 @@ export default function AlertsPage() {
             <Shield className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{warningAlerts.length}</div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {warningAlerts.length}
+            </div>
             <p className="text-xs text-muted-foreground">Monitor closely</p>
           </CardContent>
         </Card>
@@ -72,8 +103,12 @@ export default function AlertsPage() {
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{lowAlerts.length}</div>
-            <p className="text-xs text-muted-foreground">Within normal limits</p>
+            <div className="text-2xl font-bold text-green-600">
+              {lowAlerts.length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Within normal limits
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -85,18 +120,36 @@ export default function AlertsPage() {
         <CardContent>
           <div className="space-y-4">
             {activeAlerts.length > 0 ? (
-              activeAlerts.map((alert: typeof alerts[0]) => (
-                <Alert key={`${alert.provider}-${alert.model}`} className={alert.alertLevel === "critical" ? "border-red-200 bg-red-50" : alert.alertLevel === "warning" ? "border-yellow-200 bg-yellow-50" : "border-green-200 bg-green-50"}>
+              activeAlerts.map((alert: (typeof alerts)[0]) => (
+                <Alert
+                  key={`${alert.provider}-${alert.model}`}
+                  className={
+                    alert.alertLevel === "critical"
+                      ? "border-red-200 bg-red-50"
+                      : alert.alertLevel === "warning"
+                        ? "border-yellow-200 bg-yellow-50"
+                        : "border-green-200 bg-green-50"
+                  }
+                >
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{alert.model}</p>
                         <p className="text-sm">
-                          ${alert.currentSpend.toLocaleString()} of ${alert.budgetLimit.toLocaleString()}
+                          ${alert.currentSpend.toLocaleString()} of $
+                          {alert.budgetLimit.toLocaleString()}
                         </p>
                       </div>
-                      <Badge variant={alert.alertLevel === "critical" ? "destructive" : alert.alertLevel === "warning" ? "default" : "secondary"}>
+                      <Badge
+                        variant={
+                          alert.alertLevel === "critical"
+                            ? "destructive"
+                            : alert.alertLevel === "warning"
+                              ? "default"
+                              : "secondary"
+                        }
+                      >
                         {alert.percentage.toFixed(0)}%
                       </Badge>
                     </div>
@@ -107,7 +160,9 @@ export default function AlertsPage() {
               <div className="text-center py-8">
                 <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
                 <p className="text-muted-foreground">No active alerts</p>
-                <p className="text-sm text-muted-foreground mt-1">All systems operating normally</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  All systems operating normally
+                </p>
               </div>
             )}
           </div>
@@ -123,5 +178,5 @@ export default function AlertsPage() {
         </Alert>
       )}
     </div>
-  )
+  );
 }
