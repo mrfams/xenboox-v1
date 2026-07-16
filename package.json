@@ -21,7 +21,7 @@
     "db:studio": "pnpm --filter=@xenboox/db studio",
     "agents:eval": "pnpm --filter=@xenboox/agents eval",
     "agents:trace": "open https://langfuse.xenboox.com",
-    "prepare": "husky install"
+    "prepare": "npx husky install"
   },
   "devDependencies": {
     "@types/pino": "^7.0.5",
