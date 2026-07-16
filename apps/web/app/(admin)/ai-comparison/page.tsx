@@ -1,10 +1,20 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
-import { Badge } from "@xenboox/ui"
-import { Alert, AlertDescription } from "@xenboox/ui"
-import { CheckCircle2, AlertCircle, TrendingUp, Cloud, Server } from "lucide-react"
-import { trpc } from "@/lib/trpc"
+import { AlertCircle, CheckCircle2, Shield, TrendingUp, Server, Cloud, Calculator } from "lucide-react"
+import { trpc } from "@/lib/trpc/client"
 import { AIComparison } from "@/lib/types"
+
+function Alert({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`p-4 rounded-lg border ${className || ''}`}>
+      {children}
+    </div>
+  )
+}
+
+function AlertDescription({ children }: { children: React.ReactNode }) {
+  return <div className="mt-2 text-sm">{children}</div>
+}
 
 export default function AIComparisonPage() {
   const { data: comparison, isLoading } = trpc.admin.getAIComparison.useQuery()
@@ -27,18 +37,6 @@ export default function AIComparisonPage() {
     )
   }
 
-  const getRecommendation = (provider: AIComparison) => {
-    if (provider.deploymentMode === "self-hosted") {
-      return `Self-hosted: $${provider.selfHostCostPerMonth}/mo (break-even: ${provider.breakEvenTokens.toLocaleString()} tokens)`
-    }
-    
-    const apiVsSelfHost = provider.monthlySpend - provider.selfHostCostPerMonth
-    if (apiVsSelfHost > 0) {
-      return `API recommended - $${(apiVsSelfHost).toFixed(0)}/mo savings vs self-host`
-    }
-    return `Self-host recommended - $${(-apiVsSelfHost).toFixed(0)}/mo savings`
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -55,17 +53,14 @@ export default function AIComparisonPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {comparison?.map((provider) => (
+            {comparison?.map((provider: AIComparison) => (
               <Card key={`${provider.provider}-${provider.model}`} className="border-2">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
                     {provider.deploymentMode === "self-hosted" ? <Server className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
                     {provider.provider} - {provider.model}
                   </CardTitle>
-                  <Badge variant={
-                    provider.recommendation === "self-host" ? "default" : 
-                    provider.recommendation === "hybrid" ? "secondary" : "outline"
-                  }>
+                  <Badge variant={provider.deploymentMode === "self-hosted" ? "default" : "outline"}>
                     {provider.deploymentMode}
                   </Badge>
                 </CardHeader>
@@ -86,7 +81,12 @@ export default function AIComparisonPage() {
                     "border-blue-200 bg-blue-50"
                   }>
                     <AlertDescription className="text-center">
-                      {getRecommendation(provider)}
+                      {provider.recommendation === "self-host" ? 
+                        `Self-host recommended - $${(provider.monthlySpend - provider.selfHostCostPerMonth).toFixed(0)}/mo savings` :
+                        provider.recommendation === "hybrid" ?
+                        `Hybrid approach - $${(provider.monthlySpend - provider.selfHostCostPerMonth).toFixed(0)}/mo potential savings` :
+                        `API recommended - within budget limits`
+                      }
                     </AlertDescription>
                   </Alert>
                 </CardContent>
@@ -107,7 +107,7 @@ export default function AIComparisonPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {alerts.map((alert) => (
+              {alerts.map((alert: typeof alerts[0]) => (
                 <div key={`${alert.provider}-${alert.model}`} className="flex items-center justify-between p-3 rounded-md bg-white dark:bg-yellow-900">
                   <div>
                     <p className="font-medium">{alert.model}</p>
@@ -127,14 +127,20 @@ export default function AIComparisonPage() {
 
       {/* Detailed Provider Cards */}
       <div className="grid gap-4">
-        {comparison?.map((provider) => (
-          <Card key={`${provider.provider}-${provider.model}`}>
+        {comparison?.map((provider: AIComparison) => (
+          <Card key={`${provider.provider}-${provider.model}`} className="border-2">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>{provider.provider} - {provider.model}</span>
-                <Badge variant={provider.utilization >= 80 ? "destructive" : provider.utilization >= 60 ? "default" : "secondary"}>
-                  {provider.utilization.toFixed(0)}% utilized
-                </Badge>
+                <span>{provider.model}</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant={provider.deploymentMode === "self-hosted" ? "default" : "outline"}>
+                    {provider.deploymentMode === "self-hosted" ? <Server className="h-3 w-3 mr-1" /> : <Cloud className="h-3 w-3 mr-1" />}
+                    {provider.deploymentMode}
+                  </Badge>
+                  <Badge variant={provider.utilization >= 80 ? "destructive" : provider.utilization >= 60 ? "default" : "secondary"}>
+                    {provider.utilization.toFixed(0)}%
+                  </Badge>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-3">
@@ -187,14 +193,12 @@ export default function AIComparisonPage() {
                     <span className="text-sm">Self-Host Cost</span>
                     <span className="font-medium">${provider.selfHostCostPerMonth.toLocaleString()}</span>
                   </div>
-                  <div className="pt-2 border-t">
-                    <Button 
-                      variant={provider.recommendation === "self-host" ? "default" : "outline"}
-                      className="w-full"
-                    >
-                      {provider.recommendation === "self-host" ? "Switch to Self-Host" : "Optimize for Cost"}
+                  {provider.monthlySpend > provider.selfHostCostPerMonth && (
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Calculator className="h-4 w-4 mr-2" />
+                      Switch to Self-Host
                     </Button>
-                  </div>
+                  )}
                 </div>
               </div>
             </CardContent>

@@ -1,11 +1,21 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
-import { Badge } from "@xenboox/ui"
-import { Progress } from "@xenboox/ui"
-import { Alert, AlertDescription } from "@xenboox/ui"
-import { Shield, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, Banknote, Calculator, FileText } from "lucide-react"
-import { trpc } from "@/lib/trpc"
+import { Input } from "@xenboox/ui"
+import { Label } from "@xenboox/ui"
+import { Shield, CheckCircle2, AlertCircle, TrendingUp, Banknote, Calculator, FileText } from "lucide-react"
+import { trpc } from "@/lib/trpc/client"
 import { useState } from "react"
+
+function Progress({ value }: { value: number }) {
+  return (
+    <div className="w-full bg-muted rounded-full h-2">
+      <div 
+        className="h-full bg-primary rounded-full transition-all duration-300"
+        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+      />
+    </div>
+  )
+}
 
 export default function FinancialPage() {
   const [period, setPeriod] = useState("month")
@@ -176,7 +186,7 @@ export default function FinancialPage() {
               <div className="space-y-2">
                 <h4 className="font-medium text-muted-foreground">Liquidity Ratio</h4>
                 <div className="flex items-center gap-2">
-                  <Progress value={financialHealth === "healthy" ? 80 : financialHealth === "warning" ? 50 : 20} className="flex-1 h-2" />
+                  <Progress value={financialHealth === "healthy" ? 80 : financialHealth === "warning" ? 50 : 20} />
                   <span className="font-medium">
                     {financialHealth === "healthy" ? "Good" : financialHealth === "warning" ? "Fair" : "Low"}
                   </span>
@@ -186,7 +196,7 @@ export default function FinancialPage() {
               <div className="space-y-2">
                 <h4 className="font-medium text-muted-foreground">Activity Level</h4>
                 <div className="flex items-center gap-2">
-                  <Progress value={overview?.journalEntries > 100 ? 80 : overview?.journalEntries > 50 ? 50 : 20} className="flex-1 h-2" />
+                  <Progress value={overview?.journalEntries > 100 ? 80 : overview?.journalEntries > 50 ? 50 : 20} />
                   <span className="font-medium">
                     {overview?.journalEntries > 100 ? "High" : overview?.journalEntries > 50 ? "Medium" : "Low"}
                   </span>
@@ -194,12 +204,14 @@ export default function FinancialPage() {
               </div>
             </div>
 
-            <Alert>
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription>
-                Financial health report generated successfully. All metrics within expected ranges.
-              </AlertDescription>
-            </Alert>
+            <div className="p-3 rounded-md bg-green-50 dark:bg-green-950">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span className="text-sm">
+                  Financial health report generated successfully. All metrics within expected ranges.
+                </span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

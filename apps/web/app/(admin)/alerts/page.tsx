@@ -1,17 +1,27 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
-import { Badge } from "@xenboox/ui"
-import { Alert, AlertDescription } from "@xenboox/ui"
-import { AlertCircle, CheckCircle2, Shield, TrendingUp, User, FileText, Settings, RefreshCw } from "lucide-react"
-import { trpc } from "@/lib/trpc"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from "@xenboox/ui"
+import { AlertCircle, CheckCircle2, Shield, Settings, RefreshCw } from "lucide-react"
+import { trpc } from "@/lib/trpc/client"
 import { useState } from "react"
+
+function Alert({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`p-4 rounded-lg border ${className || ''}`}>
+      {children}
+    </div>
+  )
+}
+
+function AlertDescription({ children }: { children: React.ReactNode }) {
+  return <div className="mt-2 text-sm">{children}</div>
+}
 
 export default function AlertsPage() {
   const [showResolved, setShowResolved] = useState(false)
   const { data: alerts } = trpc.admin.getSpendAlerts.useQuery()
 
-  const criticalAlerts = alerts?.filter(a => a.alertLevel === "critical") || []
-  const warningAlerts = alerts?.filter(a => a.alertLevel === "warning") || []
-  const lowAlerts = alerts?.filter(a => a.alertLevel === "low") || []
+  const criticalAlerts = alerts?.filter((a: typeof alerts[0]) => a.alertLevel === "critical") || []
+  const warningAlerts = alerts?.filter((a: typeof alerts[0]) => a.alertLevel === "warning") || []
+  const lowAlerts = alerts?.filter((a: typeof alerts[0]) => a.alertLevel === "low") || []
   const activeAlerts = [...criticalAlerts, ...warningAlerts, ...lowAlerts]
 
   return (
@@ -75,7 +85,7 @@ export default function AlertsPage() {
         <CardContent>
           <div className="space-y-4">
             {activeAlerts.length > 0 ? (
-              activeAlerts.map((alert) => (
+              activeAlerts.map((alert: typeof alerts[0]) => (
                 <Alert key={`${alert.provider}-${alert.model}`} className={alert.alertLevel === "critical" ? "border-red-200 bg-red-50" : alert.alertLevel === "warning" ? "border-yellow-200 bg-yellow-50" : "border-green-200 bg-green-50"}>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
@@ -105,7 +115,7 @@ export default function AlertsPage() {
       </Card>
 
       {activeAlerts.length === 0 && (
-        <Alert>
+        <Alert className="border-green-200 bg-green-50">
           <CheckCircle2 className="h-4 w-4 text-green-600" />
           <AlertDescription>
             All systems are healthy. No active alerts to report.

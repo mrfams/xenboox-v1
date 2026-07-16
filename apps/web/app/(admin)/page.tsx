@@ -1,9 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
-import { Badge } from "@xenboox/ui"
-import { Alert, AlertDescription } from "@xenboox/ui"
 import { Users, Building, Bot, CreditCard, BarChart3, AlertCircle, CheckCircle2, Server, Cloud } from "lucide-react"
-import { trpc } from "@/lib/trpc"
+import { trpc } from "@/lib/trpc/client"
 
 export default function AdminDashboardPage() {
   const { data: overview, isLoading } = trpc.admin.getSystemOverview.useQuery()
@@ -38,17 +36,25 @@ export default function AdminDashboardPage() {
         </Button>
       </div>
 
-      {/* Spend Alerts */}
+      {/* Active Alerts Summary */}
       {alerts && alerts.length > 0 && (
-        <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription>
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{alerts.length} alert(s) require attention</span>
-              <Badge variant="destructive">{alerts.filter(a => a.alertLevel === "critical").length} critical</Badge>
+        <Card className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              Active Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              {alerts.map((alert) => (
+                <Badge key={`${alert.provider}-${alert.model}`} variant={alert.alertLevel === "critical" ? "destructive" : "default"}>
+                  {alert.model}: {alert.percentage.toFixed(0)}%
+                </Badge>
+              ))}
             </div>
-          </AlertDescription>
-        </Alert>
+          </CardContent>
+        </Card>
       )}
 
       {/* System Overview */}

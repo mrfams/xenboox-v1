@@ -3,14 +3,14 @@ import { Button } from "@xenboox/ui"
 import { Badge } from "@xenboox/ui"
 import { Input } from "@xenboox/ui"
 import { Building, Search, Users, Calendar, Plus, Edit, Trash2, Shield, CheckCircle2, AlertCircle } from "lucide-react"
-import { trpc } from "@/lib/trpc"
+import { trpc } from "@/lib/trpc/client"
 import { useState } from "react"
 
 export default function OrganizationsPage() {
   const [search, setSearch] = useState("")
   const { data: orgs, isLoading } = trpc.admin.listOrganizations.useQuery()
 
-  const filteredOrgs = orgs?.filter(o =>
+const filteredOrgs = orgs?.filter((o: typeof orgs[0]) =>
     o.name?.toLowerCase().includes(search.toLowerCase()) ||
     o.slug?.toLowerCase().includes(search.toLowerCase())
   ) || []
@@ -74,7 +74,7 @@ export default function OrganizationsPage() {
                   <p className="text-muted-foreground">No organizations found matching your search</p>
                 </div>
               ) : (
-                filteredOrgs.map((org) => (
+                filteredOrgs.map((org: typeof orgs[0]) => (
                   <div key={org.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
@@ -88,11 +88,11 @@ export default function OrganizationsPage() {
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant={getTypeVariant(org.type)}>
-            {org.type.replace('_', ' ')}
-          </Badge>
+                            {org.type.replace('_', ' ')}
+                          </Badge>
                           <Badge variant={getPlanVariant(org.plan)}>
-            {org.plan.replace('_', ' ')}
-          </Badge>
+                            {org.plan.replace('_', ' ')}
+                          </Badge>
                         </div>
                       </div>
                     </div>

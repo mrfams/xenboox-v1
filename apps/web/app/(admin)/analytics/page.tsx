@@ -1,21 +1,30 @@
-import { Card, CardContent, CardHeader, CardTitle, Progress } from "@xenboox/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
-import { Badge } from "@xenboox/ui"
-import { Alert, AlertDescription } from "@xenboox/ui"
-import { BarChart3, Clock, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, Download, RefreshCw } from "lucide-react"
-import { trpc } from "@/lib/trpc"
+import { BarChart3, Clock, CheckCircle2, AlertCircle, TrendingUp, RefreshCw, Download } from "lucide-react"
+import { trpc } from "@/lib/trpc/client"
 import { useState } from "react"
+
+function Progress({ value }: { value: number }) {
+  return (
+    <div className="w-full bg-muted rounded-full h-2">
+      <div 
+        className="h-full bg-primary rounded-full transition-all duration-300"
+        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+      />
+    </div>
+  )
+}
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("30d")
   const { data: aiUsage, isLoading } = trpc.admin.getAIUsage.useQuery()
 
-  const totalCalls = aiUsage?.reduce((sum, a) => sum + a.count, 0) || 0
+  const totalCalls = aiUsage?.reduce((sum: number, a: typeof aiUsage[0]) => sum + a.count, 0) || 0
   const avgLatency = aiUsage?.length ? 
-    Math.round(aiUsage.reduce((sum, a) => sum + a.avgLatency, 0) / aiUsage.length) : 
+    Math.round(aiUsage.reduce((sum: number, a: typeof aiUsage[0]) => sum + a.avgLatency, 0) / aiUsage.length) : 
     0
   const avgConfidence = aiUsage?.length ?
-    (aiUsage.reduce((sum, a) => sum + a.avgConfidence, 0) / aiUsage.length) * 100 :
+    (aiUsage.reduce((sum: number, a: typeof aiUsage[0]) => sum + a.avgConfidence, 0) / aiUsage.length) * 100 :
     0
 
   return (
@@ -104,7 +113,7 @@ export default function AnalyticsPage() {
             {isLoading ? (
               <div className="text-center py-8">Loading analytics...</div>
             ) : aiUsage?.length ? (
-              aiUsage.map((agent) => (
+              aiUsage.map((agent: typeof aiUsage[0]) => (
                 <div key={agent.agent} className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -131,11 +140,6 @@ export default function AnalyticsPage() {
                       <p className="font-medium">{(agent.totalDuration / agent.count).toFixed(0)}ms</p>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <TrendingUp className="h-3 w-3" />
-                    <span>Performance: {(agent.avgConfidence * 100).toFixed(0)}% confidence</span>
-                  </div>
                 </div>
               ))
             ) : (
@@ -149,12 +153,19 @@ export default function AnalyticsPage() {
       </Card>
 
       {aiUsage && aiUsage.length > 0 && (
-        <Alert>
-          <CheckCircle2 className="h-4 w-4" />
-          <AlertDescription>
-            All agents operating within expected parameters. No critical issues detected.
-          </AlertDescription>
-        </Alert>
+        <Card>
+          <CardHeader>
+            <CardTitle>Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 p-3 rounded-md bg-green-50 dark:bg-green-950">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span className="text-sm">
+                All agents operating within expected parameters. No critical issues detected.
+              </span>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

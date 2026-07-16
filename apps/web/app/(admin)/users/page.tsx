@@ -3,14 +3,14 @@ import { Button } from "@xenboox/ui"
 import { Badge } from "@xenboox/ui"
 import { Input } from "@xenboox/ui"
 import { Search, Shield, User, Mail, Calendar, Plus, Edit, Trash2 } from "lucide-react"
-import { trpc } from "@/lib/trpc"
+import { trpc } from "@/lib/trpc/client"
 import { useState } from "react"
 
 export default function UsersPage() {
   const [search, setSearch] = useState("")
   const { data: users, isLoading } = trpc.admin.listUsers.useQuery()
 
-  const filteredUsers = users?.filter(u =>
+  const filteredUsers = users?.filter((u: typeof users[0]) =>
     u.name?.toLowerCase().includes(search.toLowerCase()) ||
     u.email?.toLowerCase().includes(search.toLowerCase())
   ) || []
@@ -69,7 +69,7 @@ export default function UsersPage() {
                   <p className="text-muted-foreground">No users found matching your search</p>
                 </div>
               ) : (
-                filteredUsers.map((user) => (
+                filteredUsers.map((user: typeof users[0]) => (
                   <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">

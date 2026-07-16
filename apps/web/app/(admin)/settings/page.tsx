@@ -4,6 +4,7 @@ import { Input } from "@xenboox/ui"
 import { Label } from "@xenboox/ui"
 import { Switch } from "@xenboox/ui"
 import { Settings, Bell, Shield, Database, Globe, Key, Save, RefreshCw, UserCheck } from "lucide-react"
+import { trpc } from "@/lib/trpc/client"
 import { useState } from "react"
 
 export default function AdminSettingsPage() {
@@ -189,7 +190,6 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setAnthropicBudget(e.target.value)}
                 className="mt-1"
               />
-              <p className="text-xs text-muted-foreground">Claude Sonnet 4.6 - Primary model</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="openai-budget">OpenAI Budget (Monthly)</Label>
@@ -199,7 +199,6 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setOpenaiBudget(e.target.value)}
                 className="mt-1"
               />
-              <p className="text-xs text-muted-foreground">GPT-4.1 - Backup model</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="haiku-budget">Anthropic Haiku Budget (Monthly)</Label>
@@ -209,7 +208,6 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setHaikuBudget(e.target.value)}
                 className="mt-1"
               />
-              <p className="text-xs text-muted-foreground">Claude Haiku 4.5 - Cost-effective</p>
             </div>
           </div>
         </CardContent>
