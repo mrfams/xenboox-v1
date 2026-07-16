@@ -6,6 +6,34 @@
 
 ---
 
+### [2026-07-16] - Medium Priority Items Completion (Session 2)
+**Agent:** opencode
+**Duration:** ~60 min
+**Files Created:** 1 (docs/seed-credentials.md)
+**Files Modified:** 12 (fixedAssets.ts, inventory.ts, logger.ts, middleware.ts, server.ts, treasury/bank-accounts.tsx, documents.tsx, reports.tsx, add-*-dialog.tsx x5, seed/index.ts, ENTERPRISE_GAP.md)
+
+**What was built:**
+- **M-01/M-02/M-03:** Fixed hardcoded emails, added Pino structured logging with request IDs
+- **M-04/M-05:** Wired chat file upload to R2, built Settings page with password change
+- **M-06:** Desktop Treasury page now queries real bank accounts from tRPC, calculates total balance
+- **M-07:** Desktop Documents page with full upload flow (getUploadUrl, R2 upload, confirmUpload), file preview, download, delete
+- **M-08:** Desktop Reports page with P&L, Balance Sheet, Trial Balance views, period selection
+- **M-09:** Mobile journal create now queries open fiscal period instead of hardcoded UUID
+- **M-10:** Removed unused vault.ts dead code (never initialized)
+- **M-11:** Supabase references already removed from test setup
+- **M-12:** Removed password from seed console output, created docs/seed-credentials.md
+- **M-13:** Added error handling to all 5 desktop add dialogs (supplier, customer, employee, asset, inventory)
+
+**Decisions made:**
+- Desktop pages use tRPC mutations with proper loading/error states
+- Documents upload uses presigned URL flow through tRPC procedures
+- Dialogs show error alerts with mutation error messages
+- Password removed from seed output to prevent accidental exposure
+
+**Verification:** `pnpm --filter=@xenboox/web typecheck` passes clean
+
+---
+
 ### [2026-07-16] - M-01 to M-03: Medium Priority Items Completed
 **Agent:** opencode
 **Duration:** ~15 min
