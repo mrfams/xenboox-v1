@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-07-16] - M-01 to M-03: Medium Priority Items Completed
+**Agent:** opencode
+**Duration:** ~15 min
+**Files Created:** 1 (apps/web/lib/logger.ts)
+**Files Modified:** 3 (fixedAssets.ts, inventory.ts, middleware.ts, server.ts)
+
+**What was built:**
+- **M-01: Fixed hardcoded email recipients** — Updated fixedAssets.ts and inventory.ts to query entity owner from userEntityAccess table and use their email for notifications instead of hardcoded `admin@xenboox.com`
+- **M-02: Added structured logging** — Created Pino logger utility with development pretty formatting, added request ID tracking in middleware via `x-request-id` header, integrated logger into tRPC context and auth middleware
+- **M-03: Dashboard toast mock fix** — Already completed in previous session
+
+**Decisions made:**
+- Entity owner is identified by role="owner" in userEntityAccess table
+- Request ID is passed from middleware to tRPC via headers
+- Logger child instances include requestId and userId for traceability
+- Pino-pretty used in development for readable logs
+
+**Verification:** `pnpm --filter=@xenboox/web typecheck` passes clean
+
 ### [2026-07-16] - Web UI/UX Production Hardening
 **Agent:** opencode
 **Duration:** ~45 min
