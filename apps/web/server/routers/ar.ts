@@ -23,7 +23,7 @@ export const arRouter = router({
     })
   }),
 
-  createCustomer: protectedProcedure
+  createCustomer: mutateProcedure
     .input(
       z.object({
         name: z.string().min(1),

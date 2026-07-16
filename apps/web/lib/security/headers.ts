@@ -1,5 +1,4 @@
-// Enterprise Security Headers Middleware
-// Configures security headers for Next.js applications
+import { randomBytes } from "crypto"
 
 interface SecurityHeadersConfig {
   contentSecurityPolicy?: boolean;
@@ -12,6 +11,7 @@ interface SecurityHeadersConfig {
 }
 
 interface CSPConfig {
+  nonce?: string;
   defaultSrc?: string[];
   scriptSrc?: string[];
   styleSrc?: string[];
@@ -27,15 +27,28 @@ interface CSPConfig {
   reportUri?: string;
 }
 
-/**
- * Generate Content-Security-Policy header value
- */
+export function generateNonce(): string {
+  return randomBytes(16).toString("base64")
+}
+
 export function generateCSP(config: CSPConfig): string {
   const directives: string[] = [];
 
   if (config.defaultSrc) directives.push(`default-src ${config.defaultSrc.join(' ')}`);
-  if (config.scriptSrc) directives.push(`script-src ${config.scriptSrc.join(' ')}`);
-  if (config.styleSrc) directives.push(`style-src ${config.styleSrc.join(' ')}`);
+
+  if (config.scriptSrc) {
+    const scriptSrc = [...config.scriptSrc];
+    if (config.nonce) scriptSrc.push(`'nonce-${config.nonce}'`);
+    directives.push(`script-src ${scriptSrc.join(' ')}`);
+  }
+
+  if (config.styleSrc) {
+    const styleSrc = [...config.styleSrc];
+    // Next.js requires 'unsafe-inline' for CSS-in-JS; nonce added alongside for defense-in-depth
+    if (config.nonce) styleSrc.push(`'nonce-${config.nonce}'`);
+    directives.push(`style-src ${styleSrc.join(' ')}`);
+  }
+
   if (config.imgSrc) directives.push(`img-src ${config.imgSrc.join(' ')}`);
   if (config.connectSrc) directives.push(`connect-src ${config.connectSrc.join(' ')}`);
   if (config.fontSrc) directives.push(`font-src ${config.fontSrc.join(' ')}`);
@@ -50,80 +63,51 @@ export function generateCSP(config: CSPConfig): string {
   return directives.join('; ');
 }
 
-/**
- * Default CSP configuration for Xenboox
- */
-export const defaultCSP: CSPConfig = {
-  defaultSrc: ["'self'"],
-  scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
-  styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-  imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
-  connectSrc: ["'self'", 'https://api.anthropic.com', 'https://api.openai.com'],
-  fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-  objectSrc: ["'none'"],
-  mediaSrc: ["'self'", 'blob:'],
-  frameSrc: ["'none'"],
-  baseUri: ["'self'"],
-  formAction: ["'self'"],
-  frameAncestors: ["'none'"],
-};
-
-/**
- * Security headers configuration
- */
-export const securityHeaders = {
-  'Content-Security-Policy': generateCSP(defaultCSP),
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'X-XSS-Protection': '1; mode=block',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'X-DNS-Prefetch-Control': 'off',
-  'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Resource-Policy': 'same-origin',
-  'Cross-Origin-Embedder-Policy': 'require-corp',
-};
-
-/**
- * Apply security headers to Next.js response
- */
-export function applySecurityHeaders(headers: Headers, config: SecurityHeadersConfig = {}): void {
-  if (config.contentSecurityPolicy !== false) {
-    headers.set('Content-Security-Policy', securityHeaders['Content-Security-Policy']);
-  }
-  if (config.strictTransportSecurity !== false) {
-    headers.set('Strict-Transport-Security', securityHeaders['Strict-Transport-Security']);
-  }
-  if (config.xFrameOptions !== false) {
-    headers.set('X-Frame-Options', securityHeaders['X-Frame-Options']);
-  }
-  if (config.xContentTypeOptions !== false) {
-    headers.set('X-Content-Type-Options', securityHeaders['X-Content-Type-Options']);
-  }
-  if (config.xXSSProtection !== false) {
-    headers.set('X-XSS-Protection', securityHeaders['X-XSS-Protection']);
-  }
-  if (config.referrerPolicy !== false) {
-    headers.set('Referrer-Policy', securityHeaders['Referrer-Policy']);
-  }
-  if (config.permissionsPolicy !== false) {
-    headers.set('Permissions-Policy', securityHeaders['Permissions-Policy']);
-  }
-  
-  // Always apply these
-  headers.set('X-DNS-Prefetch-Control', securityHeaders['X-DNS-Prefetch-Control']);
-  headers.set('Cross-Origin-Opener-Policy', securityHeaders['Cross-Origin-Opener-Policy']);
-  headers.set('Cross-Origin-Resource-Policy', securityHeaders['Cross-Origin-Resource-Policy']);
-  headers.set('Cross-Origin-Embedder-Policy', securityHeaders['Cross-Origin-Embedder-Policy']);
+export function buildCSP(nonce: string): string {
+  return generateCSP({
+    nonce,
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
+    styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+    imgSrc: ["'self'", "data:", "https:", "blob:"],
+    connectSrc: ["'self'", "https://api.anthropic.com", "https://api.openai.com"],
+    fontSrc: ["'self'", "https://fonts.gstatic.com"],
+    objectSrc: ["'none'"],
+    mediaSrc: ["'self'", "blob:"],
+    frameSrc: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+  })
 }
 
-/**
- * Next.js middleware to apply security headers
- */
-export function securityHeadersMiddleware(config: SecurityHeadersConfig = {}) {
-  return (req: Record<string, unknown>, res: { headers: Headers }, next: () => void) => {
-    applySecurityHeaders(res.headers, config);
-    next();
-  };
+export function applySecurityHeaders(
+  headers: Headers,
+  nonce: string,
+  config: SecurityHeadersConfig = {},
+): void {
+  if (config.contentSecurityPolicy !== false) {
+    headers.set('Content-Security-Policy', buildCSP(nonce));
+  }
+  if (config.strictTransportSecurity !== false) {
+    headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  }
+  if (config.xFrameOptions !== false) {
+    headers.set('X-Frame-Options', 'DENY');
+  }
+  if (config.xContentTypeOptions !== false) {
+    headers.set('X-Content-Type-Options', 'nosniff');
+  }
+  if (config.xXSSProtection !== false) {
+    headers.set('X-XSS-Protection', '1; mode=block');
+  }
+  if (config.referrerPolicy !== false) {
+    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  }
+  if (config.permissionsPolicy !== false) {
+    headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  }
+  headers.set('X-DNS-Prefetch-Control', 'off');
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  headers.set('Cross-Origin-Resource-Policy', 'same-origin');
 }

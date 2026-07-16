@@ -25,7 +25,7 @@ export const apRouter = router({
     })
   }),
 
-  createSupplier: protectedProcedure
+  createSupplier: mutateProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -100,7 +100,7 @@ export const apRouter = router({
     })
   }),
 
-  createPO: protectedProcedure
+  createPO: mutateProcedure
     .input(
       z.object({
         supplierId: z.string().uuid(),
@@ -206,7 +206,7 @@ export const apRouter = router({
       return { ...po, lines }
     }),
 
-  approvePO: protectedProcedure
+  approvePO: mutateProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const [updated] = await db
