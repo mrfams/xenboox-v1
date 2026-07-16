@@ -3,6 +3,8 @@ import Link from "next/link"
 const navLinks = [
   { label: "Features", href: "/features" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Download", href: "/download" },
+  { label: "Contact", href: "/contact" },
 ]
 
 export default function MarketingLayout({
@@ -71,22 +73,24 @@ export default function MarketingLayout({
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/features" className="hover:text-foreground">Features</Link></li>
                 <li><Link href="/pricing" className="hover:text-foreground">Pricing</Link></li>
+                <li><Link href="/download" className="hover:text-foreground">Download</Link></li>
                 <li><Link href="/register" className="hover:text-foreground">Get Started</Link></li>
               </ul>
             </div>
             <div>
               <h3 className="mb-3 text-sm font-semibold">Company</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/" className="hover:text-foreground">About</Link></li>
-                <li><Link href="/" className="hover:text-foreground">Blog</Link></li>
-                <li><Link href="/" className="hover:text-foreground">Careers</Link></li>
+                <li><Link href="/about" className="hover:text-foreground">About</Link></li>
+                <li><Link href="/blog" className="hover:text-foreground">Blog</Link></li>
+                <li><Link href="/careers" className="hover:text-foreground">Careers</Link></li>
+                <li><Link href="/contact" className="hover:text-foreground">Contact</Link></li>
               </ul>
             </div>
             <div>
               <h3 className="mb-3 text-sm font-semibold">Legal</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/" className="hover:text-foreground">Privacy Policy</Link></li>
-                <li><Link href="/" className="hover:text-foreground">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-foreground">Terms of Service</Link></li>
               </ul>
             </div>
           </div>

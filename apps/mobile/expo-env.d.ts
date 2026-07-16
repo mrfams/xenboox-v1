@@ -1,8 +1,3 @@
 /// <reference types="expo/types" />
-/// <reference types="expo-router/types" />
 
-declare namespace NodeJS {
-  interface ProcessEnv {
-    EXPO_PUBLIC_API_URL?: string
-  }
-}
+// NOTE: This file should not be edited and should be in your git ignore
