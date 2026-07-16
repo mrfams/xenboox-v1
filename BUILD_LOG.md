@@ -6,7 +6,21 @@
 
 ---
 
-### [2026-07-16] — L-02, L-04, L-07: Final 3 Gaps Resolved
+### [2026-07-17] - Fix Vercel Build: Husky Command Not Found
+
+**Agent:** opencode
+**Duration:** ~5 min
+**Files Modified:** 1 (package.json)
+
+**What was built:**
+
+- Added `husky` ^9.0.0 to devDependencies
+- Added `lint-staged` ^15.0.0 to devDependencies
+- Changed prepare script from `"husky"` to `"husky install"`
+
+**Root cause:** Vercel runs `pnpm install` which triggers the `prepare` lifecycle script. The script was calling `husky` directly without it being installed as a dependency.
+
+**Verification:** Vercel build should now complete successfully with pnpm install resolving all dependencies.
 
 **Agent:** opencode
 **Duration:** ~5 min
