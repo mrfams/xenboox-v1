@@ -111,18 +111,27 @@ export const chatRouter = router({
         orderBy: [desc(conversations.lastMessageAt)],
       })
 
-      // Search by message content
-      const messageMatches = await db.query.chatMessages.findMany({
-        where: and(
-          ilike(chatMessages.content, searchTerm),
-          eq(chatMessages.role, "user"), // Only search user messages
-        ),
-        limit: input.limit,
-        orderBy: [desc(chatMessages.createdAt)],
-      })
+      // Get entity's conversation IDs for scoped message search
+      const entityConvIds = titleMatches.map(c => c.id)
+
+      // Search by message content — only within this entity's conversations
+      const messageMatches = entityConvIds.length > 0
+        ? await db.query.chatMessages.findMany({
+            where: and(
+              ilike(chatMessages.content, searchTerm),
+              eq(chatMessages.role, "user"),
+            ),
+            limit: input.limit,
+            orderBy: [desc(chatMessages.createdAt)],
+          })
+        : []
+
+      // Filter messages to only those belonging to entity's conversations
+      const entityConvIdSet = new Set(entityConvIds)
+      const scopedMessageMatches = messageMatches.filter(m => entityConvIdSet.has(m.conversationId))
 
       // Get unique conversation IDs from message matches
-      const messageConvIds = [...new Set(messageMatches.map((m) => m.conversationId))]
+      const messageConvIds = [...new Set(scopedMessageMatches.map((m) => m.conversationId))]
 
       // Fetch those conversations
       const convFromMessages = messageConvIds.length > 0
@@ -149,7 +158,7 @@ export const chatRouter = router({
         }
       }
 
-      for (const msg of messageMatches) {
+      for (const msg of scopedMessageMatches) {
         if (!allConvIds.has(msg.conversationId)) {
           allConvIds.add(msg.conversationId)
           const conv = convFromMessages.find((c) => c.id === msg.conversationId)

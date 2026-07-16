@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { z } from "zod"
 import { eq, and, desc } from "drizzle-orm"
 import { router, protectedProcedure } from "@/lib/trpc/server"
@@ -66,12 +64,12 @@ export const cashRouter = router({
         isActive: z.boolean().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(cashAccounts)
         .set(data)
-        .where(eq(cashAccounts.id, id))
+        .where(and(eq(cashAccounts.id, id), eq(cashAccounts.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
@@ -118,9 +116,9 @@ export const cashRouter = router({
 
   getImprestFloatById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const float = await db.query.imprestFloats.findFirst({
-        where: eq(imprestFloats.id, input.id),
+        where: and(eq(imprestFloats.id, input.id), eq(imprestFloats.entityId, ctx.entityId!)),
       })
       if (!float) return null
 
@@ -141,12 +139,12 @@ export const cashRouter = router({
         documentId: z.string().uuid().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { imprestFloatId, amount: amountStr, ...receiptData } = input
       const amount = parseFloat(amountStr)
 
       const float = await db.query.imprestFloats.findFirst({
-        where: eq(imprestFloats.id, imprestFloatId),
+        where: and(eq(imprestFloats.id, imprestFloatId), eq(imprestFloats.entityId, ctx.entityId!)),
       })
       if (!float) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Imprest float not found" })
@@ -182,7 +180,7 @@ export const cashRouter = router({
 
   settleImprestFloat: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
         const [updated] = await db
           .update(imprestFloats)
@@ -193,6 +191,7 @@ export const cashRouter = router({
           .where(
             and(
               eq(imprestFloats.id, input.id),
+              eq(imprestFloats.entityId, ctx.entityId!),
               eq(imprestFloats.status, "active")
             )
           )

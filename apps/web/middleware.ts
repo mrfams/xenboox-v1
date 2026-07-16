@@ -11,6 +11,18 @@ function isPublicRoute(pathname: string): boolean {
   )
 }
 
+function validateOrigin(req: Request): boolean {
+  const origin = req.headers.get("origin")
+  const host = req.headers.get("host")
+  if (!origin || !host) return true
+  try {
+    const originHost = new URL(origin).host
+    return originHost === host
+  } catch {
+    return false
+  }
+}
+
 export default auth(async (req) => {
   const isLoggedIn = !!req.auth
   const pathname = req.nextUrl.pathname
@@ -18,12 +30,22 @@ export default auth(async (req) => {
   const isOnApi = pathname.startsWith("/api")
   const isHealthCheck = pathname.startsWith("/api/health")
   const isPublic = isPublicRoute(pathname)
+  const isMutation = req.method === "POST" || req.method === "PUT" || req.method === "PATCH" || req.method === "DELETE"
 
   const response = NextResponse.next()
   applySecurityHeaders(response.headers)
 
   if (isHealthCheck) {
     return response
+  }
+
+  if (isOnApi && isMutation && !isHealthCheck) {
+    if (!validateOrigin(req)) {
+      return NextResponse.json(
+        { error: "Invalid origin" },
+        { status: 403 }
+      )
+    }
   }
 
   if (isOnApi) {

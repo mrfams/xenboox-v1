@@ -43,9 +43,8 @@ export const organizationRouter = router({
   }),
 
   getEntitySummary: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.session?.user) return null
-    const entityId = ctx.session.user.entityId
-    if (!entityId) return { cashBalance: 0, apOutstanding: 0, arOutstanding: 0, currentPeriod: "No period" }
+    if (!ctx.entityId) return { cashBalance: 0, apOutstanding: 0, arOutstanding: 0, currentPeriod: "No period" }
+    const entityId = ctx.entityId
 
     // Get cash balance from bank accounts
     const bankAccs = await db.query.bankAccounts.findMany({
@@ -133,7 +132,14 @@ export const organizationRouter = router({
       id: z.string().uuid(),
       name: z.string().min(1).max(200).optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const org = await db.query.organizations.findFirst({
+        where: eq(organizations.id, input.id)
+      })
+      if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organization not found" })
+      if (org.ownerId !== ctx.session!.user!.id!) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the organization owner can update it" })
+      }
       const [updated] = await db.update(organizations)
         .set({ name: input.name })
         .where(eq(organizations.id, input.id))
@@ -146,8 +152,13 @@ export const organizationRouter = router({
   listEntities: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid().optional() }))
     .query(async ({ ctx, input }) => {
-      // If no organizationId provided, get all orgs the user owns and list their entities
       if (input.organizationId) {
+        const org = await db.query.organizations.findFirst({
+          where: eq(organizations.id, input.organizationId)
+        })
+        if (!org || org.ownerId !== ctx.session!.user!.id!) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" })
+        }
         return db.query.entities.findMany({
           where: eq(entities.organizationId, input.organizationId)
         })
@@ -201,7 +212,16 @@ export const organizationRouter = router({
       currency: z.string().length(3).optional(),
       isActive: z.boolean().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const access = await db.query.userEntityAccess.findFirst({
+        where: and(
+          eq(userEntityAccess.userId, ctx.session!.user!.id!),
+          eq(userEntityAccess.entityId, input.id),
+        )
+      })
+      if (!access || !["owner", "admin"].includes(access.role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only owners and admins can update entities" })
+      }
       const [updated] = await db.update(entities)
         .set({
           ...(input.name && { name: input.name }),
@@ -217,7 +237,16 @@ export const organizationRouter = router({
 
   listAccess: protectedProcedure
     .input(z.object({ entityId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const access = await db.query.userEntityAccess.findFirst({
+        where: and(
+          eq(userEntityAccess.userId, ctx.session!.user!.id!),
+          eq(userEntityAccess.entityId, input.entityId),
+        )
+      })
+      if (!access) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" })
+      }
       return db.query.userEntityAccess.findMany({
         where: eq(userEntityAccess.entityId, input.entityId)
       })
@@ -234,13 +263,22 @@ export const organizationRouter = router({
       ]),
     }))
     .mutation(async ({ ctx, input }) => {
-      const [access] = await db.insert(userEntityAccess).values({
+      const access = await db.query.userEntityAccess.findFirst({
+        where: and(
+          eq(userEntityAccess.userId, ctx.session!.user!.id!),
+          eq(userEntityAccess.entityId, input.entityId),
+        )
+      })
+      if (!access || !["owner", "admin"].includes(access.role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only owners and admins can grant access" })
+      }
+      const [newAccess] = await db.insert(userEntityAccess).values({
         userId: input.userId,
         entityId: input.entityId,
         role: input.role,
         grantedBy: ctx.session!.user!.id!
       }).returning()
-      return access
+      return newAccess
     }),
 
   revokeAccess: protectedProcedure
@@ -248,7 +286,28 @@ export const organizationRouter = router({
       entityId: z.string().uuid(),
       userId: z.string().uuid(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const access = await db.query.userEntityAccess.findFirst({
+        where: and(
+          eq(userEntityAccess.userId, ctx.session!.user!.id!),
+          eq(userEntityAccess.entityId, input.entityId),
+        )
+      })
+      if (!access || !["owner", "admin"].includes(access.role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only owners and admins can revoke access" })
+      }
+      // Cannot revoke yourself if you're the only owner
+      if (input.userId === ctx.session!.user!.id!) {
+        const owners = await db.query.userEntityAccess.findMany({
+          where: and(
+            eq(userEntityAccess.entityId, input.entityId),
+            eq(userEntityAccess.role, "owner")
+          )
+        })
+        if (owners.length <= 1) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot revoke the last owner" })
+        }
+      }
       await db.delete(userEntityAccess).where(
         and(
           eq(userEntityAccess.entityId, input.entityId),
@@ -268,7 +327,16 @@ export const organizationRouter = router({
         "employee", "external_auditor", "donor"
       ]),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const access = await db.query.userEntityAccess.findFirst({
+        where: and(
+          eq(userEntityAccess.userId, ctx.session!.user!.id!),
+          eq(userEntityAccess.entityId, input.entityId),
+        )
+      })
+      if (!access || !["owner", "admin"].includes(access.role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only owners and admins can change roles" })
+      }
       const [updated] = await db.update(userEntityAccess)
         .set({ role: input.role })
         .where(

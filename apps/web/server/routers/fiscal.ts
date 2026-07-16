@@ -81,7 +81,7 @@ export const fiscalRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const period = await db.query.fiscalPeriods.findFirst({
-          where: eq(fiscalPeriods.id, input.periodId)
+          where: and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!))
         })
         if (!period) throw new TRPCError({ code: "NOT_FOUND", message: "Period not found" })
         if (period.status === "closed") {
@@ -143,10 +143,10 @@ export const fiscalRouter = router({
 
   lockPeriod: protectedProcedure
     .input(z.object({ periodId: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
         const period = await db.query.fiscalPeriods.findFirst({
-          where: eq(fiscalPeriods.id, input.periodId)
+          where: and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!))
         })
         if (!period) throw new TRPCError({ code: "NOT_FOUND", message: "Period not found" })
         if (period.status !== "closed") {
@@ -170,7 +170,7 @@ export const fiscalRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const period = await db.query.fiscalPeriods.findFirst({
-          where: eq(fiscalPeriods.id, input.periodId)
+          where: and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!))
         })
         if (!period) throw new TRPCError({ code: "NOT_FOUND", message: "Period not found" })
         if (period.status === "closed") {

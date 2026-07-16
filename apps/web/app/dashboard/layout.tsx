@@ -6,6 +6,7 @@ import { TRPCProvider } from "@/lib/trpc/provider"
 import { EntityProvider } from "@/lib/entity-context"
 import { Sidebar } from "@/components/layout/sidebar"
 import { TopNav } from "@/components/layout/top-nav"
+import { Toaster } from "sonner"
 
 export default function DashboardLayout({
   children,
@@ -27,6 +28,7 @@ export default function DashboardLayout({
               </main>
             </div>
           </div>
+          <Toaster position="top-right" richColors closeButton />
         </EntityProvider>
       </TRPCProvider>
     </SessionProvider>

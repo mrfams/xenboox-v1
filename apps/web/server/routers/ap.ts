@@ -76,21 +76,21 @@ export const apRouter = router({
         isActive: z.boolean().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(suppliers)
         .set(data)
-        .where(eq(suppliers.id, id))
+        .where(and(eq(suppliers.id, id), eq(suppliers.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
 
   getSupplierById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(({ input }) => {
+    .query(({ ctx, input }) => {
       return db.query.suppliers.findFirst({
-        where: eq(suppliers.id, input.id),
+        where: and(eq(suppliers.id, input.id), eq(suppliers.entityId, ctx.entityId!)),
       })
     }),
 
@@ -183,21 +183,21 @@ export const apRouter = router({
         status: z.enum(["draft", "submitted", "approved", "partial", "received", "cancelled"]).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(purchaseOrders)
         .set(data)
-        .where(eq(purchaseOrders.id, id))
+        .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
 
   getPOById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const po = await db.query.purchaseOrders.findFirst({
-        where: eq(purchaseOrders.id, input.id),
+        where: and(eq(purchaseOrders.id, input.id), eq(purchaseOrders.entityId, ctx.entityId!)),
       })
       if (!po) return null
 
@@ -221,6 +221,7 @@ export const apRouter = router({
         .where(
           and(
             eq(purchaseOrders.id, input.id),
+            eq(purchaseOrders.entityId, ctx.entityId!),
             eq(purchaseOrders.status, "draft")
           )
         )
@@ -319,21 +320,21 @@ export const apRouter = router({
         status: z.enum(["pending", "partial", "paid", "overdue", "voided"]).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(invoicesAp)
         .set(data)
-        .where(eq(invoicesAp.id, id))
+        .where(and(eq(invoicesAp.id, id), eq(invoicesAp.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
 
   getInvoiceById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const invoice = await db.query.invoicesAp.findFirst({
-        where: eq(invoicesAp.id, input.id),
+        where: and(eq(invoicesAp.id, input.id), eq(invoicesAp.entityId, ctx.entityId!)),
       })
       if (!invoice) return null
 

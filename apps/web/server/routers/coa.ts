@@ -42,9 +42,9 @@ export const coaRouter = router({
 
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       return db.query.chartOfAccounts.findFirst({
-        where: eq(chartOfAccounts.id, input.id)
+        where: and(eq(chartOfAccounts.id, input.id), eq(chartOfAccounts.entityId, ctx.entityId!))
       })
     }),
 
@@ -103,23 +103,33 @@ export const coaRouter = router({
       isActive: z.boolean().optional(),
       parentId: z.string().uuid().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db.query.chartOfAccounts.findFirst({
+        where: and(eq(chartOfAccounts.id, input.id), eq(chartOfAccounts.entityId, ctx.entityId!))
+      })
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" })
+      const { id, ...data } = input
       const [updated] = await db.update(chartOfAccounts)
         .set({
-          ...(input.name && { name: input.name }),
-          ...(input.description !== undefined && { description: input.description }),
-          ...(input.isActive !== undefined && { isActive: input.isActive }),
-          ...(input.parentId !== undefined && { parentId: input.parentId }),
+          ...(data.name && { name: data.name }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.isActive !== undefined && { isActive: data.isActive }),
+          ...(data.parentId !== undefined && { parentId: data.parentId }),
         })
-        .where(eq(chartOfAccounts.id, input.id))
+        .where(and(eq(chartOfAccounts.id, id), eq(chartOfAccounts.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        const existing = await db.query.chartOfAccounts.findFirst({
+          where: and(eq(chartOfAccounts.id, input.id), eq(chartOfAccounts.entityId, ctx.entityId!))
+        })
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" })
+
         const children = await db.query.chartOfAccounts.findMany({
           where: eq(chartOfAccounts.parentId, input.id)
         })
@@ -130,7 +140,7 @@ export const coaRouter = router({
           })
         }
 
-        await db.delete(chartOfAccounts).where(eq(chartOfAccounts.id, input.id))
+        await db.delete(chartOfAccounts).where(and(eq(chartOfAccounts.id, input.id), eq(chartOfAccounts.entityId, ctx.entityId!)))
         return { success: true }
       } catch (error) {
         if (error instanceof TRPCError) throw error

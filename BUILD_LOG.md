@@ -6,6 +6,36 @@
 
 ---
 
+### [2026-07-16] - Enterprise Gap Audit & Production Plan
+**Agent:** opencode
+**Duration:** ~15 min
+**Files Created:** 2 (ENTERPRISE_GAP.md, PRODUCTION_PLAN.md)
+**Files Modified:** 0
+**What was built:**
+- **ENTERPRISE_GAP.md:** Comprehensive production readiness audit with 36 items across 4 severity levels (Critical: 4, High: 10, Medium: 15, Low: 7). Each item has checkbox, description, affected files, and status tracker. Includes resolution phase timeline (9 phases over 10 days).
+- **PRODUCTION_PLAN.md:** CTO/Architect/Senior Engineer execution plan. Phase-by-phase technical approach for all 36 gaps. Includes code examples, architecture decisions, verification steps, resource estimates, and definition of done criteria.
+
+**Key findings:**
+- Credentials committed to git (real Neon DB password + AUTH_SECRET in apps/web/.env)
+- `@ts-nocheck` on 16/18 router files (drizzle-orm dual-version type mismatch)
+- No CI/CD pipeline
+- All 18 LangGraph agents have zero LLM calls — running deterministic regex/DB logic only
+- RLS policies are inert (Neon HTTP driver doesn't support session variables)
+- 78 tests exist but zero cover auth, entity scoping, or financial mutations
+- No loading states, no 404 page, no code splitting
+- Several placeholder/mock pages (Desktop treasury, reports, documents)
+
+**Decisions made:**
+- Security-first execution order: credentials → type safety → CI → agents → auth → frontend → backend → testing
+- RLS: Keep app-level scoping as primary, document RLS as "ready but inactive" for MVP
+- Vault: Remove for MVP, revisit at scale
+- CSRF: Origin validation first (lower effort), full tokens if cross-origin needed later
+- Agent LLM: Wave approach — CFO first (highest visibility), then management, then workers, then platform
+
+**Blockers discovered:** None — this was an audit/planning session.
+
+**Next steps:** Begin Phase 1 — rotate credentials, tighten CSP, remove seed password logging.
+
 ### [2026-07-16] - Idempotency Middleware Fix, mutateProcedure Wiring, Dark Mode (Web)
 **Agent:** opencode
 **Duration:** ~25 min

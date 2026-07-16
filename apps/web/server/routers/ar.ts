@@ -76,21 +76,21 @@ export const arRouter = router({
         isActive: z.boolean().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(customers)
         .set(data)
-        .where(eq(customers.id, id))
+        .where(and(eq(customers.id, id), eq(customers.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
 
   getCustomerById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(({ input }) => {
+    .query(({ ctx, input }) => {
       return db.query.customers.findFirst({
-        where: eq(customers.id, input.id),
+        where: and(eq(customers.id, input.id), eq(customers.entityId, ctx.entityId!)),
       })
     }),
 
@@ -184,21 +184,21 @@ export const arRouter = router({
         status: z.enum(["pending", "partial", "paid", "overdue", "voided"]).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(salesInvoices)
         .set(data)
-        .where(eq(salesInvoices.id, id))
+        .where(and(eq(salesInvoices.id, id), eq(salesInvoices.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
 
   getInvoiceById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const invoice = await db.query.salesInvoices.findFirst({
-        where: eq(salesInvoices.id, input.id),
+        where: and(eq(salesInvoices.id, input.id), eq(salesInvoices.entityId, ctx.entityId!)),
       })
       if (!invoice) return null
 

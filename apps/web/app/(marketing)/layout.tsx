@@ -13,8 +13,13 @@ export default async function MarketingLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth()
-  const isLoggedIn = !!session?.user
+  let isLoggedIn = false
+  try {
+    const session = await auth()
+    isLoggedIn = !!session?.user
+  } catch {
+    isLoggedIn = false
+  }
 
   return (
     <div className="flex min-h-screen flex-col">

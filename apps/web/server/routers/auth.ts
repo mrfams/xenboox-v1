@@ -121,10 +121,12 @@ export const authRouter = router({
           })
           .where(eq(users.id, user.id))
 
+        // TODO: Send reset email with token — never expose token in API response
+        // await sendPasswordResetEmail(user.email, resetToken)
+
         return {
           success: true,
           message: "If the email exists, a reset link has been sent",
-          resetUrl: `/reset-password?token=${resetToken}`,
         }
       } catch (error) {
         if (error instanceof TRPCError) throw error
@@ -176,20 +178,5 @@ export const authRouter = router({
       }
     }),
 
-  checkAccountLockout: publicProcedure
-    .input(z.object({ email: z.string().email("Invalid email address") }))
-    .query(async ({ input }) => {
-      const user = await db.query.users.findFirst({
-        where: eq(users.email, input.email),
-      })
-
-      if (!user) {
-        return { locked: false }
-      }
-
-      return {
-        locked: !!user.lockoutUntil && user.lockoutUntil > new Date(),
-        lockoutUntil: user.lockoutUntil,
-      }
-    }),
+  // checkAccountLockout removed — was enabling user enumeration
 })

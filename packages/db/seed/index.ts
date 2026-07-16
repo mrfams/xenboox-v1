@@ -11,12 +11,15 @@ import {
   journalEntries,
   journalEntryLines,
 } from "../schema/accounting"
-import { suppliers, purchaseOrders, poLines, invoicesAp } from "../schema/ap-ar"
-import { customers, salesInvoices, salesInvoiceLines } from "../schema/ap-ar"
+import { suppliers, purchaseOrders, poLines, invoicesAp, invoiceApLines } from "../schema/ap-ar"
+import { customers, salesInvoices, salesInvoiceLines, paymentsAp, paymentsAr } from "../schema/ap-ar"
 import { employees, employeeContracts, payrollDeductionTypes, payrollRuns, payrollLineItems, staffLoans } from "../schema/payroll"
 import { fixedAssets } from "../schema/fixed-assets"
 import { warehouses, inventoryItems, inventoryTransactions } from "../schema/inventory"
-import { bankAccounts, bankTransactions } from "../schema/treasury"
+import { bankAccounts, bankTransactions, reconciliations, reconciliationItems } from "../schema/treasury"
+import { cashAccounts, imprestFloats, imprestReceipts, pettyCashLedger } from "../schema/cash"
+import { mobileMoneyAccounts, mobileMoneyTransactions } from "../schema/mobile-money"
+import { documents, documentLinks, auditLog, agentActivity, currencies, exchangeRates } from "../schema/documents"
 
 // ─── IDs (deterministic for seeding) ─────────────────────────────
 
@@ -911,8 +914,423 @@ export async function seed() {
     }).onConflictDoNothing()
   }
 
+  // 26. Cash Accounts
+  console.log("  Creating cash accounts...")
+  const cashAccountIds: string[] = []
+  const cashAccountData = [
+    { name: "Main Office Petty Cash", balance: "50000", glAccountId: ACCT.cash },
+    { name: "Field Operations Cash", balance: "25000", glAccountId: ACCT.cash },
+  ]
+
+  for (let i = 0; i < cashAccountData.length; i++) {
+    const cid = `00000000-0000-0000-0000-cash000${i + 1}`
+    cashAccountIds.push(cid)
+    const c = cashAccountData[i]
+    await db.insert(cashAccounts).values({
+      id: cid,
+      entityId: ENTITY_ID,
+      name: c.name,
+      currency: "GMD",
+      currentBalance: c.balance,
+      glAccountId: c.glAccountId,
+      isActive: true,
+    }).onConflictDoNothing()
+  }
+
+  // 27. Imprest Floats
+  console.log("  Creating imprest floats...")
+  const imprestData = [
+    { assignee: "Awa Bah", amount: "30000", spent: "18500", purpose: "Office supplies purchase", status: "active" as const },
+    { assignee: "Bubacarr Jobe", amount: "20000", spent: "20000", purpose: "IT equipment maintenance", status: "settled" as const },
+  ]
+
+  const imprestIds: string[] = []
+  for (let i = 0; i < imprestData.length; i++) {
+    const iid = `00000000-0000-0000-0000-imprest0${i + 1}`
+    imprestIds.push(iid)
+    const imp = imprestData[i]
+    const remaining = parseFloat(imp.amount) - parseFloat(imp.spent)
+    await db.insert(imprestFloats).values({
+      id: iid,
+      entityId: ENTITY_ID,
+      cashAccountId: cashAccountIds[0],
+      assigneeName: imp.assignee,
+      amount: imp.amount,
+      remainingBalance: String(remaining),
+      purpose: imp.purpose,
+      status: imp.status,
+      issuedDate: "2026-07-01",
+      settleByDate: "2026-07-31",
+    }).onConflictDoNothing()
+  }
+
+  // 28. Imprest Receipts
+  console.log("  Creating imprest receipts...")
+  const receiptData = [
+    { floatId: imprestIds[0], desc: "A4 paper ream x5", amount: "7500", date: "2026-07-03" },
+    { floatId: imprestIds[0], desc: "Printer toner cartridges", amount: "11000", date: "2026-07-08" },
+    { floatId: imprestIds[1], desc: "Network cable and connectors", amount: "8500", date: "2026-07-02" },
+    { floatId: imprestIds[1], desc: "Mouse and keyboard replacements", amount: "6500", date: "2026-07-05" },
+    { floatId: imprestIds[1], desc: "USB drives for backups", amount: "5000", date: "2026-07-10" },
+  ]
+
+  for (let i = 0; i < receiptData.length; i++) {
+    const rid = `00000000-0000-0000-0000-receipt0${i + 1}`
+    const r = receiptData[i]
+    await db.insert(imprestReceipts).values({
+      id: rid,
+      imprestFloatId: r.floatId,
+      description: r.desc,
+      amount: r.amount,
+      receiptDate: r.date,
+    }).onConflictDoNothing()
+  }
+
+  // 29. Petty Cash Ledger
+  console.log("  Creating petty cash ledger...")
+  const pettyCashData = [
+    { date: "2026-07-01", type: "receipt" as const, amount: "50000", desc: "Opening petty cash float", balance: "50000" },
+    { date: "2026-07-03", type: "expense" as const, amount: "7500", desc: "A4 paper purchase", balance: "42500" },
+    { date: "2026-07-05", type: "expense" as const, amount: "4200", desc: "Staff refreshments", balance: "38300" },
+    { date: "2026-07-08", type: "expense" as const, amount: "11000", desc: "Printer toner", balance: "27300" },
+    { date: "2026-07-10", type: "replenishment" as const, amount: "22700", desc: "Cash replenishment from bank", balance: "50000" },
+  ]
+
+  for (let i = 0; i < pettyCashData.length; i++) {
+    const pid = `00000000-0000-0000-0000-pcl000${i + 1}`
+    const p = pettyCashData[i]
+    await db.insert(pettyCashLedger).values({
+      id: pid,
+      entityId: ENTITY_ID,
+      cashAccountId: cashAccountIds[0],
+      transactionDate: p.date,
+      description: p.desc,
+      debit: p.type === "receipt" || p.type === "replenishment" ? p.amount : "0",
+      credit: p.type === "expense" ? p.amount : "0",
+      balance: p.balance,
+      category: p.type === "expense" ? "office_supplies" : "replenishment",
+    }).onConflictDoNothing()
+  }
+
+  // 30. Mobile Money Accounts
+  console.log("  Creating mobile money accounts...")
+  const mmAccountIds: string[] = []
+  const mmAccountData = [
+    { provider: "wave" as const, name: "Business Wave Account", phone: "+22012345678", balance: "85000" },
+    { provider: "afrimoney" as const, name: "Operations Afrimoney", phone: "+22098765432", balance: "42000" },
+  ]
+
+  for (let i = 0; i < mmAccountData.length; i++) {
+    const mid = `00000000-0000-0000-0000-mm0000${i + 1}`
+    mmAccountIds.push(mid)
+    const m = mmAccountData[i]
+    await db.insert(mobileMoneyAccounts).values({
+      id: mid,
+      entityId: ENTITY_ID,
+      provider: m.provider,
+      accountName: m.name,
+      phoneNumber: m.phone,
+      currentBalance: m.balance,
+      currency: "GMD",
+      isActive: true,
+    }).onConflictDoNothing()
+  }
+
+  // 31. Mobile Money Transactions
+  console.log("  Creating mobile money transactions...")
+  const mmTxData = [
+    { accountId: mmAccountIds[0], type: "collection" as const, amount: "45000", fee: "675", counterparty: "Brikama Market Traders", desc: "Payment for invoice SI-2026-001", status: "successful" as const },
+    { accountId: mmAccountIds[0], type: "collection" as const, amount: "28000", fee: "420", counterparty: "Serrekunda Hardware", desc: "Partial payment SI-2026-002", status: "successful" as const },
+    { accountId: mmAccountIds[0], type: "disbursement" as const, amount: "15000", fee: "225", counterparty: "Ismaila Ceesay", desc: "Travel advance", status: "successful" as const },
+    { accountId: mmAccountIds[1], type: "collection" as const, amount: "35000", fee: "525", counterparty: "Kanifing Municipal Council", desc: "Service payment", status: "successful" as const },
+    { accountId: mmAccountIds[1], type: "transfer" as const, amount: "50000", fee: "750", counterparty: "Trust Bank", desc: "Transfer to bank account", status: "successful" as const },
+    { accountId: mmAccountIds[0], type: "collection" as const, amount: "12000", fee: "180", counterparty: "Walk-in customer", desc: "Cash sale", status: "pending" as const },
+  ]
+
+  for (let i = 0; i < mmTxData.length; i++) {
+    const tid = `00000000-0000-0000-0000-mmtx00${i + 1}`
+    const tx = mmTxData[i]
+    const netAmount = parseFloat(tx.amount) - parseFloat(tx.fee)
+    await db.insert(mobileMoneyTransactions).values({
+      id: tid,
+      entityId: ENTITY_ID,
+      mobileMoneyAccountId: tx.accountId,
+      providerTxId: `MM${String(i + 1).padStart(6, "0")}`,
+      type: tx.type,
+      amount: tx.amount,
+      fee: tx.fee,
+      netAmount: String(netAmount),
+      counterparty: tx.counterparty,
+      description: tx.desc,
+      status: tx.status,
+      initiatedAt: new Date("2026-07-10T10:00:00Z"),
+      completedAt: tx.status === "successful" ? new Date("2026-07-10T10:01:00Z") : null,
+    }).onConflictDoNothing()
+  }
+
+  // 32. AP Payments
+  console.log("  Creating AP payments...")
+  const apPaymentData = [
+    { invoiceIdx: 0, amount: "50000", method: "bank_transfer" as const, date: "2026-07-05", ref: "TT-2026-0701" },
+    { invoiceIdx: 1, amount: "120000", method: "mobile_money" as const, date: "2026-07-10", ref: "MM-PAY-001" },
+  ]
+
+  for (let i = 0; i < apPaymentData.length; i++) {
+    const pid = `00000000-0000-0000-0000-appay00${i + 1}`
+    const p = apPaymentData[i]
+    const invId = `00000000-0000-0000-0000-apinv${String(p.invoiceIdx + 1).padStart(3, "0")}`
+    await db.insert(paymentsAp).values({
+      id: pid,
+      entityId: ENTITY_ID,
+      invoiceApId: invId,
+      amount: p.amount,
+      paymentDate: p.date,
+      method: p.method,
+      reference: p.ref,
+      notes: `Payment for ${apInvoiceData[p.invoiceIdx].invoiceNo}`,
+    }).onConflictDoNothing()
+  }
+
+  // 33. AR Payments
+  console.log("  Creating AR payments...")
+  const arPaymentData = [
+    { invoiceIdx: 0, amount: "175000", method: "bank_transfer" as const, date: "2026-07-02", ref: "TT-2026-0702" },
+    { invoiceIdx: 1, amount: "50000", method: "cash" as const, date: "2026-07-08", ref: "CASH-001" },
+  ]
+
+  for (let i = 0; i < arPaymentData.length; i++) {
+    const pid = `00000000-0000-0000-0000-arpay00${i + 1}`
+    const p = arPaymentData[i]
+    const invId = `00000000-0000-0000-0000-arinv${String(p.invoiceIdx + 1).padStart(3, "0")}`
+    await db.insert(paymentsAr).values({
+      id: pid,
+      entityId: ENTITY_ID,
+      salesInvoiceId: invId,
+      amount: p.amount,
+      paymentDate: p.date,
+      method: p.method,
+      reference: p.ref,
+      notes: `Payment for ${arInvoiceData[p.invoiceIdx].invoiceNo}`,
+    }).onConflictDoNothing()
+  }
+
+  // 34. AP Invoice Lines
+  console.log("  Creating AP invoice lines...")
+  const apInvIds = [
+    `00000000-0000-0000-0000-apinv001`,
+    `00000000-0000-0000-0000-apinv002`,
+    `00000000-0000-0000-0000-apinv003`,
+  ]
+
+  const apLineData = [
+    { invId: apInvIds[0], desc: "Rice (25kg) x 20 bags", qty: "20", price: "2800", amount: "56000" },
+    { invId: apInvIds[0], desc: "Cooking Oil (5L) x 20 bottles", qty: "20", price: "1200", amount: "24000" },
+    { invId: apInvIds[1], desc: "Cooking Oil (5L) x 50 bottles", qty: "50", price: "1200", amount: "60000" },
+    { invId: apInvIds[1], desc: "Sugar (10kg) x 30 bags", qty: "30", price: "1800", amount: "54000" },
+    { invId: apInvIds[2], desc: "Mixed household goods", qty: "1", price: "45000", amount: "45000" },
+  ]
+
+  for (const line of apLineData) {
+    await db.insert(invoiceApLines).values({
+      invoiceApId: line.invId,
+      accountId: ACCT.inventory,
+      description: line.desc,
+      quantity: line.qty,
+      unitPrice: line.price,
+      amount: line.amount,
+    }).onConflictDoNothing()
+  }
+
+  // 35. Reconciliations
+  console.log("  Creating reconciliations...")
+  const reconData = [
+    {
+      bankAccountId: bankAccountIds[0],
+      statementDate: "2026-06-30",
+      statementBalance: "686250",
+      bookBalance: "686250",
+      difference: "0",
+      status: "closed" as const,
+    },
+  ]
+
+  const reconIds: string[] = []
+  for (let i = 0; i < reconData.length; i++) {
+    const rid = `00000000-0000-0000-0000-recon00${i + 1}`
+    reconIds.push(rid)
+    const r = reconData[i]
+    await db.insert(reconciliations).values({
+      id: rid,
+      entityId: ENTITY_ID,
+      bankAccountId: r.bankAccountId,
+      statementDate: r.statementDate,
+      statementBalance: r.statementBalance,
+      bookBalance: r.bookBalance,
+      difference: r.difference,
+      status: r.status,
+      closedBy: "demo@xenboox.com",
+      closedAt: new Date("2026-07-01"),
+    }).onConflictDoNothing()
+  }
+
+  // 36. Reconciliation Items (matched bank transactions)
+  console.log("  Creating reconciliation items...")
+  for (let i = 0; i < 5; i++) {
+    const riid = `00000000-0000-0000-0000-ri${String(i + 1).padStart(4, "0")}`
+    const txId = `00000000-0000-0000-0000-btx000${String(i + 1).padStart(3, "0")}`
+    await db.insert(reconciliationItems).values({
+      id: riid,
+      reconciliationId: reconIds[0],
+      bankTransactionId: txId,
+      status: "matched",
+      matchedAmount: bankTxData[i].amount,
+    }).onConflictDoNothing()
+  }
+
+  // 37. Documents
+  console.log("  Creating documents...")
+  const docData = [
+    { name: "Invoice-SI-2026-001.pdf", type: "invoice" as const, status: "processed" as const, mimeType: "application/pdf", size: 245000 },
+    { name: "Receipt-NAWEC-July.pdf", type: "receipt" as const, status: "processed" as const, mimeType: "application/pdf", size: 89000 },
+    { name: "PO-2026-001.pdf", type: "po" as const, status: "processed" as const, mimeType: "application/pdf", size: 156000 },
+    { name: "Employment-Contract-Ousman.pdf", type: "contract" as const, status: "uploaded" as const, mimeType: "application/pdf", size: 340000 },
+    { name: "Bank-Statement-Jun2026.pdf", type: "bank_statement" as const, status: "processed" as const, mimeType: "application/pdf", size: 520000 },
+    { name: "Payroll-June-2026.xlsx", type: "payroll_report" as const, status: "uploaded" as const, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", size: 78000 },
+  ]
+
+  const docIds: string[] = []
+  for (let i = 0; i < docData.length; i++) {
+    const did = `00000000-0000-0000-0000-doc000${i + 1}`
+    docIds.push(did)
+    const d = docData[i]
+    await db.insert(documents).values({
+      id: did,
+      entityId: ENTITY_ID,
+      name: d.name,
+      type: d.type,
+      status: d.status,
+      mimeType: d.mimeType,
+      sizeBytes: d.size,
+      r2Key: `${ENTITY_ID}/documents/${d.name}`,
+      r2Bucket: "xenboox-uploads",
+      uploadedBy: USER_ID,
+      tags: [d.type],
+    }).onConflictDoNothing()
+  }
+
+  // 38. Document Links
+  console.log("  Creating document links...")
+  await db.insert(documentLinks).values({
+    documentId: docIds[0],
+    entityType: "sales_invoice",
+    entityId: `00000000-0000-0000-0000-arinv001`,
+  }).onConflictDoNothing()
+
+  await db.insert(documentLinks).values({
+    documentId: docIds[2],
+    entityType: "purchase_order",
+    entityId: `00000000-0000-0000-0000-po00001`,
+  }).onConflictDoNothing()
+
+  // 39. Audit Log
+  console.log("  Creating audit log entries...")
+  const auditData = [
+    { action: "auth.login", entityType: "user", entityIdRef: USER_ID, newValues: { method: "email" } },
+    { action: "supplier.created", entityType: "supplier", entityIdRef: supplierIds[0], newValues: { name: "Global Supplies Ltd." } },
+    { action: "customer.created", entityType: "customer", entityIdRef: customerIds[0], newValues: { name: "Brikama Market Traders" } },
+    { action: "invoice_ap.created", entityType: "invoice_ap", entityIdRef: `00000000-0000-0000-0000-apinv001`, newValues: { total: "85000" } },
+    { action: "invoice_ar.created", entityType: "invoice_ar", entityIdRef: `00000000-0000-0000-0000-arinv001`, newValues: { total: "175000" } },
+    { action: "journal_entry.posted", entityType: "journal_entry", entityIdRef: `00000000-0000-0000-0000-journal0001`, newValues: { description: "Opening balances" } },
+    { action: "payroll.run_approved", entityType: "payroll_run", entityIdRef: `00000000-0000-0000-0000-prun0001`, newValues: { period: "2026-06", net: "147050" } },
+    { action: "document.uploaded", entityType: "document", entityIdRef: docIds[0], newValues: { name: "Invoice-SI-2026-001.pdf" } },
+  ]
+
+  for (let i = 0; i < auditData.length; i++) {
+    const aid = `00000000-0000-0000-0000-audit00${i + 1}`
+    const a = auditData[i]
+    await db.insert(auditLog).values({
+      id: aid,
+      entityId: ENTITY_ID,
+      userId: USER_ID,
+      action: a.action,
+      entityType: a.entityType,
+      entityIdRef: a.entityIdRef,
+      newValues: a.newValues,
+    }).onConflictDoNothing()
+  }
+
+  // 40. Agent Activity
+  console.log("  Creating agent activity...")
+  const agentData = [
+    { agent: "cfo-agent", action: "classify_instruction", confidence: "0.95", duration: 1200 },
+    { agent: "ap-agent", action: "create_invoice", confidence: "0.92", duration: 850 },
+    { agent: "ar-agent", action: "create_invoice", confidence: "0.94", duration: 920 },
+    { agent: "ledger-agent", action: "post_journal_entry", confidence: "1.00", duration: 340 },
+    { agent: "reconciliation-agent", action: "match_transactions", confidence: "0.88", duration: 2100 },
+    { agent: "payroll-manager-agent", action: "process_payroll", confidence: "0.97", duration: 1800 },
+  ]
+
+  for (let i = 0; i < agentData.length; i++) {
+    const acid = `00000000-0000-0000-0000-agentact${String(i + 1).padStart(2, "0")}`
+    const a = agentData[i]
+    await db.insert(agentActivity).values({
+      id: acid,
+      entityId: ENTITY_ID,
+      agentName: a.agent,
+      action: a.action,
+      confidence: a.confidence,
+      durationMs: a.duration,
+      status: "success",
+    }).onConflictDoNothing()
+  }
+
+  // 41. Currencies
+  console.log("  Creating currencies...")
+  const currencyData = [
+    { code: "GMD", name: "Gambian Dalasi", symbol: "D" },
+    { code: "USD", name: "US Dollar", symbol: "$" },
+    { code: "EUR", name: "Euro", symbol: "€" },
+    { code: "GBP", name: "British Pound", symbol: "£" },
+    { code: "NGN", name: "Nigerian Naira", symbol: "₦" },
+    { code: "GHS", name: "Ghanaian Cedi", symbol: "GH₵" },
+    { code: "SAR", name: "Saudi Riyal", symbol: "﷼" },
+  ]
+
+  for (const c of currencyData) {
+    await db.insert(currencies).values({
+      code: c.code,
+      name: c.name,
+      symbol: c.symbol,
+      decimalPlaces: 2,
+      isActive: true,
+    }).onConflictDoNothing()
+  }
+
+  // 42. Exchange Rates
+  console.log("  Creating exchange rates...")
+  const exchangeData = [
+    { from: "USD", to: "GMD", rate: "67.50" },
+    { from: "EUR", to: "GMD", rate: "73.25" },
+    { from: "GBP", to: "GMD", rate: "85.00" },
+    { from: "NGN", to: "GMD", rate: "0.042" },
+    { from: "GHS", to: "GMD", rate: "5.60" },
+  ]
+
+  for (let i = 0; i < exchangeData.length; i++) {
+    const eid = `00000000-0000-0000-0000-exrate0${i + 1}`
+    const e = exchangeData[i]
+    await db.insert(exchangeRates).values({
+      id: eid,
+      fromCurrency: e.from,
+      toCurrency: e.to,
+      rate: e.rate,
+      source: "ECB",
+      validFrom: new Date("2026-07-01"),
+    }).onConflictDoNothing()
+  }
+
   console.log("Seed complete!")
-  console.log(`  User: demo@xenboox.com (password: demo1234)`)
+  console.log(`  User: demo@xenboox.com (password: see docs/seed-credentials.md)`)
   console.log(`  Entity: ${ENTITY_ID}`)
   console.log(`  Chart of Accounts: ${coa.length} accounts`)
   console.log(`  Journal Entries: ${journalData.length + julyEntries.length}`)
@@ -922,7 +1340,9 @@ export async function seed() {
   console.log(`  Customers: ${customerData.length}`)
   console.log(`  Purchase Orders: ${poData.length}`)
   console.log(`  AP Invoices: ${apInvoiceData.length}`)
+  console.log(`  AP Payments: ${apPaymentData.length}`)
   console.log(`  AR Invoices: ${arInvoiceData.length}`)
+  console.log(`  AR Payments: ${arPaymentData.length}`)
   console.log(`  Employees: ${employeeData.length}`)
   console.log(`  Payroll Runs: ${payrollRunData.length}`)
   console.log(`  Staff Loans: 1`)
@@ -930,6 +1350,18 @@ export async function seed() {
   console.log(`  Warehouses: 2`)
   console.log(`  Inventory Items: ${inventoryData.length}`)
   console.log(`  Inventory Transactions: ${invTxData.length}`)
+  console.log(`  Cash Accounts: ${cashAccountData.length}`)
+  console.log(`  Imprest Floats: ${imprestData.length}`)
+  console.log(`  Imprest Receipts: ${receiptData.length}`)
+  console.log(`  Petty Cash Entries: ${pettyCashData.length}`)
+  console.log(`  Mobile Money Accounts: ${mmAccountData.length}`)
+  console.log(`  Mobile Money Transactions: ${mmTxData.length}`)
+  console.log(`  Reconciliations: ${reconData.length}`)
+  console.log(`  Documents: ${docData.length}`)
+  console.log(`  Audit Log Entries: ${auditData.length}`)
+  console.log(`  Agent Activity: ${agentData.length}`)
+  console.log(`  Currencies: ${currencyData.length}`)
+  console.log(`  Exchange Rates: ${exchangeData.length}`)
 }
 
 seed()

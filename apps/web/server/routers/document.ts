@@ -230,21 +230,25 @@ export const documentRouter = router({
         metadata: z.record(z.unknown()).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db.query.documents.findFirst({
+        where: and(eq(documents.id, input.id), eq(documents.entityId, ctx.entityId!)),
+      })
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
       const { id, ...data } = input
       const [updated] = await db
         .update(documents)
         .set(data)
-        .where(eq(documents.id, id))
+        .where(and(eq(documents.id, id), eq(documents.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
 
   getDocumentById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const doc = await db.query.documents.findFirst({
-        where: eq(documents.id, input.id),
+        where: and(eq(documents.id, input.id), eq(documents.entityId, ctx.entityId!)),
       })
       if (!doc) return null
 
@@ -264,7 +268,12 @@ export const documentRouter = router({
         entityId: z.string().uuid(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      // Verify document belongs to current entity
+      const doc = await db.query.documents.findFirst({
+        where: and(eq(documents.id, input.documentId), eq(documents.entityId, ctx.entityId!)),
+      })
+      if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
       const [link] = await db
         .insert(documentLinks)
         .values(input)

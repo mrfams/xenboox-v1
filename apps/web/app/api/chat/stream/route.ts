@@ -1,6 +1,7 @@
 import { eq, and, asc } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { conversations, chatMessages } from "@xenboox/db/schema/chat"
+import { userEntityAccess } from "@xenboox/db/schema/organization"
 import {
   orchestrate,
   classifyUserMessage,
@@ -286,6 +287,17 @@ export async function POST(req: Request) {
   const entityId = req.headers.get("x-entity-id")
   if (!entityId) {
     return Response.json({ error: "Missing entity context" }, { status: 400 })
+  }
+
+  // Verify user has access to this entity
+  const entityAccess = await db.query.userEntityAccess.findFirst({
+    where: and(
+      eq(userEntityAccess.userId, session.user.id),
+      eq(userEntityAccess.entityId, entityId),
+    ),
+  })
+  if (!entityAccess) {
+    return Response.json({ error: "Access denied to this entity" }, { status: 403 })
   }
 
   const body = await req.json()

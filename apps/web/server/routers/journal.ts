@@ -37,9 +37,9 @@ export const journalRouter = router({
 
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const entry = await db.query.journalEntries.findFirst({
-        where: eq(journalEntries.id, input.id)
+        where: and(eq(journalEntries.id, input.id), eq(journalEntries.entityId, ctx.entityId!))
       })
       if (!entry) return null
 
@@ -134,7 +134,7 @@ export const journalRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entry = await db.query.journalEntries.findFirst({
-          where: eq(journalEntries.id, input.id)
+          where: and(eq(journalEntries.id, input.id), eq(journalEntries.entityId, ctx.entityId!))
         })
         if (!entry) throw new TRPCError({ code: "NOT_FOUND", message: "Journal entry not found" })
         if (entry.status !== "draft" && entry.status !== "pending_review") {
@@ -184,7 +184,7 @@ export const journalRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entry = await db.query.journalEntries.findFirst({
-          where: eq(journalEntries.id, input.id)
+          where: and(eq(journalEntries.id, input.id), eq(journalEntries.entityId, ctx.entityId!))
         })
         if (!entry) throw new TRPCError({ code: "NOT_FOUND", message: "Journal entry not found" })
         if (entry.status !== "posted") {

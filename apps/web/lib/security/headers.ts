@@ -55,7 +55,7 @@ export function generateCSP(config: CSPConfig): string {
  */
 export const defaultCSP: CSPConfig = {
   defaultSrc: ["'self'"],
-  scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://cdn.jsdelivr.net'],
+  scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
   connectSrc: ["'self'", 'https://api.anthropic.com', 'https://api.openai.com'],
