@@ -1,99 +1,175 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
 import { Input } from "@xenboox/ui"
 import { Label } from "@xenboox/ui"
 import { Switch } from "@xenboox/ui"
-import { Settings, Bell, Shield, Database, Globe } from "lucide-react"
+import { Settings, Bell, Shield, Database, Globe, Key, Save, RefreshCw, UserCheck } from "lucide-react"
 import { useState } from "react"
 
 export default function AdminSettingsPage() {
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [slackAlerts, setSlackAlerts] = useState(false)
+  const [smsAlerts, setSmsAlerts] = useState(false)
   const [autoScaling, setAutoScaling] = useState(false)
+  const [costOptimization, setCostOptimization] = useState(true)
+  const [providerFallback, setProviderFallback] = useState(true)
+  const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [debugMode, setDebugMode] = useState(false)
+  const [auditLogging, setAuditLogging] = useState(true)
+
+  const [anthropicBudget, setAnthropicBudget] = useState("25000")
+  const [openaiBudget, setOpenaiBudget] = useState("20000")
+  const [haikuBudget, setHaikuBudget] = useState("5000")
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
+          <p className="text-muted-foreground mt-1">Configure system settings and preferences</p>
+        </div>
+        <Button>
+          <Save className="h-4 w-4 mr-2" />
+          Save Changes
+        </Button>
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Notification Settings</CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>Notification Settings</CardTitle>
+            <CardDescription>Configure how you receive alerts and notifications</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="email-alerts">Email Alerts</Label>
-                <Switch
-                  id="email-alerts"
-                  checked={emailAlerts}
-                  onCheckedChange={setEmailAlerts}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="slack-alerts">Slack Alerts</Label>
-                <Switch
-                  id="slack-alerts"
-                  checked={slackAlerts}
-                  onCheckedChange={setSlackAlerts}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="sms-alerts">SMS Alerts</Label>
-                <Switch checked={false} disabled />
-              </div>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>Email Alerts</span>
+                <span className="text-xs text-muted-foreground">Receive alerts via email</span>
+              </Label>
+              <Switch
+                checked={emailAlerts}
+                onCheckedChange={setEmailAlerts}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>Slack Alerts</span>
+                <span className="text-xs text-muted-foreground">Receive alerts via Slack</span>
+              </Label>
+              <Switch
+                checked={slackAlerts}
+                onCheckedChange={setSlackAlerts}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>SMS Alerts</span>
+                <span className="text-xs text-muted-foreground">Receive alerts via SMS</span>
+              </Label>
+              <Switch
+                checked={smsAlerts}
+                onCheckedChange={setSmsAlerts}
+              />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">AI Settings</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>AI Settings</CardTitle>
+            <CardDescription>Configure AI provider settings and cost optimization</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="auto-scaling">Auto Budget Scaling</Label>
-                <Switch
-                  id="auto-scaling"
-                  checked={autoScaling}
-                  onCheckedChange={setAutoScaling}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="cost-opt">Cost Optimization</Label>
-                <Switch checked />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="provider-fallback">Provider Fallback</Label>
-                <Switch checked />
-              </div>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>Auto Budget Scaling</span>
+                <span className="text-xs text-muted-foreground">Automatically increase budgets when approaching limits</span>
+              </Label>
+              <Switch
+                checked={autoScaling}
+                onCheckedChange={setAutoScaling}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>Cost Optimization</span>
+                <span className="text-xs text-muted-foreground">Enable automatic cost optimization recommendations</span>
+              </Label>
+              <Switch
+                checked={costOptimization}
+                onCheckedChange={setCostOptimization}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>Provider Fallback</span>
+                <span className="text-xs text-muted-foreground">Automatically switch providers on failure</span>
+              </Label>
+              <Switch
+                checked={providerFallback}
+                onCheckedChange={setProviderFallback}
+              />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">System Settings</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>System Settings</CardTitle>
+            <CardDescription>Configure global system behavior</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="maintenance-mode">Maintenance Mode</Label>
-                <Switch checked={false} />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="debug-mode">Debug Mode</Label>
-                <Switch checked={false} />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="audit-log">Audit Logging</Label>
-                <Switch checked />
-              </div>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>Maintenance Mode</span>
+                <span className="text-xs text-muted-foreground">Temporarily disable non-essential features</span>
+              </Label>
+              <Switch
+                checked={maintenanceMode}
+                onCheckedChange={setMaintenanceMode}
+              />
             </div>
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>Debug Mode</span>
+                <span className="text-xs text-muted-foreground">Enable detailed logging and debugging</span>
+              </Label>
+              <Switch
+                checked={debugMode}
+                onCheckedChange={setDebugMode}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1.5">
+                <span>Audit Logging</span>
+                <span className="text-xs text-muted-foreground">Log all user actions for compliance</span>
+              </Label>
+              <Switch
+                checked={auditLogging}
+                onCheckedChange={setAuditLogging}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Security Settings</CardTitle>
+            <CardDescription>Configure security and authentication settings</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full justify-start">
+              <Key className="h-4 w-4 mr-2" />
+              Change Admin Password
+            </Button>
+            <Button variant="outline" className="w-full justify-start">
+              <UserCheck className="h-4 w-4 mr-2" />
+              Manage API Keys
+            </Button>
+            <Button variant="outline" className="w-full justify-start">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reset All Settings
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -101,32 +177,39 @@ export default function AdminSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Budget Configuration</CardTitle>
+          <CardDescription>Configure monthly budgets for AI providers</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
               <Label htmlFor="anthropic-budget">Anthropic Budget (Monthly)</Label>
               <Input 
                 type="number" 
-                defaultValue="25000" 
+                value={anthropicBudget}
+                onChange={(e) => setAnthropicBudget(e.target.value)}
                 className="mt-1"
               />
+              <p className="text-xs text-muted-foreground">Claude Sonnet 4.6 - Primary model</p>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="openai-budget">OpenAI Budget (Monthly)</Label>
               <Input 
                 type="number" 
-                defaultValue="20000" 
+                value={openaiBudget}
+                onChange={(e) => setOpenaiBudget(e.target.value)}
                 className="mt-1"
               />
+              <p className="text-xs text-muted-foreground">GPT-4.1 - Backup model</p>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="haiku-budget">Anthropic Haiku Budget (Monthly)</Label>
               <Input 
                 type="number" 
-                defaultValue="5000" 
+                value={haikuBudget}
+                onChange={(e) => setHaikuBudget(e.target.value)}
                 className="mt-1"
               />
+              <p className="text-xs text-muted-foreground">Claude Haiku 4.5 - Cost-effective</p>
             </div>
           </div>
         </CardContent>

@@ -17,11 +17,13 @@ import { reportsRouter } from "./reports"
 import { payrollRouter } from "./payroll"
 import { fixedAssetsRouter } from "./fixedAssets"
 import { inventoryRouter } from "./inventory"
+import { adminRouter } from "./admin"
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
 
   auth: authRouter,
+  admin: adminRouter,
   organization: organizationRouter,
   coa: coaRouter,
   fiscal: fiscalRouter,

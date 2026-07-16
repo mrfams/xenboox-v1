@@ -1,8 +1,12 @@
 mod commands;
 mod db;
 
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    env_logger::init();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
@@ -16,6 +20,8 @@ pub fn run() {
             commands::entity::get_entities,
             commands::entity::get_current_entity,
             commands::entity::switch_entity,
+            commands::entity::set_auth_token,
+            commands::entity::clear_auth_token,
             commands::health::check_health,
             commands::health::get_version,
         ])

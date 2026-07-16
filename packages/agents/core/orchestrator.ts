@@ -8,6 +8,41 @@ import {
 } from "./registry"
 import type { AgentDepartment } from "./registry"
 
+// ─── Common Agent Types ─────────────────────────────────────────────────────
+
+export interface AgentState {
+  entityId: string
+  entityName: string
+  currency: string
+  currentOperation: {
+    type: string
+    status: string
+    input: Record<string, unknown>
+    output: unknown
+    error: unknown
+  } | null
+  currentTask?: {
+    type: string
+    description: string
+    assignedAt: string
+    status: string
+  }
+  [key: string]: unknown
+}
+
+export interface AgentGraph {
+  invoke(state: AgentState): Promise<AgentState>
+}
+
+export interface AgentResultState extends AgentState {
+  confidence: number
+  reasoning: string
+  result: unknown
+  humanResponse?: string
+  errors: string[]
+  auditTrail: AuditEntry[]
+}
+
 // ─── Task Types ────────────────────────────────────────────────────────────
 
 export type AgentTaskType =
@@ -191,7 +226,7 @@ const TASK_AGENT_MAP: Record<AgentTaskType, { agentId: AgentId; tier: AgentTier 
 
 // ─── Agent Invoke Map (lazy imports to avoid circular deps) ────────────────
 
-export async function getAgentGraph(agentId: AgentId) {
+export async function getAgentGraph(agentId: AgentId): Promise<AgentGraph> {
   switch (agentId) {
     case "cfo":
       return (await import("../tier1/cfo-agent/graph")).cfoAgent
@@ -273,10 +308,9 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
   const { agentId, tier } = routing
 
   try {
-    const graph = await getAgentGraph(agentId) as any
+    const graph = await getAgentGraph(agentId)
 
-    // Build initial state for the agent
-    const initialState: Record<string, unknown> = {
+    const initialState: AgentState = {
       entityId: params.entityId,
       entityName: params.entityName,
       currency: params.currency,
@@ -289,7 +323,6 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
       },
     }
 
-    // For CFO agent, use currentTask instead of currentOperation
     if (agentId === "cfo") {
       initialState.currentTask = {
         type: params.taskType === "chat" || params.taskType === "question"
@@ -297,25 +330,25 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
           : params.taskType === "close_trigger"
             ? "close_trigger"
             : "instruction",
-        description: params.input.description as string ?? JSON.stringify(params.input),
+        description: (params.input.description as string) ?? JSON.stringify(params.input),
         assignedAt: new Date().toISOString(),
         status: "in_progress",
       }
       initialState.currentOperation = null
     }
 
-    const result = await graph.invoke(initialState)
+    const result = await graph.invoke(initialState) as AgentResultState
 
     const agentResult: AgentResult = {
       taskId,
       agentId,
       tier,
-      confidence: (result as any).confidence ?? 0,
-      reasoning: (result as any).reasoning ?? "",
-      result: (result as any).result ?? null,
-      humanResponse: (result as any).humanResponse ?? undefined,
-      errors: (result as any).errors ?? [],
-      auditTrail: (result as any).auditTrail ?? [],
+      confidence: result.confidence ?? 0,
+      reasoning: result.reasoning ?? "",
+      result: result.result ?? null,
+      humanResponse: result.humanResponse ?? undefined,
+      errors: result.errors ?? [],
+      auditTrail: result.auditTrail ?? [],
       duration: Date.now() - startTime,
     }
 
@@ -440,9 +473,9 @@ export async function fanOutToDepartments(params: {
   const results = await Promise.allSettled(
     params.departments.map(async (dept) => {
       const agentId = DEPARTMENT_AGENTS[dept.department]
-      const graph = await getAgentGraph(agentId) as any
+      const graph = await getAgentGraph(agentId)
 
-      const initialState: Record<string, unknown> = {
+      const initialState: AgentState = {
         entityId: params.entityId,
         entityName: params.entityName,
         currency: params.currency,
@@ -455,20 +488,19 @@ export async function fanOutToDepartments(params: {
         },
       }
 
-      const result = await graph.invoke(initialState)
-      const typed = result as Record<string, unknown>
+      const result = await graph.invoke(initialState) as AgentResultState
 
       return {
         department: dept.department,
         agentId,
-        confidence: (typed.confidence as number) ?? 0,
-        reasoning: (typed.reasoning as string) ?? "",
-        confirmed: ((typed.confidence as number) ?? 0) >= 0.8,
+        confidence: result.confidence ?? 0,
+        reasoning: result.reasoning ?? "",
+        confirmed: (result.confidence ?? 0) >= 0.8,
         summary:
-          (typed.humanResponse as string) ??
-          (typed.result as string) ??
+          result.humanResponse ??
+          (result.result as string) ??
           "",
-        errors: (typed.errors as string[]) ?? [],
+        errors: result.errors ?? [],
       }
     })
   )
@@ -634,8 +666,8 @@ async function orchestrateClose(
   startTime: number
 ): Promise<AgentResult> {
   // Step 1: Invoke CFO to initiate close
-  const cfoGraph = await getAgentGraph("cfo") as any
-  const cfoInitialState: Record<string, unknown> = {
+  const cfoGraph = await getAgentGraph("cfo")
+  const cfoInitialState: AgentState = {
     entityId: params.entityId,
     entityName: params.entityName,
     currency: params.currency,
@@ -650,8 +682,8 @@ async function orchestrateClose(
     currentOperation: null,
   }
 
-  const cfoInitResult = await cfoGraph.invoke(cfoInitialState)
-  const cfoInit = cfoInitResult as Record<string, unknown>
+  const cfoInitResult = await cfoGraph.invoke(cfoInitialState) as AgentResultState
+  const cfoInit = cfoInitResult
 
   // Step 2: Fan-out to all 4 department heads in parallel
   const period =

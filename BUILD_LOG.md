@@ -6,7 +6,25 @@
 
 ---
 
-### [2026-07-16] — H-01 to H-10 + C-01 to C-04 Audit & Completion
+### [2026-07-16] — M-09, L-01, L-03, L-05, L-06 Implementation
+**Agent:** opencode
+**Duration:** ~60 min
+**Files Created:** 2 (add-warehouse.tsx, entity.rs rewrite)
+**Files Modified:** 12 (entity.rs, lib.rs, main.rs, auth.ts, orchestrator.ts, warehouses.tsx, ENTERPRISE_GAP.md, BUILD_LOG.md, DATABASE.md, ap-ar.ts reference)
+
+**What was built:**
+- **M-09:** Implemented all 5 Desktop entity Tauri commands: `get_entities` (fetches from web API via reqwest, caches in SQLite fallback), `get_current_entity`, `switch_entity`, `set_auth_token`, `clear_auth_token`. Frontend auth.ts updated to use Tauri invoke with localStorage fallback.
+- **L-01:** Updated DATABASE.md from 38/60 tables to 60/60. Added Payroll (7 tables), Inventory (4 tables), Fixed Assets (2 tables), Chat (6 tables), Security (3 tables). Added 15 missing enums. Removed 2 phantom tables. Fixed po_lines naming.
+- **L-03:** Consolidated Desktop lib.rs/main.rs. Removed duplicate `run()` from main.rs — now just calls `xenboox_lib::run()`.
+- **L-05:** Eliminated all `as any` casts in agent orchestrator. Defined `AgentGraph`, `AgentState`, `AgentResultState` interfaces. Typed `getAgentGraph` return.
+- **L-06:** Created `AddWarehouseDialog` component. Wired to `inventory.createWarehouse` with error handling. Added to warehouses page.
+
+**Remaining (3 Low):**
+- L-02: Mobile tRPC `any` typing (needs shared API types package)
+- L-04: Pre-commit hooks (husky + lint-staged)
+- L-07: Mobile auth token refresh
+
+---
 **Agent:** opencode
 **Duration:** ~90 min
 **Files Created:** 10 (auth.test.ts, entity-scoping.test.ts, validation.test.ts, caller.ts, forgot-password/page.tsx, reset-password/page.tsx, forgot-password-form.tsx, reset-password-form.tsx, password-reset.tsx, ci.yml)

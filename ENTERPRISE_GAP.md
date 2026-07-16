@@ -126,10 +126,10 @@
   - Owner: opencode
   - Status: COMPLETED
 
-- [ ] **M-09: Desktop Entity Commands — Implement Tauri Backend** All 3 `entity.rs` commands are TODOs. Implement entity fetch from API, local caching, and switching.
-  - Files: `apps/desktop/src-tauri/src/commands/entity.rs`
-  - Owner: ____________
-  - Status: NOT STARTED
+- [x] **M-09: Desktop Entity Commands — Implement Tauri Backend** Implemented all 5 commands: `get_entities` (fetches from web API, caches in SQLite), `get_current_entity`, `switch_entity`, `set_auth_token`, `clear_auth_token`. Frontend auth.ts updated to use Tauri invoke with localStorage fallback.
+  - Files: `apps/desktop/src-tauri/src/commands/entity.rs`, `apps/desktop/src-tauri/src/lib.rs`, `apps/desktop/src-tauri/src/main.rs`, `apps/desktop/src/lib/auth.ts`
+  - Owner: opencode
+  - Status: COMPLETED
 
 - [x] **M-10: Initialize Vault Client** Vault code removed entirely — no vault.ts exists, no references found. Dead code eliminated.
   - Files: n/a
@@ -165,35 +165,35 @@
 
 ## LOW — Polish & Technical Debt (7)
 
-- [ ] **L-01: Update DATABASE.md** Schema documentation is ~70% accurate. 9+ tables undocumented. Enums differ between docs and code. Sync with actual Drizzle schema.
+- [x] **L-01: Update DATABASE.md** Synced with actual Drizzle schema. Added 22 missing tables (payroll, inventory, fixed_assets, chat, security, idempotency). Added 15 missing enums. Removed 2 phantom tables (receipts_ar, cash_transactions). Fixed naming mismatch (purchase_order_lines → po_lines). Updated overview diagram.
   - Files: `DATABASE.md`
-  - Owner: ____________
-  - Status: NOT STARTED
+  - Owner: opencode
+  - Status: COMPLETED
 
 - [ ] **L-02: Mobile tRPC Client — Fix `any` Typing** `createTRPCReact<any>()`. Create a shared API types package or generate types from the app router.
   - Files: `apps/mobile/lib/trpc.ts`, `packages/api/` (new)
   - Owner: ____________
   - Status: NOT STARTED
 
-- [ ] **L-03: Desktop `lib.rs` / `main.rs` Consolidation** Both define a `run()` function. Remove duplication — keep one entry point.
+- [x] **L-03: Desktop `lib.rs` / `main.rs` Consolidation** Removed duplicate `run()` from `main.rs`. Now just calls `xenboox_lib::run()`.
   - Files: `apps/desktop/src-tauri/src/main.rs`, `apps/desktop/src-tauri/src/lib.rs`
-  - Owner: ____________
-  - Status: NOT STARTED
+  - Owner: opencode
+  - Status: COMPLETED
 
 - [ ] **L-04: Pre-commit Hooks** No husky, no lint-staged. Add pre-commit hooks that run lint + typecheck.
   - Files: `.husky/pre-commit`, `package.json` (root)
   - Owner: ____________
   - Status: NOT STARTED
 
-- [ ] **L-05: Agent Orchestrator `as any` Casts** 5 call sites cast `getAgentGraph` returns to work around TS2590. Refactor to eliminate union type depth issue.
-  - Files: `packages/agents/core/orchestrator.ts`, `packages/agents/tier1/cfo-agent/nodes.ts`
-  - Owner: ____________
-  - Status: NOT STARTED
+- [x] **L-05: Agent Orchestrator `as any` Casts** Defined `AgentGraph`, `AgentState`, `AgentResultState` interfaces. All 5 `as any` casts on `getAgentGraph` returns and result property access replaced with typed alternatives.
+  - Files: `packages/agents/core/orchestrator.ts`
+  - Owner: opencode
+  - Status: COMPLETED
 
-- [ ] **L-06: Desktop Warehouse Add Dialog** "Add Warehouse" button exists but has no dialog wired.
-  - Files: `apps/desktop/src/pages/inventory/warehouses.tsx`
-  - Owner: ____________
-  - Status: NOT STARTED
+- [x] **L-06: Desktop Warehouse Add Dialog** Created `AddWarehouseDialog` component following existing pattern. Wired to `inventory.createWarehouse` with error handling. Added to warehouses page.
+  - Files: `apps/desktop/src/components/modals/add-warehouse.tsx`, `apps/desktop/src/pages/inventory/warehouses.tsx`
+  - Owner: opencode
+  - Status: COMPLETED
 
 - [ ] **L-07: Mobile Auth Token Refresh** No token expiration handling. Tokens live forever until manual logout.
   - Files: `apps/mobile/lib/auth.ts`, `apps/mobile/app/_layout.tsx`
@@ -208,9 +208,9 @@
 |----------|-------|----------|-----------|
 | CRITICAL | 4 | 4 | 0 |
 | HIGH | 10 | 10 | 0 |
-| MEDIUM | 15 | 14 | 1 |
-| LOW | 7 | 0 | 7 |
-| **TOTAL** | **36** | **28** | **8** |
+| MEDIUM | 15 | 15 | 0 |
+| LOW | 7 | 4 | 3 |
+| **TOTAL** | **36** | **33** | **3** |
 
 ---
 

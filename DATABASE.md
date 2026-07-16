@@ -11,7 +11,8 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     AUTH LAYER                              │
-│  users │ accounts │ sessions │ user_entity_access           │
+│  users │ accounts │ sessions │ verification_tokens          │
+│  user_entity_access                                        │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
 │                  ORGANIZATION LAYER                         │
@@ -24,26 +25,50 @@
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
 │                    AP / AR                                   │
-│  suppliers │ purchase_orders │ purchase_order_lines         │
+│  suppliers │ purchase_orders │ po_lines                     │
 │  invoices_ap │ invoice_ap_lines │ payments_ap               │
 │  customers │ sales_invoices │ sales_invoice_lines           │
-│  payments_ar │ receipts_ar                                  │
+│  payments_ar                                                │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
 │                   TREASURY                                   │
 │  bank_accounts │ bank_transactions │ reconciliations        │
 │  reconciliation_items │ mobile_money_accounts               │
 │  mobile_money_transactions                                  │
-└─────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────┐
 ┌─────────────────────────────────────────────────────────────┐
 │                     CASH                                    │
-│  cash_accounts │ cash_transactions │ imprest_floats         │
-│  imprest_receipts │ petty_cash_ledger                       │
+│  cash_accounts │ imprest_floats │ imprest_receipts          │
+│  petty_cash_ledger                                          │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                  PAYROLL                                    │
+│  employees │ employee_contracts │ payroll_deduction_types   │
+│  payroll_runs │ payroll_line_items │ payslips │ staff_loans │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                  INVENTORY                                  │
+│  warehouses │ inventory_items │ inventory_transactions      │
+│  inventory_valuations                                       │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                  FIXED ASSETS                               │
+│  fixed_assets │ depreciation_schedule                       │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                  CHAT                                       │
+│  conversations │ chat_messages │ chat_attachments           │
+│  chat_agent_activity │ chat_message_reactions               │
+│  conversation_shares                                        │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
 │                  DOCUMENTS & AUDIT                          │
 │  documents │ document_links │ audit_log │ agent_activity    │
 │  exchange_rates │ currencies                                │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                  SECURITY & INTEGRITY                       │
+│  encrypted_fields │ security_audit_log │ idempotency_keys   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -369,11 +394,12 @@ CREATE INDEX idx_po_supplier ON purchase_orders(entity_id, supplier_id);
 CREATE INDEX idx_po_status ON purchase_orders(entity_id, status);
 ```
 
-### purchase_order_lines
+### po_lines
 ```sql
-CREATE TABLE purchase_order_lines (
+CREATE TABLE po_lines (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   purchase_order_id UUID NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+  account_id       UUID REFERENCES chart_of_accounts(id),
   description      TEXT NOT NULL,
   quantity         NUMERIC(15,4) NOT NULL DEFAULT 1,
   unit_price       NUMERIC(15,2) NOT NULL DEFAULT 0,
@@ -999,7 +1025,560 @@ CREATE INDEX idx_aa_confidence ON agent_activity(entity_id, confidence);
 
 ---
 
-## 12. Row-Level Security (RLS)
+## 9. Payroll
+
+### employees
+```sql
+CREATE TYPE employment_type AS ENUM (
+  'full_time', 'part_time', 'contractor', 'intern'
+);
+
+CREATE TYPE pay_frequency AS ENUM (
+  'weekly', 'biweekly', 'monthly'
+);
+
+CREATE TABLE employees (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id             UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  employee_number       TEXT NOT NULL,
+  name                  TEXT NOT NULL,
+  email                 TEXT,
+  phone                 TEXT,
+  hire_date             TEXT NOT NULL,
+  termination_date      TEXT,
+  department            TEXT,
+  job_title             TEXT,
+  employment_type       employment_type NOT NULL DEFAULT 'full_time',
+  bank_name             TEXT,
+  bank_account_number   TEXT,
+  bank_sort_code        TEXT,
+  tax_id                TEXT,
+  social_security_number TEXT,
+  is_active             BOOLEAN NOT NULL DEFAULT TRUE,
+  metadata              JSONB DEFAULT '{}',
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_employees_entity ON employees(entity_id);
+CREATE INDEX idx_employees_number ON employees(entity_id, employee_number);
+CREATE INDEX idx_employees_dept ON employees(entity_id, department);
+```
+
+### employee_contracts
+```sql
+CREATE TABLE employee_contracts (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id     UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  employee_id   UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  effective_date TEXT NOT NULL,
+  end_date      TEXT,
+  basic_salary  NUMERIC(15,2) NOT NULL,
+  currency      TEXT NOT NULL DEFAULT 'GMD',
+  pay_frequency pay_frequency NOT NULL DEFAULT 'monthly',
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_emp_contracts_entity ON employee_contracts(entity_id);
+CREATE INDEX idx_emp_contracts_emp ON employee_contracts(employee_id);
+```
+
+### payroll_deduction_types
+```sql
+CREATE TYPE deduction_type AS ENUM (
+  'tax', 'social_security', 'benefit', 'loan', 'other'
+);
+
+CREATE TABLE payroll_deduction_types (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id     UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  name          TEXT NOT NULL,
+  code          TEXT NOT NULL,
+  type          deduction_type NOT NULL,
+  rate_type     TEXT NOT NULL DEFAULT 'percentage',
+  rate          NUMERIC(10,4) NOT NULL DEFAULT 0,
+  ceiling       NUMERIC(15,2),
+  is_statutory  BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_payroll_ded_entity ON payroll_deduction_types(entity_id);
+CREATE INDEX idx_payroll_ded_code ON payroll_deduction_types(entity_id, code);
+```
+
+### payroll_runs
+```sql
+CREATE TYPE payroll_run_status AS ENUM (
+  'draft', 'validated', 'approved', 'paid', 'closed'
+);
+
+CREATE TABLE payroll_runs (
+  id                            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id                     UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  period                        TEXT NOT NULL,
+  status                        payroll_run_status NOT NULL DEFAULT 'draft',
+  employee_count                INTEGER NOT NULL DEFAULT 0,
+  gross_pay                     NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total_deductions              NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total_employer_contributions  NUMERIC(15,2) NOT NULL DEFAULT 0,
+  net_pay                       NUMERIC(15,2) NOT NULL DEFAULT 0,
+  processed_by                  TEXT,
+  approved_by                   TEXT,
+  approved_at                   TIMESTAMPTZ,
+  journal_entry_id              UUID REFERENCES journal_entries(id),
+  notes                         TEXT,
+  created_at                    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_payroll_runs_entity ON payroll_runs(entity_id);
+CREATE INDEX idx_payroll_runs_period ON payroll_runs(entity_id, period);
+CREATE INDEX idx_payroll_runs_status ON payroll_runs(entity_id, status);
+```
+
+### payroll_line_items
+```sql
+CREATE TABLE payroll_line_items (
+  id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id                  UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  payroll_run_id             UUID NOT NULL REFERENCES payroll_runs(id) ON DELETE CASCADE,
+  employee_id                UUID NOT NULL REFERENCES employees(id),
+  basic_salary               NUMERIC(15,2) NOT NULL,
+  allowances                 JSONB DEFAULT '[]',
+  gross_pay                  NUMERIC(15,2) NOT NULL,
+  paye_tax                   NUMERIC(15,2) NOT NULL DEFAULT 0,
+  social_security_employee   NUMERIC(15,2) NOT NULL DEFAULT 0,
+  social_security_employer   NUMERIC(15,2) NOT NULL DEFAULT 0,
+  other_deductions           NUMERIC(15,2) NOT NULL DEFAULT 0,
+  loan_deduction             NUMERIC(15,2) NOT NULL DEFAULT 0,
+  net_pay                    NUMERIC(15,2) NOT NULL,
+  payment_method             TEXT DEFAULT 'bank_transfer',
+  payment_reference          TEXT,
+  created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_payroll_line_entity ON payroll_line_items(entity_id);
+CREATE INDEX idx_payroll_line_run ON payroll_line_items(payroll_run_id);
+CREATE INDEX idx_payroll_line_emp ON payroll_line_items(employee_id);
+```
+
+### payslips
+```sql
+CREATE TABLE payslips (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id       UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  payroll_run_id  UUID NOT NULL REFERENCES payroll_runs(id) ON DELETE CASCADE,
+  employee_id     UUID NOT NULL REFERENCES employees(id),
+  generated_at    TIMESTAMPTZ DEFAULT NOW(),
+  delivered_at    TIMESTAMPTZ,
+  document_id     UUID REFERENCES documents(id),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_payslips_entity ON payslips(entity_id);
+CREATE INDEX idx_payslips_run ON payslips(payroll_run_id);
+CREATE INDEX idx_payslips_emp ON payslips(employee_id);
+```
+
+### staff_loans
+```sql
+CREATE TABLE staff_loans (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id         UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  employee_id       UUID NOT NULL REFERENCES employees(id),
+  loan_amount       NUMERIC(15,2) NOT NULL,
+  monthly_deduction NUMERIC(15,2) NOT NULL,
+  start_date        TEXT NOT NULL,
+  end_date          TEXT,
+  remaining_balance NUMERIC(15,2) NOT NULL,
+  is_active         BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_staff_loans_entity ON staff_loans(entity_id);
+CREATE INDEX idx_staff_loans_emp ON staff_loans(employee_id);
+```
+
+---
+
+## 10. Inventory
+
+### warehouses
+```sql
+CREATE TABLE warehouses (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id     UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  name          TEXT NOT NULL,
+  location      TEXT,
+  manager_name  TEXT,
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_warehouses_entity ON warehouses(entity_id);
+```
+
+### inventory_items
+```sql
+CREATE TYPE inventory_tx_type AS ENUM (
+  'receipt', 'issue', 'adjustment', 'transfer', 'return'
+);
+
+CREATE TYPE cost_method AS ENUM (
+  'fifo', 'lifo', 'weighted_average'
+);
+
+CREATE TYPE inventory_item_status AS ENUM (
+  'active', 'discontinued', 'out_of_stock'
+);
+
+CREATE TABLE inventory_items (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id         UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  name              TEXT NOT NULL,
+  sku               TEXT NOT NULL,
+  description       TEXT,
+  category          TEXT,
+  unit_of_measure   TEXT NOT NULL DEFAULT 'piece',
+  cost_method       cost_method NOT NULL DEFAULT 'weighted_average',
+  standard_cost     NUMERIC(15,2) DEFAULT 0,
+  reorder_level     INTEGER DEFAULT 0,
+  reorder_quantity  INTEGER DEFAULT 0,
+  quantity_on_hand  INTEGER NOT NULL DEFAULT 0,
+  gl_account_id     UUID REFERENCES chart_of_accounts(id),
+  cogs_account_id   UUID REFERENCES chart_of_accounts(id),
+  is_active         BOOLEAN NOT NULL DEFAULT TRUE,
+  metadata          JSONB DEFAULT '{}',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_inv_items_entity ON inventory_items(entity_id);
+CREATE INDEX idx_inv_items_sku ON inventory_items(entity_id, sku);
+CREATE INDEX idx_inv_items_category ON inventory_items(entity_id, category);
+```
+
+### inventory_transactions
+```sql
+CREATE TABLE inventory_transactions (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id           UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  inventory_item_id   UUID NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+  warehouse_id        UUID REFERENCES warehouses(id),
+  type                inventory_tx_type NOT NULL,
+  quantity            INTEGER NOT NULL,
+  unit_cost           NUMERIC(15,2) NOT NULL,
+  total_cost          NUMERIC(15,2) NOT NULL,
+  reference_type      TEXT,
+  reference_id        UUID,
+  journal_entry_id    UUID REFERENCES journal_entries(id),
+  transaction_date    TEXT NOT NULL,
+  notes               TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_inv_tx_entity ON inventory_transactions(entity_id);
+CREATE INDEX idx_inv_tx_item ON inventory_transactions(inventory_item_id);
+CREATE INDEX idx_inv_tx_warehouse ON inventory_transactions(warehouse_id);
+CREATE INDEX idx_inv_tx_date ON inventory_transactions(entity_id, transaction_date);
+CREATE INDEX idx_inv_tx_type ON inventory_transactions(inventory_item_id, type);
+```
+
+### inventory_valuations
+```sql
+CREATE TABLE inventory_valuations (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id           UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  inventory_item_id   UUID NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+  period_id           UUID REFERENCES fiscal_periods(id),
+  quantity_on_hand    INTEGER NOT NULL,
+  unit_cost           NUMERIC(15,2) NOT NULL,
+  total_value         NUMERIC(15,2) NOT NULL,
+  valuation_method    cost_method NOT NULL,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_inv_val_entity ON inventory_valuations(entity_id);
+CREATE INDEX idx_inv_val_item ON inventory_valuations(inventory_item_id);
+CREATE INDEX idx_inv_val_period ON inventory_valuations(period_id);
+```
+
+---
+
+## 11. Fixed Assets
+
+### fixed_assets
+```sql
+CREATE TYPE asset_status AS ENUM (
+  'active', 'disposed', 'fully_depreciated', 'under_maintenance'
+);
+
+CREATE TYPE depreciation_method AS ENUM (
+  'straight_line', 'reducing_balance', 'units_of_production'
+);
+
+CREATE TYPE disposal_method AS ENUM (
+  'sold', 'scrapped', 'donated', 'written_off'
+);
+
+CREATE TABLE fixed_assets (
+  id                                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id                             UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  name                                  TEXT NOT NULL,
+  description                           TEXT,
+  asset_class                           TEXT NOT NULL,
+  location                              TEXT,
+  purchase_date                         TEXT NOT NULL,
+  cost                                  NUMERIC(15,2) NOT NULL,
+  salvage_value                         NUMERIC(15,2) NOT NULL DEFAULT 0,
+  useful_life_months                    INTEGER NOT NULL,
+  depreciation_method                   depreciation_method NOT NULL DEFAULT 'straight_line',
+  accumulated_depreciation              NUMERIC(15,2) NOT NULL DEFAULT 0,
+  net_book_value                        NUMERIC(15,2) NOT NULL,
+  status                                asset_status NOT NULL DEFAULT 'active',
+  gl_account_id                         UUID REFERENCES chart_of_accounts(id),
+  accumulated_depreciation_account_id   UUID REFERENCES chart_of_accounts(id),
+  responsible_person                    TEXT,
+  condition                             TEXT,
+  disposal_date                         TEXT,
+  disposal_method                       disposal_method,
+  disposal_proceeds                     NUMERIC(15,2),
+  metadata                              JSONB DEFAULT '{}',
+  created_at                            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_fixed_assets_entity ON fixed_assets(entity_id);
+CREATE INDEX idx_fixed_assets_class ON fixed_assets(entity_id, asset_class);
+CREATE INDEX idx_fixed_assets_status ON fixed_assets(entity_id, status);
+```
+
+### depreciation_schedule
+```sql
+CREATE TABLE depreciation_schedule (
+  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id                 UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  fixed_asset_id            UUID NOT NULL REFERENCES fixed_assets(id) ON DELETE CASCADE,
+  period_id                 UUID REFERENCES fiscal_periods(id),
+  depreciation_amount       NUMERIC(15,2) NOT NULL,
+  accumulated_depreciation  NUMERIC(15,2) NOT NULL,
+  net_book_value            NUMERIC(15,2) NOT NULL,
+  journal_entry_id          UUID REFERENCES journal_entries(id),
+  calculated_by             TEXT,
+  created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_depr_sched_entity ON depreciation_schedule(entity_id);
+CREATE INDEX idx_depr_sched_asset ON depreciation_schedule(fixed_asset_id);
+CREATE INDEX idx_depr_sched_period ON depreciation_schedule(period_id);
+```
+
+---
+
+## 12. Chat
+
+### conversations
+```sql
+CREATE TYPE chat_role AS ENUM ('user', 'assistant', 'system');
+CREATE TYPE conversation_status AS ENUM ('active', 'archived', 'pinned');
+CREATE TYPE message_status AS ENUM ('streaming', 'completed', 'failed', 'cancelled');
+CREATE TYPE attachment_type AS ENUM ('document', 'image', 'file');
+
+CREATE TABLE conversations (
+  id                            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id                     UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  user_id                       UUID NOT NULL REFERENCES users(id),
+  title                         TEXT,
+  status                        conversation_status NOT NULL DEFAULT 'active',
+  summary                       TEXT,
+  pinned                        INTEGER DEFAULT 0,
+  last_message_at               TIMESTAMPTZ,
+  message_count                 INTEGER DEFAULT 0,
+  forked_from_conversation_id   UUID REFERENCES conversations(id),
+  forked_from_message_id        UUID,
+  metadata                      JSONB DEFAULT '{}',
+  created_at                    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_conversations_entity ON conversations(entity_id);
+CREATE INDEX idx_conversations_user ON conversations(user_id);
+```
+
+### chat_messages
+```sql
+CREATE TABLE chat_messages (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id   UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  role              chat_role NOT NULL,
+  content           TEXT,
+  status            message_status NOT NULL DEFAULT 'completed',
+  parent_message_id UUID,
+  confidence        REAL,
+  agent_model       TEXT,
+  token_count       INTEGER,
+  latency_ms        INTEGER,
+  has_attachments   INTEGER DEFAULT 0,
+  metadata          JSONB DEFAULT '{}',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_messages_conversation ON chat_messages(conversation_id);
+CREATE INDEX idx_chat_messages_created ON chat_messages(created_at);
+```
+
+### chat_attachments
+```sql
+CREATE TABLE chat_attachments (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id   UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  message_id        UUID REFERENCES chat_messages(id) ON DELETE CASCADE,
+  document_id       UUID REFERENCES documents(id) ON DELETE SET NULL,
+  attachment_type   attachment_type NOT NULL DEFAULT 'document',
+  file_name         TEXT NOT NULL,
+  mime_type         TEXT,
+  file_size         INTEGER,
+  r2_key            TEXT,
+  r2_bucket         TEXT,
+  ocr_text          TEXT,
+  ocr_confidence    REAL,
+  status            TEXT NOT NULL DEFAULT 'uploaded',
+  metadata          JSONB DEFAULT '{}',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_attachments_conversation ON chat_attachments(conversation_id);
+CREATE INDEX idx_chat_attachments_message ON chat_attachments(message_id);
+```
+
+### chat_agent_activity
+```sql
+CREATE TABLE chat_agent_activity (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id   UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  message_id        UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+  agent_id          TEXT NOT NULL,
+  tier              INTEGER,
+  action            TEXT,
+  input             JSONB,
+  output            JSONB,
+  confidence        REAL,
+  duration_ms       INTEGER,
+  langfuse_trace_id TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_agent_activity_conversation ON chat_agent_activity(conversation_id);
+CREATE INDEX idx_chat_agent_activity_message ON chat_agent_activity(message_id);
+```
+
+### chat_message_reactions
+```sql
+CREATE TABLE chat_message_reactions (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id    UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id),
+  emoji         TEXT NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_reactions_message ON chat_message_reactions(message_id);
+CREATE INDEX idx_chat_reactions_user ON chat_message_reactions(user_id);
+```
+
+### conversation_shares
+```sql
+CREATE TABLE conversation_shares (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id     UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  shared_by_user_id   UUID NOT NULL REFERENCES users(id),
+  shared_with_user_id UUID REFERENCES users(id),
+  permission          TEXT NOT NULL DEFAULT 'read',
+  expires_at          TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_shares_conversation ON conversation_shares(conversation_id);
+CREATE INDEX idx_shares_shared_with ON conversation_shares(shared_with_user_id);
+```
+
+---
+
+## 13. Security & Integrity
+
+### encrypted_fields
+```sql
+CREATE TYPE security_level AS ENUM (
+  'public', 'internal', 'confidential', 'restricted'
+);
+
+CREATE TABLE encrypted_fields (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id       UUID NOT NULL,
+  table_name      TEXT NOT NULL,
+  record_id       UUID NOT NULL,
+  field_name      TEXT NOT NULL,
+  encrypted_value TEXT NOT NULL,
+  key_version     TEXT NOT NULL,
+  security_level  security_level NOT NULL DEFAULT 'confidential',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### security_audit_log
+```sql
+CREATE TABLE security_audit_log (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id       UUID NOT NULL,
+  event_type      TEXT NOT NULL,
+  user_id         UUID REFERENCES users(id),
+  resource_type   TEXT NOT NULL,
+  resource_id     TEXT NOT NULL,
+  old_value       JSONB,
+  new_value       JSONB,
+  ip_address      TEXT,
+  user_agent      TEXT,
+  success         BOOLEAN NOT NULL DEFAULT TRUE,
+  failure_reason  TEXT,
+  "timestamp"     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### idempotency_keys
+```sql
+CREATE TABLE idempotency_keys (
+  key            VARCHAR(255) PRIMARY KEY,
+  user_id        TEXT NOT NULL,
+  entity_id      TEXT NOT NULL,
+  route          VARCHAR(500) NOT NULL,
+  status_code    TIMESTAMPTZ,
+  response_body  JSONB,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  locked_at      TIMESTAMPTZ,
+  expires_at     TIMESTAMPTZ NOT NULL
+);
+```
+
+---
+
+## 14. Row-Level Security (RLS)
 
 Enable RLS on every table. Create policies for entity isolation:
 
@@ -1017,7 +1596,7 @@ CREATE POLICY entity_isolation ON invoices_ap
 
 ---
 
-## 13. Common Query Patterns
+## 15. Common Query Patterns
 
 ### Entity-Scoped List with Pagination
 ```typescript
@@ -1080,7 +1659,7 @@ ORDER BY a.code;
 
 ---
 
-## 14. Seed Data Templates
+## 16. Seed Data Templates
 
 ### Chart of Accounts — General Business (Gambia)
 ```

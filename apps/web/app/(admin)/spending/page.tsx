@@ -1,10 +1,36 @@
-import { Card, CardContent, CardHeader, CardTitle, Progress, Badge } from "@xenboox/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
-import { Alert, AlertDescription } from "@xenboox/ui"
-import { AlertCircle, CheckCircle2, Settings, Plus } from "lucide-react"
+import { Input } from "@xenboox/ui"
+import { AlertCircle, CheckCircle2, Settings, Plus, Server, Cloud, Calculator } from "lucide-react"
 import { trpc } from "@/lib/trpc"
+import { AIComparison } from "@/lib/types"
+import { useState } from "react"
+
+function Progress({ value, className }: { value: number; className?: string }) {
+  return (
+    <div className={`w-full bg-muted rounded-full h-2 ${className || ''}`}>
+      <div 
+        className="h-full bg-primary rounded-full transition-all duration-300"
+        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+      />
+    </div>
+  )
+}
+
+function Alert({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`p-4 rounded-lg border ${className || ''}`}>
+      {children}
+    </div>
+  )
+}
+
+function AlertDescription({ children }: { children: React.ReactNode }) {
+  return <div className="mt-2 text-sm">{children}</div>
+}
 
 export default function SpendingPage() {
+  const [showComparison, setShowComparison] = useState(true)
   const { data: comparison, isLoading } = trpc.admin.getAIComparison.useQuery()
   const { data: alerts } = trpc.admin.getSpendAlerts.useQuery()
 
@@ -31,10 +57,8 @@ export default function SpendingPage() {
     return "secondary"
   }
 
-  const getAlertColor = (level: string) => {
-    if (level === "critical") return "text-red-600"
-    if (level === "warning") return "text-yellow-600"
-    return "text-green-600"
+  const getDeploymentColor = (mode: string) => {
+    return mode === "self-hosted" ? "bg-green-100" : "bg-blue-100"
   }
 
   return (
@@ -42,7 +66,7 @@ export default function SpendingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Spending & Budget</h1>
-          <p className="text-muted-foreground mt-1">Monitor AI spending against budgets</p>
+          <p className="text-muted-foreground mt-1">Monitor AI spending against budgets with cost optimization insights</p>
         </div>
         <Button variant="outline">
           <Settings className="h-4 w-4 mr-2" />
@@ -55,7 +79,6 @@ export default function SpendingPage() {
         <div className="space-y-3">
           {alerts.map((alert) => (
             <Alert key={`${alert.provider}-${alert.model}`} className={alert.alertLevel === "critical" ? "border-red-200 bg-red-50" : alert.alertLevel === "warning" ? "border-yellow-200 bg-yellow-50" : "border-green-200 bg-green-50"}>
-              <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 <div className="flex items-center justify-between">
                   <div>
@@ -84,11 +107,25 @@ export default function SpendingPage() {
       )}
 
       {/* Budget Progress */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4">
         {comparison?.map((provider) => (
           <Card key={`${provider.provider}-${provider.model}`}>
             <CardHeader>
-              <CardTitle className="text-base">{provider.model}</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span>{provider.model}</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant={provider.deploymentMode === "self-hosted" ? "default" : "outline"}>
+                    {provider.deploymentMode === "self-hosted" ? <Server className="h-3 w-3 mr-1" /> : <Cloud className="h-3 w-3 mr-1" />}
+                    {provider.deploymentMode}
+                  </Badge>
+                  <Badge variant={getAlertVariant(
+                    provider.utilization >= 90 ? "critical" : 
+                    provider.utilization >= 80 ? "warning" : "low"
+                  )}>
+                    {provider.utilization.toFixed(0)}%
+                  </Badge>
+                </div>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -100,7 +137,7 @@ export default function SpendingPage() {
                 </div>
                 <Progress 
                   value={provider.utilization} 
-                  className={`h-2 ${provider.utilization >= 80 ? "bg-red-100" : provider.utilization >= 60 ? "bg-yellow-100" : "bg-green-100"}`}
+                  className={provider.utilization >= 80 ? "bg-red-100" : provider.utilization >= 60 ? "bg-yellow-100" : "bg-green-100"}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground mt-1">
                   <span>{provider.utilization >= 80 ? "⚠️ Critical" : provider.utilization >= 60 ? "⚡ Warning" : "✅ OK"}</span>
@@ -108,7 +145,15 @@ export default function SpendingPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">API Cost</p>
+                  <p className="font-medium">${provider.monthlySpend.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Self-Host Cost</p>
+                  <p className="font-medium">${provider.selfHostCostPerMonth.toLocaleString()}</p>
+                </div>
                 <div>
                   <p className="text-muted-foreground">Cost per 1K tokens</p>
                   <p className="font-medium">${provider.costPer1kTokens}</p>
@@ -119,19 +164,21 @@ export default function SpendingPage() {
                 </div>
               </div>
 
-              <Button variant="outline" size="sm" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Adjust Budget
-              </Button>
+              {provider.monthlySpend > provider.selfHostCostPerMonth && (
+                <Button variant="outline" size="sm" className="w-full">
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Switch to Self-Host (${Math.max(0, provider.monthlySpend - provider.selfHostCostPerMonth).toFixed(0)}/mo savings)
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Budget Settings */}
+      {/* Cost Optimization */}
       <Card>
         <CardHeader>
-          <CardTitle>Budget Settings</CardTitle>
+          <CardTitle>Cost Optimization</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -147,16 +194,16 @@ export default function SpendingPage() {
                 <h4 className="font-medium">Notification Settings</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Email alerts: Enabled</li>
-                  <li>• Slack alerts: Disabled</li>
-                  <li>• SMS alerts: Disabled</li>
+                  <li>• Slack integration: Available</li>
+                  <li>• SMS alerts: Available</li>
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-medium">Auto-scaling</h4>
+                <h4 className="font-medium">Cost Optimization</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Auto-budget increase: Disabled</li>
                   <li>• Provider fallback: Enabled</li>
-                  <li>• Cost optimization: Active</li>
+                  <li>• Self-host recommendation: Available</li>
                 </ul>
               </div>
             </div>

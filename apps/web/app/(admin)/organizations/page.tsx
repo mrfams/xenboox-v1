@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
 import { Badge } from "@xenboox/ui"
 import { Input } from "@xenboox/ui"
-import { Building, Search, Users, Calendar } from "lucide-react"
+import { Building, Search, Users, Calendar, Plus, Edit, Trash2, Shield, CheckCircle2, AlertCircle } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { useState } from "react"
 
@@ -15,11 +15,38 @@ export default function OrganizationsPage() {
     o.slug?.toLowerCase().includes(search.toLowerCase())
   ) || []
 
+  const getPlanVariant = (plan: string) => {
+    const planMap: Record<string, "default" | "destructive" | "outline" | "secondary"> = {
+      free: "outline",
+      starter: "secondary",
+      growth: "default",
+      pro: "default",
+      firm: "destructive"
+    }
+    return planMap[plan] || "outline"
+  }
+
+  const getTypeVariant = (type: string) => {
+    const typeMap: Record<string, "default" | "destructive" | "outline" | "secondary"> = {
+      business: "default",
+      nonprofit: "secondary",
+      government: "outline",
+      accounting_firm: "destructive"
+    }
+    return typeMap[type] || "outline"
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
-        <Button>Create Organization</Button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
+          <p className="text-muted-foreground mt-1">Manage organizations and their settings</p>
+        </div>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Organization
+        </Button>
       </div>
 
       <Card>
@@ -31,7 +58,7 @@ export default function OrganizationsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search organizations..."
+                placeholder="Search organizations by name or slug..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -42,26 +69,44 @@ export default function OrganizationsPage() {
               {isLoading ? (
                 <div className="text-center py-8">Loading organizations...</div>
               ) : filteredOrgs.length === 0 ? (
-                <div className="text-center py-8">No organizations found</div>
+                <div className="text-center py-8">
+                  <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No organizations found matching your search</p>
+                </div>
               ) : (
                 filteredOrgs.map((org) => (
                   <div key={org.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Building className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                        <Building className="h-5 w-5 text-muted-foreground" />
+                      </div>
                       <div>
                         <p className="font-medium">{org.name}</p>
-                        <p className="text-sm text-muted-foreground">{org.slug}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-mono">{org.slug}</span> • 
                           Owner: {org.owner?.name || "Unknown"}
                         </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant={getTypeVariant(org.type)}>
+            {org.type.replace('_', ' ')}
+          </Badge>
+                          <Badge variant={getPlanVariant(org.plan)}>
+            {org.plan.replace('_', ' ')}
+          </Badge>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{org.plan}</Badge>
-                      <Badge variant="outline">
-                        {org.entities?.length || 0} entities
-                      </Badge>
-                      <Button variant="outline" size="sm">View</Button>
+                      <div className="text-right text-sm text-muted-foreground">
+                        <div>{org.entities?.length || 0} entities</div>
+                        <div>{org.users?.length || 0} users</div>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))

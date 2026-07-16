@@ -11,6 +11,8 @@ import { Badge } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
 import { trpc } from "@/lib/trpc"
 import { Plus } from "lucide-react"
+import { useState } from "react"
+import { AddWarehouseDialog } from "@/components/modals/add-warehouse"
 
 function statusBadge(status: string) {
   const variant =
@@ -27,13 +29,14 @@ function statusBadge(status: string) {
 }
 
 export default function Warehouses() {
+  const [showAdd, setShowAdd] = useState(false)
   const { data, isLoading } = trpc.inventory.listWarehouses.useQuery()
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Warehouses</h1>
-        <Button>
+        <Button onClick={() => setShowAdd(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Warehouse
         </Button>
@@ -61,7 +64,7 @@ export default function Warehouses() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.map((wh: any) => (
+                {data?.map((wh) => (
                   <TableRow key={wh.id}>
                     <TableCell className="font-medium">{wh.name}</TableCell>
                     <TableCell>{wh.location}</TableCell>
@@ -81,6 +84,8 @@ export default function Warehouses() {
           )}
         </CardContent>
       </Card>
+
+      <AddWarehouseDialog open={showAdd} onClose={() => setShowAdd(false)} onSuccess={() => setShowAdd(false)} />
     </div>
   )
 }

@@ -9,16 +9,35 @@ import { bankAccounts } from "@xenboox/db/schema/treasury"
 import { documents } from "@xenboox/db/schema/documents"
 import { agentActivity } from "@xenboox/db/schema/documents"
 
-export type AIProvider = "anthropic" | "openai" | "azure"
+export type AIProvider = "anthropic" | "openai" | "azure" | "self-hosted"
+export type DeploymentMode = "api" | "self-hosted" | "hybrid"
+
 export type AIComparison = {
   provider: AIProvider
   model: string
+  deploymentMode: DeploymentMode
   costPer1kTokens: number
+  selfHostCostPerMonth: number
   avgLatencyMs: number
   successRate: number
   monthlySpend: number
+  monthlyTokens: number
   budgetLimit: number
   threshold80: number
+  recommendedAt80: number
+  recommendedAt90: number
+  utilization: number
+  breakEvenTokens: number
+  recommendation: "api" | "self-host" | "hybrid"
+}
+
+export type CostComparison = {
+  apiCost: number
+  selfHostCost: number
+  totalTokens: number
+  breakEvenPoint: number
+  recommendation: "api" | "self-host" | "hybrid"
+  monthlySavings: number
 }
 
 export type SpendAlert = {
@@ -83,42 +102,107 @@ export const adminRouter = router({
   }),
 
   getAIComparison: adminProcedure.query(async () => {
+    const now = new Date()
+    const currentMonth = now.getMonth() + 1
+    const currentYear = now.getFullYear()
+
     const comparison: AIComparison[] = [
       {
         provider: "anthropic",
         model: "claude-sonnet-4.6",
+        deploymentMode: "api",
         costPer1kTokens: 0.003,
+        selfHostCostPerMonth: 2500,
         avgLatencyMs: 850,
         successRate: 0.98,
         monthlySpend: 12500,
+        monthlyTokens: 4166667,
         budgetLimit: 25000,
-        threshold80: 20000
+        threshold80: 20000,
+        recommendedAt80: 20000,
+        recommendedAt90: 22500,
+        utilization: 50,
+        breakEvenTokens: 833333,
+        recommendation: "api"
       },
       {
         provider: "anthropic",
         model: "claude-haiku-4.5",
+        deploymentMode: "api",
         costPer1kTokens: 0.0003,
+        selfHostCostPerMonth: 500,
         avgLatencyMs: 320,
         successRate: 0.97,
         monthlySpend: 850,
+        monthlyTokens: 2833333,
         budgetLimit: 5000,
-        threshold80: 4000
+        threshold80: 4000,
+        recommendedAt80: 4000,
+        recommendedAt90: 4500,
+        utilization: 17,
+        breakEvenTokens: 1666667,
+        recommendation: "api"
       },
       {
         provider: "openai",
         model: "gpt-4.1",
+        deploymentMode: "api",
         costPer1kTokens: 0.015,
+        selfHostCostPerMonth: 5000,
         avgLatencyMs: 720,
         successRate: 0.96,
         monthlySpend: 9200,
+        monthlyTokens: 613333,
         budgetLimit: 20000,
-        threshold80: 16000
+        threshold80: 16000,
+        recommendedAt80: 16000,
+        recommendedAt90: 18000,
+        utilization: 46,
+        breakEvenTokens: 333333,
+        recommendation: "api"
+      },
+      {
+        provider: "openai",
+        model: "gpt-mini",
+        deploymentMode: "self-hosted",
+        costPer1kTokens: 0.0001,
+        selfHostCostPerMonth: 1500,
+        avgLatencyMs: 150,
+        successRate: 0.92,
+        monthlySpend: 1500,
+        monthlyTokens: 15000000,
+        budgetLimit: 10000,
+        threshold80: 8000,
+        recommendedAt80: 8000,
+        recommendedAt90: 9000,
+        utilization: 15,
+        breakEvenTokens: 15000000,
+        recommendation: "self-host"
+      },
+      {
+        provider: "meta",
+        model: "llama-3.1-8b",
+        deploymentMode: "self-hosted",
+        costPer1kTokens: 0,
+        selfHostCostPerMonth: 800,
+        avgLatencyMs: 200,
+        successRate: 0.89,
+        monthlySpend: 800,
+        monthlyTokens: 10000000,
+        budgetLimit: 5000,
+        threshold80: 4000,
+        recommendedAt80: 4000,
+        recommendedAt90: 4500,
+        utilization: 16,
+        breakEvenTokens: 8000000,
+        recommendation: "self-host"
       }
     ]
 
     return comparison.map(c => ({
       ...c,
-      utilization: (c.monthlySpend / c.budgetLimit) * 100
+      utilization: ((c.monthlySpend + c.selfHostCostPerMonth) / c.budgetLimit) * 100,
+      totalCost: c.monthlySpend + c.selfHostCostPerMonth
     }))
   }),
 
@@ -157,7 +241,7 @@ export const adminRouter = router({
         acc[act.agentName] = { count: 0, totalDuration: 0, avgConfidence: 0 }
       }
       acc[act.agentName].count += 1
-      acc[act.agentName].totalDuration += act.durationMs
+      acc[act.agentName].totalDuration += act.durationMs || 0
       acc[act.agentName].avgConfidence = (acc[act.agentName].avgConfidence + parseFloat(act.confidence)) / 2
       return acc
     }, {} as Record<string, { count: number; totalDuration: number; avgConfidence: number }>)
@@ -167,5 +251,45 @@ export const adminRouter = router({
       ...data,
       avgLatency: data.totalDuration / data.count
     }))
+  }),
+
+  getCostComparison: adminProcedure.query(async () => {
+    const activities = await db.query.agentActivity.findMany({
+      orderBy: [desc(agentActivity.createdAt)],
+      limit: 1000
+    })
+
+    const totalTokens = activities.reduce((sum, act) => {
+      const tokens = act.metadata?.tokens || 0
+      return sum + (typeof tokens === 'number' ? tokens : 0)
+    }, 0)
+
+    const comparison = await adminProcedure._ctx.getAIComparison()
+    
+    const costComparison = comparison.map(c => {
+      const apiCost = c.monthlySpend
+      const selfHostCost = c.selfHostCostPerMonth
+      const breakEvenPoint = Math.ceil((selfHostCost / c.costPer1kTokens) * 1000)
+      
+      let recommendation: "api" | "self-host" | "hybrid" = "api"
+      if (selfHostCost < apiCost * 0.7) {
+        recommendation = "self-host"
+      } else if (selfHostCost < apiCost) {
+        recommendation = "hybrid"
+      }
+
+      return {
+        provider: c.provider,
+        model: c.model,
+        apiCost,
+        selfHostCost,
+        totalTokens: c.monthlyTokens,
+        breakEvenPoint,
+        recommendation,
+        monthlySavings: Math.max(0, apiCost - selfHostCost)
+      }
+    })
+
+    return costComparison
   }),
 })
