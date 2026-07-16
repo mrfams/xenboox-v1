@@ -120,7 +120,7 @@ export default function SupplierDetailPage() {
               description="No purchase orders found for this supplier."
             />
           ) : (
-            <div className="rounded-lg border bg-card">
+              <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -164,7 +164,7 @@ export default function SupplierDetailPage() {
               description="No bills found for this supplier."
             />
           ) : (
-            <div className="rounded-lg border bg-card">
+              <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -208,7 +208,7 @@ export default function SupplierDetailPage() {
               description="No payments found for this supplier."
             />
           ) : (
-            <div className="rounded-lg border bg-card">
+              <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">

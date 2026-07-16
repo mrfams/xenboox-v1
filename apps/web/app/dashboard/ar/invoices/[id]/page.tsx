@@ -131,7 +131,7 @@ export default function SalesInvoiceDetailPage() {
             description="This invoice has no line items."
           />
         ) : (
-          <div className="rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
@@ -169,7 +169,7 @@ export default function SalesInvoiceDetailPage() {
             description="No payments have been recorded for this invoice."
           />
         ) : (
-          <div className="rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">

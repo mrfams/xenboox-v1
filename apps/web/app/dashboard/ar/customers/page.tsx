@@ -77,7 +77,7 @@ export default function CustomersPage() {
           description="Add your first customer to start creating sales invoices."
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

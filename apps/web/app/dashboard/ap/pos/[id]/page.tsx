@@ -152,7 +152,7 @@ export default function PODetailPage() {
             description="This purchase order has no line items."
           />
         ) : (
-          <div className="rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">

@@ -137,7 +137,7 @@ export default function BillDetailPage() {
             description="This bill has no line items."
           />
         ) : (
-          <div className="rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
@@ -175,7 +175,7 @@ export default function BillDetailPage() {
             description="No payments have been recorded for this bill."
           />
         ) : (
-          <div className="rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">

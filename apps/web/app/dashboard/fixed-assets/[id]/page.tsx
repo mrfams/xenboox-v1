@@ -113,7 +113,7 @@ export default function FixedAssetDetailPage() {
       {schedule && schedule.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Depreciation Schedule</h3>
-          <div className="rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">

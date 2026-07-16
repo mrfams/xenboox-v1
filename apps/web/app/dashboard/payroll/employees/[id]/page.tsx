@@ -139,7 +139,7 @@ export default function EmployeeDetailPage() {
       )}
 
       {employee.loans.length > 0 && (
-        <div className="rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
           <div className="p-6 space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground">Staff Loans</h3>
           </div>

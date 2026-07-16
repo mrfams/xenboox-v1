@@ -82,7 +82,7 @@ export default function MobileMoneyPage() {
             description="Transactions will appear here once you process mobile money transfers."
           />
         ) : (
-          <div className="rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">

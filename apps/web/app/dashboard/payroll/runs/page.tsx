@@ -71,7 +71,7 @@ export default function PayrollRunsPage() {
           description="Create your first payroll run to process employee pay."
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

@@ -123,7 +123,7 @@ export default function CustomerDetailPage() {
               description="No invoices found for this customer."
             />
           ) : (
-            <div className="rounded-lg border bg-card">
+              <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -171,7 +171,7 @@ export default function CustomerDetailPage() {
               description="No payments found for this customer."
             />
           ) : (
-            <div className="rounded-lg border bg-card">
+              <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">

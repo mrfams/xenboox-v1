@@ -163,7 +163,7 @@ export default function COAPage() {
           }
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

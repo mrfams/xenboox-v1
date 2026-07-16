@@ -1,3 +1,15 @@
+/**
+ * Fill template variables in a system prompt.
+ * Usage: fillPrompt(cfoSystemPromptV7, { ENTITY_NAME: "Acme Corp", ... })
+ */
+export function fillPrompt(template: string, vars: Record<string, string>): string {
+  let result = template
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replaceAll(`{{${key}}}`, value)
+  }
+  return result
+}
+
 import { cfoSystemPromptV7 } from "./cfo-system-prompt-v7"
 import { controllerSystemPromptV5 } from "./controller-system-prompt-v5"
 import { ledgerSystemPromptV6 } from "./ledger-system-prompt-v6"

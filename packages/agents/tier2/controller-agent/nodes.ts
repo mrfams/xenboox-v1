@@ -1,6 +1,7 @@
 import { langfuse } from "../../core/langfuse"
-import { CONTROLLER_SYSTEM_PROMPT } from "../../core/prompts"
+import { CONTROLLER_SYSTEM_PROMPT, fillPrompt } from "../../core/prompts"
 import { createAuditEntry } from "../../core/state"
+import { callLLM } from "../../core/llm/agent-llm"
 import { validateEntryStructural, reconcileSubLedgers, queryTrialBalanceFromDB } from "./tools"
 import type { ControllerStateType, PendingEntryReview, CloseChecklist } from "./state"
 
@@ -179,12 +180,45 @@ export async function nodeRunCloseChecklist(state: ControllerStateType) {
   const allComplete = checklist.items.every((i) => i.status === "complete")
   checklist.allComplete = allComplete
 
+  const completedCount = checklist.items.filter((i) => i.status === "complete").length
+  const blockedItems = checklist.items.filter((i) => i.status === "blocked").map(
+    (i) => `${i.domain}: ${i.blockedReason ?? "blocked"}`
+  )
+  const pendingItems = checklist.items.filter((i) => i.status === "pending").map((i) => i.domain)
+
+  const checklistData = `Period: ${checklist.period}\nCompleted: ${completedCount}/${checklist.items.length}\nAll complete: ${allComplete}\nSub-ledger reconciliation: AP ${subLedger.ap.reconciled ? "reconciled" : `variance ${subLedger.ap.variance}`}, AR ${subLedger.ar.reconciled ? "reconciled" : `variance ${subLedger.ar.variance}`}, Fixed Assets ${subLedger.fixedAssets.reconciled ? "reconciled" : `variance ${subLedger.fixedAssets.variance}`}\n${blockedItems.length > 0 ? `Blocked: ${blockedItems.join("; ")}` : "No blocked items"}\n${pendingItems.length > 0 ? `Pending: ${pendingItems.join(", ")}` : ""}`
+
+  let summaryText: string
+  try {
+    const result = await callLLM({
+      tier: "worker",
+      systemPrompt: fillPrompt(CONTROLLER_SYSTEM_PROMPT, {
+        ENTITY_NAME: state.entityName || "Unknown",
+        ENTITY_ID: state.entityId,
+        PERIOD: checklist.period,
+      }),
+      messages: [{
+        role: "user",
+        content: `Generate a close checklist summary for the CFO.\n\n${checklistData}\n\nWrite in plain English. State what's complete, what's blocked/pending, and the next step.`,
+      }],
+      entityId: state.entityId,
+      agentId: "controller-agent",
+    })
+    summaryText = result.content
+  } catch {
+    const blocked = blockedItems.length > 0 ? ` Blocked: ${blockedItems.join("; ")}.` : ""
+    const pending = pendingItems.length > 0 ? ` Pending: ${pendingItems.join(", ")}.` : ""
+    summaryText = allComplete
+      ? `Close checklist for ${checklist.period}: all ${completedCount} items complete. Sub-ledgers reconciled. Ready to confirm to CFO.`
+      : `Close checklist for ${checklist.period}: ${completedCount}/${checklist.items.length} items complete.${blocked}${pending}`
+  }
+
   const audit = createAuditEntry({
     agentId: "controller-agent",
     action: "close_checklist_run",
     details: {
       period: checklist.period,
-      itemsComplete: checklist.items.filter((i) => i.status === "complete").length,
+      itemsComplete: completedCount,
       totalItems: checklist.items.length,
       allComplete,
     },
@@ -195,7 +229,7 @@ export async function nodeRunCloseChecklist(state: ControllerStateType) {
     output: {
       period: checklist.period,
       allComplete,
-      itemsComplete: checklist.items.filter((i) => i.status === "complete").length,
+      itemsComplete: completedCount,
     },
   })
 
@@ -205,7 +239,8 @@ export async function nodeRunCloseChecklist(state: ControllerStateType) {
     confidence: allComplete ? 0.92 : 0.6,
     reasoning: allComplete
       ? `Close checklist complete for ${checklist.period}. Ready to confirm to CFO.`
-      : `Close checklist incomplete for ${checklist.period}. ${checklist.items.filter((i) => i.status !== "complete").length} items pending.`,
+      : `Close checklist incomplete for ${checklist.period}. ${checklist.items.length - completedCount} items pending.`,
+    humanResponse: summaryText,
     auditTrail: [audit],
   }
 }

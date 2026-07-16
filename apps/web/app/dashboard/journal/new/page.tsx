@@ -132,7 +132,7 @@ export default function NewJournalEntryPage() {
 
           <div className="space-y-2">
             <Label>Lines</Label>
-            <div className="rounded-lg border">
+            <div className="overflow-x-auto rounded-lg border">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">

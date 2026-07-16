@@ -68,7 +68,7 @@ export default function FiscalPage() {
           description="Create your first fiscal period to start accounting."
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

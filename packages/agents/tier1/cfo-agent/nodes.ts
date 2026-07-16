@@ -4,6 +4,8 @@ import { getAgentGraph } from "../../core/orchestrator"
 import { fanOutToDepartments } from "../../core/orchestrator"
 import { DEPARTMENT_AGENTS, ALL_DEPARTMENTS } from "../../core/registry"
 import type { AgentDepartment } from "../../core/registry"
+import { callLLM } from "../../core/llm/agent-llm"
+import { CFO_SYSTEM_PROMPT, fillPrompt } from "../../core/prompts"
 import {
   classifyInstruction,
   routeToDepartment,
@@ -21,14 +23,46 @@ export async function nodeClassifyInput(state: CfoStateType) {
     metadata: { entityId: state.entityId },
   })
 
-  const taskType = state.currentTask?.type ?? "instruction"
   const input = state.currentTask?.description ?? ""
+  const fallbackType = state.currentTask?.type ?? "instruction"
 
-  await trace.update({ output: { taskType, inputLength: input.length } })
+  try {
+    const result = await callLLM({
+      tier: "management",
+      systemPrompt: fillPrompt(CFO_SYSTEM_PROMPT, {
+        ENTITY_NAME: state.entityName || "Unknown",
+        ENTITY_ID: state.entityId,
+        BASE_CURRENCY: state.currency || "GMD",
+        FISCAL_YEAR_END: "December",
+        CURRENT_PERIOD: "current",
+        ORG_TYPE: "business",
+        TIMEZONE: "Africa/Banjul",
+        LAST_CLOSE_DATE: "N/A",
+        AUTHORITY_LIMIT: "500,000",
+      }),
+      messages: [{
+        role: "user",
+        content: `Classify this message into exactly one type: question, instruction, close_trigger, close_flag, approval, clarification.\n\nMessage: "${input}"\n\nRespond with ONLY: {"type":"<type>","confidence":<0-1>,"reasoning":"<brief>"}`,
+      }],
+      entityId: state.entityId,
+      agentId: "cfo-agent",
+    })
 
-  return {
-    confidence: 0,
-    reasoning: `Classified as ${taskType}`,
+    const parsed = JSON.parse(result.content)
+    await trace.update({ output: { classified: parsed.type, source: "llm" } })
+
+    return {
+      confidence: parsed.confidence ?? 0.85,
+      reasoning: parsed.reasoning ?? `LLM classified as ${parsed.type}`,
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    await trace.update({ output: { classified: fallbackType, source: "deterministic", error: msg } })
+
+    return {
+      confidence: 0,
+      reasoning: `Classified as ${fallbackType} (deterministic fallback)`,
+    }
   }
 }
 
@@ -139,18 +173,55 @@ export async function nodeAnswerQuestion(state: CfoStateType) {
   })
 
   const summary = await getEntityFinancialSummary(state.entityId)
+  const question = state.currentTask?.description ?? ""
 
-  const response = summary.period
-    ? `For period ${summary.period}: ${summary.entryCount} journal entries posted, ${summary.accountCount} accounts with activity, total activity of ${state.currency} ${summary.totalActivity.toLocaleString()}.`
-    : "No open fiscal period found. Please ensure a period is open before querying financial data."
+  const dataContext = summary.period
+    ? `Period: ${summary.period}\nJournal entries: ${summary.entryCount}\nActive accounts: ${summary.accountCount}\nTotal activity: ${state.currency} ${summary.totalActivity.toLocaleString()}`
+    : "No open fiscal period found."
 
-  await trace.update({ output: { period: summary.period, entryCount: summary.entryCount } })
+  try {
+    const result = await callLLM({
+      tier: "management",
+      systemPrompt: fillPrompt(CFO_SYSTEM_PROMPT, {
+        ENTITY_NAME: state.entityName || "Unknown",
+        ENTITY_ID: state.entityId,
+        BASE_CURRENCY: state.currency || "GMD",
+        FISCAL_YEAR_END: "December",
+        CURRENT_PERIOD: summary.period || "none",
+        ORG_TYPE: "business",
+        TIMEZONE: "Africa/Banjul",
+        LAST_CLOSE_DATE: "N/A",
+        AUTHORITY_LIMIT: "500,000",
+      }),
+      messages: [{
+        role: "user",
+        content: `Financial data:\n${dataContext}\n\nUser question: "${question}"\n\nAnswer in plain English. Open with the topic and period. Close with a clear next step.`,
+      }],
+      entityId: state.entityId,
+      agentId: "cfo-agent",
+    })
 
-  return {
-    result: { type: "question_answered", summary },
-    confidence: 0.9,
-    reasoning: "Retrieved entity financial summary",
-    humanResponse: response,
+    await trace.update({ output: { source: "llm" } })
+
+    return {
+      result: { type: "question_answered", summary },
+      confidence: 0.9,
+      reasoning: "LLM-generated answer from financial summary",
+      humanResponse: result.content,
+    }
+  } catch {
+    const fallback = summary.period
+      ? `For period ${summary.period}: ${summary.entryCount} journal entries posted, ${summary.accountCount} accounts with activity, total activity of ${state.currency} ${summary.totalActivity.toLocaleString()}.`
+      : "No open fiscal period found. Please ensure a period is open before querying financial data."
+
+    await trace.update({ output: { source: "deterministic" } })
+
+    return {
+      result: { type: "question_answered", summary },
+      confidence: 0.9,
+      reasoning: "Retrieved entity financial summary (deterministic fallback)",
+      humanResponse: fallback,
+    }
   }
 }
 
@@ -338,16 +409,51 @@ export async function nodeGenerateSummary(state: CfoStateType) {
 
   const summary = await getEntityFinancialSummary(state.entityId)
 
-  const response = summary.period
-    ? `Financial Summary for ${state.entityName} (${summary.period}):\n- Journal entries: ${summary.entryCount}\n- Active accounts: ${summary.accountCount}\n- Total activity: ${state.currency} ${summary.totalActivity.toLocaleString()}`
+  const dataContext = summary.period
+    ? `Entity: ${state.entityName}\nPeriod: ${summary.period}\nJournal entries: ${summary.entryCount}\nActive accounts: ${summary.accountCount}\nTotal activity: ${state.currency} ${summary.totalActivity.toLocaleString()}`
     : `${state.entityName}: No open fiscal period found.`
 
-  await trace.update({ output: summary })
+  try {
+    const result = await callLLM({
+      tier: "management",
+      systemPrompt: fillPrompt(CFO_SYSTEM_PROMPT, {
+        ENTITY_NAME: state.entityName || "Unknown",
+        ENTITY_ID: state.entityId,
+        BASE_CURRENCY: state.currency || "GMD",
+        FISCAL_YEAR_END: "December",
+        CURRENT_PERIOD: summary.period || "none",
+        ORG_TYPE: "business",
+        TIMEZONE: "Africa/Banjul",
+        LAST_CLOSE_DATE: "N/A",
+        AUTHORITY_LIMIT: "500,000",
+      }),
+      messages: [{
+        role: "user",
+        content: `Generate a financial summary for the CFO to present to the human.\n\nData:\n${dataContext}\n\nWrite in plain English. Open with the topic and period. Close with a clear next step.`,
+      }],
+      entityId: state.entityId,
+      agentId: "cfo-agent",
+    })
 
-  return {
-    result: { type: "summary_generated", summary },
-    confidence: 0.9,
-    humanResponse: response,
+    await trace.update({ output: { source: "llm", summary } })
+
+    return {
+      result: { type: "summary_generated", summary },
+      confidence: 0.9,
+      humanResponse: result.content,
+    }
+  } catch {
+    const fallback = summary.period
+      ? `Financial Summary for ${state.entityName} (${summary.period}):\n- Journal entries: ${summary.entryCount}\n- Active accounts: ${summary.accountCount}\n- Total activity: ${state.currency} ${summary.totalActivity.toLocaleString()}`
+      : `${state.entityName}: No open fiscal period found.`
+
+    await trace.update({ output: { source: "deterministic", summary } })
+
+    return {
+      result: { type: "summary_generated", summary },
+      confidence: 0.9,
+      humanResponse: fallback,
+    }
   }
 }
 

@@ -120,7 +120,7 @@ export default function CashPage() {
               description="Create your first imprest float to advance funds."
             />
           ) : (
-            <div className="rounded-lg border bg-card">
+              <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -192,7 +192,7 @@ export default function CashPage() {
               description="Record your first petty cash transaction."
             />
           ) : (
-            <div className="rounded-lg border bg-card">
+              <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">

@@ -60,7 +60,7 @@ export default function TrialBalancePage() {
       {isLoading && <TableSkeleton rows={8} columns={4} />}
 
       {trialBalance && (
-        <div className="rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

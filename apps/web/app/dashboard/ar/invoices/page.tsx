@@ -83,7 +83,7 @@ export default function ARInvoicesPage() {
           description="Create your first invoice to start billing customers."
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

@@ -124,7 +124,7 @@ export default function InventoryItemDetailPage() {
             description="No inventory transactions have been recorded for this item yet."
           />
         ) : (
-          <div className="rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">

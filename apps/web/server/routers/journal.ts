@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 import { router, protectedProcedure, mutateProcedure } from "@/lib/trpc/server"

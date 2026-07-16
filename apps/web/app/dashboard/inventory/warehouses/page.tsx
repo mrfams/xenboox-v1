@@ -30,7 +30,7 @@ export default function WarehousesPage() {
           description="Add your first warehouse to start managing locations."
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

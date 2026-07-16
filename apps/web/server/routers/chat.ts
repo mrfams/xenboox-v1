@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 import { eq, and, desc, asc, lte, ilike, or, ne } from "drizzle-orm"

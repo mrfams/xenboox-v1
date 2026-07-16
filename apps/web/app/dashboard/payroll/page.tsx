@@ -81,7 +81,7 @@ export default function PayrollPage() {
           description="Add your first employee to get started with payroll."
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

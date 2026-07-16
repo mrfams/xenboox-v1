@@ -83,7 +83,7 @@ export default function APInvoicesPage() {
           description="Record your first supplier bill to start tracking payables."
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">

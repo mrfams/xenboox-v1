@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { z } from "zod"
 import { eq, desc } from "drizzle-orm"
 import { router, protectedProcedure } from "@/lib/trpc/server"

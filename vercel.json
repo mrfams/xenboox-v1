@@ -1,0 +1,7 @@
+{
+  "buildCommand": "pnpm build --filter=@xenboox/web",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "installCommand": "pnpm install",
+  "regions": ["iad1"]
+}

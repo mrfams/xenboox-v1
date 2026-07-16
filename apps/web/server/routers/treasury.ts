@@ -1,4 +1,3 @@
-// @ts-nocheck — drizzle-orm dual-version type mismatch between @xenboox/db and apps/web
 import { z } from "zod"
 import { eq, and, desc } from "drizzle-orm"
 import { router, protectedProcedure } from "@/lib/trpc/server"

@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { z } from "zod"
 import { router, protectedProcedure, publicProcedure } from "@/lib/trpc/server"
 import { db } from "@/lib/db"
@@ -71,7 +69,7 @@ export const organizationRouter = router({
     })
     const now = new Date()
     const current = periods.find(p => new Date(p.startDate) <= now && new Date(p.endDate) >= now)
-    const currentPeriod = current?.name || "No period"
+    const currentPeriod = current ? `${current.year}-${String(current.month).padStart(2, "0")}` : "No period"
 
     return { cashBalance, apOutstanding, arOutstanding, currentPeriod }
   }),

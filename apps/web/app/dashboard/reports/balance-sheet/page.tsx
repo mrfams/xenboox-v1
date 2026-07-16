@@ -24,6 +24,7 @@ function AccountTable({
     )
   }
   return (
+    <div className="overflow-x-auto">
     <table className="w-full">
       <thead>
         <tr className="border-b">
@@ -45,6 +46,7 @@ function AccountTable({
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
 

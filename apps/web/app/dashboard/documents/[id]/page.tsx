@@ -287,7 +287,7 @@ export default function DocumentDetailPage() {
             description="This document is not linked to any invoices, journal entries, or other entities."
           />
         ) : (
-          <div className="rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
