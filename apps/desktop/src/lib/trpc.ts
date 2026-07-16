@@ -1,5 +1,5 @@
-// @ts-nocheck — Placeholder AppRouter type until shared API package exports the real one
 import { createTRPCReact, httpBatchLink } from "@trpc/react-query"
+import type { AppRouter } from "@xenboox/api/app-router"
 import { getCurrentEntityId, getToken } from "./auth"
 
 function getBaseUrl() {
@@ -7,8 +7,7 @@ function getBaseUrl() {
   return "http://localhost:3000"
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const trpc: any = createTRPCReact<any>()
+export const trpc = createTRPCReact<AppRouter>()
 
 export function createTRPCClient() {
   return trpc.createClient({

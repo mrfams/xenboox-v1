@@ -4,6 +4,10 @@
   "private": true,
   "main": "index.ts",
   "types": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./app-router": "./app-router.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
