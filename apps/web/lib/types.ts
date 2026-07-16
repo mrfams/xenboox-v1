@@ -1,4 +1,4 @@
-export type AIProvider = "anthropic" | "openai" | "azure" | "self-hosted" | "meta"
+export type AIProvider = "anthropic" | "openai" | "azure" | "self-hosted"
 export type DeploymentMode = "api" | "self-hosted" | "hybrid"
 
 export type AIComparison = {
@@ -19,6 +19,21 @@ export type AIComparison = {
   breakEvenTokens: number
   recommendation: "api" | "self-host" | "hybrid"
   totalCost?: number
+}
+
+export type SelfHostedModel = {
+  provider: "self-hosted"
+  model: string
+  costPer1kTokens: number
+  selfHostCostPerMonth: number
+  avgLatencyMs: number
+  successRate: number
+  monthlySpend: number
+  monthlyTokens: number
+  budgetLimit: number
+  utilization: number
+  breakEvenTokens: number
+  recommendation: "self-host"
 }
 
 export type CostComparison = {

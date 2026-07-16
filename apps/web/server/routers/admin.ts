@@ -29,9 +29,27 @@ export type AIComparison = {
   utilization: number
   breakEvenTokens: number
   recommendation: "api" | "self-host" | "hybrid"
+  totalCost?: number
+}
+
+export type SelfHostedModel = {
+  provider: "self-hosted"
+  model: string
+  costPer1kTokens: number
+  selfHostCostPerMonth: number
+  avgLatencyMs: number
+  successRate: number
+  monthlySpend: number
+  monthlyTokens: number
+  budgetLimit: number
+  utilization: number
+  breakEvenTokens: number
+  recommendation: "self-host"
 }
 
 export type CostComparison = {
+  provider: AIProvider
+  model: string
   apiCost: number
   selfHostCost: number
   totalTokens: number
@@ -102,9 +120,255 @@ export const adminRouter = router({
   }),
 
   getAIComparison: adminProcedure.query(async () => {
-    const now = new Date()
-    const currentMonth = now.getMonth() + 1
-    const currentYear = now.getFullYear()
+    const comparison: AIComparison[] = [
+      {
+        provider: "anthropic",
+        model: "claude-sonnet-4.6",
+        deploymentMode: "api",
+        costPer1kTokens: 0.003,
+        selfHostCostPerMonth: 2500,
+        avgLatencyMs: 850,
+        successRate: 0.98,
+        monthlySpend: 12500,
+        monthlyTokens: 4166667,
+        budgetLimit: 25000,
+        threshold80: 20000,
+        recommendedAt80: 20000,
+        recommendedAt90: 22500,
+        utilization: 50,
+        breakEvenTokens: 833333,
+        recommendation: "api"
+      },
+      {
+        provider: "anthropic",
+        model: "claude-haiku-4.5",
+        deploymentMode: "api",
+        costPer1kTokens: 0.0003,
+        selfHostCostPerMonth: 500,
+        avgLatencyMs: 320,
+        successRate: 0.97,
+        monthlySpend: 850,
+        monthlyTokens: 2833333,
+        budgetLimit: 5000,
+        threshold80: 4000,
+        recommendedAt80: 4000,
+        recommendedAt90: 4500,
+        utilization: 17,
+        breakEvenTokens: 1666667,
+        recommendation: "api"
+      },
+      {
+        provider: "openai",
+        model: "gpt-4.1",
+        deploymentMode: "api",
+        costPer1kTokens: 0.015,
+        selfHostCostPerMonth: 5000,
+        avgLatencyMs: 720,
+        successRate: 0.96,
+        monthlySpend: 9200,
+        monthlyTokens: 613333,
+        budgetLimit: 20000,
+        threshold80: 16000,
+        recommendedAt80: 16000,
+        recommendedAt90: 18000,
+        utilization: 46,
+        breakEvenTokens: 333333,
+        recommendation: "api"
+      },
+      {
+        provider: "openai",
+        model: "gpt-mini",
+        deploymentMode: "self-hosted",
+        costPer1kTokens: 0.0001,
+        selfHostCostPerMonth: 1500,
+        avgLatencyMs: 150,
+        successRate: 0.92,
+        monthlySpend: 1500,
+        monthlyTokens: 15000000,
+        budgetLimit: 10000,
+        threshold80: 8000,
+        recommendedAt80: 8000,
+        recommendedAt90: 9000,
+        utilization: 15,
+        breakEvenTokens: 15000000,
+        recommendation: "self-host"
+      },
+      {
+        provider: "self-hosted",
+        model: "llama-3.1-8b",
+        deploymentMode: "self-hosted",
+        costPer1kTokens: 0,
+        selfHostCostPerMonth: 800,
+        avgLatencyMs: 200,
+        successRate: 0.89,
+        monthlySpend: 800,
+        monthlyTokens: 10000000,
+        budgetLimit: 5000,
+        threshold80: 4000,
+        recommendedAt80: 4000,
+        recommendedAt90: 4500,
+        utilization: 16,
+        breakEvenTokens: 8000000,
+        recommendation: "self-host"
+      }
+    ]
+
+    return comparison.map(c => ({
+      ...c,
+      utilization: ((c.monthlySpend + c.selfHostCostPerMonth) / c.budgetLimit) * 100,
+      totalCost: c.monthlySpend + c.selfHostCostPerMonth
+    }))
+  }),
+
+  getSpendAlerts: adminProcedure.query(async () => {
+    const comparison: AIComparison[] = [
+      {
+        provider: "anthropic",
+        model: "claude-sonnet-4.6",
+        deploymentMode: "api",
+        costPer1kTokens: 0.003,
+        selfHostCostPerMonth: 2500,
+        avgLatencyMs: 850,
+        successRate: 0.98,
+        monthlySpend: 12500,
+        monthlyTokens: 4166667,
+        budgetLimit: 25000,
+        threshold80: 20000,
+        recommendedAt80: 20000,
+        recommendedAt90: 22500,
+        utilization: 50,
+        breakEvenTokens: 833333,
+        recommendation: "api"
+      },
+      {
+        provider: "anthropic",
+        model: "claude-haiku-4.5",
+        deploymentMode: "api",
+        costPer1kTokens: 0.0003,
+        selfHostCostPerMonth: 500,
+        avgLatencyMs: 320,
+        successRate: 0.97,
+        monthlySpend: 850,
+        monthlyTokens: 2833333,
+        budgetLimit: 5000,
+        threshold80: 4000,
+        recommendedAt80: 4000,
+        recommendedAt90: 4500,
+        utilization: 17,
+        breakEvenTokens: 1666667,
+        recommendation: "api"
+      },
+      {
+        provider: "openai",
+        model: "gpt-4.1",
+        deploymentMode: "api",
+        costPer1kTokens: 0.015,
+        selfHostCostPerMonth: 5000,
+        avgLatencyMs: 720,
+        successRate: 0.96,
+        monthlySpend: 9200,
+        monthlyTokens: 613333,
+        budgetLimit: 20000,
+        threshold80: 16000,
+        recommendedAt80: 16000,
+        recommendedAt90: 18000,
+        utilization: 46,
+        breakEvenTokens: 333333,
+        recommendation: "api"
+      },
+      {
+        provider: "openai",
+        model: "gpt-mini",
+        deploymentMode: "self-hosted",
+        costPer1kTokens: 0.0001,
+        selfHostCostPerMonth: 1500,
+        avgLatencyMs: 150,
+        successRate: 0.92,
+        monthlySpend: 1500,
+        monthlyTokens: 15000000,
+        budgetLimit: 10000,
+        threshold80: 8000,
+        recommendedAt80: 8000,
+        recommendedAt90: 9000,
+        utilization: 15,
+        breakEvenTokens: 15000000,
+        recommendation: "self-host"
+      },
+      {
+        provider: "self-hosted",
+        model: "llama-3.1-8b",
+        deploymentMode: "self-hosted",
+        costPer1kTokens: 0,
+        selfHostCostPerMonth: 800,
+        avgLatencyMs: 200,
+        successRate: 0.89,
+        monthlySpend: 800,
+        monthlyTokens: 10000000,
+        budgetLimit: 5000,
+        threshold80: 4000,
+        recommendedAt80: 4000,
+        recommendedAt90: 4500,
+        utilization: 16,
+        breakEvenTokens: 8000000,
+        recommendation: "self-host"
+      }
+    ]
+
+    const alerts: SpendAlert[] = []
+
+    for (const item of comparison) {
+      const percentage = (item.monthlySpend / item.budgetLimit) * 100
+      let alertLevel: "low" | "warning" | "critical" = "low"
+      
+      if (percentage >= 90) alertLevel = "critical"
+      else if (percentage >= 80) alertLevel = "warning"
+
+      alerts.push({
+        provider: item.provider,
+        model: item.model,
+        currentSpend: item.monthlySpend,
+        budgetLimit: item.budgetLimit,
+        percentage,
+        alertLevel
+      })
+    }
+
+    return alerts.filter(a => a.percentage >= 70)
+  }),
+
+  getAIUsage: adminProcedure.query(async () => {
+    const activities = await db.query.agentActivity.findMany({
+      orderBy: [desc(agentActivity.createdAt)],
+      limit: 100
+    })
+
+    const usageByAgent = activities.reduce((acc, act) => {
+      if (!acc[act.agentName]) {
+        acc[act.agentName] = { count: 0, totalDuration: 0, avgConfidence: 0 }
+      }
+      acc[act.agentName].count += 1
+      acc[act.agentName].totalDuration += act.durationMs || 0
+      acc[act.agentName].avgConfidence = (acc[act.agentName].avgConfidence + parseFloat(act.confidence)) / 2
+      return acc
+    }, {} as Record<string, { count: number; totalDuration: number; avgConfidence: number }>)
+
+    return Object.entries(usageByAgent).map(([agent, data]) => ({
+      agent,
+      ...data,
+      avgLatency: data.totalDuration / data.count
+    }))
+  }),
+
+  getCostComparison: adminProcedure.query(async () => {
+    const activities = await db.query.agentActivity.findMany({
+      orderBy: [desc(agentActivity.createdAt)],
+      limit: 1000
+    })
+
+    const totalTokens = activities.reduce((sum: number, act) => {
+      const costCents = act.costCents || 0
+      return sum + (typeof costCents === 'number' ? costCents : 0)
+    }, 0)
 
     const comparison: AIComparison[] = [
       {
@@ -180,7 +444,7 @@ export const adminRouter = router({
         recommendation: "self-host"
       },
       {
-        provider: "meta",
+        provider: "self-hosted",
         model: "llama-3.1-8b",
         deploymentMode: "self-hosted",
         costPer1kTokens: 0,
@@ -199,77 +463,10 @@ export const adminRouter = router({
       }
     ]
 
-    return comparison.map(c => ({
-      ...c,
-      utilization: ((c.monthlySpend + c.selfHostCostPerMonth) / c.budgetLimit) * 100,
-      totalCost: c.monthlySpend + c.selfHostCostPerMonth
-    }))
-  }),
-
-  getSpendAlerts: adminProcedure.query(async () => {
-    const comparison = await adminProcedure._ctx.getAIComparison()
-    const alerts: SpendAlert[] = []
-
-    for (const item of comparison) {
-      const percentage = (item.monthlySpend / item.budgetLimit) * 100
-      let alertLevel: "low" | "warning" | "critical" = "low"
-      
-      if (percentage >= 90) alertLevel = "critical"
-      else if (percentage >= 80) alertLevel = "warning"
-
-      alerts.push({
-        provider: item.provider,
-        model: item.model,
-        currentSpend: item.monthlySpend,
-        budgetLimit: item.budgetLimit,
-        percentage,
-        alertLevel
-      })
-    }
-
-    return alerts.filter(a => a.percentage >= 70)
-  }),
-
-  getAIUsage: adminProcedure.query(async () => {
-    const activities = await db.query.agentActivity.findMany({
-      orderBy: [desc(agentActivity.createdAt)],
-      limit: 100
-    })
-
-    const usageByAgent = activities.reduce((acc, act) => {
-      if (!acc[act.agentName]) {
-        acc[act.agentName] = { count: 0, totalDuration: 0, avgConfidence: 0 }
-      }
-      acc[act.agentName].count += 1
-      acc[act.agentName].totalDuration += act.durationMs || 0
-      acc[act.agentName].avgConfidence = (acc[act.agentName].avgConfidence + parseFloat(act.confidence)) / 2
-      return acc
-    }, {} as Record<string, { count: number; totalDuration: number; avgConfidence: number }>)
-
-    return Object.entries(usageByAgent).map(([agent, data]) => ({
-      agent,
-      ...data,
-      avgLatency: data.totalDuration / data.count
-    }))
-  }),
-
-  getCostComparison: adminProcedure.query(async () => {
-    const activities = await db.query.agentActivity.findMany({
-      orderBy: [desc(agentActivity.createdAt)],
-      limit: 1000
-    })
-
-    const totalTokens = activities.reduce((sum, act) => {
-      const tokens = act.metadata?.tokens || 0
-      return sum + (typeof tokens === 'number' ? tokens : 0)
-    }, 0)
-
-    const comparison = await adminProcedure._ctx.getAIComparison()
-    
     const costComparison = comparison.map(c => {
       const apiCost = c.monthlySpend
       const selfHostCost = c.selfHostCostPerMonth
-      const breakEvenPoint = Math.ceil((selfHostCost / c.costPer1kTokens) * 1000)
+      const breakEvenPoint = c.costPer1kTokens > 0 ? Math.ceil((selfHostCost / c.costPer1kTokens) * 1000) : 0
       
       let recommendation: "api" | "self-host" | "hybrid" = "api"
       if (selfHostCost < apiCost * 0.7) {
