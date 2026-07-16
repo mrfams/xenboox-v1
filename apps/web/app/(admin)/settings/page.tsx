@@ -1,33 +1,53 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@xenboox/ui"
-import { Button } from "@xenboox/ui"
-import { Input } from "@xenboox/ui"
-import { Label } from "@xenboox/ui"
-import { Switch } from "@xenboox/ui"
-import { Settings, Bell, Shield, Database, Globe, Key, Save, RefreshCw, UserCheck } from "lucide-react"
-import { trpc } from "@/lib/trpc/client"
-import { useState } from "react"
+"use client";
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@xenboox/ui";
+import { Button } from "@xenboox/ui";
+import { Input } from "@xenboox/ui";
+import { Label } from "@xenboox/ui";
+import { Switch } from "@xenboox/ui";
+import {
+  Settings,
+  Bell,
+  Shield,
+  Database,
+  Globe,
+  Key,
+  Save,
+  RefreshCw,
+  UserCheck,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import { useState } from "react";
 
 export default function AdminSettingsPage() {
-  const [emailAlerts, setEmailAlerts] = useState(true)
-  const [slackAlerts, setSlackAlerts] = useState(false)
-  const [smsAlerts, setSmsAlerts] = useState(false)
-  const [autoScaling, setAutoScaling] = useState(false)
-  const [costOptimization, setCostOptimization] = useState(true)
-  const [providerFallback, setProviderFallback] = useState(true)
-  const [maintenanceMode, setMaintenanceMode] = useState(false)
-  const [debugMode, setDebugMode] = useState(false)
-  const [auditLogging, setAuditLogging] = useState(true)
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [slackAlerts, setSlackAlerts] = useState(false);
+  const [smsAlerts, setSmsAlerts] = useState(false);
+  const [autoScaling, setAutoScaling] = useState(false);
+  const [costOptimization, setCostOptimization] = useState(true);
+  const [providerFallback, setProviderFallback] = useState(true);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
+  const [auditLogging, setAuditLogging] = useState(true);
 
-  const [anthropicBudget, setAnthropicBudget] = useState("25000")
-  const [openaiBudget, setOpenaiBudget] = useState("20000")
-  const [haikuBudget, setHaikuBudget] = useState("5000")
+  const [anthropicBudget, setAnthropicBudget] = useState("25000");
+  const [openaiBudget, setOpenaiBudget] = useState("20000");
+  const [haikuBudget, setHaikuBudget] = useState("5000");
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
-          <p className="text-muted-foreground mt-1">Configure system settings and preferences</p>
+          <p className="text-muted-foreground mt-1">
+            Configure system settings and preferences
+          </p>
         </div>
         <Button>
           <Save className="h-4 w-4 mr-2" />
@@ -39,38 +59,37 @@ export default function AdminSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Notification Settings</CardTitle>
-            <CardDescription>Configure how you receive alerts and notifications</CardDescription>
+            <CardDescription>
+              Configure how you receive alerts and notifications
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>Email Alerts</span>
-                <span className="text-xs text-muted-foreground">Receive alerts via email</span>
+                <span className="text-xs text-muted-foreground">
+                  Receive alerts via email
+                </span>
               </Label>
-              <Switch
-                checked={emailAlerts}
-                onCheckedChange={setEmailAlerts}
-              />
+              <Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} />
             </div>
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>Slack Alerts</span>
-                <span className="text-xs text-muted-foreground">Receive alerts via Slack</span>
+                <span className="text-xs text-muted-foreground">
+                  Receive alerts via Slack
+                </span>
               </Label>
-              <Switch
-                checked={slackAlerts}
-                onCheckedChange={setSlackAlerts}
-              />
+              <Switch checked={slackAlerts} onCheckedChange={setSlackAlerts} />
             </div>
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>SMS Alerts</span>
-                <span className="text-xs text-muted-foreground">Receive alerts via SMS</span>
+                <span className="text-xs text-muted-foreground">
+                  Receive alerts via SMS
+                </span>
               </Label>
-              <Switch
-                checked={smsAlerts}
-                onCheckedChange={setSmsAlerts}
-              />
+              <Switch checked={smsAlerts} onCheckedChange={setSmsAlerts} />
             </div>
           </CardContent>
         </Card>
@@ -78,23 +97,26 @@ export default function AdminSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>AI Settings</CardTitle>
-            <CardDescription>Configure AI provider settings and cost optimization</CardDescription>
+            <CardDescription>
+              Configure AI provider settings and cost optimization
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>Auto Budget Scaling</span>
-                <span className="text-xs text-muted-foreground">Automatically increase budgets when approaching limits</span>
+                <span className="text-xs text-muted-foreground">
+                  Automatically increase budgets when approaching limits
+                </span>
               </Label>
-              <Switch
-                checked={autoScaling}
-                onCheckedChange={setAutoScaling}
-              />
+              <Switch checked={autoScaling} onCheckedChange={setAutoScaling} />
             </div>
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>Cost Optimization</span>
-                <span className="text-xs text-muted-foreground">Enable automatic cost optimization recommendations</span>
+                <span className="text-xs text-muted-foreground">
+                  Enable automatic cost optimization recommendations
+                </span>
               </Label>
               <Switch
                 checked={costOptimization}
@@ -104,7 +126,9 @@ export default function AdminSettingsPage() {
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>Provider Fallback</span>
-                <span className="text-xs text-muted-foreground">Automatically switch providers on failure</span>
+                <span className="text-xs text-muted-foreground">
+                  Automatically switch providers on failure
+                </span>
               </Label>
               <Switch
                 checked={providerFallback}
@@ -123,7 +147,9 @@ export default function AdminSettingsPage() {
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>Maintenance Mode</span>
-                <span className="text-xs text-muted-foreground">Temporarily disable non-essential features</span>
+                <span className="text-xs text-muted-foreground">
+                  Temporarily disable non-essential features
+                </span>
               </Label>
               <Switch
                 checked={maintenanceMode}
@@ -133,17 +159,18 @@ export default function AdminSettingsPage() {
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>Debug Mode</span>
-                <span className="text-xs text-muted-foreground">Enable detailed logging and debugging</span>
+                <span className="text-xs text-muted-foreground">
+                  Enable detailed logging and debugging
+                </span>
               </Label>
-              <Switch
-                checked={debugMode}
-                onCheckedChange={setDebugMode}
-              />
+              <Switch checked={debugMode} onCheckedChange={setDebugMode} />
             </div>
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
                 <span>Audit Logging</span>
-                <span className="text-xs text-muted-foreground">Log all user actions for compliance</span>
+                <span className="text-xs text-muted-foreground">
+                  Log all user actions for compliance
+                </span>
               </Label>
               <Switch
                 checked={auditLogging}
@@ -156,7 +183,9 @@ export default function AdminSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Security Settings</CardTitle>
-            <CardDescription>Configure security and authentication settings</CardDescription>
+            <CardDescription>
+              Configure security and authentication settings
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button variant="outline" className="w-full justify-start">
@@ -178,14 +207,18 @@ export default function AdminSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Budget Configuration</CardTitle>
-          <CardDescription>Configure monthly budgets for AI providers</CardDescription>
+          <CardDescription>
+            Configure monthly budgets for AI providers
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="anthropic-budget">Anthropic Budget (Monthly)</Label>
-              <Input 
-                type="number" 
+              <Label htmlFor="anthropic-budget">
+                Anthropic Budget (Monthly)
+              </Label>
+              <Input
+                type="number"
                 value={anthropicBudget}
                 onChange={(e) => setAnthropicBudget(e.target.value)}
                 className="mt-1"
@@ -193,17 +226,19 @@ export default function AdminSettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="openai-budget">OpenAI Budget (Monthly)</Label>
-              <Input 
-                type="number" 
+              <Input
+                type="number"
                 value={openaiBudget}
                 onChange={(e) => setOpenaiBudget(e.target.value)}
                 className="mt-1"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="haiku-budget">Anthropic Haiku Budget (Monthly)</Label>
-              <Input 
-                type="number" 
+              <Label htmlFor="haiku-budget">
+                Anthropic Haiku Budget (Monthly)
+              </Label>
+              <Input
+                type="number"
                 value={haikuBudget}
                 onChange={(e) => setHaikuBudget(e.target.value)}
                 className="mt-1"
@@ -213,5 +248,5 @@ export default function AdminSettingsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
