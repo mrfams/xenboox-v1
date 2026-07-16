@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { trpc } from "@/lib/trpc"
 import { useRouter } from "expo-router"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export default function CreateJournalEntryScreen() {
   const router = useRouter()
@@ -16,6 +16,9 @@ export default function CreateJournalEntryScreen() {
   const [creditAccount, setCreditAccount] = useState("")
   const [amount, setAmount] = useState("")
   const utils = trpc.useUtils()
+
+  const { data: periods, isLoading: loadingPeriods } = trpc.fiscal.listPeriods.useQuery()
+  const currentPeriod = periods?.find((p: (typeof periods)[number]) => p.status === "open")
 
   const mutation = trpc.journal.create.useMutation({
     onSuccess: () => {
@@ -69,26 +72,30 @@ export default function CreateJournalEntryScreen() {
               </CardContent>
             </Card>
 
-            <Button
-              onPress={() => {
-                if (!description || !date || !debitAccount || !creditAccount || !amount) {
-                  Alert.alert("Error", "All fields are required")
-                  return
-                }
-                mutation.mutate({
-                  description,
-                  date,
-                  periodId: "00000000-0000-0000-0000-000000000013",
-                  lines: [
-                    { accountId: debitAccount, debit: amount, credit: "0" },
-                    { accountId: creditAccount, debit: "0", credit: amount },
-                  ],
-                })
-              }}
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? "Creating..." : "Create Entry"}
-            </Button>
+<Button
+            onPress={() => {
+              if (!description || !date || !debitAccount || !creditAccount || !amount) {
+                Alert.alert("Error", "All fields are required")
+                return
+              }
+              if (!currentPeriod) {
+                Alert.alert("Error", "No open fiscal period found")
+                return
+              }
+              mutation.mutate({
+                description,
+                date,
+                periodId: currentPeriod.id,
+                lines: [
+                  { accountId: debitAccount, debit: amount, credit: "0" },
+                  { accountId: creditAccount, debit: "0", credit: amount },
+                ],
+              })
+            }}
+            disabled={mutation.isPending || loadingPeriods}
+          >
+            {mutation.isPending ? "Creating..." : "Create Entry"}
+          </Button>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

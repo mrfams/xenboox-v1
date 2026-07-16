@@ -140,6 +140,8 @@ export default function ChatPage() {
 
   const exportConversation = trpc.chat.exportConversation.useMutation()
 
+  const getUploadUrl = trpc.document.getUploadUrl.useMutation()
+  const confirmUpload = trpc.document.confirmUpload.useMutation()
   const addAttachment = trpc.chat.addAttachment.useMutation()
 
   const handleNewConversation = () => {
@@ -251,18 +253,45 @@ export default function ChatPage() {
 
       for (const file of files) {
         try {
-          // Get presigned URL
-          const uploadRes = await addAttachment.mutateAsync({
+          // Get presigned upload URL from document router
+          const { uploadUrl, storagePath } = await getUploadUrl.mutateAsync({
+            fileName: file.name,
+            mimeType: file.type as "application/pdf" | "image/jpeg" | "image/png" | "image/tiff" | "image/webp" | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" | "application/vnd.ms-excel" | "text/csv" | "application/vnd.openxmlformats-officedocument.wordprocessingml.document" | "application/msword",
+            fileSize: file.size,
+          })
+
+          // Upload file directly to R2
+          await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": file.type,
+            },
+            body: file,
+          })
+
+          // Create document record
+          const { documentId } = await confirmUpload.mutateAsync({
+            r2Key: storagePath,
+            r2Bucket: process.env.NEXT_PUBLIC_R2_BUCKET_NAME || "xenboox-uploads",
+            name: file.name,
+            type: file.type.startsWith("image/") ? "receipt" : "supporting",
+            mimeType: file.type,
+            fileSize: file.size,
+          })
+
+          // Create chat attachment record
+          const attachment = await addAttachment.mutateAsync({
             conversationId: activeConversationId,
+            documentId,
+            attachmentType: file.type.startsWith("image/") ? "image" : "document",
             fileName: file.name,
             mimeType: file.type,
             fileSize: file.size,
-            attachmentType: file.type.startsWith("image/") ? "image" : "document",
+            r2Key: storagePath,
+            r2Bucket: process.env.NEXT_PUBLIC_R2_BUCKET_NAME || "xenboox-uploads",
           })
 
-          // TODO: Upload to R2 via presigned URL when R2 integration is complete
-          // For now, just create the attachment record
-          attachmentIds.push(uploadRes.id)
+          attachmentIds.push(attachment.id)
         } catch (err) {
           console.error("Failed to upload attachment:", err)
         }

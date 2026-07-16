@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import { router, publicProcedure } from "@/lib/trpc/server"
+import { router, publicProcedure, protectedProcedure } from "@/lib/trpc/server"
 import { db } from "@/lib/db"
 import { eq } from "drizzle-orm"
 import { users } from "@xenboox/db/schema/auth"
@@ -177,4 +177,37 @@ export const authRouter = router({
     }),
 
   // checkAccountLockout removed — was enabling user enumeration
+
+  changePassword: protectedProcedure
+    .input(z.object({
+      currentPassword: z.string().min(8, "Current password is required"),
+      newPassword: z.string().min(8, "New password must be at least 8 characters").max(128),
+      confirmPassword: z.string().min(8, "Confirm password is required"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.newPassword !== input.confirmPassword) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "New passwords do not match" })
+      }
+
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, ctx.session!.user!.id!),
+      })
+
+      if (!user?.passwordHash) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "User has no password set" })
+      }
+
+      const isValid = await bcrypt.compare(input.currentPassword, user.passwordHash)
+      if (!isValid) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Current password is incorrect" })
+      }
+
+      const newHash = await bcrypt.hash(input.newPassword, 12)
+
+      await db.update(users)
+        .set({ passwordHash: newHash })
+        .where(eq(users.id, ctx.session!.user!.id!))
+
+      return { success: true, message: "Password changed successfully" }
+    }),
 })

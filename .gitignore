@@ -37,8 +37,7 @@ coverage/
 # Turborepo
 .turbo/
 
-# Drizzle
-packages/db/migrations/meta/
+# Drizzle - nothing to ignore, migrations and meta both committed
 
 # Vercel
 .vercel/

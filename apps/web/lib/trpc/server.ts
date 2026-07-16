@@ -29,7 +29,7 @@ export function createTRPCContext(): Context {
   return { session: null, headers: {} }
 }
 
-const t = initTRPC.context<Context>().create({
+export const t = initTRPC.context<Context>().create({
   errorFormatter({ shape, error }) {
     return {
       ...shape,
@@ -62,16 +62,11 @@ function formatDbError(error: unknown): string {
 }
 
 // RLS session context setup
-// NOTE: RLS requires WebSocket connections or PgBouncer in transaction mode
-// Neon's HTTP driver does not support session variables properly
-// For production with RLS, use:
-// 1. Neon WebSocket mode: neon.tech/docs/connect/websocket
-// 2. Connection pooling with PgBouncer in transaction mode
+// Uses SET LOCAL so variables persist for the current transaction only.
+// Requires Neon WebSocket mode (Pool-based driver) — HTTP driver cannot use session variables.
 export async function setRlsContext(userId: string, entityId: string): Promise<void> {
-  // Set session variables for RLS policies
-  // These are used in RLS policies to filter data by entity
-  await db.execute(`SELECT set_config('app.current_user_id', ${JSON.stringify(userId)}, false)`);
-  await db.execute(`SELECT set_config('app.current_entity_id', ${JSON.stringify(entityId)}, false)`);
+  await db.execute(`SELECT set_config('app.current_user_id', ${JSON.stringify(userId)}, true)`);
+  await db.execute(`SELECT set_config('app.current_entity_id', ${JSON.stringify(entityId)}, true)`);
 }
 
 export const router = t.router
@@ -131,16 +126,13 @@ const requireRole = (...roles: string[]) =>
     return next({ ctx })
   })
 
-// RLS-aware procedure that sets session context before queries
-// Use this when RLS is enabled (requires WebSocket mode or PgBouncer)
+// RLS-aware procedure that sets session context before queries.
+// Always sets RLS context — entity scoping is enforced at the DB layer as defense-in-depth.
 export const rlsProtectedProcedure = t.procedure
   .use(authMiddleware)
   .use(entityScopingMiddleware)
   .use(async ({ ctx, next }) => {
-    // Set RLS session context if using WebSocket mode
-    if (process.env.NEON_WEBSOCKET === "true" || process.env.USE_RLS === "true") {
-      await setRlsContext(ctx.session!.user!.id!, ctx.entityId!)
-    }
+    await setRlsContext(ctx.session!.user!.id!, ctx.entityId!)
     return next({ ctx })
   })
 
@@ -236,6 +228,4 @@ export const mutateProcedure = t.procedure
   .use(entityScopingMiddleware)
   .use(idempotencyMiddleware)
 
-import { appRouter } from "@/server/routers/_app"
-
-export const createCaller = t.createCallerFactory(appRouter)
+// Use createCaller from ./caller.ts to avoid circular dependency

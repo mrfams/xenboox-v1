@@ -17,8 +17,7 @@ import { Skeleton } from "@/components/shared/loading"
 import { trpc } from "@/lib/trpc/client"
 import { useEntity } from "@/lib/entity-context"
 import { formatCurrency, cn } from "@/lib/utils"
-// eslint-disable-next-line no-console
-const toast = { error: (msg: string) => console.warn(`[toast] ${msg}`) }
+import { toast } from "sonner"
 import {
   DollarSign,
   FileText,

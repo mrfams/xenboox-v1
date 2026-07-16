@@ -1,10 +1,13 @@
-import { drizzle } from "drizzle-orm/neon-http"
-import { neon } from "@neondatabase/serverless"
+import { Pool, neonConfig } from "@neondatabase/serverless"
+import { drizzle } from "drizzle-orm/neon-serverless"
+import ws from "ws"
 import * as schema from "./schema"
 
-// Database client — used everywhere in the app
-const sql = neon(process.env.DATABASE_URL!)
-export const db = drizzle(sql, { schema })
+// Enable WebSocket support for Neon serverless driver
+neonConfig.webSocketConstructor = ws
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+export const db = drizzle(pool, { schema })
 
 // Re-export all table types for convenience
 export type Database = typeof db
