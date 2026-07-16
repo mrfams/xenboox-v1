@@ -1,0 +1,20 @@
+{
+  "name": "@xenboox/jobs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "^4.0.0",
+    "@xenboox/db": "workspace:*",
+    "@xenboox/agents": "workspace:*",
+    "drizzle-orm": "^0.44.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

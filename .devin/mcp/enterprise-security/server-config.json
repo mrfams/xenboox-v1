@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "enterprise-security": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\asano\\Desktop\\xenboox\\.devin\\mcp\\enterprise-security\\index.js"
+      ],
+      "env": {
+        "SECURITY_API_KEY": "${SECURITY_API_KEY}",
+        "VAULT_ADDR": "${VAULT_ADDR}",
+        "VAULT_TOKEN": "${VAULT_TOKEN}"
+      }
+    }
+  }
+}

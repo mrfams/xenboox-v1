@@ -1,0 +1,31 @@
+{
+  "name": "@xenboox/agents",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "eval": "tsx core/eval/run.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "zod": "^3.23.0",
+    "langfuse": "^3.0.0",
+    "drizzle-orm": "0.44.2",
+    "@xenboox/db": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "eslint": "^9.0.0"
+  }
+}

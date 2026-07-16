@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "enterprise-monitoring": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\asano\\Desktop\\xenboox\\.devin\\mcp\\enterprise-monitoring\\index.js"
+      ],
+      "env": {
+        "MONITORING_API_KEY": "${MONITORING_API_KEY}",
+        "DATADOG_API_KEY": "${DATADOG_API_KEY}",
+        "SENTRY_DSN": "${SENTRY_DSN}"
+      }
+    }
+  }
+}

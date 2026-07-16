@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./apps/web/*"],
+      "@xenboox/db": ["./packages/db"],
+      "@xenboox/agents": ["./packages/agents"],
+      "@xenboox/ui": ["./packages/ui"],
+      "@xenboox/config": ["./packages/config"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

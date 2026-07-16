@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "enterprise-integration": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\asano\\Desktop\\xenboox\\.devin\\mcp\\enterprise-integration\\index.js"
+      ],
+      "env": {
+        "INTEGRATION_API_KEY": "${INTEGRATION_API_KEY}",
+        "WEBHOOK_SECRET": "${WEBHOOK_SECRET}"
+      }
+    }
+  }
+}
