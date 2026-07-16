@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth"
 import { applySecurityHeaders } from "@/lib/security/headers"
 import { getRateLimiter } from "@/lib/security/rate-limiter"
 
-const PUBLIC_ROUTES = ["/", "/features", "/pricing", "/login", "/register"]
+const PUBLIC_ROUTES = ["/", "/features", "/pricing", "/login", "/register", "/about", "/blog", "/careers", "/contact", "/download", "/privacy", "/terms"]
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(

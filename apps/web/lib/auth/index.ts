@@ -69,7 +69,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const isOnAuth = pathname.startsWith("/login") || pathname.startsWith("/register")
       const isOnApi = pathname.startsWith("/api/trpc")
       const isPublicMarketing =
-        pathname === "/" || pathname.startsWith("/features") || pathname.startsWith("/pricing")
+        pathname === "/" || pathname.startsWith("/features") || pathname.startsWith("/pricing") ||
+        pathname.startsWith("/about") || pathname.startsWith("/blog") || pathname.startsWith("/careers") ||
+        pathname.startsWith("/contact") || pathname.startsWith("/download") || pathname.startsWith("/privacy") ||
+        pathname.startsWith("/terms")
 
       if (isOnApi) return true
       if (isPublicMarketing) return true
