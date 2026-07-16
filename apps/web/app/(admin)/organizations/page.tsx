@@ -1,47 +1,52 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
-import { Button } from "@xenboox/ui"
-import { Badge } from "@xenboox/ui"
-import { Input } from "@xenboox/ui"
-import { Building, Search, Users, Calendar, Plus, Edit, Trash2, Shield, CheckCircle2, AlertCircle } from "lucide-react"
-import { trpc } from "@/lib/trpc/client"
-import { useState } from "react"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Button,
+  Input,
+} from "@xenboox/ui";
+import { Building, Search, Plus, Edit, Trash2 } from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import { useState } from "react";
+import type { RouterOutputs } from "@/lib/trpc";
+
+type Organization = RouterOutputs["admin"]["listOrganizations"][number];
 
 export default function OrganizationsPage() {
-  const [search, setSearch] = useState("")
-  const { data: orgs, isLoading } = trpc.admin.listOrganizations.useQuery()
+  const [search, setSearch] = useState("");
+  const { data: orgs, isLoading } = trpc.admin.listOrganizations.useQuery();
 
-const filteredOrgs = orgs?.filter((o: typeof orgs[0]) =>
-    o.name?.toLowerCase().includes(search.toLowerCase()) ||
-    o.slug?.toLowerCase().includes(search.toLowerCase())
-  ) || []
+  const filteredOrgs =
+    orgs?.filter(
+      (o: Organization) =>
+        o.name?.toLowerCase().includes(search.toLowerCase()) ||
+        o.slug?.toLowerCase().includes(search.toLowerCase()),
+    ) || [];
 
   const getPlanVariant = (plan: string) => {
-    const planMap: Record<string, "default" | "destructive" | "outline" | "secondary"> = {
+    const planMap: Record<
+      string,
+      "default" | "destructive" | "outline" | "secondary"
+    > = {
       free: "outline",
       starter: "secondary",
       growth: "default",
       pro: "default",
-      firm: "destructive"
-    }
-    return planMap[plan] || "outline"
-  }
-
-  const getTypeVariant = (type: string) => {
-    const typeMap: Record<string, "default" | "destructive" | "outline" | "secondary"> = {
-      business: "default",
-      nonprofit: "secondary",
-      government: "outline",
-      accounting_firm: "destructive"
-    }
-    return typeMap[type] || "outline"
-  }
+      firm: "destructive",
+    };
+    return planMap[plan] || "outline";
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
-          <p className="text-muted-foreground mt-1">Manage organizations and their settings</p>
+          <p className="text-muted-foreground mt-1">
+            Manage organizations and their settings
+          </p>
         </div>
         <Button>
           <Plus className="h-4 w-4 mr-2" />
@@ -71,11 +76,16 @@ const filteredOrgs = orgs?.filter((o: typeof orgs[0]) =>
               ) : filteredOrgs.length === 0 ? (
                 <div className="text-center py-8">
                   <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No organizations found matching your search</p>
+                  <p className="text-muted-foreground">
+                    No organizations found matching your search
+                  </p>
                 </div>
               ) : (
-                filteredOrgs.map((org: typeof orgs[0]) => (
-                  <div key={org.id} className="flex items-center justify-between p-4 border rounded-lg">
+                filteredOrgs.map((org: Organization) => (
+                  <div
+                    key={org.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                         <Building className="h-5 w-5 text-muted-foreground" />
@@ -83,15 +93,12 @@ const filteredOrgs = orgs?.filter((o: typeof orgs[0]) =>
                       <div>
                         <p className="font-medium">{org.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          <span className="font-mono">{org.slug}</span> • 
-                          Owner: {org.owner?.name || "Unknown"}
+                          <span className="font-mono">{org.slug}</span> • Owner:{" "}
+                          {org.owner?.name || "Unknown"}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant={getTypeVariant(org.type)}>
-                            {org.type.replace('_', ' ')}
-                          </Badge>
                           <Badge variant={getPlanVariant(org.plan)}>
-                            {org.plan.replace('_', ' ')}
+                            {org.plan.replace("_", " ")}
                           </Badge>
                         </div>
                       </div>
@@ -99,7 +106,6 @@ const filteredOrgs = orgs?.filter((o: typeof orgs[0]) =>
                     <div className="flex items-center gap-2">
                       <div className="text-right text-sm text-muted-foreground">
                         <div>{org.entities?.length || 0} entities</div>
-                        <div>{org.users?.length || 0} users</div>
                       </div>
                       <Button variant="ghost" size="sm">
                         <Edit className="h-4 w-4" />
@@ -116,5 +122,5 @@ const filteredOrgs = orgs?.filter((o: typeof orgs[0]) =>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

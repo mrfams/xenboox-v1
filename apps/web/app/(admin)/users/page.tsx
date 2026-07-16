@@ -1,22 +1,39 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
-import { Button } from "@xenboox/ui"
-import { Badge } from "@xenboox/ui"
-import { Input } from "@xenboox/ui"
-import { Search, Shield, User, Mail, Calendar, Plus, Edit, Trash2 } from "lucide-react"
-import { trpc } from "@/lib/trpc/client"
-import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui";
+import { Button } from "@xenboox/ui";
+import { Badge } from "@xenboox/ui";
+import { Input } from "@xenboox/ui";
+import {
+  Search,
+  Shield,
+  User,
+  Mail,
+  Calendar,
+  Plus,
+  Edit,
+  Trash2,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import { useState } from "react";
+import type { RouterOutputs } from "@/lib/trpc";
+
+type User = RouterOutputs["admin"]["listUsers"][number];
 
 export default function UsersPage() {
-  const [search, setSearch] = useState("")
-  const { data: users, isLoading } = trpc.admin.listUsers.useQuery()
+  const [search, setSearch] = useState("");
+  const { data: users, isLoading } = trpc.admin.listUsers.useQuery();
 
-  const filteredUsers = users?.filter((u: typeof users[0]) =>
-    u.name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.email?.toLowerCase().includes(search.toLowerCase())
-  ) || []
+  const filteredUsers =
+    users?.filter(
+      (u: User) =>
+        u.name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase()),
+    ) || [];
 
   const getRoleBadgeVariant = (role: string) => {
-    const roleMap: Record<string, "default" | "destructive" | "outline" | "secondary"> = {
+    const roleMap: Record<
+      string,
+      "default" | "destructive" | "outline" | "secondary"
+    > = {
       owner: "destructive",
       admin: "default",
       finance_director: "default",
@@ -26,17 +43,19 @@ export default function UsersPage() {
       department_manager: "secondary",
       employee: "secondary",
       external_auditor: "secondary",
-      donor: "secondary"
-    }
-    return roleMap[role] || "outline"
-  }
+      donor: "secondary",
+    };
+    return roleMap[role] || "outline";
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground mt-1">View and manage organization users and their access</p>
+          <p className="text-muted-foreground mt-1">
+            View and manage organization users and their access
+          </p>
         </div>
         <Button>
           <Plus className="h-4 w-4 mr-2" />
@@ -66,17 +85,24 @@ export default function UsersPage() {
               ) : filteredUsers.length === 0 ? (
                 <div className="text-center py-8">
                   <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No users found matching your search</p>
+                  <p className="text-muted-foreground">
+                    No users found matching your search
+                  </p>
                 </div>
               ) : (
-                filteredUsers.map((user: typeof users[0]) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                filteredUsers.map((user: User) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                         <User className="h-5 w-5 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="font-medium">{user.name || "Unnamed User"}</p>
+                        <p className="font-medium">
+                          {user.name || "Unnamed User"}
+                        </p>
                         <p className="text-sm text-muted-foreground flex items-center gap-4">
                           <span className="flex items-center gap-1">
                             <Mail className="h-3 w-3" />
@@ -92,11 +118,16 @@ export default function UsersPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {user.userEntityAccess?.slice(0, 2).map((access) => (
-                        <Badge key={access.id} variant={getRoleBadgeVariant(access.role)}>
-                          {access.role?.replace('_', ' ')}
-                        </Badge>
-                      ))}
+                      {user.userEntityAccess
+                        ?.slice(0, 2)
+                        .map((access: (typeof user.userEntityAccess)[0]) => (
+                          <Badge
+                            key={access.id}
+                            variant={getRoleBadgeVariant(access.role)}
+                          >
+                            {access.role?.replace("_", " ")}
+                          </Badge>
+                        ))}
                       {user.userEntityAccess?.length > 2 && (
                         <Badge variant="outline">
                           +{user.userEntityAccess.length - 2} more
@@ -117,5 +148,5 @@ export default function UsersPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
