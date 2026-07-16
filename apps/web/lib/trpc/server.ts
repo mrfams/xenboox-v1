@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm"
 import { userEntityAccess } from "@xenboox/db/schema/organization"
 import { idempotencyKeys } from "@xenboox/db/schema"
 import { z } from "zod"
+import { logger } from "@/lib/logger"
 
 type AuthUser = {
   id?: string | null
@@ -23,10 +24,12 @@ export type Context = {
   entityId?: string
   entityRole?: string
   headers?: Record<string, string>
+  requestId?: string
+  log?: typeof logger
 }
 
-export function createTRPCContext(): Context {
-  return { session: null, headers: {} }
+export function createTRPCContext({ headers }: { headers?: Record<string, string> } = { headers: {} }): Context {
+  return { session: null, headers: headers || {} }
 }
 
 export const t = initTRPC.context<Context>().create({
@@ -84,7 +87,10 @@ const authMiddleware = t.middleware(async ({ ctx, next }) => {
     })
   }
 
-  return next({ ctx: { ...ctx, session } })
+  const requestId = ctx.headers?.['x-request-id'] || 'unknown'
+  const reqLog = logger.child({ requestId, userId: session.user?.id })
+
+  return next({ ctx: { ...ctx, session, requestId, log: reqLog } })
 })
 
 const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {

@@ -1,13 +1,15 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 import { eq, and, desc } from "drizzle-orm"
-import { router, protectedProcedure } from "@/lib/trpc/server"
+import { router, protectedProcedure, mutateProcedure } from "@/lib/trpc/server"
 import { db } from "@/lib/db"
 import {
   fixedAssets,
   depreciationSchedule,
   auditLog,
 } from "@xenboox/db/schema"
+import { userEntityAccess } from "@xenboox/db/schema/organization"
+import { users } from "@xenboox/db/schema/auth"
 import { sendAssetCreatedEmail } from "@/lib/email"
 
 // ─── Fixed Assets Router ───────────────────────────────────────────────────
@@ -36,7 +38,7 @@ export const fixedAssetsRouter = router({
       return { ...asset, depreciationSchedule: schedule }
     }),
 
-  createAsset: protectedProcedure
+  createAsset: mutateProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -86,7 +88,16 @@ export const fixedAssetsRouter = router({
         })
 
         // Send email notification (non-blocking)
-        sendAssetCreatedEmail("admin@xenboox.com", {
+        const ownerAccess = await db.query.userEntityAccess.findFirst({
+          where: and(
+            eq(userEntityAccess.entityId, ctx.entityId!),
+            eq(userEntityAccess.role, "owner")
+          ),
+          with: { user: true }
+        })
+        const recipientEmail = ownerAccess?.user?.email ?? ctx.session!.user!.email!
+
+        sendAssetCreatedEmail(recipientEmail, {
           assetName: input.name,
           assetClass: input.assetClass,
           cost: input.cost,
@@ -125,7 +136,7 @@ export const fixedAssetsRouter = router({
       return updated
     }),
 
-  disposeAsset: protectedProcedure
+  disposeAsset: mutateProcedure
     .input(
       z.object({
         id: z.string().uuid(),

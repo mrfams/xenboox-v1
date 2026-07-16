@@ -10,6 +10,7 @@ import {
   warehouses,
   auditLog,
 } from "@xenboox/db/schema"
+import { userEntityAccess } from "@xenboox/db/schema/organization"
 import { sendInventoryAlertEmail } from "@/lib/email"
 
 // ─── Inventory Router ──────────────────────────────────────────────────────
@@ -188,6 +189,16 @@ export const inventoryRouter = router({
         const unitCost = parseFloat(input.unitCost)
         const totalCost = unitCost * input.quantity
 
+        // Get entity owner email for notifications
+        const ownerAccess = await db.query.userEntityAccess.findFirst({
+          where: and(
+            eq(userEntityAccess.entityId, ctx.entityId!),
+            eq(userEntityAccess.role, "owner")
+          ),
+          with: { user: true }
+        })
+        const recipientEmail = ownerAccess?.user?.email ?? ctx.session!.user!.email!
+
         return db.transaction(async (tx) => {
           const [txRecord] = await tx
             .insert(inventoryTransactions)
@@ -239,7 +250,7 @@ export const inventoryRouter = router({
               }
 
               // Send low stock alert (non-blocking)
-              sendInventoryAlertEmail("admin@xenboox.com", {
+              sendInventoryAlertEmail(recipientEmail, {
                 itemName: item.name,
                 sku: item.sku,
                 currentQuantity: finalQty,
