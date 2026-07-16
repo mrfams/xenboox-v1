@@ -6,6 +6,39 @@
 
 ---
 
+### [2026-07-16] — H-01 to H-10 + C-01 to C-04 Audit & Completion
+**Agent:** opencode
+**Duration:** ~90 min
+**Files Created:** 10 (auth.test.ts, entity-scoping.test.ts, validation.test.ts, caller.ts, forgot-password/page.tsx, reset-password/page.tsx, forgot-password-form.tsx, reset-password-form.tsx, password-reset.tsx, ci.yml)
+**Files Modified:** 20+ (headers.ts, middleware.ts, next.config.ts, auth/index.ts, trpc/client.ts, server.ts, ap.ts, ar.ts, fixedAssets.ts, auth.ts, email.ts, db/index.ts, db/package.json, _journal.json, .gitignore, chat/page.tsx, dashboard/page.tsx, settings/page.tsx, not-found.tsx, login-form.tsx, package.json)
+
+**What was built:**
+- **C-01:** Verified .env never committed to git. `.gitignore` covers `.env*`.
+- **C-02:** Removed `@ts-nocheck` from all 15 router files. Fixed real bugs (document.ts `and` import, organization.ts `.name`). All 9 packages typecheck clean.
+- **C-03:** Created `.github/workflows/ci.yml` with lint → typecheck → test → build jobs.
+- **C-04:** Wired `callLLM()` in CFO agent (nodeClassifyInput, nodeAnswerQuestion, nodeGenerateSummary) and Controller agent (nodeRunCloseChecklist). Added `fillPrompt()` utility. Ledger agent kept deterministic by design.
+- **H-01:** Switched `packages/db` from `drizzle-orm/neon-http` to `drizzle-orm/neon-serverless` with WebSocket `Pool`. `rlsProtectedProcedure` always sets RLS context via `set_config()`.
+- **H-02:** Registered migrations 0006-0008 in `_journal.json`. Un-ignored `meta/` dir in `.gitignore`.
+- **H-03:** Added 3 test files (40 tests): auth flows, entity scoping middleware, zod input validation. All passing.
+- **H-04:** Wired `sendPasswordResetEmail` in auth router. Created `/forgot-password` and `/reset-password` pages with form components. Added "Forgot password?" link to login form.
+- **H-05:** Created 13 `loading.tsx` skeleton files for all dashboard routes.
+- **H-06:** Created custom `not-found.tsx` 404 page.
+- **H-07:** Added per-request CSP nonce generation. Removed `'unsafe-inline'` from `script-src`. Removed conflicting headers from `next.config.ts`. Added `trustHost: true` to Auth.js.
+- **H-08:** Fixed origin validation bypass — requests without Origin now require safe Content-Type. Auth.js handles CSRF for auth endpoints.
+- **H-09:** tRPC client generates `x-idempotency-key` (UUID) on every request via `httpBatchLink` headers.
+- **H-10:** Switched 7 critical mutations to `mutateProcedure`: AP (createSupplier, createPO, approvePO), AR (createCustomer), FixedAssets (createAsset, disposeAsset).
+
+**Decisions made:**
+- Moved `createCaller` to `lib/trpc/caller.ts` to break circular dependency (server.ts → _app.ts → server.ts)
+- CSP: kept `'unsafe-inline'` in `style-src` (required by Next.js CSS-in-JS), nonce covers `script-src`
+- CSRF: origin validation + Content-Type check is sufficient for same-origin tRPC app; no double-submit cookie needed
+- Idempotency: client sends key on every request (harmless for queries), server only uses it for `mutateProcedure` endpoints
+- RLS: WebSocket driver is defense-in-depth; application-level entity scoping remains primary
+
+**Verification:** `pnpm typecheck` passes (9/9 packages). `vitest run` passes (40/40 tests).
+
+---
+
 ### [2026-07-16] - Medium Priority Items Completion (Session 2)
 **Agent:** opencode
 **Duration:** ~60 min
