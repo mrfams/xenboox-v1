@@ -1330,7 +1330,7 @@ export async function seed() {
   }
 
   console.log("Seed complete!")
-  console.log(`  User: demo@xenboox.com (password: see docs/seed-credentials.md)`)
+  console.log(`  User: demo@xenboox.com`)
   console.log(`  Entity: ${ENTITY_ID}`)
   console.log(`  Chart of Accounts: ${coa.length} accounts`)
   console.log(`  Journal Entries: ${journalData.length + julyEntries.length}`)
