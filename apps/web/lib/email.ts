@@ -9,6 +9,7 @@ import { PaymentReceivedEmail, PaymentSentEmail } from "@xenboox/email"
 import { EmployeeCreatedEmail } from "@xenboox/email"
 import { AssetCreatedEmail } from "@xenboox/email"
 import { InventoryAlertEmail } from "@xenboox/email"
+import { PasswordResetEmail } from "@xenboox/email"
 
 // ─── Email Types ────────────────────────────────────────────────────────────
 
@@ -246,6 +247,22 @@ export async function sendInventoryAlertEmail(
   await sendEmail({
     to,
     subject: `Low Stock Alert — ${props.itemName} (${props.sku})`,
+    html,
+  })
+}
+
+export async function sendPasswordResetEmail(
+  to: string,
+  props: {
+    userName: string
+    resetUrl: string
+    expiryMinutes: number
+  },
+) {
+  const html = await render(PasswordResetEmail(props))
+  await sendEmail({
+    to,
+    subject: "Reset Your Xenboox Password",
     html,
   })
 }

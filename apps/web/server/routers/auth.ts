@@ -7,6 +7,7 @@ import { users } from "@xenboox/db/schema/auth"
 import { organizations, entities, userEntityAccess } from "@xenboox/db/schema/organization"
 import bcrypt from "bcryptjs"
 import { nanoid } from "nanoid"
+import { sendPasswordResetEmail } from "@/lib/email"
 
 const LOCKOUT_THRESHOLD = 5
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000 // 30 minutes
@@ -119,8 +120,19 @@ export const authRouter = router({
           })
           .where(eq(users.id, user.id))
 
-        // TODO: Send reset email with token — never expose token in API response
-        // await sendPasswordResetEmail(user.email, resetToken)
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+        const resetUrl = `${appUrl}/reset-password?token=${resetToken}`
+
+        try {
+          await sendPasswordResetEmail(user.email, {
+            userName: user.name ?? "User",
+            resetUrl,
+            expiryMinutes: Math.floor(RESET_TOKEN_EXPIRY_MS / 60000),
+          })
+        } catch {
+          // Log but don't fail the request — user gets generic success either way
+          console.error("[auth] Failed to send password reset email")
+        }
 
         return {
           success: true,

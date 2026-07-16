@@ -6,6 +6,29 @@
 
 ---
 
+### [2026-07-16] - Web UI/UX Production Hardening
+**Agent:** opencode
+**Duration:** ~45 min
+**Files Created:** 14 (loading.tsx files x12, not-found.tsx, password change schema)
+**Files Modified:** 4 (dashboard/page.tsx, settings/page.tsx, chat/page.tsx, mobile journal/create.tsx, auth.ts)
+**What was built:**
+- **Loading states:** Created route-level `loading.tsx` files for all 12 dashboard route groups (dashboard, ap, ar, journal, treasury, cash, payroll, fixed-assets, inventory, reports, documents, settings, chat) using Shadcn UI Skeleton components
+- **Dashboard toast fix:** Replaced mock `console.warn` toast with real `sonner` toast in dashboard/page.tsx
+- **Settings page:** Built out Settings page with full password change functionality including `changePassword` tRPC procedure, form validation, error handling, and proper state management
+- **Custom 404 page:** Created branded 404 page with navigation options (Go to Dashboard, Go Back)
+- **Chat file upload:** Wired chat file upload to R2 via proper flow: getUploadUrl → upload to R2 → confirmUpload → addAttachment with document linking
+- **Mobile journal fix:** Fixed hardcoded `periodId` in mobile journal create by querying open fiscal period from `trpc.fiscal.listPeriods`
+- **Auth router:** Added `changePassword` protected procedure with current password validation and bcrypt hashing
+
+**Decisions made:**
+- Loading files use consistent pattern with Skeleton components matching existing codebase
+- 404 page uses branded design with primary color accent
+- Password change requires current password verification for security
+- Chat uploads create document records linked to conversation
+- Mobile uses open period detection for journal creation
+
+**Verification:** `pnpm --filter=@xenboox/web typecheck` passes clean
+
 ### [2026-07-16] - Enterprise Gap Audit & Production Plan
 **Agent:** opencode
 **Duration:** ~15 min
