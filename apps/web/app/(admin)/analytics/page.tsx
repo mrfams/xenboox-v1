@@ -31,20 +31,20 @@ export default function AnalyticsPage() {
 
   const totalCalls =
     aiUsage?.reduce(
-      (sum: number, a: (typeof aiUsage)[0]) => sum + a.count,
+      (sum, a) => sum + a.count,
       0,
     ) || 0;
   const avgLatency = aiUsage?.length
     ? Math.round(
         aiUsage.reduce(
-          (sum: number, a: (typeof aiUsage)[0]) => sum + a.avgLatency,
+          (sum, a) => sum + a.avgLatency,
           0,
         ) / aiUsage.length,
       )
     : 0;
   const avgConfidence = aiUsage?.length
     ? (aiUsage.reduce(
-        (sum: number, a: (typeof aiUsage)[0]) => sum + a.avgConfidence,
+        (sum, a) => sum + a.avgConfidence,
         0,
       ) /
         aiUsage.length) *
@@ -159,7 +159,7 @@ export default function AnalyticsPage() {
             {isLoading ? (
               <div className="text-center py-8">Loading analytics...</div>
             ) : aiUsage?.length ? (
-              aiUsage.map((agent: (typeof aiUsage)[0]) => (
+              aiUsage.map((agent) => (
                 <div key={agent.agent} className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">

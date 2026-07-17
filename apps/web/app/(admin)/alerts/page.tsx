@@ -39,12 +39,12 @@ export default function AlertsPage() {
   const { data: alerts } = trpc.admin.getSpendAlerts.useQuery();
 
   const criticalAlerts =
-    alerts?.filter((a: (typeof alerts)[0]) => a.alertLevel === "critical") ||
+    alerts?.filter((a) => a.alertLevel === "critical") ||
     [];
   const warningAlerts =
-    alerts?.filter((a: (typeof alerts)[0]) => a.alertLevel === "warning") || [];
+    alerts?.filter((a) => a.alertLevel === "warning") || [];
   const lowAlerts =
-    alerts?.filter((a: (typeof alerts)[0]) => a.alertLevel === "low") || [];
+    alerts?.filter((a) => a.alertLevel === "low") || [];
   const activeAlerts = [...criticalAlerts, ...warningAlerts, ...lowAlerts];
 
   return (
@@ -120,7 +120,7 @@ export default function AlertsPage() {
         <CardContent>
           <div className="space-y-4">
             {activeAlerts.length > 0 ? (
-              activeAlerts.map((alert: (typeof alerts)[0]) => (
+              activeAlerts.map((alert) => (
                 <Alert
                   key={`${alert.provider}-${alert.model}`}
                   className={

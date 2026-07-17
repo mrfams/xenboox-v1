@@ -262,7 +262,7 @@ export default function AIComparisonPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {alerts.map((alert: (typeof alerts)[0]) => (
+              {alerts.map((alert) => (
                 <div
                   key={`${alert.provider}-${alert.model}`}
                   className="flex items-center justify-between p-3 rounded-md bg-white dark:bg-yellow-900"

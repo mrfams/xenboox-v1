@@ -122,7 +122,7 @@ export default function UsersPage() {
                     <div className="flex items-center gap-2">
                       {user.userEntityAccess
                         ?.slice(0, 2)
-                        .map((access: (typeof user.userEntityAccess)[0]) => (
+                        .map((access) => (
                           <Badge
                             key={access.id}
                             variant={getRoleBadgeVariant(access.role)}
