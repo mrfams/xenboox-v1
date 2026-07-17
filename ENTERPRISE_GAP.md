@@ -206,10 +206,10 @@
 
 ### CRITICAL
 
-- [ ] **W-C1: Missing `"use client"` on Admin Spending Page** `apps/web/app/(admin)/spending/page.tsx` starts with `import` instead of `"use client"`. Uses `trpc` hooks and `useState`. Will crash at runtime.
+- [x] **W-C1: Missing `"use client"` on Admin Spending Page** Added `"use client"` directive to `apps/web/app/(admin)/spending/page.tsx`.
   - Files: `apps/web/app/(admin)/spending/page.tsx`
-  - Owner: ____________
-  - Status: NOT STARTED
+  - Owner: opencode
+  - Status: COMPLETED
 
 - [ ] **W-C2: Triplicated Hardcoded AI Provider Data (~970 lines)** `admin.ts` contains 3 procedures (`getAIComparison`, `getSpendAlerts`, `getCostComparison`) that each contain a copy-pasted 15-provider array with fabricated spend numbers. No database queries. ~970 lines of dead code.
   - Files: `apps/web/server/routers/admin.ts` (lines 186-1151)
@@ -313,15 +313,15 @@
 
 ### CRITICAL
 
-- [ ] **M-C1: Wrong tRPC Procedure Paths** Login calls `trpc.organization.login` (doesn't exist). Register calls `trpc.organization.register` (should be `trpc.auth.register`). Both will fail at runtime.
-  - Files: `apps/mobile/app/(auth)/login.tsx`, `apps/mobile/app/(auth)/register.tsx`
-  - Owner: ____________
-  - Status: NOT STARTED
+- [x] **M-C1: Wrong tRPC Procedure Paths** Added `login` procedure to `auth.ts` with JWT generation via `jose`. Mobile login now calls `trpc.auth.login`. Mobile register now calls `trpc.auth.register`.
+  - Files: `apps/web/server/routers/auth.ts`, `apps/mobile/app/(auth)/login.tsx`, `apps/mobile/app/(auth)/register.tsx`
+  - Owner: opencode
+  - Status: COMPLETED
 
-- [ ] **M-C2: Register Missing `organizationName`** Server requires `organizationName` but mobile register form only sends `{ name, email, password }`. Will always fail validation.
-  - Files: `apps/mobile/app/(auth)/register.tsx`
-  - Owner: ____________
-  - Status: NOT STARTED
+- [x] **M-C2: Register Missing `organizationName`** Added `organizationName` input field to mobile register form. Register now sends `{ name, email, password, organizationName }`. Also added navigation to `/(tabs)` after successful login/register.
+  - Files: `apps/mobile/app/(auth)/register.tsx`, `apps/mobile/app/(auth)/login.tsx`
+  - Owner: opencode
+  - Status: COMPLETED
 
 ### HIGH
 
@@ -438,25 +438,25 @@
 
 ### CRITICAL
 
-- [ ] **D-C1: Missing Icons Directory** `src-tauri/icons/` doesn't exist. Build will fail. Needs `32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.icns`, `icon.ico`.
-  - Files: `apps/desktop/src-tauri/icons/`
-  - Owner: ____________
-  - Status: NOT STARTED
+- [x] **D-C1: Missing Icons Directory** Created `apps/desktop/src-tauri/icons/` with generated PNGs (32x32, 128x128, 128x128@2x) and ICO. Blue square with 'X' pattern. Replace with proper branding before release.
+  - Files: `apps/desktop/src-tauri/icons/` (4 files)
+  - Owner: opencode
+  - Status: COMPLETED
 
 - [ ] **D-C2: Missing `public/` Directory** `index.html` references `/vite.svg` but no `public/` dir exists. Favicon 404.
   - Files: `apps/desktop/public/`
   - Owner: ____________
   - Status: NOT STARTED
 
-- [ ] **D-C3: `Alert`/`AlertDescription` Not in `@xenboox/ui`** All 6 add-dialogs import these but they don't exist in the shared UI package. Build error.
-  - Files: All 6 `apps/desktop/src/components/modals/add-*.tsx`
-  - Owner: ____________
-  - Status: NOT STARTED
+- [x] **D-C3: `Alert`/`AlertDescription` Not in `@xenboox/ui`** Created `packages/ui/src/alert.tsx` with `Alert`, `AlertTitle`, `AlertDescription`. Exported from index.
+  - Files: `packages/ui/src/alert.tsx`, `packages/ui/src/index.ts`
+  - Owner: opencode
+  - Status: COMPLETED
 
-- [ ] **D-C4: Missing CSS Variables** `globals.css` missing `--primary`, `--secondary`, `--ring`, `--success`, `--warning`, `--info`. Badges and buttons render without colors.
+- [x] **D-C4: Missing CSS Variables** Added `--primary`, `--secondary`, `--ring`, `--success`, `--warning`, `--info` (+ foreground) to globals.css and tailwind.config.js.
   - Files: `apps/desktop/src/styles/globals.css`, `apps/desktop/tailwind.config.js`
-  - Owner: ____________
-  - Status: NOT STARTED
+  - Owner: opencode
+  - Status: COMPLETED
 
 - [ ] **D-C5: `get_auth_token` Tauri Command Not Registered** `auth.ts` calls `invoke("get_auth_token")` but it's not in `lib.rs` command handlers. Native token storage is write-only.
   - Files: `apps/desktop/src-tauri/src/lib.rs`
@@ -597,12 +597,12 @@
 
 | Severity | Count | Resolved | Remaining |
 |----------|-------|----------|-----------|
-| CRITICAL | 4 | 4 | 7 |
+| CRITICAL | 4 | 4 | 1 |
 | HIGH | 10 | 10 | 21 |
 | MEDIUM | 15 | 15 | 37 |
 | LOW | 7 | 7 | 14 |
 | SHIP | 0 | 0 | 3 |
-| **TOTAL** | **36** | **36** | **82** |
+| **TOTAL** | **36** | **36** | **76** |
 
 ---
 

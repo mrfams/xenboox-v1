@@ -8,12 +8,62 @@ import { organizations, entities, userEntityAccess } from "@xenboox/db/schema/or
 import bcrypt from "bcryptjs"
 import { nanoid } from "nanoid"
 import { sendPasswordResetEmail } from "@/lib/email"
+import { SignJWT } from "jose"
 
 const LOCKOUT_THRESHOLD = 5
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000 // 30 minutes
 const RESET_TOKEN_EXPIRY_MS = 1 * 60 * 60 * 1000 // 1 hour
+const MOBILE_TOKEN_EXPIRY = "30d"
+
+async function createMobileToken(payload: { sub: string; email: string }) {
+  const secret = new TextEncoder().encode(process.env.AUTH_SECRET)
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(MOBILE_TOKEN_EXPIRY)
+    .sign(secret)
+}
 
 export const authRouter = router({
+  login: publicProcedure
+    .input(z.object({
+      email: z.string().email("Invalid email address"),
+      password: z.string().min(1, "Password is required"),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        const user = await db.query.users.findFirst({
+          where: eq(users.email, input.email),
+        })
+
+        if (!user?.passwordHash) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" })
+        }
+
+        const valid = await bcrypt.compare(input.password, user.passwordHash)
+        if (!valid) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" })
+        }
+
+        const token = await createMobileToken({ sub: user.id, email: user.email! })
+
+        const access = await db.query.userEntityAccess.findFirst({
+          where: eq(userEntityAccess.userId, user.id),
+        })
+
+        return {
+          token,
+          userId: user.id,
+          entityId: access?.entityId ?? null,
+          name: user.name,
+          email: user.email,
+        }
+      } catch (error) {
+        if (error instanceof TRPCError) throw error
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "An unexpected error occurred" })
+      }
+    }),
+
   register: publicProcedure
     .input(z.object({
       name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -83,7 +133,10 @@ export const authRouter = router({
           grantedBy: user.id,
         })
 
+        const token = await createMobileToken({ sub: user.id, email: user.email! })
+
         return {
+          token,
           userId: user.id,
           entityId: entity.id,
           name: user.name,

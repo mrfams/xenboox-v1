@@ -3,15 +3,16 @@ import { View, KeyboardAvoidingView, Platform, ScrollView } from "react-native"
 import { Text } from "@/components/ui/text"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Link } from "expo-router"
+import { Link, useRouter } from "expo-router"
 import { trpc } from "@/lib/trpc"
 import { setToken, setCurrentEntityId } from "@/lib/auth"
 
 export default function LoginScreen() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const loginMutation = trpc.organization.login.useMutation()
+  const loginMutation = trpc.auth.login.useMutation()
 
   async function handleLogin() {
     if (!email || !password) {
@@ -27,6 +28,7 @@ export default function LoginScreen() {
       if (result.entityId) {
         await setCurrentEntityId(result.entityId)
       }
+      router.replace("/(tabs)")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed")
     }

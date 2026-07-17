@@ -3,20 +3,22 @@ import { View, KeyboardAvoidingView, Platform, ScrollView } from "react-native"
 import { Text } from "@/components/ui/text"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Link } from "expo-router"
+import { Link, useRouter } from "expo-router"
 import { trpc } from "@/lib/trpc"
 import { setToken, setCurrentEntityId } from "@/lib/auth"
 
 export default function RegisterScreen() {
+  const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [organizationName, setOrganizationName] = useState("")
   const [error, setError] = useState("")
-  const registerMutation = trpc.organization.register.useMutation()
+  const registerMutation = trpc.auth.register.useMutation()
 
   async function handleRegister() {
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !organizationName) {
       setError("All fields are required")
       return
     }
@@ -37,12 +39,14 @@ export default function RegisterScreen() {
       const result = await registerMutation.mutateAsync({
         name,
         email,
-        password
+        password,
+        organizationName,
       })
       await setToken(result.token)
       if (result.entityId) {
         await setCurrentEntityId(result.entityId)
       }
+      router.replace("/(tabs)")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed")
     }
@@ -74,6 +78,13 @@ export default function RegisterScreen() {
               value={name}
               onChangeText={setName}
               autoComplete="name"
+            />
+
+            <Input
+              label="Organization Name"
+              placeholder="Acme Corp"
+              value={organizationName}
+              onChangeText={setOrganizationName}
             />
 
             <Input
