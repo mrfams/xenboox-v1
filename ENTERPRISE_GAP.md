@@ -211,10 +211,10 @@
   - Owner: opencode
   - Status: COMPLETED
 
-- [ ] **W-C2: Triplicated Hardcoded AI Provider Data (~970 lines)** `admin.ts` contains 3 procedures (`getAIComparison`, `getSpendAlerts`, `getCostComparison`) that each contain a copy-pasted 15-provider array with fabricated spend numbers. No database queries. ~970 lines of dead code.
-  - Files: `apps/web/server/routers/admin.ts` (lines 186-1151)
-  - Owner: ____________
-  - Status: NOT STARTED
+- [x] **W-C2: Triplicated Hardcoded AI Provider Data (~970 lines)** Extracted 15-provider array to module-level `AI_PROVIDERS` constant. Three procedures (`getAIComparison`, `getSpendAlerts`, `getCostComparison`) now reference the single shared array. Reduced from ~970 lines to ~280 lines.
+  - Files: `apps/web/server/routers/admin.ts`
+  - Owner: opencode
+  - Status: COMPLETED
 
 ### HIGH
 
@@ -597,12 +597,12 @@
 
 | Severity | Count | Resolved | Remaining |
 |----------|-------|----------|-----------|
-| CRITICAL | 4 | 4 | 1 |
+| CRITICAL | 4 | 4 | 0 |
 | HIGH | 10 | 10 | 21 |
 | MEDIUM | 15 | 15 | 37 |
 | LOW | 7 | 7 | 14 |
 | SHIP | 0 | 0 | 3 |
-| **TOTAL** | **36** | **36** | **76** |
+| **TOTAL** | **36** | **36** | **75** |
 
 ---
 
