@@ -202,15 +202,407 @@
 
 ---
 
+## WEB — Post-Audit Gaps
+
+### CRITICAL
+
+- [ ] **W-C1: Missing `"use client"` on Admin Spending Page** `apps/web/app/(admin)/spending/page.tsx` starts with `import` instead of `"use client"`. Uses `trpc` hooks and `useState`. Will crash at runtime.
+  - Files: `apps/web/app/(admin)/spending/page.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-C2: Triplicated Hardcoded AI Provider Data (~970 lines)** `admin.ts` contains 3 procedures (`getAIComparison`, `getSpendAlerts`, `getCostComparison`) that each contain a copy-pasted 15-provider array with fabricated spend numbers. No database queries. ~970 lines of dead code.
+  - Files: `apps/web/server/routers/admin.ts` (lines 186-1151)
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### HIGH
+
+- [ ] **W-H1: Entity Scoping Violations (27 queries)** Multiple routers query by ID without `entityId` check. Most severe: `document.ts:removeDocumentLink` — any authenticated user can delete any document link.
+  - Files: `treasury.ts`, `payroll.ts`, `fixedAssets.ts`, `inventory.ts`, `mobileMoney.ts`, `ar.ts`, `ap.ts`, `document.ts`, `journal.ts`, `fiscal.ts`, `cash.ts`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-H2: Missing `error.tsx` Boundaries (19 routes)** Only root and `/dashboard` have error boundaries. All admin, auth, marketing, and dashboard sub-routes have none.
+  - Files: `apps/web/app/(admin)/error.tsx`, `(auth)/error.tsx`, `(marketing)/error.tsx`, `dashboard/{ar,ap,coa,journal,treasury,cash,payroll,fiscal,reports,documents,fixed-assets,inventory,chat,mobile-money,settings,help}/error.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-H3: Dead Buttons Across Admin Pages (19 buttons)** Admin settings, financial, organizations, users, analytics, alerts, spending pages all have buttons with no `onClick` handlers.
+  - Files: `apps/web/app/(admin)/settings/page.tsx`, `financial/page.tsx`, `organizations/page.tsx`, `users/page.tsx`, `analytics/page.tsx`, `alerts/page.tsx`, `spending/page.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-H4: Admin Settings Not Persisted** All toggle/budget states in admin settings are `useState` only. "Save Changes" button has no handler. No tRPC mutation exists.
+  - Files: `apps/web/app/(admin)/settings/page.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-H5: Missing Admin Overview Page** Sidebar links to `/admin` but no `page.tsx` exists at that route. Will 404.
+  - Files: `apps/web/app/(admin)/page.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-H6: Missing Audit Logging (12 mutations)** `mobileMoney`, `treasury`, `cash`, `inventory` mutations have no audit trail.
+  - Files: `mobileMoney.ts`, `treasury.ts`, `cash.ts`, `inventory.ts`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### MEDIUM
+
+- [ ] **W-M1: Missing `loading.tsx` (12 routes)** Auth, marketing, and admin sub-routes lack loading skeletons.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M2: Missing `not-found.tsx` (4 route groups)** Admin, auth, marketing, dashboard.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M3: `as any` Type Escapes (13 instances)** 12 in `treasury.ts`, 1 in `admin.ts`. Violates strict TS.
+  - Files: `treasury.ts`, `admin.ts`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M4: Missing CRUD Operations (21 procedures)** Most routers have create but no update/delete. Affects: payroll, fixedAssets, mobileMoney, inventory, cash, ar, ap, treasury, reports.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M5: Missing try/catch (20 mutations)** Several routers have mutations without error handling.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M6: N+1 Query Patterns (4 occurrences)** `reports.ts` (P&L, balance sheet), `journal.ts` (trial balance), `fiscal.ts` (closePeriod) query lines one entry at a time in loops.
+  - Files: `reports.ts`, `journal.ts`, `fiscal.ts`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M7: Dashboard Settings Incomplete** Profile info read-only, 2FA placeholder, notification controls are decorative.
+  - Files: `apps/web/app/dashboard/settings/page.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M8: Mobile Money Page No Create** "New Account" links to `#`. No transaction creation either.
+  - Files: `apps/web/app/dashboard/mobile-money/page.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M9: Hardcoded UI Text/Fabricated Metrics (8 instances)** Admin analytics, financial, spending pages show hardcoded percentages and status messages.
+  - Files: `analytics/page.tsx`, `financial/page.tsx`, `spending/page.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-M10: Duplicate Inline Components** `Progress` defined 3x, `Alert`/`AlertDescription` defined 3x across admin pages.
+  - Files: `financial/page.tsx`, `analytics/page.tsx`, `spending/page.tsx`, `ai-comparison/page.tsx`, `alerts/page.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### LOW
+
+- [ ] **W-L1: Inconsistent Procedure Types (41 mutations)** Many mutations use `protectedProcedure` instead of `mutateProcedure`.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **W-L2: Invalid `javascript:` Link in 404 Page** `not-found.tsx` uses `href="javascript:history.back()"`. Should use `router.back()`.
+  - Files: `apps/web/app/not-found.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+---
+
+## MOBILE — Post-Audit Gaps
+
+### CRITICAL
+
+- [ ] **M-C1: Wrong tRPC Procedure Paths** Login calls `trpc.organization.login` (doesn't exist). Register calls `trpc.organization.register` (should be `trpc.auth.register`). Both will fail at runtime.
+  - Files: `apps/mobile/app/(auth)/login.tsx`, `apps/mobile/app/(auth)/register.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-C2: Register Missing `organizationName`** Server requires `organizationName` but mobile register form only sends `{ name, email, password }`. Will always fail validation.
+  - Files: `apps/mobile/app/(auth)/register.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### HIGH
+
+- [ ] **M-H1: No Navigation After Login/Register** After successful auth, token is stored but no `router.replace()` call. User stays on auth screen.
+  - Files: `apps/mobile/app/(auth)/login.tsx`, `apps/mobile/app/(auth)/register.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-H2: Missing Forgot/Reset Password Screens** Web has full forgot-password and reset-password pages. Mobile has none.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-H3: No Error States on 16 Queries** All list and detail screens silently show empty data on API failure.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-H4: No Loading States on 8 List Screens** FlatList shows "No items" while data is still loading.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-H5: Missing 8 Module Screens** No screens for: COA, Treasury, Cash, Mobile Money, Documents, Reports (broken redirect), Admin, Agent.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### MEDIUM
+
+- [ ] **M-M1: `any` Types (6 instances)** In tabs layout, payroll detail, journal detail. Violates strict TS.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M2: Journal Create Uses Raw UUID Input** Debit/credit account fields ask user to type UUIDs manually. No account picker.
+  - Files: `apps/mobile/app/(modules)/journal/create.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M3: No Edit/Delete on Any Module** All detail screens are read-only. 6 modules have create but no edit/delete.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M4: Chat Messages Lost on Unmount** Messages stored in local `useState`. No persistence, no message history API.
+  - Files: `apps/mobile/app/(tabs)/chat.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M5: Invoices Tab No Create, No Tap-to-Detail** Pure display-only with no interaction.
+  - Files: `apps/mobile/app/(tabs)/invoices.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M6: Hardcoded Currency (GMD Only)** `formatCurrency()` always uses GMD. Should respect entity currency.
+  - Files: `apps/mobile/lib/utils.ts`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M7: Hardcoded Tab Bar Colors** Colors don't respond to dark mode.
+  - Files: `apps/mobile/app/(tabs)/_layout.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M8: Offline Indicator Misleading** Claims "Changes will sync when reconnected" but no offline queue exists.
+  - Files: `apps/mobile/components/offline-indicator.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M9: Entity Switcher Bypasses Auth Abstraction** Uses `SecureStore` directly instead of `getCurrentEntityId()` / `setCurrentEntityId()`.
+  - Files: `apps/mobile/components/layout/entity-switcher.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M10: AuthGate Race Condition** `useEffect` with `[]` deps — gate won't re-evaluate after login/logout from child screen.
+  - Files: `apps/mobile/app/_layout.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M11: Missing `@xenboox/api` in package.json** `trpc.ts` imports from `@xenboox/api/app-router` but package not listed in deps.
+  - Files: `apps/mobile/package.json`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-M12: No Search on Inventory/Invoices Lists** Unlike other lists that have search.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### LOW
+
+- [ ] **M-L1: Dead Code (3 files)** `lib/api.ts`, `constants/theme.ts` never imported. `removeToken`/`removeCurrentEntityId` in auth.ts never used.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-L2: Hardcoded Version in Settings** Version "1.0.0" hardcoded instead of from config.
+  - Files: `apps/mobile/app/(tabs)/settings.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-L3: `expo-notifications` Installed But Unused** Listed in deps but never imported or configured.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-L4: `expo-camera`/`expo-image-picker` Installed But Unused** Configured in app.json plugins but never imported.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-L5: No Biometric Auth** Expected for a financial app. `expo-secure-store` supports it.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **M-L6: No Token Refresh / 401 Interceptor** tRPC client has no interceptor to handle expired tokens.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+---
+
+## DESKTOP — Post-Audit Gaps
+
+### CRITICAL
+
+- [ ] **D-C1: Missing Icons Directory** `src-tauri/icons/` doesn't exist. Build will fail. Needs `32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.icns`, `icon.ico`.
+  - Files: `apps/desktop/src-tauri/icons/`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-C2: Missing `public/` Directory** `index.html` references `/vite.svg` but no `public/` dir exists. Favicon 404.
+  - Files: `apps/desktop/public/`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-C3: `Alert`/`AlertDescription` Not in `@xenboox/ui`** All 6 add-dialogs import these but they don't exist in the shared UI package. Build error.
+  - Files: All 6 `apps/desktop/src/components/modals/add-*.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-C4: Missing CSS Variables** `globals.css` missing `--primary`, `--secondary`, `--ring`, `--success`, `--warning`, `--info`. Badges and buttons render without colors.
+  - Files: `apps/desktop/src/styles/globals.css`, `apps/desktop/tailwind.config.js`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-C5: `get_auth_token` Tauri Command Not Registered** `auth.ts` calls `invoke("get_auth_token")` but it's not in `lib.rs` command handlers. Native token storage is write-only.
+  - Files: `apps/desktop/src-tauri/src/lib.rs`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### HIGH
+
+- [ ] **D-H1: Fiscal Periods Route Shows COA** `App.tsx` maps `/fiscal` to `<COAPage />`. No Fiscal Periods page exists.
+  - Files: `apps/desktop/src/App.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-H2: Help Route Shows Settings** `App.tsx` maps `/help` to `<SettingsPage />`. No Help page exists.
+  - Files: `apps/desktop/src/App.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-H3: Mobile Money Route Shows Bank Accounts** `App.tsx` maps `/mobile-money` to `<TreasuryPage />`. No Mobile Money page exists.
+  - Files: `apps/desktop/src/App.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-H4: Purchase Orders "New PO" Button Disabled** Button is permanently greyed out with no handler. No PO creation modal exists.
+  - Files: `apps/desktop/src/pages/ap/purchase-orders.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-H5: Trial Balance Placeholder** Shows "Coming Soon" instead of real data.
+  - Files: `apps/desktop/src/pages/reports/reports.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-H6: No Entity Switcher UI** Backend commands exist but no UI to select/switch entities.
+  - Files: `apps/desktop/src/pages/settings/settings.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-H7: `process.env` Used Instead of `import.meta.env`** Vite doesn't expose `process.env`. Affects `documents.tsx` and `vite.config.ts`. Build target always `"safari13"`.
+  - Files: `apps/desktop/src/pages/documents/documents.tsx`, `apps/desktop/vite.config.ts`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-H8: Hardcoded Mock Data in Cash Page** Shows "Petty Cash GMD 25,000" and "Imprest Float GMD 50,000" when empty.
+  - Files: `apps/desktop/src/pages/treasury/cash.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-H9: `formatCurrency` Used for File Size** Documents page shows file sizes as currency (e.g., "$1.25" instead of "1.25 KB").
+  - Files: `apps/desktop/src/pages/documents/documents.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### MEDIUM
+
+- [ ] **D-M1: CSP Set to Null** Security risk in production.
+  - Files: `apps/desktop/src-tauri/tauri.conf.json`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-M2: Wrong JSON Schema URL** Points to NiceGUI schema, not Tauri's.
+  - Files: `apps/desktop/src-tauri/tauri.conf.json`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-M3: Unsafe Global Mutable State in Rust** Uses `static mut` instead of `OnceLock`.
+  - Files: `apps/desktop/src-tauri/src/db/mod.rs`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-M4: Inconsistent Route Param Extraction** 3 pages use `pathname.split("/").pop()` instead of `useParams()`.
+  - Files: `entry-detail.tsx`, `supplier-detail.tsx`, `customer-detail.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-M5: `any` Types (14 instances)** Across 12 desktop page files.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-M6: Missing Error Handling (24 queries)** Most `useQuery` calls don't handle `error` state.
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-M7: Hardcoded Chat conversationId** `"desktop-chat"` — all sessions share one conversation.
+  - Files: `apps/desktop/src/pages/chat/chat.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-M8: Native `alert()`/`confirm()` Used** Should use `@xenboox/ui` AlertDialog.
+  - Files: `apps/desktop/src/pages/documents/documents.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-M9: Offline Sync Queue Unimplemented** SQLite `sync_queue` table exists but nothing writes to or reads from it.
+  - Files: `apps/desktop/src-tauri/src/db/mod.rs`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+### LOW
+
+- [ ] **D-L1: Hardcoded `localhost:3000` API URL** In 3 locations. Should be configurable.
+  - Files: `trpc.ts`, `entity.rs`, `health.rs`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-L2: Hardcoded Version in Settings** "0.1.0" hardcoded.
+  - Files: `apps/desktop/src/pages/settings/settings.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **D-L3: Unused Imports** `TrendingUp`, `PieChart`, `Image` imported but never used.
+  - Files: `reports.tsx`, `documents.tsx`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+---
+
+## SHIPPING — Build & Distribution
+
+- [ ] **S-01: Desktop Icons** Missing `apps/desktop/src-tauri/icons/` directory. Build will fail.
+  - Files: `apps/desktop/src-tauri/icons/` (6 files needed)
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **S-02: Rust Toolchain** Rust not installed on dev machine. Needed for `tauri dev` and `tauri build`.
+  - Files: (environment setup)
+  - Owner: ____________
+  - Status: NOT STARTED
+
+- [ ] **S-03: Desktop Build & Test** Desktop app has never been built or tested end-to-end.
+  - Files: `apps/desktop/`
+  - Owner: ____________
+  - Status: NOT STARTED
+
+---
+
 ## Summary
 
 | Severity | Count | Resolved | Remaining |
 |----------|-------|----------|-----------|
-| CRITICAL | 4 | 4 | 0 |
-| HIGH | 10 | 10 | 0 |
-| MEDIUM | 15 | 15 | 0 |
-| LOW | 7 | 7 | 0 |
-| **TOTAL** | **36** | **36** | **0** |
+| CRITICAL | 4 | 4 | 7 |
+| HIGH | 10 | 10 | 21 |
+| MEDIUM | 15 | 15 | 37 |
+| LOW | 7 | 7 | 14 |
+| SHIP | 0 | 0 | 3 |
+| **TOTAL** | **36** | **36** | **82** |
 
 ---
 
