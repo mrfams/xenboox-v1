@@ -175,6 +175,23 @@ pub async fn switch_entity(entity_id: String) -> Result<Entity, String> {
 }
 
 #[tauri::command]
+pub async fn get_auth_token() -> Result<String, String> {
+    let pool = db::get_db()?;
+    let row: Option<(String,)> = sqlx::query_as(
+        "SELECT value FROM local_settings WHERE key = ?",
+    )
+    .bind("auth_token")
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("Failed to read auth token: {e}"))?;
+    
+    match row {
+        Some((token,)) => Ok(token),
+        None => Err("No auth token found".to_string())
+    }
+}
+
+#[tauri::command]
 pub async fn set_auth_token(token: String) -> Result<(), String> {
     set_local_setting("auth_token", &token).await
 }

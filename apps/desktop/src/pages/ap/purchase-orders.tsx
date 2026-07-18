@@ -9,9 +9,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui"
 import { Badge } from "@xenboox/ui"
 import { Button } from "@xenboox/ui"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@xenboox/ui"
 import { trpc } from "@/lib/trpc"
 import { formatCurrency } from "@/lib/utils"
-import { Plus } from "lucide-react"
+import { Plus, X } from "lucide-react"
+import { useState } from "react"
 
 function statusBadge(status: string) {
   const variant =
@@ -24,16 +26,74 @@ function statusBadge(status: string) {
 
 export default function PurchaseOrdersPage() {
   const { data, isLoading } = trpc.ap.listPOs.useQuery()
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [formData, setFormData] = useState({
+    supplierId: "",
+    totalAmount: ""
+  })
+
+  const createPO = trpc.ap.createPO.useMutation()
+
+  const handleSubmit = () => {
+    createPO.mutate({
+      supplierId: formData.supplierId,
+      totalAmount: parseFloat(formData.totalAmount)
+    }, {
+      onSuccess: () => {
+        setShowCreateModal(false)
+        setFormData({ supplierId: "", totalAmount: "" })
+      }
+    })
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Purchase Orders</h1>
-        <Button disabled>
+        <Button onClick={() => setShowCreateModal(true)}>
           <Plus className="mr-2 h-4 w-4" />
           New PO
         </Button>
       </div>
+
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Purchase Order</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Supplier ID</label>
+              <input
+                type="text"
+                value={formData.supplierId}
+                onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                placeholder="Enter supplier ID"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Total Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.totalAmount}
+                onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
+                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit}>
+              Create PO
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

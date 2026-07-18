@@ -52,7 +52,7 @@ const navigation: NavGroup[] = [
     label: "Payables & Receivables",
     items: [
       { label: "Suppliers", href: "/ap/suppliers", icon: Users },
-      { label: "Purchase Orders", href: "/ap/pos", icon: FileText, badge: "PO" },
+      { label: "Purchase Orders", href: "/ap/purchase-orders", icon: FileText, badge: "PO" },
       { label: "Bills", href: "/ap/invoices", icon: CreditCard },
       { label: "Customers", href: "/ar/customers", icon: Users },
       { label: "Invoices", href: "/ar/invoices", icon: FileText, badge: "AR" },
