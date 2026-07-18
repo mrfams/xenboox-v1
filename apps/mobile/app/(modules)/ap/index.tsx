@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc"
 import { useState, useCallback } from "react"
 import { useRouter } from "expo-router"
 import { Plus } from "lucide-react-native"
+import { ErrorComponent } from "@/components/error-component"
 
 type Supplier = {
   id: string
@@ -22,13 +23,30 @@ export default function APScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState("")
   const router = useRouter()
-  const { data: suppliers, refetch } = trpc.ap.listSuppliers.useQuery()
+  const { data: suppliers, refetch, isLoading, error } = trpc.ap.listSuppliers.useQuery()
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     await refetch()
     setRefreshing(false)
   }, [refetch])
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <Text>Loading...</Text>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-white dark:bg-slate-900">
+        <Header title="Accounts Payable" />
+        <ErrorComponent message={error.message} onRetry={refetch} />
+      </View>
+    )
+  }
 
   const filtered = (suppliers || []).filter((s: Supplier) => {
     const term = search.toLowerCase()

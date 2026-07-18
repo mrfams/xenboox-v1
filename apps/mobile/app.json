@@ -8,6 +8,9 @@
     "scheme": "xenboox",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -16,9 +19,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.xenboox.app",
+      "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "bundleExtensions": [".swift"]
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +31,21 @@
         "backgroundColor": "#0f172a"
       },
       "package": "com.xenboox.app",
-      "googleServicesFile": "./google-services.json"
+      "versionCode": 1,
+      "intentFilters": [
+        {
+          "action": "MAIN",
+          "data": [
+            {
+              "scheme": "xenboox"
+            }
+          ],
+          "category": [
+            "LAUNCHER",
+            "BROWSABLE"
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -37,6 +56,13 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0ea5e9"
+        }
+      ],
       [
         "expo-camera",
         {
@@ -52,6 +78,9 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
     }
   }
 }

@@ -7,6 +7,7 @@ import { useState, useCallback } from "react"
 import { useRouter } from "expo-router"
 import { formatCurrency } from "@/lib/utils"
 import { Plus } from "lucide-react-native"
+import { ErrorComponent } from "@/components/error-component"
 
 type InventoryItem = {
   id: string
@@ -21,13 +22,30 @@ type InventoryItem = {
 export default function InventoryScreen() {
   const router = useRouter()
   const [refreshing, setRefreshing] = useState(false)
-  const { data: items, refetch } = trpc.inventory.listItems.useQuery()
+  const { data: items, refetch, isLoading, error } = trpc.inventory.listItems.useQuery()
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     await refetch()
     setRefreshing(false)
   }, [refetch])
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <Text>Loading...</Text>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-white dark:bg-slate-900">
+        <Header title="Inventory" />
+        <ErrorComponent message={error.message} onRetry={refetch} />
+      </View>
+    )
+  }
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-900">
