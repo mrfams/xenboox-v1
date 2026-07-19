@@ -16,6 +16,10 @@ const PUBLIC_ROUTES = [
   "/download",
   "/privacy",
   "/terms",
+  "/cookies",
+  "/refund",
+  "/sla",
+  "/docs",
 ];
 
 function isPublicRoute(pathname: string): boolean {
