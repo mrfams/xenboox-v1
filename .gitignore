@@ -47,3 +47,6 @@ coverage/
 
 # LangFuse
 langfuse-data/
+
+.vercel
+.env*
