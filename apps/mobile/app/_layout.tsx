@@ -7,6 +7,10 @@ import { StatusBar } from "expo-status-bar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { OfflineIndicator } from "@/components/offline-indicator"
+import { NotificationsProvider } from "@/lib/notifications"
+import { setupNotifications } from "@/lib/notifications-setup"
+import { initOfflineDB } from "@/lib/offline-storage"
+import { startSyncService, stopSyncService } from "@/lib/sync-service"
 import "../global.css"
 
 const queryClient = new QueryClient({
@@ -50,14 +54,26 @@ function AuthGate() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    initOfflineDB()
+    startSyncService()
+    setupNotifications()
+
+    return () => {
+      stopSyncService()
+    }
+  }, [])
+
   return (
     <ErrorBoundary>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <trpc.Provider client={trpcClient} queryClient={queryClient}>
             <StatusBar style="auto" />
-            <AuthGate />
-            <OfflineIndicator />
+            <NotificationsProvider>
+              <AuthGate />
+              <OfflineIndicator />
+            </NotificationsProvider>
           </trpc.Provider>
         </QueryClientProvider>
       </ThemeProvider>

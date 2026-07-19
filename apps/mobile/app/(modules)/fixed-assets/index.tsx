@@ -7,6 +7,7 @@ import { useState, useCallback } from "react"
 import { useRouter } from "expo-router"
 import { formatCurrency } from "@/lib/utils"
 import { Plus } from "lucide-react-native"
+import { ErrorComponent } from "@/components/error-component"
 
 type Asset = {
   id: string
@@ -20,13 +21,30 @@ type Asset = {
 export default function FixedAssetsScreen() {
   const router = useRouter()
   const [refreshing, setRefreshing] = useState(false)
-  const { data: assets, refetch } = trpc.fixedAssets.listAssets.useQuery()
+  const { data: assets, refetch, isLoading, error } = trpc.fixedAssets.listAssets.useQuery()
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     await refetch()
     setRefreshing(false)
   }, [refetch])
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <Text>Loading...</Text>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-white dark:bg-slate-900">
+        <Header title="Fixed Assets" />
+        <ErrorComponent message={error.message} onRetry={refetch} />
+      </View>
+    )
+  }
 
   const statusColors: Record<string, string> = {
     active: "text-success",

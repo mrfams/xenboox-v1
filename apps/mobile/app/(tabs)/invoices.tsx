@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Header } from "@/components/layout/header"
 import { trpc } from "@/lib/trpc"
 import { useState, useCallback } from "react"
+import { ErrorComponent } from "@/components/error-component"
 
 type Invoice = {
   id: string
@@ -48,13 +49,30 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
 
 export default function InvoicesScreen() {
   const [refreshing, setRefreshing] = useState(false)
-  const { data: invoices, refetch } = trpc.ar.listInvoices.useQuery()
+  const { data: invoices, refetch, isLoading, error } = trpc.ar.listInvoices.useQuery()
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     await refetch()
     setRefreshing(false)
   }, [refetch])
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <Text>Loading...</Text>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-white dark:bg-slate-900">
+        <Header title="Invoices" />
+        <ErrorComponent message={error.message} onRetry={refetch} />
+      </View>
+    )
+  }
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-900">

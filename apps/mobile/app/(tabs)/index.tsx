@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Header } from "@/components/layout/header"
 import { trpc } from "@/lib/trpc"
 import { useState, useCallback } from "react"
+import { ErrorComponent } from "@/components/error-component"
 
 function StatCard({
   title,
@@ -33,13 +34,30 @@ function StatCard({
 
 export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false)
-  const { data: summary, refetch } = trpc.organization.getEntitySummary.useQuery()
+  const { data: summary, refetch, isLoading, error } = trpc.organization.getEntitySummary.useQuery()
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     await refetch()
     setRefreshing(false)
   }, [refetch])
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <Text>Loading...</Text>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-white dark:bg-slate-900">
+        <Header title="Dashboard" />
+        <ErrorComponent message={error.message} onRetry={refetch} />
+      </View>
+    )
+  }
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-900">
