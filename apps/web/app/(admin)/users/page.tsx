@@ -110,26 +110,24 @@ export default function UsersPage() {
                             <Mail className="h-3 w-3" />
                             {user.email}
                           </span>
-                          {user.sessions?.length > 0 && (
+                          {user.emailVerified && (
                             <span className="flex items-center gap-1 text-green-600">
                               <Calendar className="h-3 w-3" />
-                              Last active
+                              Verified
                             </span>
                           )}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {user.userEntityAccess
-                        ?.slice(0, 2)
-                        .map((access) => (
-                          <Badge
-                            key={access.id}
-                            variant={getRoleBadgeVariant(access.role)}
-                          >
-                            {access.role?.replace("_", " ")}
-                          </Badge>
-                        ))}
+                      {user.userEntityAccess?.slice(0, 2).map((access) => (
+                        <Badge
+                          key={access.id}
+                          variant={getRoleBadgeVariant(access.role)}
+                        >
+                          {access.role?.replace("_", " ")}
+                        </Badge>
+                      ))}
                       {user.userEntityAccess?.length > 2 && (
                         <Badge variant="outline">
                           +{user.userEntityAccess.length - 2} more

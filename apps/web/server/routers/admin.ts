@@ -454,7 +454,6 @@ export const adminRouter = router({
             entity: true,
           },
         },
-        sessions: true,
       },
       orderBy: [desc(users.createdAt)],
     });

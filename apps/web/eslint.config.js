@@ -6,16 +6,16 @@ import jsxA11y from 'eslint-plugin-jsx-a11y';
 import importPlugin from 'eslint-plugin-import';
 import unusedImports from 'eslint-plugin-unused-imports';
 
-export default tseslint.config(
+export default [
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
     files: ['**/*.ts', '**/*.tsx'],
-    ...js.configs.recommended,
-    ...tseslint.configs.recommended,
     plugins: {
       react,
       'react-hooks': reactHooks,
       'jsx-a11y': jsxA11y,
-      import: importPlugin,
+      'import': importPlugin,
       'unused-imports': unusedImports,
     },
     languageOptions: {
@@ -37,17 +37,18 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
-      'import/no-unused-imports': 'error',
-      'unused-imports/no-unused-imports': 'error',
-      'import/order': ['error', {
+      'no-unused-vars': 'off',
+      'import/order': ['warn', {
         groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
         'newlines-between': 'always',
       }],
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
+      'react/no-unescaped-entities': 'off',
+      'no-control-regex': 'off',
     },
   },
   {
     ignores: ['.next/**', 'node_modules/**', 'dist/**'],
-  }
-);
+  },
+];

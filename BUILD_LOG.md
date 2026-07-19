@@ -6,6 +6,97 @@
 
 ---
 
+### [2026-07-19] - Cross-Platform Buildout + Disk Cleanup
+
+**Agent:** opencode
+**Duration:** ~90 min
+**Files Created:** Many (desktop entity/auto-update/pages, mobile notifications/offline/sync, web admin/marketing/dashboard/docs pages, tRPC notifications router, DB notifications schema, email templates, UI progress component)
+**Files Modified:** AGENTS.md, BUILD_LOG.md, all tRPC routers, DB schema/index+auth, pnpm-lock
+
+**What was built:**
+
+- **Desktop app:** Entity switcher + entity context, auto-update mechanism, docs/fiscal/help/mobile-money pages, updated Tauri Rust backend with entity commands, enhanced purchase orders/documents/cash pages
+
+- **Mobile app:** Push notification system (setup + UI), offline storage + sync service, EAS build config, error boundary component, updated module pages
+
+- **Web pages:** Admin pages (ai-comparison, alerts, analytics, financial, organizations, settings, spending, users), admin/auth error/not-found pages, marketing pages (cookies, docs site with agents/modules/faq/getting-started/security/devsecops, refund, SLA), dashboard loading/not-found, mobile-money create-account-dialog, robots/sitemap, shared progress component
+
+- **tRPC routers:** New notifications router, updated auth router with enhanced authentication, updated admin/agent/ap/ar/cash/document/fiscal/fixedAssets/inventory/journal/mobileMoney/payroll/treasury routers
+
+- **Database schema:** New notifications table, updated auth schema with additional fields
+
+- **Packages:** Updated agents orchestrator, added verification email template (React Email), added shared progress UI component, updated pnpm lockfile
+
+- **Disk cleanup:** Freed ~7.5 GB by disabling hibernate, cleaning temp/update cache/package cache/chrome cache/rust partial install
+
+- **Desktop postponed:** Added postponement notice to AGENTS.md with reinstall checklist (Rust toolchain, cargo deps, rust-src)
+
+**Decisions made:** Desktop (Tauri) postponed until disk space is available. Rust toolchain, cargo removed. VS 2022 + Windows Kits remain installed.
+
+**Next steps:** Continue web/mobile development, free additional space for Rust when ready.
+
+---
+
+### [2026-07-18] - Desktop Build Completion & Documentation
+
+**Agent:** opencode
+**Duration:** ~45 min
+**Files Created:** 12 (entity-context.tsx, entity-switcher.tsx, getting-started/page.tsx, faq/page.tsx, modules/page.tsx, agents/page.tsx, placeholder agent/module docs)
+**Files Modified:** 6 (App.tsx, header.tsx, purchase-orders.tsx, sidebar.tsx, ENTERPRISE_GAP.md, BUILD_LOG.md)
+
+**What was built:**
+
+- **Entity Context Provider:** Created `apps/desktop/src/lib/entity-context.tsx` with React context for entity state management, entity list fetching, and current entity tracking.
+
+- **Entity Switcher Component:** Created `apps/desktop/src/components/entity-switcher.tsx` with dropdown UI for selecting entities, showing current entity name and type with checkmark for selected item.
+
+- **Header Entity Switcher:** Updated `apps/desktop/src/components/layout/header.tsx` to include EntitySwitcher component in the header navigation area.
+
+- **Purchase Orders Page:** Fixed D-H4 - "New PO" button was disabled. Added Create PO dialog with form validation (supplierId, totalAmount), mutation hook (trpc.ap.createPO), and proper error handling.
+
+- **Documentation Pages:** Created comprehensive documentation in `apps/desktop/src/pages/docs/`:
+  - `getting-started/page.tsx` - Core setup guide
+  - `faq/page.tsx` - 4 categories of questions (Account, Data, Accounting, Reports)
+  - `modules/page.tsx` - Index of all 12 modules with descriptions
+  - `agents/page.tsx` - Index of all 15 AI agents with tiers
+
+- **Route Updates:** Added documentation routes to `apps/desktop/src/App.tsx`:
+  - `/docs` - Modules index
+  - `/docs/getting-started` - Getting started guide
+  - `/docs/faq` - FAQ page
+  - `/docs/agents` - Agents index
+  - Placeholder routes for all 12 modules and 15 agents
+
+- **Sidebar Fix:** Fixed D-H4 - Purchase Orders link was pointing to `/ap/pos` instead of `/ap/purchase-orders` in `apps/desktop/src/components/layout/sidebar.tsx`
+
+- **ENTERPRISE_GAP.md Updates:** Updated status for:
+  - D-H4: Purchase Orders button - COMPLETED
+  - D-H5: Trial Balance - COMPLETED (wired to trpc.reports.getTrialBalance)
+  - D-H6: Entity Switcher - COMPLETED
+  - Doc-C1, Doc-C2, Doc-D1 through Doc-D14 - COMPLETED
+
+**Verification:** TypeScript typecheck passes for desktop package. All new components follow existing patterns and use @xenboox/ui components.
+
+**Remaining (HIGH):**
+
+- W-H2: Missing `error.tsx` boundaries (19 routes)
+- W-M1, W-M2: Missing loading.tsx, not-found.tsx for marketing/admin routes
+- W-M4: Missing CRUD operations (21 procedures)
+- W-M5: Missing try/catch on 20 mutations
+- W-M6: N+1 query patterns (4 occurrences)
+- D-M3: Unsafe global mutable state in Rust
+- D-M4: Inconsistent route param extraction
+- D-M5: `any` types (14 instances)
+- D-M6: Missing error handling (24 queries)
+- D-M7: Hardcoded chat conversationId
+- D-M8: Native alert()/confirm() used
+- D-M9: Offline sync queue unimplemented
+- S-02: Rust toolchain installation (network blocked)
+- S-03: Desktop build & test
+- Remaining MEDIUM/LOW docs items for web app
+
+---
+
 ### [2026-07-17] - Fix Vercel Build: Husky Command Not Found
 
 **Agent:** opencode
