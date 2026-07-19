@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { motion, useInView } from "framer-motion";
 import Link from "next/link";
 import {
   Bot,
@@ -17,55 +16,31 @@ import {
   FileCheck,
   Sparkles,
   Zap,
-  Layers,
 } from "lucide-react";
 
-const fadeInUp = {
-  hidden: { opacity: 0, y: 40 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] },
-  },
-};
+function useInViewOnce(ref: React.RefObject<Element | null>, margin = "-80px") {
+  const [isInView, setIsInView] = useState(false);
 
-const stagger = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
-};
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: margin },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref, margin]);
 
-const scaleIn = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
-  },
-};
-
-function SectionWrapper({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-  return (
-    <motion.section
-      ref={ref}
-      initial="hidden"
-      animate={isInView ? "visible" : "hidden"}
-      variants={stagger}
-      className={className}
-    >
-      {children}
-    </motion.section>
-  );
+  return isInView;
 }
 
-function AnimatedSection({
+function FadeInUp({
   children,
   className = "",
   delay = 0,
@@ -74,25 +49,41 @@ function AnimatedSection({
   className?: string;
   delay?: number;
 }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-60px" });
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInViewOnce(ref);
   return (
-    <motion.div
+    <div
       ref={ref}
-      initial="hidden"
-      animate={isInView ? "visible" : "hidden"}
-      variants={{
-        hidden: { opacity: 0, y: 30 },
-        visible: {
-          opacity: 1,
-          y: 0,
-          transition: { duration: 0.6, delay, ease: [0.25, 0.46, 0.45, 0.94] },
-        },
-      }}
       className={className}
+      style={{
+        opacity: isInView ? 1 : 0,
+        transform: isInView ? "translateY(0)" : "translateY(30px)",
+        transition: `opacity 0.6s ease-out, transform 0.6s ease-out`,
+        transitionDelay: `${delay}s`,
+      }}
     >
       {children}
-    </motion.div>
+    </div>
+  );
+}
+
+function StaggerChildren({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInViewOnce(ref);
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{ opacity: isInView ? 1 : 0, transition: "opacity 0.3s ease-out" }}
+    >
+      {isInView ? children : null}
+    </div>
   );
 }
 
@@ -122,8 +113,8 @@ function CountUp({
   suffix?: string;
   decimals?: number;
 }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true });
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInViewOnce(ref);
   const [count, setCount] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);
 
@@ -237,12 +228,9 @@ const logos = [
 export default function HomePage() {
   return (
     <>
-      {/* ════════════════════════════════════════ */}
-      {/* HERO                                      */}
-      {/* ════════════════════════════════════════ */}
+      {/* HERO */}
       <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-950/20 to-slate-950" />
 
         <FloatingShape
@@ -263,48 +251,40 @@ export default function HomePage() {
 
         <div className="relative mx-auto max-w-6xl px-4 py-32 sm:px-6 w-full">
           <div className="max-w-3xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+            <div
               className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/70"
+              style={{ animation: "fade-in-up 0.5s ease-out 0.2s both" }}
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
               Trusted by finance teams across Africa
-            </motion.div>
+            </div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
+            <h1
               className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl leading-[1.1]"
+              style={{ animation: "fade-in-up 0.6s ease-out 0.4s both" }}
             >
               <span className="text-white">AI-native accounting</span>
               <br />
               <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
                 for African enterprises
               </span>
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
+            <p
               className="mt-6 max-w-xl text-lg text-white/60 leading-relaxed"
+              style={{ animation: "fade-in-up 0.6s ease-out 0.6s both" }}
             >
               Close your books faster, reduce errors, and get real-time
               financial intelligence — powered by AI agents that handle the work
               so your team can focus on growth.
-            </motion.p>
+            </p>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
+            <div
               className="mt-8 flex flex-wrap gap-4"
+              style={{ animation: "fade-in-up 0.6s ease-out 0.8s both" }}
             >
               <Link
                 href="/register"
@@ -322,33 +302,29 @@ export default function HomePage() {
               >
                 Talk to Sales
               </Link>
-            </motion.div>
+            </div>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 1 }}
+            <p
               className="mt-4 text-sm text-white/40"
+              style={{ animation: "fade-in 0.6s ease-out 1s both" }}
             >
               No credit card required · Free tier available · Enterprise plans
               include dedicated support
-            </motion.p>
+            </p>
           </div>
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </section>
 
-      {/* ════════════════════════════════════════ */}
-      {/* TRUST BAR                                 */}
-      {/* ════════════════════════════════════════ */}
+      {/* TRUST BAR */}
       <section className="relative overflow-hidden border-b border-white/5 bg-slate-900 py-10">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <AnimatedSection>
+          <FadeInUp>
             <p className="mb-8 text-center text-xs font-medium uppercase tracking-[0.2em] text-white/40">
               Trusted by finance teams at
             </p>
-          </AnimatedSection>
+          </FadeInUp>
           <div className="relative overflow-hidden">
             <div className="flex gap-12 animate-marquee whitespace-nowrap">
               {logos.map((name, i) => (
@@ -364,13 +340,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ════════════════════════════════════════ */}
-      {/* STATS                                     */}
-      {/* ════════════════════════════════════════ */}
+      {/* STATS */}
       <section className="relative overflow-hidden bg-slate-950 py-20">
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-transparent" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <SectionWrapper>
+          <StaggerChildren>
             <div className="grid gap-6 md:grid-cols-4">
               {[
                 {
@@ -398,10 +372,12 @@ export default function HomePage() {
                   decimals: 0,
                 },
               ].map((stat, i) => (
-                <motion.div
+                <div
                   key={stat.label}
-                  variants={fadeInUp}
                   className="group relative rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm p-8 text-center transition-all duration-300 hover:bg-white/[0.05] hover:border-white/10"
+                  style={{
+                    animation: `fade-in-up 0.5s ease-out ${i * 0.12}s both`,
+                  }}
                 >
                   <div className="text-4xl font-bold tracking-tight bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
                     <CountUp
@@ -411,21 +387,19 @@ export default function HomePage() {
                     />
                   </div>
                   <div className="mt-2 text-sm text-white/40">{stat.label}</div>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </SectionWrapper>
+          </StaggerChildren>
         </div>
       </section>
 
-      {/* ════════════════════════════════════════ */}
-      {/* THREE PILLARS                             */}
-      {/* ════════════════════════════════════════ */}
+      {/* THREE PILLARS */}
       <section className="relative overflow-hidden bg-slate-950 py-24">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-blue-600/5 via-violet-600/5 to-transparent rounded-full blur-3xl" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <SectionWrapper>
-            <AnimatedSection className="mb-16 text-center">
+          <FadeInUp>
+            <div className="mb-16 text-center">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
                 <Sparkles className="h-3 w-3 text-violet-400" />
                 Purpose-built for modern finance teams
@@ -437,14 +411,12 @@ export default function HomePage() {
                   Africa does business
                 </span>
               </h2>
-            </AnimatedSection>
-            <div className="grid gap-6 md:grid-cols-3">
-              {pillars.map((pillar, i) => (
-                <motion.div
-                  key={pillar.title}
-                  variants={fadeInUp}
-                  className="group relative rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent backdrop-blur-sm p-8 transition-all duration-500 hover:-translate-y-1"
-                >
+            </div>
+          </FadeInUp>
+          <div className="grid gap-6 md:grid-cols-3">
+            {pillars.map((pillar, i) => (
+              <FadeInUp key={pillar.title} delay={i * 0.12}>
+                <div className="group relative rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent backdrop-blur-sm p-8 transition-all duration-500 hover:-translate-y-1">
                   <div
                     className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${pillar.gradient} opacity-0 transition-opacity duration-500 group-hover:opacity-5`}
                   />
@@ -459,21 +431,19 @@ export default function HomePage() {
                   <p className="relative mt-3 text-sm text-white/50 leading-relaxed">
                     {pillar.description}
                   </p>
-                </motion.div>
-              ))}
-            </div>
-          </SectionWrapper>
+                </div>
+              </FadeInUp>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ════════════════════════════════════════ */}
-      {/* CAPABILITIES                              */}
-      {/* ════════════════════════════════════════ */}
+      {/* CAPABILITIES */}
       <section className="relative overflow-hidden border-t border-white/5 bg-slate-900 py-24">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-600/5 via-transparent to-transparent" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <SectionWrapper>
-            <AnimatedSection className="mb-14 text-center">
+          <FadeInUp>
+            <div className="mb-14 text-center">
               <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
                 <span className="text-white">Everything you need to</span>
                 <br />
@@ -485,14 +455,12 @@ export default function HomePage() {
                 From journal entries to consolidated reporting — a complete
                 accounting platform with no gaps.
               </p>
-            </AnimatedSection>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {capabilities.map((cap, i) => (
-                <motion.div
-                  key={cap.title}
-                  variants={fadeInUp}
-                  className="group rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm p-6 transition-all duration-300 hover:bg-white/[0.05] hover:border-white/10"
-                >
+            </div>
+          </FadeInUp>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {capabilities.map((cap, i) => (
+              <FadeInUp key={cap.title} delay={i * 0.06}>
+                <div className="group rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm p-6 transition-all duration-300 hover:bg-white/[0.05] hover:border-white/10">
                   <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600/20 to-violet-600/20 text-blue-400 group-hover:from-blue-600/30 group-hover:to-violet-600/30 transition-all duration-300">
                     <cap.icon className="h-5 w-5" />
                   </div>
@@ -500,58 +468,53 @@ export default function HomePage() {
                   <p className="mt-2 text-sm text-white/40 leading-relaxed">
                     {cap.description}
                   </p>
-                </motion.div>
-              ))}
-            </div>
-          </SectionWrapper>
+                </div>
+              </FadeInUp>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ════════════════════════════════════════ */}
-      {/* SECURITY & COMPLIANCE                     */}
-      {/* ════════════════════════════════════════ */}
+      {/* SECURITY & COMPLIANCE */}
       <section className="relative overflow-hidden bg-slate-950 py-24">
         <div className="absolute top-20 right-0 w-96 h-96 bg-gradient-to-bl from-blue-600/5 to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-20 left-0 w-96 h-96 bg-gradient-to-tr from-violet-600/5 to-transparent rounded-full blur-3xl" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <SectionWrapper>
-            <div className="grid gap-12 md:grid-cols-2 md:gap-16 items-center">
-              <motion.div variants={fadeInUp}>
-                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-                  <Shield className="h-3 w-3" />
-                  Enterprise Security
-                </div>
-                <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-                  <span className="text-white">Built for the most</span>
-                  <br />
-                  <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-                    demanding requirements
-                  </span>
-                </h2>
-                <p className="mt-4 text-white/50 leading-relaxed">
-                  Your financial data is protected by industry-standard
-                  encryption, strict access controls, and comprehensive audit
-                  logging. Every action is recorded, every transaction is
-                  traceable, and every entity is fully isolated.
-                </p>
-                <ul className="mt-6 space-y-3">
-                  {[
-                    "AES-256 encryption for data at rest. TLS 1.3 for data in transit.",
-                    "Row-level security ensures complete entity data isolation.",
-                    "SOC 2-aligned controls with continuous monitoring and incident response.",
-                    "Comprehensive audit trail — every action logged with actor, timestamp, and context.",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-sm">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                      <span className="text-white/50">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-              <motion.div
-                variants={scaleIn}
-                className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm p-8"
-              >
+          <div className="grid gap-12 md:grid-cols-2 md:gap-16 items-center">
+            <FadeInUp>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
+                <Shield className="h-3 w-3" />
+                Enterprise Security
+              </div>
+              <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+                <span className="text-white">Built for the most</span>
+                <br />
+                <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+                  demanding requirements
+                </span>
+              </h2>
+              <p className="mt-4 text-white/50 leading-relaxed">
+                Your financial data is protected by industry-standard
+                encryption, strict access controls, and comprehensive audit
+                logging. Every action is recorded, every transaction is
+                traceable, and every entity is fully isolated.
+              </p>
+              <ul className="mt-6 space-y-3">
+                {[
+                  "AES-256 encryption for data at rest. TLS 1.3 for data in transit.",
+                  "Row-level security ensures complete entity data isolation.",
+                  "SOC 2-aligned controls with continuous monitoring and incident response.",
+                  "Comprehensive audit trail — every action logged with actor, timestamp, and context.",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-sm">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                    <span className="text-white/50">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </FadeInUp>
+            <FadeInUp delay={0.2}>
+              <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm p-8">
                 <h3 className="font-semibold text-lg text-white/90">
                   Compliance & Certifications
                 </h3>
@@ -578,15 +541,13 @@ export default function HomePage() {
                 <p className="mt-6 text-xs text-white/30 text-center">
                   Third-party security audits conducted quarterly.
                 </p>
-              </motion.div>
-            </div>
-          </SectionWrapper>
+              </div>
+            </FadeInUp>
+          </div>
         </div>
       </section>
 
-      {/* ════════════════════════════════════════ */}
-      {/* CTA                                       */}
-      {/* ════════════════════════════════════════ */}
+      {/* CTA */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-indigo-950 to-slate-950 py-24">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
 
@@ -602,7 +563,7 @@ export default function HomePage() {
         />
 
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <AnimatedSection>
+          <FadeInUp>
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
               <Zap className="h-3 w-3 text-blue-400" />
               Get started in minutes
@@ -640,7 +601,7 @@ export default function HomePage() {
               Free tier available. No credit card required. Enterprise plans
               include dedicated support.
             </p>
-          </AnimatedSection>
+          </FadeInUp>
         </div>
       </section>
     </>
