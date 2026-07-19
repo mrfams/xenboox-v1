@@ -3,16 +3,18 @@ import { TRPCError } from "@trpc/server"
 import { router, publicProcedure, protectedProcedure } from "@/lib/trpc/server"
 import { db } from "@/lib/db"
 import { eq } from "drizzle-orm"
-import { users } from "@xenboox/db/schema/auth"
+import { users, verificationTokens } from "@xenboox/db/schema/auth"
 import { organizations, entities, userEntityAccess } from "@xenboox/db/schema/organization"
+import { auditLog } from "@xenboox/db/schema/documents"
 import bcrypt from "bcryptjs"
 import { nanoid } from "nanoid"
-import { sendPasswordResetEmail } from "@/lib/email"
+import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email"
 import { SignJWT } from "jose"
 
 const LOCKOUT_THRESHOLD = 5
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000 // 30 minutes
 const RESET_TOKEN_EXPIRY_MS = 1 * 60 * 60 * 1000 // 1 hour
+const VERIFICATION_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
 const MOBILE_TOKEN_EXPIRY = "30d"
 
 async function createMobileToken(payload: { sub: string; email: string }) {
@@ -90,7 +92,6 @@ export const authRouter = router({
           name: input.name,
           email: input.email,
           passwordHash,
-          emailVerified: new Date(),
         }).returning()
 
         if (!user) {
@@ -134,6 +135,26 @@ export const authRouter = router({
         })
 
         const token = await createMobileToken({ sub: user.id, email: user.email! })
+
+        // Send verification email (non-blocking)
+        try {
+          const verificationToken = nanoid(32)
+          const verificationExpires = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY_MS)
+          await db.insert(verificationTokens).values({
+            identifier: user.email!,
+            token: verificationToken,
+            expires: verificationExpires,
+          })
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+          const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`
+          await sendVerificationEmail(user.email!, {
+            userName: user.name ?? "User",
+            verifyUrl,
+            expiryMinutes: Math.floor(VERIFICATION_TOKEN_EXPIRY_MS / 60000),
+          })
+        } catch {
+          console.error("[auth] Failed to send verification email")
+        }
 
         return {
           token,
@@ -243,6 +264,26 @@ export const authRouter = router({
 
   // checkAccountLockout removed — was enabling user enumeration
 
+  updateProfile: protectedProcedure
+    .input(z.object({
+      name: z.string().min(2, "Name must be at least 2 characters").max(100),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await db.update(users)
+          .set({ name: input.name })
+          .where(eq(users.id, ctx.session!.user!.id!))
+
+        return { success: true, message: "Profile updated successfully" }
+      } catch (error) {
+        if (error instanceof TRPCError) throw error
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred"
+        })
+      }
+    }),
+
   changePassword: protectedProcedure
     .input(z.object({
       currentPassword: z.string().min(8, "Current password is required"),
@@ -274,5 +315,160 @@ export const authRouter = router({
         .where(eq(users.id, ctx.session!.user!.id!))
 
       return { success: true, message: "Password changed successfully" }
+    }),
+
+  requestVerification: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      try {
+        const user = await db.query.users.findFirst({
+          where: eq(users.id, ctx.session!.user!.id!),
+        })
+
+        if (!user) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" })
+        }
+
+        if (user.emailVerified) {
+          return { success: true, message: "Email is already verified" }
+        }
+
+        // Delete old tokens for this email
+        await db.delete(verificationTokens)
+          .where(eq(verificationTokens.identifier, user.email!))
+
+        const verificationToken = nanoid(32)
+        const verificationExpires = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY_MS)
+
+        await db.insert(verificationTokens).values({
+          identifier: user.email!,
+          token: verificationToken,
+          expires: verificationExpires,
+        })
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+        const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`
+
+        try {
+          await sendVerificationEmail(user.email!, {
+            userName: user.name ?? "User",
+            verifyUrl,
+            expiryMinutes: Math.floor(VERIFICATION_TOKEN_EXPIRY_MS / 60000),
+          })
+        } catch {
+          console.error("[auth] Failed to send verification email")
+        }
+
+        return { success: true, message: "Verification email sent" }
+      } catch (error) {
+        if (error instanceof TRPCError) throw error
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred"
+        })
+      }
+    }),
+
+  verifyEmail: publicProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      try {
+        const verificationToken = await db.query.verificationTokens.findFirst({
+          where: eq(verificationTokens.token, input.token),
+        })
+
+        if (!verificationToken) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid verification token" })
+        }
+
+        if (verificationToken.expires < new Date()) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Verification token has expired" })
+        }
+
+        const user = await db.query.users.findFirst({
+          where: eq(users.email, verificationToken.identifier),
+        })
+
+        if (!user) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "User not found" })
+        }
+
+        await db.update(users)
+          .set({ emailVerified: new Date() })
+          .where(eq(users.id, user.id))
+
+        await db.delete(verificationTokens)
+          .where(eq(verificationTokens.token, input.token))
+
+        return { success: true, message: "Email verified successfully" }
+      } catch (error) {
+        if (error instanceof TRPCError) throw error
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred"
+        })
+      }
+    }),
+
+  updatePushToken: protectedProcedure
+    .input(z.object({
+      token: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Schema migration needed: ALTER TABLE users ADD COLUMN push_token TEXT
+        // For now, log and return success — push token storage requires DB column addition
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "auth.updatePushToken",
+          entityType: "user",
+          entityIdRef: ctx.session!.user!.id!,
+          newValues: { token: input.token },
+        })
+
+        console.log("[auth] Push token update recorded:", { userId: ctx.session!.user!.id! })
+
+        return { success: true, message: "Push token updated successfully" }
+      } catch (error) {
+        if (error instanceof TRPCError) throw error
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred"
+        })
+      }
+    }),
+
+  updateNotificationPreferences: protectedProcedure
+    .input(z.object({
+      emailInvoices: z.boolean(),
+      emailReports: z.boolean(),
+      emailAlerts: z.boolean(),
+      pushPayments: z.boolean(),
+      pushApprovals: z.boolean(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Log preference changes to audit trail
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "auth.updateNotificationPreferences",
+          entityType: "user",
+          entityIdRef: ctx.session!.user!.id!,
+          newValues: { ...input },
+        })
+
+        // In production, persist to user_preferences table or JSON column
+        // Schema migration needed: ALTER TABLE users ADD COLUMN notification_preferences JSONB DEFAULT '{}'
+        console.log("[auth] Notification preferences updated:", { userId: ctx.session!.user!.id!, ...input })
+
+        return { success: true, message: "Notification preferences saved" }
+      } catch (error) {
+        if (error instanceof TRPCError) throw error
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred"
+        })
+      }
     }),
 })

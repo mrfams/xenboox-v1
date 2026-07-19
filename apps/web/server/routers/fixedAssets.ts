@@ -11,6 +11,7 @@ import {
 import { userEntityAccess } from "@xenboox/db/schema/organization"
 import { users } from "@xenboox/db/schema/auth"
 import { sendAssetCreatedEmail } from "@/lib/email"
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment"
 
 // ─── Fixed Assets Router ───────────────────────────────────────────────────
 
@@ -24,14 +25,14 @@ export const fixedAssetsRouter = router({
 
   getAssetById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const asset = await db.query.fixedAssets.findFirst({
-        where: eq(fixedAssets.id, input.id),
+        where: and(eq(fixedAssets.id, input.id), eq(fixedAssets.entityId, ctx.entityId!)),
       })
       if (!asset) return null
 
       const schedule = await db.query.depreciationSchedule.findMany({
-        where: eq(depreciationSchedule.fixedAssetId, asset.id),
+        where: and(eq(depreciationSchedule.fixedAssetId, asset.id), eq(depreciationSchedule.entityId, ctx.entityId!)),
         orderBy: [desc(depreciationSchedule.createdAt)],
       })
 
@@ -97,14 +98,16 @@ export const fixedAssetsRouter = router({
         })
         const recipientEmail = ownerAccess?.user?.email ?? ctx.session!.user!.email!
 
-        sendAssetCreatedEmail(recipientEmail, {
-          assetName: input.name,
-          assetClass: input.assetClass,
-          cost: input.cost,
-          currency: "GMD",
-          usefulLifeMonths: input.usefulLifeMonths,
-          depreciationMethod: input.depreciationMethod,
-          entityName: "Xenboox",
+        getEnrichedEntityContext(ctx.entityId!).then((entityCtx) => {
+          sendAssetCreatedEmail(recipientEmail, {
+            assetName: input.name,
+            assetClass: input.assetClass,
+            cost: input.cost,
+            currency: entityCtx.currency,
+            usefulLifeMonths: input.usefulLifeMonths,
+            depreciationMethod: input.depreciationMethod,
+            entityName: entityCtx.entityName,
+          }).catch(console.error)
         }).catch(console.error)
 
         return asset
@@ -126,12 +129,12 @@ export const fixedAssetsRouter = router({
         notes: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(fixedAssets)
         .set(data)
-        .where(eq(fixedAssets.id, id))
+        .where(and(eq(fixedAssets.id, id), eq(fixedAssets.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
@@ -156,7 +159,7 @@ export const fixedAssetsRouter = router({
             disposalMethod: data.disposalMethod,
             disposalProceeds: data.disposalProceeds,
           })
-          .where(eq(fixedAssets.id, id))
+          .where(and(eq(fixedAssets.id, id), eq(fixedAssets.entityId, ctx.entityId!)))
           .returning()
 
         if (!updated) {
@@ -182,9 +185,9 @@ export const fixedAssetsRouter = router({
 
   getDepreciationSchedule: protectedProcedure
     .input(z.object({ assetId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       return db.query.depreciationSchedule.findMany({
-        where: eq(depreciationSchedule.fixedAssetId, input.assetId),
+        where: and(eq(depreciationSchedule.fixedAssetId, input.assetId), eq(depreciationSchedule.entityId, ctx.entityId!)),
         orderBy: [desc(depreciationSchedule.createdAt)],
       })
     }),

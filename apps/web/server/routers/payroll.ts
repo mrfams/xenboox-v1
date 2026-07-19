@@ -14,6 +14,7 @@ import {
   auditLog,
 } from "@xenboox/db/schema"
 import { sendEmployeeCreatedEmail } from "@/lib/email"
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment"
 
 // ─── Payroll Router ────────────────────────────────────────────────────────
 
@@ -28,19 +29,19 @@ export const payrollRouter = router({
 
   getEmployeeById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const emp = await db.query.employees.findFirst({
-        where: eq(employees.id, input.id),
+        where: and(eq(employees.id, input.id), eq(employees.entityId, ctx.entityId!)),
       })
       if (!emp) return null
 
       const contracts = await db.query.employeeContracts.findMany({
-        where: eq(employeeContracts.employeeId, emp.id),
+        where: and(eq(employeeContracts.employeeId, emp.id), eq(employeeContracts.entityId, ctx.entityId!)),
         orderBy: [desc(employeeContracts.effectiveDate)],
       })
 
       const loans = await db.query.staffLoans.findMany({
-        where: eq(staffLoans.employeeId, emp.id),
+        where: and(eq(staffLoans.employeeId, emp.id), eq(staffLoans.entityId, ctx.entityId!)),
       })
 
       return { ...emp, contracts, loans }
@@ -96,15 +97,17 @@ export const payrollRouter = router({
 
         // Send email notification (non-blocking)
         if (input.email) {
-          sendEmployeeCreatedEmail(input.email, {
-            employeeName: input.name,
-            employeeNumber: input.employeeNumber,
-            department: input.department,
-            jobTitle: input.jobTitle,
-            hireDate: input.hireDate,
-            basicSalary,
-            currency: "GMD",
-            entityName: "Xenboox",
+          getEnrichedEntityContext(ctx.entityId!).then((entityCtx) => {
+            sendEmployeeCreatedEmail(input.email!, {
+              employeeName: input.name,
+              employeeNumber: input.employeeNumber,
+              department: input.department,
+              jobTitle: input.jobTitle,
+              hireDate: input.hireDate,
+              basicSalary,
+              currency: entityCtx.currency,
+              entityName: entityCtx.entityName,
+            }).catch(console.error)
           }).catch(console.error)
         }
 
@@ -125,14 +128,14 @@ export const payrollRouter = router({
 
   getPayrollRunById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const run = await db.query.payrollRuns.findFirst({
-        where: eq(payrollRuns.id, input.id),
+        where: and(eq(payrollRuns.id, input.id), eq(payrollRuns.entityId, ctx.entityId!)),
       })
       if (!run) return null
 
       const lineItems = await db.query.payrollLineItems.findMany({
-        where: eq(payrollLineItems.payrollRunId, run.id),
+        where: and(eq(payrollLineItems.payrollRunId, run.id), eq(payrollLineItems.entityId, ctx.entityId!)),
       })
 
       return { ...run, lineItems }
@@ -187,9 +190,9 @@ export const payrollRouter = router({
   // ── Payslips ──
   listPayslips: protectedProcedure
     .input(z.object({ payrollRunId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       return db.query.payslips.findMany({
-        where: eq(payslips.payrollRunId, input.payrollRunId),
+        where: and(eq(payslips.payrollRunId, input.payrollRunId), eq(payslips.entityId, ctx.entityId!)),
       })
     }),
 })

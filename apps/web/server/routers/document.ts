@@ -116,15 +116,11 @@ export const documentRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const doc = await db.query.documents.findFirst({
-          where: eq(documents.id, input.id),
+          where: and(eq(documents.id, input.id), eq(documents.entityId, ctx.entityId!)),
         })
 
         if (!doc) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
-        }
-
-        if (doc.entityId !== ctx.entityId) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied to this document" })
         }
 
         if (!doc.r2Key) {
@@ -153,15 +149,11 @@ export const documentRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const doc = await db.query.documents.findFirst({
-          where: eq(documents.id, input.id),
+          where: and(eq(documents.id, input.id), eq(documents.entityId, ctx.entityId!)),
         })
 
         if (!doc) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
-        }
-
-        if (doc.entityId !== ctx.entityId) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied to this document" })
         }
 
         await db.delete(documents).where(eq(documents.id, input.id))
@@ -251,7 +243,7 @@ export const documentRouter = router({
       if (!doc) return null
 
       const links = await db.query.documentLinks.findMany({
-        where: eq(documentLinks.documentId, doc.id),
+        where: and(eq(documentLinks.documentId, doc.id), eq(documentLinks.entityId, ctx.entityId!)),
       })
 
       return { ...doc, links }
@@ -274,17 +266,17 @@ export const documentRouter = router({
       if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
       const [link] = await db
         .insert(documentLinks)
-        .values(input)
+        .values({ ...input, entityId: ctx.entityId! })
         .returning()
       return link
     }),
 
   removeDocumentLink: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const [deleted] = await db
         .delete(documentLinks)
-        .where(eq(documentLinks.id, input.id))
+        .where(and(eq(documentLinks.id, input.id), eq(documentLinks.entityId, ctx.entityId!)))
         .returning()
       return deleted
     }),

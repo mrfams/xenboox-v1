@@ -83,7 +83,7 @@ export const journalRouter = router({
         }
 
         const period = await db.query.fiscalPeriods.findFirst({
-          where: eq(fiscalPeriods.id, input.periodId)
+          where: and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!))
         })
         if (!period) throw new TRPCError({ code: "NOT_FOUND", message: "Fiscal period not found" })
         if (period.status !== "open") {
@@ -155,7 +155,7 @@ export const journalRouter = router({
             postedBy: ctx.session!.user!.id!,
             postedAt: new Date(),
           })
-          .where(eq(journalEntries.id, input.id))
+          .where(and(eq(journalEntries.id, input.id), eq(journalEntries.entityId, ctx.entityId!)))
           .returning()
 
         await db.insert(auditLog).values({
@@ -231,7 +231,7 @@ export const journalRouter = router({
             reversedBy: reversal.id,
             reversedAt: new Date(),
           })
-          .where(eq(journalEntries.id, input.id))
+          .where(and(eq(journalEntries.id, input.id), eq(journalEntries.entityId, ctx.entityId!)))
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -273,7 +273,7 @@ export const journalRouter = router({
             existing.credit += Number(line.credit)
             if (!existing.account) {
               const acc = await db.query.chartOfAccounts.findFirst({
-                where: eq(chartOfAccounts.id, line.accountId)
+                where: and(eq(chartOfAccounts.id, line.accountId), eq(chartOfAccounts.entityId, ctx.entityId!))
               })
               existing.account = acc ?? null
             }

@@ -6,6 +6,7 @@ import { eq, and, asc, desc } from "drizzle-orm"
 import { fiscalPeriods } from "@xenboox/db/schema/accounting"
 import { trialBalanceSnapshots } from "@xenboox/db/schema/accounting"
 import { chartOfAccounts, journalEntries, journalEntryLines } from "@xenboox/db/schema/accounting"
+import { auditLog } from "@xenboox/db/schema/documents"
 import { triggerClient } from "@/lib/trigger"
 
 export const fiscalRouter = router({
@@ -129,8 +130,19 @@ export const fiscalRouter = router({
             closedBy: ctx.session!.user!.id!,
             closedAt: new Date(),
           })
-          .where(eq(fiscalPeriods.id, input.periodId))
+          .where(and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!)))
           .returning()
+
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "fiscal.closePeriod",
+            entityType: "fiscal_period",
+            entityIdRef: updated.id,
+            newValues: { status: "closed" },
+          })
+        }
 
         return updated
       } catch (error) {
@@ -153,8 +165,19 @@ export const fiscalRouter = router({
 
         const [updated] = await db.update(fiscalPeriods)
           .set({ status: "locked" })
-          .where(eq(fiscalPeriods.id, input.periodId))
+          .where(and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!)))
           .returning()
+
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "fiscal.lockPeriod",
+            entityType: "fiscal_period",
+            entityIdRef: updated.id,
+            newValues: { status: "locked" },
+          })
+        }
 
         return updated
       } catch (error) {

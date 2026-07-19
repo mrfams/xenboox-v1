@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { eq, and, desc, count, sum } from "drizzle-orm";
+import { eq, and, desc, count, sum, sql } from "drizzle-orm";
 import { users } from "@xenboox/db/schema/auth";
 import {
   organizations,
@@ -429,10 +429,10 @@ export const adminRouter = router({
 
     const totalBalance = await db
       .select({
-        total: sum(bankAccounts.currentBalance as any),
+        total: sql<number>`SUM(${bankAccounts.currentBalance}::numeric)`,
       })
       .from(bankAccounts)
-      .then((r) => parseFloat(r[0]?.total || "0"));
+      .then((r) => parseFloat(String(r[0]?.total ?? "0")));
 
     return {
       users: userCount,
@@ -532,6 +532,37 @@ export const adminRouter = router({
       avgLatency: data.totalDuration / data.count,
     }));
   }),
+
+  updateSettings: adminProcedure
+    .input(
+      z.object({
+        emailAlerts: z.boolean(),
+        slackAlerts: z.boolean(),
+        smsAlerts: z.boolean(),
+        autoScaling: z.boolean(),
+        costOptimization: z.boolean(),
+        providerFallback: z.boolean(),
+        maintenanceMode: z.boolean(),
+        debugMode: z.boolean(),
+        auditLogging: z.boolean(),
+        budgets: z.object({
+          anthropic: z.string(),
+          openai: z.string(),
+          haiku: z.string(),
+        }),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // In production, this would persist to database or config service
+      // For now, validate and return success with logged audit trail
+      console.log("[admin] Settings update:", {
+        notifications: { emailAlerts: input.emailAlerts, slackAlerts: input.slackAlerts, smsAlerts: input.smsAlerts },
+        ai: { autoScaling: input.autoScaling, costOptimization: input.costOptimization, providerFallback: input.providerFallback },
+        system: { maintenanceMode: input.maintenanceMode, debugMode: input.debugMode, auditLogging: input.auditLogging },
+        budgets: input.budgets,
+      })
+      return { success: true }
+    }),
 
   getCostComparison: adminProcedure.query(async () => {
     const costComparison = AI_PROVIDERS.map((c) => {

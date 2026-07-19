@@ -83,12 +83,16 @@ export const agentRouter = router({
     }),
 
   status: protectedProcedure.query(async ({ ctx }) => {
+    // In production, this should query the agent registry for deployed/available agents
+    // Currently returns the full list of defined agents as a static fallback
+    const agentsAvailable = [
+      "cfo", "controller", "treasury", "payroll_manager", "compliance",
+      "ledger", "ap", "ar", "asset", "inventory", "reporting",
+    ]
+
     return {
       entityId: ctx.entityId,
-      agentsAvailable: [
-        "cfo", "controller", "treasury", "payroll_manager", "compliance",
-        "ledger", "ap", "ar", "asset", "inventory", "reporting",
-      ],
+      agentsAvailable,
       version: "0.1.0",
     }
   }),

@@ -239,6 +239,16 @@ export const cashRouter = router({
         if (!entry) {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create petty cash entry" })
         }
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "petty_cash.create_entry",
+          entityType: "petty_cash_ledger",
+          entityIdRef: entry.id,
+          newValues: { description: input.description, debit: input.debit, credit: input.credit, balance: input.balance },
+        })
+
         return entry
       } catch (error) {
         if (error instanceof TRPCError) throw error

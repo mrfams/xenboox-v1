@@ -13,6 +13,7 @@ import {
 } from "@xenboox/db/schema"
 import { TRPCError } from "@trpc/server"
 import { sendPaymentSentEmail } from "@/lib/email"
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment"
 
 // ─── AP Router ───────────────────────────────────────────────────────────────
 
@@ -367,7 +368,7 @@ export const apRouter = router({
       const paymentAmount = parseFloat(paymentAmountStr)
 
       const invoice = await db.query.invoicesAp.findFirst({
-        where: eq(invoicesAp.id, invoiceApId),
+        where: and(eq(invoicesAp.id, invoiceApId), eq(invoicesAp.entityId, ctx.entityId!)),
       })
       if (!invoice) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found" })
@@ -403,7 +404,7 @@ export const apRouter = router({
             balance: Math.max(newBalance, 0).toFixed(2),
             status: newStatus,
           })
-          .where(eq(invoicesAp.id, invoiceApId))
+          .where(and(eq(invoicesAp.id, invoiceApId), eq(invoicesAp.entityId, ctx.entityId!)))
 
         await tx.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -417,17 +418,19 @@ export const apRouter = router({
         // Send email notification (non-blocking)
         if (invoice) {
           const supplier = await tx.query.suppliers.findFirst({
-            where: eq(suppliers.id, invoice.supplierId),
+            where: and(eq(suppliers.id, invoice.supplierId), eq(suppliers.entityId, ctx.entityId!)),
           })
-          if (supplier?.contactEmail) {
-            sendPaymentSentEmail(supplier.contactEmail, {
-              supplierName: supplier.name,
-              invoiceNumber: invoice.invoiceNumber,
-              amount: paymentAmountStr,
-              currency: invoice.currency,
-              paymentMethod: input.method,
-              reference: input.reference,
-              entityName: "Xenboox",
+          if (supplier && supplier.contactEmail) {
+            getEnrichedEntityContext(ctx.entityId!).then((entityCtx) => {
+              sendPaymentSentEmail(supplier.contactEmail!, {
+                supplierName: supplier.name,
+                invoiceNumber: invoice.invoiceNumber,
+                amount: paymentAmountStr,
+                currency: invoice.currency,
+                paymentMethod: input.method,
+                reference: input.reference,
+                entityName: entityCtx.entityName,
+              }).catch(console.error)
             }).catch(console.error)
           }
         }
