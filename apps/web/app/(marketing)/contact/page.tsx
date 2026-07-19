@@ -1,10 +1,28 @@
-import { Mail, MessageSquare, MapPin, ArrowRight } from "lucide-react"
+"use client";
+
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
+import {
+  Mail,
+  MessageSquare,
+  MapPin,
+  ArrowRight,
+  Sparkles,
+} from "lucide-react";
+import {
+  MarketingShell,
+  PageHero,
+  Reveal,
+  GlassCard,
+  CtaBand,
+} from "../components/marketing-primitives";
 
 const contactMethods = [
   {
     icon: Mail,
     title: "Email",
-    description: "For general inquiries, support, or partnership opportunities.",
+    description:
+      "For general inquiries, support, or partnership opportunities.",
     detail: "hello@xenboox.com",
     href: "mailto:hello@xenboox.com",
   },
@@ -18,100 +36,132 @@ const contactMethods = [
   {
     icon: MapPin,
     title: "Location",
-    description: "We're a remote-first company. Our team is distributed across Africa and Europe.",
+    description:
+      "We're a remote-first company. Our team is distributed across Africa and Europe.",
     detail: "Remote-first",
     href: null,
   },
-]
+];
+
+const faqs = [
+  {
+    question: "How do I get support for a technical issue?",
+    answer:
+      "Email support@xenboox.com with a description of the issue. Include your account email and any relevant screenshots. We typically respond within 24 hours.",
+  },
+  {
+    question: "Do you offer demos for teams?",
+    answer:
+      "Yes. Contact sales@xenboox.com to schedule a demo of the full platform. We'll walk you through the product and how it fits your workflow.",
+  },
+  {
+    question: "I found a bug. How do I report it?",
+    answer:
+      "Email support@xenboox.com or open an issue on our GitHub repository. Please include steps to reproduce, expected behavior, and actual behavior.",
+  },
+  {
+    question: "Can I contribute to Xenboox?",
+    answer:
+      "Xenboox is currently closed-source, but we're open to feedback and feature requests. Reach out to hello@xenboox.com.",
+  },
+];
+
+function ContactCard({
+  method,
+  index,
+}: {
+  method: (typeof contactMethods)[number];
+  index: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 24 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+      transition={{
+        duration: 0.55,
+        delay: index * 0.08,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
+    >
+      <GlassCard className="h-full p-7">
+        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-lg">
+          <method.icon className="h-6 w-6 text-white" />
+        </div>
+        <h2 className="font-semibold text-white">{method.title}</h2>
+        <p className="mt-2 text-sm text-white/55">{method.description}</p>
+        <div className="mt-4">
+          {method.href ? (
+            <a
+              href={method.href}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-300 hover:text-indigo-200"
+            >
+              {method.detail}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </a>
+          ) : (
+            <span className="text-sm font-medium text-white/70">
+              {method.detail}
+            </span>
+          )}
+        </div>
+      </GlassCard>
+    </motion.div>
+  );
+}
 
 export default function ContactPage() {
   return (
-    <>
-      <section className="border-b py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold tracking-tight">Contact Us</h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Have a question, feedback, or want to work together? We&apos;d love to hear from you.
-            </p>
-          </div>
+    <MarketingShell>
+      <PageHero
+        eyebrow="Contact"
+        title="Let's talk"
+        highlight="Xenboox"
+        subtitle="Have a question, feedback, or want to work together? We'd love to hear from you."
+      />
+
+      <section className="py-12">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 md:grid-cols-3">
+          {contactMethods.map((method, i) => (
+            <ContactCard key={method.title} method={method} index={i} />
+          ))}
         </div>
       </section>
 
-      <section className="py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="grid gap-8 md:grid-cols-3">
-            {contactMethods.map((method) => (
-              <div key={method.title} className="rounded-lg border bg-card p-6">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <method.icon className="h-5 w-5" />
-                </div>
-                <h2 className="font-semibold">{method.title}</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {method.description}
-                </p>
-                <div className="mt-4">
-                  {method.href ? (
-                    <a
-                      href={method.href}
-                      className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-                    >
-                      {method.detail}
-                      <ArrowRight className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {method.detail}
-                    </span>
-                  )}
-                </div>
-              </div>
+      <section className="py-16">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <Reveal className="mb-10 text-center">
+            <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/60">
+              <Sparkles className="h-3 w-3 text-indigo-400" />
+              Common questions
+            </span>
+            <h2 className="text-3xl font-bold tracking-tight text-white">
+              Before you reach out
+            </h2>
+          </Reveal>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {faqs.map((f, i) => (
+              <Reveal key={f.question} delay={i * 0.05}>
+                <GlassCard className="h-full p-6">
+                  <h3 className="font-semibold text-white">{f.question}</h3>
+                  <p className="mt-2 text-sm text-white/55">{f.answer}</p>
+                </GlassCard>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="border-t bg-muted/30 py-20">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <h2 className="mb-8 text-center text-2xl font-bold">
-            Common Questions
-          </h2>
-          <div className="space-y-6">
-            <FaqItem
-              question="How do I get support for a technical issue?"
-              answer="Email support@xenboox.com with a description of the issue. Include your account email and any relevant screenshots. We typically respond within 24 hours."
-            />
-            <FaqItem
-              question="Do you offer demos for teams?"
-              answer="Yes. Contact sales@xenboox.com to schedule a demo of the full platform. We'll walk you through all 19 AI agents and how they fit your workflow."
-            />
-            <FaqItem
-              question="I found a bug. How do I report it?"
-              answer="Email support@xenboox.com or open an issue on our GitHub repository. Please include steps to reproduce, expected behavior, and actual behavior."
-            />
-            <FaqItem
-              question="Can I contribute to Xenboox?"
-              answer="Xenboox is currently closed-source, but we're open to feedback and feature requests. Reach out to hello@xenboox.com."
-            />
-          </div>
-        </div>
-      </section>
-    </>
-  )
-}
-
-function FaqItem({
-  question,
-  answer,
-}: {
-  question: string
-  answer: string
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <h3 className="font-medium">{question}</h3>
-      <p className="mt-2 text-sm text-muted-foreground">{answer}</p>
-    </div>
-  )
+      <CtaBand
+        title="Prefer to dive in?"
+        subtitle="Spin up a free account and explore the platform yourself."
+        primaryHref="/register"
+        primaryLabel="Create Free Account"
+        secondaryHref="/docs"
+        secondaryLabel="Read the Docs"
+      />
+    </MarketingShell>
+  );
 }

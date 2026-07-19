@@ -1,13 +1,25 @@
-import Link from "next/link"
+"use client";
+
+import Link from "next/link";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 import {
   Globe,
   Smartphone,
   Monitor,
   ArrowRight,
-  CheckCircle2,
+  Check,
   Apple,
   Play,
-} from "lucide-react"
+  Sparkles,
+} from "lucide-react";
+import {
+  MarketingShell,
+  PageHero,
+  Reveal,
+  GlassCard,
+  CtaBand,
+} from "../components/marketing-primitives";
 
 const platforms = [
   {
@@ -23,7 +35,6 @@ const platforms = [
     cta: "Launch Web App",
     ctaHref: "/login",
     badge: "Available Now",
-    badgeColor: "text-green-600 bg-green-50",
   },
   {
     name: "Mobile App",
@@ -37,18 +48,27 @@ const platforms = [
       "Push notifications",
     ],
     stores: [
-      { name: "App Store", icon: Apple, href: "https://apps.apple.com/app/xenboox/id1234567890", label: "Download on the App Store" },
-      { name: "Google Play", icon: Play, href: "https://play.google.com/store/apps/details?id=com.xenboox.app", label: "Get it on Google Play" },
+      {
+        name: "App Store",
+        icon: Apple,
+        href: "https://apps.apple.com/app/xenboox/id1234567890",
+        label: "Download on the App Store",
+      },
+      {
+        name: "Google Play",
+        icon: Play,
+        href: "https://play.google.com/store/apps/details?id=com.xenboox.app",
+        label: "Get it on Google Play",
+      },
     ],
-    badge: "Available Now",
-    badgeColor: "text-green-600 bg-green-50",
   },
   {
     name: "Desktop App",
     icon: Monitor,
-    description: "Offline-first desktop application built with Tauri and Rust.",
+    description:
+      "Offline-first desktop application built with a lightweight native runtime.",
     features: [
-      "Works offline with local SQLite",
+      "Works offline with local cache",
       "Automatic sync when reconnected",
       "Native performance",
       "Windows 10+ & macOS 12+",
@@ -60,179 +80,175 @@ const platforms = [
         icon: Monitor,
         href: "https://downloads.xenboox.com/desktop/xenboox-windows-x64.msi",
         label: "Download for Windows (.msi)",
-        version: "1.0.0",
       },
       {
         name: "macOS",
         icon: Apple,
         href: "https://downloads.xenboox.com/desktop/xenboox-macos-x64.dmg",
         label: "Download for macOS (.dmg)",
-        version: "1.0.0",
       },
     ],
-    badge: "Available Now",
-    badgeColor: "text-green-600 bg-green-50",
   },
-]
+];
+
+const faqs = [
+  {
+    question: "Is the web app free to use?",
+    answer:
+      "Yes. The Free tier gives you 1 entity, a core AI assistant, up to 50 journal entries/month, and web access. Paid plans unlock more entities, the full agent suite, and all platforms.",
+  },
+  {
+    question: "When will the mobile app be available?",
+    answer:
+      "The Xenboox mobile app is available for download on the App Store and Google Play. Get real-time notifications, work offline, and manage your business from anywhere.",
+  },
+  {
+    question: "When will the desktop app be available?",
+    answer:
+      "The Xenboox desktop app is available for Windows and macOS. Download the signed installer and enjoy offline-first accounting with automatic sync.",
+  },
+  {
+    question: "Does the desktop app work offline?",
+    answer:
+      "Yes. The desktop app uses local caching so you can keep working without an internet connection. Data syncs automatically when you reconnect.",
+  },
+  {
+    question: "Can I switch between platforms?",
+    answer:
+      "Absolutely. Your data syncs seamlessly across all platforms. Start an entry on mobile, finish it on desktop — it's all the same data.",
+  },
+];
+
+function PlatformCard({
+  platform,
+  index,
+}: {
+  platform: (typeof platforms)[number];
+  index: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 24 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+      transition={{
+        duration: 0.55,
+        delay: index * 0.08,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
+    >
+      <GlassCard className="flex h-full flex-col p-7">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-lg">
+            <platform.icon className="h-6 w-6 text-white" />
+          </div>
+          {platform.badge && (
+            <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
+              {platform.badge}
+            </span>
+          )}
+        </div>
+        <h2 className="text-xl font-bold text-white">{platform.name}</h2>
+        <p className="mt-2 text-sm text-white/55">{platform.description}</p>
+        <ul className="mt-6 flex-1 space-y-2.5">
+          {platform.features.map((feature) => (
+            <li
+              key={feature}
+              className="flex items-start gap-2.5 text-sm text-white/70"
+            >
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              {feature}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-8 space-y-2">
+          {platform.cta ? (
+            <Link
+              href={platform.ctaHref}
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-sm font-medium text-white shadow-lg shadow-indigo-600/30 transition-all duration-300 hover:scale-[1.03]"
+            >
+              {platform.cta}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          ) : platform.downloads ? (
+            platform.downloads.map((download) => (
+              <a
+                key={download.name}
+                href={download.href}
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/5 text-sm font-medium text-white/85 transition-colors hover:bg-white/10"
+              >
+                <download.icon className="mr-2 h-4 w-4" />
+                {download.label}
+              </a>
+            ))
+          ) : platform.stores ? (
+            platform.stores.map((store) => (
+              <a
+                key={store.name}
+                href={store.href}
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/5 text-sm font-medium text-white/85 transition-colors hover:bg-white/10"
+              >
+                <store.icon className="mr-2 h-4 w-4" />
+                {store.label}
+              </a>
+            ))
+          ) : null}
+        </div>
+      </GlassCard>
+    </motion.div>
+  );
+}
 
 export default function DownloadPage() {
   return (
-    <>
-      <section className="border-b py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold tracking-tight">
-              Download Xenboox
-            </h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Available on web, mobile, and desktop. Choose the platform that works best for you.
-            </p>
-          </div>
+    <MarketingShell>
+      <PageHero
+        eyebrow="Download"
+        title="Xenboox, everywhere"
+        highlight="you work"
+        subtitle="Available on web, mobile, and desktop. Choose the platform that works best for you."
+      />
+
+      <section className="py-12">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:grid-cols-3">
+          {platforms.map((platform, i) => (
+            <PlatformCard key={platform.name} platform={platform} index={i} />
+          ))}
         </div>
       </section>
 
-      <section className="py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="grid gap-8 lg:grid-cols-3">
-            {platforms.map((platform) => (
-              <div
-                key={platform.name}
-                className="flex flex-col rounded-lg border p-8"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <platform.icon className="h-6 w-6" />
-                  </div>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${platform.badgeColor}`}
-                  >
-                    {platform.badge}
-                  </span>
-                </div>
-                <h2 className="text-xl font-bold">{platform.name}</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {platform.description}
-                </p>
-                <ul className="mt-6 flex-1 space-y-2.5">
-                  {platform.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start gap-2 text-sm"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-8">
-                  {platform.cta ? (
-                    <Link
-                      href={platform.ctaHref}
-                      className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-                    >
-                      {platform.cta}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  ) : platform.downloads ? (
-                    <div className="space-y-2">
-                      {platform.downloads.map((download) => (
-                        <a
-                          key={download.name}
-                          href={download.href}
-                          className="inline-flex h-11 w-full items-center justify-center rounded-md border px-6 text-sm font-medium transition-colors hover:bg-muted"
-                        >
-                          <download.icon className="mr-2 h-4 w-4" />
-                          {download.label}
-                        </a>
-                      ))}
-                    </div>
-                  ) : platform.stores ? (
-                    <div className="space-y-2">
-                      {platform.stores.map((store) => (
-                        <a
-                          key={store.name}
-                          href={store.href}
-                          className="inline-flex h-11 w-full items-center justify-center rounded-md border px-6 text-sm font-medium transition-colors hover:bg-muted"
-                        >
-                          <store.icon className="mr-2 h-4 w-4" />
-                          {store.label}
-                        </a>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+      <section className="py-16">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <Reveal className="mb-10 text-center">
+            <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/60">
+              <Sparkles className="h-3 w-3 text-indigo-400" />
+              FAQ
+            </span>
+            <h2 className="text-3xl font-bold tracking-tight text-white">
+              Frequently asked questions
+            </h2>
+          </Reveal>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {faqs.map((f, i) => (
+              <Reveal key={f.question} delay={i * 0.05}>
+                <GlassCard className="h-full p-6">
+                  <h3 className="font-semibold text-white">{f.question}</h3>
+                  <p className="mt-2 text-sm text-white/55">{f.answer}</p>
+                </GlassCard>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="border-t bg-muted/30 py-20">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <h2 className="mb-8 text-center text-2xl font-bold">
-            Frequently Asked Questions
-          </h2>
-          <div className="space-y-6">
-            <FaqItem
-              question="Is the web app free to use?"
-              answer="Yes. The Free tier gives you 1 entity, 1 AI agent, up to 50 journal entries/month, and web access. Paid plans unlock more entities, all AI agents, and all platforms."
-            />
-            <FaqItem
-              question="When will the mobile app be available?"
-              answer="The Xenboox mobile app is now available for download on the App Store and Google Play. Get real-time notifications, work offline, and manage your business from anywhere."
-            />
-            <FaqItem
-              question="When will the desktop app be available?"
-              answer="The Xenboox desktop app is now available for Windows and macOS. Download the signed installer and enjoy offline-first accounting with automatic sync."
-            />
-            <FaqItem
-              question="Does the desktop app work offline?"
-              answer="Yes. The desktop app uses local SQLite caching so you can continue working without an internet connection. Data syncs automatically when you reconnect."
-            />
-            <FaqItem
-              question="Can I switch between platforms?"
-              answer="Absolutely. Your data syncs seamlessly across all platforms. Start an entry on mobile, finish it on desktop — it's all the same data."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-3xl font-bold tracking-tight">
-            Ready to get started?
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Create your free account and start using the web app today.
-          </p>
-          <div className="mt-8">
-            <Link
-              href="/register"
-              className="inline-flex h-12 items-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-            >
-              Create Free Account
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-    </>
-  )
-}
-
-function FaqItem({
-  question,
-  answer,
-}: {
-  question: string
-  answer: string
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <h3 className="font-medium">{question}</h3>
-      <p className="mt-2 text-sm text-muted-foreground">{answer}</p>
-    </div>
-  )
+      <CtaBand
+        title="Ready to get started?"
+        subtitle="Create your free account and start using the web app today."
+        primaryHref="/register"
+        primaryLabel="Create Free Account"
+      />
+    </MarketingShell>
+  );
 }

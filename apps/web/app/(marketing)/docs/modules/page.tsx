@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import {
   Truck,
   CreditCard,
@@ -14,14 +14,21 @@ import {
   Settings,
   LayoutDashboard,
   Users,
-  AlertCircle,
-} from "lucide-react"
-import Link from "next/link"
+  ArrowLeft,
+} from "lucide-react";
+import Link from "next/link";
+import {
+  MarketingShell,
+  PageHero,
+  Reveal,
+  GlassCard,
+} from "../../components/marketing-primitives";
 
 const modules = [
   {
     title: "Accounts Payable",
-    description: "Suppliers, Purchase Orders, Invoices, Payments, Approval workflows.",
+    description:
+      "Suppliers, Purchase Orders, Invoices, Payments, Approval workflows.",
     href: "/docs/modules/ap",
     icon: Truck,
   },
@@ -39,7 +46,8 @@ const modules = [
   },
   {
     title: "Treasury",
-    description: "Bank Accounts, Transactions, Reconciliations, Cash Management.",
+    description:
+      "Bank Accounts, Transactions, Reconciliations, Cash Management.",
     href: "/docs/modules/treasury",
     icon: Landmark,
   },
@@ -51,7 +59,8 @@ const modules = [
   },
   {
     title: "Mobile Money",
-    description: "Mobile Money Accounts, Transactions, Reconciliation with bank statements.",
+    description:
+      "Mobile Money Accounts, Transactions, Reconciliation with bank statements.",
     href: "/docs/modules/mobile-money",
     icon: Wallet,
   },
@@ -127,49 +136,49 @@ const modules = [
     href: "/docs/modules/analytics",
     icon: BarChart3,
   },
-]
+];
 
 export default function ModulesDocsPage() {
   return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">Modules Documentation</h1>
-        <p className="mt-4 text-muted-foreground">
-          Comprehensive guides for all 19 accounting modules in Xenboox.
-        </p>
-      </div>
+    <MarketingShell>
+      <PageHero
+        eyebrow="Documentation"
+        title="Modules"
+        highlight="Documentation"
+        subtitle="Comprehensive guides for every accounting module in Xenboox."
+      />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {modules.map((module) => (
-          <Link key={module.title} href={module.href}>
-            <Card className="transition-colors hover:bg-muted/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <module.icon className="h-5 w-5 text-muted-foreground" />
-                  {module.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {module.description}
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      <section className="py-12">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <Reveal className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {modules.map((module) => (
+              <Link key={module.title} href={module.href}>
+                <GlassCard className="h-full p-6 transition-transform duration-300 hover:-translate-y-1">
+                  <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/20 text-indigo-300">
+                    <module.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-base font-semibold text-white">
+                    {module.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-white/55">
+                    {module.description}
+                  </p>
+                </GlassCard>
+              </Link>
+            ))}
+          </Reveal>
 
-      <div className="mt-12">
-        <Link href="/docs">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-sm text-muted-foreground">
-                ← Back to Documentation Hub
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
-    </>
-  )
+          <Reveal className="mt-12">
+            <Link href="/docs">
+              <GlassCard className="p-6 text-center">
+                <span className="text-sm text-white/60">
+                  ← Back to Documentation Hub
+                </span>
+              </GlassCard>
+            </Link>
+          </Reveal>
+        </div>
+      </section>
+    </MarketingShell>
+  );
 }

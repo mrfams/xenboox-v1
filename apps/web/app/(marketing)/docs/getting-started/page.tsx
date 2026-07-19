@@ -1,8 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui"
-import { DocsPageHeader } from "../components/docs-page-header"
-import { InfoCallout } from "../components/info-callout"
-import { FeatureGrid } from "../components/feature-grid"
-import { RelatedLinks } from "../components/related-links"
+import {
+  MarketingShell,
+  PageHero,
+  Reveal,
+  GlassCard,
+} from "../../components/marketing-primitives";
 import {
   BookOpen,
   UserPlus,
@@ -13,8 +14,8 @@ import {
   Shield,
   Zap,
   Globe,
-} from "lucide-react"
-import Link from "next/link"
+} from "lucide-react";
+import Link from "next/link";
 
 const steps = [
   {
@@ -60,7 +61,7 @@ const steps = [
     icon: Zap,
     details: [
       "View key financial metrics and KPIs at a glance",
-      "Access all 20 accounting modules from the sidebar",
+      "Access all accounting modules from the sidebar",
       "Interact with the AI chat assistant for natural language commands",
       "Customize your dashboard layout and widgets",
     ],
@@ -75,171 +76,218 @@ const steps = [
       "Select the appropriate fiscal period",
       "Enter a description for your transaction",
       "Add debit and credit lines with proper account codes",
-      "Submit for posting — the Ledger Agent handles the rest",
+      "Submit for posting — the agent handles the rest",
     ],
   },
   {
     title: "Explore AI Agents",
     description:
-      "Xenboox comes with 19 specialized AI agents that automate accounting tasks. Start using them to streamline your workflow.",
+      "Xenboox comes with a suite of specialized AI agents that automate accounting tasks. Start using them to streamline your workflow.",
     icon: Bot,
     details: [
-      "Chat with the CFO Agent for strategic financial insights",
-      "Use the Ledger Agent for automated journal posting",
-      "Let the AP Agent process invoices automatically",
-      "Schedule the Payroll Manager Agent for payroll runs",
+      "Chat with the assistant for strategic financial insights",
+      "Use automated agents for journal posting",
+      "Let the AP agent process invoices automatically",
+      "Schedule the payroll agent for payroll runs",
     ],
   },
-]
+];
 
 const features = [
   {
     title: "Multi-Platform",
-    description: "Access your accounting data from web, mobile, and desktop apps. Your data syncs seamlessly across all platforms.",
+    description:
+      "Access your accounting data from web, mobile, and desktop apps. Your data syncs seamlessly across all platforms.",
     icon: Globe,
   },
   {
     title: "Multi-Currency",
-    description: "Handle transactions in multiple currencies with real-time exchange rates and automatic conversions.",
+    description:
+      "Handle transactions in multiple currencies with real-time exchange rates and automatic conversions.",
     icon: BookOpen,
   },
   {
     title: "Enterprise Security",
-    description: "AES-256 encryption, RBAC, audit logging, and SOC 2 compliant infrastructure protect your financial data.",
+    description:
+      "AES-256 encryption, RBAC, audit logging, and SOC 2 aligned infrastructure protect your financial data.",
     icon: Shield,
   },
-]
+];
+
+function StepCard({
+  step,
+  index,
+}: {
+  step: (typeof steps)[number];
+  index: number;
+}) {
+  return (
+    <Reveal>
+      <GlassCard className="p-7">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-sm font-bold text-white">
+            {index + 1}
+          </div>
+          <step.icon className="h-5 w-5 text-indigo-300" />
+          <h3 className="text-lg font-semibold text-white">{step.title}</h3>
+        </div>
+        <p className="mt-4 text-sm text-white/60">{step.description}</p>
+        <ul className="mt-3 space-y-1.5">
+          {step.details.map((detail) => (
+            <li
+              key={detail}
+              className="flex items-start gap-2 text-sm text-white/55"
+            >
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400/70" />
+              <span>{detail}</span>
+            </li>
+          ))}
+        </ul>
+      </GlassCard>
+    </Reveal>
+  );
+}
 
 export default function GettingStartedPage() {
   return (
-    <>
-      <DocsPageHeader
-        title="Getting Started with Xenboox"
-        description="Follow this guide to set up your account, configure your organization, and start using Xenboox's AI-powered accounting platform. Complete setup takes less than 15 minutes."
-        breadcrumbs={[{ label: "Getting Started", href: "/docs/getting-started" }]}
-        icon={BookOpen}
+    <MarketingShell>
+      <PageHero
+        eyebrow="Documentation"
+        title="Getting Started"
+        highlight="with Xenboox"
+        subtitle="Follow this guide to set up your account, configure your organization, and start using Xenboox's AI-powered accounting platform. Complete setup takes less than 15 minutes."
       />
 
-      <div className="space-y-10">
-        {/* Overview */}
-        <section>
-          <p className="text-muted-foreground leading-relaxed">
-            Xenboox is an AI-native, full-stack accounting platform designed for businesses of all sizes. 
-            With 19 AI agents, 20 accounting modules, and support for web, mobile, and desktop platforms, 
-            it provides everything you need to manage your financial operations efficiently.
-          </p>
-        </section>
+      <section className="py-12">
+        <div className="mx-auto max-w-4xl space-y-10 px-4 sm:px-6">
+          <Reveal>
+            <p className="text-white/60">
+              Xenboox is an AI-native, full-stack accounting platform designed
+              for businesses of all sizes. With intelligent agents, a complete
+              set of accounting modules, and support for web, mobile, and
+              desktop platforms, it provides everything you need to manage your
+              financial operations efficiently.
+            </p>
+          </Reveal>
 
-        {/* Prerequisites */}
-        <section>
-          <h2 className="text-2xl font-bold tracking-tight mb-4">Prerequisites</h2>
-          <Card>
-            <CardContent className="pt-6">
-              <ul className="space-y-2 text-sm text-muted-foreground">
+          <section>
+            <h2 className="mb-6 text-2xl font-bold tracking-tight text-white">
+              Prerequisites
+            </h2>
+            <GlassCard className="p-6">
+              <ul className="space-y-2 text-sm text-white/60">
                 <li className="flex items-start gap-2">
-                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
                   <span>A valid email address for account registration</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span>Internet connection for cloud access (offline desktop mode requires Tauri app)</span>
+                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
+                  <span>
+                    Internet connection for cloud access (offline desktop mode
+                    requires the native app)
+                  </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span>Recommended: Modern web browser (Chrome, Firefox, Safari, or Edge)</span>
+                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
+                  <span>
+                    Recommended: Modern web browser (Chrome, Firefox, Safari, or
+                    Edge)
+                  </span>
                 </li>
               </ul>
-            </CardContent>
-          </Card>
-        </section>
+            </GlassCard>
+          </section>
 
-        {/* Step-by-Step Guide */}
-        <section>
-          <h2 className="text-2xl font-bold tracking-tight mb-6">Step-by-Step Setup Guide</h2>
-          <div className="space-y-6">
-            {steps.map((step, index) => (
-              <Card key={step.title} className="relative">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
-                      {index + 1}
-                    </div>
-                    <step.icon className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{step.title}</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-3">{step.description}</p>
-                  <ul className="space-y-1.5">
-                    {step.details.map((detail) => (
-                      <li key={detail} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
-                        <span>{detail}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
+          <section>
+            <h2 className="mb-6 text-2xl font-bold tracking-tight text-white">
+              Step-by-Step Setup Guide
+            </h2>
+            <div className="space-y-5">
+              {steps.map((step, index) => (
+                <StepCard key={step.title} step={step} index={index} />
+              ))}
+            </div>
+          </section>
 
-        {/* Key Features */}
-        <section>
-          <h2 className="text-2xl font-bold tracking-tight mb-4">Platform Highlights</h2>
-          <FeatureGrid features={features} columns={3} />
-        </section>
+          <section>
+            <h2 className="mb-6 text-2xl font-bold tracking-tight text-white">
+              Platform Highlights
+            </h2>
+            <div className="grid gap-5 sm:grid-cols-3">
+              {features.map((feature) => (
+                <Reveal key={feature.title}>
+                  <GlassCard className="h-full p-6">
+                    <feature.icon className="mb-3 h-6 w-6 text-indigo-300" />
+                    <h3 className="text-base font-semibold text-white">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-2 text-sm text-white/55">
+                      {feature.description}
+                    </p>
+                  </GlassCard>
+                </Reveal>
+              ))}
+            </div>
+          </section>
 
-        {/* Tips */}
-        <InfoCallout type="tip" title="Pro Tip">
-          Start with the Journal module and the Chat AI assistant to get familiar with the platform. 
-          The AI agents can handle most routine accounting tasks, letting you focus on strategic decisions.
-        </InfoCallout>
+          <Reveal>
+            <GlassCard className="p-6">
+              <h3 className="font-semibold text-white">Pro Tip</h3>
+              <p className="mt-2 text-sm text-white/60">
+                Start with the Journal module and the chat assistant to get
+                familiar with the platform. The AI agents can handle most
+                routine accounting tasks, letting you focus on strategic
+                decisions.
+              </p>
+            </GlassCard>
+          </Reveal>
 
-        {/* Next Steps */}
-        <section>
-          <h2 className="text-2xl font-bold tracking-tight mb-4">Next Steps</h2>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground mb-4">
+          <section>
+            <h2 className="mb-6 text-2xl font-bold tracking-tight text-white">
+              Next Steps
+            </h2>
+            <GlassCard className="p-6">
+              <p className="mb-4 text-sm text-white/60">
                 Once you have your account set up, explore these resources:
               </p>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/docs/modules/journal" className="text-primary hover:underline">
+                  <Link
+                    href="/docs/modules/journal"
+                    className="text-indigo-300 hover:underline"
+                  >
                     Learn how to create journal entries →
                   </Link>
                 </li>
                 <li>
-                  <Link href="/docs/agents/cfo" className="text-primary hover:underline">
-                    Chat with the CFO Agent for financial insights →
+                  <Link
+                    href="/docs/agents/cfo"
+                    className="text-indigo-300 hover:underline"
+                  >
+                    Chat with the assistant for financial insights →
                   </Link>
                 </li>
                 <li>
-                  <Link href="/docs/security" className="text-primary hover:underline">
+                  <Link
+                    href="/docs/security"
+                    className="text-indigo-300 hover:underline"
+                  >
                     Review security best practices →
                   </Link>
                 </li>
                 <li>
-                  <Link href="/docs/faq" className="text-primary hover:underline">
+                  <Link
+                    href="/docs/faq"
+                    className="text-indigo-300 hover:underline"
+                  >
                     Browse the FAQ →
                   </Link>
                 </li>
               </ul>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Related Documentation */}
-        <RelatedLinks
-          links={[
-            { title: "FAQ", href: "/docs/faq", description: "Common questions and answers" },
-            { title: "Security", href: "/docs/security", description: "Security overview and best practices" },
-            { title: "Modules Overview", href: "/docs/modules", description: "Browse all accounting modules" },
-            { title: "AI Agents Overview", href: "/docs/agents", description: "Learn about all 19 AI agents" },
-          ]}
-        />
-      </div>
-    </>
-  )
+            </GlassCard>
+          </section>
+        </div>
+      </section>
+    </MarketingShell>
+  );
 }

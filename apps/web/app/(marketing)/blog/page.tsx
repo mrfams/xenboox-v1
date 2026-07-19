@@ -1,5 +1,15 @@
-import Link from "next/link"
-import { ArrowRight, Calendar } from "lucide-react"
+"use client";
+
+import Link from "next/link";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
+import { ArrowRight, Calendar, Sparkles } from "lucide-react";
+import {
+  MarketingShell,
+  PageHero,
+  Reveal,
+  GlassCard,
+} from "../components/marketing-primitives";
 
 const posts = [
   {
@@ -12,10 +22,10 @@ const posts = [
     readTime: "5 min read",
   },
   {
-    slug: "19-agents-explained",
-    title: "19 Agents, Explained: How Xenboox's AI Workforce Operates",
+    slug: "agent-workforce-explained",
+    title: "Meet the Agent Workforce: How Xenboox Automates the Books",
     excerpt:
-      "A deep dive into the three-tier agent hierarchy — from the CFO Agent down to individual worker agents — and how they collaborate on your books.",
+      "A look at how our intelligent agents collaborate — from strategic oversight down to individual tasks — to keep your books clean.",
     date: "2026-01-08",
     category: "Engineering",
     readTime: "8 min read",
@@ -31,18 +41,18 @@ const posts = [
   },
   {
     slug: "offline-first-desktop",
-    title: "Building an Offline-First Desktop App with Tauri and Rust",
+    title: "Building an Offline-First Desktop App with a Native Backend",
     excerpt:
-      "Why we chose Tauri over Electron, how we handle local SQLite caching, and our sync strategy for unreliable connectivity.",
+      "Why we chose a lightweight native runtime, how we handle local caching, and our sync strategy for unreliable connectivity.",
     date: "2025-12-10",
     category: "Engineering",
     readTime: "10 min read",
   },
   {
-    slug: "payroll-gambia",
-    title: "Payroll in The Gambia: PAYE, SSNIT, and What You Need to Know",
+    slug: "payroll-africa",
+    title: "Payroll in Africa: Tax, Social Security, and What You Need to Know",
     excerpt:
-      "A practical guide to Gambian payroll — tax bands, social security contributions, and how Xenboox automates it all.",
+      "A practical guide to regional payroll — tax bands, social-security contributions, and how Xenboox automates it all.",
     date: "2025-11-28",
     category: "Accounting",
     readTime: "7 min read",
@@ -51,91 +61,106 @@ const posts = [
     slug: "security-architecture",
     title: "Enterprise-Grade Security from Day One",
     excerpt:
-      "Row-level security, AES-256 encryption, rate limiting, and audit logging — how we built security into Xenboox's foundation.",
+      "Row-level security, encryption at rest, rate limiting, and audit logging — how we built security into the foundation.",
     date: "2025-11-15",
     category: "Security",
     readTime: "6 min read",
   },
-]
+];
 
-const categories = ["All", "Product", "Engineering", "Accounting", "Security"]
+const categories = ["All", "Product", "Engineering", "Accounting", "Security"];
+
+function PostCard({
+  post,
+  index,
+}: {
+  post: (typeof posts)[number];
+  index: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 24 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+      transition={{
+        duration: 0.55,
+        delay: index * 0.06,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
+    >
+      <Link href="#" className="block h-full">
+        <GlassCard className="flex h-full flex-col p-6">
+          <div className="mb-3 flex items-center gap-2 text-xs text-white/50">
+            <span className="inline-flex h-5 items-center rounded-full bg-indigo-500/15 px-2 font-medium text-indigo-300">
+              {post.category}
+            </span>
+            <span>·</span>
+            <span>{post.readTime}</span>
+          </div>
+          <h2 className="text-lg font-semibold leading-snug text-white">
+            {post.title}
+          </h2>
+          <p className="mt-2 flex-1 text-sm text-white/55">{post.excerpt}</p>
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-white/40">
+              <Calendar className="h-3 w-3" />
+              {new Date(post.date).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-300">
+              Read more
+              <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
+        </GlassCard>
+      </Link>
+    </motion.div>
+  );
+}
 
 export default function BlogPage() {
   return (
-    <>
-      <section className="border-b py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold tracking-tight">Blog</h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Insights on AI-native accounting, engineering, and building for Africa.
-            </p>
-          </div>
-        </div>
-      </section>
+    <MarketingShell>
+      <PageHero
+        eyebrow="Blog"
+        title="Insights on modern"
+        highlight="finance & AI"
+        subtitle="Ideas on AI-native accounting, engineering, and building for African businesses."
+      />
 
-      <section className="py-20">
+      <section className="py-12">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          {/* Categories */}
-          <div className="mb-10 flex flex-wrap gap-2">
+          <Reveal className="mb-10 flex flex-wrap gap-2">
             {categories.map((cat) => (
               <span
                 key={cat}
-                className="inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium text-muted-foreground"
+                className="inline-flex h-8 cursor-default items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs font-medium text-white/60"
               >
                 {cat}
               </span>
             ))}
-          </div>
+          </Reveal>
 
-          {/* Posts Grid */}
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {posts.map((post) => (
-              <article
-                key={post.slug}
-                className="group flex flex-col rounded-lg border p-6 transition-colors hover:bg-muted/50"
-              >
-                <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 font-medium text-primary">
-                    {post.category}
-                  </span>
-                  <span>·</span>
-                  <span>{post.readTime}</span>
-                </div>
-                <h2 className="text-lg font-semibold leading-snug">
-                  {post.title}
-                </h2>
-                <p className="mt-2 flex-1 text-sm text-muted-foreground">
-                  {post.excerpt}
-                </p>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(post.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-primary group-hover:underline">
-                    Read more
-                    <ArrowRight className="h-3 w-3" />
-                  </span>
-                </div>
-              </article>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {posts.map((post, i) => (
+              <PostCard key={post.slug} post={post} index={i} />
             ))}
           </div>
 
-          {/* Empty state hint */}
-          <div className="mt-12 text-center text-sm text-muted-foreground">
+          <Reveal className="mt-12 text-center text-sm text-white/40">
             More articles coming soon.{" "}
-            <Link href="/register" className="text-primary hover:underline">
+            <Link href="/register" className="text-indigo-300 hover:underline">
               Sign up
             </Link>{" "}
             to get notified.
-          </div>
+          </Reveal>
         </div>
       </section>
-    </>
-  )
+    </MarketingShell>
+  );
 }
