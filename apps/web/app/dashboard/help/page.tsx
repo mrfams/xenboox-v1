@@ -4,6 +4,8 @@ import {
   MessageSquare,
   FileText,
   Mail,
+  Shield,
+  Server,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -11,8 +13,20 @@ const resources = [
   {
     icon: BookOpen,
     title: "Documentation",
-    description: "Comprehensive guides for setting up and using Xenboox.",
-    href: "/features",
+    description: "Comprehensive guides for security, DevOps, and platform usage.",
+    href: "/docs",
+  },
+  {
+    icon: Shield,
+    title: "Security Center",
+    description: "Authentication, encryption, and security settings.",
+    href: "/docs/security",
+  },
+  {
+    icon: Server,
+    title: "DevOps & Infrastructure",
+    description: "CI/CD, deployment, and monitoring documentation.",
+    href: "/docs/devsecops",
   },
   {
     icon: MessageSquare,

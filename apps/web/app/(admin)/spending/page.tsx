@@ -18,32 +18,12 @@ import {
   Cloud,
   Calculator,
 } from "lucide-react";
+import { toast } from "sonner"
 import { trpc } from "@/lib/trpc/client";
 import { AIComparison, SpendAlert } from "@/lib/types";
 import { useState } from "react";
-
-function Progress({ value }: { value: number }) {
-  return (
-    <div className="w-full bg-muted rounded-full h-2">
-      <div
-        className="h-full bg-primary rounded-full transition-all duration-300"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
-    </div>
-  );
-}
-
-function Alert({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`p-4 rounded-lg border ${className || ""}`}>{children}</div>
-  );
-}
+import { Progress } from "@/components/shared/progress";
+import { Alert } from "@xenboox/ui";
 
 export default function SpendingPage() {
   const [showComparison, setShowComparison] = useState(true);
@@ -84,7 +64,7 @@ export default function SpendingPage() {
             Monitor AI spending against budgets with cost optimization insights
           </p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => toast.info("Budget management form will open here")}>
           <Settings className="h-4 w-4 mr-2" />
           Manage Budgets
         </Button>

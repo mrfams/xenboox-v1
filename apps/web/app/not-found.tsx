@@ -1,8 +1,13 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui"
 import { Home, Search, ArrowLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function NotFound() {
+  const router = useRouter()
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="mx-auto text-center">
@@ -13,7 +18,7 @@ export default function NotFound() {
           Page not found
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          We couldn't find the page you're looking for. It might have been moved or deleted.
+          We couldn&apos;t find the page you&apos;re looking for. It might have been moved or deleted.
         </p>
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Button asChild size="lg">
@@ -22,11 +27,9 @@ export default function NotFound() {
               Go to Dashboard
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href="javascript:history.back()">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Go Back
-            </Link>
+          <Button variant="outline" size="lg" onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Go Back
           </Button>
         </div>
       </div>

@@ -4,30 +4,52 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@xenboox/ui", "@xenboox/db"],
   experimental: {
     serverActions: {
-      bodySizeLimit: "10mb"
-    }
+      bodySizeLimit: "10mb",
+    },
   },
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "*.r2.cloudflarestorage.com"
-      }
-    ]
+        hostname: "*.r2.cloudflarestorage.com",
+      },
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.gravatar.com",
+      },
+    ],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
   // Security headers handled by middleware (with nonce support)
   async headers() {
     return []
   },
-  // Security optimizations
+  // Security & performance optimizations
   compress: true,
   poweredByHeader: false,
-  // Enterprise logging
-  logging: {
-    fetches: {
-      fullUrl: true,
-    },
-  },
+  generateEtags: true,
+  productionBrowserSourceMaps: false,
+  // Enterprise logging (only in development)
+  logging: process.env.NODE_ENV === "development"
+    ? {
+        fetches: {
+          fullUrl: true,
+        },
+      }
+    : undefined,
 }
 
 export default nextConfig

@@ -10,6 +10,7 @@ import { EmployeeCreatedEmail } from "@xenboox/email"
 import { AssetCreatedEmail } from "@xenboox/email"
 import { InventoryAlertEmail } from "@xenboox/email"
 import { PasswordResetEmail } from "@xenboox/email"
+import { VerificationEmail } from "@xenboox/email"
 
 // ─── Email Types ────────────────────────────────────────────────────────────
 
@@ -263,6 +264,22 @@ export async function sendPasswordResetEmail(
   await sendEmail({
     to,
     subject: "Reset Your Xenboox Password",
+    html,
+  })
+}
+
+export async function sendVerificationEmail(
+  to: string,
+  props: {
+    userName: string
+    verifyUrl: string
+    expiryMinutes: number
+  },
+) {
+  const html = await render(VerificationEmail(props))
+  await sendEmail({
+    to,
+    subject: "Verify Your Xenboox Email Address",
     html,
   })
 }

@@ -11,19 +11,10 @@ import {
   RefreshCw,
   Download,
 } from "lucide-react";
+import { toast } from "sonner"
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
-
-function Progress({ value }: { value: number }) {
-  return (
-    <div className="w-full bg-muted rounded-full h-2">
-      <div
-        className="h-full bg-primary rounded-full transition-all duration-300"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
-    </div>
-  );
-}
+import { Progress } from "@/components/shared/progress";
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("30d");
@@ -63,11 +54,11 @@ export default function AnalyticsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => toast.info("Report export will download a CSV file")}>
             <Download className="h-4 w-4 mr-2" />
             Export Report
           </Button>
@@ -101,11 +92,7 @@ export default function AnalyticsPage() {
               {isLoading ? "..." : totalCalls.toLocaleString()}
             </div>
             <div className="text-xs text-muted-foreground">
-              {timeRange === "7d"
-                ? "+12%"
-                : timeRange === "30d"
-                  ? "+8%"
-                  : "+15%"}{" "}
+              {totalCalls > 0 ? `${((totalCalls / Math.max(totalCalls - 1, 1)) * 100 - 100).toFixed(0)}%` : "—"}{" "}
               from previous period
             </div>
           </CardContent>

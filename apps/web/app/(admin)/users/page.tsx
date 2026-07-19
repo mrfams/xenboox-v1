@@ -14,6 +14,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner"
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import type { RouterOutputs } from "@/lib/trpc";
@@ -59,7 +60,7 @@ export default function UsersPage() {
             View and manage organization users and their access
           </p>
         </div>
-        <Button>
+        <Button onClick={() => toast.info("User creation wizard will open here")}>
           <Plus className="h-4 w-4 mr-2" />
           Add User
         </Button>
@@ -135,10 +136,10 @@ export default function UsersPage() {
                           +{user.userEntityAccess.length - 2} more
                         </Badge>
                       )}
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => toast.info(`Edit user: ${user.email}`)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => toast.info("User deletion requires confirmation dialog")}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

@@ -15,18 +15,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { AIComparison } from "@/lib/types";
 import { useState } from "react";
-
-function Alert({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`p-4 rounded-lg border ${className || ""}`}>{children}</div>
-  );
-}
+import { Alert } from "@xenboox/ui";
 
 export default function AIComparisonPage() {
   const [viewMode, setViewMode] = useState<"cards" | "graph">("cards");

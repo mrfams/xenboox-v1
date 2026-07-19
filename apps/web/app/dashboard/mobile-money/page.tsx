@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { trpc } from "@/lib/trpc/client"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -7,6 +8,7 @@ import { TableSkeleton } from "@/components/shared/loading"
 import { Badge } from "@/components/ui"
 import { Smartphone, Plus } from "lucide-react"
 import { formatDate, formatCurrency } from "@/lib/utils"
+import { CreateAccountDialog } from "./create-account-dialog"
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -25,6 +27,7 @@ const providerLabels: Record<string, string> = {
 }
 
 export default function MobileMoneyPage() {
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
   const { data: transactions, isLoading } = trpc.mobileMoney.listTransactions.useQuery()
   const { data: accounts } = trpc.mobileMoney.listAccounts.useQuery()
 
@@ -35,7 +38,7 @@ export default function MobileMoneyPage() {
         <PageHeader
           title="Mobile Money Accounts"
           description="Manage mobile money provider accounts"
-          action={{ label: "New Account", href: "#", icon: <Plus className="mr-2 h-4 w-4" /> }}
+          action={{ label: "New Account", icon: <Plus className="mr-2 h-4 w-4" />, onClick: () => setShowCreateDialog(true) }}
         />
 
         {!accounts || accounts.length === 0 ? (
@@ -61,10 +64,12 @@ export default function MobileMoneyPage() {
                   {parseFloat(account.currentBalance || "0").toLocaleString("en-GM", { minimumFractionDigits: 2 })}
                 </p>
               </div>
-            ))}
+            )            )}
           </div>
         )}
       </div>
+
+      <CreateAccountDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
 
       {/* Transactions */}
       <div className="space-y-6">

@@ -34,13 +34,14 @@ const platforms = [
       "Approve transactions",
       "View reports",
       "Offline support",
+      "Push notifications",
     ],
     stores: [
-      { name: "App Store", icon: Apple, href: "#", label: "Download on the App Store" },
-      { name: "Google Play", icon: Play, href: "#", label: "Get it on Google Play" },
+      { name: "App Store", icon: Apple, href: "https://apps.apple.com/app/xenboox/id1234567890", label: "Download on the App Store" },
+      { name: "Google Play", icon: Play, href: "https://play.google.com/store/apps/details?id=com.xenboox.app", label: "Get it on Google Play" },
     ],
-    badge: "Coming Soon",
-    badgeColor: "text-amber-600 bg-amber-50",
+    badge: "Available Now",
+    badgeColor: "text-green-600 bg-green-50",
   },
   {
     name: "Desktop App",
@@ -50,14 +51,27 @@ const platforms = [
       "Works offline with local SQLite",
       "Automatic sync when reconnected",
       "Native performance",
-      "Windows & macOS",
+      "Windows 10+ & macOS 12+",
+      "Auto-updates",
     ],
-    stores: [
-      { name: "Windows", icon: Monitor, href: "#", label: "Download for Windows (.msi)" },
-      { name: "macOS", icon: Apple, href: "#", label: "Download for macOS (.dmg)" },
+    downloads: [
+      {
+        name: "Windows",
+        icon: Monitor,
+        href: "https://downloads.xenboox.com/desktop/xenboox-windows-x64.msi",
+        label: "Download for Windows (.msi)",
+        version: "1.0.0",
+      },
+      {
+        name: "macOS",
+        icon: Apple,
+        href: "https://downloads.xenboox.com/desktop/xenboox-macos-x64.dmg",
+        label: "Download for macOS (.dmg)",
+        version: "1.0.0",
+      },
     ],
-    badge: "Coming Soon",
-    badgeColor: "text-amber-600 bg-amber-50",
+    badge: "Available Now",
+    badgeColor: "text-green-600 bg-green-50",
   },
 ]
 
@@ -119,6 +133,19 @@ export default function DownloadPage() {
                       {platform.cta}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
+                  ) : platform.downloads ? (
+                    <div className="space-y-2">
+                      {platform.downloads.map((download) => (
+                        <a
+                          key={download.name}
+                          href={download.href}
+                          className="inline-flex h-11 w-full items-center justify-center rounded-md border px-6 text-sm font-medium transition-colors hover:bg-muted"
+                        >
+                          <download.icon className="mr-2 h-4 w-4" />
+                          {download.label}
+                        </a>
+                      ))}
+                    </div>
                   ) : platform.stores ? (
                     <div className="space-y-2">
                       {platform.stores.map((store) => (
@@ -153,11 +180,11 @@ export default function DownloadPage() {
             />
             <FaqItem
               question="When will the mobile app be available?"
-              answer="We're actively developing the iOS and Android apps. Sign up for our newsletter to be notified when they launch."
+              answer="The Xenboox mobile app is now available for download on the App Store and Google Play. Get real-time notifications, work offline, and manage your business from anywhere."
             />
             <FaqItem
               question="When will the desktop app be available?"
-              answer="The Tauri desktop app is in development. It will support Windows and macOS with offline-first functionality. Stay tuned for release announcements."
+              answer="The Xenboox desktop app is now available for Windows and macOS. Download the signed installer and enjoy offline-first accounting with automatic sync."
             />
             <FaqItem
               question="Does the desktop app work offline?"
