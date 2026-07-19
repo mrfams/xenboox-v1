@@ -1,57 +1,72 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
-import { router, publicProcedure, protectedProcedure } from "@/lib/trpc/server"
-import { db } from "@/lib/db"
-import { eq } from "drizzle-orm"
-import { users, verificationTokens } from "@xenboox/db/schema/auth"
-import { organizations, entities, userEntityAccess } from "@xenboox/db/schema/organization"
-import { auditLog } from "@xenboox/db/schema/documents"
-import bcrypt from "bcryptjs"
-import { nanoid } from "nanoid"
-import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email"
-import { SignJWT } from "jose"
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { router, publicProcedure, protectedProcedure } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { users, verificationTokens } from "@xenboox/db/schema/auth";
+import {
+  organizations,
+  entities,
+  userEntityAccess,
+} from "@xenboox/db/schema/organization";
+import { auditLog } from "@xenboox/db/schema/documents";
+import bcrypt from "bcryptjs";
+import { nanoid } from "nanoid";
+import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
+import { SignJWT } from "jose";
 
-const LOCKOUT_THRESHOLD = 5
-const LOCKOUT_DURATION_MS = 30 * 60 * 1000 // 30 minutes
-const RESET_TOKEN_EXPIRY_MS = 1 * 60 * 60 * 1000 // 1 hour
-const VERIFICATION_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
-const MOBILE_TOKEN_EXPIRY = "30d"
+const LOCKOUT_THRESHOLD = 5;
+const LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+const RESET_TOKEN_EXPIRY_MS = 1 * 60 * 60 * 1000; // 1 hour
+const VERIFICATION_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MOBILE_TOKEN_EXPIRY = "30d";
 
 async function createMobileToken(payload: { sub: string; email: string }) {
-  const secret = new TextEncoder().encode(process.env.AUTH_SECRET)
+  const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(MOBILE_TOKEN_EXPIRY)
-    .sign(secret)
+    .sign(secret);
 }
 
 export const authRouter = router({
   login: publicProcedure
-    .input(z.object({
-      email: z.string().email("Invalid email address"),
-      password: z.string().min(1, "Password is required"),
-    }))
+    .input(
+      z.object({
+        email: z.string().email("Invalid email address"),
+        password: z.string().min(1, "Password is required"),
+      }),
+    )
     .mutation(async ({ input }) => {
       try {
         const user = await db.query.users.findFirst({
           where: eq(users.email, input.email),
-        })
+        });
 
         if (!user?.passwordHash) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" })
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid email or password",
+          });
         }
 
-        const valid = await bcrypt.compare(input.password, user.passwordHash)
+        const valid = await bcrypt.compare(input.password, user.passwordHash);
         if (!valid) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" })
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid email or password",
+          });
         }
 
-        const token = await createMobileToken({ sub: user.id, email: user.email! })
+        const token = await createMobileToken({
+          sub: user.id,
+          email: user.email!,
+        });
 
         const access = await db.query.userEntityAccess.findFirst({
           where: eq(userEntityAccess.userId, user.id),
-        })
+        });
 
         return {
           token,
@@ -59,72 +74,104 @@ export const authRouter = router({
           entityId: access?.entityId ?? null,
           name: user.name,
           email: user.email,
-        }
+        };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "An unexpected error occurred" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred",
+        });
       }
     }),
 
   register: publicProcedure
-    .input(z.object({
-      name: z.string().min(2, "Name must be at least 2 characters").max(100),
-      email: z.string().email("Invalid email address"),
-      password: z.string().min(8, "Password must be at least 8 characters").max(128),
-      organizationName: z.string().min(2, "Organization name is required").max(200),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(2, "Name must be at least 2 characters").max(100),
+        email: z.string().email("Invalid email address"),
+        password: z
+          .string()
+          .min(8, "Password must be at least 8 characters")
+          .max(128),
+        organizationName: z
+          .string()
+          .min(2, "Organization name is required")
+          .max(200),
+      }),
+    )
     .mutation(async ({ input }) => {
       try {
         const existing = await db.query.users.findFirst({
           where: eq(users.email, input.email),
-        })
+        });
 
         if (existing) {
           throw new TRPCError({
             code: "CONFLICT",
-            message: "An account with this email already exists"
-          })
+            message: "An account with this email already exists",
+          });
         }
 
-        const passwordHash = await bcrypt.hash(input.password, 12)
+        const passwordHash = await bcrypt.hash(input.password, 12);
 
-        const [user] = await db.insert(users).values({
-          name: input.name,
-          email: input.email,
-          passwordHash,
-        }).returning()
+        const [user] = await db
+          .insert(users)
+          .values({
+            name: input.name,
+            email: input.email,
+            passwordHash,
+          })
+          .returning();
 
         if (!user) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user" })
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create user",
+          });
         }
 
-        const [org] = await db.insert(organizations).values({
-          name: input.organizationName,
-          slug: input.organizationName
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "") + "-" + Date.now().toString(36),
-          type: "business",
-          plan: "free",
-          ownerId: user.id,
-        }).returning()
+        const [org] = await db
+          .insert(organizations)
+          .values({
+            name: input.organizationName,
+            slug:
+              input.organizationName
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "") +
+              "-" +
+              Date.now().toString(36),
+            type: "business",
+            plan: "free",
+            ownerId: user.id,
+          })
+          .returning();
 
         if (!org) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create organization" })
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create organization",
+          });
         }
 
-        const [entity] = await db.insert(entities).values({
-          organizationId: org.id,
-          name: input.organizationName,
-          type: "company",
-          currency: "GMD",
-          country: "GM",
-          fiscalYearEnd: "12",
-          isActive: true,
-        }).returning()
+        const [entity] = await db
+          .insert(entities)
+          .values({
+            organizationId: org.id,
+            name: input.organizationName,
+            type: "company",
+            currency: "GMD",
+            country: "GM",
+            fiscalYearEnd: "12",
+            isActive: true,
+          })
+          .returning();
 
         if (!entity) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create entity" })
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create entity",
+          });
         }
 
         await db.insert(userEntityAccess).values({
@@ -132,28 +179,34 @@ export const authRouter = router({
           entityId: entity.id,
           role: "owner",
           grantedBy: user.id,
-        })
+        });
 
-        const token = await createMobileToken({ sub: user.id, email: user.email! })
+        const token = await createMobileToken({
+          sub: user.id,
+          email: user.email!,
+        });
 
         // Send verification email (non-blocking)
         try {
-          const verificationToken = nanoid(32)
-          const verificationExpires = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY_MS)
+          const verificationToken = nanoid(32);
+          const verificationExpires = new Date(
+            Date.now() + VERIFICATION_TOKEN_EXPIRY_MS,
+          );
           await db.insert(verificationTokens).values({
             identifier: user.email!,
             token: verificationToken,
             expires: verificationExpires,
-          })
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-          const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`
+          });
+          const appUrl =
+            process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+          const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`;
           await sendVerificationEmail(user.email!, {
             userName: user.name ?? "User",
             verifyUrl,
             expiryMinutes: Math.floor(VERIFICATION_TOKEN_EXPIRY_MS / 60000),
-          })
+          });
         } catch {
-          console.error("[auth] Failed to send verification email")
+          console.error("[auth] Failed to send verification email");
         }
 
         return {
@@ -162,13 +215,17 @@ export const authRouter = router({
           entityId: entity.id,
           name: user.name,
           email: user.email,
-        }
+        };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
+        if (error instanceof TRPCError) throw error;
+        console.error("[auth] Register error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred during registration"
-        })
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred during registration",
+        });
       }
     }),
 
@@ -178,71 +235,91 @@ export const authRouter = router({
       try {
         const user = await db.query.users.findFirst({
           where: eq(users.email, input.email),
-        })
+        });
 
         if (!user) {
-          return { success: true, message: "If the email exists, a reset link has been sent" }
+          return {
+            success: true,
+            message: "If the email exists, a reset link has been sent",
+          };
         }
 
-        const resetToken = nanoid(32)
-        const resetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS)
+        const resetToken = nanoid(32);
+        const resetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
 
-        await db.update(users)
+        await db
+          .update(users)
           .set({
             resetPasswordToken: resetToken,
             resetPasswordExpires: resetExpires,
           })
-          .where(eq(users.id, user.id))
+          .where(eq(users.id, user.id));
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-        const resetUrl = `${appUrl}/reset-password?token=${resetToken}`
+        const appUrl =
+          process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+        const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
 
         try {
           await sendPasswordResetEmail(user.email, {
             userName: user.name ?? "User",
             resetUrl,
             expiryMinutes: Math.floor(RESET_TOKEN_EXPIRY_MS / 60000),
-          })
+          });
         } catch {
           // Log but don't fail the request — user gets generic success either way
-          console.error("[auth] Failed to send password reset email")
+          console.error("[auth] Failed to send password reset email");
         }
 
         return {
           success: true,
           message: "If the email exists, a reset link has been sent",
-        }
+        };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred"
-        })
+          message: "An unexpected error occurred",
+        });
       }
     }),
 
   resetPassword: publicProcedure
-    .input(z.object({
-      token: z.string().min(1),
-      newPassword: z.string().min(8, "Password must be at least 8 characters").max(128),
-    }))
+    .input(
+      z.object({
+        token: z.string().min(1),
+        newPassword: z
+          .string()
+          .min(8, "Password must be at least 8 characters")
+          .max(128),
+      }),
+    )
     .mutation(async ({ input }) => {
       try {
         const user = await db.query.users.findFirst({
           where: eq(users.resetPasswordToken, input.token),
-        })
+        });
 
         if (!user) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired reset token" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid or expired reset token",
+          });
         }
 
-        if (!user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Reset token has expired" })
+        if (
+          !user.resetPasswordExpires ||
+          user.resetPasswordExpires < new Date()
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Reset token has expired",
+          });
         }
 
-        const passwordHash = await bcrypt.hash(input.newPassword, 12)
+        const passwordHash = await bcrypt.hash(input.newPassword, 12);
 
-        await db.update(users)
+        await db
+          .update(users)
           .set({
             passwordHash,
             resetPasswordToken: null,
@@ -250,123 +327,149 @@ export const authRouter = router({
             failedLoginAttempts: 0,
             lockoutUntil: null,
           })
-          .where(eq(users.id, user.id))
+          .where(eq(users.id, user.id));
 
-        return { success: true, message: "Password has been reset successfully" }
+        return {
+          success: true,
+          message: "Password has been reset successfully",
+        };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred"
-        })
+          message: "An unexpected error occurred",
+        });
       }
     }),
 
   // checkAccountLockout removed — was enabling user enumeration
 
   updateProfile: protectedProcedure
-    .input(z.object({
-      name: z.string().min(2, "Name must be at least 2 characters").max(100),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(2, "Name must be at least 2 characters").max(100),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       try {
-        await db.update(users)
+        await db
+          .update(users)
           .set({ name: input.name })
-          .where(eq(users.id, ctx.session!.user!.id!))
+          .where(eq(users.id, ctx.session!.user!.id!));
 
-        return { success: true, message: "Profile updated successfully" }
+        return { success: true, message: "Profile updated successfully" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred"
-        })
+          message: "An unexpected error occurred",
+        });
       }
     }),
 
   changePassword: protectedProcedure
-    .input(z.object({
-      currentPassword: z.string().min(8, "Current password is required"),
-      newPassword: z.string().min(8, "New password must be at least 8 characters").max(128),
-      confirmPassword: z.string().min(8, "Confirm password is required"),
-    }))
+    .input(
+      z.object({
+        currentPassword: z.string().min(8, "Current password is required"),
+        newPassword: z
+          .string()
+          .min(8, "New password must be at least 8 characters")
+          .max(128),
+        confirmPassword: z.string().min(8, "Confirm password is required"),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       if (input.newPassword !== input.confirmPassword) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "New passwords do not match" })
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "New passwords do not match",
+        });
       }
 
       const user = await db.query.users.findFirst({
         where: eq(users.id, ctx.session!.user!.id!),
-      })
+      });
 
       if (!user?.passwordHash) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "User has no password set" })
-      }
-
-      const isValid = await bcrypt.compare(input.currentPassword, user.passwordHash)
-      if (!isValid) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Current password is incorrect" })
-      }
-
-      const newHash = await bcrypt.hash(input.newPassword, 12)
-
-      await db.update(users)
-        .set({ passwordHash: newHash })
-        .where(eq(users.id, ctx.session!.user!.id!))
-
-      return { success: true, message: "Password changed successfully" }
-    }),
-
-  requestVerification: protectedProcedure
-    .mutation(async ({ ctx }) => {
-      try {
-        const user = await db.query.users.findFirst({
-          where: eq(users.id, ctx.session!.user!.id!),
-        })
-
-        if (!user) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" })
-        }
-
-        if (user.emailVerified) {
-          return { success: true, message: "Email is already verified" }
-        }
-
-        // Delete old tokens for this email
-        await db.delete(verificationTokens)
-          .where(eq(verificationTokens.identifier, user.email!))
-
-        const verificationToken = nanoid(32)
-        const verificationExpires = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY_MS)
-
-        await db.insert(verificationTokens).values({
-          identifier: user.email!,
-          token: verificationToken,
-          expires: verificationExpires,
-        })
-
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-        const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`
-
-        try {
-          await sendVerificationEmail(user.email!, {
-            userName: user.name ?? "User",
-            verifyUrl,
-            expiryMinutes: Math.floor(VERIFICATION_TOKEN_EXPIRY_MS / 60000),
-          })
-        } catch {
-          console.error("[auth] Failed to send verification email")
-        }
-
-        return { success: true, message: "Verification email sent" }
-      } catch (error) {
-        if (error instanceof TRPCError) throw error
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred"
-        })
+          code: "BAD_REQUEST",
+          message: "User has no password set",
+        });
       }
+
+      const isValid = await bcrypt.compare(
+        input.currentPassword,
+        user.passwordHash,
+      );
+      if (!isValid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Current password is incorrect",
+        });
+      }
+
+      const newHash = await bcrypt.hash(input.newPassword, 12);
+
+      await db
+        .update(users)
+        .set({ passwordHash: newHash })
+        .where(eq(users.id, ctx.session!.user!.id!));
+
+      return { success: true, message: "Password changed successfully" };
     }),
+
+  requestVerification: protectedProcedure.mutation(async ({ ctx }) => {
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, ctx.session!.user!.id!),
+      });
+
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+
+      if (user.emailVerified) {
+        return { success: true, message: "Email is already verified" };
+      }
+
+      // Delete old tokens for this email
+      await db
+        .delete(verificationTokens)
+        .where(eq(verificationTokens.identifier, user.email!));
+
+      const verificationToken = nanoid(32);
+      const verificationExpires = new Date(
+        Date.now() + VERIFICATION_TOKEN_EXPIRY_MS,
+      );
+
+      await db.insert(verificationTokens).values({
+        identifier: user.email!,
+        token: verificationToken,
+        expires: verificationExpires,
+      });
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`;
+
+      try {
+        await sendVerificationEmail(user.email!, {
+          userName: user.name ?? "User",
+          verifyUrl,
+          expiryMinutes: Math.floor(VERIFICATION_TOKEN_EXPIRY_MS / 60000),
+        });
+      } catch {
+        console.error("[auth] Failed to send verification email");
+      }
+
+      return { success: true, message: "Verification email sent" };
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred",
+      });
+    }
+  }),
 
   verifyEmail: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
@@ -374,45 +477,58 @@ export const authRouter = router({
       try {
         const verificationToken = await db.query.verificationTokens.findFirst({
           where: eq(verificationTokens.token, input.token),
-        })
+        });
 
         if (!verificationToken) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid verification token" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid verification token",
+          });
         }
 
         if (verificationToken.expires < new Date()) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Verification token has expired" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Verification token has expired",
+          });
         }
 
         const user = await db.query.users.findFirst({
           where: eq(users.email, verificationToken.identifier),
-        })
+        });
 
         if (!user) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "User not found" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "User not found",
+          });
         }
 
-        await db.update(users)
+        await db
+          .update(users)
           .set({ emailVerified: new Date() })
-          .where(eq(users.id, user.id))
+          .where(eq(users.id, user.id));
 
-        await db.delete(verificationTokens)
-          .where(eq(verificationTokens.token, input.token))
+        await db
+          .delete(verificationTokens)
+          .where(eq(verificationTokens.token, input.token));
 
-        return { success: true, message: "Email verified successfully" }
+        return { success: true, message: "Email verified successfully" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred"
-        })
+          message: "An unexpected error occurred",
+        });
       }
     }),
 
   updatePushToken: protectedProcedure
-    .input(z.object({
-      token: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        token: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       try {
         // Schema migration needed: ALTER TABLE users ADD COLUMN push_token TEXT
@@ -424,28 +540,32 @@ export const authRouter = router({
           entityType: "user",
           entityIdRef: ctx.session!.user!.id!,
           newValues: { token: input.token },
-        })
+        });
 
-        console.log("[auth] Push token update recorded:", { userId: ctx.session!.user!.id! })
+        console.log("[auth] Push token update recorded:", {
+          userId: ctx.session!.user!.id!,
+        });
 
-        return { success: true, message: "Push token updated successfully" }
+        return { success: true, message: "Push token updated successfully" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred"
-        })
+          message: "An unexpected error occurred",
+        });
       }
     }),
 
   updateNotificationPreferences: protectedProcedure
-    .input(z.object({
-      emailInvoices: z.boolean(),
-      emailReports: z.boolean(),
-      emailAlerts: z.boolean(),
-      pushPayments: z.boolean(),
-      pushApprovals: z.boolean(),
-    }))
+    .input(
+      z.object({
+        emailInvoices: z.boolean(),
+        emailReports: z.boolean(),
+        emailAlerts: z.boolean(),
+        pushPayments: z.boolean(),
+        pushApprovals: z.boolean(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       try {
         // Log preference changes to audit trail
@@ -456,19 +576,22 @@ export const authRouter = router({
           entityType: "user",
           entityIdRef: ctx.session!.user!.id!,
           newValues: { ...input },
-        })
+        });
 
         // In production, persist to user_preferences table or JSON column
         // Schema migration needed: ALTER TABLE users ADD COLUMN notification_preferences JSONB DEFAULT '{}'
-        console.log("[auth] Notification preferences updated:", { userId: ctx.session!.user!.id!, ...input })
+        console.log("[auth] Notification preferences updated:", {
+          userId: ctx.session!.user!.id!,
+          ...input,
+        });
 
-        return { success: true, message: "Notification preferences saved" }
+        return { success: true, message: "Notification preferences saved" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred"
-        })
+          message: "An unexpected error occurred",
+        });
       }
     }),
-})
+});
