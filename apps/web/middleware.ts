@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { edgeAuth as auth } from "@/lib/auth/edge";
 import { applySecurityHeaders, generateNonce } from "@/lib/security/headers";
-import { getRateLimiter } from "@/lib/security/rate-limiter";
-import { logger } from "@/lib/logger";
 
 const PUBLIC_ROUTES = [
   "/",
@@ -32,7 +30,6 @@ function validateOrigin(req: Request): boolean {
 
   if (!host) return false;
   if (!origin) {
-    // Same-origin navigations may omit Origin; require a safe Content-Type or GET
     const method = req.method;
     if (method === "GET" || method === "HEAD") return true;
     const contentType = req.headers.get("content-type") ?? "";
@@ -52,21 +49,36 @@ function validateOrigin(req: Request): boolean {
   }
 }
 
+let rateLimiter: {
+  checkApiRateLimit: (id: string) => Promise<{
+    success: boolean;
+    limit: number;
+    remaining: number;
+    reset: number;
+  }>;
+} | null = null;
+
+async function getRateLimiter() {
+  if (!rateLimiter) {
+    const mod = await import("@/lib/security/rate-limiter");
+    rateLimiter = mod.getRateLimiter();
+  }
+  return rateLimiter;
+}
+
 export default auth(async (req) => {
   const requestId = nanoid();
-  const reqLog = logger.child({ requestId });
-
-  reqLog.info(
-    { method: req.method, path: req.nextUrl.pathname },
-    "Incoming request",
-  );
-
-  const isLoggedIn = !!req.auth;
   const pathname = req.nextUrl.pathname;
+
+  if (pathname.startsWith("/api/health")) {
+    const response = NextResponse.next();
+    applySecurityHeaders(response.headers, generateNonce());
+    return response;
+  }
+
+  const isOnApi = pathname.startsWith("/api");
   const isOnAuth =
     pathname.startsWith("/login") || pathname.startsWith("/register");
-  const isOnApi = pathname.startsWith("/api");
-  const isHealthCheck = pathname.startsWith("/api/health");
   const isPublic = isPublicRoute(pathname);
   const isMutation =
     req.method === "POST" ||
@@ -74,34 +86,26 @@ export default auth(async (req) => {
     req.method === "PATCH" ||
     req.method === "DELETE";
 
+  const isLoggedIn = !!req.auth;
   const nonce = generateNonce();
   const response = NextResponse.next();
   applySecurityHeaders(response.headers, nonce);
   response.headers.set("x-nonce", nonce);
   response.headers.set("x-request-id", requestId);
 
-  if (isHealthCheck) {
-    reqLog.debug("Health check request");
-    return response;
-  }
-
-  if (isOnApi && isMutation && !isHealthCheck) {
+  if (isOnApi && isMutation) {
     if (!validateOrigin(req)) {
-      reqLog.warn(
-        { origin: req.headers.get("origin") },
-        "Invalid origin detected",
-      );
       return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
     }
   }
 
   if (isOnApi) {
-    const rateLimiter = getRateLimiter();
-    const identifier =
-      req.auth?.user?.id || req.headers.get("x-forwarded-for") || "anonymous";
-
     try {
-      const result = await rateLimiter.checkApiRateLimit(identifier);
+      const limiter = await getRateLimiter();
+      const identifier =
+        req.auth?.user?.id || req.headers.get("x-forwarded-for") || "anonymous";
+
+      const result = await limiter.checkApiRateLimit(identifier);
 
       response.headers.set("X-RateLimit-Limit", result.limit.toString());
       response.headers.set(
@@ -111,33 +115,26 @@ export default auth(async (req) => {
       response.headers.set("X-RateLimit-Reset", result.reset.toString());
 
       if (!result.success) {
-        reqLog.warn({ identifier }, "Rate limit exceeded");
         return NextResponse.json(
           { error: "Rate limit exceeded" },
-          {
-            status: 429,
-            headers: response.headers,
-          },
+          { status: 429, headers: response.headers },
         );
       }
-    } catch (error) {
-      reqLog.error({ error }, "Rate limiting error");
+    } catch {
+      // Rate limiter unavailable — allow request through
     }
 
     return response;
   }
 
   if (isLoggedIn && isOnAuth) {
-    reqLog.debug("Redirecting logged-in user from auth page");
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
   if (!isLoggedIn && !isPublic) {
-    reqLog.debug("Redirecting unauthenticated user to login");
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
-  reqLog.debug("Request allowed");
   return response;
 });
 
