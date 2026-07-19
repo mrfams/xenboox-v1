@@ -15,24 +15,10 @@ import {
   Settings,
   RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner"
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
-
-function Alert({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`p-4 rounded-lg border ${className || ""}`}>{children}</div>
-  );
-}
-
-function AlertDescription({ children }: { children: React.ReactNode }) {
-  return <div className="mt-2 text-sm">{children}</div>;
-}
+import { Alert, AlertDescription } from "@xenboox/ui";
 
 export default function AlertsPage() {
   const [showResolved, setShowResolved] = useState(false);
@@ -57,11 +43,11 @@ export default function AlertsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => toast.info("Alert configuration dialog will open here")}>
             <Settings className="h-4 w-4 mr-2" />
             Alert Settings
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

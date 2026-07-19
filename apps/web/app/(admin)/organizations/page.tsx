@@ -10,6 +10,7 @@ import {
   Input,
 } from "@xenboox/ui";
 import { Building, Search, Plus, Edit, Trash2 } from "lucide-react";
+import { toast } from "sonner"
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import type { RouterOutputs } from "@/lib/trpc";
@@ -50,7 +51,7 @@ export default function OrganizationsPage() {
             Manage organizations and their settings
           </p>
         </div>
-        <Button>
+        <Button onClick={() => toast.info("Organization creation form will open here")}>
           <Plus className="h-4 w-4 mr-2" />
           Create Organization
         </Button>
@@ -109,10 +110,10 @@ export default function OrganizationsPage() {
                       <div className="text-right text-sm text-muted-foreground">
                         <div>{org.entities?.length || 0} entities</div>
                       </div>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => toast.info(`Edit organization: ${org.name}`)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => toast.info("Organization deletion requires confirmation dialog")}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

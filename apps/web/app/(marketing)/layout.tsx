@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 const navLinks = [
   { label: "Features", href: "/features" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Documentation", href: "/docs" },
   { label: "Download", href: "/download" },
   { label: "Contact", href: "/contact" },
 ]
@@ -111,6 +112,9 @@ export default async function MarketingLayout({
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
                 <li><Link href="/terms" className="hover:text-foreground">Terms of Service</Link></li>
+                <li><Link href="/cookies" className="hover:text-foreground">Cookie Policy</Link></li>
+                <li><Link href="/refund" className="hover:text-foreground">Refund Policy</Link></li>
+                <li><Link href="/sla" className="hover:text-foreground">SLA</Link></li>
               </ul>
             </div>
           </div>
