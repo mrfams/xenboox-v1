@@ -6,6 +6,7 @@ import { trpc, createTRPCClient } from "./lib/trpc"
 import { ThemeProvider } from "./components/theme-provider"
 import { ErrorBoundary } from "./components/error-boundary"
 import { OfflineIndicator } from "./components/offline-indicator"
+import { checkForUpdates, setupAutoUpdate } from "./lib/auto-update"
 import App from "./App"
 import "./styles/globals.css"
 
@@ -20,6 +21,15 @@ const queryClient = new QueryClient({
 
 const trpcClient = createTRPCClient()
 
+function UpdateChecker() {
+  React.useEffect(() => {
+    checkForUpdates()
+    setupAutoUpdate()
+  }, [])
+
+  return null
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
@@ -29,6 +39,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <BrowserRouter>
               <App />
               <OfflineIndicator />
+              <UpdateChecker />
             </BrowserRouter>
           </QueryClientProvider>
         </trpc.Provider>

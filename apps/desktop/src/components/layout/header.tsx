@@ -3,6 +3,7 @@ import { User, LogOut, Building2, Sun, Moon, Monitor } from "lucide-react"
 import { clearAuth } from "@/lib/auth"
 import { useTheme } from "@/components/theme-provider"
 import { useState, useRef, useEffect } from "react"
+import { EntitySwitcher } from "@/components/entity-switcher"
 
 export function Header() {
   const { data: user } = trpc.organization.getCurrentUser.useQuery()
@@ -29,7 +30,7 @@ export function Header() {
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-6">
-      <div />
+      <EntitySwitcher />
       <div className="flex items-center gap-4">
         {user && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

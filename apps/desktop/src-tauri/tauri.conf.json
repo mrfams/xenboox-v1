@@ -1,15 +1,82 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri/src-tauri/tauri.conf.json",
+  "$schema": "https://schema.tauri.io/tauri/2.0/tauri.conf.json",
   "productName": "Xenboox",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "com.xenboox.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "devEnvFilePath": ".env"
   },
-  "app": {
+  "package": {
+    "productName": "Xenboox",
+    "version": "1.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "fs": {
+        "readFile": true,
+        "writeFile": true,
+        "readDir": true,
+        "copyFile": true,
+        "createDir": true,
+        "removeFile": true,
+        "removeDir": true,
+        "rename": true
+      },
+      "path": {
+        "all": true
+      },
+      "process": {
+        "execution": true
+      },
+      "dialog": {
+        "all": true
+      },
+      "shell": {
+        "all": true
+      },
+      "updater": {
+        "enabled": true,
+        "endpoints": [
+          "https://api.xenboox.com/desktop-updates"
+        ]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": ["nsis", "dmg", "zip"],
+      "identifier": "com.xenboox.desktop",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "windows": {
+        "msiPatch": {
+          "certificatePath": null,
+          "certificatePassword": null,
+          "timestampUrl": null
+        },
+        "nsis": {
+          "oneClick": false,
+          "allowToChangeInstallationDirectory": true,
+          "createMsi": true,
+          "installMode": "perMachine"
+        }
+      },
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "localhost",
+        "signingIdentity": null,
+        "minimumSystemVersion": "12.0"
+      }
+    },
     "windows": [
       {
         "title": "Xenboox",
@@ -20,31 +87,49 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
-        "transparent": false
+        "transparent": false,
+        "alwaysOnTop": false,
+        "focusOnMaterialized": true
       }
     ],
     "security": {
-      "csp": null
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "windows": {
-      "nsis": {
-        "installMode": "both"
-      }
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; media-src 'self'; frame-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
     },
-    "macOS": {
-      "entitlements": null,
-      "exceptionDomain": "localhost"
+    "menu": {
+      "title": "Xenboox",
+      "items": [
+        {
+          "label": "File",
+          "items": [
+            { "id": "quit", "label": "Quit", "accelerator": "CmdOrCtrl+Q" }
+          ]
+        },
+        {
+          "label": "Edit",
+          "items": [
+            { "id": "undo", "label": "Undo", "accelerator": "CmdOrCtrl+Z" },
+            { "id": "redo", "label": "Redo", "accelerator": "CmdOrCtrl+Shift+Z" },
+            { "type": "separator" },
+            { "id": "cut", "label": "Cut", "accelerator": "CmdOrCtrl+X" },
+            { "id": "copy", "label": "Copy", "accelerator": "CmdOrCtrl+C" },
+            { "id": "paste", "label": "Paste", "accelerator": "CmdOrCtrl+V" }
+          ]
+        },
+        {
+          "label": "View",
+          "items": [
+            { "id": "reload", "label": "Reload", "accelerator": "CmdOrCtrl+R" },
+            { "id": "toggle-devtools", "label": "Toggle DevTools", "accelerator": "F12" },
+            { "id": "toggle-fullscreen", "label": "Toggle Fullscreen", "accelerator": "F11" }
+          ]
+        },
+        {
+          "label": "Help",
+          "items": [
+            { "id": "toggle-help", "label": "Help" }
+          ]
+        }
+      ]
     }
   }
 }

@@ -3,7 +3,14 @@ import { Badge } from "@xenboox/ui"
 import { FolderOpen, Upload, FileText, Image, Download, Trash2 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { useState } from "react"
-import { formatCurrency } from "@/lib/utils"
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 B"
+  const k = 1024
+  const sizes = ["B", "KB", "MB", "GB", "TB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+}
 
 const DOCUMENT_TYPES = [
   { value: "invoice", label: "Invoice", icon: FileText },
@@ -64,7 +71,7 @@ export default function DocumentsPage() {
 
       await confirmUpload.mutateAsync({
         r2Key: uploadInfo.storagePath,
-        r2Bucket: process.env.R2_BUCKET_NAME || "xenboox-documents",
+        r2Bucket: import.meta.env.VITE_R2_BUCKET_NAME || "xenboox-documents",
         name: file.name,
         type: selectedType,
         mimeType: file.type,
@@ -177,7 +184,7 @@ export default function DocumentsPage() {
               <CardContent>
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>{doc.mimeType || "Unknown file type"}</span>
-                  <span>{doc.sizeBytes ? formatCurrency(parseInt(doc.sizeBytes)) : "Unknown size"}</span>
+                  <span>{doc.sizeBytes ? formatFileSize(parseInt(doc.sizeBytes)) : "Unknown size"}</span>
                 </div>
                 <div className="mt-3 flex gap-2">
                   <button
