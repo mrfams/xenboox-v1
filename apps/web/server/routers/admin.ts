@@ -454,7 +454,6 @@ export const adminRouter = router({
             entity: true,
           },
         },
-        sessions: true,
       },
       orderBy: [desc(users.createdAt)],
     });
@@ -550,18 +549,30 @@ export const adminRouter = router({
           openai: z.string(),
           haiku: z.string(),
         }),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       // In production, this would persist to database or config service
       // For now, validate and return success with logged audit trail
       console.log("[admin] Settings update:", {
-        notifications: { emailAlerts: input.emailAlerts, slackAlerts: input.slackAlerts, smsAlerts: input.smsAlerts },
-        ai: { autoScaling: input.autoScaling, costOptimization: input.costOptimization, providerFallback: input.providerFallback },
-        system: { maintenanceMode: input.maintenanceMode, debugMode: input.debugMode, auditLogging: input.auditLogging },
+        notifications: {
+          emailAlerts: input.emailAlerts,
+          slackAlerts: input.slackAlerts,
+          smsAlerts: input.smsAlerts,
+        },
+        ai: {
+          autoScaling: input.autoScaling,
+          costOptimization: input.costOptimization,
+          providerFallback: input.providerFallback,
+        },
+        system: {
+          maintenanceMode: input.maintenanceMode,
+          debugMode: input.debugMode,
+          auditLogging: input.auditLogging,
+        },
         budgets: input.budgets,
-      })
-      return { success: true }
+      });
+      return { success: true };
     }),
 
   getCostComparison: adminProcedure.query(async () => {

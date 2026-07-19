@@ -1,8 +1,10 @@
-"use client"
+"use client";
 
-import { ReactNode } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+export const dynamic = "force-dynamic";
+
+import { ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -13,15 +15,15 @@ import {
   Settings,
   Shield,
   AlertCircle,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui";
 
 type NavItem = {
-  label: string
-  href: string
-  icon: React.ElementType
-}
+  label: string;
+  href: string;
+  icon: React.ElementType;
+};
 
 const navigation: NavItem[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
@@ -33,14 +35,14 @@ const navigation: NavItem[] = [
   { label: "Financial Health", href: "/admin/financial", icon: Shield },
   { label: "Alerts", href: "/admin/alerts", icon: AlertCircle },
   { label: "Settings", href: "/admin/settings", icon: Settings },
-]
+];
 
 interface AdminLayoutProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -50,14 +52,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
             X
           </div>
-          <span className="text-lg font-bold tracking-tight">Xenboox Admin</span>
+          <span className="text-lg font-bold tracking-tight">
+            Xenboox Admin
+          </span>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto">
           <ul className="space-y-1">
             {navigation.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/admin" && pathname.startsWith(item.href));
               return (
                 <li key={item.href}>
                   <Link
@@ -66,14 +72,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                       isActive
                         ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                     )}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1">{item.label}</span>
                   </Link>
                 </li>
-              )
+              );
             })}
           </ul>
         </nav>
@@ -96,5 +102,5 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="p-4 lg:p-6">{children}</div>
       </main>
     </div>
-  )
+  );
 }

@@ -1,46 +1,46 @@
-import { langfuse } from "./langfuse"
-import { createAuditEntry } from "./state"
-import type { AuditEntry } from "./state"
+import { langfuse } from "./langfuse";
+import { createAuditEntry } from "./state";
+import type { AuditEntry } from "./state";
 import {
   DEPARTMENT_AGENTS,
   DEPARTMENT_CLOSE_TASK,
   ALL_DEPARTMENTS,
-} from "./registry"
-import type { AgentDepartment } from "./registry"
+} from "./registry";
+import type { AgentDepartment } from "./registry";
 
 // ─── Common Agent Types ─────────────────────────────────────────────────────
 
 export interface AgentState {
-  entityId: string
-  entityName: string
-  currency: string
+  entityId: string;
+  entityName: string;
+  currency: string;
   currentOperation: {
-    type: string
-    status: string
-    input: Record<string, unknown>
-    output: unknown
-    error: unknown
-  } | null
+    type: string;
+    status: string;
+    input: Record<string, unknown>;
+    output: unknown;
+    error: unknown;
+  } | null;
   currentTask?: {
-    type: string
-    description: string
-    assignedAt: string
-    status: string
-  }
-  [key: string]: unknown
+    type: string;
+    description: string;
+    assignedAt: string;
+    status: string;
+  };
+  [key: string]: unknown;
 }
 
 export interface AgentGraph {
-  invoke(state: AgentState): Promise<AgentState>
+  invoke(state: AgentState): Promise<AgentState>;
 }
 
 export interface AgentResultState extends AgentState {
-  confidence: number
-  reasoning: string
-  result: unknown
-  humanResponse?: string
-  errors: string[]
-  auditTrail: AuditEntry[]
+  confidence: number;
+  reasoning: string;
+  result: unknown;
+  humanResponse?: string;
+  errors: string[];
+  auditTrail: AuditEntry[];
 }
 
 // ─── Task Types ────────────────────────────────────────────────────────────
@@ -92,9 +92,9 @@ export type AgentTaskType =
   | "financial_ratios"
   | "kpi_dashboard"
   | "trend_analysis"
-  | "cash_flow_analysis"
+  | "cash_flow_analysis";
 
-export type AgentTier = "tier1" | "tier2" | "tier3" | "platform"
+export type AgentTier = "tier1" | "tier2" | "tier3" | "platform";
 
 export type AgentId =
   | "cfo"
@@ -114,34 +114,37 @@ export type AgentId =
   | "reporting"
   | "document"
   | "budget"
-  | "analytics"
+  | "analytics";
 
 export interface AgentTask {
-  id: string
-  type: AgentTaskType
-  entityId: string
-  entityName: string
-  currency: string
-  input: Record<string, unknown>
-  timestamp: string
+  id: string;
+  type: AgentTaskType;
+  entityId: string;
+  entityName: string;
+  currency: string;
+  input: Record<string, unknown>;
+  timestamp: string;
 }
 
 export interface AgentResult {
-  taskId: string
-  agentId: AgentId
-  tier: AgentTier
-  confidence: number
-  reasoning: string
-  result: unknown
-  humanResponse?: string
-  errors: string[]
-  auditTrail: AuditEntry[]
-  duration: number
+  taskId: string;
+  agentId: AgentId;
+  tier: AgentTier;
+  confidence: number;
+  reasoning: string;
+  result: unknown;
+  humanResponse?: string;
+  errors: string[];
+  auditTrail: AuditEntry[];
+  duration: number;
 }
 
 // ─── Task-to-Agent Routing Table ───────────────────────────────────────────
 
-const TASK_AGENT_MAP: Record<AgentTaskType, { agentId: AgentId; tier: AgentTier }> = {
+const TASK_AGENT_MAP: Record<
+  AgentTaskType,
+  { agentId: AgentId; tier: AgentTier }
+> = {
   // CFO Agent (tier1) — handles chat, questions, close orchestration
   chat: { agentId: "cfo", tier: "tier1" },
   question: { agentId: "cfo", tier: "tier1" },
@@ -222,64 +225,84 @@ const TASK_AGENT_MAP: Record<AgentTaskType, { agentId: AgentId; tier: AgentTier 
   kpi_dashboard: { agentId: "analytics", tier: "platform" },
   trend_analysis: { agentId: "analytics", tier: "platform" },
   cash_flow_analysis: { agentId: "analytics", tier: "platform" },
-}
+};
 
 // ─── Agent Invoke Map (lazy imports to avoid circular deps) ────────────────
 
 export async function getAgentGraph(agentId: AgentId): Promise<AgentGraph> {
   switch (agentId) {
     case "cfo":
-      return (await import("../tier1/cfo-agent/graph")).cfoAgent as AgentGraph
+      return (await import("../tier1/cfo-agent/graph"))
+        .cfoAgent as unknown as AgentGraph;
     case "controller":
-      return (await import("../tier2/controller-agent/graph")).controllerAgent as AgentGraph
+      return (await import("../tier2/controller-agent/graph"))
+        .controllerAgent as unknown as AgentGraph;
     case "treasury":
-      return (await import("../tier2/treasury-agent/graph")).treasuryAgent as AgentGraph
+      return (await import("../tier2/treasury-agent/graph"))
+        .treasuryAgent as unknown as AgentGraph;
     case "payroll_manager":
-      return (await import("../tier2/payroll-manager-agent/graph")).payrollManagerAgent as AgentGraph
+      return (await import("../tier2/payroll-manager-agent/graph"))
+        .payrollManagerAgent as unknown as AgentGraph;
     case "compliance":
-      return (await import("../tier2/compliance-agent/graph")).complianceAgent as AgentGraph
+      return (await import("../tier2/compliance-agent/graph"))
+        .complianceAgent as unknown as AgentGraph;
     case "ledger":
-      return (await import("../tier3/ledger-agent/graph")).ledgerAgent as AgentGraph
+      return (await import("../tier3/ledger-agent/graph"))
+        .ledgerAgent as unknown as AgentGraph;
     case "ap":
-      return (await import("../tier3/ap-agent/graph")).apAgent as AgentGraph
+      return (await import("../tier3/ap-agent/graph"))
+        .apAgent as unknown as AgentGraph;
     case "ar":
-      return (await import("../tier3/ar-agent/graph")).arAgent as AgentGraph
+      return (await import("../tier3/ar-agent/graph"))
+        .arAgent as unknown as AgentGraph;
     case "asset":
-      return (await import("../tier3/asset-agent/graph")).assetAgent as AgentGraph
+      return (await import("../tier3/asset-agent/graph"))
+        .assetAgent as unknown as AgentGraph;
     case "inventory":
-      return (await import("../tier3/inventory-agent/graph")).inventoryAgent as AgentGraph
+      return (await import("../tier3/inventory-agent/graph"))
+        .inventoryAgent as unknown as AgentGraph;
     case "reconciliation":
-      return (await import("../tier3/reconciliation-agent/graph")).reconciliationAgent as AgentGraph
+      return (await import("../tier3/reconciliation-agent/graph"))
+        .reconciliationAgent as unknown as AgentGraph;
     case "cash":
-      return (await import("../tier3/cash-agent/graph")).cashAgent as AgentGraph
+      return (await import("../tier3/cash-agent/graph"))
+        .cashAgent as unknown as AgentGraph;
     case "mobile_money":
-      return (await import("../tier3/mobile-money-agent/graph")).mobileMoneyAgent as AgentGraph
+      return (await import("../tier3/mobile-money-agent/graph"))
+        .mobileMoneyAgent as unknown as AgentGraph;
     case "payroll_worker":
-      return (await import("../tier3/payroll-worker-agent/graph")).payrollWorkerAgent as AgentGraph
+      return (await import("../tier3/payroll-worker-agent/graph"))
+        .payrollWorkerAgent as unknown as AgentGraph;
     case "reporting":
-      return (await import("../platform/reporting-agent/graph")).reportingAgent as AgentGraph
+      return (await import("../platform/reporting-agent/graph"))
+        .reportingAgent as unknown as AgentGraph;
     case "document":
-      return (await import("../platform/document-agent/graph")).documentAgent as AgentGraph
+      return (await import("../platform/document-agent/graph"))
+        .documentAgent as unknown as AgentGraph;
     case "budget":
-      return (await import("../platform/budget-agent/graph")).budgetAgent as AgentGraph
+      return (await import("../platform/budget-agent/graph"))
+        .budgetAgent as unknown as AgentGraph;
     case "analytics":
-      return (await import("../platform/analytics-agent/graph")).analyticsAgent as AgentGraph
+      return (await import("../platform/analytics-agent/graph"))
+        .analyticsAgent as unknown as AgentGraph;
   }
 }
 
 // ─── Orchestrator ──────────────────────────────────────────────────────────
 
 export interface OrchestrateParams {
-  taskType: AgentTaskType
-  entityId: string
-  entityName: string
-  currency: string
-  input: Record<string, unknown>
+  taskType: AgentTaskType;
+  entityId: string;
+  entityName: string;
+  currency: string;
+  input: Record<string, unknown>;
 }
 
-export async function orchestrate(params: OrchestrateParams): Promise<AgentResult> {
-  const startTime = Date.now()
-  const taskId = crypto.randomUUID()
+export async function orchestrate(
+  params: OrchestrateParams,
+): Promise<AgentResult> {
+  const startTime = Date.now();
+  const taskId = crypto.randomUUID();
 
   const trace = await langfuse.trace({
     name: "agent-orchestrator",
@@ -288,9 +311,9 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
       taskType: params.taskType,
       entityId: params.entityId,
     },
-  })
+  });
 
-  const routing = TASK_AGENT_MAP[params.taskType]
+  const routing = TASK_AGENT_MAP[params.taskType];
   if (!routing) {
     return {
       taskId,
@@ -302,13 +325,13 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
       errors: [`Unknown task type: ${params.taskType}`],
       auditTrail: [],
       duration: Date.now() - startTime,
-    }
+    };
   }
 
-  const { agentId, tier } = routing
+  const { agentId, tier } = routing;
 
   try {
-    const graph = await getAgentGraph(agentId)
+    const graph = await getAgentGraph(agentId);
 
     const initialState: AgentState = {
       entityId: params.entityId,
@@ -321,23 +344,25 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
         output: null,
         error: null,
       },
-    }
+    };
 
     if (agentId === "cfo") {
       initialState.currentTask = {
-        type: params.taskType === "chat" || params.taskType === "question"
-          ? params.taskType
-          : params.taskType === "close_trigger"
-            ? "close_trigger"
-            : "instruction",
-        description: (params.input.description as string) ?? JSON.stringify(params.input),
+        type:
+          params.taskType === "chat" || params.taskType === "question"
+            ? params.taskType
+            : params.taskType === "close_trigger"
+              ? "close_trigger"
+              : "instruction",
+        description:
+          (params.input.description as string) ?? JSON.stringify(params.input),
         assignedAt: new Date().toISOString(),
         status: "in_progress",
-      }
-      initialState.currentOperation = null
+      };
+      initialState.currentOperation = null;
     }
 
-    const result = await graph.invoke(initialState) as AgentResultState
+    const result = (await graph.invoke(initialState)) as AgentResultState;
 
     const agentResult: AgentResult = {
       taskId,
@@ -350,7 +375,7 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
       errors: result.errors ?? [],
       auditTrail: result.auditTrail ?? [],
       duration: Date.now() - startTime,
-    }
+    };
 
     await trace.update({
       output: {
@@ -359,16 +384,16 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
         duration: agentResult.duration,
         hasErrors: agentResult.errors.length > 0,
       },
-    })
+    });
 
-    return agentResult
+    return agentResult;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
+    const msg = error instanceof Error ? error.message : String(error);
 
     await trace.update({
       output: { error: msg, agentId },
       metadata: { status: "error" },
-    })
+    });
 
     return {
       taskId,
@@ -378,88 +403,96 @@ export async function orchestrate(params: OrchestrateParams): Promise<AgentResul
       reasoning: `Agent error: ${msg}`,
       result: null,
       errors: [msg],
-      auditTrail: [createAuditEntry({
-        agentId: "orchestrator",
-        action: "agent_error",
-        details: { agentId, error: msg },
-        confidence: 0,
-      })],
+      auditTrail: [
+        createAuditEntry({
+          agentId: "orchestrator",
+          action: "agent_error",
+          details: { agentId, error: msg },
+          confidence: 0,
+        }),
+      ],
       duration: Date.now() - startTime,
-    }
+    };
   }
 }
 
 // ─── Convenience Functions ─────────────────────────────────────────────────
 
 export function classifyUserMessage(message: string): AgentTaskType {
-  const lower = message.toLowerCase().trim()
+  const lower = message.toLowerCase().trim();
 
-  if (/^(close|month.end|period.end)/.test(lower) && /close|run|process/.test(lower)) {
-    return "close_trigger"
+  if (
+    /^(close|month.end|period.end)/.test(lower) &&
+    /close|run|process/.test(lower)
+  ) {
+    return "close_trigger";
   }
   if (/what|how|when|show|give me|tell me|list|report|summary/.test(lower)) {
-    return "question"
+    return "question";
   }
-  if (/payroll|salary|wage/.test(lower)) return "process_payroll"
-  if (/tax|vat|filing|compliance/.test(lower)) return "tax_review"
-  if (/cash|bank|balance|reconcil/.test(lower)) return "cash_position"
-  if (/ap|payable|supplier|invoice.*in/.test(lower)) return "ap_aging"
-  if (/ar|receivable|customer|invoice.*out/.test(lower)) return "ar_aging"
-  if (/depreciat|asset/.test(lower)) return "depreciation"
-  if (/inventory|stock|cogs/.test(lower)) return "inventory_summary"
-  if (/p&l|profit.*loss|income.*statement|balance.*sheet|cash.*flow/.test(lower)) return "report"
-  if (/narrative|summary|explain|plain.*english/.test(lower)) return "narrative"
+  if (/payroll|salary|wage/.test(lower)) return "process_payroll";
+  if (/tax|vat|filing|compliance/.test(lower)) return "tax_review";
+  if (/cash|bank|balance|reconcil/.test(lower)) return "cash_position";
+  if (/ap|payable|supplier|invoice.*in/.test(lower)) return "ap_aging";
+  if (/ar|receivable|customer|invoice.*out/.test(lower)) return "ar_aging";
+  if (/depreciat|asset/.test(lower)) return "depreciation";
+  if (/inventory|stock|cogs/.test(lower)) return "inventory_summary";
+  if (
+    /p&l|profit.*loss|income.*statement|balance.*sheet|cash.*flow/.test(lower)
+  )
+    return "report";
+  if (/narrative|summary|explain|plain.*english/.test(lower))
+    return "narrative";
 
-  return "chat"
+  return "chat";
 }
 
 // ─── Confidence Escalation ──────────────────────────────────────────────────
 
 export type EscalationAction =
-  | "proceed"
-  | "escalate_to_supervisor"
-  | "escalate_to_human"
+  "proceed" | "escalate_to_supervisor" | "escalate_to_human";
 
 export function checkEscalation(result: AgentResult): {
-  action: EscalationAction
-  reason: string
+  action: EscalationAction;
+  reason: string;
 } {
   if (result.confidence >= 0.8) {
-    return { action: "proceed", reason: "Confidence above threshold" }
+    return { action: "proceed", reason: "Confidence above threshold" };
   }
   if (result.confidence >= 0.6) {
     return {
       action: "escalate_to_supervisor",
-      reason: result.reasoning || "Confidence below 0.8, escalating to supervisor",
-    }
+      reason:
+        result.reasoning || "Confidence below 0.8, escalating to supervisor",
+    };
   }
   return {
     action: "escalate_to_human",
     reason: result.reasoning || "Confidence below 0.6, escalating to human",
-  }
+  };
 }
 
 // ─── Department Fan-Out ─────────────────────────────────────────────────────
 
 export type DepartmentResult = {
-  department: AgentDepartment
-  agentId: AgentId
-  confidence: number
-  reasoning: string
-  confirmed: boolean
-  summary: string
-  errors: string[]
-}
+  department: AgentDepartment;
+  agentId: AgentId;
+  confidence: number;
+  reasoning: string;
+  confirmed: boolean;
+  summary: string;
+  errors: string[];
+};
 
 export async function fanOutToDepartments(params: {
-  entityId: string
-  entityName: string
-  currency: string
+  entityId: string;
+  entityName: string;
+  currency: string;
   departments: Array<{
-    department: AgentDepartment
-    taskType: AgentTaskType
-    input: Record<string, unknown>
-  }>
+    department: AgentDepartment;
+    taskType: AgentTaskType;
+    input: Record<string, unknown>;
+  }>;
 }): Promise<DepartmentResult[]> {
   const trace = await langfuse.trace({
     name: "fan-out-departments",
@@ -468,12 +501,12 @@ export async function fanOutToDepartments(params: {
       departmentCount: params.departments.length,
       departments: params.departments.map((d) => d.department),
     },
-  })
+  });
 
   const results = await Promise.allSettled(
     params.departments.map(async (dept) => {
-      const agentId = DEPARTMENT_AGENTS[dept.department]
-      const graph = await getAgentGraph(agentId)
+      const agentId = DEPARTMENT_AGENTS[dept.department];
+      const graph = await getAgentGraph(agentId);
 
       const initialState: AgentState = {
         entityId: params.entityId,
@@ -486,9 +519,9 @@ export async function fanOutToDepartments(params: {
           output: null,
           error: null,
         },
-      }
+      };
 
-      const result = await graph.invoke(initialState) as AgentResultState
+      const result = (await graph.invoke(initialState)) as AgentResultState;
 
       return {
         department: dept.department,
@@ -496,27 +529,24 @@ export async function fanOutToDepartments(params: {
         confidence: result.confidence ?? 0,
         reasoning: result.reasoning ?? "",
         confirmed: (result.confidence ?? 0) >= 0.8,
-        summary:
-          result.humanResponse ??
-          (result.result as string) ??
-          "",
+        summary: result.humanResponse ?? (result.result as string) ?? "",
         errors: result.errors ?? [],
-      }
-    })
-  )
+      };
+    }),
+  );
 
   const departmentResults: DepartmentResult[] = params.departments.map(
     (dept, i) => {
-      const settled = results[i]
+      const settled = results[i];
       if (settled.status === "fulfilled") {
-        return settled.value
+        return settled.value;
       }
       // Rejected — department agent failed
-      const agentId = DEPARTMENT_AGENTS[dept.department]
+      const agentId = DEPARTMENT_AGENTS[dept.department];
       const errorMsg =
         settled.reason instanceof Error
           ? settled.reason.message
-          : String(settled.reason)
+          : String(settled.reason);
 
       langfuse.event({
         name: "department-fanout-error",
@@ -525,7 +555,7 @@ export async function fanOutToDepartments(params: {
           agentId,
           error: errorMsg,
         },
-      })
+      });
 
       return {
         department: dept.department,
@@ -535,9 +565,9 @@ export async function fanOutToDepartments(params: {
         confirmed: false,
         summary: `Error: ${errorMsg}`,
         errors: [errorMsg],
-      }
-    }
-  )
+      };
+    },
+  );
 
   await trace.update({
     output: {
@@ -548,18 +578,18 @@ export async function fanOutToDepartments(params: {
         errors: r.errors,
       })),
     },
-  })
+  });
 
-  return departmentResults
+  return departmentResults;
 }
 
 // ─── Hierarchical Orchestration ─────────────────────────────────────────────
 
 export async function orchestrateHierarchical(
-  params: OrchestrateParams
+  params: OrchestrateParams,
 ): Promise<AgentResult> {
-  const startTime = Date.now()
-  const taskId = crypto.randomUUID()
+  const startTime = Date.now();
+  const taskId = crypto.randomUUID();
 
   const trace = await langfuse.trace({
     name: "agent-orchestrator-hierarchical",
@@ -569,32 +599,32 @@ export async function orchestrateHierarchical(
       entityId: params.entityId,
       mode: "hierarchical",
     },
-  })
+  });
 
   try {
     // ── Route 1: Chat / Question → CFO directly ──────────────────────────
     if (params.taskType === "chat" || params.taskType === "question") {
-      const result = await orchestrate({ ...params })
+      const result = await orchestrate({ ...params });
       await trace.update({
         output: {
           route: "cfo_direct",
           agentId: result.agentId,
           confidence: result.confidence,
         },
-      })
-      return result
+      });
+      return result;
     }
 
     // ── Route 2: Close trigger → CFO + fan-out + evaluate ────────────────
     if (params.taskType === "close_trigger") {
-      return await orchestrateClose(taskId, trace, params, startTime)
+      return await orchestrateClose(taskId, trace, params, startTime);
     }
 
     // ── Route 3: Direct department task → invoke target agent ─────────────
-    const routing = TASK_AGENT_MAP[params.taskType]
+    const routing = TASK_AGENT_MAP[params.taskType];
     if (routing) {
-      const result = await orchestrate({ ...params })
-      const escalation = checkEscalation(result)
+      const result = await orchestrate({ ...params });
+      const escalation = checkEscalation(result);
 
       await trace.update({
         output: {
@@ -603,17 +633,17 @@ export async function orchestrateHierarchical(
           confidence: result.confidence,
           escalation: escalation.action,
         },
-      })
+      });
 
       // Attach escalation info to result
       if (escalation.action !== "proceed") {
         return {
           ...result,
           reasoning: `${result.reasoning} [ESCALATION: ${escalation.reason}]`,
-        }
+        };
       }
 
-      return result
+      return result;
     }
 
     // ── Unknown task type ────────────────────────────────────────────────
@@ -627,14 +657,14 @@ export async function orchestrateHierarchical(
       errors: [`Unknown task type: ${params.taskType}`],
       auditTrail: [],
       duration: Date.now() - startTime,
-    }
+    };
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
+    const msg = error instanceof Error ? error.message : String(error);
 
     await trace.update({
       output: { error: msg },
       metadata: { status: "error" },
-    })
+    });
 
     return {
       taskId,
@@ -653,7 +683,7 @@ export async function orchestrateHierarchical(
         }),
       ],
       duration: Date.now() - startTime,
-    }
+    };
   }
 }
 
@@ -663,10 +693,10 @@ async function orchestrateClose(
   taskId: string,
   trace: Awaited<ReturnType<typeof langfuse.trace>>,
   params: OrchestrateParams,
-  startTime: number
+  startTime: number,
 ): Promise<AgentResult> {
   // Step 1: Invoke CFO to initiate close
-  const cfoGraph = await getAgentGraph("cfo")
+  const cfoGraph = await getAgentGraph("cfo");
   const cfoInitialState: AgentState = {
     entityId: params.entityId,
     entityName: params.entityName,
@@ -680,16 +710,18 @@ async function orchestrateClose(
       status: "in_progress",
     },
     currentOperation: null,
-  }
+  };
 
-  const cfoInitResult = await cfoGraph.invoke(cfoInitialState) as AgentResultState
-  const cfoInit = cfoInitResult
+  const cfoInitResult = (await cfoGraph.invoke(
+    cfoInitialState,
+  )) as AgentResultState;
+  const cfoInit = cfoInitResult;
 
   // Step 2: Fan-out to all 4 department heads in parallel
   const period =
     (params.input.period as string) ??
     (cfoInit.closeState as { period?: string } | null)?.period ??
-    "current period"
+    "current period";
 
   const deptResults = await fanOutToDepartments({
     entityId: params.entityId,
@@ -700,25 +732,24 @@ async function orchestrateClose(
       taskType: DEPARTMENT_CLOSE_TASK[dept],
       input: { period, closeTrigger: true },
     })),
-  })
+  });
 
   // Step 3: Evaluate readiness
-  const confirmed = deptResults.filter((r) => r.confirmed)
-  const notConfirmed = deptResults.filter((r) => !r.confirmed)
-  const allConfirmed = confirmed.length === ALL_DEPARTMENTS.length
+  const confirmed = deptResults.filter((r) => r.confirmed);
+  const notConfirmed = deptResults.filter((r) => !r.confirmed);
+  const allConfirmed = confirmed.length === ALL_DEPARTMENTS.length;
   const avgConfidence =
-    deptResults.reduce((sum, r) => sum + r.confidence, 0) /
-    deptResults.length
+    deptResults.reduce((sum, r) => sum + r.confidence, 0) / deptResults.length;
 
   // Step 4: Build human-readable summary
   const summaryLines = deptResults.map((r) => {
-    const status = r.confirmed ? "CONFIRMED" : "NOT CONFIRMED"
-    return `${r.department}: ${status} (confidence: ${r.confidence.toFixed(2)}) — ${r.summary || r.reasoning}`
-  })
+    const status = r.confirmed ? "CONFIRMED" : "NOT CONFIRMED";
+    return `${r.department}: ${status} (confidence: ${r.confidence.toFixed(2)}) — ${r.summary || r.reasoning}`;
+  });
 
   const humanResponse = allConfirmed
     ? `All departments confirmed for ${period}. Ready to close.\n\n${summaryLines.join("\n")}`
-    : `Close for ${period} has issues.\n\n${summaryLines.join("\n")}\n\nBlocking: ${notConfirmed.map((r) => r.department).join(", ")}`
+    : `Close for ${period} has issues.\n\n${summaryLines.join("\n")}\n\nBlocking: ${notConfirmed.map((r) => r.department).join(", ")}`;
 
   await trace.update({
     output: {
@@ -734,7 +765,7 @@ async function orchestrateClose(
         confirmed: r.confirmed,
       })),
     },
-  })
+  });
 
   return {
     taskId,
@@ -766,5 +797,5 @@ async function orchestrateClose(
       }),
     ],
     duration: Date.now() - startTime,
-  }
+  };
 }

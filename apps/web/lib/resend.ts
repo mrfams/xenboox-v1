@@ -1,5 +1,17 @@
-import { Resend } from "resend"
+import { Resend } from "resend";
 
-export const resend = new Resend(process.env.RESEND_API_KEY)
+function createResend() {
+  if (!process.env.RESEND_API_KEY) {
+    return null;
+  }
+  try {
+    return new Resend(process.env.RESEND_API_KEY);
+  } catch {
+    return null;
+  }
+}
 
-export const EMAIL_FROM = process.env.EMAIL_FROM ?? "Xenboox <noreply@xenboox.com>"
+export const resend = createResend();
+
+export const EMAIL_FROM =
+  process.env.EMAIL_FROM ?? "Xenboox <noreply@xenboox.com>";

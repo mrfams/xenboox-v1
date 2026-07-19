@@ -5,11 +5,27 @@
 
 ---
 
+## ⚠️ Desktop Development Postponed
+
+Desktop (Tauri) development is **postponed until disk space is available**. The Rust toolchain, MSVC build tools, and cargo dependencies have been removed to free space.
+
+### Things to Reinstall When Resuming Desktop Work
+
+1. **Rust toolchain** — `rustup toolchain install stable` (~1.5 GB)
+2. **Cargo dependencies** — will auto-download on `cargo build` (~1-2 GB)
+3. **Desktop build cache** — will auto-populate on `cargo build` (~0.7 GB)
+4. **Rust source component** — `rustup component add rust-src` (for code completion)
+
+> MSVC v143 (Visual Studio 2022 Community) and Windows Kits are **already installed** — no action needed there.
+
+---
+
 ## Project Overview
 
 Xenboox is an AI-native, full-stack accounting platform. 19 agents in a three-tier hierarchy. 20 modules. Web, mobile, and desktop surfaces.
 
 **Tech Stack (Locked):**
+
 - Web Frontend: Next.js 15 + TypeScript + Shadcn/ui + Tailwind
 - Mobile Frontend: React Native (Expo) + TypeScript + NativeWind
 - Desktop Frontend: Tauri (Rust backend + React/Shadcn webview)
@@ -111,18 +127,21 @@ pnpm agents:trace             # Open LangFuse traces
 ## Code Conventions
 
 ### TypeScript
+
 - Strict mode always. No `any` types.
 - Prefer `type` over `interface` for new code.
 - Use `zod` for all runtime validation.
 - File naming: `kebab-case.ts` for utilities, `PascalCase.tsx` for components.
 
 ### React / Next.js
+
 - App Router only. No Pages Router.
 - Server Components by default. `"use client"` only when needed.
 - Colocate components with their route.
 - Use `React Server Actions` for mutations where tRPC isn't needed.
 
 ### Database (Drizzle)
+
 - All tables have `id` (uuid), `createdAt`, `updatedAt`.
 - Every financial table has `entityId` — entity scoping is non-negotiable.
 - Use `pgEnum` for status fields, never raw strings.
@@ -130,6 +149,7 @@ pnpm agents:trace             # Open LangFuse traces
 - Row-level security enforced at the database layer.
 
 ### Agent Code (LangGraph)
+
 - Each agent is a LangGraph `StateGraph`.
 - Agents communicate through typed state, not direct function calls.
 - Every agent output includes a `confidence` field (0-1).
@@ -138,12 +158,14 @@ pnpm agents:trace             # Open LangFuse traces
 - Never hardcode entity context — always receive via state.
 
 ### API (tRPC)
+
 - All procedures are authenticated.
 - Entity scoping applied at the middleware layer.
 - Use `protectedProcedure` for auth + entity scope.
 - Input validation with zod on every procedure.
 
 ### Git
+
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`
 - One logical change per commit.
 - Never commit secrets, keys, or credentials.
@@ -160,7 +182,7 @@ This is the most important architectural rule. No exceptions.
 ```typescript
 // CORRECT
 const invoices = await db.query.invoices.findMany({
-  where: eq(invoices.entityId, entityId)
+  where: eq(invoices.entityId, entityId),
 });
 
 // WRONG — never do this
@@ -266,11 +288,11 @@ Every plan MUST include ALL of these sections. No shortcuts.
 
 1. **Follow the Build Workflow** — Plan, Approve, Build, Log. Every time.
 2. **Read BUILD_LOG.md first** — check what exists, what's next, and what's blocked.
-2. Read ARCHITECTURE.md for design decisions.
-3. Read DATABASE.md for schema details.
-4. Read the relevant agent spec in docs/agents/ before modifying agent code.
-5. Run `pnpm typecheck` and `pnpm lint` before committing.
-6. Run `pnpm test` if tests exist for the area you're changing.
-7. Follow the entity scoping rule — always.
-8. Keep the PRD as the source of truth for product decisions.
-9. **Update BUILD_LOG.md when done** — add a session entry, update module status, note next steps.
+3. Read ARCHITECTURE.md for design decisions.
+4. Read DATABASE.md for schema details.
+5. Read the relevant agent spec in docs/agents/ before modifying agent code.
+6. Run `pnpm typecheck` and `pnpm lint` before committing.
+7. Run `pnpm test` if tests exist for the area you're changing.
+8. Follow the entity scoping rule — always.
+9. Keep the PRD as the source of truth for product decisions.
+10. **Update BUILD_LOG.md when done** — add a session entry, update module status, note next steps.

@@ -14,7 +14,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner"
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import type { RouterOutputs } from "@/lib/trpc";
@@ -60,7 +60,9 @@ export default function UsersPage() {
             View and manage organization users and their access
           </p>
         </div>
-        <Button onClick={() => toast.info("User creation wizard will open here")}>
+        <Button
+          onClick={() => toast.info("User creation wizard will open here")}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add User
         </Button>
@@ -111,35 +113,45 @@ export default function UsersPage() {
                             <Mail className="h-3 w-3" />
                             {user.email}
                           </span>
-                          {user.sessions?.length > 0 && (
+                          {user.emailVerified && (
                             <span className="flex items-center gap-1 text-green-600">
                               <Calendar className="h-3 w-3" />
-                              Last active
+                              Verified
                             </span>
                           )}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {user.userEntityAccess
-                        ?.slice(0, 2)
-                        .map((access) => (
-                          <Badge
-                            key={access.id}
-                            variant={getRoleBadgeVariant(access.role)}
-                          >
-                            {access.role?.replace("_", " ")}
-                          </Badge>
-                        ))}
+                      {user.userEntityAccess?.slice(0, 2).map((access) => (
+                        <Badge
+                          key={access.id}
+                          variant={getRoleBadgeVariant(access.role)}
+                        >
+                          {access.role?.replace("_", " ")}
+                        </Badge>
+                      ))}
                       {user.userEntityAccess?.length > 2 && (
                         <Badge variant="outline">
                           +{user.userEntityAccess.length - 2} more
                         </Badge>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => toast.info(`Edit user: ${user.email}`)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toast.info(`Edit user: ${user.email}`)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => toast.info("User deletion requires confirmation dialog")}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          toast.info(
+                            "User deletion requires confirmation dialog",
+                          )
+                        }
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
