@@ -229,41 +229,41 @@ const TASK_AGENT_MAP: Record<AgentTaskType, { agentId: AgentId; tier: AgentTier 
 export async function getAgentGraph(agentId: AgentId): Promise<AgentGraph> {
   switch (agentId) {
     case "cfo":
-      return (await import("../tier1/cfo-agent/graph")).cfoAgent
+      return (await import("../tier1/cfo-agent/graph")).cfoAgent as AgentGraph
     case "controller":
-      return (await import("../tier2/controller-agent/graph")).controllerAgent
+      return (await import("../tier2/controller-agent/graph")).controllerAgent as AgentGraph
     case "treasury":
-      return (await import("../tier2/treasury-agent/graph")).treasuryAgent
+      return (await import("../tier2/treasury-agent/graph")).treasuryAgent as AgentGraph
     case "payroll_manager":
-      return (await import("../tier2/payroll-manager-agent/graph")).payrollManagerAgent
+      return (await import("../tier2/payroll-manager-agent/graph")).payrollManagerAgent as AgentGraph
     case "compliance":
-      return (await import("../tier2/compliance-agent/graph")).complianceAgent
+      return (await import("../tier2/compliance-agent/graph")).complianceAgent as AgentGraph
     case "ledger":
-      return (await import("../tier3/ledger-agent/graph")).ledgerAgent
+      return (await import("../tier3/ledger-agent/graph")).ledgerAgent as AgentGraph
     case "ap":
-      return (await import("../tier3/ap-agent/graph")).apAgent
+      return (await import("../tier3/ap-agent/graph")).apAgent as AgentGraph
     case "ar":
-      return (await import("../tier3/ar-agent/graph")).arAgent
+      return (await import("../tier3/ar-agent/graph")).arAgent as AgentGraph
     case "asset":
-      return (await import("../tier3/asset-agent/graph")).assetAgent
+      return (await import("../tier3/asset-agent/graph")).assetAgent as AgentGraph
     case "inventory":
-      return (await import("../tier3/inventory-agent/graph")).inventoryAgent
+      return (await import("../tier3/inventory-agent/graph")).inventoryAgent as AgentGraph
     case "reconciliation":
-      return (await import("../tier3/reconciliation-agent/graph")).reconciliationAgent
+      return (await import("../tier3/reconciliation-agent/graph")).reconciliationAgent as AgentGraph
     case "cash":
-      return (await import("../tier3/cash-agent/graph")).cashAgent
+      return (await import("../tier3/cash-agent/graph")).cashAgent as AgentGraph
     case "mobile_money":
-      return (await import("../tier3/mobile-money-agent/graph")).mobileMoneyAgent
+      return (await import("../tier3/mobile-money-agent/graph")).mobileMoneyAgent as AgentGraph
     case "payroll_worker":
-      return (await import("../tier3/payroll-worker-agent/graph")).payrollWorkerAgent
+      return (await import("../tier3/payroll-worker-agent/graph")).payrollWorkerAgent as AgentGraph
     case "reporting":
-      return (await import("../platform/reporting-agent/graph")).reportingAgent
+      return (await import("../platform/reporting-agent/graph")).reportingAgent as AgentGraph
     case "document":
-      return (await import("../platform/document-agent/graph")).documentAgent
+      return (await import("../platform/document-agent/graph")).documentAgent as AgentGraph
     case "budget":
-      return (await import("../platform/budget-agent/graph")).budgetAgent
+      return (await import("../platform/budget-agent/graph")).budgetAgent as AgentGraph
     case "analytics":
-      return (await import("../platform/analytics-agent/graph")).analyticsAgent
+      return (await import("../platform/analytics-agent/graph")).analyticsAgent as AgentGraph
   }
 }
 

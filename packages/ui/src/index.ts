@@ -76,3 +76,4 @@ export {
 } from "./command"
 export { Textarea } from "./textarea"
 export { Switch } from "./switch"
+export { Progress, type ProgressProps } from "./progress"
