@@ -1,15 +1,17 @@
-import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/layout/theme-provider"
-import "./globals.css"
+export const dynamic = "force-dynamic";
+
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/components/layout/theme-provider";
+import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
-})
+});
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.com"
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -28,8 +30,6 @@ export const metadata: Metadata = {
     "payroll",
     "multi-currency",
     "financial reporting",
-    "SaaS accounting",
-    "Gambia accounting",
   ],
   authors: [{ name: "Xenboox" }],
   creator: "Xenboox",
@@ -43,10 +43,10 @@ export const metadata: Metadata = {
       "Full-stack accounting platform for African businesses. Multi-entity, multi-currency, AI-powered.",
     images: [
       {
-        url: "/og-image.png",
+        url: `${baseUrl}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: "Xenboox — AI-Native Accounting",
+        alt: "Xenboox",
       },
     ],
   },
@@ -55,37 +55,28 @@ export const metadata: Metadata = {
     title: "Xenboox — AI-Native Accounting for Africa",
     description:
       "Full-stack accounting platform for African businesses. Multi-entity, multi-currency, AI-powered.",
-    images: ["/og-image.png"],
+    images: [`${baseUrl}/og-image.png`],
   },
   robots: {
     index: true,
     follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
   },
-  alternates: {
-    canonical: baseUrl,
-  },
-}
+};
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
-  ],
   width: "device-width",
   initialScale: 1,
-}
+  minimumScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
@@ -93,5 +84,5 @@ export default function RootLayout({
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
-  )
+  );
 }
