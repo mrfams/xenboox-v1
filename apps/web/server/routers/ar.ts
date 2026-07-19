@@ -11,6 +11,7 @@ import {
 } from "@xenboox/db/schema"
 import { TRPCError } from "@trpc/server"
 import { sendPaymentReceivedEmail } from "@/lib/email"
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment"
 
 // ─── AR Router ───────────────────────────────────────────────────────────────
 
@@ -231,7 +232,7 @@ export const arRouter = router({
       const paymentAmount = parseFloat(paymentAmountStr)
 
       const invoice = await db.query.salesInvoices.findFirst({
-        where: eq(salesInvoices.id, salesInvoiceId),
+        where: and(eq(salesInvoices.id, salesInvoiceId), eq(salesInvoices.entityId, ctx.entityId!)),
       })
       if (!invoice) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found" })
@@ -267,7 +268,7 @@ export const arRouter = router({
             balance: Math.max(newBalance, 0).toFixed(2),
             status: newStatus,
           })
-          .where(eq(salesInvoices.id, salesInvoiceId))
+          .where(and(eq(salesInvoices.id, salesInvoiceId), eq(salesInvoices.entityId, ctx.entityId!)))
 
         await tx.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -281,17 +282,19 @@ export const arRouter = router({
         // Send email notification (non-blocking)
         if (invoice) {
           const customer = await tx.query.customers.findFirst({
-            where: eq(customers.id, invoice.customerId),
+            where: and(eq(customers.id, invoice.customerId), eq(customers.entityId, ctx.entityId!)),
           })
-          if (customer?.contactEmail) {
-            sendPaymentReceivedEmail(customer.contactEmail, {
-              customerName: customer.name,
-              invoiceNumber: invoice.invoiceNumber,
-              amount: paymentAmountStr,
-              currency: invoice.currency,
-              paymentMethod: input.method,
-              reference: input.reference,
-              entityName: "Xenboox",
+          if (customer && customer.contactEmail) {
+            getEnrichedEntityContext(ctx.entityId!).then((entityCtx) => {
+              sendPaymentReceivedEmail(customer.contactEmail!, {
+                customerName: customer.name,
+                invoiceNumber: invoice.invoiceNumber,
+                amount: paymentAmountStr,
+                currency: invoice.currency,
+                paymentMethod: input.method,
+                reference: input.reference,
+                entityName: entityCtx.entityName,
+              }).catch(console.error)
             }).catch(console.error)
           }
         }

@@ -1,8 +1,8 @@
 import { z } from "zod"
-import { eq, desc } from "drizzle-orm"
+import { eq, and, desc } from "drizzle-orm"
 import { router, protectedProcedure } from "@/lib/trpc/server"
 import { db } from "@/lib/db"
-import { mobileMoneyAccounts, mobileMoneyTransactions } from "@xenboox/db/schema"
+import { mobileMoneyAccounts, mobileMoneyTransactions, auditLog } from "@xenboox/db/schema"
 import { TRPCError } from "@trpc/server"
 
 // ─── Mobile Money Router ─────────────────────────────────────────────────────
@@ -31,6 +31,17 @@ export const mobileMoneyRouter = router({
         .insert(mobileMoneyAccounts)
         .values({ ...input, entityId: ctx.entityId! })
         .returning()
+      
+      if (account) {
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "mobile_money.createAccount",
+          entityType: "mobile_money_account",
+          entityIdRef: account.id,
+          newValues: { provider: input.provider, phoneNumber: input.phoneNumber, accountName: input.accountName, currency: input.currency },
+        })
+      }
       return account
     }),
 
@@ -43,12 +54,12 @@ export const mobileMoneyRouter = router({
         isActive: z.boolean().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(mobileMoneyAccounts)
         .set(data)
-        .where(eq(mobileMoneyAccounts.id, id))
+        .where(and(eq(mobileMoneyAccounts.id, id), eq(mobileMoneyAccounts.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
@@ -99,9 +110,9 @@ export const mobileMoneyRouter = router({
         failureReason: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const tx = await db.query.mobileMoneyTransactions.findFirst({
-        where: eq(mobileMoneyTransactions.id, input.id),
+        where: and(eq(mobileMoneyTransactions.id, input.id), eq(mobileMoneyTransactions.entityId, ctx.entityId!)),
       })
       if (!tx) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" })
@@ -126,7 +137,7 @@ export const mobileMoneyRouter = router({
       const [updated] = await db
         .update(mobileMoneyTransactions)
         .set(updateData)
-        .where(eq(mobileMoneyTransactions.id, input.id))
+        .where(and(eq(mobileMoneyTransactions.id, input.id), eq(mobileMoneyTransactions.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),

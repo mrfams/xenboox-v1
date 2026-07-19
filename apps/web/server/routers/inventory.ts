@@ -12,6 +12,7 @@ import {
 } from "@xenboox/db/schema"
 import { userEntityAccess } from "@xenboox/db/schema/organization"
 import { sendInventoryAlertEmail } from "@/lib/email"
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment"
 
 // ─── Inventory Router ──────────────────────────────────────────────────────
 
@@ -68,14 +69,14 @@ export const inventoryRouter = router({
 
   getItemById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const item = await db.query.inventoryItems.findFirst({
-        where: eq(inventoryItems.id, input.id),
+        where: and(eq(inventoryItems.id, input.id), eq(inventoryItems.entityId, ctx.entityId!)),
       })
       if (!item) return null
 
       const transactions = await db.query.inventoryTransactions.findMany({
-        where: eq(inventoryTransactions.inventoryItemId, item.id),
+        where: and(eq(inventoryTransactions.inventoryItemId, input.id), eq(inventoryTransactions.entityId, ctx.entityId!)),
         orderBy: [desc(inventoryTransactions.transactionDate)],
       })
 
@@ -141,12 +142,12 @@ export const inventoryRouter = router({
         isActive: z.boolean().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(inventoryItems)
         .set(data)
-        .where(eq(inventoryItems.id, id))
+        .where(and(eq(inventoryItems.id, id), eq(inventoryItems.entityId, ctx.entityId!)))
         .returning()
       return updated
     }),
@@ -222,7 +223,7 @@ export const inventoryRouter = router({
           }
 
           const item = await tx.query.inventoryItems.findFirst({
-            where: eq(inventoryItems.id, input.inventoryItemId),
+            where: and(eq(inventoryItems.id, input.inventoryItemId), eq(inventoryItems.entityId, ctx.entityId!)),
           })
           if (item) {
             const currentQty = item.quantityOnHand
@@ -235,28 +236,30 @@ export const inventoryRouter = router({
             await tx
               .update(inventoryItems)
               .set({ quantityOnHand: Math.max(newQty, 0) })
-              .where(eq(inventoryItems.id, input.inventoryItemId))
+              .where(and(eq(inventoryItems.id, input.inventoryItemId), eq(inventoryItems.entityId, ctx.entityId!)))
 
             // Check for low stock alert
             const finalQty = Math.max(newQty, 0)
-            if (item.reorderLevel && finalQty < item.reorderLevel) {
+            if (item.reorderLevel !== null && finalQty < item.reorderLevel) {
               // Get warehouse name if available
               let warehouseName: string | undefined
               if (input.warehouseId) {
                 const warehouse = await tx.query.warehouses.findFirst({
-                  where: eq(warehouses.id, input.warehouseId),
+                  where: and(eq(warehouses.id, input.warehouseId), eq(warehouses.entityId, ctx.entityId!)),
                 })
                 warehouseName = warehouse?.name ?? undefined
               }
 
               // Send low stock alert (non-blocking)
-              sendInventoryAlertEmail(recipientEmail, {
-                itemName: item.name,
-                sku: item.sku,
-                currentQuantity: finalQty,
-                reorderLevel: item.reorderLevel,
-                warehouseName,
-                entityName: "Xenboox",
+              getEnrichedEntityContext(ctx.entityId!).then((entityCtx) => {
+                sendInventoryAlertEmail(recipientEmail, {
+                  itemName: item.name,
+                  sku: item.sku,
+                  currentQuantity: finalQty,
+                  reorderLevel: item.reorderLevel ?? 0,
+                  warehouseName,
+                  entityName: entityCtx.entityName,
+                }).catch(console.error)
               }).catch(console.error)
             }
           }

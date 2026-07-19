@@ -14,7 +14,7 @@ import { TRPCError } from "@trpc/server"
 export const treasuryRouter = router({
   listBankAccounts: protectedProcedure.query(({ ctx }) => {
     return db.query.bankAccounts.findMany({
-      where: eq(bankAccounts.entityId as any, ctx.entityId!),
+      where: eq(bankAccounts.entityId, ctx.entityId!),
       orderBy: [desc(bankAccounts.createdAt)],
     })
   }),
@@ -69,30 +69,41 @@ export const treasuryRouter = router({
         notes: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
       const [updated] = await db
         .update(bankAccounts)
-        .set(data)
-        .where(eq(bankAccounts.id as any, id))
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(bankAccounts.id, id), eq(bankAccounts.entityId, ctx.entityId!)))
         .returning()
+      
+      if (updated) {
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "treasury.updateBankAccount",
+          entityType: "bank_account",
+          entityIdRef: updated.id,
+          newValues: data,
+        })
+      }
       return updated
     }),
 
   getBankAccountById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(({ input }) => {
+    .query(({ ctx, input }) => {
       return db.query.bankAccounts.findFirst({
-        where: eq(bankAccounts.id as any, input.id),
+        where: and(eq(bankAccounts.id, input.id), eq(bankAccounts.entityId, ctx.entityId!)),
       })
     }),
 
   listBankTransactions: protectedProcedure
     .input(z.object({ bankAccountId: z.string().uuid().optional() }).optional())
     .query(({ ctx, input }) => {
-      const conditions = [eq(bankTransactions.entityId as any, ctx.entityId!)]
+      const conditions = [eq(bankTransactions.entityId, ctx.entityId!)]
       if (input?.bankAccountId) {
-        conditions.push(eq(bankTransactions.bankAccountId as any, input.bankAccountId))
+        conditions.push(eq(bankTransactions.bankAccountId, input.bankAccountId))
       }
       return db.query.bankTransactions.findMany({
         where: and(...conditions),
@@ -143,9 +154,9 @@ export const treasuryRouter = router({
   listReconciliations: protectedProcedure
     .input(z.object({ bankAccountId: z.string().uuid().optional() }).optional())
     .query(({ ctx, input }) => {
-      const conditions = [eq(reconciliations.entityId as any, ctx.entityId!)]
+      const conditions = [eq(reconciliations.entityId, ctx.entityId!)]
       if (input?.bankAccountId) {
-        conditions.push(eq(reconciliations.bankAccountId as any, input.bankAccountId))
+        conditions.push(eq(reconciliations.bankAccountId, input.bankAccountId))
       }
       return db.query.reconciliations.findMany({
         where: and(...conditions),
@@ -204,14 +215,14 @@ export const treasuryRouter = router({
 
   getReconciliationById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const recon = await db.query.reconciliations.findFirst({
-        where: eq(reconciliations.id as any, input.id),
+        where: and(eq(reconciliations.id, input.id), eq(reconciliations.entityId, ctx.entityId!)),
       })
       if (!recon) return null
 
       const items = await db.query.reconciliationItems.findMany({
-        where: eq(reconciliationItems.reconciliationId as any, recon.id),
+        where: eq(reconciliationItems.reconciliationId, recon.id),
         with: { bankTransaction: true },
       })
 
@@ -230,6 +241,20 @@ export const treasuryRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { reconciliationId, bankTransactionId, ...itemData } = input
 
+      const reconciliation = await db.query.reconciliations.findFirst({
+        where: and(eq(reconciliations.id, reconciliationId), eq(reconciliations.entityId, ctx.entityId!)),
+      })
+      if (!reconciliation) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Reconciliation not found" })
+      }
+
+      const bankTx = await db.query.bankTransactions.findFirst({
+        where: and(eq(bankTransactions.id, bankTransactionId), eq(bankTransactions.entityId, ctx.entityId!)),
+      })
+      if (!bankTx) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Bank transaction not found" })
+      }
+
       const [item] = await db
         .insert(reconciliationItems)
         .values({
@@ -243,7 +268,18 @@ export const treasuryRouter = router({
       await db
         .update(bankTransactions)
         .set({ isReconciled: true })
-        .where(eq(bankTransactions.id as any, bankTransactionId))
+        .where(and(eq(bankTransactions.id, bankTransactionId), eq(bankTransactions.entityId, ctx.entityId!)))
+
+      if (item) {
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "treasury.matchReconciliationItem",
+          entityType: "reconciliation_item",
+          entityIdRef: item.id,
+          newValues: { matchedAmount: itemData.matchedAmount, notes: itemData.notes },
+        })
+      }
 
       return item
     }),
@@ -260,11 +296,23 @@ export const treasuryRouter = router({
         })
         .where(
           and(
-            eq(reconciliations.id as any, input.id),
-            eq(reconciliations.status as any, "unmatched")
+            eq(reconciliations.id, input.id),
+            eq(reconciliations.entityId, ctx.entityId!),
+            eq(reconciliations.status, "unmatched")
           )
         )
         .returning()
+      
+      if (updated) {
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "treasury.closeReconciliation",
+          entityType: "reconciliation",
+          entityIdRef: updated.id,
+          newValues: { status: "closed" },
+        })
+      }
       return updated
     }),
 })

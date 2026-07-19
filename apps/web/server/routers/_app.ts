@@ -18,6 +18,7 @@ import { payrollRouter } from "./payroll"
 import { fixedAssetsRouter } from "./fixedAssets"
 import { inventoryRouter } from "./inventory"
 import { adminRouter } from "./admin"
+import { notificationsRouter } from "./notifications"
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -40,6 +41,7 @@ export const appRouter = router({
   payroll: payrollRouter,
   fixedAssets: fixedAssetsRouter,
   inventory: inventoryRouter,
+  notifications: notificationsRouter,
 })
 
 export type AppRouter = typeof appRouter
