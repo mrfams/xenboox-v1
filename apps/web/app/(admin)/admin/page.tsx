@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui"
-import { Button } from "@xenboox/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui";
+import { Button } from "@xenboox/ui";
 import {
   LayoutDashboard,
   Users,
@@ -12,9 +12,9 @@ import {
   Settings,
   Activity,
   TrendingUp,
-} from "lucide-react"
-import { trpc } from "@/lib/trpc/client"
-import Link from "next/link"
+} from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import Link from "next/link";
 
 function StatCard({
   icon,
@@ -22,10 +22,10 @@ function StatCard({
   value,
   href,
 }: {
-  icon: React.ReactNode
-  label: string
-  value: string | number
-  href?: string
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  href?: string;
 }) {
   const content = (
     <Card className="transition-shadow hover:shadow-md">
@@ -41,25 +41,25 @@ function StatCard({
         <div className="text-2xl font-bold">{value}</div>
       </CardContent>
     </Card>
-  )
+  );
 
   if (href) {
-    return <Link href={href}>{content}</Link>
+    return <Link href={href}>{content}</Link>;
   }
 
-  return content
+  return content;
 }
 
 export default function AdminOverviewPage() {
-  const { data: overview, isLoading } = trpc.admin.getSystemOverview.useQuery()
-  const { data: aiUsage } = trpc.admin.getAIUsage.useQuery()
-  const { data: alerts } = trpc.admin.getSpendAlerts.useQuery()
+  const { data: overview, isLoading } = trpc.admin.getSystemOverview.useQuery();
+  const { data: aiUsage } = trpc.admin.getAIUsage.useQuery();
+  const { data: alerts } = trpc.admin.getSpendAlerts.useQuery();
 
-  const criticalAlerts = alerts?.filter((a) => a.alertLevel === "critical") ?? []
-  const warningAlerts = alerts?.filter((a) => a.alertLevel === "warning") ?? []
+  const criticalAlerts =
+    alerts?.filter((a) => a.alertLevel === "critical") ?? [];
+  const warningAlerts = alerts?.filter((a) => a.alertLevel === "warning") ?? [];
 
-  const totalAiCalls =
-    aiUsage?.reduce((sum, a) => sum + a.count, 0) ?? 0
+  const totalAiCalls = aiUsage?.reduce((sum, a) => sum + a.count, 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -87,7 +87,8 @@ export default function AdminOverviewPage() {
             <Activity className="h-5 w-5 text-red-600" />
             <div>
               <p className="font-medium text-red-800 dark:text-red-200">
-                {criticalAlerts.length} critical alert{criticalAlerts.length !== 1 ? "s" : ""} require attention
+                {criticalAlerts.length} critical alert
+                {criticalAlerts.length !== 1 ? "s" : ""} require attention
               </p>
               <p className="text-sm text-red-600 dark:text-red-300">
                 Some AI providers have exceeded their budget thresholds.
@@ -103,7 +104,8 @@ export default function AdminOverviewPage() {
             <Activity className="h-5 w-5 text-yellow-600" />
             <div>
               <p className="font-medium text-yellow-800 dark:text-yellow-200">
-                {warningAlerts.length} warning alert{warningAlerts.length !== 1 ? "s" : ""}
+                {warningAlerts.length} warning alert
+                {warningAlerts.length !== 1 ? "s" : ""}
               </p>
               <p className="text-sm text-yellow-600 dark:text-yellow-300">
                 Some AI providers are approaching their budget limits.
@@ -177,37 +179,61 @@ export default function AdminOverviewPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Button variant="outline" className="justify-start h-auto py-3" asChild>
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-3"
+              asChild
+            >
               <Link href="/admin/users">
                 <Users className="h-4 w-4 mr-2 shrink-0" />
                 Manage Users
               </Link>
             </Button>
-            <Button variant="outline" className="justify-start h-auto py-3" asChild>
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-3"
+              asChild
+            >
               <Link href="/admin/organizations">
                 <Building className="h-4 w-4 mr-2 shrink-0" />
                 Manage Organizations
               </Link>
             </Button>
-            <Button variant="outline" className="justify-start h-auto py-3" asChild>
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-3"
+              asChild
+            >
               <Link href="/admin/analytics">
                 <BarChart3 className="h-4 w-4 mr-2 shrink-0" />
                 AI Usage Analytics
               </Link>
             </Button>
-            <Button variant="outline" className="justify-start h-auto py-3" asChild>
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-3"
+              asChild
+            >
               <Link href="/admin/alerts">
                 <Activity className="h-4 w-4 mr-2 shrink-0" />
                 System Alerts
               </Link>
             </Button>
-            <Button variant="outline" className="justify-start h-auto py-3" asChild>
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-3"
+              asChild
+            >
               <Link href="/admin/spending">
                 <CreditCard className="h-4 w-4 mr-2 shrink-0" />
                 Spending & Budget
               </Link>
             </Button>
-            <Button variant="outline" className="justify-start h-auto py-3" asChild>
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-3"
+              asChild
+            >
               <Link href="/admin/settings">
                 <Settings className="h-4 w-4 mr-2 shrink-0" />
                 Admin Settings
@@ -217,5 +243,5 @@ export default function AdminOverviewPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
