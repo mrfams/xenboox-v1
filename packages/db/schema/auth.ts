@@ -16,6 +16,10 @@ export const users = pgTable("users", {
   // Account lockout
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
   lockoutUntil: timestamp("lockout_until"),
+  // Two-factor authentication
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  twoFactorSecret: text("two_factor_secret"),
+  backupCodes: text("backup_codes"),
   ...timestamps
 })
 
@@ -46,6 +50,8 @@ export const sessions = pgTable("sessions", {
   sessionToken: text("session_token").notNull().unique(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
   ...timestamps
 })
 
