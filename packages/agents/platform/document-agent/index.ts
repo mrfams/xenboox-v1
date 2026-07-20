@@ -1,21 +1,21 @@
-export { documentAgent } from "./graph"
-export { DocumentState } from "./state"
+export { documentAgent } from "./graph";
+export { DocumentState } from "./state";
 export type {
   DocumentStateType,
   CurrentDocument,
   ExtractionResult,
   ClassificationResult,
   LinkResult,
-} from "./state"
-export { buildDocumentSystemPrompt } from "./prompts"
-export type { DocumentEntityContext } from "./prompts"
+} from "./state";
+export { buildDocumentSystemPrompt } from "./prompts";
+export type { DocumentEntityContext } from "./prompts";
 export {
   ingestDocument,
   extractDocumentText,
-  classifyDocument,
-  extractStructuredData,
+  classifyDocumentAgent as classifyDocument,
+  extractStructuredDataAgent as extractStructuredData,
   linkToTransaction,
-} from "./tools"
+} from "./tools";
 export type {
   IngestDocumentInput,
   IngestDocumentResult,
@@ -23,4 +23,4 @@ export type {
   ClassifyDocumentResult,
   ExtractStructuredDataResult,
   LinkToTransactionResult,
-} from "./tools"
+} from "./tools";

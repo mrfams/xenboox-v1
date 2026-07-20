@@ -20,6 +20,12 @@ type ExtractedField = {
   confidence: "high" | "medium" | "low";
 };
 
+/**
+ * Per-field confidence scores mapped by field label (e.g., "vendorName": 0.95).
+ * A numeric 0-1 value that the viewer converts to high/medium/low thresholds.
+ */
+export type FieldConfidenceMap = Record<string, number>;
+
 type DocumentViewerProps = {
   open: boolean;
   onClose: () => void;
@@ -27,6 +33,8 @@ type DocumentViewerProps = {
   type?: "invoice" | "receipt" | "bank_statement" | "payslip";
   previewUrl?: string;
   fields?: ExtractedField[];
+  /** Numeric per-field confidence (0-1) for granular badge display */
+  fieldConfidence?: FieldConfidenceMap;
 };
 
 function DocumentPreview({ url, type }: { url?: string; type?: string }) {
@@ -60,6 +68,41 @@ function DocumentPreview({ url, type }: { url?: string; type?: string }) {
   );
 }
 
+/**
+ * Converts a numeric 0-1 confidence score to a level badge variant.
+ * ≥ 0.9 → high (auto-processed)
+ * ≥ 0.7 → medium (needs review)
+ * < 0.7 → low (needs decision)
+ */
+function numericToConfidenceLevel(score: number): "high" | "medium" | "low" {
+  if (score >= 0.9) return "high";
+  if (score >= 0.7) return "medium";
+  return "low";
+}
+
+/**
+ * Merges fields with per-field numeric confidence scores.
+ * Falls back to the field's own .confidence level if no numeric score is available.
+ */
+function mergeFieldConfidence(
+  fields: ExtractedField[],
+  fieldConfidence?: FieldConfidenceMap,
+): ExtractedField[] {
+  if (!fieldConfidence || Object.keys(fieldConfidence).length === 0) {
+    return fields;
+  }
+  return fields.map((field) => {
+    const numericScore = fieldConfidence[field.label];
+    if (numericScore !== undefined) {
+      return {
+        ...field,
+        confidence: numericToConfidenceLevel(numericScore),
+      };
+    }
+    return field;
+  });
+}
+
 export function DocumentViewer({
   open,
   onClose,
@@ -67,10 +110,14 @@ export function DocumentViewer({
   type,
   previewUrl,
   fields = [],
+  fieldConfidence,
 }: DocumentViewerProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [savedFields, setSavedFields] = useState<Set<string>>(new Set());
+
+  // Merge field-level confidence data into the display fields
+  const displayFields = mergeFieldConfidence(fields, fieldConfidence);
 
   if (!open) return null;
 
@@ -127,7 +174,7 @@ export function DocumentViewer({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {fields.map((field) => {
+                  {displayFields.map((field) => {
                     const isEditing = editingField === field.label;
                     const isSaved = savedFields.has(field.label);
                     const displayValue = editValues[field.label] ?? field.value;

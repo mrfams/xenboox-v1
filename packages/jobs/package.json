@@ -5,14 +5,26 @@
   "type": "module",
   "main": "./index.ts",
   "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./lib/ocr": "./lib/ocr.ts",
+    "./lib/classification": "./lib/classification.ts",
+    "./lib/extraction": "./lib/extraction.ts",
+    "./lib/bank-csv-parser": "./lib/bank-csv-parser.ts",
+    "./lib/bank-statement-parser": "./lib/bank-statement-parser.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@trigger.dev/sdk": "^4.0.0",
     "@xenboox/db": "workspace:*",
-    "@xenboox/agents": "workspace:*",
-    "drizzle-orm": "^0.44.2"
+    "drizzle-orm": "^0.44.2",
+    "pdfjs-dist": "^4.0.0",
+    "tesseract.js": "^5.0.0",
+    "xlsx": "^0.18.0",
+    "mammoth": "^1.6.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

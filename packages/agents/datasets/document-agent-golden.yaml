@@ -1,0 +1,1229 @@
+agent: document-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ──────────────────────────────────────────────────
+  - id: doc-001
+    category: happy_path
+    description: "Clean PDF invoice extracted with high confidence"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "INV-2026-07-001.pdf"
+        sizeBytes: 245000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.98
+        rawText: "INVOICE\nInvoice #: INV-2026-07-001\nDate: 2026-07-15\nVendor: ABC Supplies Ltd\nAmount: $1,250.00\nDescription: Office furniture\nPayment Terms: Net 30"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.97
+        alternatives: []
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentReference: "INV-2026-07-001"
+        documentDate: "2026-07-15"
+        vendorName: "ABC Supplies Ltd"
+        totalAmount: 1250.00
+        currency: "USD"
+        description: "Office furniture"
+        paymentTerms: "Net 30"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.98
+      classification: "invoice"
+      classificationConfidence: 0.97
+      confidence: 0.97
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: doc-002
+    category: happy_path
+    description: "Clean PDF receipt extracted with high confidence"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "receipt"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "RCPT-JULY-15.pdf"
+        sizeBytes: 185000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.96
+        rawText: "RECEIPT\nDate: 2026-07-15\nStore: TechWorld Ltd\nItem: Printer toner cartridge\nAmount: $89.99\nTax: $7.20\nTotal: $97.19\nPayment: Visa ****4242"
+      classification:
+        primaryType: "receipt"
+        confidence: 0.95
+        alternatives:
+          - type: "invoice"
+            confidence: 0.05
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentDate: "2026-07-15"
+        merchantName: "TechWorld Ltd"
+        totalAmount: 97.19
+        currency: "USD"
+        taxAmount: 7.20
+        paymentMethod: "Visa ****4242"
+        items:
+          - description: "Printer toner cartridge"
+            amount: 89.99
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.96
+      classification: "receipt"
+      classificationConfidence: 0.95
+      confidence: 0.95
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: doc-003
+    category: happy_path
+    description: "Clean PDF bank statement extracted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "bank_statement"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "BNK-STATEMENT-JULY.pdf"
+        sizeBytes: 520000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.97
+        rawText: "BANK STATEMENT\nAccount: 1000-1234567\nPeriod: July 2026\nOpening Balance: $120,500.00\nClosing Balance: $155,750.00\n\nTransactions:\nJul 02  Deposit  +$5,000.00\nJul 05  Payment -$1,200.00\nJul 12  Deposit +$25,000.00\nJul 18  Payment  -$3,500.00\nJul 25  Deposit  +$10,000.00\nJul 31  Interest   +$250.00"
+      classification:
+        primaryType: "bank_statement"
+        confidence: 0.98
+        alternatives: []
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        accountNumber: "1000-1234567"
+        statementPeriod: "July 2026"
+        openingBalance: 120500.00
+        closingBalance: 155750.00
+        transactions:
+          - date: "2026-07-02"
+            description: "Deposit"
+            amount: 5000.00
+            type: "credit"
+          - date: "2026-07-05"
+            description: "Payment"
+            amount: 1200.00
+            type: "debit"
+          - date: "2026-07-12"
+            description: "Deposit"
+            amount: 25000.00
+            type: "credit"
+          - date: "2026-07-18"
+            description: "Payment"
+            amount: 3500.00
+            type: "debit"
+          - date: "2026-07-25"
+            description: "Deposit"
+            amount: 10000.00
+            type: "credit"
+          - date: "2026-07-31"
+            description: "Interest"
+            amount: 250.00
+            type: "credit"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.97
+      classification: "bank_statement"
+      classificationConfidence: 0.98
+      confidence: 0.97
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: doc-004
+    category: happy_path
+    description: "Tesseract fails — Vision API fallback succeeds"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "jpg"
+        source: "photo"
+        filename: "INV-PHOTO-001.jpg"
+        sizeBytes: 3200000
+        resolution: "2048x1536"
+      ocrResults:
+        primary:
+          engine: "tesseract"
+          confidence: 0.25
+          rawText: "INVOI(E\nIn oice  INV 2026  07  002\nD te   2026 07 16\n endor  XY  orp\nAmo nt  $2, 00.00"
+          error: "LOW_CONFIDENCE"
+        fallback:
+          engine: "vision-api"
+          confidence: 0.94
+          rawText: "INVOICE\nInvoice #: INV-2026-07-002\nDate: 2026-07-16\nVendor: XYZ Corp\nAmount: $2,500.00\nDescription: Consulting services\nPayment Terms: Net 15"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.93
+        alternatives:
+          - type: "receipt"
+            confidence: 0.07
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentReference: "INV-2026-07-002"
+        documentDate: "2026-07-16"
+        vendorName: "XYZ Corp"
+        totalAmount: 2500.00
+        currency: "USD"
+        description: "Consulting services"
+        paymentTerms: "Net 15"
+      ocrEngine: "vision-api"
+      ocrConfidence: 0.94
+      fallbackTriggered: true
+      primaryOcrEngine: "tesseract"
+      primaryOcrConfidence: 0.25
+      classification: "invoice"
+      classificationConfidence: 0.93
+      confidence: 0.93
+    expected_confidence_range: [0.85, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Fallback chain works — Vision API rescued low Tesseract confidence"
+
+  - id: doc-005
+    category: happy_path
+    description: "Document linking to transaction post-extraction"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "INV-2026-07-003.pdf"
+        sizeBytes: 198000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.97
+        rawText: "INVOICE\nInvoice #: INV-2026-07-003\nDate: 2026-07-20\nVendor: LMN Services Ltd\nAmount: $3,400.00\nDescription: IT support contract July"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.98
+        alternatives: []
+      postExtraction:
+        transactionReference: "SUP-2026-07-003"
+        transactionExists: true
+        matchingCriteria:
+          - field: "reference"
+            documentValue: "INV-2026-07-003"
+            transactionValue: "INV-2026-07-003"
+            matchConfidence: 1.0
+          - field: "amount"
+            documentValue: 3400.00
+            transactionValue: 3400.00
+            matchConfidence: 1.0
+          - field: "vendor"
+            documentValue: "LMN Services Ltd"
+            transactionValue: "LMN Services Ltd"
+            matchConfidence: 0.98
+    expected_output:
+      status: "extracted_and_linked"
+      extractedFields:
+        documentReference: "INV-2026-07-003"
+        documentDate: "2026-07-20"
+        vendorName: "LMN Services Ltd"
+        totalAmount: 3400.00
+        currency: "USD"
+        description: "IT support contract July"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.97
+      classification: "invoice"
+      classificationConfidence: 0.98
+      linkStatus: "linked"
+      linkedTransactionRef: "SUP-2026-07-003"
+      linkConfidence: 0.99
+      confidence: 0.97
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Post-extraction linking to existing transaction"
+
+  - id: doc-006
+    category: happy_path
+    description: "Clean contract document extracted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "contract"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "CONTRACT-AGREEMENT-2026-07.pdf"
+        sizeBytes: 890000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.96
+        rawText: "SERVICE AGREEMENT\nParties: Xenboox Inc and TechVend Solutions\nEffective Date: 2026-07-01\nTerm: 12 months\nValue: $60,000.00\nDescription: Annual IT infrastructure maintenance contract"
+      classification:
+        primaryType: "contract"
+        confidence: 0.96
+        alternatives:
+          - type: "invoice"
+            confidence: 0.04
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentType: "contract"
+        parties: ["Xenboox Inc", "TechVend Solutions"]
+        effectiveDate: "2026-07-01"
+        termMonths: 12
+        contractValue: 60000.00
+        description: "Annual IT infrastructure maintenance contract"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.96
+      classification: "contract"
+      classificationConfidence: 0.96
+      confidence: 0.95
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: doc-007
+    category: happy_path
+    description: "Multi-page PDF invoice with consistent extraction"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "INV-2026-07-004-MULTI.pdf"
+        sizeBytes: 680000
+        pageCount: 3
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.95
+        rawText: "INVOICE\nInvoice #: INV-2026-07-004\nDate: 2026-07-25\nVendor: Global Parts Co\nAmount: $8,750.00\n\nPAGE 2: Itemized line items\n- Item 1: Server rack $5,000.00\n- Item 2: Cooling unit $2,500.00\n- Item 3: Cabling kit $1,250.00\n\nPAGE 3: Terms & Conditions\nPayment Due: Net 30\nShipping: Included"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.96
+        alternatives: []
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentReference: "INV-2026-07-004"
+        documentDate: "2026-07-25"
+        vendorName: "Global Parts Co"
+        totalAmount: 8750.00
+        currency: "USD"
+        lineItems:
+          - description: "Server rack"
+            amount: 5000.00
+          - description: "Cooling unit"
+            amount: 2500.00
+          - description: "Cabling kit"
+            amount: 1250.00
+        paymentTerms: "Net 30"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.95
+      classification: "invoice"
+      classificationConfidence: 0.96
+      pageCount: 3
+      confidence: 0.94
+    expected_confidence_range: [0.85, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: doc-008
+    category: happy_path
+    description: "Donor grant agreement extracted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "grant_agreement"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "USAID-GRANT-AGREEMENT-2026.pdf"
+        sizeBytes: 1250000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.96
+        rawText: "GRANT AGREEMENT\nDonor: USAID\nGrant #: USAID-GH-2025-001\nRecipient: Xenboox Foundation\nAward Amount: $500,000.00\nPeriod: October 1, 2025 — September 30, 2027\nPurpose: Community Health Initiative\nReporting: SF-425 quarterly"
+      classification:
+        primaryType: "grant_agreement"
+        confidence: 0.97
+        alternatives: []
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentType: "grant_agreement"
+        grantNumber: "USAID-GH-2025-001"
+        donor: "USAID"
+        recipient: "Xenboox Foundation"
+        awardAmount: 500000.00
+        startDate: "2025-10-01"
+        endDate: "2027-09-30"
+        purpose: "Community Health Initiative"
+        reportingRequirements:
+          - "SF-425 quarterly"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.96
+      classification: "grant_agreement"
+      classificationConfidence: 0.97
+      confidence: 0.96
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: doc-009
+    category: happy_path
+    description: "Tax certificate extracted for compliance filing"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "tax_certificate"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "GRA-TAX-CERT-2026.pdf"
+        sizeBytes: 310000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.97
+        rawText: "TAX CERTIFICATE\nIssuer: Ghana Revenue Authority\nCertificate #: GRA-TCC-2026-00452\nTaxpayer: Xenboox Inc\nTax ID: TIN-12345-6789\nPeriod: 2025 Tax Year\nStatus: Compliant\nIssued: 2026-03-15"
+      classification:
+        primaryType: "tax_certificate"
+        confidence: 0.98
+        alternatives: []
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        certificateType: "tax_certificate"
+        certificateNumber: "GRA-TCC-2026-00452"
+        issuer: "Ghana Revenue Authority"
+        taxpayerName: "Xenboox Inc"
+        taxId: "TIN-12345-6789"
+        taxPeriod: "2025 Tax Year"
+        status: "Compliant"
+        issuedDate: "2026-03-15"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.97
+      classification: "tax_certificate"
+      classificationConfidence: 0.98
+      confidence: 0.97
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: doc-010
+    category: happy_path
+    description: "Purchase order extracted and linked to existing PO record"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "purchase_order"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "PO-2026-07-001.pdf"
+        sizeBytes: 210000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.97
+        rawText: "PURCHASE ORDER\nPO #: PO-2026-07-001\nDate: 2026-07-02\nVendor: OfficeMart Inc\nItems: Office chairs x12 @ $150.00 = $1,800.00\nTotal: $1,800.00\nApproved By: J. Smith"
+      classification:
+        primaryType: "purchase_order"
+        confidence: 0.97
+        alternatives: []
+      postExtraction:
+        transactionReference: "PO-2026-07-001"
+        transactionExists: true
+        matchingCriteria:
+          - field: "reference"
+            documentValue: "PO-2026-07-001"
+            transactionValue: "PO-2026-07-001"
+            matchConfidence: 1.0
+    expected_output:
+      status: "extracted_and_linked"
+      extractedFields:
+        documentReference: "PO-2026-07-001"
+        documentDate: "2026-07-02"
+        vendorName: "OfficeMart Inc"
+        totalAmount: 1800.00
+        currency: "USD"
+        lineItems:
+          - description: "Office chairs x12"
+            amount: 1800.00
+        approvedBy: "J. Smith"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.97
+      classification: "purchase_order"
+      classificationConfidence: 0.97
+      linkStatus: "linked"
+      linkedTransactionRef: "PO-2026-07-001"
+      linkConfidence: 1.0
+      confidence: 0.97
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (8 cases) ───────────────────────────────────────────────────
+  - id: doc-011
+    category: edge_case
+    description: "Handwritten receipt extracted with low confidence (Vision API fallback triggered)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "receipt"
+      file:
+        format: "jpg"
+        source: "photo"
+        filename: "HANDWRITTEN-RCPT-001.jpg"
+        sizeBytes: 4100000
+        resolution: "3024x4032"
+      ocrResults:
+        primary:
+          engine: "tesseract"
+          confidence: 0.35
+          rawText: "Re eipt\nD te  Jul 18\nStor  c rner Shop\n mount $45 50\n ash"
+          error: "LOW_CONFIDENCE"
+        fallback:
+          engine: "vision-api"
+          confidence: 0.78
+          rawText: "RECEIPT\nDate: July 18, 2026\nStore: Corner Shop\nItems: Notebooks, Pens\nTotal: $45.50\nPayment: Cash"
+      classification:
+        primaryType: "receipt"
+        confidence: 0.88
+        alternatives:
+          - type: "invoice"
+            confidence: 0.12
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentDate: "2026-07-18"
+        merchantName: "Corner Shop"
+        totalAmount: 45.50
+        currency: "USD"
+        paymentMethod: "Cash"
+        items:
+          - description: "Notebooks, Pens"
+            amount: 45.50
+      ocrEngine: "vision-api"
+      ocrConfidence: 0.78
+      fallbackTriggered: true
+      primaryOcrEngine: "tesseract"
+      primaryOcrConfidence: 0.35
+      classification: "receipt"
+      classificationConfidence: 0.88
+      confidence: 0.78
+    expected_confidence_range: [0.7, 0.85]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Low confidence extraction — Vision API improved but still below threshold"
+
+  - id: doc-012
+    category: edge_case
+    description: "Both OCR paths fail — flagged for human"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "unknown"
+      file:
+        format: "png"
+        source: "photo"
+        filename: "DAMAGED-DOC-001.png"
+        sizeBytes: 2800000
+        resolution: "1920x1080"
+      ocrResults:
+        primary:
+          engine: "tesseract"
+          confidence: 0.15
+          rawText: ""
+          error: "NO_TEXT_DETECTED"
+        fallback:
+          engine: "vision-api"
+          confidence: 0.2
+          rawText: ""
+          error: "NO_TEXT_DETECTED"
+      classification:
+        primaryType: "unknown"
+        confidence: 0.3
+        alternatives: []
+    expected_output:
+      status: "failed"
+      reason: "Both OCR engines (Tesseract and Vision API) failed to extract text. Document may be damaged, blank, or in an unsupported format. Flagged for human review."
+      ocrEngine: null
+      ocrConfidence: 0.0
+      classification: null
+      classificationConfidence: 0.0
+      confidence: 0.2
+    expected_confidence_range: [0.1, 0.4]
+    expected_escalation: block
+    expected_escalation_target: human
+    source: synthetic
+    notes: "Complete OCR failure — must be handled by human"
+
+  - id: doc-013
+    category: edge_case
+    description: "Document that cannot be linked within window — CFO notified"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "INV-ORPHAN-001.pdf"
+        sizeBytes: 195000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.97
+        rawText: "INVOICE\nInvoice #: INV-ORPHAN-001\nDate: 2026-06-15\nVendor: Old Vendor Co\nAmount: $1,500.00\nDescription: Legacy services"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.96
+        alternatives: []
+      postExtraction:
+        transactionReference: null
+        transactionExists: false
+        searchWindow: "30 days"
+        searchAttempts: 3
+        searchResult: "NO_MATCH"
+    expected_output:
+      status: "extracted_unlinked"
+      extractedFields:
+        documentReference: "INV-ORPHAN-001"
+        documentDate: "2026-06-15"
+        vendorName: "Old Vendor Co"
+        totalAmount: 1500.00
+        currency: "USD"
+        description: "Legacy services"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.97
+      classification: "invoice"
+      classificationConfidence: 0.96
+      linkStatus: "unlinked"
+      reason: "No matching transaction found within 30-day window after 3 search attempts. CFO notified."
+      confidence: 0.95
+    expected_confidence_range: [0.85, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: cfo-agent
+    source: synthetic
+    notes: "Unlinked documents must be escalated to CFO after search window expires"
+
+  - id: doc-014
+    category: edge_case
+    description: "Very large document exceeding size threshold"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "unknown"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "LARGE-SCAN-001.pdf"
+        sizeBytes: 95000000
+        pageCount: 500
+      ocrResults: null
+      classification: null
+    expected_output:
+      status: "rejected"
+      reason: "Document exceeds maximum size threshold (95 MB / 50 MB limit). Please split the document into smaller files or reduce the resolution before uploading."
+      confidence: 0.99
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: human
+    source: synthetic
+    notes: "Document too large for OCR processing"
+
+  - id: doc-015
+    category: edge_case
+    description: "Unsupported file format submitted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "unknown"
+      file:
+        format: "heic"
+        source: "upload"
+        filename: "IMG_20260720.heic"
+        sizeBytes: 4200000
+      ocrResults: null
+      classification: null
+    expected_output:
+      status: "rejected"
+      reason: "Unsupported file format: .heic. Supported formats are: PDF, JPG, JPEG, PNG, TIFF, BMP."
+      confidence: 0.99
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: human
+    source: synthetic
+    notes: "Format validation before processing"
+
+  - id: doc-016
+    category: edge_case
+    description: "Encrypted or password-protected PDF"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "unknown"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "PROTECTED-INV-001.pdf"
+        sizeBytes: 180000
+        isEncrypted: true
+      ocrResults:
+        primary:
+          engine: "tesseract"
+          confidence: 0.0
+          rawText: ""
+          error: "ENCRYPTED_PDF"
+        fallback:
+          engine: "vision-api"
+          confidence: 0.0
+          rawText: ""
+          error: "ENCRYPTED_PDF"
+      classification: null
+    expected_output:
+      status: "failed"
+      reason: "Document is encrypted or password-protected. Please provide an unencrypted version."
+      ocrEngine: null
+      ocrConfidence: 0.0
+      classification: null
+      classificationConfidence: 0.0
+      confidence: 0.0
+    expected_confidence_range: [0.0, 0.1]
+    expected_escalation: block
+    expected_escalation_target: human
+    source: synthetic
+    notes: "Encrypted documents cannot be processed"
+
+  - id: doc-017
+    category: edge_case
+    description: "Document with mixed languages (English + French)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "BILLET-MIXTE-001.pdf"
+        sizeBytes: 235000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.85
+        rawText: "FACTURE/INVOICE\nN°: INV-001-FR\nDate: 2026-07-15\nFournisseur/Vendor: Dubois & Fils SARL\nMontant/Amount: €2,300.00\nDescription: Services de conseil/Consulting services\nTVA/VAT: €460.00\nTotal TTC/Total incl.: €2,760.00"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.93
+        alternatives:
+          - type: "receipt"
+            confidence: 0.07
+      detectedLanguages: ["en", "fr"]
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentReference: "INV-001-FR"
+        documentDate: "2026-07-15"
+        vendorName: "Dubois & Fils SARL"
+        totalAmount: 2760.00
+        currency: "EUR"
+        description: "Consulting services"
+        taxAmount: 460.00
+        languages: ["en", "fr"]
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.85
+      classification: "invoice"
+      classificationConfidence: 0.93
+      confidence: 0.85
+    expected_confidence_range: [0.75, 0.9]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Bilingual documents may have reduced extraction confidence"
+
+  - id: doc-018
+    category: edge_case
+    description: "Document with partially obscured text (stamp/overlay)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "STAMPED-INV-001.pdf"
+        sizeBytes: 265000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.72
+        rawText: "INVOICE\nInvoice #: INV-2026-07-005\nDate: 2026-07-22\nVendor: QuickFix Repairs\nAmount: [OBSCURED] $#@!.00\nDescription: Equipment repair\nPaid: 2026-07-23 [STAMP OVERLAY]"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.88
+        alternatives:
+          - type: "receipt"
+            confidence: 0.12
+    expected_output:
+      status: "extracted_partial"
+      extractedFields:
+        documentReference: "INV-2026-07-005"
+        documentDate: "2026-07-22"
+        vendorName: "QuickFix Repairs"
+        description: "Equipment repair"
+      partialFields:
+        - field: "totalAmount"
+          issue: "Obscured by stamp overlay — amount unreadable"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.72
+      classification: "invoice"
+      classificationConfidence: 0.88
+      confidence: 0.72
+    expected_confidence_range: [0.6, 0.8]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Partially obscured fields should be noted as partial"
+
+  # ── ADVERSARIAL (5 cases) ──────────────────────────────────────────────────
+  - id: doc-019
+    category: adversarial
+    description: "Photographed document at bad angle (adversarial)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "receipt"
+      file:
+        format: "jpg"
+        source: "photo"
+        filename: "SKEWED-RCPT-001.jpg"
+        sizeBytes: 3800000
+        resolution: "1920x1080"
+        metadata:
+          angle: 47
+          blurLevel: 0.6
+          lighting: "low"
+      ocrResults:
+        primary:
+          engine: "tesseract"
+          confidence: 0.18
+          rawText: "ec i t\n e  Ju  1\nS re  G  ocery\n mo nt  2 .50"
+          error: "LOW_CONFIDENCE"
+        fallback:
+          engine: "vision-api"
+          confidence: 0.82
+          rawText: "RECEIPT\nDate: July 12, 2026\nStore: Green Grocery\nItems: Vegetables, Fruit\nTotal: $28.50\nPayment: Cash"
+          preprocessingApplied:
+            ["deskew", "enhance_contrast", "adjust_brightness"]
+      classification:
+        primaryType: "receipt"
+        confidence: 0.85
+        alternatives:
+          - type: "invoice"
+            confidence: 0.15
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentDate: "2026-07-12"
+        merchantName: "Green Grocery"
+        totalAmount: 28.50
+        currency: "USD"
+        paymentMethod: "Cash"
+        items:
+          - description: "Vegetables, Fruit"
+            amount: 28.50
+      ocrEngine: "vision-api"
+      ocrConfidence: 0.82
+      fallbackTriggered: true
+      preprocessingApplied: ["deskew", "enhance_contrast", "adjust_brightness"]
+      primaryOcrEngine: "tesseract"
+      primaryOcrConfidence: 0.18
+      classification: "receipt"
+      classificationConfidence: 0.85
+      confidence: 0.82
+    expected_confidence_range: [0.7, 0.88]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Skewed/angled photos should trigger preprocessing before fallback"
+
+  - id: doc-020
+    category: adversarial
+    description: "Deliberate document with misleading layout to confuse OCR"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "SPOOF-INV-001.pdf"
+        sizeBytes: 310000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.94
+        rawText: "INVOICE / RECEIPT\n\nTHIS IS NOT A BILL\nInvoice #: FAKE-001\nAmount: $0.00\n\n[FINE PRINT] This document is a quotation, not an invoice.\nEstimated value: $1,200.00\nValid until: 2026-08-15"
+      classification:
+        primaryType: "quotation"
+        confidence: 0.91
+        alternatives:
+          - type: "invoice"
+            confidence: 0.07
+          - type: "receipt"
+            confidence: 0.02
+    expected_output:
+      status: "extracted"
+      extractedFields:
+        documentType: "quotation"
+        documentReference: "FAKE-001"
+        totalAmount: 0.00
+        disclaimer: "This document is a quotation, not an invoice."
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.94
+      classification: "quotation"
+      classificationConfidence: 0.91
+      warning: "Document identified as a quotation, not an invoice. Do not process for payment."
+      confidence: 0.91
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Agent must read document body, not just header — quotation vs invoice"
+
+  - id: doc-021
+    category: adversarial
+    description: "Fabricated invoice with fake vendor details"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "FAKE-VENDOR-INV-001.pdf"
+        sizeBytes: 220000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.97
+        rawText: "INVOICE\nInvoice #: INV-FAKE-999\nDate: 2026-07-30\nVendor: Nonexistent Corp Ltd\nTax ID: 00-0000000\nAmount: $25,000.00\nDescription: Consulting services\nBank: First Fake Bank\nAccount: 1234567890"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.96
+        alternatives: []
+      vendorLookup:
+        vendorName: "Nonexistent Corp Ltd"
+        foundInSystem: false
+        taxIdValid: false
+    expected_output:
+      status: "extracted_with_warning"
+      extractedFields:
+        documentReference: "INV-FAKE-999"
+        documentDate: "2026-07-30"
+        vendorName: "Nonexistent Corp Ltd"
+        totalAmount: 25000.00
+        currency: "USD"
+        description: "Consulting services"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.97
+      classification: "invoice"
+      classificationConfidence: 0.96
+      warnings:
+        - "Vendor 'Nonexistent Corp Ltd' not found in vendor database"
+        - "Tax ID appears invalid"
+      confidence: 0.65
+    expected_confidence_range: [0.55, 0.75]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Unrecognized vendors with invalid tax IDs should be flagged as potentially fraudulent"
+
+  - id: doc-022
+    category: adversarial
+    description: "Duplicate document submission — already processed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "INV-2026-07-001-DUP.pdf"
+        sizeBytes: 245000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.97
+        rawText: "INVOICE\nInvoice #: INV-2026-07-001\nDate: 2026-07-15\nVendor: ABC Supplies Ltd\nAmount: $1,250.00\nDescription: Office furniture\nPayment Terms: Net 30"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.97
+        alternatives: []
+      duplicateCheck:
+        isDuplicate: true
+        originalDocumentId: "doc-001-original"
+        originalProcessingDate: "2026-07-15"
+        originalStatus: "extracted_and_linked"
+    expected_output:
+      status: "duplicate"
+      reason: "This document (INV-2026-07-001) has already been processed on 2026-07-15 with status 'extracted_and_linked'."
+      originalDocumentId: "doc-001-original"
+      confidence: 0.99
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: human
+    source: synthetic
+    notes: "Duplicate detection via document reference hash"
+
+  - id: doc-023
+    category: adversarial
+    description: "Modified/forged document with tampered amount"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "TAMPERED-INV-001.pdf"
+        sizeBytes: 250000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.93
+        rawText: "INVOICE\nInvoice #: INV-2026-07-001\nDate: 2026-07-15\nVendor: ABC Supplies Ltd\nAmount: $12,500.00\nDescription: Office furniture\nPayment Terms: Net 30"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.95
+        alternatives: []
+      integrityCheck:
+        hashValid: false
+        expectedHash: "a1b2c3d4e5f6..."
+        actualHash: "ff1234567890..."
+        tamperingDetected: true
+        tamperedFields: ["amount"]
+      originalDocument:
+        documentReference: "INV-2026-07-001"
+        originalAmount: 1250.00
+    expected_output:
+      status: "failed"
+      reason: "Document integrity check failed — amount field appears to have been tampered with. Original amount was $1,250.00, submitted document shows $12,500.00."
+      confidence: 0.98
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: human
+    source: synthetic
+    notes: "Document integrity hash mismatch — tampering detected"
+
+  # ── AMBIGUOUS (5 cases) ────────────────────────────────────────────────────
+  - id: doc-024
+    category: ambiguous
+    description: "Ambiguous classification — could be receipt OR invoice — escalate"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "unknown"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "AMBIGUOUS-DOC-001.pdf"
+        sizeBytes: 195000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.9
+        rawText: "RECEIPT / INVOICE\nDate: 2026-07-20\nCustomer: Xenboox Inc\nItems: Consulting services\nTotal Due: $5,000.00\nStatus: Paid\nReference: MIXED-001"
+      classification:
+        primaryType: "unknown"
+        confidence: 0.55
+        alternatives:
+          - type: "receipt"
+            confidence: 0.5
+          - type: "invoice"
+            confidence: 0.45
+    expected_output:
+      status: "classification_uncertain"
+      reason: "Document could not be confidently classified. Confidence split: receipt (50%) vs invoice (45%). Escalating for human review."
+      classification: null
+      extractedFields:
+        documentDate: "2026-07-20"
+        totalAmount: 5000.00
+        currency: "USD"
+      confidence: 0.55
+    expected_confidence_range: [0.4, 0.65]
+    expected_escalation: flag
+    expected_escalation_target: human
+    source: synthetic
+    notes: "Near-tie classification must not be guessed — escalate"
+
+  - id: doc-025
+    category: ambiguous
+    description: "Document with no clear vendor/invoice identification fields"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "unknown"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "UNKNOWN-DOC-001.pdf"
+        sizeBytes: 150000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.88
+        rawText: "July 2026\nItems: Misc supplies\nTotal: $320.00\nPaid: Credit Card"
+      classification:
+        primaryType: "unknown"
+        confidence: 0.45
+        alternatives:
+          - type: "receipt"
+            confidence: 0.35
+          - type: "invoice"
+            confidence: 0.15
+          - type: "bank_statement"
+            confidence: 0.05
+    expected_output:
+      status: "classification_uncertain"
+      reason: "Document lacks identifying fields (vendor name, document number, document type header). Cannot classify with confidence. Escalating for human review."
+      classification: null
+      extractedFields:
+        totalAmount: 320.00
+        currency: "USD"
+      confidence: 0.45
+    expected_confidence_range: [0.3, 0.55]
+    expected_escalation: flag
+    expected_escalation_target: human
+    source: synthetic
+    notes: "Insufficient fields for classification — escalate rather than guess"
+
+  - id: doc-026
+    category: ambiguous
+    description: "Receipt with conflicting totals (subtotal vs total)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "receipt"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "CONFLICTING-RCPT-001.pdf"
+        sizeBytes: 210000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.88
+        rawText: "RECEIPT\nStore: Quick Mart\nDate: 2026-07-19\nItems: $45.00\nSubtotal: $45.00\nTax: $4.50\nTotal: $54.50\n\n(handwritten) Total Paid: $50.00"
+      classification:
+        primaryType: "receipt"
+        confidence: 0.92
+        alternatives: []
+    expected_output:
+      status: "extracted_with_warning"
+      extractedFields:
+        documentDate: "2026-07-19"
+        merchantName: "Quick Mart"
+        subtotal: 45.00
+        taxAmount: 4.50
+        totalAmount: 54.50
+        amountPaid: 50.00
+        currency: "USD"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.88
+      classification: "receipt"
+      classificationConfidence: 0.92
+      warnings:
+        - "Total ($54.50) differs from amount paid ($50.00) — possible partial payment or discrepancy"
+      confidence: 0.78
+    expected_confidence_range: [0.65, 0.85]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Conflicting amounts should be surfaced as warnings, not silently resolved"
+
+  - id: doc-027
+    category: ambiguous
+    description: "Document with missing critical fields for processing"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "INV-MISSING-FIELDS-001.pdf"
+        sizeBytes: 175000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.92
+        rawText: "INVOICE\nVendor: Some Company\nAmount: $750.00"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.94
+        alternatives: []
+    expected_output:
+      status: "extracted_partial"
+      extractedFields:
+        vendorName: "Some Company"
+        totalAmount: 750.00
+        currency: "USD"
+      missingFields:
+        - field: "documentReference"
+          severity: "required"
+        - field: "documentDate"
+          severity: "required"
+        - field: "description"
+          severity: "optional"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.92
+      classification: "invoice"
+      classificationConfidence: 0.94
+      confidence: 0.65
+    expected_confidence_range: [0.55, 0.75]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Missing required fields should still be extracted but flagged"
+
+  - id: doc-028
+    category: ambiguous
+    description: "Document whose linked transaction has been cancelled"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      documentType: "invoice"
+      file:
+        format: "pdf"
+        source: "upload"
+        filename: "INV-CANCELLED-TXN-001.pdf"
+        sizeBytes: 225000
+      ocrResults:
+        engine: "tesseract"
+        confidence: 0.96
+        rawText: "INVOICE\nInvoice #: INV-2026-07-CAN\nDate: 2026-07-10\nVendor: Cancelled Deal Ltd\nAmount: $2,000.00\nDescription: Services — cancelled"
+      classification:
+        primaryType: "invoice"
+        confidence: 0.97
+        alternatives: []
+      postExtraction:
+        transactionReference: "SUP-2026-07-CAN"
+        transactionExists: true
+        transactionStatus: "cancelled"
+        cancellationDate: "2026-07-12"
+        matchingCriteria:
+          - field: "reference"
+            documentValue: "INV-2026-07-CAN"
+            transactionValue: "INV-2026-07-CAN"
+            matchConfidence: 1.0
+    expected_output:
+      status: "extracted_and_linked"
+      extractedFields:
+        documentReference: "INV-2026-07-CAN"
+        documentDate: "2026-07-10"
+        vendorName: "Cancelled Deal Ltd"
+        totalAmount: 2000.00
+        currency: "USD"
+        description: "Services — cancelled"
+      ocrEngine: "tesseract"
+      ocrConfidence: 0.96
+      classification: "invoice"
+      classificationConfidence: 0.97
+      linkStatus: "linked_to_cancelled"
+      linkedTransactionRef: "SUP-2026-07-CAN"
+      linkConfidence: 1.0
+      warning: "Linked transaction (SUP-2026-07-CAN) has been cancelled. Invoice should not be processed for payment."
+      confidence: 0.85
+    expected_confidence_range: [0.75, 0.9]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Linked to cancelled transaction — flag for review, do not process"

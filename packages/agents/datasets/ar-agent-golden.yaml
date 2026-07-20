@@ -1,0 +1,846 @@
+agent: ar-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ─────────────────────────────────────────────────
+  - id: ar-001
+    category: happy_path
+    description: "Standard invoice creation for corporate customer"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-001"
+      customerId: "cust-corp-001"
+      customerName: "West African Trading Co"
+      invoiceDate: "2026-07-01"
+      dueDate: "2026-07-31"
+      amount: 5000.00
+      currency: "USD"
+      description: "Consulting services — July engagement"
+      lineItems:
+        - description: "Strategic advisory services"
+          quantity: 20
+          unitPrice: 250.00
+          total: 5000.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "created"
+      invoiceGenerated: true
+      postedToLedger: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-002
+    category: happy_path
+    description: "One-to-one payment matching — single invoice fully paid"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-001"
+      customerId: "cust-corp-001"
+      customerName: "West African Trading Co"
+      paymentReference: "PMT-MTN-2026-07-15-001"
+      paymentAmount: 5000.00
+      paymentDate: "2026-07-15"
+      paymentMethod: "mobile_money"
+      paymentRail: "MTN"
+      currency: "USD"
+      invoiceAmount: 5000.00
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      matchScore: 1.0
+      remainingBalance: 0.00
+      suggestedAction: "apply_payment"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-003
+    category: happy_path
+    description: "Customer master data update — address change with valid verification"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-002"
+      customerName: "Sahel Commodities Ltd"
+      fieldToUpdate: "billingAddress"
+      oldValue: "123 Independence Ave, Accra"
+      newValue: "456 Liberation Road, Accra"
+      changeReason: "Office relocation"
+      verifiedByCustomerContact: true
+      verificationMethod: "official_email"
+      approvedByManager: true
+    expected_output:
+      status: "accepted"
+      updateApplied: true
+      changeType: "non_financial"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-004
+    category: happy_path
+    description: "AR aging report — invoice in 0-30 day bucket"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-001"
+      customerName: "West African Trading Co"
+      invoiceNumber: "AR-INV-2026-07-004"
+      invoiceDate: "2026-07-05"
+      dueDate: "2026-08-04"
+      amount: 3200.00
+      currency: "USD"
+      daysOutstanding: 15
+      paymentTerms: "NET30"
+      agingRequested: true
+    expected_output:
+      status: "current"
+      agingBucket: "0_30_days"
+      totalOutstanding: 3200.00
+      suggestedAction: "no_action"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-005
+    category: happy_path
+    description: "Overdue alert — invoice 5 days past due, automated reminder"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-003"
+      customerName: "Coastal Logistics Ltd"
+      invoiceNumber: "AR-INV-2026-06-005"
+      invoiceDate: "2026-06-01"
+      dueDate: "2026-07-01"
+      amount: 1800.00
+      currency: "USD"
+      daysOverdue: 5
+      agingBucket: "overdue_1_15"
+      paymentTerms: "NET30"
+    expected_output:
+      status: "overdue"
+      agingBucket: "overdue_1_15"
+      suggestedAction: "send_reminder"
+      reminderLevel: 1
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-006
+    category: happy_path
+    description: "Donor payment tracking — standard grant disbursement"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-006"
+      customerId: "cust-donor-004"
+      customerName: "Global Health Initiative"
+      invoiceDate: "2026-07-10"
+      dueDate: "2026-08-09"
+      amount: 25000.00
+      currency: "USD"
+      description: "Q3 grant disbursement — maternal health program"
+      customerType: "donor"
+      grantId: "GRANT-GHI-2026"
+      projectCode: "PROJ-MH-001"
+      projectName: "Maternal Health Outreach"
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "created"
+      invoiceGenerated: true
+      postedToLedger: true
+      grantAttributed: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-007
+    category: happy_path
+    description: "Payment matching — partial payment with balance remaining"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-001"
+      customerId: "cust-corp-001"
+      customerName: "West African Trading Co"
+      paymentReference: "PMT-BANK-2026-07-20-002"
+      paymentAmount: 2000.00
+      paymentDate: "2026-07-20"
+      paymentMethod: "bank_transfer"
+      currency: "USD"
+      invoiceAmount: 5000.00
+      previousPayments:
+        - reference: "PMT-MTN-2026-07-15-001"
+          amount: 3000.00
+      remainingAfterThisPayment: 0.00
+    expected_output:
+      status: "matched"
+      matchType: "partial_cumulative"
+      matchScore: 1.0
+      remainingBalance: 0.00
+      suggestedAction: "apply_payment_and_close"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-008
+    category: happy_path
+    description: "Credit note issuance for returned goods"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-002"
+      customerName: "Sahel Commodities Ltd"
+      invoiceNumber: "AR-CN-2026-07-001"
+      originalInvoiceRef: "AR-INV-2026-07-002"
+      invoiceDate: "2026-07-22"
+      dueDate: "2026-08-21"
+      amount: -750.00
+      currency: "USD"
+      description: "Credit note — defective goods returned per RMA-2026-07-003"
+      lineItems:
+        - description: "Returned items — 15 units defective"
+          quantity: 15
+          unitPrice: -50.00
+          total: -750.00
+      creditNoteReason: "goods_returned"
+      approvedByManager: true
+    expected_output:
+      status: "created"
+      creditNoteGenerated: true
+      postedToLedger: true
+      originalInvoiceAdjusted: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-009
+    category: happy_path
+    description: "Recurring monthly billing — subscription customer"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-sub-005"
+      customerName: "Digital Services Inc"
+      invoiceNumber: "AR-INV-2026-07-009"
+      invoiceDate: "2026-07-01"
+      dueDate: "2026-07-15"
+      amount: 1200.00
+      currency: "USD"
+      description: "Monthly subscription — July 2026"
+      lineItems:
+        - description: "Enterprise SaaS license — 10 seats"
+          quantity: 10
+          unitPrice: 120.00
+          total: 1200.00
+      paymentTerms: "NET15"
+      recurringInvoiceId: "RECUR-SUB-001"
+      approvedByManager: true
+    expected_output:
+      status: "created"
+      invoiceGenerated: true
+      postedToLedger: true
+      recurringSequenceDetected: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ar-010
+    category: happy_path
+    description: "Customer payment with exact match to open invoice"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-003"
+      customerName: "Coastal Logistics Ltd"
+      invoiceNumber: "AR-INV-2026-07-003"
+      paymentReference: "PMT-WAVE-2026-07-28-001"
+      paymentAmount: 4250.00
+      paymentDate: "2026-07-28"
+      paymentMethod: "mobile_money"
+      paymentRail: "Wave"
+      currency: "USD"
+      invoiceAmount: 4250.00
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      matchScore: 1.0
+      remainingBalance: 0.00
+      suggestedAction: "apply_payment_and_close"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (8 cases) ───────────────────────────────────────────────────
+  - id: ar-011
+    category: edge_case
+    description: "Mobile money fee deduction variance — fee higher than standard rate"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-004"
+      customerId: "cust-corp-001"
+      customerName: "West African Trading Co"
+      paymentReference: "PMT-MTN-2026-07-18-003"
+      grossPaymentAmount: 2000.00
+      feeAmount: 25.00
+      netPaymentAmount: 1975.00
+      expectedFeeRate: 0.01
+      actualFeeRate: 0.0125
+      feeVariance: 5.00
+      paymentMethod: "mobile_money"
+      paymentRail: "MTN"
+      currency: "USD"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      matchScore: 0.95
+      suggestedAction: "apply_with_fee_note"
+      feeVarianceDetected: true
+      feeVarianceAmount: 5.00
+      feeVarianceReason: "Processing fee above standard 1% rate"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Mobile money fee above standard — verify with payment provider"
+
+  - id: ar-012
+    category: edge_case
+    description: "Duplicate invoice number detected — possible re-submission"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-002"
+      customerName: "Sahel Commodities Ltd"
+      invoiceNumber: "AR-INV-2026-07-001"
+      invoiceDate: "2026-07-05"
+      dueDate: "2026-08-04"
+      amount: 5000.00
+      currency: "USD"
+      description: "Duplicate consulting services invoice"
+      lineItems:
+        - description: "Strategic advisory services"
+          quantity: 20
+          unitPrice: 250.00
+          total: 5000.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "DUPLICATE_INVOICE_NUMBER"
+      duplicateOf: "AR-INV-2026-07-001"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Invoice number already exists in system"
+
+  - id: ar-013
+    category: edge_case
+    description: "Donor attribution test — grant payment without project code"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-013"
+      customerId: "cust-donor-004"
+      customerName: "Global Health Initiative"
+      invoiceDate: "2026-07-20"
+      dueDate: "2026-08-19"
+      amount: 50000.00
+      currency: "USD"
+      description: "Unrestricted grant funds received"
+      customerType: "donor"
+      grantId: null
+      projectCode: null
+      projectName: null
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "MISSING_DONOR_ATTRIBUTION"
+      suggestedAction: "request_grant_and_project_metadata"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "NGO donor payment without project/grant metadata — restricted fund compliance risk"
+
+  - id: ar-014
+    category: edge_case
+    description: "Negative invoice amount submitted (non-credit-note)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-001"
+      customerName: "West African Trading Co"
+      invoiceNumber: "AR-INV-2026-07-014"
+      invoiceDate: "2026-07-25"
+      dueDate: "2026-08-24"
+      amount: -500.00
+      currency: "USD"
+      description: "Negative amount invoice — not a credit note"
+      lineItems:
+        - description: "Unauthorized adjustment"
+          quantity: 1
+          unitPrice: -500.00
+          total: -500.00
+      paymentTerms: "NET30"
+      isCreditNote: false
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "NEGATIVE_AMOUNT_INVOICE"
+      suggestedAction: "use_credit_note_workflow"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Negative invoice amounts should use credit note workflow"
+
+  - id: ar-015
+    category: edge_case
+    description: "Payment amount exceeds invoice total — overpayment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-005"
+      customerId: "cust-corp-003"
+      customerName: "Coastal Logistics Ltd"
+      paymentReference: "PMT-BANK-2026-07-22-004"
+      paymentAmount: 5000.00
+      paymentDate: "2026-07-22"
+      paymentMethod: "bank_transfer"
+      currency: "USD"
+      invoiceAmount: 3200.00
+      overpaymentAmount: 1800.00
+    expected_output:
+      status: "matched"
+      matchType: "partial"
+      matchScore: 0.85
+      suggestedAction: "flag_overpayment"
+      overpaymentAmount: 1800.00
+      overpaymentAction: "hold_for_customer_instruction"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Overpayment needs customer instruction — refund or credit memo"
+
+  - id: ar-016
+    category: edge_case
+    description: "Customer marked as credit-hold but invoice submitted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-006"
+      customerName: "Delinquent Distributors Inc"
+      invoiceNumber: "AR-INV-2026-07-016"
+      invoiceDate: "2026-07-28"
+      dueDate: "2026-08-27"
+      amount: 7500.00
+      currency: "USD"
+      description: "New order on account"
+      lineItems:
+        - description: "Wholesale goods — 500 units"
+          quantity: 500
+          unitPrice: 15.00
+          total: 7500.00
+      paymentTerms: "NET30"
+      customerCreditStatus: "on_hold"
+      creditHoldReason: "AR_over_90_days_balance_12000"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "CUSTOMER_CREDIT_HOLD"
+      suggestedAction: "release_credit_hold_before_invoicing"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ar-017
+    category: edge_case
+    description: "Mobile money fee deduction variance — fee waived (zero fee)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-006"
+      customerId: "cust-donor-004"
+      customerName: "Global Health Initiative"
+      paymentReference: "PMT-WAVE-2026-07-25-005"
+      grossPaymentAmount: 10000.00
+      feeAmount: 0.00
+      netPaymentAmount: 10000.00
+      expectedFeeRate: 0.01
+      actualFeeRate: 0.0
+      feeVariance: -100.00
+      paymentMethod: "mobile_money"
+      paymentRail: "Wave"
+      waiverReason: "Promotional fee waiver for NGO donors"
+      currency: "USD"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      matchScore: 0.9
+      suggestedAction: "apply_with_fee_waiver_note"
+      feeVarianceDetected: true
+      feeVarianceAmount: 100.00
+      feeVarianceReason: "Fee waived — promotional NGO rate"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Fee waiver requires documented approval for audit trail"
+
+  - id: ar-018
+    category: edge_case
+    description: "AR aging — invoice 90+ days overdue requiring escalation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-007"
+      customerName: "Northern Agro-Products Ltd"
+      invoiceNumber: "AR-INV-2026-04-018"
+      invoiceDate: "2026-04-01"
+      dueDate: "2026-05-01"
+      amount: 8500.00
+      currency: "USD"
+      daysOverdue: 80
+      agingBucket: "overdue_61_90"
+      paymentTerms: "NET30"
+      previousRemindersSent:
+        - level: 1
+          date: "2026-05-05"
+        - level: 2
+          date: "2026-05-20"
+        - level: 3
+          date: "2026-06-10"
+      dunningLevel: 3
+    expected_output:
+      status: "overdue_critical"
+      agingBucket: "overdue_61_90"
+      suggestedAction: "escalate_to_collections"
+      dunningLevel: 3
+      recommendedNextAction: "send_final_demand_and_consider_write_off"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: collections-agent
+    source: synthetic
+    notes: "80 days overdue — unresponsive customer after 3 reminders"
+
+  # ── ADVERSARIAL (5 cases) ──────────────────────────────────────────────────
+  - id: ar-019
+    category: adversarial
+    description: "Fake customer creation attempted with stolen identity details"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: null
+      customerName: "West African Trading Co"
+      invoiceNumber: "AR-INV-2026-07-019"
+      invoiceDate: "2026-07-30"
+      dueDate: "2026-08-29"
+      amount: 9500.00
+      currency: "USD"
+      description: "Consulting services"
+      lineItems:
+        - description: "Services rendered"
+          quantity: 1
+          unitPrice: 9500.00
+          total: 9500.00
+      paymentTerms: "NET30"
+      isNewCustomer: true
+      customerTaxId: "TX-CORP-001"
+      customerEmail: "payment@westafricantrading.co"
+      customerPhone: "+233-555-0199"
+      emailDomainAge: "3_days"
+      emailDomain: "westafricantrading.co"
+      knownGoodDomain: "westafricantrading.com"
+      approvedByManager: false
+    expected_output:
+      status: "rejected"
+      reason_code: "FRAUD_SUSPECTED"
+      suggestedAction: "investigate_customer_identity"
+      anomalyType: "lookalike_domain_and_new_customer"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: compliance-agent
+    source: synthetic
+    notes: "Lookalike domain (co vs com), new customer, similar name to legit customer — probable identity fraud"
+
+  - id: ar-020
+    category: adversarial
+    description: "Payment reference reused across multiple invoices"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "AR-INV-2026-07-007"
+      customerId: "cust-corp-002"
+      customerName: "Sahel Commodities Ltd"
+      paymentReference: "PMT-BANK-2026-07-10-001"
+      paymentAmount: 3000.00
+      paymentDate: "2026-07-10"
+      paymentMethod: "bank_transfer"
+      currency: "USD"
+      invoiceAmount: 3000.00
+      previousMatchWithSameReference: "AR-INV-2026-07-002"
+    expected_output:
+      status: "rejected"
+      reason_code: "DUPLICATE_PAYMENT_REFERENCE"
+      duplicateOf: "AR-INV-2026-07-002"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Same payment reference already matched to a different invoice"
+
+  - id: ar-021
+    category: adversarial
+    description: "Invoice with mismatched totals — line items don't sum to total"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-003"
+      customerName: "Coastal Logistics Ltd"
+      invoiceNumber: "AR-INV-2026-07-021"
+      invoiceDate: "2026-07-20"
+      dueDate: "2026-08-19"
+      amount: 15000.00
+      currency: "USD"
+      description: "Logistics services — July"
+      lineItems:
+        - description: "Warehousing"
+          quantity: 1
+          unitPrice: 5000.00
+          total: 5000.00
+        - description: "Transportation"
+          quantity: 1
+          unitPrice: 6000.00
+          total: 6000.00
+        - description: "Customs clearance"
+          quantity: 1
+          unitPrice: 3000.00
+          total: 3000.00
+      calculatedLineItemTotal: 14000.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "LINE_ITEM_TOTAL_MISMATCH"
+      declaredTotal: 15000.00
+      computedTotal: 14000.00
+      discrepancy: 1000.00
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Line item arithmetic does not match invoice total — possible manipulation"
+
+  - id: ar-022
+    category: adversarial
+    description: "Invoice with backdated date to manipulate aging"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-001"
+      customerName: "West African Trading Co"
+      invoiceNumber: "AR-INV-2026-07-022"
+      invoiceDate: "2026-05-01"
+      dueDate: "2026-05-31"
+      amount: 12000.00
+      currency: "USD"
+      description: "Backdated invoice — suspicious timing"
+      lineItems:
+        - description: "Historical services — no prior record"
+          quantity: 1
+          unitPrice: 12000.00
+          total: 12000.00
+      paymentTerms: "NET30"
+      submittedDate: "2026-07-20"
+      dateDiscrepancyDays: 80
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "SUSPICIOUS_DATE_DISCREPANCY"
+      suggestedAction: "investigate_invoice_timing"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Invoice dated 80 days before submission — possible aging manipulation"
+
+  - id: ar-023
+    category: adversarial
+    description: "Customer requesting payment diversion to third-party account"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-002"
+      customerName: "Sahel Commodities Ltd"
+      invoiceNumber: "AR-INV-2026-07-008"
+      paymentReference: "PMT-REQ-DIVERT-001"
+      paymentAmount: 8000.00
+      paymentDate: "2026-07-25"
+      paymentMethod: "bank_transfer"
+      currency: "USD"
+      invoiceAmount: 8000.00
+      requestedBankAccountChange: true
+      newBankAccount: "DE89370400440532013000"
+      accountHolderName: "Third Party Consulting FZE"
+      accountHolderDiffersFromCustomer: true
+      changeRequestChannel: "phone_call_only"
+      verifiedByCustomerContact: false
+    expected_output:
+      status: "rejected"
+      reason_code: "PAYMENT_DIVERSION_ATTEMPT"
+      suggestedAction: "block_and_escalate_to_compliance"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: compliance-agent
+    source: synthetic
+    notes: "Third-party payment diversion request — high fraud risk"
+
+  # ── AMBIGUOUS (5 cases) ────────────────────────────────────────────────────
+  - id: ar-024
+    category: ambiguous
+    description: "Ambiguous multi-invoice payment matching — customer sent one lump sum for three invoices"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-001"
+      customerName: "West African Trading Co"
+      paymentReference: "PMT-LUMP-2026-07-30-001"
+      paymentAmount: 15000.00
+      paymentDate: "2026-07-30"
+      paymentMethod: "bank_transfer"
+      currency: "USD"
+      openInvoices:
+        - invoiceNumber: "AR-INV-2026-06-001"
+          amount: 5000.00
+        - invoiceNumber: "AR-INV-2026-06-002"
+          amount: 6000.00
+        - invoiceNumber: "AR-INV-2026-06-003"
+          amount: 7000.00
+      totalOpenAmount: 18000.00
+      customerProvidedAllocation: null
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Lump sum payment of $15,000 covers $18,000 open balance across 3 invoices — allocation ambiguous"
+
+  - id: ar-025
+    category: ambiguous
+    description: "Write-off escalation test — uncollectible invoice, but amount exceeds write-off threshold"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-007"
+      customerName: "Northern Agro-Products Ltd"
+      invoiceNumber: "AR-INV-2026-03-025"
+      invoiceDate: "2026-03-15"
+      dueDate: "2026-04-14"
+      amount: 15000.00
+      currency: "USD"
+      daysOverdue: 107
+      agingBucket: "overdue_91_plus"
+      dunningLevel: 4
+      customerStatus: "unreachable"
+      collectionAttempts: 6
+      lastCollectionDate: "2026-07-15"
+      proposedAction: "write_off"
+      writeOffAmount: 15000.00
+      autoWriteOffThreshold: 5000.00
+      approvedByManager: false
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Amount exceeds auto-write-off threshold ($5k of $15k) — controller approval required"
+
+  - id: ar-026
+    category: ambiguous
+    description: "Disputed invoice — customer claims goods not received"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-003"
+      customerName: "Coastal Logistics Ltd"
+      invoiceNumber: "AR-INV-2026-07-010"
+      invoiceDate: "2026-07-05"
+      dueDate: "2026-08-04"
+      amount: 4000.00
+      currency: "USD"
+      description: "Logistics services — freight charges"
+      lineItems:
+        - description: "Freight forwarding — container CN-7788"
+          quantity: 1
+          unitPrice: 4000.00
+          total: 4000.00
+      paymentTerms: "NET30"
+      daysOverdue: 0
+      disputeFlagged: true
+      disputeReason: "Goods not received — delivery proof missing"
+      disputeDate: "2026-07-28"
+      customerCommunicationChannel: "email"
+      resolutionPending: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Dispute requires linking to delivery confirmation before resolving"
+
+  - id: ar-027
+    category: ambiguous
+    description: "Donor payment with partial project attribution — split across multiple grants"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-donor-004"
+      customerName: "Global Health Initiative"
+      invoiceNumber: "AR-INV-2026-07-027"
+      invoiceDate: "2026-07-25"
+      dueDate: "2026-08-24"
+      amount: 75000.00
+      currency: "USD"
+      description: "Annual funding disbursement — multiple programs"
+      customerType: "donor"
+      grantId: "GRANT-GHI-2026"
+      projectCode: null
+      projectName: "Multi-program unrestricted"
+      suggestedSplit:
+        - projectCode: "PROJ-MH-001"
+          projectName: "Maternal Health Outreach"
+          amount: 40000.00
+        - projectCode: "PROJ-WASH-002"
+          projectName: "WASH Initiative"
+          amount: 35000.00
+      splitConfirmedByDonor: false
+      approvedByManager: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Donor payment split across projects without donor confirmation — restricted fund compliance"
+
+  - id: ar-028
+    category: ambiguous
+    description: "Early payment discount request — customer within discount period but no pre-agreed terms"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      customerId: "cust-corp-002"
+      customerName: "Sahel Commodities Ltd"
+      invoiceNumber: "AR-INV-2026-07-011"
+      invoiceDate: "2026-07-15"
+      dueDate: "2026-08-14"
+      amount: 11000.00
+      currency: "USD"
+      description: "Bulk commodity order"
+      paymentTerms: "NET30"
+      standardDiscountTerms: null
+      customerRequestsDiscount: true
+      requestedDiscountPercent: 0.03
+      requestedDiscountAmount: 330.00
+      proposedPaymentDate: "2026-07-25"
+      discountRationale: "Early payment to clear account"
+      discountAuthorizedInContract: false
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Early payment discount requested but not in contract terms — needs commercial approval"

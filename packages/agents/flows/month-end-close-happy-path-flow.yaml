@@ -1,0 +1,142 @@
+flow: month-end-close-happy-path
+description: "PRD §8 — month-end autonomous close: all departments confirm clean, CFO signs off, Reporting produces package, human notified"
+version: 1
+last_updated: 2026-07-20
+
+steps:
+  - step: 1
+    agent: cfo-agent
+    action: initiate_month_end_close
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      period: "2026-06"
+      close_deadline: "2026-07-05T17:00:00Z"
+    expected_output:
+      close_id: "close-2026-06"
+      status: initiated
+      departments_notified:
+        - controller-agent
+        - treasury-agent
+        - payroll-manager-agent
+        - compliance-agent
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Close initiated, all department heads notified with correct period and deadline"
+
+  - step: 2
+    agent: controller-agent
+    action: confirm_subledgers
+    input_from_step: 1
+    expected_output:
+      ar_balanced: true
+      ap_balanced: true
+      accruals_posted: true
+      depreciation_posted: true
+      prepaids_amortized: true
+      intercompany_reconciled: true
+      status: clean
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "All subledgers closed and reconciled; accruals and adjustments posted"
+
+  - step: 3
+    agent: treasury-agent
+    action: confirm_cash_position
+    input_from_step: 1
+    expected_output:
+      bank_reconciliations_complete: true
+      cash_forecast_finalized: true
+      debt_covenants_verified: true
+      status: clean
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "All bank accounts reconciled, cash forecast finalised, covenants verified"
+
+  - step: 4
+    agent: payroll-manager-agent
+    action: confirm_payroll_closed
+    input_from_step: 1
+    expected_output:
+      payroll_period_closed: true
+      payroll_journal_posted: true
+      tax_withholdings_recorded: true
+      status: clean
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Payroll period closed, journals posted, tax withholdings recorded"
+
+  - step: 5
+    agent: compliance-agent
+    action: confirm_compliance
+    input_from_step: 1
+    expected_output:
+      tax_filings_current: true
+      regulatory_reports_submitted: true
+      no_pending_audit_issues: true
+      status: clean
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Tax filings current, regulatory reports submitted, no open audit issues"
+
+  - step: 6
+    agent: controller-agent
+    action: compile_close_summary
+    input_from_step:
+      - 2
+      - 3
+      - 4
+      - 5
+    expected_output:
+      close_id: "close-2026-06"
+      all_departments_clean: true
+      exceptions: []
+      recommendation: approve
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "All four departments confirmed clean; controller recommends CFO sign-off"
+
+  - step: 7
+    agent: cfo-agent
+    action: approve_close
+    input_from_step: 6
+    expected_output:
+      close_id: "close-2026-06"
+      decision: approved
+      signed_off: true
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "CFO signed off on close package"
+
+  - step: 8
+    agent: reporting-agent
+    action: produce_close_package
+    input_from_step: 7
+    expected_output:
+      package_id: "pkg-2026-06"
+      documents_generated:
+        - pnl_statement
+        - balance_sheet
+        - cash_flow_statement
+        - trial_balance
+        - close_memo
+      status: delivered
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Full financial statement package produced and delivered"
+
+  - step: 9
+    agent: cfo-agent
+    action: notify_human
+    input_from_step: 8
+    expected_output:
+      notification_sent: true
+      channel: email
+      recipient: "entity-owner@example.com"
+      summary: "Month-end close June 2026 completed successfully. Package available."
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Human entity owner notified of successful close, no action required"
+
+final_state_check:
+  close_completed: true
+  all_departments_confirmed_clean: true
+  cfo_signed_off: true
+  financial_statements_produced: true
+  human_notified: true
+
+expected_human_touchpoints: 1
+human_touchpoint_details:
+  - step: 9
+    agent: cfo-agent
+    reason: "Notification only — human informed of close completion, no action required"

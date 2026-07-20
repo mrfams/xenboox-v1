@@ -1,0 +1,903 @@
+agent: payroll-manager-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ─────────────────────────────────────────────────
+  - id: payroll-mgr-001
+    category: happy_path
+    description: "Standard monthly payroll approved"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      employeeCount: 15
+      totalGrossPay: "85000.00"
+      totalDeductions: "24480.00"
+      totalNetPay: "60520.00"
+      breakdown:
+        payeTotal: "12750.00"
+        ssnitEmployeeTotal: "5865.00"
+        ssnitEmployerTotal: "11730.00"
+        otherDeductionsTotal: "5865.00"
+      approvalStatus: pending
+      workerReports:
+        - workerId: payroll-worker-1
+          status: complete
+          employeesProcessed: 8
+          accuracyScore: 0.99
+        - workerId: payroll-worker-2
+          status: complete
+          employeesProcessed: 7
+          accuracyScore: 0.98
+    expected_output:
+      status: "approved"
+      total_variance: "0.00"
+      accuracy_score: 0.99
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-002
+    category: happy_path
+    description: "Payroll variance analysis — month-over-month within tolerance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      varianceAnalysis:
+        currentMonth:
+          totalGrossPay: "85000.00"
+          totalNetPay: "60520.00"
+          employeeCount: 15
+        previousMonth:
+          totalGrossPay: "83000.00"
+          totalNetPay: "59100.00"
+          employeeCount: 15
+        variances:
+          grossPayVariance: "2000.00"
+          grossPayVariancePercent: 2.41
+          netPayVariance: "1420.00"
+          netPayVariancePercent: 2.40
+          employeeCountChange: 0
+        varianceDrivers:
+          - "Annual salary increment for 3 employees effective July"
+          - "Overtime increase of 500.00"
+    expected_output:
+      status: "accepted"
+      variance_threshold_met: true
+      variance_acceptable: true
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-003
+    category: happy_path
+    description: "Statutory deduction changes implemented — SSNIT rate update"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      statutoryChanges:
+        - type: SSNIT
+          change: rate_update
+          previousRate: 0.135
+          newRate: 0.138
+          effectiveDate: "2026-07-01"
+          affectedEmployees: 15
+          financialImpact:
+            additionalEmployeeCost: "153.00"
+            additionalEmployerCost: "306.00"
+            totalAdditionalCost: "459.00"
+          implementationStatus: applied
+    expected_output:
+      status: "approved"
+      changes_verified: true
+      financial_impact_assessed: true
+      total_additional_cost: "459.00"
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-004
+    category: happy_path
+    description: "Statutory deduction changes — PAYE threshold update"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      statutoryChanges:
+        - type: PAYE
+          change: threshold_update
+          previousTaxFreeAmount: "402.00"
+          newTaxFreeAmount: "450.00"
+          effectiveDate: "2026-07-01"
+          affectedEmployees: 15
+          financialImpact:
+            totalTaxReduction: "720.00"
+            averageReductionPerEmployee: "48.00"
+          implementationStatus: applied
+    expected_output:
+      status: "approved"
+      changes_verified: true
+      financial_impact_assessed: true
+      total_tax_reduction: "720.00"
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-005
+    category: happy_path
+    description: "New employee addition mid-cycle processed correctly"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      employeeChanges:
+        additions:
+          - employeeId: "EMP-016"
+            name: "Jane Doe"
+            department: "Engineering"
+            startDate: "2026-07-15"
+            annualSalary: "72000.00"
+            proRatedAmount: "3000.00"
+            payeDeducted: "450.00"
+            ssnitDeducted: "207.00"
+            netPay: "2343.00"
+            statutoryDetails:
+              taxId: "TIN-EMP-016"
+              ssnitNumber: "SSNIT-EMP-016"
+    expected_output:
+      status: "approved"
+      mid_cycle_handling: correct
+      pro_ration_verified: true
+      statutory_registration_verified: true
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-006
+    category: happy_path
+    description: "Terminated employee final pay processed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      employeeChanges:
+        terminations:
+          - employeeId: "EMP-008"
+            name: "John Smith"
+            department: "Sales"
+            terminationDate: "2026-07-20"
+            finalPayDetails:
+              salaryToDate: "2500.00"
+              accruedLeavePayout: "1500.00"
+              severancePay: "4000.00"
+              totalGross: "8000.00"
+              payeDeducted: "1200.00"
+              ssnitDeducted: "552.00"
+              otherDeductions: "300.00"
+              netPay: "5948.00"
+            exitChecklist:
+              companyAssetReturned: true
+              finalSettlementApproved: true
+    expected_output:
+      status: "approved"
+      final_pay_calculations: correct
+      exit_checklist_complete: true
+      severance_compliance: true
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-007
+    category: happy_path
+    description: "Monthly payroll report generated for management review"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      reportRequest:
+        type: management_summary
+        sections:
+          - payroll_cost_summary
+          - department_breakdown
+          - deduction_analysis
+          - variance_analysis
+          - statutory_obligations
+    expected_output:
+      status: "generated"
+      report_complete: true
+      sections_delivered:
+        - payroll_cost_summary
+        - department_breakdown
+        - deduction_analysis
+        - variance_analysis
+        - statutory_obligations
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-008
+    category: happy_path
+    description: "Payroll approval with overtime and bonuses included"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      totalGrossPay: "95000.00"
+      components:
+        baseSalary: "85000.00"
+        overtime: "5000.00"
+        bonuses: "5000.00"
+      totalDeductions: "26480.00"
+      totalNetPay: "68520.00"
+      overtimeVerified: true
+      bonusAuthorization:
+        - employeeId: "EMP-003"
+          bonusType: performance
+          amount: "3000.00"
+          approvedBy: "Manager-A"
+        - employeeId: "EMP-007"
+          bonusType: performance
+          amount: "2000.00"
+          approvedBy: "Manager-A"
+    expected_output:
+      status: "approved"
+      overtime_correct: true
+      bonus_authorization_verified: true
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-009
+    category: happy_path
+    description: "Payroll tax calculation review — all rates correct"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      taxReview:
+        payeRateApplied: progressive
+        ssnitRateApplied: 0.138
+        withholdingTaxRateApplied: 0.075
+        totalPayeCalculated: "12750.00"
+        totalSsnitCalculated: "5865.00"
+        expectedPaye: "12750.00"
+        expectedSsnit: "5865.00"
+        variancePaye: "0.00"
+        varianceSsnit: "0.00"
+        taxCodeCompliance: all_valid
+    expected_output:
+      status: "approved"
+      tax_rates_verified: true
+      calculations_accurate: true
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-mgr-010
+    category: happy_path
+    description: "Payroll calendar compliance — all deadlines met"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      calendarCompliance:
+        payrollProcessingDate: "2026-07-25"
+        payrollApprovalDate: "2026-07-26"
+        paymentDate: "2026-07-28"
+        payeRemittanceDeadline: "2026-08-15"
+        ssnitRemittanceDeadline: "2026-08-15"
+        deadlinesMet:
+          - processingDateMet: true
+          - approvalDateMet: true
+          - paymentDateMet: true
+    expected_output:
+      status: "compliant"
+      all_deadlines_met: true
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (8 cases) ──────────────────────────────────────────────────
+  - id: payroll-mgr-011
+    category: edge_case
+    description: "Payroll with calculation errors flagged by worker agent"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      workerReports:
+        - workerId: payroll-worker-1
+          status: flagged
+          employeesProcessed: 8
+          errorsReported:
+            - employeeId: "EMP-005"
+              issue: "PAYE calculation mismatch"
+              expectedPaye: "850.00"
+              calculatedPaye: "920.00"
+              variance: "-70.00"
+            - employeeId: "EMP-009"
+              issue: "SSNIT deduction exceeds ceiling"
+              expectedSsnit: "345.00"
+              calculatedSsnit: "400.00"
+              variance: "-55.00"
+    expected_output:
+      status: "flagged"
+      review_required: true
+      error_count: 2
+      affected_employees:
+        - employeeId: "EMP-005"
+          issue: "PAYE_CALCULATION_MISMATCH"
+          correction: "Recalculate PAYE using correct tax bands"
+        - employeeId: "EMP-009"
+          issue: "SSNIT_EXCEEDS_CEILING"
+          correction: "Apply SSNIT earnings cap of 13800.00"
+      recommendations:
+        - "Send corrections back to payroll-worker-1 for re-processing"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: payroll-worker-agent
+    source: synthetic
+
+  - id: payroll-mgr-012
+    category: edge_case
+    description: "Payroll variance exceeds threshold — needs investigation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      varianceAnalysis:
+        currentMonth:
+          totalGrossPay: "125000.00"
+          totalNetPay: "89500.00"
+          employeeCount: 18
+        previousMonth:
+          totalGrossPay: "85000.00"
+          totalNetPay: "60520.00"
+          employeeCount: 15
+        variances:
+          grossPayVariance: "40000.00"
+          grossPayVariancePercent: 47.06
+          netPayVariance: "28980.00"
+          netPayVariancePercent: 47.88
+          employeeCountChange: 3
+        varianceDrivers:
+          - "3 new senior hires in July (EMP-016, EMP-017, EMP-018)"
+          - "Annual bonus payout for executive team: 25000.00"
+    expected_output:
+      status: "flagged"
+      variance_threshold_exceeded: true
+      threshold: 0.1
+      actual_variance: 0.4706
+      investigation_required: true
+      details:
+        - "Gross pay variance 47.06% exceeds 10% threshold"
+        - "3 new employees added — verify headcount approvals"
+        - "Executive bonus of 25000.00 — verify board authorization"
+      recommendations:
+        - "Confirm new hire approvals with HR"
+        - "Verify executive bonus authorization with board minutes"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: payroll-mgr-013
+    category: edge_case
+    description: "Duplicate employee records detected in payroll run"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      anomalies:
+        duplicateRecords:
+          - employeeId: "EMP-003"
+            name: "Kwame Asante"
+            department: "Engineering"
+            duplicateEntry1:
+              grossPay: "5000.00"
+              netPay: "3560.00"
+            duplicateEntry2:
+              grossPay: "5000.00"
+              netPay: "3560.00"
+            totalDuplicateAmount: "10000.00"
+    expected_output:
+      status: "flagged"
+      anomaly_detected: true
+      reason_code: "DUPLICATE_EMPLOYEE_ENTRY"
+      duplicate_amount: "5000.00"
+      recommendations:
+        - "Remove duplicate entry for EMP-003"
+        - "Investigate how duplicate was created"
+        - "Verify worker agent processing logic"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: payroll-worker-agent
+    source: synthetic
+
+  - id: payroll-mgr-014
+    category: edge_case
+    description: "Payroll with missing employee statutory details"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      employeeIssues:
+        - employeeId: "EMP-012"
+          name: "Sarah Mensah"
+          missingDetails:
+            - ssnitNumber
+            - taxId
+          risk: "Cannot remit SSNIT and PAYE without registration numbers"
+        - employeeId: "EMP-014"
+          name: "Michael Addo"
+          missingDetails:
+            - bankAccount
+          risk: "Cannot process net pay disbursement"
+    expected_output:
+      status: "blocked"
+      missing_statutory_details: true
+      affected_employees: 2
+      details:
+        - "EMP-012: Missing SSNIT number and tax ID — cannot file statutory returns"
+        - "EMP-014: Missing bank account — cannot disburse net pay"
+      recommendations:
+        - "Collect SSNIT number and tax ID for EMP-012 from HR"
+        - "Request bank account details for EMP-014"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: hr-agent
+    source: synthetic
+
+  - id: payroll-mgr-015
+    category: edge_case
+    description: "Negative net pay due to excessive deductions"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      employeeIssues:
+        - employeeId: "EMP-010"
+          name: "Grace Asare"
+          grossPay: "4500.00"
+          deductions:
+            paye: "675.00"
+            ssnit: "310.50"
+            loanRepayment: "3000.00"
+            salaryAdvanceRecovery: "1500.00"
+            otherDeductions: "200.00"
+          totalDeductions: "5685.50"
+          netPay: "-1185.50"
+    expected_output:
+      status: "blocked"
+      negative_net_pay_detected: true
+      affected_employees:
+        - employeeId: "EMP-010"
+          gross_pay: "4500.00"
+          total_deductions: "5685.50"
+          net_pay: "-1185.50"
+          reason: "Loan repayment plus salary advance recovery exceed net pay threshold"
+      recommendations:
+        - "Reduce loan repayment for EMP-010 to 1000.00 for this period"
+        - "Spread salary advance recovery over 3 months"
+        - "Ensure net pay is at least 50% of gross pay per labor regulations"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: payroll-mgr-016
+    category: edge_case
+    description: "Backdated payroll correction from prior period"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-CORR-2026-06"
+      period: "2026-06"
+      correctionType: backdated
+      reason: "Underpayment error discovered for EMP-004 in June payroll"
+      correctionDetails:
+        employeeId: "EMP-004"
+        originalGrossPay: "5500.00"
+        correctedGrossPay: "6000.00"
+        difference: "500.00"
+        additionalPayeDue: "75.00"
+        additionalSsnitDue: "34.50"
+        additionalNetPayable: "390.50"
+      originalPayrollId: "PAY-2026-06"
+    expected_output:
+      status: "approved_with_flag"
+      correction_processed: true
+      prior_period_adjustment: true
+      statutory_impact:
+        additionalPayeDue: "75.00"
+        additionalSsnitDue: "34.50"
+      recommendations:
+        - "Include correction in next statutory filing"
+        - "Flag for amended PAYE schedule"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Backdated corrections need controller awareness for amended filings"
+
+  - id: payroll-mgr-017
+    category: edge_case
+    description: "Payroll approval bypasses standard checks — expedited payment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07-EXPEDITED"
+      period: "2026-07"
+      expeditedRequest: true
+      reason: "Month-end falls on public holiday — early payment required"
+      originalProcessingDate: "2026-07-31"
+      expeditedProcessingDate: "2026-07-28"
+      standardChecksSkipped:
+        - varianceAnalysis
+        - workerAccuracyReview
+      totalAmount: "60520.00"
+    expected_output:
+      status: "approved_with_conditions"
+      expedited_approved: true
+      missed_checks:
+        - varianceAnalysis
+        - workerAccuracyReview
+      conditions:
+        - "Post-payment review of variance analysis required"
+        - "Worker accuracy audit to be completed within 48 hours"
+      recommendations:
+        - "Schedule variance review for 2026-07-30"
+        - "Flag for post-payment reconciliation"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Expedited payroll bypasses standard controls — needs post-payment verification"
+
+  - id: payroll-mgr-018
+    category: edge_case
+    description: "Staff loan deduction exceeds contractual limit"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      employeeIssues:
+        - employeeId: "EMP-006"
+          name: "Yaa Ofori"
+          grossPay: "6000.00"
+          staffLoanDeduction:
+            contractualMonthlyDeduction: "500.00"
+            actualDeductionApplied: "800.00"
+            variance: "300.00"
+            loanBalanceBefore: "3000.00"
+            loanBalanceAfter: "2200.00"
+            contractualLimitExceeded: true
+            reason: "HR authorization for accelerated repayment not found"
+    expected_output:
+      status: "flagged"
+      loan_deduction_anomaly: true
+      affected_employees:
+        - employeeId: "EMP-006"
+          expected_deduction: "500.00"
+          actual_deduction: "800.00"
+          variance: "300.00"
+      recommendations:
+        - "Revert deduction to contractual 500.00"
+        - "Seek HR authorization if accelerated repayment intended"
+        - "Credit over-deducted 300.00 to employee in next payroll"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  # ── ADVERSARIAL (5 cases) ─────────────────────────────────────────────────
+  - id: payroll-mgr-019
+    category: adversarial
+    description: "Ghost employee detected in payroll run"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      anomalies:
+        ghostEmployee:
+          employeeId: "EMP-099"
+          name: "Fake Employee"
+          bankAccount: "1234567890"
+          grossPay: "5000.00"
+          netPay: "3560.00"
+          hrRecordExists: false
+          bankAccountMatches: false
+          ssnitNumberValid: false
+          taxIdValid: false
+    expected_output:
+      status: "blocked"
+      fraud_alert: true
+      reason_code: "GHOST_EMPLOYEE_DETECTED"
+      details:
+        - "EMP-099 has no matching HR record"
+        - "Bank account not on file"
+        - "SSNIT number and tax ID invalid"
+      severity: critical
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Critical fraud detection — ghost employee escalation to security"
+
+  - id: payroll-mgr-020
+    category: adversarial
+    description: "Unauthorized salary adjustment attempted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      anomalies:
+        unauthorizedChanges:
+          - employeeId: "EMP-001"
+            name: "Kwame Asante"
+            previousSalary: "60000.00"
+            newSalary: "90000.00"
+            changePercent: 50.0
+            authorizationPresent: false
+            hrApproval: missing
+            managerApproval: missing
+            boardApprovalRequired: true
+            boardApproval: missing
+    expected_output:
+      status: "blocked"
+      fraud_alert: true
+      reason_code: "UNAUTHORIZED_SALARY_CHANGE"
+      details:
+        - "EMP-001 salary increased by 50% without any approvals"
+        - "Board approval required for changes > 20%"
+      severity: high
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: payroll-mgr-021
+    category: adversarial
+    description: "Payroll batch submitted with manipulated totals"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      integrityCheck:
+        submittedTotalGross: "95000.00"
+        recalculatedTotalGross: "85000.00"
+        variance: "10000.00"
+        submittedTotalNet: "70000.00"
+        recalculatedTotalNet: "60520.00"
+        varianceNet: "9480.00"
+        integrityHashMatch: false
+        tamperedFields:
+          - totalGrossPay
+          - totalNetPay
+          - totalDeductions
+    expected_output:
+      status: "blocked"
+      integrity_failure: true
+      reason_code: "PAYROLL_INTEGRITY_MISMATCH"
+      details:
+        - "Submitted gross 95000.00 does not match recalculated 85000.00"
+        - "Submitted net 70000.00 does not match recalculated 60520.00"
+        - "Integrity hash mismatch — data may have been tampered with"
+      severity: critical
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Critical security — payroll totals manipulation detected"
+
+  - id: payroll-mgr-022
+    category: adversarial
+    description: "Entity mismatch in payroll batch processing"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      entityScopeCheck:
+        requestEntityId: "00000000-0000-0000-0000-000000000001"
+        employeesInBatch:
+          - employeeId: "EMP-001"
+            entityId: "00000000-0000-0000-0000-000000000001"
+          - employeeId: "EMP-002"
+            entityId: "00000000-0000-0000-0000-000000000002"
+          - employeeId: "EMP-003"
+            entityId: "00000000-0000-0000-0000-000000000001"
+        crossEntityEmployees:
+          - employeeId: "EMP-002"
+            wrongEntityId: "00000000-0000-0000-0000-000000000002"
+    expected_output:
+      status: "blocked"
+      reason_code: "ENTITY_SCOPE_VIOLATION"
+      details:
+        - "EMP-002 belongs to entity 00000000-0000-0000-0000-000000000002, not current entity"
+        - "Cross-entity payroll processing not permitted"
+      severity: critical
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: payroll-mgr-023
+    category: adversarial
+    description: "Attempt to process payroll with malicious data injection"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      securityScan:
+        sqlInjectionAttempt: true
+        pattern: "1; DROP TABLE employees; --"
+        field: "employeeName"
+        xssAttempt: true
+        pattern: "<script>alert('xss')</script>"
+        field: "notes"
+    expected_output:
+      status: "blocked"
+      reason_code: "SECURITY_VIOLATION"
+      details:
+        - "SQL injection pattern detected in employeeName field"
+        - "XSS attempt detected in notes field"
+      severity: critical
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Security-critical — injection attack blocked"
+
+  # ── AMBIGUOUS (5 cases) ───────────────────────────────────────────────────
+  - id: payroll-mgr-024
+    category: ambiguous
+    description: "Independent contractor vs employee classification"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      classificationQuery:
+        workerId: "CTR-022"
+        engagementType: long_term_contractor
+        duration: "8 months"
+        workSchedule: "Full-time, on-site"
+        equipmentProvided: true
+        supervisionLevel: direct
+        exclusivity: true
+        benefitsProvided: false
+        taxTreatment: self_assessment
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Contractor vs employee classification requires legal judgment — ambiguous indicators"
+
+  - id: payroll-mgr-025
+    category: ambiguous
+    description: "Overtime premium calculation for public holiday"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      overtimeQuery:
+        employeeId: "EMP-005"
+        date: "2026-07-01" # Republic Day
+        hoursWorked: 8
+        baseRate: "28.85"
+        applicablePremiums:
+          - type: public_holiday
+            rate: 2.0
+          - type: overtime
+            rate: 1.5
+        policyGuidance:
+          corporatePolicy: "Public holiday = 2.0x base rate"
+          labourLaw: "Public holiday overtime = 2.5x base rate (double + overtime)"
+        interpretationAmbiguous: true
+    expected_output: null
+    expected_confidence_range: [0.3, 0.6]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Conflict between corporate policy and strict labour law interpretation"
+
+  - id: payroll-mgr-026
+    category: ambiguous
+    description: "Bonus payout allocation across cost centers"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      allocationQuery:
+        bonusPool: "50000.00"
+        allocationBasis: "Individual performance ratings"
+        costCenters:
+          - costCenter: "ENGINEERING"
+            employees: 8
+            totalAllocation: "25000.00"
+            performanceScoreAvg: 4.2
+          - costCenter: "SALES"
+            employees: 4
+            totalAllocation: "15000.00"
+            performanceScoreAvg: 3.8
+          - costCenter: "OPERATIONS"
+            employees: 3
+            totalAllocation: "10000.00"
+            performanceScoreAvg: 4.0
+        allocationMethod:
+          method: "Manager discretion"
+          standardizedFormula: false
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Subjective bonus allocation needs fairness review — no standardized formula"
+
+  - id: payroll-mgr-027
+    category: ambiguous
+    description: "Pension contribution treatment for expatriate employee"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      expatriateQuery:
+        employeeId: "EMP-015"
+        nationality: "Nigerian"
+        workLocation: "Ghana"
+        visaType: "Work permit"
+        durationInCountry: "18 months"
+        homeCountryPension: "Contributing to Nigerian RSA"
+        hostCountryPension: "SSNIT enrollment pending"
+        doubleContributionRisk: true
+        taxTreatyProvisions: "Nigeria-Ghana DTA Article 19"
+    expected_output: null
+    expected_confidence_range: [0.3, 0.6]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Expatriate pension treatment requires cross-border pension expertise"
+
+  - id: payroll-mgr-028
+    category: ambiguous
+    description: "Retroactive salary adjustment for multiple employees"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-CORR-2026-07"
+      period: "2026-07"
+      retroactiveQuery:
+        effectiveDate: "2026-04-01"
+        processingDate: "2026-07-25"
+        monthsRetroactive: 4
+        affectedEmployees: 5
+        totalRetroactiveAmount: "28000.00"
+        payeImplications: "Additional PAYE due in current period"
+        ssnitImplications: "SSNIT contributions for prior periods"
+        approvalPresent: true
+        accountingMethod: "lump_sum_current_period"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Retroactive adjustments spanning multiple periods — tax treatment ambiguous"

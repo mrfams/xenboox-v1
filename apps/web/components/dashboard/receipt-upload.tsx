@@ -113,7 +113,11 @@ export function ReceiptUpload({ onUploadComplete }: ReceiptUploadProps) {
           const data = await status.json();
           const doc = data?.result?.data;
 
-          if (doc?.status === "processed") {
+          if (
+            doc?.status === "synced" ||
+            doc?.status === "agent_processing" ||
+            doc?.status === "done"
+          ) {
             setUploads((prev) =>
               prev.map((u) =>
                 u.id === itemId

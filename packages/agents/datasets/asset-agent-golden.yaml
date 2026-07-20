@@ -1,0 +1,902 @@
+agent: asset-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # -- HAPPY PATH (10 cases) -------------------------------------------------
+  - id: asset-001
+    category: happy_path
+    description: "Straight-line depreciation for IT equipment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: calculate_depreciation
+      asset:
+        id: "AST-IT-001"
+        name: "Dell PowerEdge Server"
+        category: IT_EQUIPMENT
+        acquisitionDate: "2025-01-01"
+        cost: "24000.00"
+        residualValue: "2000.00"
+        usefulLifeYears: 4
+        depreciationMethod: straight_line
+        currentPeriod: "2026-07"
+      calculation:
+        annualDepreciation: "5500.00"
+        monthlyDepreciation: "458.33"
+        accumulatedDepreciationToDate: "9166.66"
+        netBookValue: "14833.34"
+        remainingLifeMonths: 32
+    expected_output:
+      status: "calculated"
+      depreciation_amount: "458.33"
+      accumulated_depreciation: "9166.66"
+      net_book_value: "14833.34"
+      method: straight_line
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-002
+    category: happy_path
+    description: "Reducing balance depreciation for vehicles"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: calculate_depreciation
+      asset:
+        id: "AST-VH-001"
+        name: "Toyota Hilux 2024"
+        category: VEHICLES
+        acquisitionDate: "2024-06-01"
+        cost: "250000.00"
+        residualValue: "50000.00"
+        depreciationMethod: reducing_balance
+        reducingBalanceRate: 0.25
+        currentPeriod: "2026-07"
+      calculation:
+        openingNetBookValue: "140625.00"
+        annualDepreciation: "35156.25"
+        monthlyDepreciation: "2929.69"
+        accumulatedDepreciationToDate: "140625.00"
+        netBookValue: "109375.00"
+    expected_output:
+      status: "calculated"
+      depreciation_amount: "2929.69"
+      accumulated_depreciation: "140625.00"
+      net_book_value: "109375.00"
+      method: reducing_balance
+      rate_applied: 0.25
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-003
+    category: happy_path
+    description: "Asset acquisition recorded and registered"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: register_asset
+      asset:
+        name: "MacBook Pro M4"
+        category: IT_EQUIPMENT
+        acquisitionDate: "2026-07-15"
+        cost: "15000.00"
+        residualValue: "1500.00"
+        usefulLifeYears: 3
+        depreciationMethod: straight_line
+        supplier: "iStore Ghana"
+        invoiceRef: "INV-ISTORE-2026-07"
+        location: "Accra Office"
+        department: "Engineering"
+        custodian: "EMP-001"
+    expected_output:
+      status: "registered"
+      asset_id: "AST-IT-002"
+      cost: "15000.00"
+      depreciation_start_date: "2026-08-01"
+      monthly_depreciation: "375.00"
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-004
+    category: happy_path
+    description: "Partial-year depreciation - asset acquired mid-month"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: calculate_depreciation
+      asset:
+        id: "AST-FE-001"
+        name: "Office Generator"
+        category: FURNITURE_AND_EQUIPMENT
+        acquisitionDate: "2026-07-18"
+        cost: "30000.00"
+        residualValue: "3000.00"
+        usefulLifeYears: 5
+        depreciationMethod: straight_line
+        currentPeriod: "2026-07"
+      calculation:
+        annualDepreciation: "5400.00"
+        monthlyDepreciation: "450.00"
+        daysInMonth: 31
+        daysRemaining: 14
+        periodDepreciation: "203.23"
+    expected_output:
+      status: "calculated"
+      depreciation_amount: "203.23"
+      monthly_full_depreciation: "450.00"
+      pro_ration_factor: 0.45
+      partial_period: true
+      notes: "14 of 31 days - mid-month acquisition pro-ration applied"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-005
+    category: happy_path
+    description: "Asset disposal with gain on sale"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: dispose_asset
+      asset:
+        id: "AST-VH-002"
+        name: "Nissan Navara 2020"
+        category: VEHICLES
+        acquisitionDate: "2020-03-01"
+        cost: "180000.00"
+        accumulatedDepreciation: "144000.00"
+        netBookValue: "36000.00"
+        disposalDate: "2026-07-20"
+        disposalProceeds: "45000.00"
+        disposalMethod: sold
+        buyerDetails: "ABC Motors Ltd"
+      calculation:
+        netBookValueAtDisposal: "36000.00"
+        proceeds: "45000.00"
+        gainOnDisposal: "9000.00"
+        lossOnDisposal: "0.00"
+    expected_output:
+      status: "disposed"
+      gain_on_disposal: "9000.00"
+      proceeds: "45000.00"
+      net_book_value: "36000.00"
+      journal_entries:
+        - account: "1101"
+          debit: "0.00"
+          credit: "180000.00"
+          description: "Remove asset cost"
+        - account: "1102"
+          debit: "144000.00"
+          credit: "0.00"
+          description: "Remove accumulated depreciation"
+        - account: "1000"
+          debit: "45000.00"
+          credit: "0.00"
+          description: "Record disposal proceeds"
+        - account: "4400"
+          debit: "0.00"
+          credit: "9000.00"
+          description: "Record gain on disposal"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+  - id: asset-006
+    category: happy_path
+    description: "Asset disposal with loss on sale"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: dispose_asset
+      asset:
+        id: "AST-IT-003"
+        name: "Cisco Switch"
+        category: IT_EQUIPMENT
+        acquisitionDate: "2021-08-01"
+        cost: "12000.00"
+        accumulatedDepreciation: "10000.00"
+        netBookValue: "2000.00"
+        disposalDate: "2026-07-15"
+        disposalProceeds: "500.00"
+        disposalMethod: scrapped
+      calculation:
+        netBookValueAtDisposal: "2000.00"
+        proceeds: "500.00"
+        gainOnDisposal: "0.00"
+        lossOnDisposal: "1500.00"
+    expected_output:
+      status: "disposed"
+      loss_on_disposal: "1500.00"
+      proceeds: "500.00"
+      net_book_value: "2000.00"
+      journal_entries:
+        - account: "1101"
+          debit: "0.00"
+          credit: "12000.00"
+        - account: "1102"
+          debit: "10000.00"
+          credit: "0.00"
+        - account: "1000"
+          debit: "500.00"
+          credit: "0.00"
+        - account: "5600"
+          debit: "1500.00"
+          credit: "0.00"
+          description: "Record loss on disposal"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-007
+    category: happy_path
+    description: "Asset revaluation - upward adjustment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: revalue_asset
+      asset:
+        id: "AST-BD-001"
+        name: "Warehouse - Tema"
+        category: BUILDING
+        acquisitionDate: "2020-01-01"
+        cost: "1500000.00"
+        accumulatedDepreciation: "300000.00"
+        netBookValueBefore: "1200000.00"
+        revaluationDate: "2026-07-01"
+        fairValue: "1800000.00"
+        revaluationSurplus: "600000.00"
+        revaluationApprovedBy: "Board Resolution 2026-07-01"
+    expected_output:
+      status: "revalued"
+      previous_net_book_value: "1200000.00"
+      fair_value: "1800000.00"
+      revaluation_surplus: "600000.00"
+      surplus_account: "3200"
+      journal_entries:
+        - account: "1101"
+          debit: "600000.00"
+          credit: "0.00"
+          description: "Increase asset cost to fair value"
+        - account: "3200"
+          debit: "0.00"
+          credit: "600000.00"
+          description: "Record revaluation surplus in equity"
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-008
+    category: happy_path
+    description: "Monthly depreciation schedule generation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: generate_depreciation_schedule
+      period: "2026-07"
+      assets:
+        - id: "AST-IT-001"
+          name: "Dell PowerEdge Server"
+          depreciation: "458.33"
+        - id: "AST-IT-003"
+          name: "Cisco Switch"
+          depreciation: "166.67"
+        - id: "AST-VH-001"
+          name: "Toyota Hilux 2024"
+          depreciation: "2929.69"
+        - id: "AST-FE-001"
+          name: "Office Generator"
+          depreciation: "203.23"
+    expected_output:
+      status: "schedule_generated"
+      total_depreciation: "3757.92"
+      asset_count: 4
+      schedule_complete: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-009
+    category: happy_path
+    description: "Fixed asset register update with new acquisition"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: update_register
+      asset:
+        id: "AST-IT-002"
+        name: "MacBook Pro M4"
+        status: active
+        location: "Accra Office"
+        custodian: "EMP-001"
+        department: "Engineering"
+        category: IT_EQUIPMENT
+        cost: "15000.00"
+        netBookValue: "15000.00"
+        depreciationMethod: straight_line
+        usefulLifeMonths: 36
+        acquisitionDate: "2026-07-15"
+      registerDetails:
+        totalAssets: 18
+        totalCostBasis: "2142000.00"
+        totalAccumulatedDepreciation: "453666.66"
+        totalNetBookValue: "1688333.34"
+    expected_output:
+      status: "register_updated"
+      asset_added: true
+      total_assets: 18
+      total_cost_basis: "2142000.00"
+      total_net_book_value: "1688333.34"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-010
+    category: happy_path
+    description: "Fully depreciated asset removed from register"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: retire_asset
+      asset:
+        id: "AST-IT-004"
+        name: "HP Printer"
+        category: IT_EQUIPMENT
+        acquisitionDate: "2020-01-01"
+        cost: "5000.00"
+        residualValue: "500.00"
+        usefulLifeYears: 5
+        accumulatedDepreciation: "4500.00"
+        netBookValue: "500.00"
+        fullyDepreciated: true
+        retirementDate: "2026-07-31"
+        retirementReason: "End of useful life - replaced"
+        physicalCondition: non_functional
+    expected_output:
+      status: "retired"
+      fully_depreciated: true
+      net_book_value: "500.00"
+      journal_entries:
+        - account: "1101"
+          debit: "0.00"
+          credit: "5000.00"
+        - account: "1102"
+          debit: "4500.00"
+          credit: "0.00"
+        - account: "5600"
+          debit: "500.00"
+          credit: "0.00"
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+  # -- EDGE CASES (8 cases) --------------------------------------------------
+  - id: asset-011
+    category: edge_case
+    description: "Fully depreciated asset still in use"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_asset_status
+      asset:
+        id: "AST-IT-005"
+        name: "Dell Monitor"
+        category: IT_EQUIPMENT
+        acquisitionDate: "2019-06-01"
+        cost: "3000.00"
+        residualValue: "0.00"
+        usefulLifeYears: 5
+        accumulatedDepreciation: "3000.00"
+        netBookValue: "0.00"
+        fullyDepreciated: true
+        stillInUse: true
+        physicalCondition: good
+        estimatedRemainingUsefulLife: "2 years"
+    expected_output:
+      status: "flagged"
+      fully_depreciated_but_in_use: true
+      net_book_value: "0.00"
+      recommendations:
+        - "Asset is fully depreciated but still in service"
+        - "Consider revaluation if material to financial statements"
+        - "Ensure physical asset register is accurate"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Fully depreciated assets in use need disclosure consideration"
+
+  - id: asset-012
+    category: edge_case
+    description: "Asset useful life revision - change in estimate"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: revise_useful_life
+      asset:
+        id: "AST-VH-001"
+        name: "Toyota Hilux 2024"
+        category: VEHICLES
+        originalUsefulLifeYears: 5
+        revisedUsefulLifeYears: 7
+        originalResidualValue: "50000.00"
+        revisedResidualValue: "40000.00"
+        cost: "250000.00"
+        accumulatedDepreciationToDate: "140625.00"
+        netBookValueAtRevision: "109375.00"
+        remainingOriginalLifeMonths: 33
+        remainingRevisedLifeMonths: 57
+        revisedMonthlyDepreciation: "1217.11"
+    expected_output:
+      status: "revised"
+      previous_monthly_depreciation: "2929.69"
+      revised_monthly_depreciation: "1217.11"
+      impact: "Reduction of 1712.58 per month"
+      recommendations:
+        - "Apply revised depreciation prospectively from current period"
+        - "Disclose change in accounting estimate in notes"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Change in accounting estimate - needs disclosure"
+
+  - id: asset-013
+    category: edge_case
+    description: "Zero-cost asset received as donation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: register_asset
+      asset:
+        name: "Motor Vehicle - Donated"
+        category: VEHICLES
+        acquisitionDate: "2026-07-10"
+        cost: "0.00"
+        fairValueAtAcquisition: "85000.00"
+        residualValue: "17000.00"
+        usefulLifeYears: 5
+        depreciationMethod: straight_line
+        acquisitionType: donation
+        donor: "NGO Partner - Save the Children"
+        valuationMethod: "Professional appraisal by Auto Valuers Ltd"
+    expected_output:
+      status: "registered"
+      cost_basis: "85000.00"
+      fair_value_used: true
+      monthly_depreciation: "1133.33"
+      recommendations:
+        - "Ensure donation income recognized in P and L"
+        - "Retain valuation certificate for audit"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Donated assets valued at fair value - donation income recognition required"
+
+  - id: asset-014
+    category: edge_case
+    description: "Impairment review - asset with significant value decline"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: impairment_review
+      asset:
+        id: "AST-BD-002"
+        name: "Office Building - Kumasi"
+        category: BUILDING
+        cost: "800000.00"
+        accumulatedDepreciation: "160000.00"
+        netBookValue: "640000.00"
+        recoverableAmount: "500000.00"
+        impairmentIndicator: "Market downturn in Kumasi property market"
+        impairmentAmount: "140000.00"
+        impairmentApprovedBy: "External valuation report"
+    expected_output:
+      status: "impaired"
+      impairment_amount: "140000.00"
+      previous_net_book_value: "640000.00"
+      revised_net_book_value: "500000.00"
+      journal_entries:
+        - account: "5600"
+          debit: "140000.00"
+          credit: "0.00"
+        - account: "1102"
+          debit: "0.00"
+          credit: "140000.00"
+      recommendations:
+        - "Revised depreciation based on new carrying amount"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: asset-015
+    category: edge_case
+    description: "Component depreciation - asset with separable parts"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: calculate_component_depreciation
+      asset:
+        id: "AST-BD-003"
+        name: "Manufacturing Plant"
+        category: PLANT_AND_MACHINERY
+        totalCost: "500000.00"
+        components:
+          - name: "Main Building Structure"
+            cost: "300000.00"
+            usefulLifeYears: 30
+            depreciationMethod: straight_line
+            monthlyDepreciation: "833.33"
+          - name: "Production Machinery"
+            cost: "150000.00"
+            usefulLifeYears: 10
+            depreciationMethod: straight_line
+            monthlyDepreciation: "1250.00"
+          - name: "Electrical Installation"
+            cost: "50000.00"
+            usefulLifeYears: 15
+            depreciationMethod: straight_line
+            monthlyDepreciation: "277.78"
+        totalMonthlyDepreciation: "2361.11"
+    expected_output:
+      status: "calculated"
+      components: 3
+      total_monthly_depreciation: "2361.11"
+      component_details:
+        - name: "Main Building Structure"
+          monthly: "833.33"
+        - name: "Production Machinery"
+          monthly: "1250.00"
+        - name: "Electrical Installation"
+          monthly: "277.78"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: asset-016
+    category: edge_case
+    description: "Asset stolen - insurance claim processing"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: report_stolen_asset
+      asset:
+        id: "AST-IT-006"
+        name: "Lenovo ThinkPad"
+        category: IT_EQUIPMENT
+        acquisitionDate: "2024-09-01"
+        cost: "8000.00"
+        accumulatedDepreciation: "2666.67"
+        netBookValue: "5333.33"
+        theftDate: "2026-07-22"
+        policeReportRef: "POL/ACC/2026/0715"
+        insuranceClaimStatus: pending
+        insuranceCoverage: 0.8
+        estimatedClaimAmount: "4266.66"
+    expected_output:
+      status: "under_insurance_claim"
+      net_book_value_loss: "5333.33"
+      insurance_recoverable: "4266.66"
+      expected_loss_after_insurance: "1066.67"
+      recommendations:
+        - "Remove asset from active register"
+        - "File insurance claim with police report POL/ACC/2026/0715"
+        - "Record loss net of insurance recovery in P and L"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: asset-017
+    category: edge_case
+    description: "Mid-period revaluation followed by depreciation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: revalue_and_depreciate
+      asset:
+        id: "AST-BD-001"
+        name: "Warehouse - Tema"
+        category: BUILDING
+        revaluationDate: "2026-07-15"
+        netBookValueBeforeRevaluation: "1200000.00"
+        fairValue: "1800000.00"
+        remainingUsefulLifeMonthsAfterRevaluation: 240
+        monthlyDepreciationAfterRevaluation: "7500.00"
+        daysInMonth: 31
+        daysAfterRevaluation: 16
+        partialPeriodDepreciation: "3870.97"
+    expected_output:
+      status: "processed"
+      revaluation_surplus: "600000.00"
+      depreciation_period: "16 days (pro-rated)"
+      depreciation_amount: "3870.97"
+      net_book_value_at_period_end: "1796129.03"
+      notes: "Depreciation in revaluation period is pro-rated from revaluation date"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Mid-period revaluation complicates depreciation calculation"
+
+  - id: asset-018
+    category: edge_case
+    description: "Leased asset classification - finance vs operating lease"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: classify_lease
+      lease:
+        assetDescription: "Forklift"
+        leaseTermMonths: 60
+        assetUsefulLifeMonths: 72
+        presentValueOfPayments: "120000.00"
+        fairValueOfAsset: "150000.00"
+        ownershipTransferAtEnd: false
+        bargainPurchaseOption: false
+        pvToFairValueRatio: 0.80
+    expected_output:
+      status: "classified"
+      classification: "operating_lease"
+      reasoning:
+        - "Lease term is 83% of useful life (under 90% threshold)"
+        - "PV of payments is 80% of fair value (under 90% threshold)"
+        - "No ownership transfer or bargain purchase option"
+      recommendations:
+        - "Recognize lease expense on straight-line basis over 60 months"
+        - "Disclose operating lease commitments in notes"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Lease classification near thresholds - judgment required"
+  # -- ADVERSARIAL (5 cases) -------------------------------------------------
+  - id: asset-019
+    category: adversarial
+    description: "Asset cost exceeds authorized budget without approval"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: register_asset
+      asset:
+        name: "Server Infrastructure"
+        category: IT_EQUIPMENT
+        acquisitionDate: "2026-07-20"
+        cost: "250000.00"
+        budgetInfo:
+          departmentBudget: "IT Department"
+          approvedAmount: "150000.00"
+          overrunAmount: "100000.00"
+          overrunPercent: 66.7
+          overrunApproval: missing
+    expected_output:
+      status: "rejected"
+      reason_code: "BUDGET_OVERRUN_WITHOUT_APPROVAL"
+      details:
+        - "Asset cost 250000.00 exceeds approved budget 150000.00 by 66.7%"
+        - "Budget overrun approval not provided"
+      severity: high
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: asset-020
+    category: adversarial
+    description: "Duplicate asset registration attempt"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: register_asset
+      asset:
+        name: "Dell PowerEdge Server"
+        category: IT_EQUIPMENT
+        acquisitionDate: "2025-01-01"
+        cost: "24000.00"
+        supplier: "Dell Ghana"
+        invoiceRef: "INV-DELL-2025-001"
+        duplicateCheck:
+          existingAssetId: "AST-IT-001"
+          matchingCriteria:
+            - invoiceMatch: true
+            - nameMatch: true
+            - costMatch: true
+    expected_output:
+      status: "rejected"
+      reason_code: "DUPLICATE_ASSET"
+      details:
+        - "Asset with invoice INV-DELL-2025-001 already registered as AST-IT-001"
+        - "Duplicate registration prevented"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: asset-021
+    category: adversarial
+    description: "Negative depreciation rate attempted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: calculate_depreciation
+      asset:
+        id: "AST-IT-001"
+        name: "Dell PowerEdge Server"
+        category: IT_EQUIPMENT
+        cost: "24000.00"
+        residualValue: "2000.00"
+        usefulLifeYears: 4
+        depreciationMethod: straight_line
+        usefulLifeYears: -4
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_USEFUL_LIFE"
+      details:
+        - "Useful life must be greater than zero"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: asset-022
+    category: adversarial
+    description: "Entity mismatch - asset from another entity"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: register_asset
+      asset:
+        id: "AST-VH-003"
+        name: "Toyota Corolla"
+        category: VEHICLES
+        ownerEntityId: "00000000-0000-0000-0000-000000000002"
+        cost: "120000.00"
+    expected_output:
+      status: "rejected"
+      reason_code: "ENTITY_MISMATCH"
+      details:
+        - "Asset owner entity 00000000-0000-0000-0000-000000000002 does not match request entity 00000000-0000-0000-0000-000000000001"
+      severity: critical
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Security-critical - cross-entity asset registration blocked"
+
+  - id: asset-023
+    category: adversarial
+    description: "Manipulated disposal proceeds - asset undervaluation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: dispose_asset
+      asset:
+        id: "AST-VH-001"
+        name: "Toyota Hilux 2024"
+        category: VEHICLES
+        cost: "250000.00"
+        accumulatedDepreciation: "140625.00"
+        netBookValue: "109375.00"
+        disposalDate: "2026-07-20"
+        disposalProceeds: "10000.00"
+        marketValueEstimate: "150000.00"
+        proceedsToMarketValueRatio: 0.07
+    expected_output:
+      status: "rejected"
+      reason_code: "SUSPICIOUS_DISPOSAL_VALUE"
+      details:
+        - "Disposal proceeds 10000.00 is 7% of estimated market value 150000.00"
+        - "Disposal appears to significantly undervalue the asset"
+      severity: high
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  # -- AMBIGUOUS (5 cases) ---------------------------------------------------
+  - id: asset-024
+    category: ambiguous
+    description: "Capital vs revenue expenditure classification"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: classify_expenditure
+      expenditure:
+        description: "ERP software upgrade and customization"
+        totalCost: "35000.00"
+        components:
+          - "Software license upgrade: 15000.00"
+          - "Implementation consulting: 12000.00"
+          - "Staff training on new features: 8000.00"
+        classificationOptions:
+          - "Capitalize entire amount as intangible asset"
+          - "Expense training and consulting, capitalize license"
+          - "Expense entire amount as maintenance"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Capital vs revenue classification requires accounting judgment"
+
+  - id: asset-025
+    category: ambiguous
+    description: "Asset bundling - single purchase multiple components"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: classify_bundle
+      bundle:
+        description: "Office fit-out - single invoice"
+        totalCost: "200000.00"
+        components:
+          - "Furniture and fixtures"
+          - "IT cabling and network setup"
+          - "Air conditioning system"
+          - "Security system"
+        allocationBases:
+          - "Pro-rata by estimated fair value"
+          - "Pro-rata by invoice line items"
+          - "Manager discretion"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Bundle allocation between asset categories requires judgment"
+
+  - id: asset-026
+    category: ambiguous
+    description: "Asset held for sale vs held for use classification"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: classify_asset_status
+      asset:
+        id: "AST-BD-002"
+        name: "Office Building - Kumasi"
+        category: BUILDING
+        currentUse: "Partially occupied (30%)"
+        activelyMarketed: true
+        expectedSaleWithinYear: true
+        boardApprovalToSell: pending
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Classification between held-for-sale and held-for-use requires judgment"
+
+  - id: asset-027
+    category: ambiguous
+    description: "Asset residual value estimate revision"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: revise_residual_value
+      asset:
+        id: "AST-VH-001"
+        name: "Toyota Hilux 2024"
+        category: VEHICLES
+        originalResidualValue: "50000.00"
+        proposedResidualValue: "65000.00"
+        marketData: "Used vehicle prices increased 30% in 2 years"
+        remainingUsefulLife: "3 years"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Residual value estimate revision requires market analysis and judgment"
+
+  - id: asset-028
+    category: ambiguous
+    description: "Asset write-off vs disposal - damaged inventory distinction"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: classify_writeoff
+      asset:
+        name: "Damaged Raw Materials"
+        nature: "Raw material inventory damaged in storage"
+        cost: "25000.00"
+        estimatedRecoverableValue: "2000.00"
+        writeOffOptions:
+          - "Inventory write-off (P and L expense)"
+          - "Asset impairment (if classified as fixed asset)"
+          - "Insurance claim"
+        insuranceClaimStatus: pending
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Distinction between inventory write-off and asset impairment requires judgment"

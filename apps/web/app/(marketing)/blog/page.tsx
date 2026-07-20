@@ -1,5 +1,5 @@
-import Link from "next/link"
-import { ArrowRight, Calendar } from "lucide-react"
+import Link from "next/link";
+import { ArrowRight, Calendar, Sparkles, Bookmark } from "lucide-react";
 
 const posts = [
   {
@@ -10,15 +10,17 @@ const posts = [
     date: "2026-01-15",
     category: "Product",
     readTime: "5 min read",
+    gradient: "from-blue-500 to-indigo-500",
   },
   {
     slug: "19-agents-explained",
     title: "19 Agents, Explained: How Xenboox's AI Workforce Operates",
     excerpt:
-      "A deep dive into the three-tier agent hierarchy — from the CFO Agent down to individual worker agents — and how they collaborate on your books.",
+      "A deep dive into the three-tier agent hierarchy — from the CFO Agent down to individual worker agents.",
     date: "2026-01-08",
     category: "Engineering",
     readTime: "8 min read",
+    gradient: "from-emerald-500 to-teal-500",
   },
   {
     slug: "multi-currency-accounting",
@@ -28,6 +30,7 @@ const posts = [
     date: "2025-12-20",
     category: "Accounting",
     readTime: "6 min read",
+    gradient: "from-violet-500 to-purple-500",
   },
   {
     slug: "offline-first-desktop",
@@ -37,6 +40,7 @@ const posts = [
     date: "2025-12-10",
     category: "Engineering",
     readTime: "10 min read",
+    gradient: "from-amber-500 to-orange-500",
   },
   {
     slug: "payroll-gambia",
@@ -46,6 +50,7 @@ const posts = [
     date: "2025-11-28",
     category: "Accounting",
     readTime: "7 min read",
+    gradient: "from-pink-500 to-rose-500",
   },
   {
     slug: "security-architecture",
@@ -55,57 +60,71 @@ const posts = [
     date: "2025-11-15",
     category: "Security",
     readTime: "6 min read",
+    gradient: "from-cyan-500 to-blue-500",
   },
-]
+];
 
-const categories = ["All", "Product", "Engineering", "Accounting", "Security"]
+const categories = ["All", "Product", "Engineering", "Accounting", "Security"];
 
 export default function BlogPage() {
   return (
     <>
-      <section className="border-b py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold tracking-tight">Blog</h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Insights on AI-native accounting, engineering, and building for Africa.
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
+        <div className="absolute inset-0 bg-grid-dark opacity-30" />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="max-w-3xl">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
+              <Bookmark className="h-3 w-3 text-blue-400" />
+              Blog
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-[1.1]">
+              <span className="text-white">Insights on</span>
+              <br />
+              <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
+                AI-native accounting
+              </span>
+            </h1>
+            <p className="mt-4 text-lg text-white/50 leading-relaxed max-w-2xl">
+              Engineering, and building for Africa.
             </p>
           </div>
         </div>
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </section>
 
-      <section className="py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          {/* Categories */}
+      <section className="py-16 md:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-wrap gap-2">
             {categories.map((cat) => (
               <span
                 key={cat}
-                className="inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium text-muted-foreground"
+                className="inline-flex h-8 items-center rounded-full border px-4 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground cursor-pointer"
               >
                 {cat}
               </span>
             ))}
           </div>
 
-          {/* Posts Grid */}
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
               <article
                 key={post.slug}
-                className="group flex flex-col rounded-lg border p-6 transition-colors hover:bg-muted/50"
+                className="group relative rounded-2xl border bg-white p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
               >
-                <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 font-medium text-primary">
+                <div
+                  className={`h-1.5 rounded-t-2xl bg-gradient-to-r ${post.gradient} -mx-6 -mt-6 mb-5`}
+                />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                  <span className="inline-flex h-5 items-center rounded-full bg-blue-50 px-2 font-medium text-blue-700 border border-blue-200">
                     {post.category}
                   </span>
                   <span>·</span>
                   <span>{post.readTime}</span>
                 </div>
-                <h2 className="text-lg font-semibold leading-snug">
+                <h2 className="text-base font-semibold leading-snug group-hover:text-blue-600 transition-colors">
                   {post.title}
                 </h2>
-                <p className="mt-2 flex-1 text-sm text-muted-foreground">
+                <p className="mt-2 text-sm text-muted-foreground">
                   {post.excerpt}
                 </p>
                 <div className="mt-4 flex items-center justify-between">
@@ -117,7 +136,7 @@ export default function BlogPage() {
                       year: "numeric",
                     })}
                   </div>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-primary group-hover:underline">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
                     Read more
                     <ArrowRight className="h-3 w-3" />
                   </span>
@@ -126,10 +145,12 @@ export default function BlogPage() {
             ))}
           </div>
 
-          {/* Empty state hint */}
           <div className="mt-12 text-center text-sm text-muted-foreground">
             More articles coming soon.{" "}
-            <Link href="/register" className="text-primary hover:underline">
+            <Link
+              href="/register"
+              className="text-blue-600 hover:underline font-medium"
+            >
               Sign up
             </Link>{" "}
             to get notified.
@@ -137,5 +158,5 @@ export default function BlogPage() {
         </div>
       </section>
     </>
-  )
+  );
 }

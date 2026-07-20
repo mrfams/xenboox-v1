@@ -1,5 +1,6 @@
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
+import { isTaskTypeAllowedForAgent } from "./security";
 import type { AuditEntry } from "./state";
 import {
   DEPARTMENT_AGENTS,
@@ -304,6 +305,21 @@ export async function orchestrate(
   const startTime = Date.now();
   const taskId = crypto.randomUUID();
 
+  // ─── Security guard: entityId is required ──────────────────────────
+  if (!params.entityId) {
+    return {
+      taskId,
+      agentId: "cfo",
+      tier: "tier1",
+      confidence: 0,
+      reasoning: "entityId is required",
+      result: null,
+      errors: ["entityId is required for all agent operations"],
+      auditTrail: [],
+      duration: Date.now() - startTime,
+    };
+  }
+
   const trace = await langfuse.trace({
     name: "agent-orchestrator",
     metadata: {
@@ -329,6 +345,24 @@ export async function orchestrate(
   }
 
   const { agentId, tier } = routing;
+
+  // ─── Security guard: agent task type authorization ────────────────
+  const authCheck = isTaskTypeAllowedForAgent(agentId, params.taskType);
+  if (!authCheck.allowed) {
+    return {
+      taskId,
+      agentId,
+      tier,
+      confidence: 0,
+      reasoning:
+        authCheck.reason ??
+        `Agent ${agentId} not authorized for ${params.taskType}`,
+      result: null,
+      errors: [authCheck.reason ?? "Agent security violation"],
+      auditTrail: [],
+      duration: Date.now() - startTime,
+    };
+  }
 
   try {
     const graph = await getAgentGraph(agentId);
@@ -448,27 +482,85 @@ export function classifyUserMessage(message: string): AgentTaskType {
 }
 
 // ─── Confidence Escalation ──────────────────────────────────────────────────
+//
+// Implements the Confidence Threshold System from the Agent Workforce spec
+// (Section 4.2). Threshold alignment:
+//   ≥ 0.90  → auto-complete (proceed)
+//   0.70–0.89 → auto-complete but flagged amber (escalate_to_supervisor)
+//   < 0.70  → does not auto-complete, requires human resolution
+//
+// Dollar-threshold override: any transaction above the configured amount
+// requires human approval regardless of confidence score.
+// Close operations always require human approval.
+// ---------------------------------------------------------------------------
 
 export type EscalationAction =
   "proceed" | "escalate_to_supervisor" | "escalate_to_human";
 
-export function checkEscalation(result: AgentResult): {
+export interface EscalationParams {
+  result: AgentResult;
+  /**
+   * If set and the transaction amount exceeds this value,
+   * force escalate to human regardless of confidence.
+   * Corresponds to the "dollar threshold for human approval" from the spec.
+   */
+  transactionAmount?: number;
+  dollarThreshold?: number;
+  /**
+   * If true, this action always requires human approval (e.g., close sign-off,
+   * CFO agent escalations, strategic decisions). Per spec Section 4.2:
+   * "CFO Agent escalations and month-end close sign-off always require
+   * human approval regardless of confidence score."
+   */
+  requiresHumanApproval?: boolean;
+}
+
+export function checkEscalation(params: EscalationParams): {
   action: EscalationAction;
   reason: string;
 } {
-  if (result.confidence >= 0.8) {
-    return { action: "proceed", reason: "Confidence above threshold" };
+  const { result, transactionAmount, dollarThreshold, requiresHumanApproval } =
+    params;
+
+  // Hard rule: close sign-off and CFO escalations always go to human
+  if (requiresHumanApproval) {
+    return {
+      action: "escalate_to_human",
+      reason:
+        "This action always requires human approval (close sign-off or strategic escalation)",
+    };
   }
-  if (result.confidence >= 0.6) {
+
+  // Dollar-threshold override: any transaction above the configured amount
+  // requires human approval, regardless of AI confidence.
+  if (
+    dollarThreshold !== undefined &&
+    transactionAmount !== undefined &&
+    transactionAmount > dollarThreshold
+  ) {
+    return {
+      action: "escalate_to_human",
+      reason: `Transaction amount ${transactionAmount} exceeds dollar threshold ${dollarThreshold}. Human approval required.`,
+    };
+  }
+
+  // Spec thresholds (Section 4.2)
+  if (result.confidence >= 0.9) {
+    return { action: "proceed", reason: "High confidence — auto-completing" };
+  }
+  if (result.confidence >= 0.7) {
     return {
       action: "escalate_to_supervisor",
       reason:
-        result.reasoning || "Confidence below 0.8, escalating to supervisor",
+        result.reasoning ||
+        `Confidence ${result.confidence.toFixed(2)} below 0.9, flagged amber for review`,
     };
   }
   return {
     action: "escalate_to_human",
-    reason: result.reasoning || "Confidence below 0.6, escalating to human",
+    reason:
+      result.reasoning ||
+      `Confidence ${result.confidence.toFixed(2)} below 0.7, requires human resolution`,
   };
 }
 
@@ -528,7 +620,7 @@ export async function fanOutToDepartments(params: {
         agentId,
         confidence: result.confidence ?? 0,
         reasoning: result.reasoning ?? "",
-        confirmed: (result.confidence ?? 0) >= 0.8,
+        confirmed: (result.confidence ?? 0) >= 0.9,
         summary: result.humanResponse ?? (result.result as string) ?? "",
         errors: result.errors ?? [],
       };
@@ -624,7 +716,24 @@ export async function orchestrateHierarchical(
     const routing = TASK_AGENT_MAP[params.taskType];
     if (routing) {
       const result = await orchestrate({ ...params });
-      const escalation = checkEscalation(result);
+
+      // Dollar threshold from input (e.g., invoice amounts)
+      const transactionAmount = params.input.amount as number | undefined;
+      const dollarThreshold = params.input.dollarThreshold as
+        number | undefined;
+
+      // Close-related tasks always require human approval
+      const requiresHumanApproval = [
+        "close_trigger",
+        "close_checklist",
+      ].includes(params.taskType);
+
+      const escalation = checkEscalation({
+        result,
+        transactionAmount,
+        dollarThreshold,
+        requiresHumanApproval,
+      });
 
       await trace.update({
         output: {

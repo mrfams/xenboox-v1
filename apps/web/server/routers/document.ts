@@ -1,23 +1,48 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
-import { router, protectedProcedure } from "@/lib/trpc/server"
-import { db } from "@/lib/db"
-import { eq, and, desc } from "drizzle-orm"
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { router, protectedProcedure } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
+import { eq, and, desc } from "drizzle-orm";
 import {
   documents,
   documentLinks,
   auditLog,
   currencies,
   exchangeRates,
-} from "@xenboox/db/schema"
-import { triggerClient } from "@/lib/trigger"
+  organizations,
+  userEntityAccess,
+} from "@xenboox/db/schema";
+import { triggerClient } from "@/lib/trigger";
 import {
   getPresignedUploadUrl,
   getPresignedDownloadUrl,
   generateStoragePath,
   ALLOWED_MIME_TYPES,
-} from "@/lib/r2"
-import { sendDocumentUploadedEmail, sendDocumentProcessedEmail } from "@/lib/email"
+  FILE_SIZE_LIMITS,
+} from "@/lib/r2";
+import {
+  sendDocumentUploadedEmail,
+  sendDocumentProcessedEmail,
+} from "@/lib/email";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+async function computeSHA256(buffer: ArrayBuffer): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function getEntityPlan(entityId: string): Promise<string> {
+  const access = await db.query.userEntityAccess.findFirst({
+    where: eq(userEntityAccess.entityId, entityId),
+  });
+  if (!access) return "free";
+  const org = await db.query.organizations.findFirst({
+    where: eq(organizations.id, access.entityId),
+  });
+  return (org?.plan as string) ?? "free";
+}
 
 // ─── Document Router ─────────────────────────────────────────────────────────
 
@@ -27,8 +52,32 @@ export const documentRouter = router({
     return db.query.documents.findMany({
       where: eq(documents.entityId, ctx.entityId!),
       orderBy: [desc(documents.createdAt)],
-    })
+    });
   }),
+
+  getStatus: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const doc = await db.query.documents.findFirst({
+        where: and(
+          eq(documents.id, input.id),
+          eq(documents.entityId, ctx.entityId!),
+        ),
+      });
+      if (!doc)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
+      return {
+        id: doc.id,
+        status: doc.status,
+        type: doc.type,
+        ocrText: doc.ocrText,
+        ocrConfidence: doc.ocrConfidence,
+        metadata: doc.metadata,
+      };
+    }),
 
   // ── Upload Flow ──
 
@@ -36,23 +85,34 @@ export const documentRouter = router({
     .input(
       z.object({
         fileName: z.string().min(1).max(255),
-        fileSize: z.number().int().min(1).max(100 * 1024 * 1024),
+        fileSize: z
+          .number()
+          .int()
+          .min(1)
+          .max(100 * 1024 * 1024),
         mimeType: z.enum(ALLOWED_MIME_TYPES),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const storagePath = generateStoragePath(ctx.entityId!, input.fileName)
+      // Plan-based file size limits
+      const plan = await getEntityPlan(ctx.entityId!);
+      const maxSize = FILE_SIZE_LIMITS[plan] ?? FILE_SIZE_LIMITS.free;
+      if (input.fileSize > maxSize) {
+        throw new TRPCError({
+          code: "PAYLOAD_TOO_LARGE",
+          message: `File size exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit for your plan. Upgrade to upload larger files.`,
+        });
+      }
+
+      const storagePath = generateStoragePath(ctx.entityId!, input.fileName);
 
       const uploadUrl = await getPresignedUploadUrl(
         storagePath,
         input.mimeType,
         input.fileSize,
-      )
+      );
 
-      return {
-        uploadUrl,
-        storagePath,
-      }
+      return { uploadUrl, storagePath };
     }),
 
   confirmUpload: protectedProcedure
@@ -62,11 +122,20 @@ export const documentRouter = router({
         r2Bucket: z.string().min(1),
         name: z.string().min(1),
         type: z.enum([
-          "invoice", "receipt", "contract", "voucher", "bank_statement",
-          "tax_return", "payroll_report", "journal_entry", "po", "supporting",
+          "invoice",
+          "receipt",
+          "contract",
+          "voucher",
+          "bank_statement",
+          "tax_return",
+          "payroll_report",
+          "journal_entry",
+          "po",
+          "supporting",
         ]),
         mimeType: z.string().optional(),
         fileSize: z.number().int().min(0).optional(),
+        checksum: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -76,15 +145,16 @@ export const documentRouter = router({
           .values({
             entityId: ctx.entityId!,
             uploadedBy: ctx.session!.user!.id!,
-            status: "uploaded",
+            status: "detected",
             name: input.name,
             type: input.type,
             r2Key: input.r2Key,
             r2Bucket: input.r2Bucket,
             mimeType: input.mimeType,
             sizeBytes: input.fileSize,
+            metadata: input.checksum ? { checksum: input.checksum } : {},
           })
-          .returning()
+          .returning();
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -92,22 +162,30 @@ export const documentRouter = router({
           action: "document.upload",
           entityType: "document",
           entityIdRef: doc.id,
-          newValues: { name: input.name, type: input.type, mimeType: input.mimeType },
-        })
+          newValues: {
+            name: input.name,
+            type: input.type,
+            mimeType: input.mimeType,
+          },
+        });
 
+        // Trigger AI processing pipeline
         if (input.mimeType) {
           await triggerClient.tasks.trigger("process-document", {
             documentId: doc.id,
             entityId: ctx.entityId!,
             storagePath: input.r2Key,
             mimeType: input.mimeType,
-          })
+          });
         }
 
-        return { documentId: doc.id }
+        return { documentId: doc.id };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to confirm document upload" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to confirm document upload",
+        });
       }
     }),
 
@@ -116,18 +194,27 @@ export const documentRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const doc = await db.query.documents.findFirst({
-          where: and(eq(documents.id, input.id), eq(documents.entityId, ctx.entityId!)),
-        })
+          where: and(
+            eq(documents.id, input.id),
+            eq(documents.entityId, ctx.entityId!),
+          ),
+        });
 
         if (!doc) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Document not found",
+          });
         }
 
         if (!doc.r2Key) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Document has no storage key" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Document has no storage key",
+          });
         }
 
-        const downloadUrl = await getPresignedDownloadUrl(doc.r2Key)
+        const downloadUrl = await getPresignedDownloadUrl(doc.r2Key);
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -135,12 +222,15 @@ export const documentRouter = router({
           action: "document.download",
           entityType: "document",
           entityIdRef: input.id,
-        })
+        });
 
-        return { downloadUrl, mimeType: doc.mimeType }
+        return { downloadUrl, mimeType: doc.mimeType };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate download URL" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to generate download URL",
+        });
       }
     }),
 
@@ -149,14 +239,20 @@ export const documentRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const doc = await db.query.documents.findFirst({
-          where: and(eq(documents.id, input.id), eq(documents.entityId, ctx.entityId!)),
-        })
+          where: and(
+            eq(documents.id, input.id),
+            eq(documents.entityId, ctx.entityId!),
+          ),
+        });
 
         if (!doc) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Document not found",
+          });
         }
 
-        await db.delete(documents).where(eq(documents.id, input.id))
+        await db.delete(documents).where(eq(documents.id, input.id));
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -165,12 +261,15 @@ export const documentRouter = router({
           entityType: "document",
           entityIdRef: input.id,
           newValues: { name: doc.name, type: doc.type },
-        })
+        });
 
-        return { success: true }
+        return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to delete document" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete document",
+        });
       }
     }),
 
@@ -179,15 +278,23 @@ export const documentRouter = router({
       z.object({
         name: z.string().min(1),
         type: z.enum([
-          "invoice", "receipt", "contract", "voucher", "bank_statement",
-          "tax_return", "payroll_report", "journal_entry", "po", "supporting",
+          "invoice",
+          "receipt",
+          "contract",
+          "voucher",
+          "bank_statement",
+          "tax_return",
+          "payroll_report",
+          "journal_entry",
+          "po",
+          "supporting",
         ]),
         mimeType: z.string().optional(),
         sizeBytes: z.number().int().min(0).optional(),
         r2Key: z.string().min(1),
         r2Bucket: z.string().min(1),
         tags: z.array(z.string()).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const [doc] = await db
@@ -197,7 +304,7 @@ export const documentRouter = router({
           entityId: ctx.entityId!,
           uploadedBy: ctx.session!.user!.id!,
         })
-        .returning()
+        .returning();
 
       // Trigger document processing job
       if (input.mimeType) {
@@ -206,10 +313,10 @@ export const documentRouter = router({
           entityId: ctx.entityId!,
           storagePath: input.r2Key,
           mimeType: input.mimeType,
-        })
+        });
       }
 
-      return doc
+      return doc;
     }),
 
   updateDocument: protectedProcedure
@@ -218,35 +325,48 @@ export const documentRouter = router({
         id: z.string().uuid(),
         tags: z.array(z.string()).optional(),
         metadata: z.record(z.unknown()).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const existing = await db.query.documents.findFirst({
-        where: and(eq(documents.id, input.id), eq(documents.entityId, ctx.entityId!)),
-      })
-      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
-      const { id, ...data } = input
+        where: and(
+          eq(documents.id, input.id),
+          eq(documents.entityId, ctx.entityId!),
+        ),
+      });
+      if (!existing)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
+      const { id, ...data } = input;
       const [updated] = await db
         .update(documents)
         .set(data)
         .where(and(eq(documents.id, id), eq(documents.entityId, ctx.entityId!)))
-        .returning()
-      return updated
+        .returning();
+      return updated;
     }),
 
   getDocumentById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const doc = await db.query.documents.findFirst({
-        where: and(eq(documents.id, input.id), eq(documents.entityId, ctx.entityId!)),
-      })
-      if (!doc) return null
+        where: and(
+          eq(documents.id, input.id),
+          eq(documents.entityId, ctx.entityId!),
+        ),
+      });
+      if (!doc) return null;
 
       const links = await db.query.documentLinks.findMany({
-        where: and(eq(documentLinks.documentId, doc.id), eq(documentLinks.entityId, ctx.entityId!)),
-      })
+        where: and(
+          eq(documentLinks.documentId, doc.id),
+          eq(documentLinks.entityId, ctx.entityId!),
+        ),
+      });
 
-      return { ...doc, links }
+      return { ...doc, links };
     }),
 
   // ── Document Links ──
@@ -256,19 +376,26 @@ export const documentRouter = router({
         documentId: z.string().uuid(),
         entityType: z.string().min(1),
         entityId: z.string().uuid(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       // Verify document belongs to current entity
       const doc = await db.query.documents.findFirst({
-        where: and(eq(documents.id, input.documentId), eq(documents.entityId, ctx.entityId!)),
-      })
-      if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" })
+        where: and(
+          eq(documents.id, input.documentId),
+          eq(documents.entityId, ctx.entityId!),
+        ),
+      });
+      if (!doc)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
       const [link] = await db
         .insert(documentLinks)
         .values({ ...input, entityId: ctx.entityId! })
-        .returning()
-      return link
+        .returning();
+      return link;
     }),
 
   removeDocumentLink: protectedProcedure
@@ -276,9 +403,14 @@ export const documentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const [deleted] = await db
         .delete(documentLinks)
-        .where(and(eq(documentLinks.id, input.id), eq(documentLinks.entityId, ctx.entityId!)))
-        .returning()
-      return deleted
+        .where(
+          and(
+            eq(documentLinks.id, input.id),
+            eq(documentLinks.entityId, ctx.entityId!),
+          ),
+        )
+        .returning();
+      return deleted;
     }),
 
   // ── Audit Log ──
@@ -287,19 +419,19 @@ export const documentRouter = router({
       where: eq(auditLog.entityId, ctx.entityId!),
       orderBy: [desc(auditLog.createdAt)],
       limit: 100,
-    })
+    });
   }),
 
   // ── Currencies (global reference — no entity scoping) ──
   listCurrencies: protectedProcedure.query(() => {
-    return db.query.currencies.findMany()
+    return db.query.currencies.findMany();
   }),
 
   // ── Exchange Rates (global reference — no entity scoping) ──
   listExchangeRates: protectedProcedure.query(() => {
     return db.query.exchangeRates.findMany({
       orderBy: [desc(exchangeRates.createdAt)],
-    })
+    });
   }),
 
   createExchangeRate: protectedProcedure
@@ -309,13 +441,10 @@ export const documentRouter = router({
         toCurrency: z.string().length(3),
         rate: z.string(),
         source: z.string(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
-      const [rate] = await db
-        .insert(exchangeRates)
-        .values(input)
-        .returning()
-      return rate
+      const [rate] = await db.insert(exchangeRates).values(input).returning();
+      return rate;
     }),
-})
+});

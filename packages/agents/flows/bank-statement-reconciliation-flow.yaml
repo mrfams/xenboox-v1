@@ -1,0 +1,87 @@
+flow: bank-statement-reconciliation
+description: "PRD §7.1 — PDF bank statement uploaded, OCR extracted, matched against ledger entries, Treasury reviews, close approved and posted"
+version: 1
+last_updated: 2026-07-20
+
+steps:
+  - step: 1
+    agent: document-agent
+    action: document_ingest
+    input:
+      source: upload
+      format: pdf
+      filename: "bank-statement-ACME-2026-06.pdf"
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bank_account: "ACME-OPERATING-1234"
+    expected_output:
+      document_id: "doc-023"
+      document_type: bank_statement
+      statement_period: "2026-06"
+      opening_balance: 45200.00
+      closing_balance: 38750.00
+      transaction_count: 34
+      extraction_confidence: 0.94
+    expected_confidence_range: [0.85, 1.0]
+    handoff_check: "All 34 transactions extracted with amounts, dates, and descriptions"
+
+  - step: 2
+    agent: reconciliation-agent
+    action: match_ledger_transactions
+    input_from_step: 1
+    expected_output:
+      matched_count: 32
+      unmatched_count: 2
+      matched_total: 42350.00
+      unmatched_total: 620.00
+      reconciliation_status: partial
+    expected_confidence_range: [0.85, 1.0]
+    handoff_check: "32 of 34 transactions matched to ledger; 2 unmatched items flagged for Treasury review"
+
+  - step: 3
+    agent: treasury-agent
+    action: review_unmatched_items
+    input_from_step: 2
+    expected_output:
+      reviewed_items:
+        - description: "Bank fee - monthly service charge"
+          disposition: approve
+          proposed_entry: "debit 5005-bank-fees 35.00"
+        - description: "Interest income - savings sweep"
+          disposition: approve
+          proposed_entry: "credit 7001-interest-income 585.00"
+      status: resolved
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "All unmatched items reviewed; correcting entries proposed with account codes"
+
+  - step: 4
+    agent: ledger-agent
+    action: post_reconciliation_entries
+    input_from_step: 3
+    expected_output:
+      entries_posted: 2
+      status: posted
+      balanced: true
+      closing_balance_match: true
+      reconciled_balance: 38750.00
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Correcting entries posted, reconciled balance matches bank statement closing balance"
+
+  - step: 5
+    agent: controller-agent
+    action: review_reconciliation
+    input_from_step: 4
+    expected_output:
+      clean: true
+      reconciliation_approved: true
+      open_exceptions: []
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Full reconciliation package approved; no outstanding items"
+
+final_state_check:
+  bank_reconciliation_complete: true
+  ledger_balance_matches_bank: true
+  unmatched_items_resolved: true
+  correcting_entries_posted: true
+  no_unresolved_escalations: true
+
+expected_human_touchpoints: 0

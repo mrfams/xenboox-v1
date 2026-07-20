@@ -1,0 +1,994 @@
+agent: payroll-worker-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ─────────────────────────────────────────────────
+  - id: payroll-wkr-001
+    category: happy_path
+    description: "Standard PAYE calculation for salaried employee"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-001"
+      period: "2026-07"
+      employee:
+        name: "Kwame Asante"
+        annualSalary: "60000.00"
+        monthlyGross: "5000.00"
+        taxFreeAllowance: "450.00"
+        ssnitRate: 0.138
+      calculation:
+        grossPay: "5000.00"
+        ssnitDeduction: "345.00"
+        chargeableIncome: "4655.00"
+        taxFreeAmount: "450.00"
+        taxableIncome: "4205.00"
+        taxBands:
+          - band: "0-402"
+            rate: 0.0
+            amount: "402.00"
+            tax: "0.00"
+          - band: "402-1100"
+            rate: 0.05
+            amount: "698.00"
+            tax: "34.90"
+          - band: "1100-2000"
+            rate: 0.10
+            amount: "900.00"
+            tax: "90.00"
+          - band: "2000-3500"
+            rate: 0.175
+            amount: "1500.00"
+            tax: "262.50"
+          - band: "3500-4205"
+            rate: 0.25
+            amount: "705.00"
+            tax: "176.25"
+        totalPaye: "563.65"
+        netPay: "4091.35"
+    expected_output:
+      status: "calculated"
+      paye: "563.65"
+      ssnit: "345.00"
+      net_pay: "4091.35"
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-002
+    category: happy_path
+    description: "PAYE calculation with tax-free allowances"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-003"
+      period: "2026-07"
+      employee:
+        name: "Akua Sarpong"
+        annualSalary: "96000.00"
+        monthlyGross: "8000.00"
+        allowances:
+          - type: "rent_allowance"
+            amount: "1000.00"
+            taxable: false
+          - type: "transport_allowance"
+            amount: "500.00"
+            taxable: true
+        taxFreeAllowance: "450.00"
+        ssnitRate: 0.138
+      calculation:
+        grossPay: "8000.00"
+        taxableAllowances: "500.00"
+        nonTaxableAllowances: "1000.00"
+        ssnitDeduction: "552.00"
+        chargeableIncome: "7948.00"
+        taxFreeAmount: "450.00"
+        taxableIncome: "7498.00"
+        taxBands:
+          - band: "0-402"
+            rate: 0.0
+            amount: "402.00"
+            tax: "0.00"
+          - band: "402-1100"
+            rate: 0.05
+            amount: "698.00"
+            tax: "34.90"
+          - band: "1100-2000"
+            rate: 0.10
+            amount: "900.00"
+            tax: "90.00"
+          - band: "2000-3500"
+            rate: 0.175
+            amount: "1500.00"
+            tax: "262.50"
+          - band: "3500-7498"
+            rate: 0.25
+            amount: "3998.00"
+            tax: "999.50"
+        totalPaye: "1386.90"
+        netPay: "6061.10"
+    expected_output:
+      status: "calculated"
+      paye: "1386.90"
+      ssnit: "552.00"
+      net_pay: "6061.10"
+      allowance_treatment: correct
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-003
+    category: happy_path
+    description: "Overtime and bonus computation for salaried employee"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-004"
+      period: "2026-07"
+      employee:
+        name: "Mensah Boateng"
+        annualSalary: "72000.00"
+        monthlyBase: "6000.00"
+        hourlyRate: "34.62"
+        ssnitRate: 0.138
+      additionalPay:
+        overtime:
+          hours: 10
+          rate: 1.5
+          overtimePay: "519.23"
+        bonus:
+          type: performance
+          amount: "1000.00"
+      calculation:
+        basePay: "6000.00"
+        overtimePay: "519.23"
+        bonus: "1000.00"
+        totalGross: "7519.23"
+        ssnitDeduction: "518.83"
+        chargeableIncome: "7000.40"
+        taxFreeAmount: "450.00"
+        taxableIncome: "6550.40"
+        totalPaye: "1154.85"
+        netPay: "5845.55"
+    expected_output:
+      status: "calculated"
+      paye: "1154.85"
+      ssnit: "518.83"
+      net_pay: "5845.55"
+      overtime_correct: true
+      bonus_included: true
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-004
+    category: happy_path
+    description: "SSNIT calculation at standard rate"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-002"
+      period: "2026-07"
+      employee:
+        name: "Abena Owusu"
+        monthlyGross: "4500.00"
+        ssnitRate: 0.138
+      calculation:
+        grossPay: "4500.00"
+        ssnitEmployeeShare: "310.50"
+        ssnitEmployerShare: "621.00"
+        totalSsnitContribution: "931.50"
+        earningsCeilingApplied: false
+    expected_output:
+      status: "calculated"
+      ssnit_employee: "310.50"
+      ssnit_employer: "621.00"
+      total_contribution: "931.50"
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-005
+    category: happy_path
+    description: "Staff loan deduction applied correctly"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-006"
+      period: "2026-07"
+      employee:
+        name: "Yaa Ofori"
+        monthlyGross: "6000.00"
+      deductions:
+        staffLoan:
+          loanId: "LOAN-EMP-006"
+          originalAmount: "12000.00"
+          outstandingBalance: "3000.00"
+          monthlyDeduction: "500.00"
+          remainingInstallments: 6
+          interestRate: 0.0
+      calculation:
+        grossPay: "6000.00"
+        ssnitDeduction: "414.00"
+        payeDeduction: "926.00"
+        staffLoanDeduction: "500.00"
+        otherDeductions: "0.00"
+        totalDeductions: "1840.00"
+        netPay: "4160.00"
+    expected_output:
+      status: "calculated"
+      loan_deduction: "500.00"
+      net_pay: "4160.00"
+      loan_balance_remaining: "2500.00"
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-006
+    category: happy_path
+    description: "Payslip generation with all required fields"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-001"
+      period: "2026-07"
+      payslipRequest:
+        format: standard
+        includeYearToDate: true
+        includeEmployerContributions: true
+      calculation:
+        grossPay: "5000.00"
+        deductions:
+          paye: "563.65"
+          ssnitEmployee: "345.00"
+          ssnitEmployer: "690.00"
+          totalDeductions: "908.65"
+        netPay: "4091.35"
+        yearToDate:
+          grossYtd: "35000.00"
+          payeYtd: "3945.55"
+          ssnitYtd: "2415.00"
+          netYtd: "28639.45"
+        employerContributions:
+          ssnit: "690.00"
+          providentFund: "500.00"
+          insurance: "150.00"
+    expected_output:
+      status: "generated"
+      fields_present:
+        - employeeDetails
+        - period
+        - earnings
+        - deductions
+        - netPay
+        - yearToDate
+        - employerContributions
+        - paymentMethod
+      completeness_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-007
+    category: happy_path
+    description: "Batch payroll processing for 10+ employees"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07-BATCH"
+      period: "2026-07"
+      employees:
+        - employeeId: "EMP-001"
+          grossPay: "5000.00"
+          netPay: "4091.35"
+        - employeeId: "EMP-002"
+          grossPay: "4500.00"
+          netPay: "3689.50"
+        - employeeId: "EMP-003"
+          grossPay: "8000.00"
+          netPay: "6061.10"
+        - employeeId: "EMP-004"
+          grossPay: "7519.23"
+          netPay: "5845.55"
+        - employeeId: "EMP-005"
+          grossPay: "5500.00"
+          netPay: "4412.80"
+        - employeeId: "EMP-006"
+          grossPay: "6000.00"
+          netPay: "4160.00"
+        - employeeId: "EMP-007"
+          grossPay: "4800.00"
+          netPay: "3880.40"
+        - employeeId: "EMP-008"
+          grossPay: "5200.00"
+          netPay: "4100.20"
+        - employeeId: "EMP-009"
+          grossPay: "6200.00"
+          netPay: "4780.60"
+        - employeeId: "EMP-010"
+          grossPay: "4500.00"
+          netPay: "3689.50"
+        - employeeId: "EMP-011"
+          grossPay: "5800.00"
+          netPay: "4580.00"
+        - employeeId: "EMP-012"
+          grossPay: "7100.00"
+          netPay: "5490.30"
+      totals:
+        totalGross: "70619.23"
+        totalPaye: "10855.30"
+        totalSsnit: "4873.40"
+        totalDeductions: "15728.70"
+        totalNet: "54890.53"
+    expected_output:
+      status: "batch_complete"
+      employees_processed: 12
+      batch_total_gross: "70619.23"
+      batch_total_net: "54890.53"
+      batch_total_paye: "10855.30"
+      batch_total_ssnit: "4873.40"
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-008
+    category: happy_path
+    description: "Payslip generation for employee with multiple deductions"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-013"
+      period: "2026-07"
+      payslipRequest:
+        format: detailed
+      calculation:
+        employee:
+          name: "Esi Amoako"
+          department: "Finance"
+          employeeId: "EMP-013"
+        earnings:
+          baseSalary: "6500.00"
+          transportAllowance: "400.00"
+          overtime: "250.00"
+          totalEarnings: "7150.00"
+        deductions:
+          paye: "1195.00"
+          ssnitEmployee: "493.35"
+          staffLoan: "600.00"
+          salaryAdvance: "300.00"
+          unionDues: "50.00"
+          welfareContribution: "25.00"
+          totalDeductions: "2663.35"
+        netPay: "4486.65"
+        employerContributions:
+          ssnitEmployer: "986.70"
+          providentFund: "650.00"
+          workersCompensation: "71.50"
+        paymentDetails:
+          bank: "GCB Bank"
+          accountNumber: "XXXXXXXXX1234"
+          paymentDate: "2026-07-28"
+    expected_output:
+      status: "generated"
+      sections:
+        - employeeDetails
+        - earnings
+        - deductions
+        - netPay
+        - employerContributions
+        - yearToDate
+        - paymentDetails
+      deduction_count: 6
+      completeness_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-009
+    category: happy_path
+    description: "PAYE calculation for employee at maximum tax band"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-014"
+      period: "2026-07"
+      employee:
+        name: "Nana Yeboah"
+        annualSalary: "240000.00"
+        monthlyGross: "20000.00"
+        taxFreeAllowance: "450.00"
+        ssnitRate: 0.138
+      calculation:
+        grossPay: "20000.00"
+        ssnitDeduction: "1380.00"
+        chargeableIncome: "18620.00"
+        taxFreeAmount: "450.00"
+        taxableIncome: "18170.00"
+        taxBands:
+          - band: "0-402"
+            rate: 0.0
+            amount: "402.00"
+            tax: "0.00"
+          - band: "402-1100"
+            rate: 0.05
+            amount: "698.00"
+            tax: "34.90"
+          - band: "1100-2000"
+            rate: 0.10
+            amount: "900.00"
+            tax: "90.00"
+          - band: "2000-3500"
+            rate: 0.175
+            amount: "1500.00"
+            tax: "262.50"
+          - band: "3500-18170"
+            rate: 0.25
+            amount: "14670.00"
+            tax: "3667.50"
+        totalPaye: "4054.90"
+        netPay: "14565.10"
+    expected_output:
+      status: "calculated"
+      paye: "4054.90"
+      ssnit: "1380.00"
+      net_pay: "14565.10"
+      highest_band_applied: true
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-010
+    category: happy_path
+    description: "Payslip generation for batch — all employees processed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      payslipBatch:
+        employeeCount: 12
+        generatedCount: 12
+        failedCount: 0
+        format: PDF
+        includes:
+          - employeeDetails
+          - earningsBreakdown
+          - deductionsBreakdown
+          - netPay
+          - yearToDateTotals
+          - qrCode
+          - employerDetails
+    expected_output:
+      status: "batch_complete"
+      payslips_generated: 12
+      success_rate: 1.0
+      failed_employees: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (8 cases) ──────────────────────────────────────────────────
+  - id: payroll-wkr-011
+    category: edge_case
+    description: "SSNIT earnings ceiling reached — cap applied"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-015"
+      period: "2026-07"
+      employee:
+        name: "Kofi Asare"
+        monthlyGross: "25000.00"
+        ssnitRate: 0.138
+        ssnitCeiling: "13800.00"
+      calculation:
+        grossPay: "25000.00"
+        cappedEarnings: "13800.00"
+        ssnitDeduction: "1904.40"
+        chargeableIncome: "23095.60"
+        payeCalculated: "5458.90"
+        netPay: "17636.70"
+    expected_output:
+      status: "calculated"
+      ssnit_ceiling_applied: true
+      ssnit_deduction: "1904.40"
+      net_pay: "17636.70"
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "SSNIT capped at ceiling — ensure ceiling value is current"
+
+  - id: payroll-wkr-012
+    category: edge_case
+    description: "Employee with zero deductions — tax-free threshold"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-016"
+      period: "2026-07"
+      employee:
+        name: "Ama Serwaa"
+        monthlyGross: "400.00"
+        taxFreeAllowance: "450.00"
+        ssnitRate: 0.138
+      calculation:
+        grossPay: "400.00"
+        ssnitDeduction: "55.20"
+        chargeableIncome: "344.80"
+        taxFreeAmount: "450.00"
+        taxableIncome: "0.00"
+        totalPaye: "0.00"
+        netPay: "344.80"
+    expected_output:
+      status: "calculated"
+      paye: "0.00"
+      ssnit: "55.20"
+      net_pay: "344.80"
+      below_tax_threshold: true
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-013
+    category: edge_case
+    description: "Employee with multiple concurrent loan deductions"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-017"
+      period: "2026-07"
+      employee:
+        name: "Adwoa Afriyie"
+        monthlyGross: "7000.00"
+      deductions:
+        loans:
+          - loanId: "LOAN-A"
+            type: staff_loan
+            monthlyDeduction: "400.00"
+            outstanding: "2000.00"
+          - loanId: "LOAN-B"
+            type: salary_advance
+            monthlyDeduction: "300.00"
+            outstanding: "900.00"
+          - loanId: "LOAN-C"
+            type: computer_loan
+            monthlyDeduction: "250.00"
+            outstanding: "750.00"
+        totalLoanDeductions: "950.00"
+      calculation:
+        grossPay: "7000.00"
+        ssnitDeduction: "483.00"
+        payeDeduction: "1185.00"
+        totalLoanDeductions: "950.00"
+        totalDeductions: "2618.00"
+        netPay: "4382.00"
+    expected_output:
+      status: "calculated"
+      loan_count: 3
+      total_loan_deductions: "950.00"
+      net_pay: "4382.00"
+      accuracy_score: 1.0
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Multiple loan deductions exceed 13% of gross — flag for manager review"
+
+  - id: payroll-wkr-014
+    category: edge_case
+    description: "Partial month calculation — employee joined mid-month"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-018"
+      period: "2026-07"
+      employee:
+        name: "Efua Danso"
+        annualSalary: "72000.00"
+        monthlyBase: "6000.00"
+        startDate: "2026-07-15"
+        daysInMonth: 31
+        daysWorked: 17
+        ssnitRate: 0.138
+      calculation:
+        fullMonthlyGross: "6000.00"
+        proRatedGross: "3290.32"
+        ssnitDeduction: "227.03"
+        chargeableIncome: "3063.29"
+        payeComputed: "309.65"
+        netPay: "2753.64"
+    expected_output:
+      status: "calculated"
+      pro_ration_applied: true
+      pro_ration_factor: 0.5484
+      gross_pay: "3290.32"
+      paye: "309.65"
+      net_pay: "2753.64"
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Pro-ration factor = daysWorked / daysInMonth"
+
+  - id: payroll-wkr-015
+    category: edge_case
+    description: "Terminated employee final pay with leave payout"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-020"
+      period: "2026-07"
+      employee:
+        name: "Kojo Asiedu"
+        monthlyGross: "5500.00"
+        terminationDate: "2026-07-15"
+        daysWorked: 15
+        accruedLeaveDays: 10
+        severanceWeeks: 4
+        ssnitRate: 0.138
+      calculation:
+        salaryToDate: "2750.00"
+        accruedLeavePayout: "1833.33"
+        severancePay: "4400.00"
+        totalGross: "8983.33"
+        ssnitDeduction: "619.85"
+        chargeableIncome: "8363.48"
+        payeComputed: "1816.87"
+        netPay: "6546.61"
+    expected_output:
+      status: "calculated"
+      leave_payout: "1833.33"
+      severance_pay: "4400.00"
+      total_gross: "8983.33"
+      paye: "1816.87"
+      net_pay: "6546.61"
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: payroll-wkr-016
+    category: edge_case
+    description: "Batch processing with employee on unpaid leave"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      employees:
+        - employeeId: "EMP-001"
+          grossPay: "5000.00"
+          status: active
+        - employeeId: "EMP-002"
+          grossPay: "4500.00"
+          status: active
+        - employeeId: "EMP-011"
+          grossPay: "0.00"
+          status: unpaid_leave
+          leaveType: "maternity"
+          leaveStart: "2026-07-01"
+          leaveEnd: "2026-09-30"
+          ssnitContinuation: true
+          employerSsnitOnly: true
+    expected_output:
+      status: "partial_complete"
+      active_employees: 2
+      on_leave_employees:
+        - employeeId: "EMP-011"
+          gross_pay: "0.00"
+          employer_ssnit_only: true
+          employer_ssnit: "0.00"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Employee on unpaid leave — SSNIT continuation check needed"
+
+  - id: payroll-wkr-017
+    category: edge_case
+    description: "Rounding discrepancy in batch total — within tolerance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      totalsCheck:
+        individualSumGross: "70619.23"
+        batchTotalGross: "70619.22"
+        roundingDifference: "0.01"
+        individualSumNet: "54890.53"
+        batchTotalNet: "54890.52"
+        roundingDifferenceNet: "0.01"
+        tolerance: "0.02"
+    expected_output:
+      status: "batch_complete"
+      rounding_difference: "0.01"
+      within_tolerance: true
+      accuracy_score: 1.0
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "1-cent rounding difference within acceptable 0.02 tolerance"
+
+  - id: payroll-wkr-018
+    category: edge_case
+    description: "Employee with non-cash benefits included in taxable income"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-019"
+      period: "2026-07"
+      employee:
+        name: "Samira Ibrahim"
+        monthlyGross: "9000.00"
+        benefits:
+          - type: "company_car"
+            taxableValue: "500.00"
+          - type: "accommodation"
+            taxableValue: "800.00"
+          - type: "medical_insurance"
+            taxableValue: "0.00"
+        ssnitRate: 0.138
+      calculation:
+        cashGross: "9000.00"
+        taxableBenefits: "1300.00"
+        totalGross: "10300.00"
+        ssnitDeduction: "710.40"
+        chargeableIncome: "9589.60"
+        payeComputed: "2202.40"
+        netCashPay: "6087.20"
+    expected_output:
+      status: "calculated"
+      cash_gross: "9000.00"
+      taxable_benefits: "1300.00"
+      paye: "2202.40"
+      net_cash_pay: "6087.20"
+      benefits_included: true
+      accuracy_score: 1.0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── ADVERSARIAL (5 cases) ─────────────────────────────────────────────────
+  - id: payroll-wkr-019
+    category: adversarial
+    description: "Negative gross pay input attempted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-001"
+      period: "2026-07"
+      employee:
+        name: "Kwame Asante"
+        monthlyGross: "-5000.00"
+        ssnitRate: 0.138
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_GROSS_PAY"
+      details:
+        - "Gross pay cannot be negative"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+
+  - id: payroll-wkr-020
+    category: adversarial
+    description: "SSNIT rate exceeds legal maximum"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-002"
+      period: "2026-07"
+      employee:
+        name: "Abena Owusu"
+        monthlyGross: "4500.00"
+        ssnitRate: 0.50
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_SSNIT_RATE"
+      details:
+        - "SSNIT rate 0.50 exceeds maximum allowed rate of 0.138"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Rate validation prevents erroneous or malicious deduction rates"
+
+  - id: payroll-wkr-021
+    category: adversarial
+    description: "Duplicate employee in batch payroll"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      payrollId: "PAY-2026-07"
+      period: "2026-07"
+      employees:
+        - employeeId: "EMP-001"
+          grossPay: "5000.00"
+        - employeeId: "EMP-002"
+          grossPay: "4500.00"
+        - employeeId: "EMP-001"
+          grossPay: "5000.00"
+        - employeeId: "EMP-003"
+          grossPay: "8000.00"
+    expected_output:
+      status: "rejected"
+      reason_code: "DUPLICATE_EMPLOYEE"
+      details:
+        - "EMP-001 appears 2 times in batch"
+        - "Duplicate entries must be resolved before processing"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+
+  - id: payroll-wkr-022
+    category: adversarial
+    description: "Manipulated tax band rates in PAYE calculation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-003"
+      period: "2026-07"
+      employee:
+        name: "Akua Sarpong"
+        monthlyGross: "8000.00"
+        ssnitRate: 0.138
+      customTaxBands:
+        - band: "0-5000"
+          rate: 0.02
+        - band: "5000-10000"
+          rate: 0.05
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_TAX_BANDS"
+      details:
+        - "Custom tax bands not permitted — tax bands must match statutory rates"
+        - "Expected progressive bands: 0%, 5%, 10%, 17.5%, 25%"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Attempted tax rate manipulation — security event logged"
+
+  - id: payroll-wkr-023
+    category: adversarial
+    description: "Non-numeric values provided for payroll calculation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-004"
+      period: "2026-07"
+      employee:
+        name: "Mensah Boateng"
+        monthlyGross: "six-thousand"
+        ssnitRate: "zero-point-one-three-eight"
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_NUMERIC_INPUT"
+      details:
+        - "monthlyGross: 'six-thousand' is not a valid number"
+        - "ssnitRate: 'zero-point-one-three-eight' is not a valid number"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+
+  # ── AMBIGUOUS (5 cases) ───────────────────────────────────────────────────
+  - id: payroll-wkr-024
+    category: ambiguous
+    description: "Variable bonus payout — taxable period attribution"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-005"
+      period: "2026-07"
+      bonus:
+        type: annual_performance
+        amount: "15000.00"
+        earnedPeriod: "2025 Q1-Q4"
+        paidInPeriod: "2026-07"
+        attributionMethod:
+          options:
+            - "Include in July 2026 taxable income"
+            - "Attribute to 2025 tax year as prior period adjustment"
+            - "Spread over 12 months"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Bonus period attribution is a policy decision — flag for manager"
+
+  - id: payroll-wkr-025
+    category: ambiguous
+    description: "Commission-only employee — PAYE calculation basis"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-021"
+      period: "2026-07"
+      employee:
+        name: "Felix Adjei"
+        compensationType: commission_only
+        commissionEarned: "8500.00"
+        baseSalary: "0.00"
+        monthlyAverageIncome: "7200.00"
+        fluctuationRange: "3000.00 - 12000.00"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Commission-only PAYE treatment depends on whether annualized or per-period"
+
+  - id: payroll-wkr-026
+    category: ambiguous
+    description: "Employee expense reimbursement — taxability unclear"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-007"
+      period: "2026-07"
+      reimbursement:
+        type: travel_advance
+        amount: "2000.00"
+        receiptsProvided: pending
+        policyClassification: unclear
+        reimbursementCategories:
+          - "Fully reimbursable (non-taxable)"
+          - "Part of salary (taxable)"
+          - "Business expense (non-taxable with receipts)"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Reimbursement tax treatment depends on receipts and policy interpretation"
+
+  - id: payroll-wkr-027
+    category: ambiguous
+    description: "Multi-jurisdiction employee — remote worker tax residency"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-022"
+      period: "2026-07"
+      employee:
+        name: "Grace Nkrumah"
+        contractEntity: "Xenboox Ghana Ltd"
+        workLocation: "Lagos, Nigeria"
+        citizenship: "Ghanaian"
+        daysInGhana: 5
+        daysInNigeria: 25
+        taxResidency: uncertain
+        payrollJurisdiction: "Ghana"
+    expected_output: null
+    expected_confidence_range: [0.3, 0.6]
+    expected_escalation: flag
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Remote worker tax residency is ambiguous — may trigger Nigerian PE or double taxation"
+
+  - id: payroll-wkr-028
+    category: ambiguous
+    description: "In-kind benefit valuation for PAYE purposes"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      employeeId: "EMP-012"
+      period: "2026-07"
+      benefit:
+        type: "employer_provided_housing"
+        marketRent: "2500.00"
+        actualCostToEmployer: "1800.00"
+        employeeContribution: "500.00"
+        valuationMethods:
+          - "Market rent approach: 2500.00"
+          - "Actual cost approach: 1800.00"
+          - "Net benefit approach (market minus contribution): 2000.00"
+        taxAuthorityGuidance: "Use lower of market rent or actual cost"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: payroll-manager-agent
+    source: synthetic
+    notes: "Benefit valuation method selection requires judgment based on tax authority practice"

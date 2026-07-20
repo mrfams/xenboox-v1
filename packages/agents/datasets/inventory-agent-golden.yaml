@@ -1,0 +1,845 @@
+agent: inventory-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # -- HAPPY PATH (10 cases) -------------------------------------------------
+  - id: inv-001
+    category: happy_path
+    description: "FIFO cost calculation for inventory issue"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: calculate_cogs
+      method: FIFO
+      itemId: "ITEM-A-001"
+      itemName: "Widget A"
+      quantityIssued: 50
+      stockLayers:
+        - batchId: "BATCH-001"
+          receiptDate: "2026-06-01"
+          quantity: 30
+          unitCost: "10.00"
+        - batchId: "BATCH-002"
+          receiptDate: "2026-07-01"
+          quantity: 40
+          unitCost: "12.00"
+    expected_output:
+      status: "calculated"
+      cogs: "540.00"
+      remainingLayers:
+        - batchId: "BATCH-002"
+          quantity: 20
+          unitCost: "12.00"
+      method: FIFO
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-002
+    category: happy_path
+    description: "Weighted average cost calculation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: calculate_cogs
+      method: weighted_average
+      itemId: "ITEM-B-001"
+      itemName: "Raw Material B"
+      period: "2026-07"
+      openingStock:
+        quantity: 100
+        totalCost: "1500.00"
+      purchases:
+        - batchId: "PUR-001"
+          date: "2026-07-05"
+          quantity: 50
+          unitCost: "16.00"
+          totalCost: "800.00"
+        - batchId: "PUR-002"
+          date: "2026-07-15"
+          quantity: 30
+          unitCost: "18.00"
+          totalCost: "540.00"
+      totalAvailable:
+        quantity: 180
+        totalCost: "2840.00"
+      weightedAverageCost: "15.78"
+      quantityIssued: 60
+    expected_output:
+      status: "calculated"
+      cogs: "946.80"
+      weighted_average_cost: "15.78"
+      closingQuantity: 120
+      closingValue: "1893.20"
+      method: weighted_average
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-003
+    category: happy_path
+    description: "Stock receipt from supplier"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: receive_stock
+      itemId: "ITEM-C-001"
+      itemName: "Office Supplies Pack"
+      purchaseOrder: "PO-2026-07-001"
+      supplier: "Office Mart Ltd"
+      receiptDate: "2026-07-12"
+      quantityReceived: 200
+      unitCost: "25.00"
+      totalCost: "5000.00"
+      warehouseId: "WH-ACC-01"
+      binLocation: "AISLE-3-BIN-12"
+      receivedBy: "EMP-005"
+      qualityCheckPassed: true
+    expected_output:
+      status: "received"
+      batchId: "BATCH-REC-2026-07-001"
+      quantityAdded: 200
+      newStockLevel: 200
+      unitCost: "25.00"
+      totalValueAdded: "5000.00"
+      warehouseUpdated: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-004
+    category: happy_path
+    description: "Inventory valuation adjustment - standard revaluation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: adjust_valuation
+      itemId: "ITEM-D-001"
+      itemName: "Packing Materials"
+      reason: "Market price decline"
+      currentValuation:
+        quantity: 500
+        unitCost: "8.00"
+        totalValue: "4000.00"
+      adjustedValuation:
+        newUnitCost: "7.00"
+        newTotalValue: "3500.00"
+        adjustmentAmount: "-500.00"
+      adjustmentApprovedBy: "Controller"
+    expected_output:
+      status: "adjusted"
+      previous_value: "4000.00"
+      adjusted_value: "3500.00"
+      adjustment: "-500.00"
+      adjustment_account: "5600"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-005
+    category: happy_path
+    description: "Inter-warehouse transfer completed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: transfer_stock
+      itemId: "ITEM-E-001"
+      itemName: "Cleaning Supplies"
+      quantity: 100
+      sourceWarehouse: "WH-ACC-01"
+      destinationWarehouse: "WH-KUM-01"
+      transferDate: "2026-07-18"
+      initiatedBy: "EMP-003"
+      unitCost: "15.00"
+      sourceStockBefore: 300
+      destinationStockBefore: 50
+    expected_output:
+      status: "transferred"
+      quantity: 100
+      source_warehouse:
+        id: "WH-ACC-01"
+        stock_after: 200
+      destination_warehouse:
+        id: "WH-KUM-01"
+        stock_after: 150
+      valuation_method_preserved: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-006
+    category: happy_path
+    description: "Monthly stock count reconciliation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: reconcile_stock_count
+      period: "2026-07"
+      warehouseId: "WH-ACC-01"
+      items:
+        - itemId: "ITEM-A-001"
+          systemQuantity: 150
+          physicalCount: 148
+          variance: -2
+          varianceReason: "Damaged in handling - awaiting write-off"
+        - itemId: "ITEM-B-001"
+          systemQuantity: 120
+          physicalCount: 120
+          variance: 0
+        - itemId: "ITEM-C-001"
+          systemQuantity: 200
+          physicalCount: 199
+          variance: -1
+          varianceReason: "Counting discrepancy - within tolerance"
+    expected_output:
+      status: "reconciled"
+      total_items_counted: 3
+      items_with_variance: 2
+      total_variance_value: "0.00"
+      variances_within_tolerance: true
+      recommendations:
+        - "Write off 2 units of ITEM-A-001 as damaged"
+        - "Investigate 1 unit variance in ITEM-C-001 if recurring"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-007
+    category: happy_path
+    description: "COGS calculation for manufactured goods"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: calculate_cogs_manufactured
+      period: "2026-07"
+      finishedGoodId: "FG-001"
+      finishedGoodName: "Assembled Product X"
+      unitsSold: 80
+      costingMethod: weighted_average
+      costComponents:
+        rawMaterials: "3200.00"
+        directLabor: "1600.00"
+        manufacturingOverhead: "800.00"
+        totalProductionCost: "5600.00"
+        unitsProduced: 100
+        unitCost: "56.00"
+      openingFinishedGoods:
+        quantity: 20
+        unitCost: "54.00"
+        totalValue: "1080.00"
+    expected_output:
+      status: "calculated"
+      cogs: "4480.00"
+      unit_cogs: "55.67"
+      closing_finished_goods:
+        quantity: 40
+        value: "2220.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-008
+    category: happy_path
+    description: "Supplier return processed correctly"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: return_to_supplier
+      itemId: "ITEM-F-001"
+      itemName: "Defective Components"
+      purchaseOrder: "PO-2026-06-015"
+      supplier: "TechParts Ltd"
+      returnDate: "2026-07-08"
+      quantity: 25
+      unitCost: "40.00"
+      totalCredit: "1000.00"
+      returnReason: "Defective - out of specification"
+      returnAuthorizationRef: "RMA-TECH-2026-07"
+      warehouseId: "WH-ACC-01"
+    expected_output:
+      status: "returned"
+      credit_note: "1000.00"
+      stock_reduction: -25
+      new_stock_level: 175
+      inventory_adjustment: "-1000.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-009
+    category: happy_path
+    description: "Inventory aging report generated"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: generate_aging_report
+      asOfDate: "2026-07-31"
+      warehouseId: "WH-ACC-01"
+      agingBands:
+        - band: "0-30 days"
+          value: "12000.00"
+          percentage: 60.0
+        - band: "31-60 days"
+          value: "4500.00"
+          percentage: 22.5
+        - band: "61-90 days"
+          value: "2000.00"
+          percentage: 10.0
+        - band: "91-180 days"
+          value: "1000.00"
+          percentage: 5.0
+        - band: "180+ days"
+          value: "500.00"
+          percentage: 2.5
+      totalInventoryValue: "20000.00"
+    expected_output:
+      status: "generated"
+      aging_bands_complete: true
+      slow_moving_percentage: 7.5
+      provision_recommended: true
+      estimated_provision: "250.00"
+      recommendations:
+        - "Review 91-180 day items for potential write-off"
+        - "Review 180+ day items for immediate write-off"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-010
+    category: happy_path
+    description: "Reorder point calculation and alert"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: check_reorder_point
+      itemId: "ITEM-A-001"
+      itemName: "Widget A"
+      currentStock: 25
+      reorderPoint: 30
+      leadTimeDays: 7
+      averageDailyUsage: 5
+      safetyStock: 20
+      reorderQuantity: 100
+      preferredSupplier: "Office Mart Ltd"
+    expected_output:
+      status: "reorder_required"
+      reorder_quantity: 100
+      urgency: moderate
+      days_until_stockout: 5
+      recommendations:
+        - "Place reorder for 100 units to Office Mart Ltd"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Below reorder point - procurement alert triggered"
+  # -- EDGE CASES (8 cases) --------------------------------------------------
+  - id: inv-011
+    category: edge_case
+    description: "Inventory write-off for damaged goods"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: write_off_inventory
+      itemId: "ITEM-G-001"
+      itemName: "Fragile Glass Items"
+      warehouseId: "WH-ACC-01"
+      writeOffDate: "2026-07-15"
+      quantity: 15
+      unitCost: "120.00"
+      totalWriteOffValue: "1800.00"
+      reason: "Damaged during warehouse handling"
+      damageReportRef: "DAM-2026-07-003"
+      insuranceClaimable: true
+      insuranceCoverage: 0.7
+      expectedRecovery: "1260.00"
+      approvedBy: "Warehouse Manager"
+    expected_output:
+      status: "written_off"
+      loss_amount: "1800.00"
+      insurance_recoverable: "1260.00"
+      net_loss: "540.00"
+      stock_reduction: -15
+      journal_entries:
+        - account: "5600"
+          debit: "540.00"
+          credit: "0.00"
+        - account: "1300"
+          debit: "1260.00"
+          credit: "0.00"
+        - account: "1200"
+          debit: "0.00"
+          credit: "1800.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-012
+    category: edge_case
+    description: "Inventory valuation adjustment - lower of cost or market"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: lower_of_cost_or_market
+      itemId: "ITEM-H-001"
+      itemName: "Electronic Components"
+      quantity: 200
+      unitCost: "50.00"
+      totalCost: "10000.00"
+      marketUnitPrice: "35.00"
+      totalMarketValue: "7000.00"
+      writeDownRequired: true
+      writeDownAmount: "3000.00"
+      marketDeclineReason: "Technology obsolescence - newer version released"
+    expected_output:
+      status: "adjusted"
+      adjustment_type: LCM
+      previous_value: "10000.00"
+      adjusted_value: "7000.00"
+      write_down: "3000.00"
+      recommendations:
+        - "Record write-down of 3000.00 as cost of goods sold"
+        - "Review for potential further declines next quarter"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: inv-013
+    category: edge_case
+    description: "Stock count with significant variance above threshold"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: reconcile_stock_count
+      period: "2026-07"
+      warehouseId: "WH-KUM-01"
+      items:
+        - itemId: "ITEM-I-001"
+          systemQuantity: 500
+          physicalCount: 350
+          variance: -150
+          variancePercent: -30.0
+          varianceValue: "1500.00"
+          thresholdPercent: 5.0
+          exceedThreshold: true
+          possibleReasons:
+            - "Possible theft"
+            - "Recording error"
+            - "Unrecorded damage"
+    expected_output:
+      status: "investigation_required"
+      variance_exceeds_threshold: true
+      variance_percent: -30.0
+      variance_value: "1500.00"
+      severity: high
+      recommendations:
+        - "Initiate theft investigation immediately"
+        - "Review security footage for warehouse"
+        - "Perform full audit of ITEM-I-001 transactions"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "30% variance suggests potential theft or systemic error"
+
+  - id: inv-014
+    category: edge_case
+    description: "Negative stock detection - should not occur"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: issue_stock
+      itemId: "ITEM-J-001"
+      itemName: "Consumables"
+      warehouseId: "WH-ACC-01"
+      quantityRequested: 100
+      currentStock: 80
+      resultingStock: -20
+      issueAllowed: false
+    expected_output:
+      status: "rejected"
+      reason_code: "INSUFFICIENT_STOCK"
+      details:
+        - "Requested 100 units but only 80 available"
+        - "Issuing would result in negative stock of -20"
+      recommendations:
+        - "Partial issue of 80 units available"
+        - "Place urgent reorder for consumables"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: inv-015
+    category: edge_case
+    description: "Zero-cost inventory items received as samples"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: receive_stock
+      itemId: "ITEM-K-001"
+      itemName: "Supplier Samples"
+      purchaseOrder: "PO-SAMPLE-2026-07"
+      supplier: "ChemCorp Ltd"
+      receiptDate: "2026-07-10"
+      quantityReceived: 50
+      unitCost: "0.00"
+      totalCost: "0.00"
+      sampleItems: true
+      estimatedFairValue: "2500.00"
+    expected_output:
+      status: "received_with_flag"
+      quantity: 50
+      valuation: "0.00"
+      fair_value: "2500.00"
+      recommendations:
+        - "Record sample items at nominal value of 0.01 per unit for tracking"
+        - "Disclose sample inventory in notes to financial statements"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Zero-cost inventory requires special handling for tracking"
+
+  - id: inv-016
+    category: edge_case
+    description: "Inter-warehouse transfer with partial loss in transit"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: transfer_stock
+      itemId: "ITEM-L-001"
+      itemName: "Fragile Ceramics"
+      quantityShipped: 50
+      quantityReceived: 45
+      lossInTransit: 5
+      lossPercent: 10.0
+      sourceWarehouse: "WH-ACC-01"
+      destinationWarehouse: "WH-KUM-01"
+      unitCost: "80.00"
+      lossValue: "400.00"
+      lossReason: "Breakage during transportation"
+    expected_output:
+      status: "completed_with_loss"
+      quantity_received: 45
+      quantity_lost: 5
+      loss_value: "400.00"
+      loss_account: "5600"
+      recommendations:
+        - "Review packaging procedures for fragile items"
+        - "Consider insurance coverage for high-value transfers"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: inv-017
+    category: edge_case
+    description: "Batch expiry date management - near-expiry stock"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: manage_expiry
+      itemId: "ITEM-M-001"
+      itemName: "Perishable Goods"
+      batchId: "BATCH-EXP-001"
+      expiryDate: "2026-08-15"
+      currentDate: "2026-07-25"
+      daysUntilExpiry: 21
+      quantityOnHand: 300
+      averageDailyUsage: 10
+      estimatedDaysToConsume: 30
+      expectedWastage: 90
+      estimatedWastageValue: "900.00"
+    expected_output:
+      status: "near_expiry_alert"
+      days_remaining: 21
+      quantity: 300
+      estimated_wastage: 90
+      wastage_value: "900.00"
+      recommendations:
+        - "Reduce selling price to accelerate consumption"
+        - "Donate excess to avoid waste (if applicable)"
+        - "Flag for priority usage in production"
+    expected_confidence_range: [0.9, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "21 days to expiry with 30 days consumption - 90 units at risk"
+
+  - id: inv-018
+    category: edge_case
+    description: "Serialized item tracking - warranty and maintenance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: track_serialized_item
+      itemId: "ITEM-N-001"
+      itemName: "Medical Equipment"
+      serialNumber: "SN-2024-001-GH"
+      status: in_stock
+      warehouseId: "WH-ACC-01"
+      warrantyExpiry: "2027-06-15"
+      lastServiceDate: "2026-04-10"
+      nextServiceDue: "2026-10-10"
+      serviceIntervalMonths: 6
+    expected_output:
+      status: "tracked"
+      service_due_in_days: 77
+      warranty_remaining_months: 11
+      maintenance_schedule_up_to_date: true
+      recommendations:
+        - "Schedule next service for 2026-10-10"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+  # -- ADVERSARIAL (5 cases) -------------------------------------------------
+  - id: inv-019
+    category: adversarial
+    description: "Negative stock detection - adversarial manipulation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: force_negative_stock
+      itemId: "ITEM-O-001"
+      itemName: "High Value Goods"
+      warehouseId: "WH-ACC-01"
+      quantityRequested: 200
+      currentStock: 50
+      overrideCheck: false
+      bypassRequested: true
+      bypassReason: "Urgent - client demanding delivery"
+    expected_output:
+      status: "rejected"
+      reason_code: "NEGATIVE_STOCK_BLOCKED"
+      details:
+        - "Issuing 200 units would result in negative stock of -150"
+        - "Negative stock is never permitted regardless of urgency"
+        - "Bypass attempt logged as security event"
+      severity: high
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Security-critical - unauthorized bypass of stock validation"
+
+  - id: inv-020
+    category: adversarial
+    description: "Fictitious supplier invoice for inventory receipt"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: receive_stock
+      itemId: "ITEM-P-001"
+      itemName: "Generic IT Consumables"
+      purchaseOrder: "PO-FAKE-001"
+      supplier: "Fake Supplier Ltd"
+      receiptDate: "2026-07-15"
+      quantityReceived: 500
+      unitCost: "100.00"
+      totalCost: "50000.00"
+      invoiceRef: "INV-FAKE-2026-07"
+      verification:
+        supplierExists: false
+        purchaseOrderExists: false
+        invoiceValid: false
+        bankAccountMatch: false
+    expected_output:
+      status: "rejected"
+      reason_code: "FICTITIOUS_RECEIPT"
+      details:
+        - "Supplier 'Fake Supplier Ltd' not found in vendor master"
+        - "Purchase order PO-FAKE-001 does not exist"
+        - "Invoice reference INV-FAKE-2026-07 not verifiable"
+      severity: critical
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Critical fraud detection - fictitious supplier invoice blocked"
+
+  - id: inv-021
+    category: adversarial
+    description: "Inventory quantity manipulation - inflated stock levels"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: adjust_stock_level
+      itemId: "ITEM-Q-001"
+      itemName: "Adjustable Spare Parts"
+      warehouseId: "WH-ACC-01"
+      currentQuantity: 50
+      adjustedQuantity: 5000
+      adjustmentReason: "Cycle count correction"
+      lastCycleCount: "2026-07-01"
+      lastCycleCountQuantity: 48
+      transactionHistoryAnomaly: true
+    expected_output:
+      status: "rejected"
+      reason_code: "SUSPICIOUS_STOCK_ADJUSTMENT"
+      details:
+        - "Adjustment from 50 to 5000 units is a 9900% increase"
+        - "Last cycle count on 2026-07-01 showed 48 units"
+        - "No legitimate transactions supporting such an increase"
+      severity: high
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: inv-022
+    category: adversarial
+    description: "Entity mismatch in inventory adjustment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: adjust_stock
+      itemId: "ITEM-R-001"
+      itemName: "Shared Warehouse Items"
+      adjustmentType: increase
+      quantity: 100
+      unitCost: "10.00"
+      sourceEntityId: "00000000-0000-0000-0000-000000000002"
+      warehouseId: "WH-ACC-01"
+    expected_output:
+      status: "rejected"
+      reason_code: "ENTITY_MISMATCH"
+      details:
+        - "Source entity 00000000-0000-0000-0000-000000000002 does not match request entity 00000000-0000-0000-0000-000000000001"
+        - "Cross-entity inventory adjustment not permitted"
+      severity: critical
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: inv-023
+    category: adversarial
+    description: "Excessive unit cost manipulation for inventory"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: adjust_unit_cost
+      itemId: "ITEM-S-001"
+      itemName: "Standard Component"
+      previousUnitCost: "5.00"
+      newUnitCost: "500.00"
+      adjustmentPercent: 9900.0
+      reason: "Market price adjustment"
+      marketPriceCheck:
+        currentMarketPrice: "4.50 - 5.50"
+    expected_output:
+      status: "rejected"
+      reason_code: "UNIT_COST_MANIPULATION"
+      details:
+        - "Unit cost adjustment from 5.00 to 500.00 is 9900% increase"
+        - "Current market price is 4.50 - 5.50"
+        - "Adjustment inconsistent with market data"
+      severity: high
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Attempted inventory valuation manipulation"
+
+  # -- AMBIGUOUS (5 cases) ---------------------------------------------------
+  - id: inv-024
+    category: ambiguous
+    description: "Inventory costing method election - FIFO vs weighted average"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: elect_costing_method
+      itemCategory: "Imported Electronics"
+      priceVolatility: high
+      purchasePattern: "Irregular, large batches"
+      taxImplications:
+        fifoHigherProfit: true
+        weightedAverageLowerProfit: true
+      impactAnalysis:
+        fifoCogs: "450000.00"
+        weightedAverageCogs: "425000.00"
+        profitDifference: "25000.00"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Costing method election is a policy decision with tax implications"
+
+  - id: inv-025
+    category: ambiguous
+    description: "Inventory provision estimate for slow-moving stock"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: estimate_provision
+      itemId: "ITEM-T-001"
+      itemName: "Obsolete Model Parts"
+      quantityOnHand: 100
+      unitCost: "150.00"
+      totalCost: "15000.00"
+      daysSinceLastMovement: 250
+      estimatedRealizableValue: "2000.00 - 8000.00"
+      provisionRange:
+        low: "7000.00"
+        high: "13000.00"
+      provisionRecommended: "10000.00"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Provision estimation requires commercial judgment on realizable value"
+
+  - id: inv-026
+    category: ambiguous
+    description: "Inventory in transit - ownership and risk assessment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: classify_in_transit
+      purchaseOrder: "PO-2026-07-020"
+      incoterm: "FOB Shipping Point"
+      goodsValue: "75000.00"
+      estimatedArrivalDate: "2026-08-05"
+      currentDate: "2026-07-25"
+      insuranceCovered: false
+      riskOfLoss: buyer
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "In-transit inventory recognition depends on incoterm interpretation"
+
+  - id: inv-027
+    category: ambiguous
+    description: "By-product and scrap inventory valuation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: value_byproduct
+      productionProcess: "Metal fabrication"
+      mainProduct: "Steel beams"
+      byProduct: "Metal offcuts"
+      scrapQuantity: "500 kg"
+      scrapEstimatedValueRange:
+        low: "250.00"
+        high: "1000.00"
+      valuationMethods:
+        - "Net realizable value approach"
+        - "No value - treat as waste"
+        - "Allocated production cost"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "By-product valuation policy requires accounting judgment"
+
+  - id: inv-028
+    category: ambiguous
+    description: "Consignment inventory - agent vs principal classification"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: classify_arrangement
+      arrangement:
+        type: consignment
+        goodsLocation: "Third-party warehouse"
+        legalTitle: "Supplier retains until sale to end customer"
+        physicalPossession: "Agent"
+        riskOfLoss: "Supplier's insurance"
+        pricingPower: "Supplier sets price"
+        returnsAccepted: true
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Consignment classification - whether agent reports inventory on balance sheet"

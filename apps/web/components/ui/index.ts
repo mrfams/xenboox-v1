@@ -1,8 +1,4 @@
-export {
-  Button,
-  buttonVariants,
-  type ButtonProps,
-} from "@xenboox/ui"
+export { Button, buttonVariants, type ButtonProps } from "@xenboox/ui";
 export {
   Card,
   CardHeader,
@@ -10,9 +6,9 @@ export {
   CardTitle,
   CardDescription,
   CardContent,
-} from "@xenboox/ui"
-export { Input, type InputProps } from "@xenboox/ui"
-export { Label } from "@xenboox/ui"
+} from "@xenboox/ui";
+export { Input, type InputProps } from "@xenboox/ui";
+export { Label } from "@xenboox/ui";
 export {
   Select,
   SelectGroup,
@@ -22,10 +18,10 @@ export {
   SelectLabel,
   SelectItem,
   SelectSeparator,
-} from "@xenboox/ui"
-export { Separator } from "@xenboox/ui"
-export { Avatar, AvatarImage, AvatarFallback } from "@xenboox/ui"
-export { Badge, badgeVariants, type BadgeProps } from "@xenboox/ui"
+} from "@xenboox/ui";
+export { Separator } from "@xenboox/ui";
+export { Avatar, AvatarImage, AvatarFallback } from "@xenboox/ui";
+export { Badge, badgeVariants, type BadgeProps } from "@xenboox/ui";
 export {
   Table,
   TableHeader,
@@ -35,7 +31,7 @@ export {
   TableRow,
   TableCell,
   TableCaption,
-} from "@xenboox/ui"
+} from "@xenboox/ui";
 export {
   Dialog,
   DialogPortal,
@@ -47,7 +43,7 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-} from "@xenboox/ui"
+} from "@xenboox/ui";
 export {
   AlertDialog,
   AlertDialogPortal,
@@ -60,9 +56,9 @@ export {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@xenboox/ui"
-export { Tabs, TabsList, TabsTrigger, TabsContent } from "@xenboox/ui"
-export { Popover, PopoverTrigger, PopoverContent } from "@xenboox/ui"
+} from "@xenboox/ui";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "@xenboox/ui";
+export { Popover, PopoverTrigger, PopoverContent } from "@xenboox/ui";
 export {
   Command,
   CommandDialog,
@@ -73,6 +69,7 @@ export {
   CommandItem,
   CommandShortcut,
   CommandSeparator,
-} from "@xenboox/ui"
-export { Textarea } from "@xenboox/ui"
-export { Switch } from "@xenboox/ui"
+} from "@xenboox/ui";
+export { Textarea } from "@xenboox/ui";
+export { Switch } from "@xenboox/ui";
+export { Progress, type ProgressProps } from "@xenboox/ui";

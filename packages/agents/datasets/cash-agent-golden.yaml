@@ -1,0 +1,712 @@
+agent: cash-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ─────────────────────────────────────────────────
+  - id: cash-001
+    category: happy_path
+    description: "Daily till count matches expected — Accra Main Branch till 1"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-accra-main-01"
+      location: "Accra Main Branch"
+      expectedAmount: "2500.00"
+      countedAmount: "2500.00"
+      countedBy: "Grace Asare"
+      date: "2026-07-15"
+      currency: "GHS"
+    expected_output:
+      status: "reconciled"
+      discrepancy: "0.00"
+      actions: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: cash-002
+    category: happy_path
+    description: "Imprest issuance to field officer — Kumasi Depot"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-042"
+      officerName: "Kwame Mensah"
+      location: "Kumasi Depot"
+      amount: "500.00"
+      purpose: "Field operations — northern route fuel and per diem"
+      issuanceDate: "2026-07-08"
+      currency: "GHS"
+    expected_output:
+      status: "issued"
+      amount: "500.00"
+      pendingRetirement: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: cash-003
+    category: happy_path
+    description: "Imprest fully retired with receipts matching issued amount"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-042"
+      officerName: "Kwame Mensah"
+      issuedAmount: "500.00"
+      receiptTotal: "500.00"
+      receipts:
+        - description: "Fuel — Kumasi to Tamale"
+          amount: "320.00"
+          receiptRef: "FUEL-KTI-001"
+        - description: "Per diem — 3 days"
+          amount: "180.00"
+          receiptRef: "PD-2026-07-042"
+      retirementDate: "2026-07-12"
+      currency: "GHS"
+    expected_output:
+      status: "retired"
+      amountRetired: "500.00"
+      variance: "0.00"
+      flagged: false
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: cash-004
+    category: happy_path
+    description: "Petty cash float top-up — Takoradi office"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      floatId: "PC-TAKORADI-01"
+      location: "Takoradi Regional Office"
+      currentBalance: "150.00"
+      topUpAmount: "350.00"
+      newFloatAmount: "500.00"
+      approvedBy: "Samuel Quartey"
+      date: "2026-07-10"
+      currency: "GHS"
+    expected_output:
+      status: "topped_up"
+      previousBalance: "150.00"
+      topUpAmount: "350.00"
+      newFloatAmount: "500.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: cash-005
+    category: happy_path
+    description: "Daily till count matches — Tema Port Branch"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-tema-port-01"
+      location: "Tema Port Branch"
+      expectedAmount: "4800.00"
+      countedAmount: "4800.00"
+      countedBy: "Esi Nyarko"
+      date: "2026-07-16"
+      currency: "GHS"
+    expected_output:
+      status: "reconciled"
+      discrepancy: "0.00"
+      actions: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: cash-006
+    category: happy_path
+    description: "Petty cash float establishment — new Bolgatanga field office"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      floatId: "PC-BOLGA-01"
+      location: "Bolgatanga Field Office"
+      initialAmount: "300.00"
+      custodian: "Abdul Razak"
+      purpose: "General office and field operations"
+      date: "2026-07-05"
+      currency: "GHS"
+    expected_output:
+      status: "established"
+      floatAmount: "300.00"
+      custodian: "Abdul Razak"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: cash-007
+    category: happy_path
+    description: "Imprest retirement with receipts exceeding issued (officer funded overage)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-058"
+      officerName: "Adwoa Asantewaa"
+      issuedAmount: "400.00"
+      receiptTotal: "415.00"
+      receipts:
+        - description: "Vehicle repair — Cape Coast route"
+          amount: "315.00"
+          receiptRef: "REP-CC-001"
+        - description: "Tolls"
+          amount: "100.00"
+          receiptRef: "TOLL-CC-002"
+      retirementDate: "2026-07-14"
+      currency: "GHS"
+    expected_output:
+      status: "retired"
+      amountRetired: "400.00"
+      variance: "15.00"
+      overageType: "officer_funded"
+      flagged: false
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Officer spent 15 GHS over the imprest — acceptable as self-funded overage"
+
+  - id: cash-008
+    category: happy_path
+    description: "Multiple till reconciliation — all three tills at head office match"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillIds:
+        - "till-hq-main"
+        - "till-hq-cashier-1"
+        - "till-hq-cashier-2"
+      location: "Head Office — Accra"
+      expectedAmounts:
+        till-hq-main: "12000.00"
+        till-hq-cashier-1: "8500.00"
+        till-hq-cashier-2: "7200.00"
+      countedAmounts:
+        till-hq-main: "12000.00"
+        till-hq-cashier-1: "8500.00"
+        till-hq-cashier-2: "7200.00"
+      date: "2026-07-17"
+      currency: "GHS"
+    expected_output:
+      status: "all_reconciled"
+      tillResults:
+        - tillId: "till-hq-main"
+          status: "reconciled"
+        - tillId: "till-hq-cashier-1"
+          status: "reconciled"
+        - tillId: "till-hq-cashier-2"
+          status: "reconciled"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: cash-009
+    category: happy_path
+    description: "Petty cash float reconciliation with receipts — Sunyani office"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      floatId: "PC-SUNYANI-01"
+      location: "Sunyani Branch"
+      floatAmount: "400.00"
+      cashOnHand: "120.00"
+      receiptTotal: "280.00"
+      receipts:
+        - description: "Cleaning supplies"
+          amount: "80.00"
+          receiptRef: "CLN-SUN-001"
+        - description: "Office water"
+          amount: "60.00"
+          receiptRef: "WTR-SUN-002"
+        - description: "Stationery"
+          amount: "140.00"
+          receiptRef: "STN-SUN-003"
+      date: "2026-07-20"
+      currency: "GHS"
+    expected_output:
+      status: "reconciled"
+      cashOnHand: "120.00"
+      receiptTotal: "280.00"
+      accountedTotal: "400.00"
+      discrepancy: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: cash-010
+    category: happy_path
+    description: "Daily cash deposit to GCB Bank matches till record"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-accra-main-01"
+      location: "Accra Main Branch"
+      depositAmount: "2400.00"
+      bankSlipAmount: "2400.00"
+      bankName: "GCB Bank"
+      accountNumber: "1011122334"
+      depositDate: "2026-07-15"
+      currency: "GHS"
+    expected_output:
+      status: "deposit_matched"
+      tillVsDepositVariance: "0.00"
+      depositVsBankVariance: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (8 cases) ──────────────────────────────────────────────────
+  - id: cash-011
+    category: edge_case
+    description: "Imprest retirement with minor receipt variance — 15 GHS short (partially accounted)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-071"
+      officerName: "Yaw Boadi"
+      issuedAmount: "600.00"
+      receiptTotal: "585.00"
+      receipts:
+        - description: "Field supplies — Ho region"
+          amount: "350.00"
+          receiptRef: "SUPP-HO-001"
+        - description: "Transportation"
+          amount: "235.00"
+          receiptRef: "TRANS-HO-002"
+      explanation: "Lost receipt for 15 GHS — market gate fee, no receipt issued"
+      retirementDate: "2026-07-18"
+      currency: "GHS"
+    expected_output:
+      status: "retired"
+      amountRetired: "585.00"
+      variance: "-15.00"
+      varianceHandling: "allow_but_flag"
+      flagged: true
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Minor shortage with explanation — allow retirement but flag for controller awareness"
+
+  - id: cash-012
+    category: edge_case
+    description: "Till count variance within tolerance band — 2 GHS difference"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-koforidua-01"
+      location: "Koforidua Branch"
+      expectedAmount: "1800.00"
+      countedAmount: "1802.00"
+      countedBy: "Nana Ama"
+      date: "2026-07-19"
+      currency: "GHS"
+    expected_output:
+      status: "reconciled"
+      discrepancy: "2.00"
+      actions: ["log_variance", "review_cashier"]
+    expected_confidence_range: [0.8, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "2 GHS overage — within 5 GHS tolerance, log and flag"
+
+  - id: cash-013
+    category: edge_case
+    description: "Petty cash float reconciliation where cash + receipts do not equal float (short)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      floatId: "PC-WA-01"
+      location: "Wa Field Office"
+      floatAmount: "500.00"
+      cashOnHand: "80.00"
+      receiptTotal: "400.00"
+      receipts:
+        - description: "Fuel for northern outreach"
+          amount: "250.00"
+          receiptRef: "FUEL-WA-001"
+        - description: "Community meeting refreshment"
+          amount: "150.00"
+          receiptRef: "CM-WA-002"
+      date: "2026-07-22"
+      currency: "GHS"
+    expected_output:
+      status: "flagged"
+      cashOnHand: "80.00"
+      receiptTotal: "400.00"
+      accountedTotal: "480.00"
+      discrepancy: "-20.00"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "20 GHS unaccounted — below materiality but flag for investigation"
+
+  - id: cash-014
+    category: edge_case
+    description: "Imprest retirement without receipts — allow-but-flag path"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-089"
+      officerName: "Felix Amoah"
+      issuedAmount: "200.00"
+      receiptTotal: "0.00"
+      receipts: []
+      explanation: "Emergency roadside payment — no receipt available, village market"
+      retirementDate: "2026-07-23"
+      currency: "GHS"
+    expected_output:
+      status: "retired_flagged"
+      amountRetired: "0.00"
+      variance: "-200.00"
+      varianceHandling: "allow_but_flag"
+      flagged: true
+    expected_confidence_range: [0.8, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "No receipts at all — acceptable in emergency per policy but must be flagged"
+
+  - id: cash-015
+    category: edge_case
+    description: "Float reconciliation at month end — pending unreceipted advances distort balance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      floatId: "PC-TAMALE-01"
+      location: "Tamale Regional Office"
+      floatAmount: "1000.00"
+      cashOnHand: "200.00"
+      receiptTotal: "650.00"
+      outstandingAdvances:
+        - officer: "Issahaku Sulemana"
+          amount: "100.00"
+          advanceDate: "2026-07-28"
+          expectedRetirement: "2026-08-02"
+      date: "2026-07-31"
+      currency: "GHS"
+    expected_output:
+      status: "pending_outstandings"
+      cashOnHand: "200.00"
+      receiptTotal: "650.00"
+      outstandingAdvances: "100.00"
+      accountedTotal: "950.00"
+      discrepancy: "-50.00"
+      monthEndAdjustment: true
+    expected_confidence_range: [0.8, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "50 GHS still unexplained after accounting for outstanding advances — month-end close requires controller decision"
+
+  - id: cash-016
+    category: edge_case
+    description: "Duplicate till count submission for same till on same day"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-accra-main-01"
+      location: "Accra Main Branch"
+      expectedAmount: "2500.00"
+      countedAmount: "2500.00"
+      countedBy: "Grace Asare"
+      date: "2026-07-15"
+      currency: "GHS"
+      duplicateSubmission: true
+      originalCountId: "CASH-2026-07-15-ACCRA-MAIN-T1"
+    expected_output:
+      status: "duplicate_detected"
+      originalCountRef: "CASH-2026-07-15-ACCRA-MAIN-T1"
+      action: "reject_duplicate"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Idempotency check — reject duplicate till count submissions"
+
+  - id: cash-017
+    category: edge_case
+    description: "Large float top-up exceeding approval threshold"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      floatId: "PC-ACCRA-HQ-01"
+      location: "Head Office — Accra"
+      currentBalance: "2000.00"
+      topUpAmount: "8000.00"
+      newFloatAmount: "10000.00"
+      approvedBy: "Samuel Quartey"
+      date: "2026-07-25"
+      currency: "GHS"
+    expected_output:
+      status: "pending_approval"
+      previousBalance: "2000.00"
+      topUpAmount: "8000.00"
+      requiresApproval: "treasury-manager"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Single top-up exceeding 5000 GHS requires treasury manager approval"
+
+  - id: cash-018
+    category: edge_case
+    description: "Imprest issued to officer with outstanding unretired imprest"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-102"
+      officerName: "Kwame Mensah"
+      amount: "300.00"
+      purpose: "Field operations — eastern route"
+      issuanceDate: "2026-07-25"
+      outstandingImprestCount: 1
+      outstandingImprestId: "IMPR-2026-07-042"
+      currency: "GHS"
+    expected_output:
+      status: "issued_with_warning"
+      amount: "300.00"
+      pendingRetirement: true
+      warning: "Officer has 1 outstanding unretired imprest (IMPR-2026-07-042)"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Policy allows sequential imprests but flags — officer should retire before new issuance"
+
+  # ── ADVERSARIAL (5 cases) ─────────────────────────────────────────────────
+  - id: cash-019
+    category: adversarial
+    description: "Till count with fabricated excess — cashier attempting to conceal shortage"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-accra-main-02"
+      location: "Accra Main Branch"
+      expectedAmount: "3200.00"
+      countedAmount: "3200.00"
+      countedBy: "John Ansah"
+      date: "2026-07-20"
+      currency: "GHS"
+      anomalyIndicators:
+        - countSequence: "inconsistent"
+        - priorPattern: "frequent_shortage_reports"
+    expected_output:
+      status: "flagged"
+      discrepancy: "0.00"
+      anomalyScore: 0.85
+      actions: ["review_cashier_history", "verify_count_authenticity"]
+    expected_confidence_range: [0.75, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Count matches exactly but cashier has history of discrepancies and count sequence is suspicious — adversarial pattern"
+
+  - id: cash-020
+    category: adversarial
+    description: "Repeated discrepancy from same location — Kumasi Depot pattern detection"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-kumasi-depot-01"
+      location: "Kumasi Depot"
+      expectedAmount: "5600.00"
+      countedAmount: "5420.00"
+      countedBy: "Josephine Adjei"
+      date: "2026-07-26"
+      currency: "GHS"
+      priorDiscrepancies:
+        - date: "2026-06-28"
+          amount: "-180.00"
+        - date: "2026-07-05"
+          amount: "-210.00"
+        - date: "2026-07-12"
+          amount: "-165.00"
+        - date: "2026-07-19"
+          amount: "-190.00"
+    expected_output:
+      status: "flagged_pattern"
+      discrepancy: "-180.00"
+      patternIdentified: true
+      patternType: "recurring_shortage"
+      occurrenceCount: 5
+      averageShortage: "185.00"
+      actions:
+        ["escalate_pattern", "schedule_audit", "suspend_cashier_pending_review"]
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: escalate
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Five consecutive weekly shortages of similar magnitude at same location — pattern detection should trigger escalation"
+
+  - id: cash-021
+    category: adversarial
+    description: "Imprest retirement with forged receipt — duplicate serial number"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-110"
+      officerName: "Emmanuel Tetteh"
+      issuedAmount: "800.00"
+      receiptTotal: "800.00"
+      receipts:
+        - description: "Fuel — bulk purchase"
+          amount: "500.00"
+          receiptRef: "FUEL-BULK-001"
+        - description: "Accommodation"
+          amount: "300.00"
+          receiptRef: "ACC-HO-001"
+      duplicateReceiptRefs: ["FUEL-BULK-001"]
+      retirementDate: "2026-07-27"
+      currency: "GHS"
+    expected_output:
+      status: "flagged_forgery"
+      amountRetired: "0.00"
+      variance: "-800.00"
+      duplicateReceiptsDetected: ["FUEL-BULK-001"]
+      actions:
+        ["hold_retirement", "notify_compliance", "schedule_investigation"]
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: escalate
+    expected_escalation_target: compliance-agent
+    source: synthetic
+    notes: "Receipt serial number already used in prior retirement — possible forgery, escalate to compliance"
+
+  - id: cash-022
+    category: adversarial
+    description: "Negative amount entered as till count"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-ho-branch-01"
+      location: "Ho Branch"
+      expectedAmount: "1500.00"
+      countedAmount: "-1500.00"
+      countedBy: "Mawuli Sena"
+      date: "2026-07-28"
+      currency: "GHS"
+    expected_output:
+      status: "rejected"
+      reason_code: "NEGATIVE_VALUE"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Negative counted amount is invalid input"
+
+  - id: cash-023
+    category: adversarial
+    description: "Entity mismatch — till count submitted for wrong entity"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-other-entity-01"
+      location: "Unauthorized Location"
+      expectedAmount: "1000.00"
+      countedAmount: "1000.00"
+      countedBy: "Unauthorized User"
+      date: "2026-07-29"
+      currency: "GHS"
+    expected_output:
+      status: "rejected"
+      reason_code: "ENTITY_MISMATCH"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Till does not belong to this entity — security event"
+
+  # ── AMBIGUOUS (5 cases) ───────────────────────────────────────────────────
+  - id: cash-024
+    category: ambiguous
+    description: "Cash shortage near materiality threshold — 50 GHS missing from till"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-cape-coast-01"
+      location: "Cape Coast Branch"
+      expectedAmount: "4200.00"
+      countedAmount: "4150.00"
+      countedBy: "Efua Dawson"
+      date: "2026-07-21"
+      currency: "GHS"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "50 GHS discrepancy is exactly at materiality threshold — controller judgment on whether to investigate or write off"
+
+  - id: cash-025
+    category: ambiguous
+    description: "Imprest purpose ambiguous — personal vs business expense unclear"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-120"
+      officerName: "Akua Serwaa"
+      issuedAmount: "350.00"
+      receiptTotal: "350.00"
+      receipts:
+        - description: "Dinner meeting — client entertainment"
+          amount: "350.00"
+          receiptRef: "DIN-ACC-001"
+      retirementDate: "2026-07-26"
+      currency: "GHS"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Single receipt for 'dinner meeting' — insufficient detail to determine if business expense. Needs controller review."
+
+  - id: cash-026
+    category: ambiguous
+    description: "Float balance negative after accounting for outstanding cheques"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      floatId: "PC-OBUASI-01"
+      location: "Obuasi Branch"
+      floatAmount: "600.00"
+      cashOnHand: "50.00"
+      receiptTotal: "500.00"
+      outstandingCheques: ["CHQ-045"]
+      outstandingChequeTotal: "80.00"
+      date: "2026-07-30"
+      currency: "GHS"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Cash + receipts + outstanding = 630 vs float 600 — 30 GHS overage. Cheque may not have cleared. Needs judgment."
+
+  - id: cash-027
+    category: ambiguous
+    description: "Exchange rate gain on returned imprest — USD-denominated imprest retired in GHS"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      imprestId: "IMPR-2026-07-130"
+      officerName: "Daniel Adjei"
+      issuedAmount: "200.00"
+      issuanceCurrency: "USD"
+      receiptTotal: "3100.00"
+      receiptCurrency: "GHS"
+      exchangeRateAtIssuance: "14.50"
+      exchangeRateAtRetirement: "15.50"
+      retirementDate: "2026-07-28"
+      currency: "GHS"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "200 USD at issuance = 2900 GHS. Retired with 3100 GHS in receipts. 200 GHS FX gain — is this a realized gain or excess reimbursement? Needs controller judgment."
+
+  - id: cash-028
+    category: ambiguous
+    description: "Unidentified cash found in till — overage with no clear source"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      tillId: "till-tema-port-01"
+      location: "Tema Port Branch"
+      expectedAmount: "3800.00"
+      countedAmount: "3950.00"
+      countedBy: "Esi Nyarko"
+      date: "2026-07-28"
+      currency: "GHS"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "150 GHS overage with no explanation — possible unrecorded transaction or counting error. Requires investigation before adjustment."

@@ -1,0 +1,1021 @@
+agent: controller-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ────────────────────────────────────────────────
+  - id: controller-001
+    category: happy_path
+    description: "Well-categorized expense entry passes review"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-001"
+        accountCode: "5000"
+        debit: "1500.00"
+        credit: "0.00"
+        description: "Office supplies — ABC Stationery Ltd"
+        reference: "SUP-INV-2026-07-001"
+        date: "2026-07-03"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+      supportingDocs:
+        - type: invoice
+          reference: "ABC-INV-12234"
+          amount: "1500.00"
+          vendor: "ABC Stationery Ltd"
+          date: "2026-07-01"
+    expected_output:
+      status: "approved"
+      entryId: "entry-202607-001"
+      reviewNotes: "Expense correctly categorized. Documentation matches entry."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-002
+    category: happy_path
+    description: "Revenue entry correctly categorized passes review"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-002"
+        accountCode: "4000"
+        debit: "0.00"
+        credit: "3500.00"
+        description: "Consulting services — client TechCorp Ltd"
+        reference: "INV-TC-2026-07"
+        date: "2026-07-05"
+        periodId: "period-2026-07"
+        sourceAgent: "ar-agent"
+      supportingDocs:
+        - type: contract
+          reference: "CTR-TC-2026"
+          amount: "3500.00"
+          client: "TechCorp Ltd"
+          servicePeriod: "2026-07"
+    expected_output:
+      status: "approved"
+      entryId: "entry-202607-002"
+      reviewNotes: "Revenue correctly classified as service income. Contract on file."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-003
+    category: happy_path
+    description: "Trial balance confirms — everything balanced"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: confirm_trial_balance
+      periodId: "period-2026-07"
+      trialBalance:
+        period: "2026-07"
+        status: "ready"
+        totalDebits: "284500.00"
+        totalCredits: "284500.00"
+        accounts:
+          - accountCode: "1000"
+            balance: "45000.00"
+            type: "asset"
+          - accountCode: "1010"
+            balance: "32000.00"
+            type: "asset"
+          - accountCode: "4000"
+            balance: "-95000.00"
+            type: "revenue"
+          - accountCode: "5000"
+            balance: "18000.00"
+            type: "expense"
+        reconciled: true
+    expected_output:
+      status: "confirmed"
+      periodId: "period-2026-07"
+      totalDebits: "284500.00"
+      totalCredits: "284500.00"
+      balanced: true
+      reviewNotes: "Trial balance confirmed. All accounts reconciled."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-004
+    category: happy_path
+    description: "Month-end close checklist — all items completed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: close_checklist
+      periodId: "period-2026-07"
+      checklist:
+        - item: "bank_reconciliation"
+          status: "completed"
+          completedBy: "cash-agent"
+          date: "2026-07-31"
+        - item: "accounts_payable_review"
+          status: "completed"
+          completedBy: "ap-agent"
+          date: "2026-07-31"
+        - item: "accounts_receivable_aging"
+          status: "completed"
+          completedBy: "ar-agent"
+          date: "2026-07-31"
+        - item: "payroll_accrual"
+          status: "completed"
+          completedBy: "payroll-worker-agent"
+          date: "2026-07-31"
+        - item: "depreciation_posted"
+          status: "completed"
+          completedBy: "asset-agent"
+          date: "2026-07-31"
+        - item: "prepaid_amortization"
+          status: "completed"
+          completedBy: "controller-agent"
+          date: "2026-07-31"
+        - item: "trial_balance_confirmed"
+          status: "completed"
+          completedBy: "controller-agent"
+          date: "2026-07-31"
+    expected_output:
+      status: "close_ready"
+      periodId: "period-2026-07"
+      missingItems: []
+      reviewNotes: "All close checklist items completed. Period ready for closure."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-005
+    category: happy_path
+    description: "Payroll accrual entry properly categorized"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-005"
+        accountCode: "5100"
+        debit: "18000.00"
+        credit: "0.00"
+        description: "July payroll — all employees"
+        reference: "PAYROLL-2026-07"
+        date: "2026-07-31"
+        periodId: "period-2026-07"
+        sourceAgent: "payroll-worker-agent"
+      supportingDocs:
+        - type: payroll_register
+          reference: "PR-2026-07"
+          grossPay: "18000.00"
+          deductions: "5400.00"
+          netPay: "12600.00"
+          employeeCount: 12
+    expected_output:
+      status: "approved"
+      entryId: "entry-202607-005"
+      reviewNotes: "Payroll accrual correct. Gross matches register total."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-006
+    category: happy_path
+    description: "Fixed asset acquisition correctly capitalized"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-006"
+        accountCode: "1500"
+        debit: "8500.00"
+        credit: "0.00"
+        description: "Laptop purchase — 5 units for field team"
+        reference: "PO-FT-2026-07"
+        date: "2026-07-10"
+        periodId: "period-2026-07"
+        sourceAgent: "asset-agent"
+      supportingDocs:
+        - type: purchase_order
+          reference: "PO-FT-2026-07"
+          amount: "8500.00"
+          description: "Dell Latitude 5440 — 5 units"
+          capitalizationPolicy: "Assets > $1,000 capitalized"
+    expected_output:
+      status: "approved"
+      entryId: "entry-202607-006"
+      reviewNotes: "Correctly capitalized per policy threshold. Depreciation schedule required."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-007
+    category: happy_path
+    description: "Prepaid expense amortization entry"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-007"
+        accountCode: "5300"
+        debit: "500.00"
+        credit: "0.00"
+        description: "Monthly amortization — insurance premium"
+        reference: "AMORT-INS-2026-07"
+        date: "2026-07-31"
+        periodId: "period-2026-07"
+        sourceAgent: "controller-agent"
+      supportingDocs:
+        - type: amortization_schedule
+          reference: "SCHED-INS-2026"
+          totalPremium: "6000.00"
+          monthlyAmount: "500.00"
+          monthsRemaining: 8
+    expected_output:
+      status: "approved"
+      entryId: "entry-202607-007"
+      reviewNotes: "Amortization matches schedule. Correct monthly draw-down."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-008
+    category: happy_path
+    description: "Correction request properly targeted resolves correctly"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-008"
+        accountCode: "5200"
+        debit: "200.00"
+        credit: "0.00"
+        description: "Correction: reclassify travel expense miscategorized as office supplies"
+        reference: "CORR-SUP-2026-07-001"
+        date: "2026-07-28"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+        correctionOfEntryId: "entry-202607-001"
+      supportingDocs:
+        - type: correction_request
+          reference: "CR-2026-07-001"
+          originalEntryId: "entry-202607-001"
+          reason: "Miscategorized — travel expense booked to office supplies"
+          approvedByManager: true
+    expected_output:
+      status: "approved"
+      entryId: "entry-202607-008"
+      reviewNotes: "Valid correction. Original entry correctly identified. Reclassification appropriate."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-009
+    category: happy_path
+    description: "Bank reconciliation review — all items matched"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_reconciliation
+      accountCode: "1010"
+      periodId: "period-2026-07"
+      reconciliation:
+        bankBalance: "48500.00"
+        bookBalance: "48500.00"
+        outstandingItems:
+          deposits: []
+          withdrawals: []
+        clearedItems:
+          deposits: ["DEP-2026-07-001", "DEP-2026-07-002", "DEP-2026-07-003"]
+          withdrawals: ["PMT-2026-07-001", "PMT-2026-07-002"]
+        difference: "0.00"
+        reconciled: true
+    expected_output:
+      status: "approved"
+      accountCode: "1010"
+      periodId: "period-2026-07"
+      reviewNotes: "Bank reconciliation clean. All items matched."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: controller-010
+    category: happy_path
+    description: "Loan repayment entry matches amortization schedule"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-010"
+        entries:
+          - accountCode: "2200"
+            debit: "1500.00"
+            credit: "0.00"
+          - accountCode: "5600"
+            debit: "300.00"
+            credit: "0.00"
+          - accountCode: "1010"
+            debit: "0.00"
+            credit: "1800.00"
+        description: "Loan repayment — July installment (principal + interest)"
+        reference: "LOAN-PMT-2026-07"
+        date: "2026-07-15"
+        periodId: "period-2026-07"
+        sourceAgent: "treasury-agent"
+      supportingDocs:
+        - type: amortization_schedule
+          reference: "SCHED-LOAN-001"
+          principalDue: "1500.00"
+          interestDue: "300.00"
+          totalDue: "1800.00"
+          installmentNumber: 12
+    expected_output:
+      status: "approved"
+      entryId: "entry-202607-010"
+      reviewNotes: "Loan repayment correct. Principal and interest split matches amortization schedule."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (8 cases) ─────────────────────────────────────────────────
+  - id: controller-011
+    category: edge_case
+    description: "Miscategorized expense — office supplies coded as equipment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-011"
+        accountCode: "1500"
+        debit: "450.00"
+        credit: "0.00"
+        description: "Printer paper and toner cartridges"
+        reference: "SUP-PAPER-2026-07"
+        date: "2026-07-08"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+      supportingDocs:
+        - type: invoice
+          reference: "OFF-MAX-INV-889"
+          amount: "450.00"
+          vendor: "OfficeMax Ltd"
+          items:
+            - description: "A4 printer paper — 10 reams"
+              amount: "120.00"
+            - description: "Toner cartridge — black"
+              amount: "330.00"
+    expected_output:
+      status: "correction_required"
+      entryId: "entry-202607-011"
+      reason_code: "MISCATEGORIZATION"
+      suggestedCorrection:
+        accountCode: "5000"
+        debit: "450.00"
+        credit: "0.00"
+        description: "Office supplies — printer paper and toner"
+      reviewNotes: "Consumable supplies miscategorized as fixed asset. Amount ($450) is below capitalization threshold ($1,000). Reclassify to office supplies expense."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: ap-agent
+    source: synthetic
+    notes: "Agent should flag miscategorization and suggest corrective reclassification"
+
+  - id: controller-012
+    category: edge_case
+    description: "Close checklist with open AP exception — blocks close"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: close_checklist
+      periodId: "period-2026-07"
+      checklist:
+        - item: "bank_reconciliation"
+          status: "completed"
+          completedBy: "cash-agent"
+          date: "2026-07-31"
+        - item: "accounts_payable_review"
+          status: "incomplete"
+          notes: "Invoice INV-SUP-789 for $2,300 still unapproved. Vendor on hold."
+          blocker: true
+        - item: "accounts_receivable_aging"
+          status: "completed"
+          completedBy: "ar-agent"
+          date: "2026-07-31"
+        - item: "payroll_accrual"
+          status: "completed"
+          completedBy: "payroll-worker-agent"
+          date: "2026-07-31"
+        - item: "depreciation_posted"
+          status: "completed"
+          completedBy: "asset-agent"
+          date: "2026-07-31"
+        - item: "trial_balance_confirmed"
+          status: "not_started"
+    expected_output:
+      status: "blocked"
+      periodId: "period-2026-07"
+      reason_code: "OPEN_AP_EXCEPTION"
+      missingItems:
+        - "accounts_payable_review"
+        - "trial_balance_confirmed"
+      reviewNotes: "Close blocked: AP review incomplete with unapproved invoice INV-SUP-789 ($2,300). Resolve vendor hold before proceeding."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Open AP exception with vendor hold — must block close until resolved"
+
+  - id: controller-013
+    category: edge_case
+    description: "Trial balance returns balanced: false — immediate escalation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: confirm_trial_balance
+      periodId: "period-2026-07"
+      trialBalance:
+        period: "2026-07"
+        status: "unbalanced"
+        totalDebits: "284500.00"
+        totalCredits: "284000.00"
+        difference: "500.00"
+        accounts:
+          - accountCode: "1000"
+            balance: "45000.00"
+            type: "asset"
+          - accountCode: "1010"
+            balance: "32000.00"
+            type: "asset"
+          - accountCode: "4000"
+            balance: "-95000.00"
+            type: "revenue"
+          - accountCode: "5000"
+            balance: "18500.00"
+            type: "expense"
+        reconciled: false
+    expected_output:
+      status: "escalated"
+      periodId: "period-2026-07"
+      balanced: false
+      difference: "500.00"
+      reason_code: "TB_IMBALANCE"
+      reviewNotes: "Trial balance off by $500.00 (debits exceed credits). Immediate escalation to CFO agent for investigation."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: immediate
+    expected_escalation_target: cfo-agent
+    source: synthetic
+    notes: "Imbalance requires immediate escalation — no further processing until resolved"
+
+  - id: controller-014
+    category: edge_case
+    description: "Correction request for a prior correction (recursive review)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-014"
+        accountCode: "5000"
+        debit: "0.00"
+        credit: "200.00"
+        description: "Reversal of prior correction — original categorization was correct"
+        reference: "CORR-CORR-2026-07"
+        date: "2026-07-29"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+        correctionOfEntryId: "entry-202607-008"
+      supportingDocs:
+        - type: correction_request
+          reference: "CR-2026-07-002"
+          originalEntryId: "entry-202607-001"
+          correctionEntryId: "entry-202607-008"
+          reason: "Auditor review confirms original categorization to account 5000 was correct. Prior correction must be reversed."
+          approvedByManager: true
+          auditorReference: "AUD-NOTE-2026-07-015"
+    expected_output:
+      status: "flagged"
+      entryId: "entry-202607-014"
+      reason_code: "RECURSIVE_CORRECTION"
+      reviewNotes: "Recursive correction detected — correcting a prior correction. Requires senior controller review before posting."
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Recursive corrections need higher-level review to prevent oscillation"
+
+  - id: controller-015
+    category: edge_case
+    description: "Large discrepancy in entry documentation — amount mismatch"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-015"
+        accountCode: "5000"
+        debit: "12000.00"
+        credit: "0.00"
+        description: "Consulting fees — strategic advisory"
+        reference: "CONS-ADV-2026-07"
+        date: "2026-07-12"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+      supportingDocs:
+        - type: invoice
+          reference: "SA-INV-2026-07"
+          amount: "8500.00"
+          vendor: "Strategic Advisors Ltd"
+          date: "2026-07-10"
+    expected_output:
+      status: "correction_required"
+      entryId: "entry-202607-015"
+      reason_code: "DOCUMENT_MISMATCH"
+      reviewNotes: "Entry amount ($12,000) does not match supporting invoice ($8,500). Difference of $3,500. Request vendor confirmation or corrected entry."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: ap-agent
+    source: synthetic
+    notes: "Document-to-entry amount mismatch detected"
+
+  - id: controller-016
+    category: edge_case
+    description: "Expense posted to wrong period — prior period needs adjustment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-016"
+        accountCode: "5000"
+        debit: "750.00"
+        credit: "0.00"
+        description: "July utility bill for June consumption"
+        reference: "UTIL-JUN-2026"
+        date: "2026-07-05"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+      supportingDocs:
+        - type: invoice
+          reference: "ECG-INV-JUN-2026"
+          amount: "750.00"
+          vendor: "ECG Power Co."
+          servicePeriod: "2026-06"
+    expected_output:
+      status: "correction_required"
+      entryId: "entry-202607-016"
+      reason_code: "PERIOD_MISMATCH"
+      suggestedCorrection:
+        periodId: "period-2026-06"
+        notes: "Expense relates to June consumption. Should be recorded as prior period adjustment or June accrual reversal."
+      reviewNotes: "Service period (June 2026) does not match posting period (July 2026). Reclassify as prior period adjustment."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Period mismatch requires accrual correction or prior period adjustment"
+
+  - id: controller-017
+    category: edge_case
+    description: "Zero-balance entry submitted for review"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-017"
+        entries:
+          - accountCode: "1000"
+            debit: "500.00"
+            credit: "0.00"
+          - accountCode: "1000"
+            debit: "0.00"
+            credit: "500.00"
+        description: "Internal funds transfer — same account"
+        reference: "INT-TRF-2026-07"
+        date: "2026-07-20"
+        periodId: "period-2026-07"
+        sourceAgent: "treasury-agent"
+      supportingDocs:
+        - type: transfer_request
+          reference: "TRF-REQ-2026-07-020"
+          amount: "500.00"
+          description: "Transfer between bank sub-accounts"
+    expected_output:
+      status: "approved"
+      entryId: "entry-202607-017"
+      reviewNotes: "Zero net impact entry. Same-account transfer — net effect zero. Approved."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Technically valid but zero-balance entries should be reviewed for substance"
+
+  - id: controller-018
+    category: edge_case
+    description: "Month-end close with deferred revenue recognition pending"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: close_checklist
+      periodId: "period-2026-07"
+      checklist:
+        - item: "bank_reconciliation"
+          status: "completed"
+          completedBy: "cash-agent"
+          date: "2026-07-31"
+        - item: "accounts_payable_review"
+          status: "completed"
+          completedBy: "ap-agent"
+          date: "2026-07-31"
+        - item: "accounts_receivable_aging"
+          status: "completed"
+          completedBy: "ar-agent"
+          date: "2026-07-31"
+        - item: "deferred_revenue_recognition"
+          status: "incomplete"
+          notes: "Annual subscription revenue $12,000 received. Recognition schedule pending CFO sign-off."
+          blocker: false
+        - item: "trial_balance_confirmed"
+          status: "completed"
+          completedBy: "controller-agent"
+          date: "2026-07-31"
+    expected_output:
+      status: "close_ready_with_caveats"
+      periodId: "period-2026-07"
+      missingItems:
+        - "deferred_revenue_recognition"
+      reviewNotes: "Close can proceed but deferred revenue recognition is outstanding. Set reminder for CFO sign-off."
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Non-blocking exception — close can proceed with caveats tracked"
+
+  # ── ADVERSARIAL (5 cases) ─────────────────────────────────────────────────
+  - id: controller-019
+    category: adversarial
+    description: "Systemic miscategorization pattern across multiple postings"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: detect_pattern
+      periodId: "period-2026-07"
+      entries:
+        - id: "entry-202607-101"
+          accountCode: "1500"
+          debit: "320.00"
+          credit: "0.00"
+          description: "Mouse and keyboard set"
+          date: "2026-07-02"
+        - id: "entry-202607-102"
+          accountCode: "1500"
+          debit: "85.00"
+          credit: "0.00"
+          description: "USB hub and cables"
+          date: "2026-07-05"
+        - id: "entry-202607-103"
+          accountCode: "1500"
+          debit: "210.00"
+          credit: "0.00"
+          description: "Monitor stand and desk lamp"
+          date: "2026-07-08"
+        - id: "entry-202607-104"
+          accountCode: "1500"
+          debit: "150.00"
+          credit: "0.00"
+          description: "Office chair cushion"
+          date: "2026-07-12"
+        - id: "entry-202607-105"
+          accountCode: "1500"
+          debit: "95.00"
+          credit: "0.00"
+          description: "Wireless keyboard"
+          date: "2026-07-19"
+      thresholdCheck:
+        analysisWindow: "2026-07-01 to 2026-07-31"
+        miscategorizationThreshold: 0.6
+        accountsReferenced:
+          - accountCode: "1500"
+            description: "Fixed Assets — Equipment"
+            policy: "Capitalization threshold $1,000 minimum"
+    expected_output:
+      status: "pattern_detected"
+      reason_code: "SYSTEMIC_MISCATEGORIZATION"
+      patternSummary: "5 entries under $1,000 posted to Fixed Assets (1500) in July. Cumulative total: $860.00. All items are consumables/supplies below capitalization threshold."
+      suggestedAction: "Bulk reclassification to account 5000 (Office Supplies). Review AP agent posting rules for fixed asset categorization."
+      affectedEntries:
+        - "entry-202607-101"
+        - "entry-202607-102"
+        - "entry-202607-103"
+        - "entry-202607-104"
+        - "entry-202607-105"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: immediate
+    expected_escalation_target: cfo-agent
+    source: synthetic
+    notes: "Systemic pattern indicates potential training or configuration issue — escalate to CFO"
+
+  - id: controller-020
+    category: adversarial
+    description: "Large discrepancy requiring CFO escalation — $75,000 variance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-020"
+        accountCode: "4000"
+        debit: "0.00"
+        credit: "95000.00"
+        description: "Project Zeta milestone payment — contract value"
+        reference: "ZETA-MILESTONE-03"
+        date: "2026-07-18"
+        periodId: "period-2026-07"
+        sourceAgent: "ar-agent"
+      supportingDocs:
+        - type: contract
+          reference: "CTR-ZETA-2026"
+          milestonePayment: "20000.00"
+          client: "MegaCorp International"
+          milestoneDescription: "Milestone 3 — deployment complete"
+    expected_output:
+      status: "escalated"
+      entryId: "entry-202607-020"
+      reason_code: "LARGE_DISCREPANCY"
+      reviewNotes: "Entry amount ($95,000) exceeds contracted milestone payment ($20,000) by $75,000 (375% variance). Possible invoicing error. Requires CFO-level investigation."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: immediate
+    expected_escalation_target: cfo-agent
+    source: synthetic
+    notes: "Extreme variance between entry and supporting documentation"
+
+  - id: controller-021
+    category: adversarial
+    description: "Duplicate entry submitted with different reference"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-021"
+        accountCode: "5000"
+        debit: "1500.00"
+        credit: "0.00"
+        description: "Office supplies — ABC Stationery Ltd"
+        reference: "ABC-INV-12234-DUP"
+        date: "2026-07-04"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+      matchingEntries:
+        - id: "entry-202607-001"
+          accountCode: "5000"
+          debit: "1500.00"
+          credit: "0.00"
+          description: "Office supplies — ABC Stationery Ltd"
+          reference: "SUP-INV-2026-07-001"
+          date: "2026-07-03"
+    expected_output:
+      status: "flagged"
+      entryId: "entry-202607-021"
+      reason_code: "DUPLICATE_ENTRY"
+      reviewNotes: "Duplicate detected: same vendor, same amount ($1,500), same account (5000), one day apart. References differ but substance is identical."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Substance-over-form duplicate detection"
+
+  - id: controller-022
+    category: adversarial
+    description: "Entry with backdated date attempting to post to closed period"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-022"
+        accountCode: "5000"
+        debit: "2500.00"
+        credit: "0.00"
+        description: "June consulting fees — backdated entry"
+        reference: "CONS-JUN-ADJ"
+        date: "2026-06-30"
+        periodId: "period-2026-06"
+        sourceAgent: "ap-agent"
+      supportingDocs:
+        - type: invoice
+          reference: "CONS-INV-JUN"
+          amount: "2500.00"
+          vendor: "Advisory Partners Ltd"
+          date: "2026-06-28"
+      periodStatus: "closed"
+    expected_output:
+      status: "rejected"
+      entryId: "entry-202607-022"
+      reason_code: "CLOSED_PERIOD"
+      reviewNotes: "Period 2026-06 is already closed. Backdated entries to closed periods are not permitted. Submit as prior period adjustment with CFO approval."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Backdating to closed periods must be rejected"
+
+  - id: controller-023
+    category: adversarial
+    description: "Fabricated supporting document reference"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-023"
+        accountCode: "5000"
+        debit: "8000.00"
+        credit: "0.00"
+        description: "Emergency generator maintenance"
+        reference: "GEN-MAINT-2026-07"
+        date: "2026-07-14"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+      supportingDocs:
+        - type: invoice
+          reference: "FAKE-INV-99999"
+          amount: "8000.00"
+          vendor: "NonExistent Services Ltd"
+          date: "2026-07-13"
+      vendorVerification:
+        vendorExists: false
+        taxIdValid: false
+        bankAccountVerified: false
+    expected_output:
+      status: "rejected"
+      entryId: "entry-202607-023"
+      reason_code: "FABRICATED_DOCUMENT"
+      reviewNotes: "Vendor 'NonExistent Services Ltd' not found in vendor registry. Tax ID invalid. Bank account unverified. Possible fabricated invoice — flag for fraud investigation."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: immediate
+    expected_escalation_target: cfo-agent
+    source: synthetic
+    notes: "Vendor verification failed — potential fraud"
+
+  # ── AMBIGUOUS (5 cases) ───────────────────────────────────────────────────
+  - id: controller-024
+    category: ambiguous
+    description: "Mixed-purpose payment — portion personal, portion business"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-024"
+        accountCode: "5200"
+        debit: "1500.00"
+        credit: "0.00"
+        description: "Employee travel to client site — 3 day trip"
+        reference: "TRAV-EMP-003-2026-07"
+        date: "2026-07-21"
+        periodId: "period-2026-07"
+        sourceAgent: "expense-agent"
+      supportingDocs:
+        - type: expense_report
+          reference: "EXP-EMP-003"
+          totalAmount: "1500.00"
+          items:
+            - description: "Flight"
+              amount: "600.00"
+              category: "business"
+            - description: "Hotel (3 nights)"
+              amount: "540.00"
+              category: "business"
+            - description: "Weekend extension (2 extra nights)"
+              amount: "360.00"
+              category: "personal"
+          employeeNote: "Extended trip for personal sightseeing"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.75]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Mixed business/personal expense — personal portion ($360) needs reimbursement adjustment"
+
+  - id: controller-025
+    category: ambiguous
+    description: "Expense category ambiguous — repairs vs capital improvement"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-025"
+        accountCode: "5400"
+        debit: "4500.00"
+        credit: "0.00"
+        description: "Roof repair — warehouse facility"
+        reference: "MAINT-WH-2026-07"
+        date: "2026-07-16"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+      supportingDocs:
+        - type: maintenance_report
+          reference: "MR-WH-2026-07"
+          amount: "4500.00"
+          vendor: "BuildRight Construction"
+          scope: "Replace damaged roof tiles and reinforce structure"
+          engineerNote: "Repair extends roof life by approximately 3 years"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Borderline between repair (5400) and capital improvement (1500) — extends useful life, possible capitalization required"
+
+  - id: controller-026
+    category: ambiguous
+    description: "Revenue recognition timing — milestone partially completed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-026"
+        accountCode: "4000"
+        debit: "0.00"
+        credit: "10000.00"
+        description: "Software implementation milestone 2 — 70% complete"
+        reference: "IMPL-M2-2026-07"
+        date: "2026-07-25"
+        periodId: "period-2026-07"
+        sourceAgent: "ar-agent"
+      supportingDocs:
+        - type: progress_report
+          reference: "PR-IMPL-M2"
+          completionPercentage: 70
+          milestoneValue: "10000.00"
+          contractDeliverable: "User acceptance testing sign-off"
+          uatStatus: "pending"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.65]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Revenue recognition on percentage-of-completion basis — UAT not yet signed off, timing judgment required"
+
+  - id: controller-027
+    category: ambiguous
+    description: "Related-party transaction at non-arm's-length pricing"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-027"
+        accountCode: "5000"
+        debit: "25000.00"
+        credit: "0.00"
+        description: "IT managed services — 12 month contract"
+        reference: "ITMS-CORP-2026"
+        date: "2026-07-01"
+        periodId: "period-2026-07"
+        sourceAgent: "ap-agent"
+      supportingDocs:
+        - type: contract
+          reference: "CTR-ITMS-2026"
+          amount: "25000.00"
+          vendor: "Xenboox Tech Services Ltd"
+          relationship: "subsidiary"
+          marketComparison:
+            similarService: "AWS Managed Support"
+            marketPrice: "15000.00"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Related-party transaction priced 67% above market — needs transfer pricing review and disclosure"
+
+  - id: controller-028
+    category: ambiguous
+    description: "Donor-restricted fund allocation — interpretation needed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_entry
+      entry:
+        id: "entry-202607-028"
+        accountCode: "5600"
+        debit: "5000.00"
+        credit: "0.00"
+        description: "Program expense — community training initiative"
+        reference: "PROG-COMM-2026-07"
+        date: "2026-07-22"
+        periodId: "period-2026-07"
+        sourceAgent: "program-agent"
+      supportingDocs:
+        - type: grant_agreement
+          reference: "GRANT-DONOR-003"
+          restrictionClause: "Funds to be used exclusively for educational materials and instructor costs"
+          expenseBreakdown:
+            - item: "Training venue rental"
+              amount: "2000.00"
+              allowable: true
+            - item: "Catering for participants"
+              amount: "1500.00"
+              allowable: false
+            - item: "Printed workbooks"
+              amount: "1500.00"
+              allowable: true
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Donor restriction interpretation needed — catering ($1,500) may not be an allowable expense per grant terms"

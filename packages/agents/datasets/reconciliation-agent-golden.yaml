@@ -1,0 +1,1813 @@
+agent: reconciliation-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (20 cases) ─────────────────────────────────────────────────
+  - id: rec-001
+    category: happy_path
+    description: "Bank statement line matches single ledger entry — GCB Bank, same date"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-15"
+        description: "Cash deposit"
+        amount: "2400.00"
+        type: "credit"
+        reference: "DEP-2026-07-15"
+      ledgerEntries:
+        - date: "2026-07-15"
+          description: "Cash deposit — Accra Main Branch"
+          amount: "2400.00"
+          type: "debit"
+          reference: "LEDGER-DEP-2026-07-15"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-002
+    category: happy_path
+    description: "Bank statement matches ledger — Stanbic Bank, transfer received"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-16"
+        description: "Wire transfer — ABC Suppliers payment"
+        amount: "5000.00"
+        type: "debit"
+        reference: "SWIFT-STAN-001"
+      ledgerEntries:
+        - date: "2026-07-16"
+          description: "Supplier payment — ABC Suppliers"
+          amount: "5000.00"
+          type: "credit"
+          reference: "LEDGER-PMT-001"
+          accountCode: "2000"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-003
+    category: happy_path
+    description: "Multiple ledger entries match a single aggregated bank line — Ecobank"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-17"
+        description: "POS settlements batch"
+        amount: "3450.00"
+        type: "credit"
+        reference: "POS-BATCH-2026-07-17"
+      ledgerEntries:
+        - date: "2026-07-17"
+          description: "POS sale — invoice INV-230"
+          amount: "1800.00"
+          type: "debit"
+          reference: "INV-230"
+          accountCode: "1010"
+        - date: "2026-07-17"
+          description: "POS sale — invoice INV-231"
+          amount: "1200.00"
+          type: "debit"
+          reference: "INV-231"
+          accountCode: "1010"
+        - date: "2026-07-17"
+          description: "POS sale — invoice INV-232"
+          amount: "450.00"
+          type: "debit"
+          reference: "INV-232"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "aggregate"
+      confidence: 0.95
+      ledgerTotal: "3450.00"
+      statementTotal: "3450.00"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-004
+    category: happy_path
+    description: "Bank statement and ledger match by reference — Absa Bank cheque clearing"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-18"
+        description: "Cheque cleared — CHQ-004188"
+        amount: "1500.00"
+        type: "debit"
+        reference: "CHQ-004188"
+      ledgerEntries:
+        - date: "2026-07-18"
+          description: "Cheque payment — CHQ-004188"
+          amount: "1500.00"
+          type: "credit"
+          reference: "CHQ-004188"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-005
+    category: happy_path
+    description: "Bank interest credit matched — GCB Bank"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-31"
+        description: "Interest credit — July"
+        amount: "125.50"
+        type: "credit"
+        reference: "INT-JUL-2026"
+      ledgerEntries:
+        - date: "2026-07-31"
+          description: "Bank interest income — GCB July"
+          amount: "125.50"
+          type: "debit"
+          reference: "INT-JUL-2026"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-006
+    category: happy_path
+    description: "Bank charges deducted — Stanbic, correctly recorded in ledger"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-31"
+        description: "Monthly account maintenance fee"
+        amount: "35.00"
+        type: "debit"
+        reference: "MAINT-JUL-2026"
+      ledgerEntries:
+        - date: "2026-07-31"
+          description: "Stanbic bank charges — July"
+          amount: "35.00"
+          type: "credit"
+          reference: "MAINT-JUL-2026"
+          accountCode: "5600"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-007
+    category: happy_path
+    description: "Standing order debit matches — Ecobank loan repayment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-01"
+        description: "Standing order — loan repayment"
+        amount: "2500.00"
+        type: "debit"
+        reference: "SO-LOAN-001"
+      ledgerEntries:
+        - date: "2026-07-01"
+          description: "Loan repayment — Ecobank standing order"
+          amount: "2500.00"
+          type: "credit"
+          reference: "SO-LOAN-001"
+          accountCode: "2200"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-008
+    category: happy_path
+    description: "Foreign currency deposit matched — Absa USD account converted to GHS"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-USD-4045566779"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-20"
+        description: "USD wire deposit — client payment"
+        amount: "5000.00"
+        type: "credit"
+        currency: "USD"
+        reference: "SWIFT-USD-2026-07-20"
+      ledgerEntries:
+        - date: "2026-07-20"
+          description: "USD client payment converted to GHS"
+          amount: "72500.00"
+          type: "debit"
+          currency: "GHS"
+          exchangeRate: "14.50"
+          reference: "SWIFT-USD-2026-07-20"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "fx_converted"
+      confidence: 0.95
+      originalAmount: "5000.00"
+      convertedAmount: "72500.00"
+      exchangeRate: "14.50"
+      matchedFields: ["date", "reference"]
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-009
+    category: happy_path
+    description: "Full monthly reconciliation — all transactions matched — GCB Bank"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      period: "2026-07"
+      statementLines:
+        - date: "2026-07-01"
+          description: "Opening balance"
+          amount: "15000.00"
+          type: "opening"
+        - date: "2026-07-15"
+          description: "Cash deposit"
+          amount: "2400.00"
+          type: "credit"
+          reference: "DEP-2026-07-15"
+        - date: "2026-07-20"
+          description: "Transfer to Ecobank"
+          amount: "3000.00"
+          type: "debit"
+          reference: "TRF-GCB-ECO-001"
+        - date: "2026-07-25"
+          description: "Supplier payment"
+          amount: "1200.00"
+          type: "debit"
+          reference: "PMT-SUP-003"
+        - date: "2026-07-31"
+          description: "Interest credit"
+          amount: "125.50"
+          type: "credit"
+          reference: "INT-JUL-2026"
+        - date: "2026-07-31"
+          description: "Bank charges"
+          amount: "25.00"
+          type: "debit"
+          reference: "CHG-JUL-2026"
+        - date: "2026-07-31"
+          description: "Closing balance"
+          amount: "13300.50"
+          type: "closing"
+      ledgerEntries:
+        - date: "2026-07-15"
+          amount: "2400.00"
+          type: "debit"
+          reference: "LEDGER-DEP-2026-07-15"
+        - date: "2026-07-20"
+          amount: "3000.00"
+          type: "credit"
+          reference: "LEDGER-TRF-GCB-ECO-001"
+        - date: "2026-07-25"
+          amount: "1200.00"
+          type: "credit"
+          reference: "LEDGER-PMT-SUP-003"
+        - date: "2026-07-31"
+          amount: "125.50"
+          type: "debit"
+          reference: "INT-JUL-2026"
+        - date: "2026-07-31"
+          amount: "25.00"
+          type: "credit"
+          reference: "CHG-JUL-2026"
+    expected_output:
+      status: "fully_reconciled"
+      matchCount: 5
+      unmatchedStatementCount: 0
+      unmatchedLedgerCount: 0
+      openingBalanceMatched: true
+      closingBalanceMatched: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-010
+    category: happy_path
+    description: "Reverse entry matched — correction booked in both systems — Absa"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-22"
+        description: "Reversal — duplicate charge"
+        amount: "200.00"
+        type: "credit"
+        reference: "REV-DUP-001"
+      ledgerEntries:
+        - date: "2026-07-22"
+          description: "Reversal of duplicate entry"
+          amount: "200.00"
+          type: "debit"
+          reference: "REV-DUP-001"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-011
+    category: happy_path
+    description: "Matched by amount + date proximity — statement 1 day off (timing-only)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-16"
+        description: "EFT credit — customer payment"
+        amount: "850.00"
+        type: "credit"
+        reference: "EFT-CUST-001"
+      ledgerEntries:
+        - date: "2026-07-15"
+          description: "Customer EFT payment"
+          amount: "850.00"
+          type: "debit"
+          reference: "INV-233"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "timing_difference"
+      confidence: 0.93
+      dateDifferenceDays: 1
+      matchedFields: ["amount", "date_proximity"]
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Amount is identical, dates within 1 day — valid timing difference match"
+
+  - id: rec-012
+    category: happy_path
+    description: "Matched by amount + reference — statement date off by 2 days (weekend delay)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-19"
+        description: "Mobile money settlement"
+        amount: "1200.00"
+        type: "credit"
+        reference: "MOMO-SETTLE-001"
+      ledgerEntries:
+        - date: "2026-07-17"
+          description: "MTN MoMo settlement batch"
+          amount: "1200.00"
+          type: "debit"
+          reference: "MOMO-SETTLE-001"
+          accountCode: "1020"
+    expected_output:
+      status: "matched"
+      matchType: "timing_difference"
+      confidence: 0.93
+      dateDifferenceDays: 2
+      matchedFields: ["amount", "reference"]
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Weekend processing delay — valid timing difference"
+
+  - id: rec-013
+    category: happy_path
+    description: "Matched by amount + reference — Ecobank dividend receipt"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-25"
+        description: "Dividend payment — shares"
+        amount: "450.00"
+        type: "credit"
+        reference: "DIV-Q3-2026"
+      ledgerEntries:
+        - date: "2026-07-25"
+          description: "Dividend income — Q3 2026"
+          amount: "450.00"
+          type: "debit"
+          reference: "DIV-Q3-2026"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-014
+    category: happy_path
+    description: "Matched — Absa Bank, two ledger entries combine to one statement line"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-28"
+        description: "Card settlement batch"
+        amount: "2980.00"
+        type: "credit"
+        reference: "CARD-BATCH-0728"
+      ledgerEntries:
+        - date: "2026-07-28"
+          description: "Card payment — customer A"
+          amount: "1500.00"
+          type: "debit"
+          reference: "CARD-CUST-A"
+          accountCode: "1010"
+        - date: "2026-07-28"
+          description: "Card payment — customer B"
+          amount: "1480.00"
+          type: "debit"
+          reference: "CARD-CUST-B"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "aggregate"
+      confidence: 0.95
+      ledgerTotal: "2980.00"
+      statementTotal: "2980.00"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-015
+    category: happy_path
+    description: "Matched — GCB Bank, recurring utility debit matches standing order"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-05"
+        description: "Direct debit — ECG Electricity"
+        amount: "890.00"
+        type: "debit"
+        reference: "DD-ECG-JUL-2026"
+      ledgerEntries:
+        - date: "2026-07-05"
+          description: "ECG electricity direct debit"
+          amount: "890.00"
+          type: "credit"
+          reference: "DD-ECG-JUL-2026"
+          accountCode: "5600"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-016
+    category: happy_path
+    description: "Matched — Stanbic Bank, incoming wire from known customer"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-12"
+        description: "Wire transfer — Global Tech Ltd"
+        amount: "15000.00"
+        type: "credit"
+        reference: "SWIFT-GT-2026-07"
+      ledgerEntries:
+        - date: "2026-07-12"
+          description: "Payment from Global Tech Ltd — invoice INV-200"
+          amount: "15000.00"
+          type: "debit"
+          reference: "INV-200"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-017
+    category: happy_path
+    description: "Matched — Ecobank, payroll debit matches salary disbursement"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-25"
+        description: "Payroll batch — July salaries"
+        amount: "45000.00"
+        type: "debit"
+        reference: "PAYROLL-JUL-2026"
+      ledgerEntries:
+        - date: "2026-07-25"
+          description: "July salary disbursement"
+          amount: "45000.00"
+          type: "credit"
+          reference: "PAYROLL-JUL-2026"
+          accountCode: "2100"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-018
+    category: happy_path
+    description: "Matched — Absa Bank, tax payment to GRA"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-20"
+        description: "GRA VAT payment"
+        amount: "8500.00"
+        type: "debit"
+        reference: "GRA-VAT-JUN-2026"
+      ledgerEntries:
+        - date: "2026-07-20"
+          description: "VAT payment to GRA — June filing"
+          amount: "8500.00"
+          type: "credit"
+          reference: "GRA-VAT-JUN-2026"
+          accountCode: "2400"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-019
+    category: happy_path
+    description: "Matched — GCB Bank, bulk cash withdrawal for payroll"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-24"
+        description: "Counter withdrawal — payroll cash"
+        amount: "44000.00"
+        type: "debit"
+        reference: "CWD-PAY-JUL-2026"
+      ledgerEntries:
+        - date: "2026-07-24"
+          description: "Cash withdrawal for payroll"
+          amount: "44000.00"
+          type: "credit"
+          reference: "CWD-PAY-JUL-2026"
+          accountCode: "1000"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: rec-020
+    category: happy_path
+    description: "Full monthly reconciliation — all matched — Stanbic Bank"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      period: "2026-07"
+      statementLines:
+        - date: "2026-07-01"
+          description: "Opening balance"
+          amount: "25000.00"
+          type: "opening"
+        - date: "2026-07-12"
+          description: "Wire in — Global Tech Ltd"
+          amount: "15000.00"
+          type: "credit"
+          reference: "SWIFT-GT-2026-07"
+        - date: "2026-07-16"
+          description: "Wire out — ABC Suppliers"
+          amount: "5000.00"
+          type: "debit"
+          reference: "SWIFT-STAN-001"
+        - date: "2026-07-19"
+          description: "Mobile money settlement"
+          amount: "1200.00"
+          type: "credit"
+          reference: "MOMO-SETTLE-001"
+        - date: "2026-07-31"
+          description: "Maintenance fee"
+          amount: "35.00"
+          type: "debit"
+          reference: "MAINT-JUL-2026"
+        - date: "2026-07-31"
+          description: "Closing balance"
+          amount: "36165.00"
+          type: "closing"
+      ledgerEntries:
+        - date: "2026-07-12"
+          amount: "15000.00"
+          type: "debit"
+          reference: "INV-200"
+        - date: "2026-07-16"
+          amount: "5000.00"
+          type: "credit"
+          reference: "LEDGER-PMT-001"
+        - date: "2026-07-17"
+          amount: "1200.00"
+          type: "debit"
+          reference: "MOMO-SETTLE-001"
+        - date: "2026-07-31"
+          amount: "35.00"
+          type: "credit"
+          reference: "MAINT-JUL-2026"
+    expected_output:
+      status: "fully_reconciled"
+      matchCount: 4
+      unmatchedStatementCount: 0
+      unmatchedLedgerCount: 0
+      openingBalanceMatched: true
+      closingBalanceMatched: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (15 cases) ─────────────────────────────────────────────────
+  - id: rec-021
+    category: edge_case
+    description: "Legitimate timing difference — cheque issued but not yet cleared (1 week outstanding)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine: null
+      ledgerEntries:
+        - date: "2026-07-25"
+          description: "Cheque payment — CHQ-004200"
+          amount: "3500.00"
+          type: "credit"
+          reference: "CHQ-004200"
+          accountCode: "1010"
+          postedToLedger: true
+      reconciliationDate: "2026-07-31"
+    expected_output:
+      status: "timing_difference"
+      itemType: "unpresented_cheque"
+      amount: "3500.00"
+      daysOutstanding: 6
+      action: "include_in_reconciliation_as_outstanding"
+      shouldFlagAsDiscrepancy: false
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Standard unpresented cheque — should NOT be flagged as a discrepancy"
+
+  - id: rec-022
+    category: edge_case
+    description: "Legitimate timing difference — deposit in transit, not yet on statement"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine: null
+      ledgerEntries:
+        - date: "2026-07-31"
+          description: "Cash deposit — end of day"
+          amount: "5800.00"
+          type: "debit"
+          reference: "DEP-EOD-2026-07-31"
+          accountCode: "1010"
+          postedToLedger: true
+      reconciliationDate: "2026-07-31"
+    expected_output:
+      status: "timing_difference"
+      itemType: "deposit_in_transit"
+      amount: "5800.00"
+      daysOutstanding: 0
+      action: "include_in_reconciliation_as_outstanding"
+      shouldFlagAsDiscrepancy: false
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Deposit made after cutoff on last day of month — should NOT be flagged as a discrepancy"
+
+  - id: rec-023
+    category: edge_case
+    description: "Legitimate timing difference pair — both sides known, within 3 days — Ecobank"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-29"
+        description: "Wire transfer in"
+        amount: "2200.00"
+        type: "credit"
+        reference: "SWIFT-IN-ECO-001"
+      ledgerEntries:
+        - date: "2026-07-28"
+          description: "Customer wire payment"
+          amount: "2200.00"
+          type: "debit"
+          reference: "INV-245"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "timing_difference"
+      confidence: 0.93
+      dateDifferenceDays: 1
+      matchedFields: ["amount", "reference"]
+      shouldFlagAsDiscrepancy: false
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Legitimate 1-day timing difference — amount and reference match. Must NOT be flagged as discrepancy."
+
+  - id: rec-024
+    category: edge_case
+    description: "Unmatched item — very old cheque (6+ months) still outstanding — Absa"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine: null
+      ledgerEntries:
+        - date: "2026-01-10"
+          description: "Cheque payment — CHQ-003500"
+          amount: "750.00"
+          type: "credit"
+          reference: "CHQ-003500"
+          accountCode: "1010"
+      reconciliationDate: "2026-07-31"
+    expected_output:
+      status: "aged_item"
+      itemType: "unpresented_cheque"
+      amount: "750.00"
+      ageDays: 202
+      action: "escalate_for_write_off_or_reversal"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Cheque outstanding over 6 months — stale, needs controller decision"
+
+  - id: rec-025
+    category: edge_case
+    description: "Rounding difference within tolerance — statement shows 0.01 more than ledger"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-22"
+        description: "Interest credit"
+        amount: "42.68"
+        type: "credit"
+        reference: "INT-PARTIAL"
+      ledgerEntries:
+        - date: "2026-07-22"
+          description: "Interest credit"
+          amount: "42.67"
+          type: "debit"
+          reference: "INT-PARTIAL"
+          accountCode: "1010"
+    expected_output:
+      status: "matched_with_tolerance"
+      matchType: "rounding"
+      difference: "0.01"
+      toleranceApplied: true
+      confidence: 0.85
+    expected_confidence_range: [0.8, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "1 pesewa rounding difference — within tolerance, flag for awareness but don't block"
+
+  - id: rec-026
+    category: edge_case
+    description: "Zero-amount line in statement — should not cause match failure"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-15"
+        description: "Zero-value adjustment — system entry"
+        amount: "0.00"
+        type: "credit"
+        reference: "SYS-ADJ-000"
+      ledgerEntries: []
+    expected_output:
+      status: "ignored"
+      reason: "zero_value_item"
+      action: "exclude_from_reconciliation"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Zero-value items should be silently excluded"
+
+  - id: rec-027
+    category: edge_case
+    description: "Reverse-date entry — statement date before ledger date (prior period adjustment)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-01"
+        description: "Prior month interest correction"
+        amount: "15.00"
+        type: "credit"
+        reference: "CORR-INT-JUN"
+      ledgerEntries:
+        - date: "2026-06-30"
+          description: "Interest correction for June"
+          amount: "15.00"
+          type: "debit"
+          reference: "CORR-INT-JUN"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "prior_period_adjustment"
+      confidence: 0.9
+      matchedFields: ["amount", "reference"]
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Prior period adjustment — technically matched but date sequence is reversed, flag for awareness"
+
+  - id: rec-028
+    category: edge_case
+    description: "Multiple ledger entries with same amount on same day — ambiguous match"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-20"
+        description: "ATM cash deposit"
+        amount: "500.00"
+        type: "credit"
+        reference: "ATM-DEP-2026-07-20"
+      ledgerEntries:
+        - date: "2026-07-20"
+          description: "ATM deposit 1"
+          amount: "500.00"
+          type: "debit"
+          reference: "ATM-001"
+          accountCode: "1010"
+        - date: "2026-07-20"
+          description: "ATM deposit 2"
+          amount: "500.00"
+          type: "debit"
+          reference: "ATM-002"
+          accountCode: "1010"
+    expected_output:
+      status: "ambiguous_match"
+      candidates: 2
+      matchType: "multiple_candidates"
+      confidence: 0.7
+      action: "require_human_review"
+    expected_confidence_range: [0.65, 0.85]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Two entries with identical amount and date — cannot determine which matches the statement. Requires human review."
+
+  - id: rec-029
+    category: edge_case
+    description: "Statement has extra line not in ledger — bank charge not yet recorded"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      reconciliationDate: "2026-07-31"
+      unmatchedStatementItem:
+        date: "2026-07-30"
+        description: "SMS alert charges — July"
+        amount: "3.50"
+        type: "debit"
+        reference: "SMS-JUL-2026"
+    expected_output:
+      status: "unmatched_statement_item"
+      itemType: "bank_charge"
+      amount: "3.50"
+      action: "suggest_ledger_entry"
+      confidence: 0.85
+    expected_confidence_range: [0.8, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Small bank charge not yet booked — controller should approve auto-booking"
+
+  - id: rec-030
+    category: edge_case
+    description: "Ledger has entry not on statement — direct debit not yet processed by bank"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      reconciliationDate: "2026-07-31"
+      unmatchedLedgerEntry:
+        date: "2026-07-30"
+        description: "Standing order — insurance premium"
+        amount: "650.00"
+        type: "credit"
+        reference: "SO-INS-JUL"
+        accountCode: "1010"
+    expected_output:
+      status: "unmatched_ledger_item"
+      itemType: "unprocessed_debit"
+      amount: "650.00"
+      action: "monitor_for_clearance"
+      confidence: 0.85
+    expected_confidence_range: [0.8, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Direct debit initiated but not yet reflected on bank statement — monitor next cycle"
+
+  - id: rec-031
+    category: edge_case
+    description: "End-of-month reconciliation with statement cut-off timing difference — large deposit near cutoff"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      period: "2026-07"
+      statementClosingBalance: "13300.50"
+      ledgerBalance: "19100.50"
+      timingItems:
+        - type: "deposit_in_transit"
+          date: "2026-07-31"
+          amount: "5800.00"
+        - type: "unpresented_cheque"
+          date: "2026-07-25"
+          amount: "3500.00"
+      reconciliationDate: "2026-07-31"
+    expected_output:
+      status: "reconciled_with_timing_differences"
+      adjustedLedgerBalance: "13300.50"
+      adjustedStatementBalance: "13300.50"
+      timingDifferenceItems:
+        - "deposit_in_transit: +5800.00"
+        - "unpresented_cheque: -3500.00"
+      netTimingDifference: "2300.00"
+      balanced: true
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Properly accounted timing differences — both sides balance after adjustments"
+
+  - id: rec-032
+    category: edge_case
+    description: "Statement with non-GHS currency needs conversion — USD account matched"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-USD-4045566779"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-15"
+        description: "USD wire in"
+        amount: "2000.00"
+        type: "credit"
+        currency: "USD"
+        reference: "SWIFT-USD-002"
+      ledgerEntries:
+        - date: "2026-07-15"
+          description: "USD wire — customer payment USD"
+          amount: "2000.00"
+          type: "debit"
+          currency: "USD"
+          reference: "SWIFT-USD-002"
+          accountCode: "1015"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      confidence: 0.98
+      matchedFields: ["date", "amount", "reference", "currency"]
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Matched in original currency — no conversion needed when account is USD-denominated"
+
+  - id: rec-033
+    category: edge_case
+    description: "Matched by two-signal minimum (amount + date proximity) — reference differs"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-18"
+        description: "Electronic credit"
+        amount: "920.00"
+        type: "credit"
+        reference: "ELEC-CR-0722001"
+      ledgerEntries:
+        - date: "2026-07-17"
+          description: "Customer payment — reference AC-115"
+          amount: "920.00"
+          type: "debit"
+          reference: "AC-115"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "two_signal"
+      confidence: 0.88
+      matchedFields: ["amount", "date_proximity"]
+      signalsUsed: ["amount_exact", "date_within_1_day"]
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "References differ but amount and date proximity both match — two-signal minimum met, flag for controller verification"
+
+  - id: rec-034
+    category: edge_case
+    description: "Cross-border FX timing — Ecobank USD credit converted, 2-day delay"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-26"
+        description: "FX credit — USD conversion"
+        amount: "36250.00"
+        type: "credit"
+        currency: "GHS"
+        reference: "FX-CONV-JUL-26"
+      ledgerEntries:
+        - date: "2026-07-24"
+          description: "USD receipt awaiting conversion"
+          amount: "36250.00"
+          type: "debit"
+          reference: "USD-REC-JUL-24"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "timing_difference"
+      confidence: 0.93
+      dateDifferenceDays: 2
+      matchedFields: ["amount", "reference_correlation"]
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Standard 2-day FX conversion settlement delay"
+
+  - id: rec-035
+    category: edge_case
+    description: "Legitimate timing difference pair — both sides, weekend gap, should NOT flag"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-14"
+        description: "EFT credit — salary payment"
+        amount: "3200.00"
+        type: "credit"
+        reference: "EFT-SAL-0722"
+      ledgerEntries:
+        - date: "2026-07-11"
+          description: "Salary EFT to employee"
+          amount: "3200.00"
+          type: "debit"
+          reference: "SAL-JUL-022"
+          accountCode: "1010"
+    expected_output:
+      status: "matched"
+      matchType: "timing_difference"
+      confidence: 0.93
+      dateDifferenceDays: 3
+      matchedFields: ["amount"]
+      shouldFlagAsDiscrepancy: false
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Weekend + 1 business day EFT processing delay — legitimate, must NOT be flagged"
+
+  # ── ADVERSARIAL (10 cases) ─────────────────────────────────────────────────
+  - id: rec-036
+    category: adversarial
+    description: "Near-miss amount match — different transaction, same amount (adversarial)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-18"
+        description: "Supplier payment — Global Logistics"
+        amount: "2500.00"
+        type: "debit"
+        reference: "SWIFT-GL-001"
+      ledgerEntries:
+        - date: "2026-07-18"
+          description: "Customer deposit — Akosua Ventures"
+          amount: "2500.00"
+          type: "debit"
+          reference: "DEP-AKOSUA-001"
+          accountCode: "1010"
+    expected_output:
+      status: "flagged"
+      matchType: "near_miss"
+      confidence: 0.35
+      reason: "AMOUNT_ONLY_MATCH_WRONG_DIRECTION"
+      action: "prevent_match"
+    expected_confidence_range: [0.3, 0.5]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Same amount, same date, but opposite transaction types — statement is debit (payment out), ledger is debit (deposit in). These are NOT the same transaction."
+
+  - id: rec-037
+    category: adversarial
+    description: "Near-miss amount match — same amount, different entity's transaction"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-22"
+        description: "Transfer from entity-B"
+        amount: "3000.00"
+        type: "credit"
+        reference: "INTRA-GROUP-TRF"
+      ledgerEntries:
+        - date: "2026-07-22"
+          description: "Sale revenue — invoice INV-300"
+          amount: "3000.00"
+          type: "debit"
+          reference: "INV-300"
+          accountCode: "1010"
+    expected_output:
+      status: "flagged"
+      matchType: "near_miss"
+      confidence: 0.4
+      reason: "AMOUNT_MATCH_MISMATCHED_CONTEXT"
+      action: "prevent_match"
+    expected_confidence_range: [0.3, 0.55]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Same amount, but this is an intra-group transfer, not revenue. Must NOT be matched."
+
+  - id: rec-038
+    category: adversarial
+    description: "Near-miss amount match — one-cent difference, completely different transaction"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-25"
+        description: "POS settlement — Merchant A"
+        amount: "1520.01"
+        type: "credit"
+        reference: "POS-MA-0725"
+      ledgerEntries:
+        - date: "2026-07-25"
+          description: "Supplier refund — Vendor B"
+          amount: "1520.00"
+          type: "debit"
+          reference: "REF-VB-0725"
+          accountCode: "1010"
+    expected_output:
+      status: "flagged"
+      matchType: "near_miss"
+      confidence: 0.3
+      reason: "AMOUNT_CLOSE_BUT_CONTEXT_MISMATCH"
+      action: "prevent_match"
+    expected_confidence_range: [0.2, 0.45]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "1520.01 vs 1520.00 — differs by 1 pesewa but also opposite transaction nature (POS credit vs supplier refund debit). Must NOT be matched."
+
+  - id: rec-039
+    category: adversarial
+    description: "Cross-account contamination — same amount appears on two bank accounts"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      primaryAccount:
+        accountId: "GCB-1011122334"
+        bankName: "GCB Bank"
+        statementLine:
+          date: "2026-07-20"
+          amount: "5000.00"
+          type: "credit"
+          reference: "TRF-IN-001"
+      secondaryAccount:
+        accountId: "STANBIC-2022344556"
+        bankName: "Stanbic Bank"
+        statementLine:
+          date: "2026-07-20"
+          amount: "5000.00"
+          type: "credit"
+          reference: "INT-BANK-TRF"
+      ledgerEntry:
+        date: "2026-07-20"
+        description: "Transfer from Stanbic to GCB"
+        amount: "5000.00"
+        type: "debit"
+        reference: "LEDGER-TRF-001"
+        accountCode: "1010"
+    expected_output:
+      status: "flagged"
+      matchType: "cross_account_contamination"
+      confidence: 0.4
+      reason: "SAME_AMOUNT_ON_TWO_ACCOUNTS"
+      action: "resolve_which_account"
+    expected_confidence_range: [0.3, 0.55]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "5000 GHS appears on both GCB and Stanbic on same day — ledger entry is on GCB but Stanbic might be the source. Must determine correct account before matching."
+
+  - id: rec-040
+    category: adversarial
+    description: "OCR-degraded statement — amount misread (5 replaced by 6)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-15"
+        description: "C sh deposit"
+        amount: "2600.00"
+        type: "credit"
+        reference: "DEP-2026-07-15"
+        ocrConfidence: 0.72
+        ocrAnnotations:
+          - field: "amount"
+            originalOcr: "2600.00"
+            suggestedCorrection: "2400.00"
+          - field: "description"
+            originalOcr: "C sh deposit"
+            suggestedCorrection: "Cash deposit"
+      ledgerEntries:
+        - date: "2026-07-15"
+          description: "Cash deposit — Accra Main Branch"
+          amount: "2400.00"
+          type: "debit"
+          reference: "LEDGER-DEP-2026-07-15"
+          accountCode: "1010"
+    expected_output:
+      status: "potential_match_with_ocr_correction"
+      matchType: "ocr_degraded"
+      confidence: 0.78
+      originalStatementAmount: "2600.00"
+      correctedAmount: "2400.00"
+      ledgerAmount: "2400.00"
+      ocrCorrectionApplied: true
+      action: "verify_match_manually"
+    expected_confidence_range: [0.6, 0.85]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "OCR misread 4 as 6 in the hundreds place. Amount corrected from 2600 to 2400 based on low OCR confidence. Must flag for verification."
+
+  - id: rec-041
+    category: adversarial
+    description: "OCR-degraded statement — date misread, amount correct"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-2B"
+        description: "POS settlement batch"
+        amount: "1750.00"
+        type: "credit"
+        reference: "POS-BATCH-072X"
+        ocrConfidence: 0.65
+        ocrAnnotations:
+          - field: "date"
+            originalOcr: "2026-07-2B"
+            suggestedCorrection: "2026-07-26"
+          - field: "reference"
+            originalOcr: "POS-BATCH-072X"
+            suggestedCorrection: "POS-BATCH-0726"
+      ledgerEntries:
+        - date: "2026-07-26"
+          description: "POS settlement batch"
+          amount: "1750.00"
+          type: "debit"
+          reference: "POS-BATCH-0726"
+          accountCode: "1010"
+    expected_output:
+      status: "potential_match_with_ocr_correction"
+      matchType: "ocr_degraded"
+      confidence: 0.72
+      originalDateOcr: "2026-07-2B"
+      correctedDate: "2026-07-26"
+      ledgerDate: "2026-07-26"
+      ocrCorrectionApplied: true
+      action: "verify_match_manually"
+    expected_confidence_range: [0.55, 0.8]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "OCR misread '6' as 'B' in date field. Reference also degraded. Flag for manual verification."
+
+  - id: rec-042
+    category: adversarial
+    description: "Intentional duplicate — same statement line submitted twice"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      firstStatementLine:
+        date: "2026-07-10"
+        description: "Wire transfer in"
+        amount: "8000.00"
+        type: "credit"
+        reference: "SWIFT-ECO-001"
+      secondStatementLine:
+        date: "2026-07-10"
+        description: "Wire transfer in"
+        amount: "8000.00"
+        type: "credit"
+        reference: "SWIFT-ECO-001"
+      ledgerEntries:
+        - date: "2026-07-10"
+          description: "Wire transfer — client payment"
+          amount: "8000.00"
+          type: "debit"
+          reference: "LEDGER-SWIFT-ECO-001"
+          accountCode: "1010"
+    expected_output:
+      status: "duplicate_detected"
+      matchType: "exact"
+      confidence: 0.98
+      duplicateLine: "SWIFT-ECO-001"
+      action: "reject_duplicate_line"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Identical statement line submitted twice — prevent double-counting"
+
+  - id: rec-043
+    category: adversarial
+    description: "Entity-scope violation — statement for different entity submitted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-OTHER-ENTITY"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-15"
+        description: "Deposit"
+        amount: "1000.00"
+        type: "credit"
+        reference: "DEP-OTHER"
+      ledgerEntries: []
+    expected_output:
+      status: "rejected"
+      reason_code: "ENTITY_MISMATCH"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Bank account does not belong to this entity — security-critical, block and log"
+
+  - id: rec-044
+    category: adversarial
+    description: "Statement reference replaced to mimic a legitimate one (reference spoofing)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-19"
+        description: "Payment to fraudulent vendor"
+        amount: "12000.00"
+        type: "debit"
+        reference: "PMT-SUP-003"
+      ledgerEntries:
+        - date: "2026-07-19"
+          description: "Payment — SUP-003 to ABC Suppliers Ltd"
+          amount: "12000.00"
+          type: "credit"
+          reference: "PMT-SUP-003"
+          accountCode: "2000"
+      knownLegitimateReference: "PMT-SUP-003"
+      knownLegitimateAmount: "5000.00"
+    expected_output:
+      status: "flagged"
+      matchType: "reference_spoof"
+      confidence: 0.25
+      reason: "REFERENCE_REUSED_WITH_DIFFERENT_AMOUNT"
+      action: "block_and_investigate"
+    expected_confidence_range: [0.2, 0.4]
+    expected_escalation: escalate
+    expected_escalation_target: compliance-agent
+    source: synthetic
+    notes: "Reference PMT-SUP-003 was previously used for a 5000 GHS payment but now appears for 12000 GHS — possible reference spoofing. Escalate to compliance."
+
+  - id: rec-045
+    category: adversarial
+    description: "Near-miss amount match — same amount but different date, no two-signal minimum"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-05"
+        description: "Cash deposit"
+        amount: "1500.00"
+        type: "credit"
+        reference: "DEP-JUL-05"
+      ledgerEntries:
+        - date: "2026-06-28"
+          description: "Cash deposit"
+          amount: "1500.00"
+          type: "debit"
+          reference: "DEP-JUN-28"
+          accountCode: "1010"
+    expected_output:
+      status: "flagged"
+      matchType: "near_miss"
+      confidence: 0.3
+      reason: "AMOUNT_ONLY_MATCH_INSUFFICIENT_SIGNALS"
+      action: "prevent_match"
+    expected_confidence_range: [0.2, 0.45]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Amount matches exactly but dates are 7 days apart — only one signal (amount). Two-signal minimum requires amount + date proximity or amount + reference. Do NOT match."
+
+  # ── AMBIGUOUS (10 cases) ─────────────────────────────────────────────────
+  - id: rec-046
+    category: ambiguous
+    description: "Partial payment matched against invoice — amount doesn't exactly match either side"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-20"
+        description: "Partial payment — Customer X"
+        amount: "750.00"
+        type: "credit"
+        reference: "PART-CUST-X"
+      ledgerEntries:
+        - date: "2026-07-20"
+          description: "Payment on account — Customer X"
+          amount: "750.00"
+          type: "debit"
+          reference: "ON-ACCT-X"
+          accountCode: "1010"
+      fullInvoiceAmount: "1500.00"
+      invoiceRef: "INV-X-001"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Amount matches between statement and ledger but it's a partial payment on a larger invoice. Is the ledger entry correctly posted as on-account or against the specific invoice? Needs controller judgment."
+
+  - id: rec-047
+    category: ambiguous
+    description: "Unidentified credit on bank statement — no matching ledger entry"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-23"
+        description: "EFT credit — unknown source"
+        amount: "425.00"
+        type: "credit"
+        reference: "EFT-UNKNOWN-0723"
+      ledgerEntries: []
+    expected_output: null
+    expected_confidence_range: [0.4, 0.65]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Credit with no identifiable source or matching ledger entry — could be a customer payment, refund, or error. Needs investigation."
+
+  - id: rec-048
+    category: ambiguous
+    description: "Matched by amount only — 3 days apart, no reference match — borderline signals"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-21"
+        description: "Electronic transfer"
+        amount: "675.00"
+        type: "credit"
+        reference: "ELEC-0721"
+      ledgerEntries:
+        - date: "2026-07-18"
+          description: "Customer payment received"
+          amount: "675.00"
+          type: "debit"
+          reference: "CUST-PMT-1807"
+          accountCode: "1010"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Amount matches exactly but 3 days apart, no reference correlation. Two signals (amount + 3-day proximity) are borderline — 3 days may exceed the date proximity threshold. Controller judgment needed."
+
+  - id: rec-049
+    category: ambiguous
+    description: "Reversed transaction — unclear if reversal or new entry"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      originalStatementLine:
+        date: "2026-07-15"
+        description: "Debit card purchase"
+        amount: "200.00"
+        type: "debit"
+        reference: "DBT-0715-001"
+      reversalStatementLine:
+        date: "2026-07-16"
+        description: "Credit — reversal"
+        amount: "200.00"
+        type: "credit"
+        reference: "REV-0715-001"
+      ledgerEntries:
+        - date: "2026-07-15"
+          description: "Debit card expense"
+          amount: "200.00"
+          type: "credit"
+          reference: "DBT-0715-001"
+          accountCode: "5600"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Statement shows original debit plus reversal credit on next day. Ledger only has the original entry. Should the reversal be booked? Needs controller decision."
+
+  - id: rec-050
+    category: ambiguous
+    description: "Unmatched debit on statement — possible fraud or legitimate bank charge"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-28"
+        description: "DEBIT — ATM withdrawal Accra Mall"
+        amount: "500.00"
+        type: "debit"
+        reference: "ATM-ACCRA-MALL-0728"
+      ledgerEntries: []
+      atmCardOwned: false
+      withdrawalLocation: "Accra Mall"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.65]
+    expected_escalation: escalate
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "ATM withdrawal of 500 GHS from Accra Mall but entity does not own an ATM card. Could be unauthorized transaction or bank error. Escalate."
+
+  - id: rec-051
+    category: ambiguous
+    description: "FX rate difference makes converted amount not exactly match — close but not precise"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ECO-3034455667"
+      bankName: "Ecobank"
+      statementLine:
+        date: "2026-07-27"
+        description: "USD credit converted"
+        amount: "29150.00"
+        type: "credit"
+        currency: "GHS"
+        reference: "FX-USD-JUL27"
+      ledgerEntries:
+        - date: "2026-07-27"
+          description: "USD receipt — expected 2000 USD at 14.55"
+          amount: "29100.00"
+          type: "debit"
+          reference: "USD-REC-JUL27"
+          accountCode: "1010"
+      expectedRate: "14.55"
+      actualRate: "14.575"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "2000 USD at 14.55 = 29100 GHS (ledger), but bank statement shows 29150 GHS at actual rate 14.575. 50 GHS difference due to rate variance. Is this the same transaction with a rate difference, or a different transaction? Needs judgment."
+
+  - id: rec-052
+    category: ambiguous
+    description: "Matched by amount + reference but dates are 5 days apart — is it the same transaction?"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "STANBIC-2022344556"
+      bankName: "Stanbic Bank"
+      statementLine:
+        date: "2026-07-25"
+        description: "Wire — client payment"
+        amount: "4500.00"
+        type: "credit"
+        reference: "CLI-PMT-WIRE-001"
+      ledgerEntries:
+        - date: "2026-07-20"
+          description: "Client wire payment expected"
+          amount: "4500.00"
+          type: "debit"
+          reference: "CLI-PMT-WIRE-001"
+          accountCode: "1010"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Amount and reference match, but 5-day gap. Could be the same transaction with processing delay, or a reused reference. Two-signal minimum met but gap is large. Needs judgment."
+
+  - id: rec-053
+    category: ambiguous
+    description: "Consolidated settlement vs individual ledger entries — partial match"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-30"
+        description: "POS settlement batch — 3 transactions"
+        amount: "4850.00"
+        type: "credit"
+        reference: "POS-BATCH-0730"
+      ledgerEntries:
+        - date: "2026-07-30"
+          description: "POS sale — invoice A"
+          amount: "2200.00"
+          type: "debit"
+          reference: "POS-INV-A"
+          accountCode: "1010"
+        - date: "2026-07-30"
+          description: "POS sale — invoice B"
+          amount: "1800.00"
+          type: "debit"
+          reference: "POS-INV-B"
+          accountCode: "1010"
+        - date: "2026-07-30"
+          description: "POS sale — invoice C"
+          amount: "850.00"
+          type: "debit"
+          reference: "POS-INV-C"
+          accountCode: "1010"
+    expected_output: null
+    expected_confidence_range: [0.55, 0.75]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Three ledger entries sum to 4850 (2200+1800+850) which matches the statement batch of 4850. However, the breakdown doesn't exactly match typical POS settlement structures (which include fees). Needs controller to confirm aggregation is correct."
+
+  - id: rec-054
+    category: ambiguous
+    description: "Old uncleared cheque reappears — should it be written off?"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "ABSA-4045566778"
+      bankName: "Absa Bank"
+      statementLine:
+        date: "2026-07-29"
+        description: "Cheque cleared — CHQ-003800"
+        amount: "1200.00"
+        type: "debit"
+        reference: "CHQ-003800"
+      ledgerEntries:
+        - date: "2026-03-15"
+          description: "Cheque issued — CHQ-003800"
+          amount: "1200.00"
+          type: "credit"
+          reference: "CHQ-003800"
+          accountCode: "2000"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.75]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Cheque issued in March 2026 finally clears in July 2026 — over 4 months old. Was this already written off or provided for? Controller needs to verify accounting treatment."
+
+  - id: rec-055
+    category: ambiguous
+    description: "Near month-end — transaction could belong to either June or July period"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      bankAccountId: "GCB-1011122334"
+      bankName: "GCB Bank"
+      statementLine:
+        date: "2026-07-01"
+        description: "EFT credit — dated June 30 processing"
+        amount: "3200.00"
+        type: "credit"
+        reference: "EFT-JUN30-PROC"
+      ledgerEntries:
+        - date: "2026-06-30"
+          description: "Customer EFT — year-end payment"
+          amount: "3200.00"
+          type: "debit"
+          reference: "CUST-EFT-JUN30"
+          accountCode: "1010"
+    expected_output: null
+    expected_confidence_range: [0.55, 0.75]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Initiated June 30 but credited July 1 — which period does this belong to? Controller must determine correct period allocation."

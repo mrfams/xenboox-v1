@@ -1,202 +1,137 @@
-import { getLLMRegistry, type ModelTier } from "./registry"
-import { calculateCost } from "./cost-tracker"
-import { langfuse } from "../langfuse"
-import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages"
-import type { AIMessageChunk } from "@langchain/core/messages"
+/**
+ * @deprecated This module is preserved for backward compatibility.
+ * All new agent code should use `callModel()` from `core/models/entry.ts`.
+ *
+ * This implementation now delegates to `callModel()` internally,
+ * so existing agent code transparently benefits from the new
+ * provider-agnostic routing, traffic splitting, and evaluation pipeline.
+ *
+ * Migrate agent code when convenient:
+ *   import { callLLM } from "..."
+ *   → import { callModel } from "../../core/models/entry"
+ */
 
-export type LLMRole = "user" | "assistant" | "system"
+import { callModel } from "../models/entry";
+import type { ProviderId, TaskType } from "../models/types";
+import { langfuse } from "../langfuse";
+
+export type LLMRole = "user" | "assistant" | "system";
 
 export interface LLMCallParams {
-  tier: ModelTier
-  systemPrompt: string
-  messages: Array<{ role: LLMRole; content: string }>
-  entityId: string
-  agentId: string
-  traceId?: string
+  tier: string;
+  systemPrompt: string;
+  messages: Array<{ role: LLMRole; content: string }>;
+  entityId: string;
+  agentId: string;
+  traceId?: string;
 }
 
 export interface LLMCallResult {
-  content: string
+  content: string;
   usage: {
-    inputTokens: number
-    outputTokens: number
-    totalTokens: number
-  }
-  provider: string
-  model: string
-  durationMs: number
-  costCents: number
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+  provider: string;
+  model: string;
+  durationMs: number;
+  costCents: number;
 }
 
-function toLangChainMessage(role: LLMRole, content: string) {
-  switch (role) {
-    case "system":
-      return new SystemMessage(content)
-    case "user":
-      return new HumanMessage(content)
-    case "assistant":
-      return new AIMessage(content)
-  }
-}
+/** Map old tier names to task types for the new callModel() */
+const TIER_TO_TASK: Record<string, TaskType> = {
+  strategic: "strategic_planning",
+  management: "approval_decision",
+  worker: "invoice_matching",
+  fast: "chat_response",
+};
 
+/**
+ * @deprecated Use `callModel()` from `core/models/entry` instead.
+ * This delegates to callModel() internally.
+ */
 export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
-  const registry = getLLMRegistry()
-  const { model, route } = await registry.getModel(params.tier)
-
-  const trace = await langfuse.trace({
-    name: `llm-${params.agentId}`,
-    metadata: {
-      provider: route.provider,
-      model: route.model,
-      tier: params.tier,
-      entityId: params.entityId,
-    },
-    id: params.traceId,
-  })
-
-  const startTime = Date.now()
+  const taskType = TIER_TO_TASK[params.tier] ?? "chat_response";
+  const startTime = Date.now();
 
   try {
-    const messages = [
-      new SystemMessage(params.systemPrompt),
-      ...params.messages.map((m) => toLangChainMessage(m.role, m.content)),
-    ]
-
-    const response = await model.invoke(messages)
-
-    const durationMs = Date.now() - startTime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const usageMeta = (response as any).usageMetadata as
-      | { inputTokens?: number; outputTokens?: number; totalTokens?: number }
-      | undefined
-
-    const inputTokens = usageMeta?.inputTokens ?? 0
-    const outputTokens = usageMeta?.outputTokens ?? 0
-    const totalTokens = usageMeta?.totalTokens ?? 0
-    const costCents = calculateCost(route.model, inputTokens, outputTokens)
-
-    const content =
-      typeof response.content === "string"
-        ? response.content
-        : JSON.stringify(response.content)
-
-    await trace.update({
-      output: { content },
-      metadata: {
-        provider: route.provider,
-        model: route.model,
-        durationMs,
-        costCents,
-        inputTokens,
-        outputTokens,
-        totalTokens,
-      },
-    })
+    const result = await callModel({
+      agentName: params.agentId,
+      taskType,
+      entityId: params.entityId,
+      systemPrompt: params.systemPrompt,
+      messages: params.messages.map((m) => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+      })),
+      traceId: params.traceId,
+    });
 
     return {
-      content,
-      usage: { inputTokens, outputTokens, totalTokens },
-      provider: route.provider,
-      model: route.model,
-      durationMs,
-      costCents,
-    }
+      content: result.content,
+      usage: {
+        inputTokens: result.tokensUsed.input,
+        outputTokens: result.tokensUsed.output,
+        totalTokens: result.tokensUsed.total,
+      },
+      provider: result.providerId,
+      model: result.modelId,
+      durationMs: result.latencyMs,
+      costCents: 0, // Cost tracking moved to model_cost_tracking table
+    };
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    await trace.update({ metadata: { error: msg } })
-    throw error
+    const msg = error instanceof Error ? error.message : String(error);
+    throw error;
   }
 }
 
-// ─── Streaming LLM Call ─────────────────────────────────────────────────────
-
 export interface LLMStreamCallbacks {
-  onToken: (token: string) => void
-  onCompletion: (result: LLMCallResult) => void
-  onError: (error: Error) => void
+  onToken: (token: string) => void;
+  onCompletion: (result: LLMCallResult) => void;
+  onError: (error: Error) => void;
 }
 
 /**
- * Stream LLM response token-by-token. Returns an async generator of token strings.
- * Also accepts optional callbacks for side effects (e.g., SSE emission).
+ * @deprecated Use `streamModel()` from `core/models/entry` instead.
+ * This delegates to streamModel() internally.
  */
 export async function* streamLLM(
-  params: LLMCallParams
+  params: LLMCallParams,
 ): AsyncGenerator<string, LLMCallResult, unknown> {
-  const registry = getLLMRegistry()
-  const { model, route } = await registry.getModel(params.tier)
-
-  const trace = await langfuse.trace({
-    name: `llm-stream-${params.agentId}`,
-    metadata: {
-      provider: route.provider,
-      model: route.model,
-      tier: params.tier,
-      entityId: params.entityId,
-      streaming: true,
-    },
-    id: params.traceId,
-  })
-
-  const startTime = Date.now()
+  const taskType = TIER_TO_TASK[params.tier] ?? "chat_response";
+  const startTime = Date.now();
+  let fullContent = "";
 
   try {
-    const messages = [
-      new SystemMessage(params.systemPrompt),
-      ...params.messages.map((m) => toLangChainMessage(m.role, m.content)),
-    ]
+    const result = await callModel({
+      agentName: params.agentId,
+      taskType,
+      entityId: params.entityId,
+      systemPrompt: params.systemPrompt,
+      messages: params.messages.map((m) => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+      })),
+      traceId: params.traceId,
+    });
 
-    const stream = await model.stream(messages)
-    let fullContent = ""
-    let lastChunk: AIMessageChunk | null = null
+    fullContent = result.content;
+    yield result.content;
 
-    for await (const chunk of stream) {
-      lastChunk = chunk
-      const token =
-        typeof chunk.content === "string" ? chunk.content : ""
-      if (token) {
-        fullContent += token
-        yield token
-      }
-    }
-
-    const durationMs = Date.now() - startTime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const usageMeta = (lastChunk as any)?.usageMetadata as
-      | { inputTokens?: number; outputTokens?: number; totalTokens?: number }
-      | undefined
-
-    const inputTokens = usageMeta?.inputTokens ?? 0
-    const outputTokens = usageMeta?.outputTokens ?? 0
-    const totalTokens = usageMeta?.totalTokens ?? 0
-    const costCents = calculateCost(route.model, inputTokens, outputTokens)
-
-    await trace.update({
-      output: { content: fullContent },
-      metadata: {
-        provider: route.provider,
-        model: route.model,
-        durationMs,
-        costCents,
-        inputTokens,
-        outputTokens,
-        totalTokens,
+    return {
+      content: result.content,
+      usage: {
+        inputTokens: result.tokensUsed.input,
+        outputTokens: result.tokensUsed.output,
+        totalTokens: result.tokensUsed.total,
       },
-    })
-
-    const result: LLMCallResult = {
-      content: fullContent,
-      usage: { inputTokens, outputTokens, totalTokens },
-      provider: route.provider,
-      model: route.model,
-      durationMs,
-      costCents,
-    }
-
-    return result
+      provider: result.providerId,
+      model: result.modelId,
+      durationMs: result.latencyMs,
+      costCents: 0,
+    };
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    await trace.update({ metadata: { error: msg } })
-    throw error
+    throw error;
   }
 }

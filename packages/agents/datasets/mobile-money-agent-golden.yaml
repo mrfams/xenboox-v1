@@ -1,0 +1,768 @@
+﻿agent: mobile-money-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # -- HAPPY PATH (10 cases) --
+  - id: mm-001
+    category: happy_path
+    description: "MTN MoMo payment received -- complete data, matched to invoice"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "MTN_MoMo"
+      transactionId: "MTN-2026-07-15-001"
+      senderNumber: "233501234567"
+      senderName: "Akosua Mensah"
+      amountReceived: "450.00"
+      amountCharged: "0.00"
+      fee: "0.00"
+      netAmount: "450.00"
+      timestamp: "2026-07-15T14:30:00Z"
+      reference: "INV-301"
+      invoiceRef: "INV-301"
+      invoiceAmount: "450.00"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      invoiceMatch: true
+      variance: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: mm-002
+    category: happy_path
+    description: "Wave payment received -- fee deducted, net matches expectation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Wave"
+      transactionId: "WAVE-2026-07-15-001"
+      senderNumber: "233509876543"
+      senderName: "Kwame Asante"
+      amountPaid: "200.00"
+      amountReceived: "196.00"
+      fee: "4.00"
+      feePercentage: "2.0"
+      netAmount: "196.00"
+      timestamp: "2026-07-15T10:15:00Z"
+      reference: "INV-302"
+      invoiceRef: "INV-302"
+      invoiceAmount: "200.00"
+    expected_output:
+      status: "matched"
+      matchType: "exact_with_fee"
+      invoiceMatch: true
+      feeDetected: true
+      feeAmount: "4.00"
+      grossAmount: "200.00"
+      netAmount: "196.00"
+      variance: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Wave deducts 2% fee -- merchant receives 196 of 200. This is the expected behavior."
+
+  - id: mm-003
+    category: happy_path
+    description: "Orange Money payment -- full amount received, no fee"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Orange_Money"
+      transactionId: "OM-2026-07-16-001"
+      senderNumber: "2250500123456"
+      senderName: "Mamadou Diallo"
+      amountReceived: "300.00"
+      amountCharged: "0.00"
+      fee: "0.00"
+      netAmount: "300.00"
+      timestamp: "2026-07-16T09:45:00Z"
+      reference: "INV-303"
+      invoiceRef: "INV-303"
+      invoiceAmount: "300.00"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      invoiceMatch: true
+      variance: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: mm-004
+    category: happy_path
+    description: "M-Pesa payment received -- full amount, matched to customer account"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "M-Pesa"
+      transactionId: "MP-2026-07-17-001"
+      senderNumber: "254712345678"
+      senderName: "Grace Wanjiku"
+      amountReceived: "1500.00"
+      amountCharged: "0.00"
+      fee: "0.00"
+      netAmount: "1500.00"
+      timestamp: "2026-07-17T11:20:00Z"
+      reference: "INV-304"
+      invoiceRef: "INV-304"
+      invoiceAmount: "1500.00"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      invoiceMatch: true
+      variance: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: mm-005
+    category: happy_path
+    description: "Airtel Money payment -- multiple transactions batched in daily settlement"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Airtel_Money"
+      transactionId: "AIR-2026-07-18-BATCH"
+      batchSettlement: true
+      transactions:
+        - senderNumber: "233241234567"
+          amount: "250.00"
+          reference: "INV-305"
+        - senderNumber: "233242345678"
+          amount: "180.00"
+          reference: "INV-306"
+        - senderNumber: "233243456789"
+          amount: "420.00"
+          reference: "INV-307"
+      totalAmount: "850.00"
+      settlementAmount: "850.00"
+      timestamp: "2026-07-18T17:00:00Z"
+    expected_output:
+      status: "settled"
+      matchType: "batch_settlement"
+      transactionCount: 3
+      totalAmount: "850.00"
+      settlementAmount: "850.00"
+      variance: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: mm-006
+    category: happy_path
+    description: "MTN MoMo merchant settlement -- daily batch to bank account"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "MTN_MoMo"
+      settlementId: "MTN-SETTLE-2026-07-19"
+      settlementAmount: "3200.00"
+      transactionCount: 8
+      settlementDate: "2026-07-19"
+      bankCreditDate: "2026-07-19"
+      bankName: "GCB Bank"
+      bankAmount: "3200.00"
+    expected_output:
+      status: "settled"
+      settlementMatch: true
+      bankCreditAmount: "3200.00"
+      variance: "0.00"
+      settlementLagDays: 0
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: mm-007
+    category: happy_path
+    description: "Wave payment -- multiple small transactions, all within fee structure"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Wave"
+      transactions:
+        - transactionId: "WAVE-2026-07-20-001"
+          amountPaid: "100.00"
+          amountReceived: "98.00"
+          fee: "2.00"
+          reference: "INV-310"
+        - transactionId: "WAVE-2026-07-20-002"
+          amountPaid: "50.00"
+          amountReceived: "49.00"
+          fee: "1.00"
+          reference: "INV-311"
+        - transactionId: "WAVE-2026-07-20-003"
+          amountPaid: "200.00"
+          amountReceived: "196.00"
+          fee: "4.00"
+          reference: "INV-312"
+      totalPaid: "350.00"
+      totalReceived: "343.00"
+      totalFees: "7.00"
+      timestamp: "2026-07-20T18:00:00Z"
+    expected_output:
+      status: "all_matched"
+      transactionCount: 3
+      totalFees: "7.00"
+      totalVariance: "0.00"
+      feeRateConsistent: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "All Wave transactions correctly apply 2% fee -- merchant receives 98% of each payment"
+
+  - id: mm-008
+    category: happy_path
+    description: "Orange Money settlement -- T+1 settlement to bank"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Orange_Money"
+      settlementId: "OM-SETTLE-2026-07-21"
+      transactionDate: "2026-07-20"
+      settlementDate: "2026-07-21"
+      settlementAmount: "2100.00"
+      transactionCount: 5
+      bankCreditDate: "2026-07-21"
+      bankAmount: "2100.00"
+    expected_output:
+      status: "settled"
+      settlementMatch: true
+      bankCreditAmount: "2100.00"
+      variance: "0.00"
+      settlementLagDays: 1
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Orange Money settles T+1 -- standard settlement timing"
+
+  - id: mm-009
+    category: happy_path
+    description: "M-Pesa payment with customer reference -- automatically matched"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "M-Pesa"
+      transactionId: "MP-2026-07-22-001"
+      senderNumber: "254723456789"
+      senderName: "John Kamau"
+      amountReceived: "800.00"
+      amountCharged: "0.00"
+      fee: "0.00"
+      netAmount: "800.00"
+      timestamp: "2026-07-22T08:30:00Z"
+      customerReference: "INV-315"
+      invoiceRef: "INV-315"
+      invoiceAmount: "800.00"
+    expected_output:
+      status: "matched"
+      matchType: "exact"
+      invoiceMatch: true
+      variance: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: mm-010
+    category: happy_path
+    description: "Airtel Money transaction with correct fee deduction"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Airtel_Money"
+      transactionId: "AIR-2026-07-23-001"
+      senderNumber: "233241112233"
+      senderName: "Ama Serwaa"
+      amountPaid: "1000.00"
+      amountReceived: "985.00"
+      fee: "15.00"
+      feePercentage: "1.5"
+      netAmount: "985.00"
+      timestamp: "2026-07-23T16:45:00Z"
+      reference: "INV-320"
+      invoiceRef: "INV-320"
+      invoiceAmount: "1000.00"
+    expected_output:
+      status: "matched"
+      matchType: "exact_with_fee"
+      invoiceMatch: true
+      feeDetected: true
+      feeAmount: "15.00"
+      grossAmount: "1000.00"
+      netAmount: "985.00"
+      variance: "0.00"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Airtel Money charges 1.5% fee -- 15 GHS on 1000 GHS"
+
+  # -- EDGE CASES (8 cases) --
+  - id: mm-011
+    category: edge_case
+    description: "Timing difference flagged vs real discrepancy -- Wave payment with 1-day settlement lag"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Wave"
+      transactionId: "WAVE-2026-07-24-001"
+      transactionDate: "2026-07-24"
+      amountPaid: "500.00"
+      amountReceived: "490.00"
+      fee: "10.00"
+      settlementDate: "2026-07-25"
+      bankCreditDate: "2026-07-25"
+      ledgerRecordedDate: "2026-07-24"
+      ledgerAmount: "490.00"
+      ledgerExpectedDate: "2026-07-24"
+    expected_output:
+      status: "timing_difference"
+      matchType: "settlement_lag"
+      transactionAmount: "490.00"
+      settlementDate: "2026-07-25"
+      ledgerDate: "2026-07-24"
+      dateDifferenceDays: 1
+      shouldFlagAsDiscrepancy: false
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Ledger recorded on transaction date, bank credit arrives T+1. This is expected Wave settlement timing. Must NOT be flagged as a discrepancy."
+
+  - id: mm-012
+    category: edge_case
+    description: "Timing difference that IS a real discrepancy -- payment expected but never settles"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "MTN_MoMo"
+      transactionId: "MTN-2026-07-10-UNSETTLED"
+      transactionDate: "2026-07-10"
+      amountReceived: "600.00"
+      fee: "0.00"
+      netAmount: "600.00"
+      settlementExpectedDate: "2026-07-11"
+      currentDate: "2026-07-24"
+      settlementStatus: "pending"
+      daysSinceTransaction: 14
+    expected_output:
+      status: "flagged_real_discrepancy"
+      reason: "UNSETTLED_BEYOND_EXPECTED_WINDOW"
+      daysSinceTransaction: 14
+      expectedSettlementWindowDays: 2
+      action: "escalate_to_rail_support"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "MTN MoMo typically settles within 1-2 business days. 14 days without settlement is a real discrepancy, not a timing difference. Escalate."
+
+  - id: mm-013
+    category: edge_case
+    description: "Per-rail settlement variation -- Wave settles T+0 (same day)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Wave"
+      transactionId: "WAVE-2026-07-25-001"
+      transactionDate: "2026-07-25"
+      amountPaid: "300.00"
+      amountReceived: "294.00"
+      fee: "6.00"
+      settlementDate: "2026-07-25"
+      bankCreditDate: "2026-07-25"
+      ledgerDate: "2026-07-25"
+    expected_output:
+      status: "settled"
+      settlementTiming: "T+0"
+      variance: "0.00"
+      shouldFlagAsDiscrepancy: false
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Wave offers same-day settlement -- transaction and settlement occur on same day"
+
+  - id: mm-014
+    category: edge_case
+    description: "Per-rail settlement variation -- Orange Money settles T+2 for cross-network transfers"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Orange_Money"
+      transactionId: "OM-2026-07-22-001"
+      transactionDate: "2026-07-22"
+      transferType: "cross_network"
+      amountReceived: "750.00"
+      fee: "0.00"
+      netAmount: "750.00"
+      settlementDate: "2026-07-24"
+      bankCreditDate: "2026-07-24"
+      ledgerDate: "2026-07-22"
+    expected_output:
+      status: "timing_difference"
+      matchType: "settlement_lag"
+      settlementTiming: "T+2"
+      dateDifferenceDays: 2
+      shouldFlagAsDiscrepancy: false
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Orange Money cross-network transfers take T+2. Must NOT be flagged -- this is within expected per-rail settlement variation."
+
+  - id: mm-015
+    category: edge_case
+    description: "Fee deduction test -- Wave fee higher than expected (anomalous fee rate)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Wave"
+      transactionId: "WAVE-2026-07-26-001"
+      senderNumber: "233501234567"
+      amountPaid: "500.00"
+      amountReceived: "475.00"
+      fee: "25.00"
+      expectedFee: "10.00"
+      expectedFeeRate: "0.02"
+      actualFeeRate: "0.05"
+      timestamp: "2026-07-26T12:00:00Z"
+      reference: "INV-330"
+      invoiceAmount: "500.00"
+    expected_output:
+      status: "flagged_fee_anomaly"
+      amountPaid: "500.00"
+      amountReceived: "475.00"
+      actualFee: "25.00"
+      expectedFee: "10.00"
+      feeVariance: "15.00"
+      action: "investigate_fee_discrepancy"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Wave standard fee is 2% (10 GHS on 500), but 25 GHS (5%) was deducted. This is anomalous and should be investigated."
+
+  - id: mm-016
+    category: edge_case
+    description: "M-Pesa transaction with missing sender details -- partial data"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "M-Pesa"
+      transactionId: "MP-2026-07-27-001"
+      senderNumber: null
+      senderName: null
+      amountReceived: "2000.00"
+      fee: "0.00"
+      netAmount: "2000.00"
+      timestamp: "2026-07-27T15:00:00Z"
+      reference: "ATM-DEP-REF"
+      invoiceRef: null
+    expected_output:
+      status: "partial_match"
+      matchType: "amount_only"
+      confidence: 0.7
+      missingFields: ["senderNumber", "senderName", "invoiceRef"]
+      action: "flag_for_review"
+    expected_confidence_range: [0.65, 0.85]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Missing sender details and invoice reference -- cannot confidently match to a customer. Needs manual review."
+
+  - id: mm-017
+    category: edge_case
+    description: "Duplicate mobile money transaction detection -- same ID submitted twice"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "MTN_MoMo"
+      transactionId: "MTN-2026-07-28-001"
+      duplicateTransactionId: "MTN-2026-07-28-001"
+      senderNumber: "233501234567"
+      amountReceived: "350.00"
+      fee: "0.00"
+      netAmount: "350.00"
+      timestamp: "2026-07-28T10:00:00Z"
+      reference: "INV-335"
+    expected_output:
+      status: "duplicate_detected"
+      originalTransactionRef: "MTN-2026-07-28-001"
+      action: "reject_duplicate"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Same transaction ID submitted twice -- reject duplicate"
+
+  - id: mm-018
+    category: edge_case
+    description: "Settlement amount received at bank differs from mobile money summary (fee timing)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Airtel_Money"
+      settlementPeriod: "2026-07-20 to 2026-07-26"
+      transactionTotal: "5600.00"
+      feeTotal: "84.00"
+      expectedNetSettlement: "5516.00"
+      actualBankSettlement: "5500.00"
+      difference: "-16.00"
+      settlementDate: "2026-07-27"
+    expected_output:
+      status: "flagged_settlement_variance"
+      expectedAmount: "5516.00"
+      actualAmount: "5500.00"
+      variance: "-16.00"
+      possibleReason: "additional_platform_fees"
+      action: "verify_with_rail_provider"
+    expected_confidence_range: [0.8, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "16 GHS difference between expected net settlement and actual bank credit -- may include additional platform fees not shown in transaction summary"
+
+  # -- ADVERSARIAL (5 cases) --
+  - id: mm-019
+    category: adversarial
+    description: "Fake mobile money transaction -- forged MTN MoMo SMS confirmation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "MTN_MoMo"
+      transactionId: "MTN-FAKE-2026-07-29-001"
+      senderNumber: "233501234567"
+      senderName: "Fake Sender"
+      amountReceived: "5000.00"
+      fee: "0.00"
+      netAmount: "5000.00"
+      timestamp: "2026-07-29T09:00:00Z"
+      reference: "INV-340"
+      smsConfirmationProvided: true
+      smsValidationResult: "invalid_signature"
+      railApiVerificationResult: "transaction_not_found"
+    expected_output:
+      status: "rejected_fraud"
+      reason: "FORGED_TRANSACTION"
+      verificationMethod: "rail_api_check"
+      action: "block_and_escalate_compliance"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: escalate
+    expected_escalation_target: compliance-agent
+    source: synthetic
+    notes: "SMS confirmation provided but rail API confirms transaction never existed -- forged SMS. Escalate to compliance."
+
+  - id: mm-020
+    category: adversarial
+    description: "Entity mismatch -- mobile money account belongs to different entity"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Wave"
+      transactionId: "WAVE-2026-07-30-001"
+      senderNumber: "233509876543"
+      merchantAccountId: "WAVE-MERCHANT-OTHER-ENTITY"
+      amountReceived: "1200.00"
+      fee: "24.00"
+      netAmount: "1176.00"
+      timestamp: "2026-07-30T14:00:00Z"
+      reference: "INV-345"
+    expected_output:
+      status: "rejected"
+      reason_code: "ENTITY_MISMATCH"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Wave merchant account belongs to another entity -- security-critical block"
+
+  - id: mm-021
+    category: adversarial
+    description: "Inconsistent fee structure -- fee deducted twice for same transaction"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Airtel_Money"
+      transactionId: "AIR-2026-07-31-001"
+      senderNumber: "233241112233"
+      amountPaid: "1000.00"
+      amountReceived: "970.00"
+      fee: "15.00"
+      secondaryFee: "15.00"
+      totalFee: "30.00"
+      expectedFee: "15.00"
+      timestamp: "2026-07-31T11:00:00Z"
+      reference: "INV-350"
+    expected_output:
+      status: "flagged_double_fee"
+      amountPaid: "1000.00"
+      amountReceived: "970.00"
+      totalFeeDeducted: "30.00"
+      expectedFee: "15.00"
+      feeVariance: "15.00"
+      action: "dispute_with_rail_provider"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Airtel Money deducted 15 GHS fee twice -- 30 GHS total instead of 15 GHS. Merchant received 970 instead of 985."
+
+  - id: mm-022
+    category: adversarial
+    description: "Mobile money credit that doesn't match any customer or invoice"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Orange_Money"
+      transactionId: "OM-UNKNOWN-2026-07-31-001"
+      senderNumber: "2250700123456"
+      senderName: "Unknown Sender"
+      amountReceived: "5000.00"
+      fee: "0.00"
+      netAmount: "5000.00"
+      timestamp: "2026-07-31T16:30:00Z"
+      reference: ""
+      invoiceRef: null
+      customerCheckResult: "no_matching_customer"
+      invoiceCheckResult: "no_matching_invoice"
+    expected_output:
+      status: "unattributed_credit"
+      amount: "5000.00"
+      action: "hold_in_suspense_pending_identification"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "5000 GHS received from unknown sender with no reference -- cannot match to any customer or invoice. Place in suspense account."
+
+  - id: mm-023
+    category: adversarial
+    description: "Statement shows settlement but no corresponding mobile money transactions"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "MTN_MoMo"
+      bankStatementSettlement:
+        date: "2026-07-28"
+        amount: "2800.00"
+        description: "MTN MoMo settlement batch"
+        reference: "MTN-SETTLE-0728"
+      mobileMoneyTransactions: []
+    expected_output:
+      status: "flagged_unexplained_settlement"
+      settlementAmount: "2800.00"
+      transactionCountInSettlement: 0
+      action: "request_settlement_breakdown_from_rail"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Bank received 2800 GHS settlement from MTN MoMo but no corresponding transactions exist in the mobile money records. Could be a delayed settlement or error."
+
+  # -- AMBIGUOUS (5 cases) --
+  - id: mm-024
+    category: ambiguous
+    description: "Timing difference or lost transaction -- Wave payment not settled after 5 days"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Wave"
+      transactionId: "WAVE-2026-07-20-AMBIG"
+      transactionDate: "2026-07-20"
+      amountPaid: "250.00"
+      amountReceived: "245.00"
+      fee: "5.00"
+      netAmount: "245.00"
+      daysSinceTransaction: 5
+      expectedSettlementWindowDays: 1
+      settlementStatus: "pending"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Wave typically settles T+0 to T+1. After 5 days, this is borderline between 'delayed settlement' (acceptable timing difference) and 'lost transaction' (real discrepancy). Controller judgment needed."
+
+  - id: mm-025
+    category: ambiguous
+    description: "Partial invoice match -- amount received is less than invoice, could be fee or partial payment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "MTN_MoMo"
+      transactionId: "MTN-2026-07-22-AMBIG"
+      senderNumber: "233504567890"
+      senderName: "Yaw Osei"
+      amountReceived: "470.00"
+      fee: "0.00"
+      netAmount: "470.00"
+      timestamp: "2026-07-22T13:00:00Z"
+      reference: "INV-360"
+      invoiceRef: "INV-360"
+      invoiceAmount: "500.00"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Invoice is 500 GHS but only 470 GHS received. MTN MoMo doesn't charge merchant fees on receive. Is this a partial payment, or is the customer paying a discounted amount? Controller needs to decide."
+
+  - id: mm-026
+    category: ambiguous
+    description: "Cross-border mobile money -- FX rate ambiguous, which rate to use?"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "M-Pesa"
+      transactionId: "MP-CROSS-2026-07-25-001"
+      sendingCountry: "Kenya"
+      receivingCountry: "Ghana"
+      senderNumber: "254734567890"
+      amountSent: "5000.00"
+      sendingCurrency: "KES"
+      amountReceived: "165.00"
+      receivingCurrency: "GHS"
+      timestamp: "2026-07-25T08:00:00Z"
+      reference: "INV-365"
+      invoiceAmount: "1450.00"
+      invoiceCurrency: "GHS"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.65]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "5000 KES received as 165 GHS. Rate is approximately 30.3 KES/GHS. But the invoice is for 1450 GHS. Is this a partial payment? Which rate should be used? Needs judgment."
+
+  - id: mm-027
+    category: ambiguous
+    description: "Multiple mobile money payments from same sender -- single invoice or multiple?"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "Airtel_Money"
+      senderNumber: "233249876543"
+      senderName: "Esi Amankwah"
+      payments:
+        - transactionId: "AIR-2026-07-26-001"
+          amount: "200.00"
+          timestamp: "2026-07-26T09:00:00Z"
+          reference: "INV-370"
+        - transactionId: "AIR-2026-07-27-001"
+          amount: "300.00"
+          timestamp: "2026-07-27T10:00:00Z"
+          reference: "INV-370"
+      invoiceAmount: "500.00"
+      invoiceRef: "INV-370"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Two payments of 200 and 300 GHS from same sender, same invoice reference, totaling exactly 500 GHS. Could be intentional split payment or duplicate reference error. Controller judgment needed."
+
+  - id: mm-028
+    category: ambiguous
+    description: "Fee deducted on wrong rail -- MTN MoMo shows fee but should be zero"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      rail: "MTN_MoMo"
+      transactionId: "MTN-2026-07-28-FEE-AMBIG"
+      senderNumber: "233501234567"
+      amountPaid: "1000.00"
+      amountReceived: "970.00"
+      fee: "30.00"
+      expectedFee: "0.00"
+      policyFeeRate: "0.00"
+      timestamp: "2026-07-28T15:00:00Z"
+      reference: "INV-375"
+      invoiceAmount: "1000.00"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "MTN MoMo typically charges no merchant receipt fee (fee is on sender). A 30 GHS fee appearing on a MTN MoMo transaction is unusual. Could be a new fee structure, a processing error, or mislabeled rail. Needs controller investigation."

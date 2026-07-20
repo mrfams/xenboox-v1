@@ -1,0 +1,1372 @@
+agent: ledger-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (20 cases) ────────────────────────────────────────────────
+  - id: ledger-001
+    category: happy_path
+    description: "Standard cash sale, single currency, complete data"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "1000.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "1000.00"
+      description: "Cash sale — invoice INV-001"
+      reference: "INV-001"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-002
+    category: happy_path
+    description: "Supplier invoice payable, standard 30-day terms"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5000"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "2000"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Office supplies — SUP-2026-07"
+      reference: "SUP-2026-07"
+      date: "2026-07-10"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-003
+    category: happy_path
+    description: "Bank deposit recorded, two accounts impacted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1010"
+          debit: "5000.00"
+          credit: "0.00"
+        - accountCode: "4100"
+          debit: "0.00"
+          credit: "5000.00"
+      description: "Bank deposit — service revenue"
+      reference: "BNK-DEP-2026-07-12"
+      date: "2026-07-12"
+      periodId: "period-2026-07"
+      sourceAgent: "cash-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-004
+    category: happy_path
+    description: "Expense reimbursement, employee travel"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5200"
+          debit: "250.00"
+          credit: "0.00"
+        - accountCode: "1000"
+          debit: "0.00"
+          credit: "250.00"
+      description: "Travel reimbursement — EMP-001 July trip"
+      reference: "EXP-REIMB-2026-07"
+      date: "2026-07-18"
+      periodId: "period-2026-07"
+      sourceAgent: "cash-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-005
+    category: happy_path
+    description: "Mobile money collection, Wave rail"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1020"
+          debit: "350.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "350.00"
+      description: "Wave mobile money collection — customer payment"
+      reference: "WAVE-2026-07-15-001"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "mobile-money-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-006
+    category: happy_path
+    description: "Supplier payment, electronic transfer"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "2000"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "1010"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Payment — SUP-2026-07 to ABC Suppliers Ltd"
+      reference: "PMT-SUP-2026-07"
+      date: "2026-07-20"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-007
+    category: happy_path
+    description: "Imprest issuance, petty cash float"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1030"
+          debit: "200.00"
+          credit: "0.00"
+        - accountCode: "1000"
+          debit: "0.00"
+          credit: "200.00"
+      description: "Imprest issuance — John Doe, field operations"
+      reference: "IMPR-2026-07-001"
+      date: "2026-07-08"
+      periodId: "period-2026-07"
+      sourceAgent: "cash-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-008
+    category: happy_path
+    description: "Depreciation entry, straight-line method"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5600"
+          debit: "150.00"
+          credit: "0.00"
+        - accountCode: "1102"
+          debit: "0.00"
+          credit: "150.00"
+      description: "Monthly depreciation — IT equipment"
+      reference: "DEP-2026-07"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "asset-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-009
+    category: happy_path
+    description: "Payroll accrual entry"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5100"
+          debit: "12000.00"
+          credit: "0.00"
+        - accountCode: "2100"
+          debit: "0.00"
+          credit: "12000.00"
+      description: "July payroll accrual"
+      reference: "PAYROLL-2026-07"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "payroll-worker-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-010
+    category: happy_path
+    description: "Inventory receipt into warehouse"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1200"
+          debit: "3000.00"
+          credit: "0.00"
+        - accountCode: "2000"
+          debit: "0.00"
+          credit: "3000.00"
+      description: "Inventory receipt — PO-2026-07-001"
+      reference: "INV-REC-2026-07"
+      date: "2026-07-05"
+      periodId: "period-2026-07"
+      sourceAgent: "inventory-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-011
+    category: happy_path
+    description: "Customer invoice, credit sale"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1300"
+          debit: "750.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "750.00"
+      description: "Invoice INV-2026-07-002 — credit sale"
+      reference: "INV-2026-07-002"
+      date: "2026-07-16"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-012
+    category: happy_path
+    description: "Multi-line entry, three accounts"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5000"
+          debit: "400.00"
+          credit: "0.00"
+        - accountCode: "5200"
+          debit: "100.00"
+          credit: "0.00"
+        - accountCode: "2000"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Mixed expense invoice — office supplies and travel"
+      reference: "SUP-2026-07-002"
+      date: "2026-07-22"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-013
+    category: happy_path
+    description: "Correction entry for a prior posting"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "4000"
+          debit: "100.00"
+          credit: "0.00"
+        - accountCode: "5000"
+          debit: "0.00"
+          credit: "100.00"
+      description: "Correction: reclassify miscategorized sale as expense"
+      reference: "CORR-INV-001"
+      date: "2026-07-25"
+      periodId: "period-2026-07"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+      correctionOfEntryId: "entry-001-original"
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-014
+    category: happy_path
+    description: "FX gain on bank account revaluation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1010"
+          debit: "50.00"
+          credit: "0.00"
+        - accountCode: "4400"
+          debit: "0.00"
+          credit: "50.00"
+      description: "FX gain — USD bank account July revaluation"
+      reference: "FX-2026-07"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "treasury-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-015
+    category: happy_path
+    description: "Prepaid expense amortization"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5300"
+          debit: "200.00"
+          credit: "0.00"
+        - accountCode: "1400"
+          debit: "0.00"
+          credit: "200.00"
+      description: "Monthly amortization — insurance prepaid"
+      reference: "AMORT-2026-07"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-016
+    category: happy_path
+    description: "Debt service payment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "2200"
+          debit: "1000.00"
+          credit: "0.00"
+        - accountCode: "1010"
+          debit: "0.00"
+          credit: "1000.00"
+      description: "Loan repayment — July installment"
+      reference: "LOAN-2026-07"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "treasury-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-017
+    category: happy_path
+    description: "Deferred revenue recognition"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "2300"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Revenue recognition — monthly SaaS contract"
+      reference: "REV-REC-2026-07"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-018
+    category: happy_path
+    description: "Asset disposal, book value write-off"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1102"
+          debit: "0.00"
+          credit: "3000.00"
+        - accountCode: "5600"
+          debit: "3000.00"
+          credit: "0.00"
+      description: "Disposal of fully-depreciated server equipment"
+      reference: "DISP-2026-07"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "asset-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-019
+    category: happy_path
+    description: "Tax payment entry"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "2400"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "1010"
+          debit: "0.00"
+          credit: "500.00"
+      description: "VAT payment to GRA — June filing"
+      reference: "TAX-VAT-2026-06"
+      date: "2026-07-20"
+      periodId: "period-2026-07"
+      sourceAgent: "compliance-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-020
+    category: happy_path
+    description: "Inter-account transfer within the entity"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1020"
+          debit: "1000.00"
+          credit: "0.00"
+        - accountCode: "1010"
+          debit: "0.00"
+          credit: "1000.00"
+      description: "Transfer from checking to mobile money wallet"
+      reference: "TRF-2026-07-20"
+      date: "2026-07-20"
+      periodId: "period-2026-07"
+      sourceAgent: "treasury-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (15 cases) ────────────────────────────────────────────────
+  - id: ledger-021
+    category: edge_case
+    description: "Zero-value line item with offsetting non-zero lines"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "1000.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "1000.00"
+        - accountCode: "9999"
+          debit: "0.00"
+          credit: "0.00"
+      description: "Entry with a zero-value third line"
+      reference: "ZERO-LINE-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "MALFORMED_LINE"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Zero-amount lines should be rejected"
+
+  - id: ledger-022
+    category: edge_case
+    description: "Very large entry, near-float precision limit"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "99999999.99"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "99999999.99"
+      description: "Large value entry testing decimal precision"
+      reference: "LARGE-VALUE-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-023
+    category: edge_case
+    description: "Multi-currency entry with exchange rate"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1010"
+          debit: "12500.00"
+          credit: "0.00"
+          currency: "GHS"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "12500.00"
+          currency: "GHS"
+      description: "USD-denominated deposit converted to GHS"
+      reference: "FX-CONV-2026-07"
+      date: "2026-07-18"
+      periodId: "period-2026-07"
+      sourceAgent: "treasury-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Multi-currency handling"
+
+  - id: ledger-024
+    category: edge_case
+    description: "Single-line entry posted as a memo (should be rejected)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "500.00"
+          credit: "0.00"
+      description: "Single-line memo entry"
+      reference: "SINGLE-LINE-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "MALFORMED_LINE"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Must have at least 2 lines for double-entry"
+
+  - id: ledger-025
+    category: edge_case
+    description: "Leap year date edge case — Feb 29"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "100.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "100.00"
+      description: "Transaction on leap day"
+      reference: "LEAP-DAY-TEST"
+      date: "2024-02-29"
+      periodId: "period-2024-02"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-026
+    category: edge_case
+    description: "End of fiscal year entry"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "3200"
+          debit: "50000.00"
+          credit: "0.00"
+        - accountCode: "3100"
+          debit: "0.00"
+          credit: "50000.00"
+      description: "Year-end closing entry — P&L transfer to retained earnings"
+      reference: "YE-CLOSE-2025"
+      date: "2025-12-31"
+      periodId: "period-2025-12"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ledger-027
+    category: edge_case
+    description: "Opening balance entry for new entity"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000002"
+      entries:
+        - accountCode: "1000"
+          debit: "10000.00"
+          credit: "0.00"
+        - accountCode: "1010"
+          debit: "5000.00"
+          credit: "0.00"
+        - accountCode: "3200"
+          debit: "0.00"
+          credit: "15000.00"
+      description: "Opening balances — New Entity"
+      reference: "OPENING-BAL-NEWCO"
+      date: "2026-01-01"
+      periodId: "period-2026-01"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "First posting for a new entity — should flag as first-of-kind"
+
+  - id: ledger-028
+    category: edge_case
+    description: "Backdated correction to a prior closed period"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5000"
+          debit: "50.00"
+          credit: "0.00"
+        - accountCode: "3200"
+          debit: "0.00"
+          credit: "50.00"
+      description: "Prior period adjustment — underaccrued expense in June"
+      reference: "PPA-2026-06"
+      date: "2026-06-15"
+      periodId: "period-2026-06"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "INACTIVE_ACCOUNT"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Period closed — entry should be rejected or handled via prior period adjustment logic"
+
+  - id: ledger-029
+    category: edge_case
+    description: "Nine-line complex entry with multiple accounts"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5000"
+          debit: "1500.00"
+          credit: "0.00"
+        - accountCode: "5200"
+          debit: "800.00"
+          credit: "0.00"
+        - accountCode: "5300"
+          debit: "200.00"
+          credit: "0.00"
+        - accountCode: "5100"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "2000"
+          debit: "0.00"
+          credit: "3000.00"
+      description: "Multi-department expense allocation"
+      reference: "ALLOC-2026-07"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Complex allocations should be flagged for controller review"
+
+  - id: ledger-030
+    category: edge_case
+    description: "Round-tripping entry involving same account"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "100.00"
+          credit: "0.00"
+        - accountCode: "1000"
+          debit: "0.00"
+          credit: "100.00"
+      description: "Internal transfer — same account"
+      reference: "SAME-ACCT-TRF"
+      date: "2026-07-20"
+      periodId: "period-2026-07"
+      sourceAgent: "treasury-agent"
+      approvedByController: true
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Same-account entries balance but are suspicious — flag for review"
+
+  - id: ledger-031
+    category: edge_case
+    description: "Partial penny rounding difference within tolerance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "100.01"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "100.00"
+      description: "Rounding difference — 1 cent"
+      reference: "ROUNDING-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "UNBALANCED"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Even 1 cent imbalance must be rejected"
+
+  # ── ADVERSARIAL (10 cases) ───────────────────────────────────────────────
+  - id: ledger-032
+    category: adversarial
+    description: "Completely unbalanced entry (debits != credits)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "1000.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "999.00"
+      description: "Unbalanced entry — off by 1"
+      reference: "UNBAL-TEST-001"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "UNBALANCED"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ledger-033
+    category: adversarial
+    description: "Reference to non-existent account code"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "99999"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "1000"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Entry referencing fake account"
+      reference: "BAD-ACCT-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_ACCOUNT"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ledger-034
+    category: adversarial
+    description: "Line with both debit and credit set"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "100.00"
+          credit: "50.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "50.00"
+      description: "Line has both debit and credit values"
+      reference: "MIXED-LINE-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "MALFORMED_LINE"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ledger-035
+    category: adversarial
+    description: "Duplicate reference submission attempted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "1000.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "1000.00"
+      description: "Duplicate — same reference as ledger-001"
+      reference: "INV-001"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "DUPLICATE_KEY_CONFLICT"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Duplicate detection via idempotency key"
+
+  - id: ledger-036
+    category: adversarial
+    description: "Entity_id mismatch between request and account scope"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Cross-entity posting attempt"
+      reference: "CROSS-ENTITY-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "ENTITY_MISMATCH"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Security-critical — logged as security event"
+
+  - id: ledger-037
+    category: adversarial
+    description: "Missing required fields in request"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "500.00"
+          credit: "0.00"
+      description: ""
+      reference: ""
+      date: ""
+      periodId: ""
+      sourceAgent: "ap-agent"
+      approvedByController: false
+    expected_output:
+      status: "rejected"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ledger-038
+    category: adversarial
+    description: "Negative amounts in entry lines"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "-500.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Entry with negative debit amount"
+      reference: "NEG-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "MALFORMED_LINE"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ledger-039
+    category: adversarial
+    description: "Inactive account referenced"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1999"
+          debit: "100.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "100.00"
+      description: "Entry referencing deactivated account"
+      reference: "INACTIVE-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "INACTIVE_ACCOUNT"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ledger-040
+    category: adversarial
+    description: "Entry without controller approval flag"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "5000.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "5000.00"
+      description: "Large entry lacking controller approval"
+      reference: "NO-APPROVAL-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: false
+    expected_output:
+      status: "rejected"
+      reason_code: "MALFORMED_LINE"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ledger-041
+    category: adversarial
+    description: "Non-numeric amount string passed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "abc"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "abc"
+      description: "Alphabetic amount where numeric expected"
+      reference: "TYPE-ERROR-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output:
+      status: "rejected"
+      reason_code: "MALFORMED_LINE"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  # ── AMBIGUOUS (10 cases) ─────────────────────────────────────────────────
+  - id: ledger-042
+    category: ambiguous
+    description: "Expense categorization ambiguous — office supplies vs IT"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5000"
+          debit: "300.00"
+          credit: "0.00"
+        - accountCode: "5400"
+          debit: "0.00"
+          credit: "300.00"
+      description: "Computer monitor purchase — office supplies or IT equipment?"
+      reference: "AMB-ACCT-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Account code is valid but category is ambiguous — should flag for controller review"
+
+  - id: ledger-043
+    category: ambiguous
+    description: "First-of-kind posting pattern for this entity"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000003"
+      entries:
+        - accountCode: "1500"
+          debit: "5000.00"
+          credit: "0.00"
+        - accountCode: "2000"
+          debit: "0.00"
+          credit: "5000.00"
+      description: "First-ever fixed asset purchase for this entity"
+      reference: "FIRST-FA-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "asset-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "No precedent — should flag for review despite being technically valid"
+
+  - id: ledger-044
+    category: ambiguous
+    description: "Revenue account selection ambiguous — service vs product"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "4000"
+          debit: "2000.00"
+          credit: "0.00"
+        - accountCode: "4100"
+          debit: "0.00"
+          credit: "2000.00"
+      description: "Mixed service + product bundle revenue"
+      reference: "BUNDLE-REV-TEST"
+      date: "2026-07-18"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Bundle revenue split ambiguous — human judgment required"
+
+  - id: ledger-045
+    category: ambiguous
+    description: "Correction entry that could offset multiple prior entries"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5000"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Correction entry lacking specific correction_of_entry_id"
+      reference: "CORR-AMB-TEST"
+      date: "2026-07-25"
+      periodId: "period-2026-07"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Correction without clear target should be flagged"
+
+  - id: ledger-046
+    category: ambiguous
+    description: "Deferred revenue recognition timing ambiguous"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "2300"
+          debit: "1200.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "1200.00"
+      description: "Annual subscription revenue recognition — timing uncertain"
+      reference: "DEF-REV-TEST"
+      date: "2026-07-15"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Revenue recognition timing needs judgment"
+
+  - id: ledger-047
+    category: ambiguous
+    description: "Partial payment against a disputed invoice"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "2000"
+          debit: "250.00"
+          credit: "0.00"
+        - accountCode: "1010"
+          debit: "0.00"
+          credit: "250.00"
+      description: "Partial payment of disputed invoice INV-2026-06-001"
+      reference: "PARTIAL-DISP-TEST"
+      date: "2026-07-20"
+      periodId: "period-2026-07"
+      sourceAgent: "ap-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Disputed invoice partial payment — needs human review"
+
+  - id: ledger-048
+    category: ambiguous
+    description: "Prepaid expense allocation period ambiguous"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5300"
+          debit: "600.00"
+          credit: "0.00"
+        - accountCode: "1400"
+          debit: "0.00"
+          credit: "600.00"
+      description: "Insurance prepaid — allocation period not specified"
+      reference: "PREPAID-AMB-TEST"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Allocation period not specified — needs controller judgment"
+
+  - id: ledger-049
+    category: ambiguous
+    description: "Donor payment without clear project attribution"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1010"
+          debit: "10000.00"
+          credit: "0.00"
+        - accountCode: "4000"
+          debit: "0.00"
+          credit: "10000.00"
+      description: "Donor payment received — project attribution unclear"
+      reference: "DONOR-AMB-TEST"
+      date: "2026-07-22"
+      periodId: "period-2026-07"
+      sourceAgent: "ar-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Donor funds without project attribution"
+
+  - id: ledger-050
+    category: ambiguous
+    description: "Inter-company transfer without elimination designation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "1000"
+          debit: "5000.00"
+          credit: "0.00"
+        - accountCode: "2000"
+          debit: "0.00"
+          credit: "5000.00"
+      description: "Inter-company funding transfer"
+      reference: "IC-TRF-TEST"
+      date: "2026-07-20"
+      periodId: "period-2026-07"
+      sourceAgent: "treasury-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Needs elimination flag for consolidation"
+
+  - id: ledger-051
+    category: ambiguous
+    description: "Expense allocation across multiple cost centers"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5000"
+          debit: "1000.00"
+          credit: "0.00"
+        - accountCode: "5200"
+          debit: "0.00"
+          credit: "1000.00"
+      description: "Shared service cost allocation — cost center split unclear"
+      reference: "CC-ALLOC-TEST"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Cost center allocation requires accounting judgment"
+
+  - id: ledger-052
+    category: ambiguous
+    description: "Bad debt provision estimate — uncertain recoverability"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      entries:
+        - accountCode: "5600"
+          debit: "500.00"
+          credit: "0.00"
+        - accountCode: "1100"
+          debit: "0.00"
+          credit: "500.00"
+      description: "Provision for doubtful debt — AR aging 90+ days"
+      reference: "BADDEBT-PROV-TEST"
+      date: "2026-07-31"
+      periodId: "period-2026-07"
+      sourceAgent: "controller-agent"
+      approvedByController: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Provision estimates require judgment — flag for controller"

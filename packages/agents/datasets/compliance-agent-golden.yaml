@@ -1,0 +1,867 @@
+agent: compliance-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ─────────────────────────────────────────────────
+  - id: compliance-001
+    category: happy_path
+    description: "Clean VAT filing ready for submission"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT
+        jurisdiction: GH
+        period: "2026-06"
+        outputVat: "15000.00"
+        inputVat: "8500.00"
+        netVatDue: "6500.00"
+        salesSummary:
+          standardRated: "100000.00"
+          zeroRated: "20000.00"
+          exempt: "5000.00"
+        supportingDocuments:
+          - salesLedger
+          - purchaseLedger
+          - vatAccountSummary
+        reconciliationStatus: balanced
+    expected_output:
+      status: "ready_for_submission"
+      filing_accuracy: 1.0
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-002
+    category: happy_path
+    description: "PAYE filing with correct deductions"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: PAYE
+        jurisdiction: GH
+        period: "2026-06"
+        totalGrossPay: "85000.00"
+        totalPayeDeducted: "12750.00"
+        totalSsnitDeducted: "11730.00"
+        employeeCount: 15
+        reconciliation:
+          expectedPaye: "12750.00"
+          expectedSsnit: "11730.00"
+          variance: "0.00"
+        submissionDeadline: "2026-07-15"
+    expected_output:
+      status: "ready_for_submission"
+      paye_accuracy: 1.0
+      ssnit_accuracy: 1.0
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-003
+    category: happy_path
+    description: "Corporate income tax filing with accurate estimates"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: CORPORATE_TAX
+        jurisdiction: GH
+        fiscalYear: "2025"
+        grossRevenue: "1200000.00"
+        allowableExpenses: "850000.00"
+        taxableIncome: "350000.00"
+        taxRate: 0.25
+        taxDue: "87500.00"
+        instalmentsPaid: "80000.00"
+        balanceDue: "7500.00"
+        priorYearLossOffset: "0.00"
+    expected_output:
+      status: "ready_for_submission"
+      tax_accuracy: 1.0
+      estimated_vs_actual_variance: "0.00"
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-004
+    category: happy_path
+    description: "Withholding tax returns complete and reconciled"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: WITHHOLDING_TAX
+        jurisdiction: GH
+        period: "2026-06"
+        grossPayments: "500000.00"
+        wtRate: 0.075
+        wtDeducted: "37500.00"
+        wtPaidToAuthority: "37500.00"
+        counterparties: 22
+        remittanceDeadline: "2026-07-15"
+    expected_output:
+      status: "ready_for_submission"
+      reconciliation_status: balanced
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-005
+    category: happy_path
+    description: "Annual regulatory compliance filing complete"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: ANNUAL_RETURN
+        jurisdiction: GH
+        registry: RGD
+        period: "2025"
+        financialStatementsAttached: true
+        auditorReportAttached: true
+        directorsReportAttached: true
+        annualReturnFee: "500.00"
+        filingDeadline: "2026-06-30"
+        status: complete
+    expected_output:
+      status: "ready_for_submission"
+      completeness_score: 1.0
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-006
+    category: happy_path
+    description: "SSNIT contribution filing reconciled"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: SSNIT
+        jurisdiction: GH
+        period: "2026-06"
+        employeeContribution: "5865.00"
+        employerContribution: "11730.00"
+        totalDue: "17595.00"
+        amountPaid: "17595.00"
+        employeeCount: 15
+        scheduleAttached: true
+    expected_output:
+      status: "ready_for_submission"
+      reconciliation_status: balanced
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-007
+    category: happy_path
+    description: "VAT refund claim with complete documentation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT_REFUND
+        jurisdiction: GH
+        period: "2026-06"
+        claimAmount: "2500.00"
+        inputVatCarriedForward: "8500.00"
+        outputVatOffset: "6000.00"
+        netClaim: "2500.00"
+        supportingDocs:
+          - vatReturnsLast6Months
+          - purchaseInvoices
+          - customsDocuments
+    expected_output:
+      status: "ready_for_submission"
+      claim_validity: 1.0
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-008
+    category: happy_path
+    description: "Property rental income tax filing"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: RENTAL_INCOME_TAX
+        jurisdiction: GH
+        period: "2025"
+        grossRentalIncome: "72000.00"
+        allowableExpenses: "18000.00"
+        netRentalIncome: "54000.00"
+        taxRate: 0.08
+        taxDue: "4320.00"
+        taxPaid: "4320.00"
+    expected_output:
+      status: "ready_for_submission"
+      tax_accuracy: 1.0
+      recommendations: []
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-009
+    category: happy_path
+    description: "Cross-jurisdiction filing requirements assessed — Ghana GRA"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: COMPLIANCE_CHECK
+        jurisdictions:
+          - code: GH
+            authority: GRA
+            filingsRequired:
+              - VAT
+              - PAYE
+              - CORPORATE_TAX
+              - SSNIT
+            deadlines:
+              VAT: "2026-07-20"
+              PAYE: "2026-07-15"
+              CORPORATE_TAX: "2026-09-30"
+              SSNIT: "2026-07-15"
+            filingStatus:
+              VAT: complete
+              PAYE: complete
+              CORPORATE_TAX: pending
+              SSNIT: complete
+    expected_output:
+      status: "compliant"
+      missing_filings:
+        - type: CORPORATE_TAX
+          deadline: "2026-09-30"
+          days_remaining: 72
+      recommendations:
+        - "CORPORATE_TAX filing deadline is 2026-09-30 — 72 days remaining"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: compliance-010
+    category: happy_path
+    description: "Tax authority audit notification handled correctly"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      notification:
+        type: AUDIT_NOTIFICATION
+        authority: GRA
+        reference: "GRA-AUDIT-2026-071"
+        issueDate: "2026-07-10"
+        auditPeriod: "2024-01-01 to 2024-12-31"
+        auditScope:
+          - CORPORATE_TAX
+          - VAT
+          - PAYE
+        responseDeadline: "2026-08-10"
+        assignedOfficer: "Officer Mensah"
+        documentsRequested:
+          - auditedFinancialStatements
+          - taxReturns
+          - bankStatements
+          - salesInvoices
+    expected_output:
+      status: "acknowledged"
+      action_plan:
+        - action: "Assign audit coordinator"
+          deadline: "2026-07-11"
+        - action: "Compile requested documents"
+          deadline: "2026-08-01"
+        - action: "Prepare response letter"
+          deadline: "2026-08-05"
+      escalation_level: normal
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Audit notifications should be flagged for review and tracked to deadline"
+
+  # ── EDGE CASES (8 cases) ──────────────────────────────────────────────────
+  - id: compliance-011
+    category: edge_case
+    description: "VAT calculation discrepancy detected — output VAT understated"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT
+        jurisdiction: GH
+        period: "2026-06"
+        outputVat: "13500.00"
+        inputVat: "8500.00"
+        netVatDue: "5000.00"
+        salesSummary:
+          standardRated: "100000.00"
+          zeroRated: "20000.00"
+          exempt: "5000.00"
+        reconciliationStatus: unbalanced
+        discrepancy:
+          expectedOutputVat: "15000.00"
+          declaredOutputVat: "13500.00"
+          variance: "-1500.00"
+          variancePercent: -10.0
+    expected_output:
+      status: "flagged"
+      discrepancy_found: true
+      reason_code: "VAT_CALCULATION_MISMATCH"
+      details:
+        - "Output VAT declared 13500.00 but expected 15000.00 based on sales summary"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "10% variance in output VAT — must be investigated before filing"
+
+  - id: compliance-012
+    category: edge_case
+    description: "Missing tax filing deadline approaching — urgent flag"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      alert:
+        type: DEADLINE_APPROACHING
+        filingType: VAT
+        jurisdiction: GH
+        dueDate: "2026-07-20"
+        currentDate: "2026-07-19"
+        daysRemaining: 1
+        filingStatus: not_started
+        lastFiledDate: "2026-06-20"
+        estimatedPenalty: "500.00"
+        estimatedInterest: "50.00"
+    expected_output:
+      status: "critical"
+      days_remaining: 1
+      urgency: critical
+      recommended_action: "File immediately — penalty of 500 GHS and interest apply after deadline"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "One day before deadline — highest urgency escalation"
+
+  - id: compliance-013
+    category: edge_case
+    description: "Corporate tax estimate vs actual variance — significant underpayment"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: CORPORATE_TAX
+        jurisdiction: GH
+        fiscalYear: "2025"
+        estimatedTax: "60000.00"
+        actualTaxDue: "87500.00"
+        instalmentsPaid: "55000.00"
+        variance: "27500.00"
+        variancePercent: 45.8
+        underpaymentPenaltyApplicable: true
+        estimatedPenalty: "2750.00"
+    expected_output:
+      status: "flagged"
+      variance_detected: true
+      reason_code: "SIGNIFICANT_ESTIMATE_VARIANCE"
+      details:
+        - "Actual tax 87500 exceeds estimate 60000 by 45.8%"
+        - "Underpayment penalty of 2750.00 may apply"
+      recommendations:
+        - "File amended estimate for remaining quarters"
+        - "Engage tax advisor to review estimation methodology"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: compliance-014
+    category: edge_case
+    description: "Zero-rated VAT filing — no output VAT for the period"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT
+        jurisdiction: GH
+        period: "2026-06"
+        outputVat: "0.00"
+        inputVat: "3200.00"
+        netVatDue: "-3200.00"
+        salesSummary:
+          standardRated: "0.00"
+          zeroRated: "80000.00"
+          exempt: "10000.00"
+        reconciliationStatus: balanced
+        reasonNoOutput: "All sales zero-rated (export)"
+    expected_output:
+      status: "ready_for_submission"
+      refund_position: true
+      refund_amount: "3200.00"
+      recommendations:
+        - "VAT refund claim of 3200.00 should be filed"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Zero-rated exporter — refund position triggers additional review"
+
+  - id: compliance-015
+    category: edge_case
+    description: "Late filing penalty calculation for overdue PAYE return"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: PAYE
+        jurisdiction: GH
+        period: "2026-05"
+        dueDate: "2026-06-15"
+        filingDate: "2026-07-05"
+        daysLate: 20
+        taxDue: "12750.00"
+        penaltyRate: 0.015
+        penaltyAmount: "382.50"
+        interestRate: 0.025
+        interestAmount: "637.50"
+        totalPenaltyAndInterest: "1020.00"
+    expected_output:
+      status: "filed_late"
+      penalty_assessed: true
+      penalty_amount: "382.50"
+      interest_amount: "637.50"
+      total_penalty: "1020.00"
+      recommendations:
+        - "Pay total penalty of 1020.00 before next filing"
+        - "Review filing calendar to prevent recurrence"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: compliance-016
+    category: edge_case
+    description: "Cross-jurisdiction filing — Nigeria FIRS requirements"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000002"
+      filing:
+        type: COMPLIANCE_CHECK
+        jurisdictions:
+          - code: NG
+            authority: FIRS
+            filingsRequired:
+              - VAT
+              - PAYE
+              - CORPORATE_TAX
+              - TERTIARY_EDUCATION_TAX
+              - NASENI_TAX
+              - ITF_LEVY
+            deadlines:
+              VAT: "2026-07-21"
+              PAYE: "2026-07-10"
+              CORPORATE_TAX: "2026-09-30"
+              TERTIARY_EDUCATION_TAX: "2026-09-30"
+              NASENI_TAX: "2026-09-30"
+              ITF_LEVY: "2026-09-30"
+            filingStatus:
+              VAT: complete
+              PAYE: overdue
+              CORPORATE_TAX: pending
+              TERTIARY_EDUCATION_TAX: pending
+              NASENI_TAX: pending
+              ITF_LEVY: pending
+    expected_output:
+      status: "non_compliant"
+      overdue_filings:
+        - type: PAYE
+          deadline: "2026-07-10"
+          days_overdue: 10
+      pending_filings:
+        - type: CORPORATE_TAX
+          deadline: "2026-09-30"
+        - type: TERTIARY_EDUCATION_TAX
+          deadline: "2026-09-30"
+        - type: NASENI_TAX
+          deadline: "2026-09-30"
+        - type: ITF_LEVY
+          deadline: "2026-09-30"
+      recommendations:
+        - "File overdue PAYE immediately — penalties accruing"
+        - "Prepare consolidated corporate tax package including education tax, NASENI, and ITF"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Nigeria has 6 distinct tax obligations — more complex than Ghana"
+
+  - id: compliance-017
+    category: edge_case
+    description: "Cross-jurisdiction filing — Kenya KRA requirements"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000003"
+      filing:
+        type: COMPLIANCE_CHECK
+        jurisdictions:
+          - code: KE
+            authority: KRA
+            filingsRequired:
+              - VAT
+              - PAYE
+              - CORPORATE_TAX
+              - WITHHOLDING_TAX
+              - NSSF
+              - NHIF
+              - HOUSING_LEVY
+              - SHIF
+            deadlines:
+              VAT: "2026-07-20"
+              PAYE: "2026-07-09"
+              CORPORATE_TAX: "2026-09-30"
+              WITHHOLDING_TAX: "2026-07-20"
+              NSSF: "2026-07-09"
+              NHIF: "2026-07-09"
+              HOUSING_LEVY: "2026-07-09"
+              SHIF: "2026-07-09"
+            filingStatus:
+              VAT: complete
+              PAYE: complete
+              CORPORATE_TAX: pending
+              WITHHOLDING_TAX: complete
+              NSSF: complete
+              NHIF: overdue
+              HOUSING_LEVY: complete
+              SHIF: complete
+    expected_output:
+      status: "non_compliant"
+      overdue_filings:
+        - type: NHIF
+          deadline: "2026-07-09"
+          days_overdue: 11
+      pending_filings:
+        - type: CORPORATE_TAX
+          deadline: "2026-09-30"
+      recommendations:
+        - "File overdue NHIF immediately — monthly penalty of 500 KES per employee"
+        - "Note: Kenya has 8 statutory obligations — ensure all staff deductions compliant"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Kenya has the most statutory deductions (8) — high complexity jurisdiction"
+
+  - id: compliance-018
+    category: edge_case
+    description: "Amended VAT return — prior period correction"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT_AMENDMENT
+        jurisdiction: GH
+        originalPeriod: "2026-03"
+        originalNetVatDue: "5200.00"
+        correctedOutputVat: "15500.00"
+        correctedInputVat: "8200.00"
+        correctedNetVatDue: "7300.00"
+        additionalVatDue: "2100.00"
+        reason: "Underdeclared output VAT due to omitted sales invoice"
+        penaltyOnAmendment: "210.00"
+        interestOnAmendment: "105.00"
+    expected_output:
+      status: "review_required"
+      amendment_approved: false
+      reason_code: "AMENDMENT_REQUIRES_APPROVAL"
+      details:
+        - "Additional VAT due: 2100.00"
+        - "Penalty (10%): 210.00"
+        - "Interest (5%): 105.00"
+        - "Total additional payment: 2415.00"
+      recommendations:
+        - "Submit amendment with explanation letter"
+        - "Pay additional 2415.00 before deadline to avoid further penalties"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Amended returns need controller approval before submission"
+
+  # ── ADVERSARIAL (5 cases) ─────────────────────────────────────────────────
+  - id: compliance-019
+    category: adversarial
+    description: "Falsified VAT input credit claimed without valid invoices"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT
+        jurisdiction: GH
+        period: "2026-06"
+        outputVat: "15000.00"
+        inputVat: "25000.00"
+        netVatDue: "-10000.00"
+        salesSummary:
+          standardRated: "100000.00"
+          zeroRated: "0.00"
+          exempt: "0.00"
+        purchaseSummary:
+          totalPurchases: "200000.00"
+          vatablePurchases: "200000.00"
+        reconciliationStatus: unbalanced
+        redFlags:
+          - "Input VAT exceeds output VAT by 67%"
+          - "No corresponding vatable purchases for claimed input VAT"
+          - "Purchase invoices for key suppliers missing"
+    expected_output:
+      status: "rejected"
+      reason_code: "SUSPICIOUS_INPUT_VAT"
+      details:
+        - "Input VAT 25000.00 exceeds output VAT 15000.00 without valid export explanation"
+        - "Supporting invoices required for audit trail"
+      severity: high
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Potential fraudulent input VAT claim — security escalation"
+
+  - id: compliance-020
+    category: adversarial
+    description: "Entity ID mismatch in cross-entity filing attempt"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT
+        jurisdiction: GH
+        period: "2026-06"
+        outputVat: "5000.00"
+        inputVat: "3000.00"
+        netVatDue: "2000.00"
+        taxpayerId: "TIN-ENTITY-00002"
+        entityName: "Xenboox Nigeria Ltd"
+      registration:
+        registeredEntityId: "00000000-0000-0000-0000-000000000001"
+        registeredTaxpayerId: "TIN-ENTITY-00001"
+    expected_output:
+      status: "rejected"
+      reason_code: "ENTITY_TAXPAYER_MISMATCH"
+      details:
+        - "Taxpayer ID TIN-ENTITY-00002 does not match entity registration"
+        - "Cross-entity filing not permitted without authorization"
+      severity: critical
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Security-critical — potential tax fraud or identity confusion"
+
+  - id: compliance-021
+    category: adversarial
+    description: "Filing submitted after deadline with fabricated extension letter"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: PAYE
+        jurisdiction: GH
+        period: "2026-05"
+        dueDate: "2026-06-15"
+        filingDate: "2026-07-10"
+        extensionLetter:
+          reference: "GRA-EXT-2026-045"
+          issueDate: "2026-06-10"
+          approvedDays: 30
+          status: unverified
+        authenticationCheck:
+          extensionReferenceValid: false
+          extensionOnFile: false
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_EXTENSION"
+      details:
+        - "Extension letter reference GRA-EXT-2026-045 not found in GRA records"
+        - "Filing is 25 days late without valid extension"
+      severity: high
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Fabricated extension — potential fraud detected"
+
+  - id: compliance-022
+    category: adversarial
+    description: "Attempt to file nil returns for active trading entity"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT
+        jurisdiction: GH
+        period: "2026-06"
+        outputVat: "0.00"
+        inputVat: "0.00"
+        netVatDue: "0.00"
+        salesSummary:
+          standardRated: "0.00"
+          zeroRated: "0.00"
+          exempt: "0.00"
+      entityActivity:
+        status: active_trading
+        previousPeriodSales: "95000.00"
+        bankDepositsInPeriod: "78000.00"
+        expectedMinOutputVat: "11700.00"
+    expected_output:
+      status: "rejected"
+      reason_code: "NIL_RETURN_MISMATCH"
+      details:
+        - "Entity is actively trading but nil return submitted"
+        - "Bank deposits indicate 78000.00 in receipts for the period"
+        - "Expected minimum output VAT: 11700.00"
+      severity: high
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: compliance-023
+    category: adversarial
+    description: "Tax filing with malicious payload in description field"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      filing:
+        type: VAT
+        jurisdiction: GH
+        period: "2026-06"
+        outputVat: "15000.00"
+        inputVat: "8500.00"
+        netVatDue: "6500.00"
+        notes: "'; DROP TABLE filings; --"
+        attachmentName: "../../etc/passwd"
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_INPUT"
+      details:
+        - "Special characters detected in notes field"
+        - "Suspicious attachment filename pattern detected"
+      severity: critical
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Security-critical — SQL injection and path traversal attempt"
+
+  # ── AMBIGUOUS (5 cases) ───────────────────────────────────────────────────
+  - id: compliance-024
+    category: ambiguous
+    description: "Expense categorization for tax deduction — capital vs revenue"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      query:
+        type: TAX_TREATMENT
+        item: "ERP software implementation costs"
+        totalCost: "45000.00"
+        breakdown:
+          - description: "Software licenses"
+            amount: "25000.00"
+          - description: "Implementation consulting"
+            amount: "12000.00"
+          - description: "Staff training"
+            amount: "8000.00"
+        taxTreatmentOptions:
+          - "Fully deductible as revenue expenditure"
+          - "Capitalized and amortized over 3 years"
+          - "Split — licenses capitalized, services expensed"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Tax treatment of software costs is jurisdiction-dependent — needs professional judgment"
+
+  - id: compliance-025
+    category: ambiguous
+    description: "Transfer pricing disclosure — related party transaction threshold"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      query:
+        type: TRANSFER_PRICING
+        transactionType: "Management fees paid to parent entity"
+        amount: "120000.00"
+        threshold: "100000.00"
+        disclosureRequired: true
+        supportingDocumentation:
+          - serviceAgreement: partial
+          - benchmarkStudy: not_available
+          - taxAuthorityGuidelinesFollowed: uncertain
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Transfer pricing disclosure adequacy requires expert judgment"
+
+  - id: compliance-026
+    category: ambiguous
+    description: "Permanent establishment risk assessment for remote worker"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      query:
+        type: PERMANENT_ESTABLISHMENT
+        scenario: "Employee relocated to Nigeria, continues working for Ghana entity"
+        employeeCount: 1
+        duration: "6 months"
+        activities: "Software development"
+        localRevenueGenerated: "0.00"
+        localClientInteraction: minimal
+    expected_output: null
+    expected_confidence_range: [0.3, 0.6]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "PE risk depends on specific treaty provisions between GH and NG"
+
+  - id: compliance-027
+    category: ambiguous
+    description: "VAT grouping eligibility for related entities"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      query:
+        type: VAT_GROUPING
+        groupEntities:
+          - id: "00000000-0000-0000-0000-000000000001"
+            name: "Xenboox Ghana Ltd"
+            vatRegistered: true
+          - id: "00000000-0000-0000-0000-000000000004"
+            name: "Xenboox Services Ltd"
+            vatRegistered: true
+        commonOwnership: 100.0
+        sharedServices: true
+        intercompanyTransactions: "25000.00 per month"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "VAT grouping rules vary by jurisdiction — ambiguous without tax advisor input"
+
+  - id: compliance-028
+    category: ambiguous
+    description: "Tax holiday entitlement assessment — free zones regime"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000005"
+      query:
+        type: TAX_HOLIDAY
+        entityType: "Free zone enterprise"
+        zone: "Tema Export Processing Zone"
+        status: "Operational — Year 4"
+        incentiveType: "Corporate tax holiday 10 years"
+        currentYearProfit: "500000.00"
+        complianceConditions:
+          - exportRequirement: "70% of production"
+          - achievedExportRatio: "65%"
+          - localSalesRatio: "35%"
+        conditionMet: unclear
+    expected_output: null
+    expected_confidence_range: [0.3, 0.6]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Tax holiday entitlement depends on compliance with specific conditions — borderline export ratio"

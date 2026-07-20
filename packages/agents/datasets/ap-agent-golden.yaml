@@ -1,0 +1,953 @@
+agent: ap-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ─────────────────────────────────────────────────
+  - id: ap-001
+    category: happy_path
+    description: "Standard invoice ingestion with full PO match"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-001"
+      supplierId: "sup-acme-001"
+      supplierName: "Acme Office Supplies Ltd"
+      invoiceDate: "2026-07-01"
+      dueDate: "2026-07-31"
+      amount: 1500.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-001"
+      poAmount: 1500.00
+      lineItems:
+        - description: "A4 copy paper — 20 cartons"
+          quantity: 20
+          unitPrice: 25.00
+          total: 500.00
+        - description: "Printer toner cartridges — 10 units"
+          quantity: 10
+          unitPrice: 100.00
+          total: 1000.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "process"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ap-002
+    category: happy_path
+    description: "Supplier invoice with 15-day early payment discount"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-002"
+      supplierId: "sup-global-002"
+      supplierName: "Global Logistics Partners"
+      invoiceDate: "2026-07-05"
+      dueDate: "2026-08-04"
+      amount: 3200.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-002"
+      poAmount: 3200.00
+      lineItems:
+        - description: "Freight shipping — container CX-4421"
+          quantity: 1
+          unitPrice: 3200.00
+          total: 3200.00
+      paymentTerms: "NET30"
+      earlyPaymentDiscount: 0.02
+      discountAvailable: true
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "schedule_early_payment"
+      earlyPaymentSavings: 64.00
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ap-003
+    category: happy_path
+    description: "Recurring monthly supplier invoice — utilities"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "UTIL-2026-07"
+      supplierId: "sup-util-003"
+      supplierName: "City Power & Water Co"
+      invoiceDate: "2026-07-10"
+      dueDate: "2026-07-30"
+      amount: 845.50
+      currency: "USD"
+      purchaseOrderRef: "PO-UTIL-2026"
+      poAmount: 10000.00
+      lineItems:
+        - description: "Electricity — July consumption"
+          quantity: 1
+          unitPrice: 620.00
+          total: 620.00
+        - description: "Water — July consumption"
+          quantity: 1
+          unitPrice: 225.50
+          total: 225.50
+      paymentTerms: "NET20"
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "process"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ap-004
+    category: happy_path
+    description: "One-time supplier invoice with new vendor setup"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-2026-07-015"
+      supplierId: "sup-new-004"
+      supplierName: "Premier IT Solutions"
+      invoiceDate: "2026-07-12"
+      dueDate: "2026-08-11"
+      amount: 4500.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-003"
+      poAmount: 4500.00
+      lineItems:
+        - description: "Server rack mounting hardware"
+          quantity: 3
+          unitPrice: 1500.00
+          total: 4500.00
+      paymentTerms: "NET30"
+      isNewSupplier: true
+      supplierTaxId: "TX-IT-998877"
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "process_with_vendor_creation"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "New supplier setup requires vendor onboarding verification"
+
+  - id: ap-005
+    category: happy_path
+    description: "Payment scheduling — batch payment run"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-003"
+      supplierId: "sup-acme-001"
+      supplierName: "Acme Office Supplies Ltd"
+      invoiceDate: "2026-07-15"
+      dueDate: "2026-08-14"
+      amount: 780.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-004"
+      poAmount: 780.00
+      lineItems:
+        - description: "Office furniture — ergonomic chairs"
+          quantity: 2
+          unitPrice: 390.00
+          total: 780.00
+      paymentTerms: "NET30"
+      cashDiscountId: null
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "schedule_for_batch"
+      suggestedPaymentDate: "2026-08-12"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ap-006
+    category: happy_path
+    description: "AP aging — invoice within normal aging bucket"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AGING-2026-06-001"
+      supplierId: "sup-medical-005"
+      supplierName: "MedEquip Distributors"
+      invoiceDate: "2026-06-20"
+      dueDate: "2026-07-20"
+      amount: 6200.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-06-002"
+      poAmount: 6200.00
+      lineItems:
+        - description: "Medical grade sterilizers — 2 units"
+          quantity: 2
+          unitPrice: 3100.00
+          total: 6200.00
+      paymentTerms: "NET30"
+      daysOverdue: 0
+      agingBucket: "current"
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "process"
+      agingBucket: "current"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ap-007
+    category: happy_path
+    description: "Credit note matching against original invoice"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "CN-2026-07-001"
+      supplierId: "sup-global-002"
+      supplierName: "Global Logistics Partners"
+      invoiceDate: "2026-07-18"
+      dueDate: "2026-08-17"
+      amount: -400.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-002"
+      poAmount: 3200.00
+      creditNoteRef: "INV-AP-2026-07-002"
+      lineItems:
+        - description: "Freight damage claim — container CX-4421"
+          quantity: 1
+          unitPrice: -400.00
+          total: -400.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "credit_note"
+      matchScore: 1.0
+      suggestedAction: "apply_credit"
+      netPayableAfterCredit: 2800.00
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ap-008
+    category: happy_path
+    description: "Multi-line invoice with tax breakdown"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-008"
+      supplierId: "sup-construct-006"
+      supplierName: "BuildRight Construction Ltd"
+      invoiceDate: "2026-07-20"
+      dueDate: "2026-08-19"
+      amount: 12500.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-005"
+      poAmount: 12500.00
+      lineItems:
+        - description: "Renovation labor — Phase 1"
+          quantity: 1
+          unitPrice: 5000.00
+          total: 5000.00
+        - description: "Construction materials"
+          quantity: 1
+          unitPrice: 6000.00
+          total: 6000.00
+        - description: "Permit fees"
+          quantity: 1
+          unitPrice: 500.00
+          total: 500.00
+      taxAmount: 1000.00
+      taxRate: 0.08
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "process"
+      taxVerified: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ap-009
+    category: happy_path
+    description: "Prepaid expense invoice — annual subscription"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "SUB-2026-07-001"
+      supplierId: "sup-software-007"
+      supplierName: "CloudStack Technologies Inc"
+      invoiceDate: "2026-07-22"
+      dueDate: "2026-08-06"
+      amount: 2400.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-006"
+      poAmount: 2400.00
+      lineItems:
+        - description: "Annual SaaS license — Enterprise Plan"
+          quantity: 1
+          unitPrice: 2400.00
+          total: 2400.00
+      paymentTerms: "NET15"
+      prepaidMonths: 12
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "process_as_prepaid"
+      monthlyAmortization: 200.00
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: ap-010
+    category: happy_path
+    description: "Overdue flag — invoice 15 days past due, normal escalation"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-06-010"
+      supplierId: "sup-acme-001"
+      supplierName: "Acme Office Supplies Ltd"
+      invoiceDate: "2026-06-01"
+      dueDate: "2026-07-01"
+      amount: 900.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-06-003"
+      poAmount: 900.00
+      lineItems:
+        - description: "Monthly office supply restock"
+          quantity: 1
+          unitPrice: 900.00
+          total: 900.00
+      paymentTerms: "NET30"
+      daysOverdue: 19
+      agingBucket: "overdue_15_30"
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "full"
+      matchScore: 1.0
+      suggestedAction: "flag_overdue_and_schedule"
+      agingBucket: "overdue_15_30"
+      overdueAlertTriggered: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (8 cases) ───────────────────────────────────────────────────
+  - id: ap-011
+    category: edge_case
+    description: "Partial PO match — invoice amount exceeds PO by $50"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-011"
+      supplierId: "sup-acme-001"
+      supplierName: "Acme Office Supplies Ltd"
+      invoiceDate: "2026-07-08"
+      dueDate: "2026-08-07"
+      amount: 1050.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-001"
+      poAmount: 1000.00
+      lineItems:
+        - description: "A4 copy paper — 22 cartons"
+          quantity: 22
+          unitPrice: 25.00
+          total: 550.00
+        - description: "Printer toner cartridges — 5 units"
+          quantity: 5
+          unitPrice: 100.00
+          total: 500.00
+      paymentTerms: "NET30"
+      varianceAmount: 50.00
+      variancePercent: 0.05
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "partial"
+      matchScore: 0.95
+      suggestedAction: "flag_for_approval"
+      varianceAmount: 50.00
+      varianceReason: "Quantity increase on line item 1"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "5% variance within tolerance but requires manager approval"
+
+  - id: ap-012
+    category: edge_case
+    description: "Duplicate invoice detection — same number and amount as ap-001"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-001"
+      supplierId: "sup-acme-001"
+      supplierName: "Acme Office Supplies Ltd"
+      invoiceDate: "2026-07-01"
+      dueDate: "2026-07-31"
+      amount: 1500.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-001"
+      poAmount: 1500.00
+      lineItems:
+        - description: "A4 copy paper — 20 cartons"
+          quantity: 20
+          unitPrice: 25.00
+          total: 500.00
+        - description: "Printer toner cartridges — 10 units"
+          quantity: 10
+          unitPrice: 100.00
+          total: 1000.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "DUPLICATE_INVOICE"
+      duplicateOf: "INV-AP-2026-07-001"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Exact duplicate by invoice number"
+
+  - id: ap-013
+    category: edge_case
+    description: "Supplier bank account change request — fraud vector test"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-013"
+      supplierId: "sup-global-002"
+      supplierName: "Global Logistics Partners"
+      invoiceDate: "2026-07-25"
+      dueDate: "2026-08-24"
+      amount: 4800.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-007"
+      poAmount: 4800.00
+      lineItems:
+        - description: "Expedited freight — container CX-9981"
+          quantity: 1
+          unitPrice: 4800.00
+          total: 4800.00
+      paymentTerms: "NET30"
+      bankAccountChangeRequested: true
+      newBankAccount: "GB33BUKB20201555555555"
+      previousBankAccount: "GB33BUKB20201555555554"
+      changeRequestMethod: "email_only"
+      approvedByManager: false
+    expected_output:
+      status: "rejected"
+      reason_code: "FRAUD_SUSPECTED"
+      suggestedAction: "verify_bank_change_with_supplier"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: compliance-agent
+    source: synthetic
+    notes: "Supplier bank detail change via email-only without manager approval — fraud vector test"
+
+  - id: ap-014
+    category: edge_case
+    description: "Invoice with future-dated invoice date"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-014"
+      supplierId: "sup-software-007"
+      supplierName: "CloudStack Technologies Inc"
+      invoiceDate: "2026-08-01"
+      dueDate: "2026-08-31"
+      amount: 500.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-006"
+      poAmount: 500.00
+      lineItems:
+        - description: "Cloud storage add-on — 1 TB"
+          quantity: 1
+          unitPrice: 500.00
+          total: 500.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "FUTURE_INVOICE_DATE"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Invoice date cannot be in the future"
+
+  - id: ap-015
+    category: edge_case
+    description: "Zero-amount invoice submitted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-015"
+      supplierId: "sup-acme-001"
+      supplierName: "Acme Office Supplies Ltd"
+      invoiceDate: "2026-07-20"
+      dueDate: "2026-08-19"
+      amount: 0.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-001"
+      poAmount: 0.00
+      lineItems: []
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "ZERO_AMOUNT_INVOICE"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Zero-amount invoices should never reach payment"
+
+  - id: ap-016
+    category: edge_case
+    description: "Invoice with mismatched currency against PO"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-016"
+      supplierId: "sup-global-002"
+      supplierName: "Global Logistics Partners"
+      invoiceDate: "2026-07-15"
+      dueDate: "2026-08-14"
+      amount: 5000.00
+      currency: "EUR"
+      purchaseOrderRef: "PO-2026-07-002"
+      poAmount: 5400.00
+      poCurrency: "USD"
+      lineItems:
+        - description: "International freight service"
+          quantity: 1
+          unitPrice: 5000.00
+          total: 5000.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "partial"
+      matchScore: 0.7
+      suggestedAction: "flag_currency_mismatch"
+      currencyMismatchDetected: true
+    expected_confidence_range: [0.8, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Currency mismatch requires FX rate verification and re-approval"
+
+  - id: ap-017
+    category: edge_case
+    description: "Supplier marked as inactive but invoice received"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-017"
+      supplierId: "sup-inactive-008"
+      supplierName: "Legacy Vendor Corp (Inactive)"
+      invoiceDate: "2026-07-28"
+      dueDate: "2026-08-27"
+      amount: 750.00
+      currency: "USD"
+      purchaseOrderRef: "PO-LEGACY-001"
+      poAmount: 750.00
+      lineItems:
+        - description: "Legacy system maintenance"
+          quantity: 1
+          unitPrice: 750.00
+          total: 750.00
+      paymentTerms: "NET30"
+      supplierStatus: "inactive"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "INACTIVE_SUPPLIER"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Invoice from inactive supplier — reactivation required"
+
+  - id: ap-018
+    category: edge_case
+    description: "Partial PO match — under-invoice (-$200) due to missing line item"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-018"
+      supplierId: "sup-construct-006"
+      supplierName: "BuildRight Construction Ltd"
+      invoiceDate: "2026-07-25"
+      dueDate: "2026-08-24"
+      amount: 2800.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-005"
+      poAmount: 3000.00
+      lineItems:
+        - description: "Renovation labor — Phase 1 (partial)"
+          quantity: 1
+          unitPrice: 2800.00
+          total: 2800.00
+      paymentTerms: "NET30"
+      varianceAmount: -200.00
+      variancePercent: -0.067
+      approvedByManager: true
+    expected_output:
+      status: "matched"
+      matchType: "partial"
+      matchScore: 0.9
+      suggestedAction: "hold_for_line_item_clarification"
+      varianceAmount: -200.00
+      varianceReason: "Under-invoice — line item 2 (materials) not yet billed"
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Under-invoice variance requires supplier clarification"
+
+  # ── ADVERSARIAL (5 cases) ──────────────────────────────────────────────────
+  - id: ap-019
+    category: adversarial
+    description: "Invoice with fraudulent quantity inflation detected"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-019"
+      supplierId: "sup-acme-001"
+      supplierName: "Acme Office Supplies Ltd"
+      invoiceDate: "2026-07-30"
+      dueDate: "2026-08-29"
+      amount: 5000.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-001"
+      poAmount: 1500.00
+      lineItems:
+        - description: "A4 copy paper — 100 cartons"
+          quantity: 100
+          unitPrice: 25.00
+          total: 2500.00
+        - description: "Printer toner cartridges — 25 units"
+          quantity: 25
+          unitPrice: 100.00
+          total: 2500.00
+      paymentTerms: "NET30"
+      varianceAmount: 3500.00
+      variancePercent: 2.33
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "FRAUD_SUSPECTED"
+      suggestedAction: "flag_fraud_investigation"
+      anomalyType: "quantity_inflation"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: compliance-agent
+    source: synthetic
+    notes: "Quantities inflated 5x over PO — potential fraud"
+
+  - id: ap-020
+    category: adversarial
+    description: "Invoice referencing non-existent PO number"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-020"
+      supplierId: "sup-medical-005"
+      supplierName: "MedEquip Distributors"
+      invoiceDate: "2026-07-20"
+      dueDate: "2026-08-19"
+      amount: 3500.00
+      currency: "USD"
+      purchaseOrderRef: "PO-FAKE-999999"
+      poAmount: null
+      poExists: false
+      lineItems:
+        - description: "Surgical equipment — unauthorized"
+          quantity: 1
+          unitPrice: 3500.00
+          total: 3500.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "INVALID_PO_REFERENCE"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+
+  - id: ap-021
+    category: adversarial
+    description: "Invoice with negative line item amounts to reduce total"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-021"
+      supplierId: "sup-global-002"
+      supplierName: "Global Logistics Partners"
+      invoiceDate: "2026-07-25"
+      dueDate: "2026-08-24"
+      amount: 2000.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-002"
+      poAmount: 3200.00
+      lineItems:
+        - description: "Freight service"
+          quantity: 1
+          unitPrice: 5000.00
+          total: 5000.00
+        - description: "Adjustment — unauthorized discount"
+          quantity: 1
+          unitPrice: -3000.00
+          total: -3000.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "MALFORMED_LINE_ITEM"
+      suggestedAction: "review_negative_line_items"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Negative line items should be separately authorized, not embedded in invoice"
+
+  - id: ap-022
+    category: adversarial
+    description: "Invoice amount in words differs from numeric amount"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-022"
+      supplierId: "sup-construct-006"
+      supplierName: "BuildRight Construction Ltd"
+      invoiceDate: "2026-07-28"
+      dueDate: "2026-08-27"
+      amount: 5000.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-005"
+      poAmount: 5000.00
+      amountInWords: "Four thousand dollars only"
+      lineItems:
+        - description: "Phase 2 labor"
+          quantity: 1
+          unitPrice: 5000.00
+          total: 5000.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "AMOUNT_MISMATCH_WORDS"
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Numeric ($5000) vs written ($4000) mismatch — possible tampering"
+
+  - id: ap-023
+    category: adversarial
+    description: "Payment to sanctioned/blacklisted supplier"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-023"
+      supplierId: "sup-sanctioned-009"
+      supplierName: "Omega Defense Group"
+      invoiceDate: "2026-07-29"
+      dueDate: "2026-08-13"
+      amount: 25000.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-008"
+      poAmount: 25000.00
+      lineItems:
+        - description: "Security consulting services"
+          quantity: 1
+          unitPrice: 25000.00
+          total: 25000.00
+      paymentTerms: "NET15"
+      supplierSanctioned: true
+      approvedByManager: true
+    expected_output:
+      status: "rejected"
+      reason_code: "SANCTIONED_SUPPLIER"
+      suggestedAction: "escalate_to_compliance_immediately"
+    expected_confidence_range: [0.98, 1.0]
+    expected_escalation: block
+    expected_escalation_target: compliance-agent
+    source: synthetic
+    notes: "Sanctioned supplier detected — legal/compliance escalation required"
+
+  # ── AMBIGUOUS (5 cases) ────────────────────────────────────────────────────
+  - id: ap-024
+    category: ambiguous
+    description: "Expense categorization ambiguous — office renovation vs capital improvement"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-024"
+      supplierId: "sup-construct-006"
+      supplierName: "BuildRight Construction Ltd"
+      invoiceDate: "2026-07-26"
+      dueDate: "2026-08-25"
+      amount: 8500.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-009"
+      poAmount: 8500.00
+      lineItems:
+        - description: "Office partition wall installation"
+          quantity: 1
+          unitPrice: 8500.00
+          total: 8500.00
+      paymentTerms: "NET30"
+      approvedByManager: true
+      categorySuggestion: "repairs_and_maintenance"
+      alternativeCategory: "building_improvements"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Capital vs expense determination requires accounting judgment"
+
+  - id: ap-025
+    category: ambiguous
+    description: "Partial payment on invoice with unclear remaining balance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-06-025"
+      supplierId: "sup-medical-005"
+      supplierName: "MedEquip Distributors"
+      invoiceDate: "2026-06-15"
+      dueDate: "2026-07-15"
+      amount: 10000.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-06-004"
+      poAmount: 10000.00
+      lineItems:
+        - description: "Hospital bed set — 4 units"
+          quantity: 4
+          unitPrice: 2500.00
+          total: 10000.00
+      paymentTerms: "NET30"
+      amountsAlreadyPaid: 4500.00
+      partialPaymentHistory:
+        - date: "2026-07-10"
+          amount: 2500.00
+          reference: "PMT-PART-001"
+        - date: "2026-07-18"
+          amount: 2000.00
+          reference: "PMT-PART-002"
+      daysOverdue: 12
+      agingBucket: "overdue_1_15"
+      approvedByManager: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Remaining balance after partial payments requires reconciliation"
+
+  - id: ap-026
+    category: ambiguous
+    description: "Supplier payment term negotiation — vendor requests early payment with non-standard discount"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-026"
+      supplierId: "sup-global-002"
+      supplierName: "Global Logistics Partners"
+      invoiceDate: "2026-07-10"
+      dueDate: "2026-08-09"
+      amount: 15000.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-010"
+      poAmount: 15000.00
+      lineItems:
+        - description: "Bulk shipping — 3 containers"
+          quantity: 3
+          unitPrice: 5000.00
+          total: 15000.00
+      paymentTerms: "NET30"
+      earlyPaymentDiscountRequested: 0.05
+      standardDiscount: 0.02
+      discountNegotiatedOutsideSystem: true
+      approvedByManager: false
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Non-standard discount outside contractual terms — needs procurement approval"
+
+  - id: ap-027
+    category: ambiguous
+    description: "Invoice with split liability — two departments should share cost"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-07-027"
+      supplierId: "sup-software-007"
+      supplierName: "CloudStack Technologies Inc"
+      invoiceDate: "2026-07-18"
+      dueDate: "2026-08-17"
+      amount: 3600.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-07-006"
+      poAmount: 3600.00
+      lineItems:
+        - description: "Enterprise license — shared across departments"
+          quantity: 1
+          unitPrice: 3600.00
+          total: 3600.00
+      paymentTerms: "NET30"
+      costCenterSplitRequired: true
+      costCenters:
+        - "engineering"
+        - "finance"
+        - "operations"
+      splitRatioUnspecified: true
+      approvedByManager: true
+    expected_output: null
+    expected_confidence_range: [0.5, 0.74]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Missing cost center allocation ratio — requires department head input"
+
+  - id: ap-028
+    category: ambiguous
+    description: "Supplier claims invoice was already paid — possible double payment risk"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      invoiceNumber: "INV-AP-2026-06-028"
+      supplierId: "sup-acme-001"
+      supplierName: "Acme Office Supplies Ltd"
+      invoiceDate: "2026-06-10"
+      dueDate: "2026-07-10"
+      amount: 2200.00
+      currency: "USD"
+      purchaseOrderRef: "PO-2026-06-005"
+      poAmount: 2200.00
+      lineItems:
+        - description: "Furniture order — desks and chairs"
+          quantity: 1
+          unitPrice: 2200.00
+          total: 2200.00
+      paymentTerms: "NET30"
+      daysOverdue: 18
+      supplierClaimsPaid: true
+      supplierProvidedReference: "BANK-REF-XY7890"
+      noMatchingPaymentInSystem: true
+      approvedByManager: true
+    expected_output: null
+    expected_confidence_range: [0.4, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Supplier claims payment but no system match — investigate bank records before reprocessing"

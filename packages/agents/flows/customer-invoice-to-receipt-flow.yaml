@@ -1,0 +1,80 @@
+flow: customer-invoice-to-receipt
+description: "PRD §5.2 — customer invoice created in CRM, payment received via mobile money, posted to ledger, AR aging updated"
+version: 1
+last_updated: 2026-07-20
+
+steps:
+  - step: 1
+    agent: ar-agent
+    action: create_customer_invoice
+    input:
+      customer_id: "CUST-10042"
+      entityId: "00000000-0000-0000-0000-000000000001"
+      amount: 12500.00
+      due_date: "2026-08-15"
+      description: "Consulting services - July engagement"
+    expected_output:
+      invoice_id: "INV-CUST-2026-07-042"
+      status: issued
+      total: 12500.00
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Invoice issued with correct customer, amount, and due date"
+
+  - step: 2
+    agent: cash-agent
+    action: receive_payment
+    input:
+      payment_method: mobile_money
+      reference: "MM-TX-7A3F9B"
+      amount: 12500.00
+      invoice_id_from_step: 1
+    expected_output:
+      reconciled: true
+      payment_id: "pmt-2026-07-021"
+      applied_to_invoice: "INV-CUST-2026-07-042"
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Mobile money payment matched to outstanding invoice and fully applied"
+
+  - step: 3
+    agent: ledger-agent
+    action: post_customer_receipt
+    input_from_step: 2
+    expected_output:
+      status: posted
+      balanced: true
+      entry_id: "je-021"
+      debit_account: "1001-cash"
+      credit_account: "1200-accounts-receivable"
+      amount: 12500.00
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Double-entry posted: debit cash, credit AR for full amount"
+
+  - step: 4
+    agent: controller-agent
+    action: review_entry
+    input_from_step: 3
+    expected_output:
+      clean: true
+      open_exceptions: []
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Receipt posting confirmed substantively correct"
+
+  - step: 5
+    agent: reporting-agent
+    action: update_ar_aging
+    input_from_step: 3
+    expected_output:
+      aging_report_generated: true
+      invoice_status: paid
+      days_outstanding: 0
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "AR aging schedule reflects invoice as paid, receivable balance reduced"
+
+final_state_check:
+  invoice_marked_paid: true
+  cash_balance_increased: true
+  accounts_receivable_decreased: true
+  ar_aging_updated: true
+  no_unresolved_escalations: true
+
+expected_human_touchpoints: 0

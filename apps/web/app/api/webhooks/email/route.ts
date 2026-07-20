@@ -1,0 +1,113 @@
+/**
+ * Email Inbound Webhook
+ *
+ * Receives forwarded emails via Resend or any SMTP forwarding service.
+ * Creates an inbound email record and triggers processing.
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import {
+  inboundEmails,
+  emailForwardingRules,
+} from "@xenboox/db/schema/integrations";
+import { eq } from "drizzle-orm";
+import { triggerClient } from "@/lib/trigger";
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    const {
+      from,
+      to,
+      subject,
+      text: textBody,
+      html: htmlBody,
+      attachments = [],
+    } = body.data ?? body;
+
+    if (!from || !to || !subject) {
+      return NextResponse.json(
+        { error: "Missing required fields: from, to, subject" },
+        { status: 400 },
+      );
+    }
+
+    const toAddress = Array.isArray(to) ? to[0] : to;
+
+    // Find the forwarding rule by email address
+    const rule = await db.query.emailForwardingRules.findFirst({
+      where: eq(emailForwardingRules.emailAddress, toAddress),
+    });
+
+    if (!rule) {
+      console.error("[Email Webhook] No forwarding rule found for:", toAddress);
+      return NextResponse.json(
+        { error: "Forwarding rule not found" },
+        { status: 404 },
+      );
+    }
+
+    // Create inbound email record
+    const [email] = await db
+      .insert(inboundEmails)
+      .values({
+        entityId: rule.entityId,
+        ruleId: rule.id,
+        fromAddress: from,
+        toAddress: toAddress,
+        subject,
+        bodyText: textBody ?? "",
+        bodyHtml: htmlBody,
+        attachmentCount: attachments.length,
+        status: "received",
+        metadata: body,
+      })
+      .returning();
+
+    // Process if autoClassify is enabled
+    if (rule.autoClassify && attachments.length > 0) {
+      const processedAttachments = attachments.map(
+        (att: {
+          filename: string;
+          content: string;
+          contentType?: string;
+          size?: number;
+        }) => ({
+          filename: att.filename ?? "unknown",
+          mimeType: att.contentType ?? "application/octet-stream",
+          size: att.size ?? 0,
+          buffer: att.content,
+        }),
+      );
+
+      await triggerClient.tasks.trigger("process-inbound-email", {
+        emailId: email.id,
+        entityId: rule.entityId,
+        from,
+        subject,
+        textBody: textBody ?? "",
+        htmlBody,
+        attachments: processedAttachments,
+      });
+
+      await db
+        .update(inboundEmails)
+        .set({ status: "processing" })
+        .where(eq(inboundEmails.id, email.id));
+    }
+
+    return NextResponse.json({
+      received: true,
+      emailId: email.id,
+      autoProcessed: rule.autoClassify && attachments.length > 0,
+    });
+  } catch (error) {
+    console.error("[Email Webhook] Error:", error);
+    return NextResponse.json(
+      { error: "Webhook processing failed" },
+      { status: 500 },
+    );
+  }
+}

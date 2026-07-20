@@ -1,0 +1,217 @@
+flow: month-end-close-error-recovery
+description: "PRD §8 Error Recovery — Treasury has unresolved reconciliation items, Controller flags, close held, CFO notified, human intervention required"
+version: 1
+last_updated: 2026-07-20
+
+steps:
+  - step: 1
+    agent: cfo-agent
+    action: initiate_month_end_close
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      period: "2026-06"
+      close_deadline: "2026-07-05T17:00:00Z"
+    expected_output:
+      close_id: "close-2026-06"
+      status: initiated
+      departments_notified:
+        - controller-agent
+        - treasury-agent
+        - payroll-manager-agent
+        - compliance-agent
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Close initiated, all department heads notified with correct period and deadline"
+
+  - step: 2
+    agent: controller-agent
+    action: confirm_subledgers
+    input_from_step: 1
+    expected_output:
+      ar_balanced: true
+      ap_balanced: true
+      accruals_posted: true
+      depreciation_posted: true
+      prepaids_amortized: true
+      intercompany_reconciled: true
+      status: clean
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "All subledgers closed and reconciled; accruals and adjustments posted"
+
+  - step: 3
+    agent: treasury-agent
+    action: confirm_cash_position
+    input_from_step: 1
+    expected_output:
+      bank_reconciliations_complete: false
+      cash_forecast_finalized: false
+      debt_covenants_verified: true
+      status: exception
+      exceptions:
+        - area: bank_reconciliation
+          account: "ACME-OPERATING-1234"
+          detail: "2 unmatched transactions totalling $620.00 — bank fee ($35.00) and interest income ($585.00) not yet dispositioned"
+          severity: unresolved
+    expected_confidence_range: [0.7, 0.85]
+    handoff_check: "Treasury flags unresolved reconciliation items — confidence below threshold, escalation triggered"
+
+  - step: 4
+    agent: payroll-manager-agent
+    action: confirm_payroll_closed
+    input_from_step: 1
+    expected_output:
+      payroll_period_closed: true
+      payroll_journal_posted: true
+      tax_withholdings_recorded: true
+      status: clean
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Payroll period closed, journals posted, tax withholdings recorded"
+
+  - step: 5
+    agent: compliance-agent
+    action: confirm_compliance
+    input_from_step: 1
+    expected_output:
+      tax_filings_current: true
+      regulatory_reports_submitted: true
+      no_pending_audit_issues: true
+      status: clean
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Tax filings current, regulatory reports submitted, no open audit issues"
+
+  - step: 6
+    agent: controller-agent
+    action: compile_close_summary_with_exceptions
+    input_from_step:
+      - 2
+      - 3
+      - 4
+      - 5
+    expected_output:
+      close_id: "close-2026-06"
+      all_departments_clean: false
+      exceptions:
+        - department: treasury-agent
+          severity: unresolved
+          detail: "Bank reconciliation incomplete — 2 unmatched items pending disposition"
+      recommendation: hold
+    expected_confidence_range: [0.85, 1.0]
+    handoff_check: "Controller escalated Treasury exception to CFO — close held, recommendation not to proceed"
+
+  - step: 7
+    agent: cfo-agent
+    action: escalate_to_human
+    input_from_step: 6
+    expected_output:
+      escalation_sent: true
+      channel: email
+      recipient: "entity-owner@example.com"
+      priority: high
+      summary: "Month-end close June 2026 held due to Treasury exception: 2 unmatched bank transactions ($620.00). Controller recommends human review before proceeding."
+      context_included:
+        - unmatched_item_1: "Bank fee $35.00 — proposed debit 5005-bank-fees"
+        - unmatched_item_2: "Interest income $585.00 — proposed credit 7001-interest-income"
+      requires_response: true
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Human notified of exception with full context, requires action to resolve before close can proceed"
+
+  - step: 8
+    agent: cfo-agent
+    action: receive_human_instruction
+    input_from_step: 7
+    input:
+      human_response:
+        decision: approve_proposed_entries
+        instructions: "Approve both correcting entries as proposed. Proceed with close."
+        responded_at: "2026-07-04T09:30:00Z"
+    expected_output:
+      resolution: received
+      decision: approve_proposed_entries
+      instruction_parsed: true
+      confidence: 0.98
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Human instruction parsed and understood — correcting entries approved"
+
+  - step: 9
+    agent: cfo-agent
+    action: resume_close
+    input_from_step: 8
+    expected_output:
+      close_id: "close-2026-06"
+      action: resumed
+      treasury_exception_resolved: true
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Close process resumed after human intervention resolved Treasury exception"
+
+  - step: 10
+    agent: ledger-agent
+    action: post_correcting_entries
+    input_from_step: 9
+    expected_output:
+      entries_posted: 2
+      status: posted
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Human-approved correcting entries posted to ledger"
+
+  - step: 11
+    agent: controller-agent
+    action: confirm_resolved
+    input_from_step: 10
+    expected_output:
+      all_exceptions_cleared: true
+      status: clean
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Controller confirms all exceptions resolved, treasury now clean"
+
+  - step: 12
+    agent: cfo-agent
+    action: approve_close
+    input_from_step: 11
+    expected_output:
+      close_id: "close-2026-06"
+      decision: approved
+      signed_off: true
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "CFO signed off on close after exception resolution"
+
+  - step: 13
+    agent: reporting-agent
+    action: produce_close_package
+    input_from_step: 12
+    expected_output:
+      package_id: "pkg-2026-06"
+      documents_generated:
+        - pnl_statement
+        - balance_sheet
+        - cash_flow_statement
+        - trial_balance
+        - close_memo
+      status: delivered
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Full financial statement package produced and delivered"
+
+  - step: 14
+    agent: cfo-agent
+    action: notify_human
+    input_from_step: 13
+    expected_output:
+      notification_sent: true
+      channel: email
+      recipient: "entity-owner@example.com"
+      summary: "Month-end close June 2026 completed. Exception resolved per your instruction. Package available."
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Human notified of successful close completion after their intervention resolved the exception"
+
+final_state_check:
+  close_completed: true
+  exception_resolved_via_human_intervention: true
+  correcting_entries_posted: true
+  cfo_signed_off: true
+  financial_statements_produced: true
+  human_notified: true
+
+expected_human_touchpoints: 1
+human_touchpoint_details:
+  - step: 7
+    agent: cfo-agent
+    reason: "Escalation — Treasury exception requires human decision on unmatched bank items before close can proceed"

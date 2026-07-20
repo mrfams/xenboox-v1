@@ -64,6 +64,34 @@
       "when": 1784100002000,
       "tag": "0008_security_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784550000000,
+      "tag": "0009_pipeline_status_flow",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785000000000,
+      "tag": "0010_rls_remaining_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785000001000,
+      "tag": "0011_immutable_audit_trail",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785000002000,
+      "tag": "0012_legal_mechanisms",
+      "breakpoints": true
     }
   ]
 }

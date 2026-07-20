@@ -1,0 +1,80 @@
+flow: supplier-invoice-to-close
+description: "PRD §6.6 — supplier invoice arrives by email through to CFO summary"
+version: 1
+last_updated: 2026-07-20
+
+steps:
+  - step: 1
+    agent: document-agent
+    action: document_ingest
+    input:
+      source: email
+      format: pdf
+      filename: "invoice-SUP-2026-07-001.pdf"
+      entityId: "00000000-0000-0000-0000-000000000001"
+    expected_output:
+      document_id: "doc-001"
+      document_type: invoice
+      extraction_confidence: 0.92
+    expected_confidence_range: [0.85, 1.0]
+    handoff_check: "Extracted invoice data schema matches AP Agent's expected input schema"
+
+  - step: 2
+    agent: ap-agent
+    action: process_ap_invoice
+    input_from_step: 1
+    expected_output:
+      matched: true
+      purchase_order_id: "PO-2026-07-001"
+      payment_due_date: "2026-08-20"
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Invoice matched to PO with high confidence, payment scheduled"
+
+  - step: 3
+    agent: cash-agent
+    action: cash_count
+    input_from_step: 2
+    expected_output:
+      sufficient_funds: true
+      cash_position: 50000.00
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Cash position confirmed sufficient for payment"
+
+  - step: 4
+    agent: ledger-agent
+    action: process_ap_invoice
+    input_from_step: 2
+    expected_output:
+      status: posted
+      balanced: true
+      entry_id: "je-001"
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Journal entry posted and balanced"
+
+  - step: 5
+    agent: controller-agent
+    action: review_entry
+    input_from_step: 4
+    expected_output:
+      clean: true
+      open_exceptions: []
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Entry confirmed substantively correct"
+
+  - step: 6
+    agent: reporting-agent
+    action: report
+    input_from_step: 4
+    expected_output:
+      statement_type: pnl
+      period: "2026-07"
+      figures_present: true
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "P&L updated to reflect posting"
+
+final_state_check:
+  journal_entry_posted: true
+  pnl_updated: true
+  no_unresolved_escalations: true
+
+expected_human_touchpoints: 0

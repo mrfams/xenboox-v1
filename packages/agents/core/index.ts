@@ -1,30 +1,138 @@
-export { getLangfuse, langfuse } from "./langfuse"
-export { getLLMRegistry } from "./llm/registry"
-export type { ModelTier, ModelRoute, ProviderName } from "./llm/registry"
-export { callLLM, streamLLM } from "./llm/agent-llm"
-export type { LLMCallParams, LLMCallResult, LLMStreamCallbacks } from "./llm/agent-llm"
-export { calculateCost, buildCostEntry } from "./llm/cost-tracker"
+// ─── Security ──────────────────────────────────
+export {
+  checkEntityAccess,
+  getAgentTier,
+  isTaskTypeAllowedForAgent,
+  getCredentialVault,
+  CredentialVault,
+} from "./security";
+export type {
+  AgentTierLevel,
+  EntityAccessCheck,
+  CredentialEntry,
+} from "./security";
+
+// ─── Observability ─────────────────────────────
+export { getLangfuse, langfuse } from "./langfuse";
+
+// ─── OLD LLM System (deprecated — delegates to callModel) ─────
+export { getLLMRegistry } from "./llm/registry";
+export type { ModelTier, ModelRoute, ProviderName } from "./llm/registry";
+export { callLLM, streamLLM } from "./llm/agent-llm";
+export type {
+  LLMCallParams,
+  LLMCallResult,
+  LLMStreamCallbacks,
+} from "./llm/agent-llm";
+export { calculateCost, buildCostEntry } from "./llm/cost-tracker";
+
+// ─── NEW Model Provider System (preferred) ─────
+export { callModel, streamModel } from "./models/entry";
+export type {
+  CallModelParams,
+  NormalizedModelResponse,
+  NormalizedToolCall,
+  ProviderId,
+  TaskType,
+} from "./models/types";
+export { getModelRouter, ModelRouter } from "./models/router";
+export {
+  getAssignment,
+  invalidateAssignment,
+  invalidateAllAssignments,
+} from "./models/loader";
+export type { AssignmentRecord } from "./models/loader";
+export {
+  runGate1,
+  runGate2,
+  runGate3,
+  runGate4,
+  rollbackModel,
+  recordShadowComparison,
+  recordCanaryMetric,
+} from "./models/evaluation";
+
+// ─── State ─────────────────────────────────────
 export {
   BaseAgentState,
   AuditEntrySchema,
   AgentMessageSchema,
   createAuditEntry,
-} from "./state"
-export type { BaseAgentStateType, AuditEntry, AgentMessage } from "./state"
+} from "./state";
+export type { BaseAgentStateType, AuditEntry, AgentMessage } from "./state";
+
+// ─── Accounting Rules ─────────────────────────
 export {
   validateDoubleEntry,
   getAccountBalance,
   getJournalEntryLines,
   getRecentJournalEntries,
   getAccountByCode,
-} from "./tools"
+} from "./tools";
+
+export {
+  postJournalEntryValidation,
+  validateDoubleEntry as validateDoubleEntryRule,
+  getNormalBalance,
+  checkCloseReadiness,
+  validateReopenPeriod,
+  calculateAgingBucket,
+  calculateDepreciation,
+  calculateFxGainLoss,
+  matchReconciliation,
+  validateImprestRetirement,
+  validateReconciliationCompleteness,
+} from "./accounting-rules";
+
+export type {
+  PostJournalEntryResult,
+  CloseReadinessResult,
+  CloseCondition,
+  ReopenPeriodResult,
+  FxGainLossResult,
+  DepreciationResult,
+  MatchReconciliationResult,
+  JournalLine,
+  JournalLineValidation,
+} from "./accounting-rules";
+
+// ─── Confidence ────────────────────────────────
+export {
+  computeCompositeConfidence,
+  computePrecedentMatch,
+  computeDataCompleteness,
+  computeAmountExactness,
+  computeDateProximity,
+  computeReferenceSimilarity,
+  makeEscalationDecision,
+  checkMaterialAmountOverride,
+  detectConflictingOutputs,
+  computeCalibrationScore,
+  DEFAULT_ESCALATION_CONFIG,
+} from "./confidence";
+export type {
+  CompositeConfidence,
+  ConfidenceSignal,
+  EscalationDecision,
+  EscalationConfig,
+} from "./confidence";
+
+// ─── Prompts ───────────────────────────────────
 export {
   CFO_SYSTEM_PROMPT,
   CONTROLLER_SYSTEM_PROMPT,
   LEDGER_SYSTEM_PROMPT,
-} from "./prompts"
+} from "./prompts";
 
-export { orchestrate, classifyUserMessage } from "./orchestrator"
+// ─── Orchestrator ──────────────────────────────
+export {
+  orchestrate,
+  classifyUserMessage,
+  orchestrateHierarchical,
+  fanOutToDepartments,
+  checkEscalation,
+  getAgentGraph,
+} from "./orchestrator";
 export type {
   AgentTaskType,
   AgentTier,
@@ -32,24 +140,16 @@ export type {
   AgentTask,
   AgentResult,
   OrchestrateParams,
-} from "./orchestrator"
-
-export {
-  orchestrateHierarchical,
-  fanOutToDepartments,
-  checkEscalation,
-  getAgentGraph,
-} from "./orchestrator"
-export type {
   DepartmentResult,
   EscalationAction,
-} from "./orchestrator"
+} from "./orchestrator";
 
+// ─── Registry ──────────────────────────────────
 export {
   AGENT_REGISTRY,
   TASK_TO_AGENT,
   DEPARTMENT_AGENTS,
   DEPARTMENT_CLOSE_TASK,
   ALL_DEPARTMENTS,
-} from "./registry"
-export type { AgentDepartment } from "./registry"
+} from "./registry";
+export type { AgentDepartment } from "./registry";

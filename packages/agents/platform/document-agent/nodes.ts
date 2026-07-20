@@ -1,13 +1,13 @@
-import { langfuse } from "../../core/langfuse"
-import { createAuditEntry } from "../../core/state"
+import { langfuse } from "../../core/langfuse";
+import { createAuditEntry } from "../../core/state";
 import {
   ingestDocument as ingestDocumentTool,
   extractDocumentText as extractDocumentTextTool,
-  classifyDocument as classifyDocumentTool,
-  extractStructuredData as extractStructuredDataTool,
+  classifyDocumentAgent as classifyDocumentTool,
+  extractStructuredDataAgent as extractStructuredDataTool,
   linkToTransaction as linkToTransactionTool,
-} from "./tools"
-import type { DocumentStateType } from "./state"
+} from "./tools";
+import type { DocumentStateType } from "./state";
 
 // ─── Node: Parse Input ─────────────────────────────────────────────────────
 
@@ -15,17 +15,19 @@ export async function nodeParseInput(state: DocumentStateType) {
   const trace = await langfuse.trace({
     name: "document-parse-input",
     metadata: { entityId: state.entityId },
-  })
+  });
 
-  const input = state.currentOperation?.input ?? {}
-  const operationType = state.currentOperation?.type ?? "ingest_document"
+  const input = state.currentOperation?.input ?? {};
+  const operationType = state.currentOperation?.type ?? "ingest_document";
 
-  await trace.update({ output: { operationType, inputKeys: Object.keys(input) } })
+  await trace.update({
+    output: { operationType, inputKeys: Object.keys(input) },
+  });
 
   return {
     confidence: 0,
     reasoning: `Operation ${operationType} received`,
-  }
+  };
 }
 
 // ─── Node: Ingest Document ─────────────────────────────────────────────────
@@ -34,12 +36,13 @@ export async function nodeIngestDocument(state: DocumentStateType) {
   const trace = await langfuse.span({
     name: "document-ingest",
     input: { entityId: state.entityId, input: state.currentOperation?.input },
-  })
+  });
 
-  const input = state.currentOperation?.input as Record<string, unknown> | undefined
+  const input = state.currentOperation?.input as
+    Record<string, unknown> | undefined;
   if (!input) {
-    const error = "No document input provided"
-    await trace.update({ output: { success: false, error } })
+    const error = "No document input provided";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -47,7 +50,7 @@ export async function nodeIngestDocument(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
   const ingestInput = {
@@ -57,13 +60,17 @@ export async function nodeIngestDocument(state: DocumentStateType) {
     r2Bucket: input.r2Bucket as string,
     mimeType: input.mimeType as string | undefined,
     sizeBytes: input.sizeBytes as number | undefined,
-  }
+  };
 
-  const result = await ingestDocumentTool(state.entityId, ingestInput)
+  const result = await ingestDocumentTool(state.entityId, ingestInput);
 
   await trace.update({
-    output: { success: result.success, documentId: result.documentId, errors: result.errors },
-  })
+    output: {
+      success: result.success,
+      documentId: result.documentId,
+      errors: result.errors,
+    },
+  });
 
   if (!result.success) {
     return {
@@ -71,9 +78,13 @@ export async function nodeIngestDocument(state: DocumentStateType) {
       confidence: 0.2,
       reasoning: `Document ingestion failed: ${result.errors.join("; ")}`,
       currentOperation: state.currentOperation
-        ? { ...state.currentOperation, status: "failed" as const, error: result.errors.join("; ") }
+        ? {
+            ...state.currentOperation,
+            status: "failed" as const,
+            error: result.errors.join("; "),
+          }
         : null,
-    }
+    };
   }
 
   const audit = createAuditEntry({
@@ -86,14 +97,14 @@ export async function nodeIngestDocument(state: DocumentStateType) {
       r2Key: ingestInput.r2Key,
     },
     confidence: 0.9,
-  })
+  });
 
   return {
     currentDocument: {
       id: result.documentId!,
       name: ingestInput.name,
       type: ingestInput.type,
-      status: "uploaded",
+      status: "detected",
       r2Key: ingestInput.r2Key,
       mimeType: ingestInput.mimeType ?? null,
       sizeBytes: ingestInput.sizeBytes ?? null,
@@ -102,9 +113,13 @@ export async function nodeIngestDocument(state: DocumentStateType) {
     reasoning: `Document "${ingestInput.name}" ingested successfully (id: ${result.documentId})`,
     auditTrail: [audit],
     currentOperation: state.currentOperation
-      ? { ...state.currentOperation, status: "completed" as const, output: result }
+      ? {
+          ...state.currentOperation,
+          status: "completed" as const,
+          output: result,
+        }
       : null,
-  }
+  };
 }
 
 // ─── Node: Extract Text ───────────────────────────────────────────────────
@@ -113,12 +128,12 @@ export async function nodeExtractText(state: DocumentStateType) {
   const trace = await langfuse.span({
     name: "document-extract-text",
     input: { entityId: state.entityId, documentId: state.currentDocument?.id },
-  })
+  });
 
-  const documentId = state.currentDocument?.id
+  const documentId = state.currentDocument?.id;
   if (!documentId) {
-    const error = "No document ID — ingest a document first"
-    await trace.update({ output: { success: false, error } })
+    const error = "No document ID — ingest a document first";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -126,10 +141,10 @@ export async function nodeExtractText(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
-  const result = await extractDocumentTextTool(state.entityId, documentId)
+  const result = await extractDocumentTextTool(state.entityId, documentId);
 
   await trace.update({
     output: {
@@ -138,7 +153,7 @@ export async function nodeExtractText(state: DocumentStateType) {
       ocrTextLength: result.ocrText?.length ?? 0,
       errors: result.errors,
     },
-  })
+  });
 
   if (!result.success) {
     return {
@@ -146,9 +161,13 @@ export async function nodeExtractText(state: DocumentStateType) {
       confidence: 0.2,
       reasoning: `OCR extraction failed: ${result.errors.join("; ")}`,
       currentOperation: state.currentOperation
-        ? { ...state.currentOperation, status: "failed" as const, error: result.errors.join("; ") }
+        ? {
+            ...state.currentOperation,
+            status: "failed" as const,
+            error: result.errors.join("; "),
+          }
         : null,
-    }
+    };
   }
 
   const audit = createAuditEntry({
@@ -160,7 +179,7 @@ export async function nodeExtractText(state: DocumentStateType) {
       textLength: result.ocrText?.length ?? 0,
     },
     confidence: result.ocrConfidence ?? 0.5,
-  })
+  });
 
   return {
     extractionResult: {
@@ -172,9 +191,13 @@ export async function nodeExtractText(state: DocumentStateType) {
     reasoning: `OCR extraction complete for document ${documentId} (confidence: ${result.ocrConfidence})`,
     auditTrail: [audit],
     currentOperation: state.currentOperation
-      ? { ...state.currentOperation, status: "completed" as const, output: { ocrConfidence: result.ocrConfidence } }
+      ? {
+          ...state.currentOperation,
+          status: "completed" as const,
+          output: { ocrConfidence: result.ocrConfidence },
+        }
       : null,
-  }
+  };
 }
 
 // ─── Node: Classify ───────────────────────────────────────────────────────
@@ -183,14 +206,14 @@ export async function nodeClassify(state: DocumentStateType) {
   const trace = await langfuse.span({
     name: "document-classify",
     input: { entityId: state.entityId, documentId: state.currentDocument?.id },
-  })
+  });
 
-  const documentId = state.currentDocument?.id
-  const ocrText = state.extractionResult?.ocrText
+  const documentId = state.currentDocument?.id;
+  const ocrText = state.extractionResult?.ocrText;
 
   if (!documentId) {
-    const error = "No document ID — ingest a document first"
-    await trace.update({ output: { success: false, error } })
+    const error = "No document ID — ingest a document first";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -198,12 +221,12 @@ export async function nodeClassify(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
   if (!ocrText) {
-    const error = "No OCR text available — run extract_text first"
-    await trace.update({ output: { success: false, error } })
+    const error = "No OCR text available — run extract_text first";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -211,10 +234,14 @@ export async function nodeClassify(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
-  const result = await classifyDocumentTool(state.entityId, documentId, ocrText)
+  const result = await classifyDocumentTool(
+    state.entityId,
+    documentId,
+    ocrText,
+  );
 
   await trace.update({
     output: {
@@ -222,7 +249,7 @@ export async function nodeClassify(state: DocumentStateType) {
       classification: result.classification,
       errors: result.errors,
     },
-  })
+  });
 
   if (!result.success) {
     return {
@@ -230,12 +257,16 @@ export async function nodeClassify(state: DocumentStateType) {
       confidence: 0.2,
       reasoning: `Classification failed: ${result.errors.join("; ")}`,
       currentOperation: state.currentOperation
-        ? { ...state.currentOperation, status: "failed" as const, error: result.errors.join("; ") }
+        ? {
+            ...state.currentOperation,
+            status: "failed" as const,
+            error: result.errors.join("; "),
+          }
         : null,
-    }
+    };
   }
 
-  const classification = result.classification!
+  const classification = result.classification!;
 
   const audit = createAuditEntry({
     agentId: "document-agent",
@@ -247,7 +278,7 @@ export async function nodeClassify(state: DocumentStateType) {
       classificationConfidence: classification.confidence,
     },
     confidence: classification.confidence,
-  })
+  });
 
   return {
     classificationResult: classification,
@@ -255,9 +286,13 @@ export async function nodeClassify(state: DocumentStateType) {
     reasoning: `Document classified as "${classification.category}" (confidence: ${classification.confidence})`,
     auditTrail: [audit],
     currentOperation: state.currentOperation
-      ? { ...state.currentOperation, status: "completed" as const, output: classification }
+      ? {
+          ...state.currentOperation,
+          status: "completed" as const,
+          output: classification,
+        }
       : null,
-  }
+  };
 }
 
 // ─── Node: Extract Data ───────────────────────────────────────────────────
@@ -266,14 +301,14 @@ export async function nodeExtractData(state: DocumentStateType) {
   const trace = await langfuse.span({
     name: "document-extract-data",
     input: { entityId: state.entityId, documentId: state.currentDocument?.id },
-  })
+  });
 
-  const documentId = state.currentDocument?.id
-  const classification = state.classificationResult
+  const documentId = state.currentDocument?.id;
+  const classification = state.classificationResult;
 
   if (!documentId) {
-    const error = "No document ID — ingest a document first"
-    await trace.update({ output: { success: false, error } })
+    const error = "No document ID — ingest a document first";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -281,12 +316,12 @@ export async function nodeExtractData(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
   if (!classification) {
-    const error = "No classification available — run classify first"
-    await trace.update({ output: { success: false, error } })
+    const error = "No classification available — run classify first";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -294,10 +329,14 @@ export async function nodeExtractData(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
-  const result = await extractStructuredDataTool(state.entityId, documentId, classification)
+  const result = await extractStructuredDataTool(
+    state.entityId,
+    documentId,
+    classification,
+  );
 
   await trace.update({
     output: {
@@ -305,7 +344,7 @@ export async function nodeExtractData(state: DocumentStateType) {
       hasStructuredData: result.structuredData !== null,
       errors: result.errors,
     },
-  })
+  });
 
   if (!result.success) {
     return {
@@ -313,9 +352,13 @@ export async function nodeExtractData(state: DocumentStateType) {
       confidence: 0.2,
       reasoning: `Structured data extraction failed: ${result.errors.join("; ")}`,
       currentOperation: state.currentOperation
-        ? { ...state.currentOperation, status: "failed" as const, error: result.errors.join("; ") }
+        ? {
+            ...state.currentOperation,
+            status: "failed" as const,
+            error: result.errors.join("; "),
+          }
         : null,
-    }
+    };
   }
 
   const audit = createAuditEntry({
@@ -327,19 +370,27 @@ export async function nodeExtractData(state: DocumentStateType) {
       structuredDataKeys: Object.keys(result.structuredData ?? {}),
     },
     confidence: 0.85,
-  })
+  });
 
   return {
     extractionResult: state.extractionResult
       ? { ...state.extractionResult, structuredData: result.structuredData }
-      : { ocrText: null, ocrConfidence: null, structuredData: result.structuredData },
+      : {
+          ocrText: null,
+          ocrConfidence: null,
+          structuredData: result.structuredData,
+        },
     confidence: 0.85,
     reasoning: `Structured data extracted for document ${documentId} (category: ${classification.category})`,
     auditTrail: [audit],
     currentOperation: state.currentOperation
-      ? { ...state.currentOperation, status: "completed" as const, output: result.structuredData }
+      ? {
+          ...state.currentOperation,
+          status: "completed" as const,
+          output: result.structuredData,
+        }
       : null,
-  }
+  };
 }
 
 // ─── Node: Link Transaction ───────────────────────────────────────────────
@@ -352,14 +403,15 @@ export async function nodeLinkTransaction(state: DocumentStateType) {
       documentId: state.currentDocument?.id,
       input: state.currentOperation?.input,
     },
-  })
+  });
 
-  const documentId = state.currentDocument?.id
-  const input = state.currentOperation?.input as Record<string, unknown> | undefined
+  const documentId = state.currentDocument?.id;
+  const input = state.currentOperation?.input as
+    Record<string, unknown> | undefined;
 
   if (!documentId) {
-    const error = "No document ID — ingest a document first"
-    await trace.update({ output: { success: false, error } })
+    const error = "No document ID — ingest a document first";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -367,12 +419,12 @@ export async function nodeLinkTransaction(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
   if (!input) {
-    const error = "No link input provided — specify entityType and entityId"
-    await trace.update({ output: { success: false, error } })
+    const error = "No link input provided — specify entityType and entityId";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -380,15 +432,15 @@ export async function nodeLinkTransaction(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
-  const entityType = input.entityType as string
-  const targetEntityId = input.entityId as string
+  const entityType = input.entityType as string;
+  const targetEntityId = input.entityId as string;
 
   if (!entityType || !targetEntityId) {
-    const error = "entityType and entityId are required in input"
-    await trace.update({ output: { success: false, error } })
+    const error = "entityType and entityId are required in input";
+    await trace.update({ output: { success: false, error } });
     return {
       errors: [error],
       confidence: 0,
@@ -396,10 +448,15 @@ export async function nodeLinkTransaction(state: DocumentStateType) {
       currentOperation: state.currentOperation
         ? { ...state.currentOperation, status: "failed" as const, error }
         : null,
-    }
+    };
   }
 
-  const result = await linkToTransactionTool(state.entityId, documentId, entityType, targetEntityId)
+  const result = await linkToTransactionTool(
+    state.entityId,
+    documentId,
+    entityType,
+    targetEntityId,
+  );
 
   await trace.update({
     output: {
@@ -407,7 +464,7 @@ export async function nodeLinkTransaction(state: DocumentStateType) {
       link: result.link,
       errors: result.errors,
     },
-  })
+  });
 
   if (!result.success) {
     return {
@@ -415,9 +472,13 @@ export async function nodeLinkTransaction(state: DocumentStateType) {
       confidence: 0.3,
       reasoning: `Transaction linking failed: ${result.errors.join("; ")}`,
       currentOperation: state.currentOperation
-        ? { ...state.currentOperation, status: "failed" as const, error: result.errors.join("; ") }
+        ? {
+            ...state.currentOperation,
+            status: "failed" as const,
+            error: result.errors.join("; "),
+          }
         : null,
-    }
+    };
   }
 
   const audit = createAuditEntry({
@@ -430,7 +491,7 @@ export async function nodeLinkTransaction(state: DocumentStateType) {
       linked: result.link?.linked ?? false,
     },
     confidence: 0.9,
-  })
+  });
 
   return {
     linkResult: result.link,
@@ -438,9 +499,13 @@ export async function nodeLinkTransaction(state: DocumentStateType) {
     reasoning: `Document ${documentId} linked to ${entityType} ${targetEntityId}`,
     auditTrail: [audit],
     currentOperation: state.currentOperation
-      ? { ...state.currentOperation, status: "completed" as const, output: result.link }
+      ? {
+          ...state.currentOperation,
+          status: "completed" as const,
+          output: result.link,
+        }
       : null,
-  }
+  };
 }
 
 // ─── Node: Escalate ────────────────────────────────────────────────────────
@@ -455,7 +520,7 @@ export async function nodeEscalate(state: DocumentStateType) {
       reasoning: state.reasoning,
       escalated: true,
     },
-  })
+  });
 
   return {
     result: {
@@ -465,5 +530,5 @@ export async function nodeEscalate(state: DocumentStateType) {
       reasoning: state.reasoning,
       errors: state.errors,
     },
-  }
+  };
 }

@@ -1,0 +1,1218 @@
+agent: treasury-agent
+version: 1
+last_updated: 2026-07-20
+cases:
+  # ── HAPPY PATH (10 cases) ────────────────────────────────────────────────
+  - id: treasury-001
+    category: happy_path
+    description: "All three input streams individually clean — consolidated looks fine"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: consolidated_cash_position
+      asOfDate: "2026-07-20"
+      streams:
+        reconciliation:
+          bankName: "Access Bank Ghana"
+          accountNumber: "ACC-1001"
+          ledgerBalance: "125000.00"
+          availableBalance: "125000.00"
+          status: "reconciled"
+          lastReconciled: "2026-07-19"
+        cash:
+          accountCode: "1010"
+          bookBalance: "125000.00"
+          bankBalance: "125000.00"
+          status: "matched"
+          outstandingItems: 0
+        mobileMoney:
+          provider: "MTN Mobile Money"
+          walletId: "WAL-MTN-001"
+          balance: "45000.00"
+          status: "verified"
+          lastSync: "2026-07-20"
+      summary:
+        totalCash: "170000.00"
+        bankCash: "125000.00"
+        mobileMoney: "45000.00"
+        unrestricted: "170000.00"
+        restricted: "0.00"
+    expected_output:
+      status: "healthy"
+      consolidatedCash: "170000.00"
+      riskLevel: "low"
+      concentrationWarnings: []
+      summary: "Cash position healthy. All streams reconciled. No concentration risk."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-002
+    category: happy_path
+    description: "Payment schedule fully within available balance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "170000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "PMT-2026-07-101"
+          vendor: "ABC Stationery Ltd"
+          amount: "4500.00"
+          dueDate: "2026-07-22"
+          priority: "normal"
+        - paymentId: "PMT-2026-07-102"
+          vendor: "TechCorp Solutions"
+          amount: "12000.00"
+          dueDate: "2026-07-25"
+          priority: "normal"
+        - paymentId: "PMT-2026-07-103"
+          vendor: "OfficeMax Ltd"
+          amount: "3200.00"
+          dueDate: "2026-07-28"
+          priority: "low"
+        - paymentId: "PMT-2026-07-104"
+          vendor: "ECG Power Co."
+          amount: "5800.00"
+          dueDate: "2026-07-30"
+          priority: "high"
+      projectedOutflows:
+        total: "25500.00"
+        projectedBalance: "144500.00"
+        minimumBufferAfter: "119500.00"
+    expected_output:
+      status: "approved"
+      totalScheduled: "25500.00"
+      projectedBalance: "144500.00"
+      bufferStatus: "adequate"
+      warnings: []
+      summary: "Payment schedule approved. Projected balance of $144,500 exceeds minimum buffer of $25,000."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-003
+    category: happy_path
+    description: "Reconciliation close — all items resolved"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: reconciliation_close
+      periodId: "period-2026-07"
+      accountCode: "1010"
+      accountType: "bank"
+      bankName: "Access Bank Ghana"
+      reconciliation:
+        bankBalance: "125000.00"
+        bookBalance: "125000.00"
+        difference: "0.00"
+        clearedItems:
+          - reference: "DEP-2026-07-001"
+            amount: "15000.00"
+            type: "deposit"
+            matched: true
+          - reference: "DEP-2026-07-002"
+            amount: "8500.00"
+            type: "deposit"
+            matched: true
+          - reference: "PMT-2026-07-001"
+            amount: "4500.00"
+            type: "withdrawal"
+            matched: true
+          - reference: "PMT-2026-07-002"
+            amount: "12000.00"
+            type: "withdrawal"
+            matched: true
+        unresolvedItems: []
+        lastMatchedDate: "2026-07-19"
+    expected_output:
+      status: "closed"
+      periodId: "period-2026-07"
+      accountCode: "1010"
+      reviewNotes: "Reconciliation completed and closed. All items matched. Difference: $0.00."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-004
+    category: happy_path
+    description: "Cash risk assessment — no alerts triggered"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: cash_risk_assessment
+      asOfDate: "2026-07-20"
+      position:
+        totalCash: "170000.00"
+        bank: "125000.00"
+        mobileMoney: "45000.00"
+        receivablesDue7Days: "35000.00"
+        payablesDue7Days: "25500.00"
+      thresholds:
+        minimumBuffer: "25000.00"
+        concentrationLimit: 0.7
+        daysOfCover: 30
+      metrics:
+        dailyBurnRate: "4200.00"
+        daysOfCashOnHand: 40.5
+        mobileMoneyConcentration: 0.26
+        top3VendorExposure: 0.35
+    expected_output:
+      status: "no_alerts"
+      riskLevel: "low"
+      metrics:
+        daysOfCashOnHand: 40.5
+        mobileMoneyConcentration: 0.26
+      alerts: []
+      summary: "No risk alerts. Cash position covers 40.5 days. Mobile money concentration at 26% (limit: 70%)."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-005
+    category: happy_path
+    description: "Mobile money collection reconciled — all transactions matched"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_mobile_money
+      asOfDate: "2026-07-20"
+      provider: "MTN Mobile Money"
+      walletId: "WAL-MTN-001"
+      ledgerBalance: "45000.00"
+      transactions:
+        - reference: "WAVE-2026-07-15-001"
+          amount: "350.00"
+          type: "collection"
+          status: "matched"
+          customerRef: "CUST-1001"
+        - reference: "WAVE-2026-07-16-001"
+          amount: "520.00"
+          type: "collection"
+          status: "matched"
+          customerRef: "CUST-1002"
+        - reference: "WAVE-2026-07-17-001"
+          amount: "180.00"
+          type: "collection"
+          status: "matched"
+          customerRef: "CUST-1003"
+        - reference: "WAVE-2026-07-18-001"
+          amount: "1250.00"
+          type: "collection"
+          status: "matched"
+          customerRef: "CUST-1004"
+      unmatchedItems: []
+      feesCharged: "0.00"
+    expected_output:
+      status: "verified"
+      walletId: "WAL-MTN-001"
+      totalCollections: "2300.00"
+      unmatchedItems: 0
+      reviewNotes: "Mobile money collections verified. All transactions matched. No discrepancies."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-006
+    category: happy_path
+    description: "Cash projection shows adequate cover for next 30 days"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: cash_projection
+      asOfDate: "2026-07-20"
+      currentBalance: "170000.00"
+      projectionHorizonDays: 30
+      inflows:
+        - reference: "AR-AGING-30"
+          category: "receivables"
+          expectedAmount: "35000.00"
+          confidence: 0.85
+          expectedDate: "2026-07-28"
+        - reference: "GRANT-003-TRANCHE"
+          category: "grant_receipt"
+          expectedAmount: "50000.00"
+          confidence: 0.9
+          expectedDate: "2026-08-05"
+        - reference: "MM-ESTIMATED"
+          category: "mobile_money"
+          expectedAmount: "28000.00"
+          confidence: 0.75
+          expectedDateRange: "2026-07-20 to 2026-08-20"
+      outflows:
+        - reference: "PAYROLL-AUG"
+          category: "payroll"
+          amount: "18000.00"
+          requiredDate: "2026-08-01"
+        - reference: "SUPPLIER-PAYMENTS"
+          category: "payables"
+          amount: "25500.00"
+          requiredDateRange: "2026-07-22 to 2026-07-30"
+        - reference: "LOAN-INSTALLMENT"
+          category: "debt_service"
+          amount: "1800.00"
+          requiredDate: "2026-08-15"
+        - reference: "RENT-Q3"
+          category: "operating"
+          amount: "12000.00"
+          requiredDate: "2026-08-01"
+      projectedMinimumBalance: "94800.00"
+    expected_output:
+      status: "adequate"
+      horizonDays: 30
+      projectedMinimumBalance: "94800.00"
+      aboveBuffer: true
+      summary: "Cash projection shows adequate coverage. Minimum projected balance $94,800 exceeds buffer of $25,000."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-007
+    category: happy_path
+    description: "Payment schedule with FX conversion pre-approved"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "170000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "PMT-2026-07-201"
+          vendor: "Global Software Inc"
+          amount: "8000.00"
+          currency: "USD"
+          ghsEquivalent: "104000.00"
+          dueDate: "2026-07-26"
+          priority: "high"
+      projectedOutflows:
+        totalGhs: "104000.00"
+        projectedBalanceGhs: "66000.00"
+        minimumBufferAfter: "41000.00"
+    expected_output:
+      status: "approved"
+      totalScheduled: "104000.00"
+      projectedBalance: "66000.00"
+      bufferStatus: "adequate"
+      warnings: []
+      summary: "FX payment approved. GHS equivalent $104,000. Projected balance $66,000 exceeds buffer."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-008
+    category: happy_path
+    description: "Bank account closure reconciliation — all items cleared"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: reconciliation_close
+      periodId: "period-2026-07"
+      accountCode: "1015"
+      accountType: "bank"
+      bankName: "Ecobank Ghana"
+      reconciliation:
+        bankBalance: "0.00"
+        bookBalance: "0.00"
+        difference: "0.00"
+        clearedItems:
+          - reference: "TRF-CLOSE-001"
+            amount: "25000.00"
+            type: "transfer_out"
+            matched: true
+          - reference: "BANK-FEE-CLOSE"
+            amount: "50.00"
+            type: "fee"
+            matched: true
+        unresolvedItems: []
+        accountClosed: true
+    expected_output:
+      status: "closed"
+      periodId: "period-2026-07"
+      accountCode: "1015"
+      reviewNotes: "Account closed and reconciled. Zero balance confirmed. All items matched."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-009
+    category: happy_path
+    description: "Cash position with restricted funds correctly segregated"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: consolidated_cash_position
+      asOfDate: "2026-07-20"
+      streams:
+        reconciliation:
+          bankName: "Access Bank Ghana"
+          accountNumber: "ACC-1001"
+          ledgerBalance: "125000.00"
+          availableBalance: "125000.00"
+          status: "reconciled"
+        cash:
+          accountCode: "1010"
+          bookBalance: "125000.00"
+          bankBalance: "125000.00"
+          status: "matched"
+        mobileMoney:
+          provider: "MTN Mobile Money"
+          walletId: "WAL-MTN-001"
+          balance: "45000.00"
+          status: "verified"
+      restrictedFunds:
+        - description: "Donor grant — education program"
+          amount: "35000.00"
+          restrictionType: "donor"
+          releaseCondition: "Program expenses only"
+        - description: "Security deposit — warehouse lease"
+          amount: "10000.00"
+          restrictionType: "contractual"
+          releaseCondition: "Lease expiry"
+    expected_output:
+      status: "healthy"
+      consolidatedCash: "170000.00"
+      unrestrictedCash: "125000.00"
+      restrictedCash: "45000.00"
+      riskLevel: "low"
+      concentrationWarnings: []
+      summary: "Cash position healthy. $45,000 restricted. $125,000 unrestricted. All streams reconciled."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  - id: treasury-010
+    category: happy_path
+    description: "Multi-rail mobile money consolidation — all rails reconciled"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_mobile_money
+      asOfDate: "2026-07-20"
+      rails:
+        - provider: "MTN Mobile Money"
+          walletId: "WAL-MTN-001"
+          balance: "45000.00"
+          status: "verified"
+          lastSync: "2026-07-20 14:00"
+        - provider: "Vodafone Cash"
+          walletId: "WAL-VOD-001"
+          balance: "18500.00"
+          status: "verified"
+          lastSync: "2026-07-20 14:00"
+        - provider: "AirtelTigo Money"
+          walletId: "WAL-AIR-001"
+          balance: "8200.00"
+          status: "verified"
+          lastSync: "2026-07-20 14:00"
+        - provider: "Wave"
+          walletId: "WAL-WAVE-001"
+          balance: "12300.00"
+          status: "verified"
+          lastSync: "2026-07-20 14:00"
+      totalMobileMoney: "84000.00"
+      unmatchedItems: 0
+    expected_output:
+      status: "verified"
+      totalMobileMoney: "84000.00"
+      rails:
+        - provider: "MTN Mobile Money"
+          balance: "45000.00"
+          status: "verified"
+        - provider: "Vodafone Cash"
+          balance: "18500.00"
+          status: "verified"
+        - provider: "AirtelTigo Money"
+          balance: "8200.00"
+          status: "verified"
+        - provider: "Wave"
+          balance: "12300.00"
+          status: "verified"
+      unmatchedItems: 0
+      reviewNotes: "All four mobile money rails reconciled. Total mobile money position: $84,000."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+
+  # ── EDGE CASES (8 cases) ─────────────────────────────────────────────────
+  - id: treasury-011
+    category: edge_case
+    description: "Individually fine reports but combined reveals cash concentration risk in mobile money wallet"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: consolidated_cash_position
+      asOfDate: "2026-07-20"
+      streams:
+        reconciliation:
+          bankName: "Access Bank Ghana"
+          accountNumber: "ACC-1001"
+          ledgerBalance: "60000.00"
+          availableBalance: "60000.00"
+          status: "reconciled"
+          notes: "All items matched. No discrepancies."
+        cash:
+          accountCode: "1010"
+          bookBalance: "60000.00"
+          bankBalance: "60000.00"
+          status: "matched"
+          notes: "Bank and book balances match."
+        mobileMoney:
+          provider: "MTN Mobile Money"
+          walletId: "WAL-MTN-001"
+          balance: "140000.00"
+          status: "verified"
+          notes: "All transactions verified. Balance confirmed with provider."
+      thresholds:
+        concentrationLimit: 0.7
+        totalCash: "200000.00"
+        mobileMoneyPercentage: 0.7
+    expected_output:
+      status: "warning"
+      consolidatedCash: "200000.00"
+      riskLevel: "medium"
+      concentrationWarnings:
+        - provider: "MTN Mobile Money"
+          balance: "140000.00"
+          percentageOfTotal: 0.7
+          threshold: 0.7
+          risk: "Mobile money concentration at exactly 70% limit. Any further deposits to MTN will breach concentration threshold."
+      summary: "Individual streams are clean, but 70% of total cash is in a single mobile money wallet. High concentration risk. Recommend diversifying across rails or sweeping to bank account."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Stream-level health masks aggregate concentration risk — the masking failure mode"
+
+  - id: treasury-012
+    category: edge_case
+    description: "Payment schedule that would breach minimum buffer"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "50000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "PMT-2026-07-301"
+          vendor: "Strategic Advisors Ltd"
+          amount: "15000.00"
+          dueDate: "2026-07-21"
+          priority: "high"
+        - paymentId: "PMT-2026-07-302"
+          vendor: "BuildRight Construction"
+          amount: "28000.00"
+          dueDate: "2026-07-22"
+          priority: "high"
+        - paymentId: "PMT-2026-07-303"
+          vendor: "Global Software Inc"
+          amount: "12000.00"
+          dueDate: "2026-07-23"
+          priority: "normal"
+      projectedOutflows:
+        total: "55000.00"
+        projectedBalance: "-5000.00"
+        minimumBufferAfter: "-30000.00"
+    expected_output:
+      status: "blocked"
+      reason_code: "BUFFER_BREACH"
+      totalScheduled: "55000.00"
+      projectedBalance: "-5000.00"
+      bufferDeficit: "30000.00"
+      breachingPayments:
+        - paymentId: "PMT-2026-07-302"
+          vendor: "BuildRight Construction"
+          amount: "28000.00"
+          priority: "high"
+          suggestedAction: "Defer by 5 days to allow receivables collection"
+        - paymentId: "PMT-2026-07-303"
+          vendor: "Global Software Inc"
+          amount: "12000.00"
+          priority: "normal"
+          suggestedAction: "Defer by 7 days or split into two payments"
+      summary: "Payment schedule blocked. Projected balance of -$5,000 breaches the $25,000 minimum buffer by $30,000. Two payments need deferral or rescheduling."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Buffer breach must block the schedule and identify which payments to defer"
+
+  - id: treasury-013
+    category: edge_case
+    description: "Reconciliation close with unresolved items attempted"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: reconciliation_close
+      periodId: "period-2026-07"
+      accountCode: "1020"
+      accountType: "mobile_money"
+      provider: "MTN Mobile Money"
+      reconciliation:
+        bankBalance: "45000.00"
+        bookBalance: "44820.00"
+        difference: "180.00"
+        clearedItems:
+          - reference: "WAVE-2026-07-15-001"
+            amount: "350.00"
+            type: "collection"
+            matched: true
+          - reference: "WAVE-2026-07-16-001"
+            amount: "520.00"
+            type: "collection"
+            matched: true
+        unresolvedItems:
+          - reference: "WAVE-2026-07-19-001"
+            amount: "180.00"
+            type: "collection"
+            status: "unmatched_in_ledger"
+            ageDays: 1
+            notes: "Appears in provider statement but not in GL"
+    expected_output:
+      status: "blocked"
+      periodId: "period-2026-07"
+      accountCode: "1020"
+      reason_code: "UNRESOLVED_ITEMS"
+      unresolvedCount: 1
+      unresolvedAmount: "180.00"
+      reviewNotes: "Cannot close reconciliation with 1 unresolved item ($180.00). Missing GL entry for WAVE-2026-07-19-001. Resolve before close."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Reconciliation close must be blocked when unresolved items remain"
+
+  - id: treasury-014
+    category: edge_case
+    description: "Cash position projection showing shortfall within configurable horizon"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: cash_projection
+      asOfDate: "2026-07-20"
+      currentBalance: "35000.00"
+      projectionHorizonDays: 30
+      minimumBuffer: "25000.00"
+      inflows:
+        - reference: "AR-AGING-30"
+          category: "receivables"
+          expectedAmount: "15000.00"
+          confidence: 0.7
+          expectedDate: "2026-08-05"
+        - reference: "GRANT-004-TRANCHE"
+          category: "grant_receipt"
+          expectedAmount: "25000.00"
+          confidence: 0.5
+          expectedDate: "2026-08-10"
+      outflows:
+        - reference: "PAYROLL-AUG"
+          category: "payroll"
+          amount: "18000.00"
+          requiredDate: "2026-08-01"
+        - reference: "SUPPLIER-PAYMENTS"
+          category: "payables"
+          amount: "22000.00"
+          requiredDateRange: "2026-07-22 to 2026-07-30"
+        - reference: "LOAN-INSTALLMENT"
+          category: "debt_service"
+          amount: "1800.00"
+          requiredDate: "2026-08-15"
+        - reference: "RENT-Q3"
+          category: "operating"
+          amount: "12000.00"
+          requiredDate: "2026-08-01"
+      projectedMinimumBalance: "-3800.00"
+    expected_output:
+      status: "shortfall_warning"
+      horizonDays: 30
+      projectedMinimumBalance: "-3800.00"
+      shortfallDetected: true
+      shortfallDate: "2026-08-01"
+      shortfallAmount: "3800.00"
+      aboveBuffer: false
+      summary: "Cash shortfall projected on August 1 ($3,800 below buffer). Payroll and rent payments coincide before expected inflows. Recommend deferring supplier payments or securing bridge financing."
+      suggestedActions:
+        - "Defer non-critical supplier payments by 10-14 days"
+        - "Request early release of Grant-004 tranche"
+        - "Consider $10,000 overdraft facility for August 1 window"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Shortfall within the horizon requires proactive mitigation recommendations"
+
+  - id: treasury-015
+    category: edge_case
+    description: "By-rail breakdown showing hidden liquidity problem (masking failure mode)"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: consolidated_cash_position
+      asOfDate: "2026-07-20"
+      streams:
+        reconciliation:
+          bankName: "Access Bank Ghana"
+          accountNumber: "ACC-1001"
+          ledgerBalance: "180000.00"
+          availableBalance: "180000.00"
+          status: "reconciled"
+        cash:
+          accountCode: "1010"
+          bookBalance: "180000.00"
+          bankBalance: "180000.00"
+          status: "matched"
+        mobileMoney:
+          provider: "MTN Mobile Money"
+          walletId: "WAL-MTN-001"
+          balance: "20000.00"
+          status: "verified"
+      summary:
+        totalCash: "200000.00"
+        bankCash: "180000.00"
+        mobileMoney: "20000.00"
+      additionalDetail:
+        bankBreakdown:
+          - bankName: "Access Bank Ghana"
+            accountNumber: "ACC-1001"
+            ledgerBalance: "180000.00"
+            availableBalance: "180000.00"
+            liquidityTier: "instant"
+        mobileMoneyByRail:
+          - provider: "MTN Mobile Money"
+            walletId: "WAL-MTN-001"
+            balance: "15000.00"
+            liquidityTier: "instant"
+            dailyWithdrawalLimit: "5000.00"
+          - provider: "Wave"
+            walletId: "WAL-WAVE-001"
+            balance: "5000.00"
+            liquidityTier: "instant"
+            dailyWithdrawalLimit: "3000.00"
+      liquidityAnalysis:
+        totalCash: "200000.00"
+        immediatelyAccessible: "185000.00"
+        constrainedByLimits: "15000.00"
+        daysToFullyLiquidate: 3
+        constraintDescription: "MTN wallet has $15,000 but daily withdrawal limit is $5,000. Only $5,000/day is accessible from this wallet."
+    expected_output:
+      status: "warning"
+      consolidatedCash: "200000.00"
+      immediatelyAccessible: "185000.00"
+      riskLevel: "medium"
+      liquidityConstraint: "MTN Mobile Money wallet balance ($15,000) exceeds daily withdrawal limit ($5,000). Only $5,000/day accessible — would take 3 days to fully liquidate."
+      summary: "Aggregate position looks healthy ($200,000) but by-rail analysis reveals $15,000 in MTN wallet with only $5,000/day withdrawal limit. True accessible liquidity is $185,000. The $15,000 difference is trapped by withdrawal constraints — a hidden liquidity problem masked by aggregate reporting."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "The classic masking failure mode — aggregate looks fine, by-rail reveals trapped liquidity"
+
+  - id: treasury-016
+    category: edge_case
+    description: "Payment schedule with one payment exceeding 50% of available balance"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "100000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "PMT-2026-07-401"
+          vendor: "MegaCorp International"
+          amount: "60000.00"
+          dueDate: "2026-07-25"
+          priority: "critical"
+          notes: "Contractual milestone payment — cannot defer"
+        - paymentId: "PMT-2026-07-402"
+          vendor: "OfficeMax Ltd"
+          amount: "3200.00"
+          dueDate: "2026-07-28"
+          priority: "low"
+      projectedOutflows:
+        total: "63200.00"
+        projectedBalance: "36800.00"
+        minimumBufferAfter: "11800.00"
+    expected_output:
+      status: "approved_with_caveats"
+      totalScheduled: "63200.00"
+      projectedBalance: "36800.00"
+      bufferStatus: "adequate"
+      warnings:
+        - "Single payment to MegaCorp International ($60,000) represents 60% of available balance. High concentration risk in single counterparty."
+        - "Projected balance of $36,800 is above $25,000 buffer but leaves only $11,800 cushion."
+      summary: "Schedule approved. Critical payment to MegaCorp accounted for. Projected buffer is thin but adequate. Monitor closely."
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Technically within buffer but concentration risk in single payment"
+
+  - id: treasury-017
+    category: edge_case
+    description: "Mobile money reconciliation with provider fee discrepancy"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_mobile_money
+      asOfDate: "2026-07-20"
+      provider: "MTN Mobile Money"
+      walletId: "WAL-MTN-001"
+      ledgerBalance: "44750.00"
+      providerBalance: "45000.00"
+      difference: "250.00"
+      transactions:
+        - reference: "WAVE-2026-07-18-001"
+          amount: "1250.00"
+          type: "collection"
+          status: "matched"
+        - reference: "WAVE-2026-07-19-001"
+          amount: "800.00"
+          type: "collection"
+          status: "matched"
+        - reference: "WAVE-2026-07-20-001"
+          amount: "450.00"
+          type: "collection"
+          status: "matched"
+      fees:
+        - reference: "MTN-FEE-JUL-20"
+          description: "Cash-out fee — 50 transactions"
+          amount: "250.00"
+          providerApplied: true
+          recordedInGL: false
+    expected_output:
+      status: "flagged"
+      walletId: "WAL-MTN-001"
+      difference: "250.00"
+      reason_code: "UNRECORDED_FEES"
+      reviewNotes: "Provider has deducted $250 in cash-out fees not yet recorded in GL. Post fee entry to bring balances into alignment."
+      suggestedCorrection:
+        entry:
+          accountCode: "5600"
+          debit: "250.00"
+          credit: "0.00"
+          description: "MTN mobile money cash-out fees — July 2026"
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Unrecorded provider fees should be identified and correction suggested"
+
+  - id: treasury-018
+    category: edge_case
+    description: "Bank account with negative available balance despite positive ledger"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: consolidated_cash_position
+      asOfDate: "2026-07-20"
+      streams:
+        reconciliation:
+          bankName: "Access Bank Ghana"
+          accountNumber: "ACC-1001"
+          ledgerBalance: "5000.00"
+          availableBalance: "-2000.00"
+          status: "unreconciled"
+          difference: "7000.00"
+          reason: "Check PMT-2026-07-501 ($7,000) has cleared bank but not yet recorded in GL"
+        cash:
+          accountCode: "1010"
+          bookBalance: "5000.00"
+          bankBalance: "-2000.00"
+          status: "mismatch"
+          outstandingItems: 1
+    expected_output:
+      status: "warning"
+      consolidatedCash: "5000.00"
+      riskLevel: "high"
+      alerts:
+        - type: "negative_available_balance"
+          accountCode: "1010"
+          bankName: "Access Bank Ghana"
+          ledgerBalance: "5000.00"
+          availableBalance: "-2000.00"
+          description: "Bank shows negative available balance ($-2,000) despite ledger balance of $5,000. Uncleared check of $7,000 not yet recorded in GL."
+      summary: "Negative available balance detected at Access Bank. An uncleared check ($7,000) has created an overdraft. GL does not yet reflect this. Urgent: record the check payment and arrange funds to cover overdraft."
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: immediate
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Hidden overdraft — ledger shows positive but bank shows negative"
+
+  # ── ADVERSARIAL (5 cases) ─────────────────────────────────────────────────
+  - id: treasury-019
+    category: adversarial
+    description: "Fabricated mobile money collection attempt"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_mobile_money
+      asOfDate: "2026-07-20"
+      provider: "MTN Mobile Money"
+      walletId: "WAL-MTN-001"
+      ledgerBalance: "45000.00"
+      transactions:
+        - reference: "WAVE-2026-07-20-FAKE"
+          amount: "50000.00"
+          type: "collection"
+          status: "unmatched"
+          customerRef: "NONEXISTENT-CUST"
+          providerConfirmation: false
+    expected_output:
+      status: "rejected"
+      walletId: "WAL-MTN-001"
+      reason_code: "FABRICATED_TRANSACTION"
+      reviewNotes: "Transaction reference WAVE-2026-07-20-FAKE ($50,000) not confirmed by MTN provider. Customer reference does not exist. Possible fabricated transaction. Escalate for fraud investigation."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: immediate
+    expected_escalation_target: cfo-agent
+    source: synthetic
+    notes: "Provider-side verification fails — potential fraud attempt"
+
+  - id: treasury-020
+    category: adversarial
+    description: "Duplicate payment scheduled under different reference"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "150000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "PMT-2026-07-601"
+          vendor: "ABC Stationery Ltd"
+          amount: "4500.00"
+          dueDate: "2026-07-22"
+          priority: "normal"
+          invoiceRef: "ABC-INV-12234"
+        - paymentId: "PMT-2026-07-602"
+          vendor: "ABC Stationery Ltd"
+          amount: "4500.00"
+          dueDate: "2026-07-25"
+          priority: "normal"
+          invoiceRef: "ABC-INV-12234-DUP"
+      existingScheduledPayments:
+        - paymentId: "PMT-2026-07-102"
+          vendor: "ABC Stationery Ltd"
+          amount: "4500.00"
+          dueDate: "2026-07-15"
+          invoiceRef: "ABC-INV-12234"
+          status: "completed"
+    expected_output:
+      status: "flagged"
+      reason_code: "DUPLICATE_PAYMENT"
+      duplicates:
+        - reference1: "PMT-2026-07-601"
+          reference2: "PMT-2026-07-602"
+          vendor: "ABC Stationery Ltd"
+          amount: "4500.00"
+          invoiceRefMatch: true
+      summary: "Duplicate payment detected: two payments to ABC Stationery Ltd for $4,500 referencing the same invoice (ABC-INV-12234). Invoice already paid on July 15. Block duplicate."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Duplicate invoice reference across payments"
+
+  - id: treasury-021
+    category: adversarial
+    description: "Payment to sanctioned entity"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "200000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "PMT-2026-07-701"
+          vendor: "GlobalTrade DMCC"
+          amount: "85000.00"
+          currency: "USD"
+          ghsEquivalent: "1105000.00"
+          dueDate: "2026-07-28"
+          priority: "high"
+          vendorCountry: "Iran"
+          purposeCode: "COMMODITIES-IMPORT"
+      sanctionsCheck:
+        vendorName: "GlobalTrade DMCC"
+        country: "Iran"
+        matchType: "sanctioned_jurisdiction"
+        blocked: true
+    expected_output:
+      status: "blocked"
+      reason_code: "SANCTIONS_FLAG"
+      paymentId: "PMT-2026-07-701"
+      vendor: "GlobalTrade DMCC"
+      amount: "85000.00"
+      sanctionsDetail: "Vendor registered in Iran — sanctioned jurisdiction. Payment cannot proceed."
+      summary: "Payment blocked by sanctions screening. Vendor jurisdiction (Iran) is a sanctioned entity. Immediate escalation required."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: immediate
+    expected_escalation_target: cfo-agent
+    source: synthetic
+    notes: "Sanctions screening must block and escalate urgently"
+
+  - id: treasury-022
+    category: adversarial
+    description: "Mobile money transaction with mismatch between provider and ledger amounts"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: review_mobile_money
+      asOfDate: "2026-07-20"
+      provider: "MTN Mobile Money"
+      walletId: "WAL-MTN-001"
+      ledgerBalance: "45000.00"
+      providerBalance: "44950.00"
+      difference: "50.00"
+      transactions:
+        - reference: "WAVE-2026-07-20-002"
+          amount:
+            ledger: "500.00"
+            provider: "450.00"
+          type: "collection"
+          status: "amount_mismatch"
+          customerRef: "CUST-1005"
+    expected_output:
+      status: "rejected"
+      walletId: "WAL-MTN-001"
+      reason_code: "AMOUNT_MISMATCH"
+      transactionRef: "WAVE-2026-07-20-002"
+      ledgerAmount: "500.00"
+      providerAmount: "450.00"
+      difference: "50.00"
+      reviewNotes: "Transaction WAVE-2026-07-20-002: ledger shows $500.00 but provider shows $450.00. $50 discrepancy. Possible data entry error or fee not itemized. Hold and investigate."
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Amount mismatch between provider and ledger must be rejected"
+
+  - id: treasury-023
+    category: adversarial
+    description: "Sweep request that would drain all mobile money wallets"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "170000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "SWEEP-2026-07-20"
+          vendor: "Internal — Bank Transfer"
+          amount: "84000.00"
+          description: "Full sweep of all mobile money wallets to bank account"
+          dueDate: "2026-07-20"
+          priority: "normal"
+      mobileMoneyPosition:
+        totalMobileMoney: "84000.00"
+        dailyCollectionAverage: "2100.00"
+        expectedCollectionsToday: "1500.00"
+        rails:
+          - provider: "MTN Mobile Money"
+            walletId: "WAL-MTN-001"
+            balance: "45000.00"
+            postSweepBalance: "0.00"
+          - provider: "Vodafone Cash"
+            walletId: "WAL-VOD-001"
+            balance: "18500.00"
+            postSweepBalance: "0.00"
+          - provider: "AirtelTigo Money"
+            walletId: "WAL-AIR-001"
+            balance: "8200.00"
+            postSweepBalance: "0.00"
+          - provider: "Wave"
+            walletId: "WAL-WAVE-001"
+            balance: "12300.00"
+            postSweepBalance: "0.00"
+    expected_output:
+      status: "approved_with_caveats"
+      totalScheduled: "84000.00"
+      projectedBalance: "254000.00"
+      bufferStatus: "adequate"
+      warnings:
+        - "Full mobile money sweep will leave all four rails at zero balance. Daily collections (~$2,100) will replenish but there will be a 24-hour window with zero mobile money capacity."
+        - "Consider leaving $5,000 operational float across MTN and Wave wallets for incoming collections."
+      summary: "Sweep approved with caveat: recommend leaving operational float in mobile money wallets to avoid disruption to collection processing."
+    expected_confidence_range: [0.85, 0.95]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Zero-balance sweep creates operational risk for incoming collections"
+
+  # ── AMBIGUOUS (5 cases) ───────────────────────────────────────────────────
+  - id: treasury-024
+    category: ambiguous
+    description: "Large unexpected deposit — classification unclear"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: consolidated_cash_position
+      asOfDate: "2026-07-20"
+      streams:
+        reconciliation:
+          bankName: "Access Bank Ghana"
+          accountNumber: "ACC-1001"
+          ledgerBalance: "195000.00"
+          availableBalance: "195000.00"
+          status: "pending_review"
+          unusualItems:
+            - reference: "UNEXPECTED-DEP-2026-07-20"
+              amount: "70000.00"
+              description: "Wire transfer from unknown origin"
+              date: "2026-07-20"
+              senderInfo: "International Wire — Ref: SWIFT-INTL-7788"
+    expected_output: null
+    expected_confidence_range: [0.4, 0.65]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Large unknown deposit — needs investigation before classification"
+
+  - id: treasury-025
+    category: ambiguous
+    description: "Cash position with competing priority payment demands"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "50000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "PMT-2026-07-801"
+          vendor: "GRA — VAT Payment"
+          amount: "18000.00"
+          dueDate: "2026-07-25"
+          priority: "statutory"
+          notes: "Statutory deadline — penalties apply if late"
+        - paymentId: "PMT-2026-07-802"
+          vendor: "Staff Salaries (July)"
+          amount: "18000.00"
+          dueDate: "2026-07-28"
+          priority: "critical"
+          notes: "Payroll — cannot defer"
+        - paymentId: "PMT-2026-07-803"
+          vendor: "Access Bank — Loan Installment"
+          amount: "1800.00"
+          dueDate: "2026-07-26"
+          priority: "contractual"
+          notes: "Loan covenant — default risk if missed"
+      projectedOutflows:
+        total: "37800.00"
+        projectedBalance: "12200.00"
+        minimumBufferAfter: "-12800.00"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "All three payments are high-priority (statutory, payroll, loan covenant). Cannot defer any but schedule breaches buffer. Judgment call on order or source of additional funds."
+
+  - id: treasury-026
+    category: ambiguous
+    description: "Inter-entity cash transfer — arm's-length pricing unclear"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: consolidated_cash_position
+      asOfDate: "2026-07-20"
+      streams:
+        reconciliation:
+          bankName: "Access Bank Ghana"
+          accountNumber: "ACC-1001"
+          ledgerBalance: "125000.00"
+          availableBalance: "125000.00"
+        cash:
+          accountCode: "1010"
+          bookBalance: "125000.00"
+      interEntityTransactions:
+        - reference: "IC-LOAN-2026-07"
+          fromEntity: "00000000-0000-0000-0000-000000000001"
+          toEntity: "00000000-0000-0000-0000-000000000002"
+          amount: "30000.00"
+          interestRate: "2.5%"
+          marketRate: "8.0%"
+          terms: "12 months"
+          approvedByCFO: false
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Inter-entity loan at below-market rate (2.5% vs 8.0%) — transfer pricing and regulatory compliance implications"
+
+  - id: treasury-027
+    category: ambiguous
+    description: "Reconciliation with timing difference — judgment needed"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: reconciliation_close
+      periodId: "period-2026-07"
+      accountCode: "1020"
+      accountType: "mobile_money"
+      provider: "Wave"
+      reconciliation:
+        bankBalance: "12300.00"
+        bookBalance: "12200.00"
+        difference: "100.00"
+        clearedItems:
+          - reference: "WAVE-2026-07-20-003"
+            amount: "450.00"
+            type: "collection"
+            matched: true
+        unresolvedItems: []
+        timingDifferences:
+          - reference: "WAVE-2026-07-20-004"
+            amount: "100.00"
+            type: "collection"
+            providerTimestamp: "2026-07-20 23:55"
+            expectedGLTimestamp: "2026-07-21 01:00"
+            description: "Transaction near day boundary — likely appears in next day's GL"
+    expected_output: null
+    expected_confidence_range: [0.5, 0.75]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Timing difference near day boundary — judgment needed on whether to include or carry forward"
+
+  - id: treasury-028
+    category: ambiguous
+    description: "Payment schedule with early payment discount vs buffer trade-off"
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      action: approve_payment_schedule
+      asOfDate: "2026-07-20"
+      availableBalance: "48000.00"
+      minimumBuffer: "25000.00"
+      effectiveBuffer: "25000.00"
+      schedule:
+        - paymentId: "PMT-2026-07-901"
+          vendor: "TechCorp Solutions"
+          amount: "12000.00"
+          dueDate: "2026-08-15"
+          priority: "low"
+          earlyPaymentDiscount:
+            discountPercent: 5
+            discountAmount: "600.00"
+            discountDeadline: "2026-07-25"
+            savingsIfPaidEarly: "600.00"
+        - paymentId: "PMT-2026-07-902"
+          vendor: "OfficeMax Ltd"
+          amount: "3200.00"
+          dueDate: "2026-07-28"
+          priority: "normal"
+      projectedOutflows:
+        total: "15200.00"
+        projectedBalance: "32800.00"
+        minimumBufferAfter: "7800.00"
+      earlyPaymentScenario:
+        ifExercised:
+          total: "27200.00"
+          projectedBalance: "20800.00"
+          bufferStatus: "breached"
+          savings: "600.00"
+    expected_output: null
+    expected_confidence_range: [0.45, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Trade-off: save $600 by paying TechCorp early but breech $25k buffer. Business judgment needed on whether the saving justifies the risk."

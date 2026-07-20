@@ -15,6 +15,7 @@ import {
   Settings,
   Shield,
   AlertCircle,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui";
@@ -34,6 +35,7 @@ const navigation: NavItem[] = [
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "Financial Health", href: "/admin/financial", icon: Shield },
   { label: "Alerts", href: "/admin/alerts", icon: AlertCircle },
+  { label: "Model Ops", href: "/admin/model-ops", icon: Cpu },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

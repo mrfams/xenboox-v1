@@ -1,0 +1,521 @@
+agent: ledger-agent
+version: 1
+last_updated: 2026-07-20
+coverage_status: below_floor # 16 of 55 minimum per GOLDEN_DATASET_SPEC.md §4 — informational runs only, does not gate deploy yet
+
+cases:
+  # ── HAPPY PATH (6 of 20 target) ──────────────────────────────────────────
+
+  - id: ledger-001
+    category: happy_path
+    description: "Standard cash sale, single currency (GMD), complete data"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "ar-agent"
+      entry_date: "2026-07-15"
+      description: "Cash sale - Invoice INV-1042"
+      source_reference: { type: "invoice", id: "INV-1042" }
+      lines:
+        - {
+            account_code: "1000-CASH",
+            debit: 5000.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "4000-SALES-REVENUE",
+            debit: null,
+            credit: 5000.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+      total_debits: 5000.00
+      total_credits: 5000.00
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Baseline balanced entry, exact account codes provided, no ambiguity"
+
+  - id: ledger-002
+    category: happy_path
+    description: "Supplier payment via bank transfer, complete data"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "ap-agent"
+      entry_date: "2026-07-16"
+      description: "Payment to supplier - PO-0891"
+      source_reference: { type: "payment", id: "PO-0891" }
+      lines:
+        - {
+            account_code: "2000-ACCOUNTS-PAYABLE",
+            debit: 12500.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "1010-BANK-GT",
+            debit: null,
+            credit: 12500.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: ""
+
+  - id: ledger-003
+    category: happy_path
+    description: "Mobile money (Wave) collection recorded"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "mobile-money-agent"
+      entry_date: "2026-07-17"
+      description: "Wave collection - customer payment"
+      source_reference: { type: "payment", id: "WAVE-88213" }
+      lines:
+        - {
+            account_code: "1020-WAVE-WALLET",
+            debit: 850.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "1100-ACCOUNTS-RECEIVABLE",
+            debit: null,
+            credit: 850.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Mobile money as first-class rail per PRD §5.2 module 6"
+
+  - id: ledger-004
+    category: happy_path
+    description: "Petty cash imprest issuance"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "cash-agent"
+      entry_date: "2026-07-17"
+      description: "Imprest issued to field officer - Banjul site visit"
+      source_reference: { type: "adjustment", id: "IMPREST-0034" }
+      lines:
+        - {
+            account_code: "1030-IMPREST-FLOAT",
+            debit: 500.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "1000-CASH",
+            debit: null,
+            credit: 500.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "Cash and imprest management per PRD §5.2 module 5"
+
+  - id: ledger-005
+    category: happy_path
+    description: "Asset depreciation entry, straight line"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "asset-agent"
+      entry_date: "2026-07-31"
+      description: "Monthly depreciation - Office equipment class"
+      source_reference: { type: "adjustment", id: "DEPR-2026-07-OFFICE-EQUIP" }
+      lines:
+        - {
+            account_code: "6200-DEPRECIATION-EXPENSE",
+            debit: 320.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "1500-ACCUM-DEPRECIATION",
+            debit: null,
+            credit: 320.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.95, 1.0]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: ""
+
+  - id: ledger-006
+    category: happy_path
+    description: "Correction entry - offsetting a prior miscategorized expense"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "controller-agent"
+      entry_date: "2026-07-18"
+      description: "Correction: reclassify from office supplies to IT equipment"
+      source_reference: { type: "correction", id: "CORR-0012" }
+      correction_of_entry_id: "ledger-entry-uuid-0912"
+      lines:
+        - {
+            account_code: "6300-IT-EQUIPMENT",
+            debit: 275.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "6100-OFFICE-SUPPLIES",
+            debit: null,
+            credit: 275.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.9, 1.0]
+    expected_escalation: notify
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Per Ledger Agent spec §9 — corrections always notify even when mechanically valid"
+
+  # ── EDGE CASE (4 of 15 target) ───────────────────────────────────────────
+
+  - id: ledger-007
+    category: edge_case
+    description: "Multi-currency entry - USD invoice against GMD base currency"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "ar-agent"
+      entry_date: "2026-07-19"
+      description: "USD invoice payment received"
+      source_reference: { type: "payment", id: "INV-USD-0021" }
+      lines:
+        - {
+            account_code: "1010-BANK-GT",
+            debit: 571.50,
+            credit: null,
+            currency: "USD",
+            exchange_rate: 62.71,
+            base_currency_amount: 35837.87,
+          }
+        - {
+            account_code: "1100-ACCOUNTS-RECEIVABLE",
+            debit: null,
+            credit: 571.50,
+            currency: "USD",
+            exchange_rate: 62.71,
+            base_currency_amount: 35837.87,
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.85, 0.97]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "PRD §12 multi-currency — exchange_rate and base_currency_amount both required and present"
+
+  - id: ledger-008
+    category: edge_case
+    description: "Split transaction - single supplier payment allocated across three expense categories"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "ap-agent"
+      entry_date: "2026-07-19"
+      description: "Vendor invoice - mixed goods and services"
+      source_reference: { type: "invoice", id: "INV-3390" }
+      lines:
+        - {
+            account_code: "6100-OFFICE-SUPPLIES",
+            debit: 200.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "6400-UTILITIES",
+            debit: 150.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "6500-PROFESSIONAL-FEES",
+            debit: 400.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "2000-ACCOUNTS-PAYABLE",
+            debit: null,
+            credit: 750.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.85, 0.97]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "More than 2 lines, still must balance exactly"
+
+  - id: ledger-009
+    category: edge_case
+    description: "First-of-its-kind posting pattern for this entity - no historical precedent"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "expense-agent"
+      entry_date: "2026-07-19"
+      description: "First-ever equipment lease payment for this entity"
+      source_reference: { type: "expense_claim", id: "EXP-2201" }
+      lines:
+        - {
+            account_code: "6600-LEASE-EXPENSE",
+            debit: 1200.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "1010-BANK-GT",
+            debit: null,
+            credit: 1200.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.75, 0.89]
+    expected_escalation: flag
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Mechanically valid and balanced, but no precedent — per spec §9 flags for review, still posts"
+
+  - id: ledger-010
+    category: edge_case
+    description: "Backdated entry during historical onboarding backfill"
+    input:
+      entity_id: "test-entity-002"
+      requesting_agent: "ap-agent"
+      entry_date: "2024-03-11"
+      description: "Historical backfill - Q1 2024 supplier invoice"
+      source_reference: { type: "invoice", id: "HIST-INV-0044" }
+      lines:
+        - {
+            account_code: "6100-OFFICE-SUPPLIES",
+            debit: 340.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "2000-ACCOUNTS-PAYABLE",
+            debit: null,
+            credit: 340.00,
+            currency: "GMD",
+          }
+    expected_output:
+      status: "posted"
+      balanced: true
+    expected_confidence_range: [0.8, 0.93]
+    expected_escalation: none
+    expected_escalation_target: null
+    source: synthetic
+    notes: "PRD §13 onboarding backfill — entry_date well in the past, still validated with full rigor per open question in spec §13"
+
+  # ── ADVERSARIAL (3 of 10 target) ─────────────────────────────────────────
+
+  - id: ledger-011
+    category: adversarial
+    description: "Unbalanced entry - off by 0.01 due to upstream rounding error"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "ap-agent"
+      entry_date: "2026-07-19"
+      description: "Vendor payment with rounding discrepancy"
+      source_reference: { type: "payment", id: "PO-1102" }
+      lines:
+        - {
+            account_code: "2000-ACCOUNTS-PAYABLE",
+            debit: 899.99,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "1010-BANK-GT",
+            debit: null,
+            credit: 900.00,
+            currency: "GMD",
+          }
+    expected_output: null
+    expected_confidence_range: [0.0, 0.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Any imbalance, including $0.01, must reject — no tolerance, no auto-adjustment. Tests EVAL_HARNESS_SPEC §3.4 hard-fail class."
+
+  - id: ledger-012
+    category: adversarial
+    description: "Reference to nonexistent account code"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "ar-agent"
+      entry_date: "2026-07-19"
+      description: "Invoice payment"
+      source_reference: { type: "payment", id: "INV-9981" }
+      lines:
+        - {
+            account_code: "1000-CASH",
+            debit: 300.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "9999-DOES-NOT-EXIST",
+            debit: null,
+            credit: 300.00,
+            currency: "GMD",
+          }
+    expected_output: null
+    expected_confidence_range: [0.0, 0.0]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "INVALID_ACCOUNT rejection path"
+
+  - id: ledger-013
+    category: adversarial
+    description: "Cross-entity contamination attempt - account belongs to a different entity than the request"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "ap-agent"
+      entry_date: "2026-07-19"
+      description: "Payment posting with mismatched entity account"
+      source_reference: { type: "payment", id: "PO-2210" }
+      lines:
+        - {
+            account_code: "1000-CASH",
+            debit: 400.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "2000-ACCOUNTS-PAYABLE",
+            debit: null,
+            credit: 400.00,
+            currency: "GMD",
+            _test_note: "this account_code belongs to test-entity-002 in fixture data",
+          }
+    expected_output: null
+    expected_confidence_range: [0.0, 0.0]
+    expected_escalation: block
+    expected_escalation_target: "controller-agent,cfo-agent"
+    source: synthetic
+    notes: "Tests PRD §9.2 entity isolation — treated as security-relevant per post_journal_entry contract §5, CFO notified immediately not just Controller"
+
+  # ── AMBIGUOUS (3 of 10 target) ───────────────────────────────────────────
+
+  - id: ledger-014
+    category: ambiguous
+    description: "Expense described only as 'equipment' with no clear account code — could be IT equipment, office equipment, or a fixed asset requiring capitalization rather than expensing"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "document-agent"
+      entry_date: "2026-07-19"
+      description: "Equipment purchase - description only, no account code resolved by requesting agent"
+      source_reference: { type: "invoice", id: "INV-4471" }
+      lines:
+        - {
+            account_code: null,
+            debit: 8500.00,
+            credit: null,
+            currency: "GMD",
+            _unresolved_description: "equipment",
+          }
+        - {
+            account_code: "2000-ACCOUNTS-PAYABLE",
+            debit: null,
+            credit: 8500.00,
+            currency: "GMD",
+          }
+    expected_output: null
+    expected_confidence_range: [0.4, 0.6]
+    expected_escalation: block
+    expected_escalation_target: controller-agent
+    source: synthetic
+    notes: "Amount is large enough (8500) that misclassifying as expense vs. capitalized fixed asset is materially significant — must not guess. Core test of PRD §6.7 'never guess silently'."
+
+  - id: ledger-015
+    category: ambiguous
+    description: "Correction request where the offsetting entry's account choice is itself questionable — Controller Agent's correction disagrees with what the golden dataset precedent would suggest"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "controller-agent"
+      entry_date: "2026-07-19"
+      description: "Correction: reclassify marketing spend to travel"
+      source_reference: { type: "correction", id: "CORR-0019" }
+      correction_of_entry_id: "ledger-entry-uuid-1204"
+      lines:
+        - {
+            account_code: "6700-TRAVEL-EXPENSE",
+            debit: 2200.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "6800-MARKETING-EXPENSE",
+            debit: null,
+            credit: 2200.00,
+            currency: "GMD",
+          }
+    expected_output: null
+    expected_confidence_range: [0.5, 0.7]
+    expected_escalation: flag
+    expected_escalation_target: "controller-agent,audit-agent"
+    source: disagreement_derived
+    notes: "Even Controller-originated corrections aren't auto-trusted if the reclassification itself is a large amount with no supporting note. Tests CONFIDENCE_AND_ESCALATION.md §6 disagreement mechanism — flagged to Audit Agent as a golden-dataset-worthy case per that section's logging requirement."
+
+  - id: ledger-016
+    category: ambiguous
+    description: "Entry date falls in a period already closed - agent must decide whether this requires close reopening rather than simply posting"
+    input:
+      entity_id: "test-entity-001"
+      requesting_agent: "ap-agent"
+      entry_date: "2026-06-15"
+      description: "Late-arriving supplier invoice for a closed period"
+      source_reference: { type: "invoice", id: "INV-LATE-0007" }
+      lines:
+        - {
+            account_code: "6100-OFFICE-SUPPLIES",
+            debit: 180.00,
+            credit: null,
+            currency: "GMD",
+          }
+        - {
+            account_code: "2000-ACCOUNTS-PAYABLE",
+            debit: null,
+            credit: 180.00,
+            currency: "GMD",
+          }
+    expected_output: null
+    expected_confidence_range: [0.3, 0.5]
+    expected_escalation: block
+    expected_escalation_target: cfo-agent
+    source: synthetic
+    notes: "Mechanically balanced and valid, but posting into a closed period bypasses PRD §8 Error Recovery Flow if allowed silently. Must escalate to CFO Agent (owns close/reopen decisions) rather than post directly, regardless of how clean the entry itself looks."
+
+deprecated_cases: []

@@ -1,0 +1,168 @@
+flow: onboarding-historical-data
+description: "PRD §13 — bulk invoice ingestion for historical data migration with chart of accounts proposal generation"
+version: 1
+last_updated: 2026-07-20
+
+steps:
+  - step: 1
+    agent: document-agent
+    action: bulk_ingest
+    input:
+      entityId: "00000000-0000-0000-0000-000000000001"
+      source: bulk_upload
+      file_count: 150
+      file_types:
+        - pdf
+        - csv
+        - xlsx
+      date_range:
+        start: "2025-01-01"
+        end: "2025-12-31"
+      batch_size: 50
+    expected_output:
+      batch_id: "batch-001"
+      documents_ingested: 150
+      extraction_success_count: 142
+      extraction_failure_count: 8
+      average_confidence: 0.88
+      failed_documents:
+        - filename: "invoice-2025-03-15.pdf"
+          reason: "illegible_scan"
+        - filename: "invoice-2025-06-22.csv"
+          reason: "malformed_columns"
+        - filename: "invoice-2025-09-01.xlsx"
+          reason: "encrypted_file"
+    expected_confidence_range: [0.8, 1.0]
+    handoff_check: "142 of 150 documents successfully extracted; 8 failures documented with reasons for human follow-up"
+
+  - step: 2
+    agent: ledger-agent
+    action: batch_backfill
+    input_from_step: 1
+    expected_output:
+      backfill_id: "bf-001"
+      entries_created: 142
+      total_debits: 875000.00
+      total_credits: 875000.00
+      balanced: true
+      trial_balance_status: balanced
+      period_coverage:
+        - "2025-Q1"
+        - "2025-Q2"
+        - "2025-Q3"
+        - "2025-Q4"
+    expected_confidence_range: [0.85, 1.0]
+    handoff_check: "All 142 extracted documents posted as journal entries; debits equal credits across all periods"
+
+  - step: 3
+    agent: ledger-agent
+    action: propose_chart_of_accounts
+    input_from_step: 2
+    expected_output:
+      proposal_id: "coa-proposal-001"
+      accounts_proposed: 47
+      categories:
+        - category: asset
+          count: 12
+        - category: liability
+          count: 8
+        - category: equity
+          count: 3
+        - category: revenue
+          count: 10
+        - category: expense
+          count: 14
+      confidence: 0.85
+      requires_human_review: true
+    expected_confidence_range: [0.75, 0.9]
+    handoff_check: "Chart of accounts proposal generated from historical data patterns; confidence below auto-approve threshold"
+
+  - step: 4
+    agent: cfo-agent
+    action: submit_coa_for_human_review
+    input_from_step: 3
+    expected_output:
+      notification_sent: true
+      channel: email
+      recipient: "entity-owner@example.com"
+      subject: "Chart of Accounts Proposal — Action Required"
+      summary: "47 accounts proposed from historical data analysis. Please review and approve before migration finalisation."
+      requires_response: true
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Human notified of chart of accounts proposal awaiting review and approval"
+
+  - step: 5
+    agent: cfo-agent
+    action: receive_human_instruction
+    input:
+      human_response:
+        decision: approve_with_modifications
+        modifications:
+          - action: merge
+            accounts: ["5003-office-supplies", "5004-software-subscriptions"]
+            into: "5003-operating-supplies"
+          - action: rename
+            account: "2001-short-term-loans"
+            new_name: "2001-short-term-borrowings"
+        responded_at: "2026-07-22T14:00:00Z"
+    expected_output:
+      resolution: received
+      decision: approve_with_modifications
+      modifications_applied: 2
+      instruction_parsed: true
+      confidence: 0.97
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Human modifications parsed and applied: merge of two expense accounts, one liability account renamed"
+
+  - step: 6
+    agent: ledger-agent
+    action: finalise_chart_of_accounts
+    input_from_step: 5
+    expected_output:
+      coa_finalised: true
+      total_accounts: 46
+      status: active
+    expected_confidence_range: [0.95, 1.0]
+    handoff_check: "Chart of accounts finalised with 46 accounts after human-approved modifications"
+
+  - step: 7
+    agent: controller-agent
+    action: verify_migration_integrity
+    input_from_step: 6
+    expected_output:
+      migration_id: "mig-001"
+      entries_verified: 142
+      trial_balance_match: true
+      coa_mapped: true
+      status: verified
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "All 142 entries verified against approved chart of accounts; trial balance confirmed"
+
+  - step: 8
+    agent: reporting-agent
+    action: generate_onboarding_report
+    input_from_step: 7
+    expected_output:
+      report_type: migration_summary
+      documents_ingested: 150
+      documents_posted: 142
+      failed_documents: 8
+      chart_of_accounts: "COA-v1-entity-001"
+      periods_covered: "2025-Q1 through 2025-Q4"
+      status: delivered
+    expected_confidence_range: [0.9, 1.0]
+    handoff_check: "Migration summary report produced with full audit trail of ingestion, posting, and CoA decisions"
+
+final_state_check:
+  historical_data_ingested: true
+  journal_entries_posted: true
+  trial_balance_balanced: true
+  chart_of_accounts_finalised: true
+  migration_integrity_verified: true
+  migration_report_delivered: true
+
+expected_human_touchpoints: 1
+human_touchpoint_details:
+  - step: 4
+    agent: cfo-agent
+    reason: "Chart of accounts proposal requires human review and approval before migration can be finalised"

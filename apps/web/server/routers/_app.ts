@@ -1,24 +1,26 @@
-import { z } from "zod"
-import { router, publicProcedure } from "@/lib/trpc/server"
-import { organizationRouter } from "./organization"
-import { coaRouter } from "./coa"
-import { fiscalRouter } from "./fiscal"
-import { journalRouter } from "./journal"
-import { apRouter } from "./ap"
-import { arRouter } from "./ar"
-import { treasuryRouter } from "./treasury"
-import { cashRouter } from "./cash"
-import { mobileMoneyRouter } from "./mobileMoney"
-import { documentRouter } from "./document"
-import { agentRouter } from "./agent"
-import { chatRouter } from "./chat"
-import { authRouter } from "./auth"
-import { reportsRouter } from "./reports"
-import { payrollRouter } from "./payroll"
-import { fixedAssetsRouter } from "./fixedAssets"
-import { inventoryRouter } from "./inventory"
-import { adminRouter } from "./admin"
-import { notificationsRouter } from "./notifications"
+import { z } from "zod";
+import { router, publicProcedure } from "@/lib/trpc/server";
+import { organizationRouter } from "./organization";
+import { coaRouter } from "./coa";
+import { fiscalRouter } from "./fiscal";
+import { journalRouter } from "./journal";
+import { apRouter } from "./ap";
+import { arRouter } from "./ar";
+import { treasuryRouter } from "./treasury";
+import { cashRouter } from "./cash";
+import { mobileMoneyRouter } from "./mobileMoney";
+import { documentRouter } from "./document";
+import { agentRouter } from "./agent";
+import { chatRouter } from "./chat";
+import { authRouter } from "./auth";
+import { reportsRouter } from "./reports";
+import { payrollRouter } from "./payroll";
+import { fixedAssetsRouter } from "./fixedAssets";
+import { inventoryRouter } from "./inventory";
+import { adminRouter } from "./admin";
+import { notificationsRouter } from "./notifications";
+import { integrationsRouter } from "./integrations";
+import { modelOpsRouter } from "./model-ops";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -42,6 +44,8 @@ export const appRouter = router({
   fixedAssets: fixedAssetsRouter,
   inventory: inventoryRouter,
   notifications: notificationsRouter,
-})
+  integrations: integrationsRouter,
+  modelOps: modelOpsRouter,
+});
 
-export type AppRouter = typeof appRouter
+export type AppRouter = typeof appRouter;

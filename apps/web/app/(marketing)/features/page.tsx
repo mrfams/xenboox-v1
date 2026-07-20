@@ -11,108 +11,136 @@ import {
   Users,
   Globe,
   Zap,
-} from "lucide-react"
+  Sparkles,
+  CheckCircle2,
+} from "lucide-react";
+import Link from "next/link";
 
 const features = [
   {
     icon: Bot,
     title: "AI Agent Workforce",
+    subtitle: "19 specialized agents working for you",
     description:
-      "19 specialized AI agents handle accounting tasks autonomously. From journal entry validation to payroll processing, each agent is trained on domain-specific rules and African tax regulations.",
+      "From journal entry validation to payroll processing, each agent is trained on domain-specific rules and African tax regulations.",
     items: [
-      "Hierarchical agent architecture (CFO → Department Heads → Workers)",
+      "Hierarchical architecture (CFO -> Department Heads -> Workers)",
       "Confidence-based escalation to humans",
       "LangFuse observability for every decision",
       "Natural language chat interface",
     ],
+    gradient: "from-blue-600 to-indigo-600",
+    glow: "shadow-blue-500/20",
   },
   {
     icon: BookOpen,
     title: "Complete General Ledger",
+    subtitle: "Full double-entry accounting",
     description:
-      "Full double-entry accounting with automated journal entries, trial balance, and period-end closing workflows.",
+      "Automated journal entries, trial balance, and period-end closing workflows with multi-currency support.",
     items: [
       "Chart of Accounts with 5 category types",
       "Automated depreciation scheduling",
-      "Multi-currency support with exchange rates",
+      "Multi-currency with exchange rates",
       "Fiscal period management with close workflows",
     ],
+    gradient: "from-emerald-500 to-teal-600",
+    glow: "shadow-emerald-500/20",
   },
   {
     icon: Receipt,
-    title: "Accounts Payable & Receivable",
+    title: "Payables & Receivables",
+    subtitle: "Full lifecycle management",
     description:
-      "Manage the full lifecycle of payables and receivables — from purchase orders to payments.",
+      "Manage the complete lifecycle of payables and receivables - from purchase orders to payments.",
     items: [
       "Supplier and customer management",
       "Purchase order workflow",
       "Invoice processing with line items",
       "Payment recording and aging reports",
     ],
+    gradient: "from-amber-500 to-orange-600",
+    glow: "shadow-amber-500/20",
   },
   {
     icon: Landmark,
     title: "Treasury Management",
+    subtitle: "Multi-bank reconciliation",
     description:
-      "Track bank accounts, reconcile transactions, and manage cash flow across multiple accounts.",
+      "Track accounts, reconcile transactions, and manage cash flow across multiple accounts in real time.",
     items: [
       "Multi-bank account tracking",
       "Automated transaction matching",
       "Bank reconciliation workflow",
       "Cash position monitoring",
     ],
+    gradient: "from-violet-500 to-purple-600",
+    glow: "shadow-violet-500/20",
   },
   {
     icon: Wallet,
     title: "Payroll Processing",
+    subtitle: "Multi-jurisdiction payroll engine",
     description:
-      "Full payroll engine with Gambia PAYE tax bands, SSNIT contributions, and configurable deductions.",
+      "Full payroll with Gambia PAYE tax bands, SSNIT contributions, and configurable deductions.",
     items: [
       "PAYE tax calculation (Gambia bands)",
       "SSNIT employee (5%) and employer (10%)",
       "Configurable deduction types",
       "Payslip generation and storage",
     ],
+    gradient: "from-pink-500 to-rose-600",
+    glow: "shadow-pink-500/20",
   },
   {
     icon: BarChart3,
     title: "Financial Reporting",
+    subtitle: "Real-time financial intelligence",
     description:
-      "Real-time financial reports generated from your ledger data. Trial balance, P&L, balance sheet, and more.",
+      "Trial balance, P&L, balance sheet, cash flow - generated automatically from your ledger data.",
     items: [
       "Profit & Loss statement",
       "Balance Sheet",
       "Trial Balance",
       "Cash flow analysis",
     ],
+    gradient: "from-cyan-500 to-blue-600",
+    glow: "shadow-cyan-500/20",
   },
   {
     icon: FileText,
     title: "Document Management",
+    subtitle: "AI-powered document processing",
     description:
-      "Upload, store, and link documents to transactions. Powered by Cloudflare R2 for reliable storage.",
+      "Upload, classify, and extract data from documents automatically. Powered by Cloudflare R2.",
     items: [
       "Presigned upload URLs (R2)",
       "Document-to-transaction linking",
       "OCR text extraction pipeline",
       "Agent-powered document classification",
     ],
+    gradient: "from-teal-500 to-emerald-600",
+    glow: "shadow-teal-500/20",
   },
   {
     icon: Shield,
     title: "Enterprise Security",
+    subtitle: "Bank-grade data protection",
     description:
-      "Row-level security, encryption at rest, rate limiting, and comprehensive audit logging.",
+      "Row-level security, AES-256 encryption, rate limiting, and comprehensive audit logging.",
     items: [
       "PostgreSQL Row-Level Security",
       "AES-256 encryption for sensitive fields",
       "Rate limiting (Upstash Redis)",
       "Full audit trail on every mutation",
     ],
+    gradient: "from-red-500 to-rose-600",
+    glow: "shadow-red-500/20",
   },
   {
     icon: RefreshCw,
     title: "Offline-First Desktop",
+    subtitle: "Works with or without internet",
     description:
       "Tauri desktop app with local SQLite caching. Work offline and sync when reconnected.",
     items: [
@@ -121,22 +149,28 @@ const features = [
       "Cross-platform (Windows, macOS)",
       "Lightweight Rust backend",
     ],
+    gradient: "from-indigo-500 to-blue-600",
+    glow: "shadow-indigo-500/20",
   },
   {
     icon: Users,
     title: "Multi-Entity Support",
+    subtitle: "Manage multiple businesses",
     description:
-      "Manage multiple businesses or entities from a single account. Role-based access control for teams.",
+      "Manage multiple entities from a single account with role-based access control for teams.",
     items: [
-      "Entity-level data isolation",
+      "Entity-level data isolation (RLS)",
       "Role-based access (Owner, Admin, Viewer)",
       "Entity switching from any screen",
       "Per-entity audit trails",
     ],
+    gradient: "from-orange-500 to-amber-600",
+    glow: "shadow-orange-500/20",
   },
   {
     icon: Globe,
     title: "Multi-Currency",
+    subtitle: "Handle any currency",
     description:
       "Handle transactions in multiple currencies with automatic exchange rate synchronization.",
     items: [
@@ -145,85 +179,77 @@ const features = [
       "GMD, USD, EUR, GBP support",
       "Per-account currency settings",
     ],
+    gradient: "from-green-500 to-emerald-600",
+    glow: "shadow-green-500/20",
   },
   {
     icon: Zap,
     title: "Real-Time Processing",
+    subtitle: "Instant AI-powered insights",
     description:
-      "Server-sent events for chat streaming, background job processing with Trigger.dev, and live dashboard updates.",
+      "SSE token streaming, Trigger.dev background jobs, and live dashboard updates.",
     items: [
       "SSE token streaming for AI chat",
       "Trigger.dev background jobs",
       "Real-time dashboard metrics",
       "Live agent activity monitoring",
     ],
+    gradient: "from-yellow-500 to-amber-600",
+    glow: "shadow-yellow-500/20",
   },
-]
+];
 
 export default function FeaturesPage() {
   return (
     <>
-      <section className="border-b py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold tracking-tight">
-              Features
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
+        <div className="absolute inset-0 bg-grid-dark opacity-30" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full blur-3xl" />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="max-w-3xl">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
+              <Sparkles className="h-3 w-3 text-blue-400" />
+              Platform
+            </div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
+              <span className="text-white">Everything you need to</span>
+              <br />
+              <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
+                run your finance function
+              </span>
             </h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Everything you need for AI-powered accounting — from journal entries to financial reports.
+            <p className="mt-6 text-lg text-white/50 leading-relaxed max-w-2xl">
+              Xenboox combines 19 specialized AI agents with a complete
+              double-entry accounting platform. From journal entries to
+              consolidated reporting - no gaps, no compromises.
             </p>
           </div>
         </div>
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </section>
 
-      <section className="py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="grid gap-12">
-            {features.map((feature, i) => (
+      <section className="py-16 md:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
               <div
                 key={feature.title}
-                className={`grid gap-8 md:grid-cols-2 ${i % 2 === 1 ? "md:direction-rtl" : ""}`}
+                className="group relative rounded-2xl border bg-white p-6 md:p-8 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
               >
-                <div className={i % 2 === 1 ? "md:order-2" : ""}>
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <feature.icon className="h-5 w-5" />
-                  </div>
-                  <h2 className="text-2xl font-bold">{feature.title}</h2>
-                  <p className="mt-3 text-muted-foreground">
-                    {feature.description}
-                  </p>
+                <div
+                  className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${feature.gradient} shadow-sm ${feature.glow} group-hover:shadow-lg transition-shadow duration-300`}
+                >
+                  <feature.icon className="h-6 w-6 text-white" />
                 </div>
-                <div className={`${i % 2 === 1 ? "md:order-1" : ""}`}>
-                  <ul className="space-y-3">
-                    {feature.items.map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-sm">
-                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <h3 className="text-lg font-semibold">{feature.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                  {feature.description}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
     </>
-  )
-}
-
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-    >
-      <path
-        fillRule="evenodd"
-        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
+  );
 }
