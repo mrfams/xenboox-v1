@@ -1,7 +1,8 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -19,110 +20,66 @@ import {
   HardHat,
   Boxes,
   Shield,
+  Plug,
   AlertCircle,
+  Receipt,
+  ChevronDown,
+  ChevronUp,
+  MoreHorizontal,
   type LucideIcon,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Separator, Badge } from "@/components/ui"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge, Button } from "@/components/ui";
+import { EntitySwitcher } from "@/components/layout/entity-switcher";
 
 type NavItem = {
-  label: string
-  href: string
-  icon: LucideIcon
-  badge?: string
-}
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  badge?: string;
+};
 
-type NavGroup = {
-  label: string
-  items: NavItem[]
-}
+const primaryNav: NavItem[] = [
+  { label: "Home", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Money In/Out", href: "/dashboard/ar/invoices", icon: Receipt },
+  { label: "Cash", href: "/dashboard/treasury", icon: Wallet },
+  { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
+  { label: "Books", href: "/dashboard/coa", icon: BookOpen },
+];
 
-const navigation: NavGroup[] = [
+const moreModules: NavItem[] = [
   {
-    label: "Overview",
-    items: [
-      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "AI Assistant", href: "/dashboard/chat", icon: MessageSquare, badge: "AI" },
-    ],
+    label: "AI Assistant",
+    href: "/dashboard/chat",
+    icon: MessageSquare,
+    badge: "AI",
   },
-  {
-    label: "Accounting",
-    items: [
-      { label: "Chart of Accounts", href: "/dashboard/coa", icon: BookOpen },
-      { label: "Journal Entries", href: "/dashboard/journal", icon: FileText },
-      { label: "Fiscal Periods", href: "/dashboard/fiscal", icon: Landmark },
-    ],
-  },
-  {
-    label: "Payables & Receivables",
-    items: [
-      { label: "Purchase Orders", href: "/dashboard/ap/pos", icon: FileText, badge: "PO" },
-      { label: "Bills", href: "/dashboard/ap/invoices", icon: CreditCard },
-      { label: "Customers", href: "/dashboard/ar/customers", icon: Users },
-      { label: "Invoices", href: "/dashboard/ar/invoices", icon: FileText, badge: "AR" },
-    ],
-  },
-  {
-    label: "Treasury",
-    items: [
-      { label: "Bank Accounts", href: "/dashboard/treasury", icon: Landmark },
-      { label: "Cash & Imprest", href: "/dashboard/cash", icon: Wallet },
-      { label: "Mobile Money", href: "/dashboard/mobile-money", icon: Smartphone },
-    ],
-  },
-  {
-    label: "Payroll",
-    items: [
-      { label: "Employees", href: "/dashboard/payroll", icon: Users },
-      { label: "Payroll Runs", href: "/dashboard/payroll/runs", icon: FileText },
-    ],
-  },
-  {
-    label: "Assets & Inventory",
-    items: [
-      { label: "Fixed Assets", href: "/dashboard/fixed-assets", icon: HardHat },
-      { label: "Inventory", href: "/dashboard/inventory", icon: Boxes },
-      { label: "Warehouses", href: "/dashboard/inventory/warehouses", icon: Landmark },
-    ],
-  },
-  {
-    label: "Reports",
-    items: [
-      { label: "Financial Reports", href: "/dashboard/reports", icon: BarChart3 },
-    ],
-  },
-  {
-    label: "Documents",
-    items: [
-      { label: "All Documents", href: "/dashboard/documents", icon: FolderOpen },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
-      { label: "Admin Dashboard", href: "/admin", icon: Shield },
-      { label: "AI Comparison", href: "/admin/ai-comparison", icon: AlertCircle },
-      { label: "Spending", href: "/admin/spending", icon: CreditCard },
-    ],
-  },
-]
-
-const bottomNavigation: NavItem[] = [
+  { label: "Payroll", href: "/dashboard/payroll", icon: Users },
+  { label: "Fixed Assets", href: "/dashboard/fixed-assets", icon: HardHat },
+  { label: "Inventory", href: "/dashboard/inventory", icon: Boxes },
+  { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
+  { label: "Integrations", href: "/dashboard/settings", icon: Plug },
+  { label: "Admin", href: "/admin", icon: Shield },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
   { label: "Help", href: "/dashboard/help", icon: HelpCircle },
-]
+];
 
 interface SidebarProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const pathname = usePathname()
+  const pathname = usePathname();
+  const [showMore, setShowMore] = useState(false);
+
+  function isActive(href: string) {
+    if (href === "/dashboard") return pathname === href;
+    return pathname.startsWith(href);
+  }
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -130,90 +87,99 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-200 ease-in-out",
           "lg:static lg:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        {/* Logo */}
-        <div className="flex h-16 items-center gap-2 border-b px-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-            X
-          </div>
-          <span className="text-lg font-bold tracking-tight">Xenboox</span>
+        {/* Logo + Entity Switcher */}
+        <div className="flex flex-col gap-3 border-b p-4">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+              X
+            </div>
+            <span className="text-lg font-bold tracking-tight">Xenboox</span>
+          </Link>
+          <EntitySwitcher />
         </div>
 
-        {/* Navigation */}
+        {/* Primary Nav */}
         <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin">
-          <div className="space-y-6">
-            {navigation.map((group) => (
-              <div key={group.label}>
-                <p className="mb-2 px-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {group.label}
-                </p>
-                <ul className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const isActive =
-                      pathname === item.href ||
-                      (item.href !== "/dashboard" && pathname.startsWith(item.href))
-                    return (
-                      <li key={item.href}>
-                        <Link
-                          href={item.href}
-                          onClick={onClose}
-                          className={cn(
-                            "flex items-center gap-3 rounded-md px-6 py-2 text-sm font-medium transition-colors",
-                            isActive
-                              ? "bg-accent text-accent-foreground"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                          )}
-                        >
-                          <item.icon className="h-4 w-4 shrink-0" />
-                          <span className="flex-1">{item.label}</span>
-                          {item.badge && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {item.badge}
-                            </Badge>
-                          )}
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
+          <div className="space-y-0.5 px-3">
+            {primaryNav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive(item.href)
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {item.badge && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] px-1.5 py-0"
+                  >
+                    {item.badge}
+                  </Badge>
+                )}
+              </Link>
             ))}
           </div>
-        </nav>
 
-        {/* Bottom navigation */}
-        <div className="border-t py-4">
-          <ul className="space-y-0.5">
-            {bottomNavigation.map((item) => {
-              const isActive = pathname.startsWith(item.href)
-              return (
-                <li key={item.href}>
+          {/* More toggle */}
+          <div className="mt-2 px-3">
+            <button
+              onClick={() => setShowMore(!showMore)}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <MoreHorizontal className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left">More</span>
+              {showMore ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
+            </button>
+
+            {showMore && (
+              <div className="ml-2 mt-1 space-y-0.5 border-l pl-2">
+                {moreModules.map((item) => (
                   <Link
+                    key={item.href}
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      "flex items-center gap-3 rounded-md px-6 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive(item.href)
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                     )}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {item.badge && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
                   </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </nav>
       </aside>
     </>
-  )
+  );
 }

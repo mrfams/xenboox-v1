@@ -1,26 +1,27 @@
-"use client"
+"use client";
 
-import { useSession, signOut } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { Menu, LogOut, User, Bell } from "lucide-react"
-import { Button, Avatar, AvatarFallback } from "@/components/ui"
-import { EntitySwitcher } from "@/components/layout/entity-switcher"
-import { ThemeToggle } from "@/components/layout/theme-toggle"
-import { getInitials } from "@/lib/utils"
+import { useSession, signOut } from "next-auth/react";
+import { useState } from "react";
+import { Menu, LogOut, User, Bell, Search, MessageSquare } from "lucide-react";
+import { Button, Avatar, AvatarFallback } from "@/components/ui";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { getInitials } from "@/lib/utils";
 
 interface TopNavProps {
-  onMenuClick: () => void
+  onMenuClick: () => void;
+  onChatToggle?: () => void;
+  chatOpen?: boolean;
 }
 
-export function TopNav({ onMenuClick }: TopNavProps) {
-  const { data: session } = useSession()
-  const router = useRouter()
+export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
+  const { data: session } = useSession();
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  const user = session?.user
-  const initials = user?.name ? getInitials(user.name) : "??"
+  const user = session?.user;
+  const initials = user?.name ? getInitials(user.name) : "??";
 
   return (
-    <header className="flex h-16 items-center gap-4 border-b bg-card px-4 lg:px-6">
+    <header className="flex h-16 items-center gap-3 border-b bg-card px-4 lg:px-6">
       {/* Mobile menu button */}
       <Button
         variant="ghost"
@@ -32,25 +33,49 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Spacer */}
-      <div className="flex-1" />
+      {/* Search */}
+      <div className="hidden sm:flex relative flex-1 max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search invoices, accounts, documents..."
+          className="w-full rounded-lg border bg-muted/50 pl-9 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
 
-      {/* Entity Switcher */}
-      <EntitySwitcher />
+      <div className="flex-1 sm:hidden" />
 
       {/* Notifications */}
       <Button variant="ghost" size="icon" aria-label="Notifications">
         <Bell className="h-5 w-5" />
       </Button>
 
+      {/* CFO Agent Chat toggle */}
+      {onChatToggle && (
+        <Button
+          variant={chatOpen ? "default" : "ghost"}
+          size="sm"
+          onClick={onChatToggle}
+          aria-label="Toggle CFO Agent chat"
+          className="hidden sm:inline-flex gap-2"
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span className="hidden md:inline">CFO Agent</span>
+        </Button>
+      )}
+
       {/* Theme Toggle */}
       <ThemeToggle />
 
       {/* User menu */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pl-2 border-l">
         <Avatar className="h-8 w-8">
           {user?.image && (
-            <img src={user.image} alt={user.name ?? ""} className="h-full w-full object-cover" />
+            <img
+              src={user.image}
+              alt={user.name ?? ""}
+              className="h-full w-full object-cover"
+            />
           )}
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
@@ -68,5 +93,5 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         </Button>
       </div>
     </header>
-  )
+  );
 }

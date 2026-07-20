@@ -1,9 +1,13 @@
-export { DataTable } from './data-table'
-export { CreateDialog } from './create-dialog'
-export { DetailShell } from './detail-shell'
-export { FilterBar } from './filter-bar'
-export type { FilterState } from './filter-bar'
-export { ConfirmDialog } from './confirm-dialog'
-export { AccountPicker } from './account-picker'
-export { StatCard } from './stat-card'
-export { PageHeader } from './page-header'
+export { DataTable } from "./data-table";
+export { CreateDialog } from "./create-dialog";
+export { DetailShell } from "./detail-shell";
+export { FilterBar } from "./filter-bar";
+export type { FilterState } from "./filter-bar";
+export { ConfirmDialog } from "./confirm-dialog";
+export { AccountPicker } from "./account-picker";
+export { StatCard } from "./stat-card";
+export { PageHeader } from "./page-header";
+export { ConfidenceBadge } from "./confidence-badge";
+export { AgentActivityItem } from "./agent-activity-item";
+export { ApprovalCard } from "./approval-card";
+export { DocumentViewer } from "./document-viewer";

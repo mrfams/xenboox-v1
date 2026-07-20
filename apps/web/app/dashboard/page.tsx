@@ -1,7 +1,8 @@
-"use client"
+"use client";
 
-import { useMemo } from "react"
-import Link from "next/link"
+import { useState, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,15 +10,18 @@ import {
   CardTitle,
   Badge,
   Button,
-} from "@/components/ui"
-import { PageHeader } from "@/components/dashboard/page-header"
-import { StatCard } from "@/components/dashboard/stat-card"
-import { EmptyState } from "@/components/shared/empty-state"
-import { Skeleton } from "@/components/shared/loading"
-import { trpc } from "@/lib/trpc/client"
-import { useEntity } from "@/lib/entity-context"
-import { formatCurrency, cn } from "@/lib/utils"
-import { toast } from "sonner"
+} from "@/components/ui";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Skeleton } from "@/components/shared/loading";
+import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { QuickActions } from "@/components/dashboard/quick-actions";
+import { ConfidenceBadge } from "@/components/dashboard/confidence-badge";
+import { AgentActivityItem } from "@/components/dashboard/agent-activity-item";
+import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
+import { formatCurrency, cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   DollarSign,
   FileText,
@@ -28,439 +32,500 @@ import {
   Upload,
   Send,
   ArrowUpRight,
-  ArrowDownRight,
   Bot,
   Clock,
-} from "lucide-react"
+  MessageSquare,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SalesInvoice = {
-  id: string
-  status: string
-  totalAmount: string
-  paidAmount: string
-  balance: string
-  invoiceDate: string
-  invoiceNumber: string
-}
-
+  id: string;
+  status: string;
+  totalAmount: string;
+  paidAmount: string;
+  balance: string;
+  invoiceDate: string;
+  invoiceNumber: string;
+};
 type ApInvoice = {
-  id: string
-  status: string
-  totalAmount: string
-  balance: string
-  invoiceDate: string
-  invoiceNumber: string
-}
-
+  id: string;
+  status: string;
+  totalAmount: string;
+  balance: string;
+  invoiceDate: string;
+  invoiceNumber: string;
+};
 type BankAccount = {
-  id: string
-  name: string
-  currentBalance: string
-  isActive: boolean
-}
-
+  id: string;
+  name: string;
+  currentBalance: string;
+  isActive: boolean;
+};
 type CashAccount = {
-  id: string
-  name: string
-  currentBalance: string
-  isActive: boolean
-}
-
+  id: string;
+  name: string;
+  currentBalance: string;
+  isActive: boolean;
+};
 type JournalEntry = {
-  id: string
-  entryNumber: number
-  description: string
-  date: string
-  status: string
-}
-
+  id: string;
+  entryNumber: number;
+  description: string;
+  date: string;
+  status: string;
+};
 type PurchaseOrder = {
-  id: string
-  poNumber: string
-  status: string
-  totalAmount: string
-  orderDate: string
+  id: string;
+  poNumber: string;
+  status: string;
+  totalAmount: string;
+  orderDate: string;
+};
+
+// ─── Health Score ──────────────────────────────────────────────────────────────
+
+function computeHealthScore(metrics: ReturnType<typeof computeMetrics>) {
+  if (!metrics)
+    return { score: 0, label: "No data", trend: "neutral" as const };
+  let score = 100;
+  if (metrics.outstandingReceivables > 100000) score -= 15;
+  if (metrics.outstandingPayables > 100000) score -= 15;
+  if (metrics.totalCashBank < 10000) score -= 20;
+  if (metrics.outstandingReceivables > 0 && metrics.totalRevenue === 0)
+    score -= 10;
+  if (metrics.totalPendingApprovals > 10) score -= 5;
+  score = Math.max(0, Math.min(100, score));
+  const label = score >= 80 ? "Good" : score >= 50 ? "Fair" : "Needs attention";
+  const trend: "up" | "down" | "neutral" =
+    score >= 80 ? "up" : score >= 50 ? "neutral" : "down";
+  return { score, label, trend };
 }
 
-// ─── Chart Component ──────────────────────────────────────────────────────────
-
-type BarChartProps = {
-  data: { label: string; value: number; color?: string }[]
-  maxValue?: number
-}
-
-function BarChart({ data, maxValue }: BarChartProps) {
-  const max = maxValue ?? Math.max(...data.map((d) => d.value), 1)
-
+function HealthScoreBadge({
+  score,
+  label,
+  trend,
+}: {
+  score: number;
+  label: string;
+  trend: "up" | "down" | "neutral";
+}) {
+  const color =
+    score >= 80
+      ? "text-emerald-500"
+      : score >= 50
+        ? "text-amber-500"
+        : "text-red-500";
+  const bg =
+    score >= 80
+      ? "bg-emerald-500/10"
+      : score >= 50
+        ? "bg-amber-500/10"
+        : "bg-red-500/10";
   return (
-    <div className="flex items-end gap-2 h-40">
-      {data.map((item, i) => (
-        <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-          <span className="text-[10px] text-muted-foreground truncate w-full text-center">
-            {item.label}
-          </span>
-          <div className="w-full relative" style={{ height: "100px" }}>
-            <div
-              className={cn(
-                "absolute bottom-0 w-full rounded-t-sm transition-all",
-                item.color ?? "bg-primary"
-              )}
-              style={{ height: `${(item.value / max) * 100}%`, minHeight: item.value > 0 ? "2px" : "0" }}
-            />
-          </div>
-          <span className="text-[10px] font-medium text-muted-foreground">
-            {formatCurrency(item.value)}
-          </span>
+    <div className={cn("flex items-center gap-3 rounded-xl border p-4", bg)}>
+      <div className={cn("text-3xl font-bold", color)}>{score}</div>
+      <div>
+        <p className={cn("text-sm font-semibold", color)}>{label}</p>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          {trend === "up" && (
+            <TrendingUp className="h-3 w-3 text-emerald-500" />
+          )}
+          {trend === "down" && (
+            <TrendingDown className="h-3 w-3 text-red-500" />
+          )}
+          Financial Health
         </div>
-      ))}
+      </div>
     </div>
-  )
+  );
 }
 
-// ─── Quick Action Item ────────────────────────────────────────────────────────
+// ─── Onboarding View ──────────────────────────────────────────────────────────
 
-type QuickActionProps = {
-  label: string
-  href: string
-  icon: React.ElementType
-}
+function OnboardingView() {
+  const router = useRouter();
+  const [chatMessage, setChatMessage] = useState("");
 
-function QuickActionItem({ label, href, icon: Icon }: QuickActionProps) {
+  const suggestedPrompts = [
+    {
+      text: "Set up my chart of accounts for a trading business",
+      icon: BookOpen,
+    },
+    { text: "I want to connect my bank account", icon: Landmark },
+    { text: "I have invoices to upload", icon: FileText },
+    {
+      text: "What accounting software can you import from?",
+      icon: MessageSquare,
+    },
+  ];
+
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-lg border p-3 text-sm font-medium transition-colors hover:bg-accent"
-    >
-      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-      {label}
-    </Link>
-  )
+    <div className="space-y-6">
+      <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+            <Sparkles className="h-6 w-6 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold">Welcome to Xenboox</h1>
+            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+              Your AI accounting team is ready. Tell your agent what to do —
+              connect your bank, upload documents, or ask anything about your
+              finances.
+            </p>
+          </div>
+        </div>
+        <div className="mt-5">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  router.push(
+                    `/dashboard/chat?initial=${encodeURIComponent(chatMessage.trim())}`,
+                  )
+                }
+                placeholder="Ask your AI anything — or start by describing your business..."
+                className="w-full rounded-xl border bg-background px-4 py-3 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-shadow"
+              />
+              <Button
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
+                onClick={() =>
+                  router.push(
+                    `/dashboard/chat?initial=${encodeURIComponent(chatMessage.trim())}`,
+                  )
+                }
+                disabled={!chatMessage.trim()}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {suggestedPrompts.map((prompt) => {
+              const Icon = prompt.icon;
+              return (
+                <button
+                  key={prompt.text}
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/chat?initial=${encodeURIComponent(prompt.text)}`,
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+                >
+                  <Icon className="h-3 w-3" />
+                  {prompt.text}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+            Get Started
+          </h2>
+          <QuickActions
+            onAction={(id: string) => {
+              if (id === "connect-bank" || id === "email-forwarding")
+                router.push("/dashboard/integrations");
+              else if (id === "document-uploaded")
+                router.push("/dashboard/documents");
+            }}
+          />
+        </div>
+        <OnboardingChecklist onAction={() => {}} />
+      </div>
+    </div>
+  );
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
+// ─── Metrics ───────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: string }) {
-  const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-    draft: "outline",
-    pending: "secondary",
-    partial: "secondary",
-    paid: "default",
-    overdue: "destructive",
-    voided: "outline",
-    submitted: "default",
-    approved: "default",
-    received: "default",
-    cancelled: "destructive",
-    posted: "default",
-    pending_review: "secondary",
-    reversed: "destructive",
-  }
+function computeMetrics(
+  arInvoices: SalesInvoice[],
+  apInvoices: ApInvoice[],
+  bankAccounts: BankAccount[],
+  cashAccounts: CashAccount[],
+  journalEntries: JournalEntry[],
+  poList: PurchaseOrder[],
+) {
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  return <Badge variant={variants[status] ?? "outline"}>{status}</Badge>
+  const totalRevenue = arInvoices
+    .filter(
+      (inv) => inv.status === "paid" && inv.invoiceDate.startsWith(thisMonth),
+    )
+    .reduce((sum, inv) => sum + parseFloat(inv.totalAmount), 0);
+
+  const outstandingReceivables = arInvoices
+    .filter((inv) => inv.status === "pending" || inv.status === "partial")
+    .reduce((sum, inv) => sum + parseFloat(inv.balance), 0);
+  const arCount = arInvoices.filter(
+    (inv) => inv.status === "pending" || inv.status === "partial",
+  ).length;
+
+  const outstandingPayables = apInvoices
+    .filter((inv) => inv.status === "pending" || inv.status === "partial")
+    .reduce((sum, inv) => sum + parseFloat(inv.balance), 0);
+  const apCount = apInvoices.filter(
+    (inv) => inv.status === "pending" || inv.status === "partial",
+  ).length;
+
+  const bankBalance = bankAccounts
+    .filter((b) => b.isActive)
+    .reduce((sum, b) => sum + parseFloat(b.currentBalance), 0);
+  const cashBalance = cashAccounts
+    .filter((c) => c.isActive)
+    .reduce((sum, c) => sum + parseFloat(c.currentBalance), 0);
+  const totalCashBank = bankBalance + cashBalance;
+  const accountCount =
+    bankAccounts.filter((b) => b.isActive).length +
+    cashAccounts.filter((c) => c.isActive).length;
+
+  const pendingPOs = poList.filter((po) => po.status === "submitted");
+  const pendingApInvoices = apInvoices.filter(
+    (inv) => inv.status === "pending",
+  );
+  const totalPendingApprovals = pendingPOs.length + pendingApInvoices.length;
+
+  return {
+    totalRevenue,
+    outstandingReceivables,
+    arCount,
+    outstandingPayables,
+    apCount,
+    totalCashBank,
+    accountCount,
+    totalPendingApprovals,
+    pendingPOs,
+    pendingApInvoices,
+  };
 }
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { entityId } = useEntity()
+  const { entityId } = useEntity();
+  const router = useRouter();
 
-  // ── Data queries ──
+  const {
+    data: arInvoices,
+    isLoading: arLoading,
+    error: arError,
+  } = trpc.ar.listInvoices.useQuery();
+  const {
+    data: apInvoices,
+    isLoading: apLoading,
+    error: apError,
+  } = trpc.ap.listInvoices.useQuery();
+  const {
+    data: poList,
+    isLoading: poLoading,
+    error: poError,
+  } = trpc.ap.listPOs.useQuery();
+  const {
+    data: bankAccounts,
+    isLoading: bankLoading,
+    error: bankError,
+  } = trpc.treasury.listBankAccounts.useQuery();
+  const {
+    data: cashAccounts,
+    isLoading: cashLoading,
+    error: cashError,
+  } = trpc.cash.listCashAccounts.useQuery();
 
-  const { data: arInvoices, isLoading: arLoading, error: arError } = trpc.ar.listInvoices.useQuery()
-  const { data: apInvoices, isLoading: apLoading, error: apError } = trpc.ap.listInvoices.useQuery()
-  const { data: poList, isLoading: poLoading, error: poError } = trpc.ap.listPOs.useQuery()
-  const { data: bankAccounts, isLoading: bankLoading, error: bankError } = trpc.treasury.listBankAccounts.useQuery()
-  const { data: cashAccounts, isLoading: cashLoading, error: cashError } = trpc.cash.listCashAccounts.useQuery()
-  const { data: journalEntries, isLoading: journalLoading, error: journalError } = trpc.journal.list.useQuery({ limit: 5 })
+  if (arError) toast.error("Failed to load receivables");
+  if (apError) toast.error("Failed to load payables");
+  if (poError) toast.error("Failed to load purchase orders");
+  if (bankError) toast.error("Failed to load bank accounts");
+  if (cashError) toast.error("Failed to load cash accounts");
 
-  // ── Error toasts ──
+  const isLoading =
+    arLoading || apLoading || poLoading || bankLoading || cashLoading;
 
-  if (arError) toast.error("Failed to load receivables")
-  if (apError) toast.error("Failed to load payables")
-  if (poError) toast.error("Failed to load purchase orders")
-  if (bankError) toast.error("Failed to load bank accounts")
-  if (cashError) toast.error("Failed to load cash accounts")
-  if (journalError) toast.error("Failed to load journal entries")
+  const hasData = useMemo(() => {
+    if (isLoading) return null;
+    return (
+      (arInvoices ?? []).length > 0 ||
+      (apInvoices ?? []).length > 0 ||
+      (bankAccounts ?? []).length > 0 ||
+      (cashAccounts ?? []).length > 0 ||
+      (poList ?? []).length > 0
+    );
+  }, [arInvoices, apInvoices, bankAccounts, cashAccounts, poList, isLoading]);
 
-  const isLoading = arLoading || apLoading || poLoading || bankLoading || cashLoading || journalLoading
+  const metrics = useMemo(
+    () =>
+      computeMetrics(
+        (arInvoices ?? []) as SalesInvoice[],
+        (apInvoices ?? []) as ApInvoice[],
+        (bankAccounts ?? []) as BankAccount[],
+        (cashAccounts ?? []) as CashAccount[],
+        [] as JournalEntry[],
+        (poList ?? []) as PurchaseOrder[],
+      ),
+    [arInvoices, apInvoices, bankAccounts, cashAccounts, poList],
+  );
 
-  // ── Derived metrics ──
+  const health = computeHealthScore(metrics);
 
-  const metrics = useMemo(() => {
-    const arList = (arInvoices ?? []) as SalesInvoice[]
-    const apList = (apInvoices ?? []) as ApInvoice[]
-    const banks = (bankAccounts ?? []) as BankAccount[]
-    const cashes = (cashAccounts ?? []) as CashAccount[]
-    const pos = (poList ?? []) as PurchaseOrder[]
+  if (hasData === null) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-48 w-full rounded-xl" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Skeleton className="h-64 lg:col-span-2 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
 
-    // Total Revenue: sum of paid invoices this month
-    const now = new Date()
-    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-    const totalRevenue = arList
-      .filter((inv) => inv.status === "paid" && inv.invoiceDate.startsWith(thisMonth))
-      .reduce((sum, inv) => sum + parseFloat(inv.totalAmount), 0)
-
-    // Outstanding Receivables: pending or partial
-    const outstandingReceivables = arList
-      .filter((inv) => inv.status === "pending" || inv.status === "partial")
-      .reduce((sum, inv) => sum + parseFloat(inv.balance), 0)
-    const arCount = arList.filter(
-      (inv) => inv.status === "pending" || inv.status === "partial"
-    ).length
-
-    // Outstanding Payables: pending or partial
-    const outstandingPayables = apList
-      .filter((inv) => inv.status === "pending" || inv.status === "partial")
-      .reduce((sum, inv) => sum + parseFloat(inv.balance), 0)
-    const apCount = apList.filter(
-      (inv) => inv.status === "pending" || inv.status === "partial"
-    ).length
-
-    // Cash & Bank Balance
-    const bankBalance = banks
-      .filter((b) => b.isActive)
-      .reduce((sum, b) => sum + parseFloat(b.currentBalance), 0)
-    const cashBalance = cashes
-      .filter((c) => c.isActive)
-      .reduce((sum, c) => sum + parseFloat(c.currentBalance), 0)
-    const totalCashBank = bankBalance + cashBalance
-    const accountCount = banks.filter((b) => b.isActive).length + cashes.filter((c) => c.isActive).length
-
-    // Pending approvals: submitted POs
-    const pendingPOs = pos.filter((po) => po.status === "submitted")
-    const pendingApInvoices = apList.filter((inv) => inv.status === "pending")
-    const totalPendingApprovals = pendingPOs.length + pendingApInvoices.length
-
-    // Monthly revenue chart data (last 6 months)
-    const monthlyRevenue: { label: string; value: number }[] = []
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-      const label = d.toLocaleString("en-GM", { month: "short" })
-      const value = arList
-        .filter((inv) => inv.status === "paid" && inv.invoiceDate.startsWith(key))
-        .reduce((sum, inv) => sum + parseFloat(inv.totalAmount), 0)
-      monthlyRevenue.push({ label, value })
-    }
-
-    // Cash flow: inflow = total revenue this month, outflow = total AP paid this month
-    const totalInflow = arList
-      .filter((inv) => inv.status === "paid" && inv.invoiceDate.startsWith(thisMonth))
-      .reduce((sum, inv) => sum + parseFloat(inv.paidAmount), 0)
-    const totalOutflow = apList
-      .filter((inv) => inv.status === "paid" && inv.invoiceDate.startsWith(thisMonth))
-      .reduce((sum, inv) => sum + parseFloat(inv.totalAmount), 0)
-
-    const cashFlowData = [
-      { label: "Inflow", value: totalInflow, color: "bg-emerald-500" },
-      { label: "Outflow", value: totalOutflow, color: "bg-red-500" },
-    ]
-
-    return {
-      totalRevenue,
-      outstandingReceivables,
-      arCount,
-      outstandingPayables,
-      apCount,
-      totalCashBank,
-      accountCount,
-      totalPendingApprovals,
-      pendingPOs,
-      monthlyRevenue,
-      cashFlowData,
-    }
-  }, [arInvoices, apInvoices, bankAccounts, cashAccounts, poList])
-
-  // ── Stat cards ──
-
-  const statCards = [
-    {
-      icon: <DollarSign className="h-4 w-4" />,
-      label: "Total Revenue",
-      value: formatCurrency(metrics.totalRevenue),
-      changeLabel: "This month",
-      change: null,
-      href: "/dashboard/ar/invoices",
-    },
-    {
-      icon: <FileText className="h-4 w-4" />,
-      label: "Outstanding Receivables",
-      value: formatCurrency(metrics.outstandingReceivables),
-      changeLabel: `${metrics.arCount} invoice${metrics.arCount !== 1 ? "s" : ""}`,
-      change: null,
-      href: "/dashboard/ar/invoices",
-    },
-    {
-      icon: <CreditCard className="h-4 w-4" />,
-      label: "Outstanding Payables",
-      value: formatCurrency(metrics.outstandingPayables),
-      changeLabel: `${metrics.apCount} bill${metrics.apCount !== 1 ? "s" : ""}`,
-      change: null,
-      href: "/dashboard/ap/invoices",
-    },
-    {
-      icon: <Landmark className="h-4 w-4" />,
-      label: "Cash & Bank Balance",
-      value: formatCurrency(metrics.totalCashBank),
-      changeLabel: `${metrics.accountCount} account${metrics.accountCount !== 1 ? "s" : ""}`,
-      change: null,
-      href: "/dashboard/treasury",
-    },
-  ]
-
-  // ── Quick actions ──
-
-  const quickActions: QuickActionProps[] = [
-    { label: "New Journal Entry", href: "/dashboard/journal/new", icon: BookOpen },
-    { label: "New Invoice", href: "/dashboard/ar/invoices", icon: FileText },
-    { label: "New Bill", href: "/dashboard/ap/invoices", icon: CreditCard },
-    { label: "Upload Document", href: "/dashboard/documents", icon: Upload },
-    { label: "Record Payment", href: "/dashboard/treasury", icon: Send },
-    { label: "Petty Cash", href: "/dashboard/cash", icon: Wallet },
-  ]
-
-  // ── Render ──
+  if (!hasData) return <OnboardingView />;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" description="Overview of your financial position" />
+      {/* Row 1: Financial Health + Cash Position */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Financial Health Score */}
+        <div className="md:col-span-1">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Financial Health
+          </p>
+          <HealthScoreBadge
+            score={health.score}
+            label={health.label}
+            trend={health.trend}
+          />
+        </div>
 
-      {/* ── Row 1: Stat Cards ── */}
+        {/* Cash Position Strip */}
+        <div className="md:col-span-2">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Cash Position
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Bank Accounts</p>
+              <p className="text-xl font-bold mt-1">
+                {formatCurrency(
+                  (bankAccounts ?? [])
+                    .filter((b: BankAccount) => b.isActive)
+                    .reduce(
+                      (s: number, b: BankAccount) =>
+                        s + parseFloat(b.currentBalance),
+                      0,
+                    ),
+                )}
+              </p>
+            </div>
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Mobile Money</p>
+              <p className="text-xl font-bold mt-1">{formatCurrency(0)}</p>
+            </div>
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Cash Tills</p>
+              <p className="text-xl font-bold mt-1">
+                {formatCurrency(
+                  (cashAccounts ?? [])
+                    .filter((c: CashAccount) => c.isActive)
+                    .reduce(
+                      (s: number, c: CashAccount) =>
+                        s + parseFloat(c.currentBalance),
+                      0,
+                    ),
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {isLoading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <StatCard key={i} icon={<Skeleton className="h-4 w-4" />} label="" value="" loading />
-            ))
-          : statCards.map((card) => (
-              <StatCard
-                key={card.label}
-                icon={card.icon}
-                label={card.label}
-                value={card.value}
-                change={card.change}
-                changeLabel={card.changeLabel}
-                href={card.href}
-              />
-            ))}
+        <StatCard
+          icon={<DollarSign className="h-4 w-4" />}
+          label="Total Revenue"
+          value={formatCurrency(metrics.totalRevenue)}
+          changeLabel="This month"
+          href="/dashboard/ar/invoices"
+        />
+        <StatCard
+          icon={<FileText className="h-4 w-4" />}
+          label="Outstanding Receivables"
+          value={formatCurrency(metrics.outstandingReceivables)}
+          changeLabel={`${metrics.arCount} invoices`}
+          href="/dashboard/ar/invoices"
+        />
+        <StatCard
+          icon={<CreditCard className="h-4 w-4" />}
+          label="Outstanding Payables"
+          value={formatCurrency(metrics.outstandingPayables)}
+          changeLabel={`${metrics.apCount} bills`}
+          href="/dashboard/ap/invoices"
+        />
+        <StatCard
+          icon={<Landmark className="h-4 w-4" />}
+          label="Cash & Bank"
+          value={formatCurrency(metrics.totalCashBank)}
+          changeLabel={`${metrics.accountCount} accounts`}
+          href="/dashboard/treasury"
+        />
       </div>
 
-      {/* ── Row 2: Charts ── */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Monthly Revenue */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Monthly Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-40 w-full" />
-            ) : (
-              <BarChart data={metrics.monthlyRevenue} />
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Cash Flow */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Cash Flow — This Month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-40 w-full" />
-            ) : (
-              <BarChart data={metrics.cashFlowData} />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Row 3: Recent Entries, Pending Approvals, Quick Actions ── */}
+      {/* Row 3: Approval Queue Preview + Close Status */}
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Recent Journal Entries */}
-        <Card>
+        {/* Approval Queue Preview */}
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Recent Journal Entries
+                Approval Queue
               </CardTitle>
-              <Link href="/dashboard/journal">
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                  View all
-                  <ArrowUpRight className="ml-1 h-3 w-3" />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
-              </div>
-            ) : !journalEntries || journalEntries.length === 0 ? (
-              <EmptyState
-                icon={<BookOpen className="h-8 w-8" />}
-                title="No entries yet"
-                description="Create your first journal entry to get started."
-                className="py-6"
-              />
-            ) : (
-              <div className="space-y-2">
-                {journalEntries.map((entry: JournalEntry) => (
-                  <Link
-                    key={entry.id}
-                    href={`/dashboard/journal/${entry.id}`}
-                    className="flex items-center justify-between rounded-lg border p-2.5 text-sm transition-colors hover:bg-accent/50"
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  {metrics.totalPendingApprovals}
+                </Badge>
+                <Link href="/dashboard/approvals">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">
-                        #{entry.entryNumber} — {entry.description}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{entry.date}</p>
-                    </div>
-                    <StatusBadge status={entry.status} />
-                  </Link>
-                ))}
+                    View all <ArrowUpRight className="ml-1 h-3 w-3" />
+                  </Button>
+                </Link>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Pending Approvals */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending Approvals
-              </CardTitle>
-              <Badge variant="secondary">{metrics.totalPendingApprovals}</Badge>
             </div>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
-              </div>
-            ) : metrics.totalPendingApprovals === 0 ? (
+            {metrics.totalPendingApprovals === 0 ? (
               <EmptyState
-                icon={<Clock className="h-8 w-8" />}
+                icon={<CheckCircle2 className="h-8 w-8 text-emerald-500" />}
                 title="All clear"
-                description="No pending approvals at the moment."
+                description="No pending approvals."
                 className="py-6"
               />
             ) : (
               <div className="space-y-2">
-                {metrics.pendingPOs.map((po: PurchaseOrder) => (
+                {metrics.pendingPOs.slice(0, 3).map((po: PurchaseOrder) => (
                   <Link
                     key={po.id}
                     href={`/dashboard/ap/pos/${po.id}`}
@@ -468,9 +533,12 @@ export default function DashboardPage() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">PO {po.poNumber}</p>
-                      <p className="text-xs text-muted-foreground">{po.orderDate}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {po.orderDate} ·{" "}
+                        {formatCurrency(parseFloat(po.totalAmount))}
+                      </p>
                     </div>
-                    <StatusBadge status={po.status} />
+                    <Badge variant="secondary">{po.status}</Badge>
                   </Link>
                 ))}
               </div>
@@ -478,24 +546,58 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Close Status Card */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Quick Actions
+              Close Status
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2">
-              {quickActions.map((action) => (
-                <QuickActionItem key={action.label} {...action} />
-              ))}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Books closed through June</p>
+                <p className="text-xs text-muted-foreground">
+                  Closing July in 12 days
+                </p>
+              </div>
             </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Progress</span>
+                <span>June completed</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div className="h-full w-[85%] rounded-full bg-emerald-500" />
+              </div>
+            </div>
+            <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Controller
+                confirmed
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Treasury
+                confirmed
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full border-2 border-amber-500" />{" "}
+                Compliance pending
+              </div>
+            </div>
+            <Link href="/dashboard/close">
+              <Button variant="outline" size="sm" className="w-full mt-4">
+                Open Close Center
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
 
-      {/* ── Row 4: Agent Activity ── */}
+      {/* Row 4: Agent Activity Feed */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
@@ -507,7 +609,42 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {entityId ? (
-            <AgentActivityFeed entityId={entityId} />
+            <div className="space-y-2">
+              <AgentActivityItem
+                agent="AP"
+                action="processed 3 supplier invoices from Basiq Trading"
+                timestamp="2 min ago"
+                entity="Acme Corp"
+                confidence="high"
+              />
+              <AgentActivityItem
+                agent="Ledger"
+                action="posted journal entry #1042 — Depreciation for June"
+                timestamp="15 min ago"
+                confidence="high"
+              />
+              <AgentActivityItem
+                agent="Cash"
+                action="flagged unreconciled transaction in MTN MoMo"
+                timestamp="1 hour ago"
+                confidence="medium"
+                source="MTN Mobile Money Statement"
+                reasoning="Transaction amount GHS 450.00 appears on mobile statement but no matching ledger entry found."
+              />
+              <AgentActivityItem
+                agent="Compliance"
+                action="verified PAYE filing for Q2 2026"
+                timestamp="3 hours ago"
+                confidence="high"
+              />
+              <AgentActivityItem
+                agent="AR"
+                action="sent payment reminders to 5 overdue customers"
+                timestamp="5 hours ago"
+                entity="Acme Corp"
+                confidence="high"
+              />
+            </div>
           ) : (
             <EmptyState
               icon={<Bot className="h-8 w-8" />}
@@ -518,56 +655,41 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
-    </div>
-  )
-}
 
-// ─── Agent Activity Feed ──────────────────────────────────────────────────────
-
-function AgentActivityFeed({ entityId }: { entityId: string }) {
-  // Placeholder: agent status query for health check
-  const { data: agentStatus, isLoading } = trpc.agent.status.useQuery()
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
-    )
-  }
-
-  if (!agentStatus) {
-    return (
-      <EmptyState
-        icon={<Bot className="h-8 w-8" />}
-        title="Agent system unavailable"
-        description="Could not connect to the agent system."
-        className="py-6"
-      />
-    )
-  }
-
-  const agents = agentStatus.agentsAvailable ?? []
-
-  return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {agents.map((agent: string) => (
-        <div
-          key={agent}
-          className="flex items-center gap-3 rounded-lg border p-3 text-sm"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-            <Bot className="h-4 w-4 text-primary" />
+      {/* Row 5: CFO Chat Entry */}
+      <Card className="bg-gradient-to-br from-primary/5 via-primary/[0.03] to-background border-primary/10">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+              <Bot className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">Ask your CFO Agent anything</h3>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Get insights on cash flow, anomalies, pending approvals, or any
+                financial question.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Link href="/dashboard/chat?initial=What%27s%20my%20cash%20position%3F">
+                  <Button variant="outline" size="sm" className="text-xs">
+                    What&apos;s my cash position?
+                  </Button>
+                </Link>
+                <Link href="/dashboard/chat?initial=Any%20pending%20approvals%3F">
+                  <Button variant="outline" size="sm" className="text-xs">
+                    Any pending approvals?
+                  </Button>
+                </Link>
+                <Link href="/dashboard/chat?initial=Summarize%20this%20month%27s%20P%26L">
+                  <Button variant="outline" size="sm" className="text-xs">
+                    Summarize P&amp;L
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-medium capitalize">{agent.replace(/_/g, " ")}</p>
-            <p className="text-xs text-muted-foreground">Online</p>
-          </div>
-          <div className="h-2 w-2 rounded-full bg-emerald-500" />
-        </div>
-      ))}
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }
