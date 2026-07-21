@@ -6,6 +6,22 @@
 
 ---
 
+### [2026-07-21] — Fix Vercel Build: Missing transpilePackages for workspace deps
+
+**Agent:** Kilo
+**Duration:** ~10 min
+**Files Modified:** 1 (`apps/web/next.config.ts`)
+
+**What was built:**
+
+- Added `@xenboox/agents` and `@xenboox/jobs` to `transpilePackages` in `apps/web/next.config.ts`
+
+**Root cause:** Next.js 15 with Turbopack requires workspace packages with raw TypeScript source (no compiled `dist/`) to be explicitly listed in `transpilePackages`. The `@xenboox/agents` and `@xenboox/jobs` packages both ship as `.ts` files with subpath exports (e.g. `@xenboox/jobs/lib/ocr`), but only `@xenboox/ui` and `@xenboox/db` were in the transpile list. On Vercel's production build, this caused "Module not found" errors for the jobs subpath imports because Next.js treated them as pre-built external packages.
+
+**Verification:** `pnpm run build --filter @xenboox/web` completes successfully (3m42s).
+
+---
+
 ### [2026-07-21] — Enterprise Production Readiness Batch 3: N+1 Fixes, Error Handling, Migration 0014, Caching, Rate Limiting
 
 **N+1 Query Patterns Fixed:**

@@ -1,7 +1,12 @@
-import type { NextConfig } from "next"
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@xenboox/ui", "@xenboox/db"],
+  transpilePackages: [
+    "@xenboox/ui",
+    "@xenboox/db",
+    "@xenboox/agents",
+    "@xenboox/jobs",
+  ],
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
@@ -35,7 +40,7 @@ const nextConfig: NextConfig = {
   },
   // Security headers handled by middleware (with nonce support)
   async headers() {
-    return []
+    return [];
   },
   // Security & performance optimizations
   compress: true,
@@ -43,13 +48,14 @@ const nextConfig: NextConfig = {
   generateEtags: true,
   productionBrowserSourceMaps: false,
   // Enterprise logging (only in development)
-  logging: process.env.NODE_ENV === "development"
-    ? {
-        fetches: {
-          fullUrl: true,
-        },
-      }
-    : undefined,
-}
+  logging:
+    process.env.NODE_ENV === "development"
+      ? {
+          fetches: {
+            fullUrl: true,
+          },
+        }
+      : undefined,
+};
 
-export default nextConfig
+export default nextConfig;
