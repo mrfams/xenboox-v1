@@ -389,6 +389,9 @@ const AI_PROVIDERS: AIComparison[] = [
 ];
 
 export const adminRouter = router({
+  checkAccess: adminProcedure.query(async () => {
+    return true;
+  }),
   getSystemOverview: adminProcedure.query(async () => {
     const [
       userCount,
@@ -448,28 +451,101 @@ export const adminRouter = router({
     };
   }),
 
-  listUsers: adminProcedure.query(async () => {
-    return db.query.users.findMany({
-      with: {
-        userEntityAccess: {
-          with: {
-            entity: true,
+  listUsers: adminProcedure
+    .input(
+      z.object({
+        limit: z.number().int().min(1).max(100).default(20),
+        offset: z.number().int().min(0).default(0),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const baseQuery = db.query.users.findMany({
+        with: {
+          userEntityAccess: {
+            with: {
+              entity: true,
+            },
           },
         },
-      },
-      orderBy: [desc(users.createdAt)],
-    });
-  }),
+        orderBy: [desc(users.createdAt)],
+        limit: input.limit,
+        offset: input.offset,
+      });
 
-  listOrganizations: adminProcedure.query(async () => {
-    return db.query.organizations.findMany({
-      with: {
-        owner: true,
-        entities: true,
-      },
-      orderBy: [desc(organizations.createdAt)],
-    });
-  }),
+      const allUsers = await db.query.users.findMany({
+        with: {
+          userEntityAccess: {
+            with: {
+              entity: true,
+            },
+          },
+        },
+        orderBy: [desc(users.createdAt)],
+      });
+
+      let filtered = allUsers;
+      if (input.search) {
+        const term = input.search.toLowerCase();
+        filtered = allUsers.filter(
+          (u) =>
+            (u.name?.toLowerCase().includes(term) ?? false) ||
+            u.email.toLowerCase().includes(term),
+        );
+      }
+
+      const paginated = filtered.slice(
+        input.offset,
+        input.offset + input.limit,
+      );
+
+      return {
+        items: paginated,
+        total: filtered.length,
+        limit: input.limit,
+        offset: input.offset,
+      };
+    }),
+
+  listOrganizations: adminProcedure
+    .input(
+      z.object({
+        limit: z.number().int().min(1).max(100).default(20),
+        offset: z.number().int().min(0).default(0),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const allOrgs = await db.query.organizations.findMany({
+        with: {
+          owner: true,
+          entities: true,
+        },
+        orderBy: [desc(organizations.createdAt)],
+      });
+
+      let filtered = allOrgs;
+      if (input.search) {
+        const term = input.search.toLowerCase();
+        filtered = allOrgs.filter(
+          (o) =>
+            o.name.toLowerCase().includes(term) ||
+            o.slug.toLowerCase().includes(term),
+        );
+      }
+
+      const paginated = filtered.slice(
+        input.offset,
+        input.offset + input.limit,
+      );
+
+      return {
+        items: paginated,
+        total: filtered.length,
+        limit: input.limit,
+        offset: input.offset,
+      };
+    }),
 
   getAIComparison: adminProcedure.query(async () => {
     return AI_PROVIDERS.map((c) => ({

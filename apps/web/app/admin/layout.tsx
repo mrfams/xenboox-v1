@@ -2,9 +2,9 @@
 
 export const dynamic = "force-dynamic";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui";
+import { trpc } from "@/lib/trpc/client";
+import { toast } from "sonner";
 
 type NavItem = {
   label: string;
@@ -45,6 +47,26 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: isAdmin, isLoading: checkingAccess } =
+    trpc.admin.checkAccess.useQuery();
+
+  useEffect(() => {
+    if (checkingAccess) return;
+    if (!isAdmin) {
+      router.replace("/login");
+    }
+  }, [isAdmin, checkingAccess, router]);
+
+  if (checkingAccess || !isAdmin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  const nav = useMemo(() => navigation, []);
 
   return (
     <div className="flex min-h-screen bg-background">

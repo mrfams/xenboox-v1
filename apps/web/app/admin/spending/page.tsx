@@ -24,10 +24,16 @@ import { AIComparison, SpendAlert } from "@/lib/types";
 import { useState } from "react";
 import { Progress } from "@/components/shared/progress";
 import { Alert } from "@xenboox/ui";
+import { useRouter } from "next/navigation";
 
 export default function SpendingPage() {
+  const router = useRouter();
   const [showComparison, setShowComparison] = useState(true);
-  const { data: comparison, isLoading } = trpc.admin.getAIComparison.useQuery();
+  const {
+    data: comparison,
+    isLoading,
+    refetch,
+  } = trpc.admin.getAIComparison.useQuery();
   const { data: alerts } = trpc.admin.getSpendAlerts.useQuery();
 
   if (isLoading) {
@@ -66,7 +72,7 @@ export default function SpendingPage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => toast.info("Budget management form will open here")}
+          onClick={() => router.push("/admin/settings")}
         >
           <Settings className="h-4 w-4 mr-2" />
           Manage Budgets

@@ -19,10 +19,16 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import { Alert, AlertDescription } from "@xenboox/ui";
+import { useRouter } from "next/navigation";
 
 export default function AlertsPage() {
+  const router = useRouter();
   const [showResolved, setShowResolved] = useState(false);
-  const { data: alerts } = trpc.admin.getSpendAlerts.useQuery();
+  const {
+    data: alerts,
+    isLoading,
+    refetch,
+  } = trpc.admin.getSpendAlerts.useQuery();
 
   const criticalAlerts =
     alerts?.filter((a) => a.alertLevel === "critical") || [];
@@ -42,14 +48,12 @@ export default function AlertsPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() =>
-              toast.info("Alert configuration dialog will open here")
-            }
+            onClick={() => router.push("/admin/settings")}
           >
             <Settings className="h-4 w-4 mr-2" />
             Alert Settings
           </Button>
-          <Button variant="outline" onClick={() => window.location.reload()}>
+          <Button variant="outline" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

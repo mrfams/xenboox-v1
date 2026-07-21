@@ -17,10 +17,16 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import { Progress } from "@/components/shared/progress";
+import { useRouter } from "next/navigation";
 
 export default function FinancialPage() {
+  const router = useRouter();
   const [period, setPeriod] = useState("month");
-  const { data: overview, isLoading } = trpc.admin.getSystemOverview.useQuery();
+  const {
+    data: overview,
+    isLoading,
+    refetch,
+  } = trpc.admin.getSystemOverview.useQuery();
 
   const financialHealth =
     overview?.totalBankBalance && overview.totalBankBalance > 0
@@ -41,10 +47,7 @@ export default function FinancialPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => toast.info("Running financial analysis...")}
-          >
+          <Button variant="outline" onClick={() => refetch()}>
             <Calculator className="h-4 w-4 mr-2" />
             Run Analysis
           </Button>

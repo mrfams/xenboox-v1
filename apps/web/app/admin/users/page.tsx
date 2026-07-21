@@ -69,7 +69,10 @@ const ROLE_OPTIONS = [
 ] as const;
 
 export default function UsersPage() {
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
@@ -89,7 +92,15 @@ export default function UsersPage() {
     entityId: "",
   });
 
-  const { data: users, isLoading, refetch } = trpc.admin.listUsers.useQuery();
+  const {
+    data: usersData,
+    isLoading,
+    refetch,
+  } = trpc.admin.listUsers.useQuery({
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+    search: search || undefined,
+  });
   const { data: orgs } = trpc.admin.listOrganizations.useQuery();
 
   const createMutation = trpc.admin.createUser.useMutation({
@@ -126,14 +137,14 @@ export default function UsersPage() {
     onError: (e) => toast.error(e.message || "Failed to delete user"),
   });
 
-  const filteredUsers =
-    users?.filter(
-      (u: User) =>
-        u.name?.toLowerCase().includes(search.toLowerCase()) ||
-        u.email?.toLowerCase().includes(search.toLowerCase()),
-    ) || [];
+  const users = usersData?.items ?? [];
+  const totalUsers = usersData?.total ?? 0;
+
+  const filteredUsers = search && !usersData ? [] : users;
 
   const defaultEntityId = orgs?.[0]?.entities?.[0]?.id || "";
+
+  const hasMore = totalUsers > (page + 1) * PAGE_SIZE;
 
   const handleCreate = () => {
     const entityId = createForm.entityId || defaultEntityId;
@@ -147,6 +158,11 @@ export default function UsersPage() {
       return;
     }
     createMutation.mutate({ ...createForm, entityId });
+  };
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(0);
   };
 
   const handleEdit = () => {
@@ -324,10 +340,44 @@ export default function UsersPage() {
               <Input
                 placeholder="Search users by name or email..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
               />
             </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {totalUsers > 0
+                  ? `Showing ${page * PAGE_SIZE + 1}-${Math.min((page + 1) * PAGE_SIZE, totalUsers)} of ${totalUsers}`
+                  : "No users"}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 0}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {page + 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!hasMore}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+            {totalUsers > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Showing {page * PAGE_SIZE + 1}-
+                {Math.min((page + 1) * PAGE_SIZE, totalUsers)} of {totalUsers}
+              </p>
+            )}
 
             {isLoading ? (
               <div className="text-center py-8">Loading users...</div>

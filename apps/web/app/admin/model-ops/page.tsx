@@ -7,8 +7,6 @@ import {
   CardTitle,
   Badge,
   Button,
-  Input,
-  Select,
 } from "@xenboox/ui";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
@@ -18,7 +16,69 @@ import {
   Activity,
   RotateCcw,
   Play,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "lucide-react";
+
+type Assignment = {
+  id: string;
+  agentName: string;
+  taskType: string;
+  liveProvider: string;
+  liveModelId: string;
+  fallbackModelId?: string;
+  fallbackProvider?: string;
+  trafficSplit?: Record<string, unknown>;
+  isActive: boolean;
+};
+
+type Model = {
+  id: string;
+  modelId: string;
+  provider: string;
+  displayName: string;
+  isDeprecated: boolean;
+  capabilities?: {
+    supportsTools?: boolean;
+    supportsVision?: boolean;
+    supportsStreaming?: boolean;
+    maxContextTokens?: number;
+  };
+  costPerMillionInputTokens?: number;
+  costPerMillionOutputTokens?: number;
+};
+
+type Evaluation = {
+  id: string;
+  gate: string;
+  status: string;
+  modelId: string;
+  agentName: string;
+  taskType: string;
+  goldenDatasetPassRate?: string;
+  canaryMetrics?: {
+    requestsCount: number;
+    errorRate: number;
+    avgLatencyMs: number;
+    confidenceScore: number;
+  };
+};
+
+type CostRow = {
+  id: string;
+  agentName: string;
+  modelId: string;
+  provider: string;
+  date: string;
+  requestsCount: number;
+  costUsd: number;
+};
 
 export default function ModelOpsPage() {
   const [activeTab, setActiveTab] = useState<
@@ -26,17 +86,48 @@ export default function ModelOpsPage() {
   >("assignments");
 
   const { data: assignments, isLoading: loadingAssignments } =
-    trpc.modelOps.listAssignments.useQuery();
+    trpc.modelOps.listAssignments.useQuery<Assignment>();
   const { data: models, isLoading: loadingModels } =
-    trpc.modelOps.listModels.useQuery();
+    trpc.modelOps.listModels.useQuery<Model>();
   const { data: evaluations, isLoading: loadingEvals } =
-    trpc.modelOps.listEvaluations.useQuery();
-  const { data: costData } = trpc.modelOps.listCostTracking.useQuery({
+    trpc.modelOps.listEvaluations.useQuery<Evaluation>();
+  const { data: costData } = trpc.modelOps.listCostTracking.useQuery<CostRow>({
     limit: 50,
   });
 
   const triggerGate4 = trpc.modelOps.triggerGate4.useMutation();
   const rollback = trpc.modelOps.rollback.useMutation();
+
+  const [rollbackTarget, setRollbackTarget] = useState<Assignment | null>(null);
+  const [promoteTarget, setPromoteTarget] = useState<Assignment | null>(null);
+
+  const confirmRollback = () => {
+    if (!rollbackTarget) return;
+    rollback.mutate(
+      {
+        agentName: rollbackTarget.agentName,
+        taskType: rollbackTarget.taskType as never,
+      },
+      {
+        onSuccess: () => setRollbackTarget(null),
+      },
+    );
+  };
+
+  const confirmPromote = () => {
+    if (!promoteTarget) return;
+    triggerGate4.mutate(
+      {
+        candidateModelId: promoteTarget.liveModelId,
+        candidateProvider: promoteTarget.liveProvider as never,
+        agentName: promoteTarget.agentName,
+        taskType: promoteTarget.taskType as never,
+      },
+      {
+        onSuccess: () => setPromoteTarget(null),
+      },
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -130,14 +221,7 @@ export default function ModelOpsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            if (confirm("Rollback to fallback model?")) {
-                              rollback.mutate({
-                                agentName: a.agentName,
-                                taskType: a.taskType as never,
-                              });
-                            }
-                          }}
+                          onClick={() => setRollbackTarget(a)}
                         >
                           <RotateCcw className="mr-1 h-3 w-3" />
                           Rollback
@@ -145,14 +229,7 @@ export default function ModelOpsPage() {
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={() => {
-                            triggerGate4.mutate({
-                              candidateModelId: a.liveModelId,
-                              candidateProvider: a.liveProvider as never,
-                              agentName: a.agentName,
-                              taskType: a.taskType as never,
-                            });
-                          }}
+                          onClick={() => setPromoteTarget(a)}
                         >
                           <Play className="mr-1 h-3 w-3" />
                           Promote
@@ -386,6 +463,58 @@ export default function ModelOpsPage() {
           </div>
         </div>
       )}
+
+      {/* Rollback Confirmation */}
+      <AlertDialog
+        open={!!rollbackTarget}
+        onOpenChange={(open) => !open && setRollbackTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rollback Model</AlertDialogTitle>
+            <AlertDialogDescription>
+              Rollback <strong>{rollbackTarget?.agentName}</strong> to its
+              fallback model? This will switch the active model without
+              downtime.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRollback}
+              disabled={rollback.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {rollback.isPending ? "Rolling back..." : "Rollback"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Promote Confirmation */}
+      <AlertDialog
+        open={!!promoteTarget}
+        onOpenChange={(open) => !open && setPromoteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Promote Model</AlertDialogTitle>
+            <AlertDialogDescription>
+              Promote <strong>{promoteTarget?.agentName}</strong> candidate
+              model to production? This will switch the live model.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmPromote}
+              disabled={triggerGate4.isPending}
+            >
+              {triggerGate4.isPending ? "Promoting..." : "Promote"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

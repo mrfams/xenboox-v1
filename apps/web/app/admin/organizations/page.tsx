@@ -54,7 +54,10 @@ const PLAN_OPTIONS = [
 ] as const;
 
 export default function OrganizationsPage() {
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
@@ -72,10 +75,14 @@ export default function OrganizationsPage() {
   });
 
   const {
-    data: orgs,
+    data: orgsData,
     isLoading,
     refetch,
-  } = trpc.admin.listOrganizations.useQuery();
+  } = trpc.admin.listOrganizations.useQuery({
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+    search: search || undefined,
+  });
   const { data: users } = trpc.admin.listUsers.useQuery();
 
   const createMutation = trpc.admin.createOrganization.useMutation({
@@ -106,12 +113,12 @@ export default function OrganizationsPage() {
     onError: (e) => toast.error(e.message || "Failed to delete organization"),
   });
 
-  const filteredOrgs =
-    orgs?.filter(
-      (o: Organization) =>
-        o.name?.toLowerCase().includes(search.toLowerCase()) ||
-        o.slug?.toLowerCase().includes(search.toLowerCase()),
-    ) || [];
+  const orgs = orgsData?.items ?? [];
+  const totalOrgs = orgsData?.total ?? 0;
+
+  const filteredOrgs = search && !orgsData ? [] : orgs;
+
+  const hasMore = totalOrgs > (page + 1) * PAGE_SIZE;
 
   const handleCreate = () => {
     if (!createForm.name || !createForm.slug) {
@@ -119,6 +126,11 @@ export default function OrganizationsPage() {
       return;
     }
     createMutation.mutate(createForm);
+  };
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(0);
   };
 
   const handleEdit = () => {
@@ -267,9 +279,37 @@ export default function OrganizationsPage() {
               <Input
                 placeholder="Search organizations by name or slug..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
               />
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {totalOrgs > 0
+                  ? `Showing ${page * PAGE_SIZE + 1}-${Math.min((page + 1) * PAGE_SIZE, totalOrgs)} of ${totalOrgs}`
+                  : "No organizations"}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 0}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {page + 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!hasMore}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
 
             {isLoading ? (
