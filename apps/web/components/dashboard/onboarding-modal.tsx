@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -91,6 +90,40 @@ const suggestedPrompts = [
   },
 ];
 
+type QuickActionItem = {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  href: string;
+};
+
+const quickActions: QuickActionItem[] = [
+  {
+    id: "coa",
+    label: "Chart of Accounts",
+    icon: BookOpen,
+    href: "/dashboard/coa",
+  },
+  {
+    id: "fiscal",
+    label: "Fiscal Year",
+    icon: Landmark,
+    href: "/dashboard/fiscal",
+  },
+  {
+    id: "bank",
+    label: "Connect Bank / Upload Statement",
+    icon: Building2,
+    href: "/dashboard/integrations",
+  },
+  {
+    id: "chat",
+    label: "Ask CFO Agent",
+    icon: MessageSquare,
+    href: "/dashboard/chat",
+  },
+];
+
 export function OnboardingModal({
   open,
   onOpenChange,
@@ -137,9 +170,12 @@ export function OnboardingModal({
 
   const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (chatMessage.trim()) {
-      handlePrompt(chatMessage.trim());
-    }
+    if (chatMessage.trim()) handlePrompt(chatMessage.trim());
+  };
+
+  const handleStepClick = (href: string) => {
+    router.push(href);
+    onOpenChange(false);
   };
 
   return (
@@ -210,79 +246,104 @@ export function OnboardingModal({
             })}
           </div>
 
-          <div className="rounded-xl border bg-card p-5">
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold">Setup Progress</h3>
-                <span className="text-xs text-muted-foreground">
-                  {completedCount}/{steps.length}
-                </span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border bg-card p-5">
+              <h3 className="text-sm font-semibold mb-3">Setup Progress</h3>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted mb-3">
                 <div
                   className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-            </div>
-            <div className="space-y-1">
-              {steps.map((step) => (
-                <Link
-                  key={step.id}
-                  href={step.href ?? "#"}
-                  className={cn(
-                    "flex items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                    step.href && "cursor-pointer hover:bg-accent/50",
-                    step.completed && "text-muted-foreground",
-                  )}
-                >
-                  <div className="mt-0.5 shrink-0">
-                    {step.completed ? (
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15">
-                        <Check className="h-3 w-3 text-primary" />
-                      </div>
-                    ) : (
-                      <Circle className="h-5 w-5 text-muted-foreground/50" />
+              <div className="space-y-1">
+                {steps.map((step) => (
+                  <div
+                    key={step.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => step.href && handleStepClick(step.href)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        step.href && handleStepClick(step.href);
+                      }
+                    }}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                      step.href && "cursor-pointer hover:bg-accent/50",
+                      step.completed && "text-muted-foreground",
+                    )}
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      {step.completed ? (
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15">
+                          <Check className="h-3 w-3 text-primary" />
+                        </div>
+                      ) : (
+                        <Circle className="h-5 w-5 text-muted-foreground/50" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={cn(
+                          "font-medium",
+                          step.completed && "line-through",
+                          step.optional &&
+                            !step.completed &&
+                            "text-muted-foreground",
+                        )}
+                      >
+                        {step.label}
+                        {step.optional && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            (optional)
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {step.description}
+                      </p>
+                    </div>
+                    {!step.completed && step.href && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 h-7 text-xs"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleStepClick(step.href);
+                        }}
+                      >
+                        {step.id === "bank" ? "Connect / Upload" : "Setup"}
+                      </Button>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={cn(
-                        "font-medium",
-                        step.completed && "line-through",
-                        step.optional &&
-                          !step.completed &&
-                          "text-muted-foreground",
-                      )}
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-card p-5">
+              <h3 className="text-sm font-semibold mb-3">Quick Actions</h3>
+              <div className="grid grid-cols-1 gap-2">
+                {quickActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <button
+                      key={action.id}
+                      type="button"
+                      onClick={() => handleStepClick(action.href)}
+                      className="flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:border-primary/40 hover:bg-accent/40"
                     >
-                      {step.label}
-                      {step.optional && (
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          (optional)
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {step.description}
-                    </p>
-                  </div>
-                  {!step.completed && step.href && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="shrink-0 h-7 text-xs"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        router.push(step.href!);
-                        onOpenChange(false);
-                      }}
-                    >
-                      {step.id === "bank" ? "Connect / Upload" : "Setup"}
-                    </Button>
-                  )}
-                </Link>
-              ))}
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="font-medium">{action.label}</span>
+                      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
