@@ -1,6 +1,6 @@
-export { cn } from "./lib"
-export { Alert, AlertTitle, AlertDescription } from "./alert"
-export { Button, buttonVariants, type ButtonProps } from "./button"
+export { cn } from "./lib";
+export { Alert, AlertTitle, AlertDescription } from "./alert";
+export { Button, buttonVariants, type ButtonProps } from "./button";
 export {
   Card,
   CardHeader,
@@ -8,9 +8,9 @@ export {
   CardTitle,
   CardDescription,
   CardContent,
-} from "./card"
-export { Input, type InputProps } from "./input"
-export { Label } from "./label"
+} from "./card";
+export { Input, type InputProps } from "./input";
+export { Label } from "./label";
 export {
   Select,
   SelectGroup,
@@ -22,10 +22,10 @@ export {
   SelectSeparator,
   SelectScrollUpButton,
   SelectScrollDownButton,
-} from "./select"
-export { Separator } from "./separator"
-export { Avatar, AvatarImage, AvatarFallback } from "./avatar"
-export { Badge, badgeVariants, type BadgeProps } from "./badge"
+} from "./select";
+export { Separator } from "./separator";
+export { Avatar, AvatarImage, AvatarFallback } from "./avatar";
+export { Badge, badgeVariants, type BadgeProps } from "./badge";
 export {
   Table,
   TableHeader,
@@ -35,7 +35,7 @@ export {
   TableRow,
   TableCell,
   TableCaption,
-} from "./table"
+} from "./table";
 export {
   Dialog,
   DialogPortal,
@@ -47,7 +47,7 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-} from "./dialog"
+} from "./dialog";
 export {
   AlertDialog,
   AlertDialogPortal,
@@ -60,9 +60,9 @@ export {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
-} from "./alert-dialog"
-export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs"
-export { Popover, PopoverTrigger, PopoverContent } from "./popover"
+} from "./alert-dialog";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
+export { Popover, PopoverTrigger, PopoverContent } from "./popover";
 export {
   Command,
   CommandDialog,
@@ -73,7 +73,8 @@ export {
   CommandItem,
   CommandShortcut,
   CommandSeparator,
-} from "./command"
-export { Textarea } from "./textarea"
-export { Switch } from "./switch"
-export { Progress, type ProgressProps } from "./progress"
+} from "./command";
+export { Textarea } from "./textarea";
+export { Switch } from "./switch";
+export { Progress, type ProgressProps } from "./progress";
+export { Skeleton } from "./skeleton";

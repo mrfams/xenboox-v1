@@ -1,9 +1,13 @@
-import { z } from "zod"
-import { eq, and, desc } from "drizzle-orm"
-import { router, protectedProcedure } from "@/lib/trpc/server"
-import { db } from "@/lib/db"
-import { mobileMoneyAccounts, mobileMoneyTransactions, auditLog } from "@xenboox/db/schema"
-import { TRPCError } from "@trpc/server"
+import { z } from "zod";
+import { eq, and, desc } from "drizzle-orm";
+import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
+import {
+  mobileMoneyAccounts,
+  mobileMoneyTransactions,
+  auditLog,
+} from "@xenboox/db/schema";
+import { TRPCError } from "@trpc/server";
 
 // ─── Mobile Money Router ─────────────────────────────────────────────────────
 
@@ -13,7 +17,7 @@ export const mobileMoneyRouter = router({
     return db.query.mobileMoneyAccounts.findMany({
       where: eq(mobileMoneyAccounts.entityId, ctx.entityId!),
       orderBy: [desc(mobileMoneyAccounts.createdAt)],
-    })
+    });
   }),
 
   createAccount: protectedProcedure
@@ -24,14 +28,14 @@ export const mobileMoneyRouter = router({
         accountName: z.string().min(1),
         currency: z.string().length(3).default("GMD"),
         isActive: z.boolean().default(true),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const [account] = await db
         .insert(mobileMoneyAccounts)
         .values({ ...input, entityId: ctx.entityId! })
-        .returning()
-      
+        .returning();
+
       if (account) {
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -39,10 +43,15 @@ export const mobileMoneyRouter = router({
           action: "mobile_money.createAccount",
           entityType: "mobile_money_account",
           entityIdRef: account.id,
-          newValues: { provider: input.provider, phoneNumber: input.phoneNumber, accountName: input.accountName, currency: input.currency },
-        })
+          newValues: {
+            provider: input.provider,
+            phoneNumber: input.phoneNumber,
+            accountName: input.accountName,
+            currency: input.currency,
+          },
+        });
       }
-      return account
+      return account;
     }),
 
   updateAccount: protectedProcedure
@@ -52,16 +61,21 @@ export const mobileMoneyRouter = router({
         phoneNumber: z.string().min(1).optional(),
         accountName: z.string().min(1).optional(),
         isActive: z.boolean().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input
+      const { id, ...data } = input;
       const [updated] = await db
         .update(mobileMoneyAccounts)
         .set(data)
-        .where(and(eq(mobileMoneyAccounts.id, id), eq(mobileMoneyAccounts.entityId, ctx.entityId!)))
-        .returning()
-      return updated
+        .where(
+          and(
+            eq(mobileMoneyAccounts.id, id),
+            eq(mobileMoneyAccounts.entityId, ctx.entityId!),
+          ),
+        )
+        .returning();
+      return updated;
     }),
 
   // ── Transactions ──
@@ -69,10 +83,11 @@ export const mobileMoneyRouter = router({
     return db.query.mobileMoneyTransactions.findMany({
       where: eq(mobileMoneyTransactions.entityId, ctx.entityId!),
       orderBy: [desc(mobileMoneyTransactions.createdAt)],
-    })
+    });
   }),
 
   createTransaction: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director", "cashier"))
     .input(
       z.object({
         mobileMoneyAccountId: z.string().uuid(),
@@ -82,13 +97,15 @@ export const mobileMoneyRouter = router({
         counterparty: z.string().optional(),
         counterpartyName: z.string().optional(),
         description: z.string().optional(),
-        status: z.enum(["pending", "successful", "failed", "reversed", "timeout"]).default("pending"),
-      })
+        status: z
+          .enum(["pending", "successful", "failed", "reversed", "timeout"])
+          .default("pending"),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const amount = parseFloat(input.amount)
-      const fee = input.fee ? parseFloat(input.fee) : 0
-      const netAmount = (amount - fee).toFixed(2)
+      const amount = parseFloat(input.amount);
+      const fee = input.fee ? parseFloat(input.fee) : 0;
+      const netAmount = (amount - fee).toFixed(2);
 
       const [tx] = await db
         .insert(mobileMoneyTransactions)
@@ -98,8 +115,8 @@ export const mobileMoneyRouter = router({
           fee: input.fee ?? "0",
           netAmount,
         })
-        .returning()
-      return tx
+        .returning();
+      return tx;
     }),
 
   updateTransactionStatus: protectedProcedure
@@ -108,37 +125,124 @@ export const mobileMoneyRouter = router({
         id: z.string().uuid(),
         status: z.enum(["successful", "failed", "reversed", "timeout"]),
         failureReason: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const tx = await db.query.mobileMoneyTransactions.findFirst({
-        where: and(eq(mobileMoneyTransactions.id, input.id), eq(mobileMoneyTransactions.entityId, ctx.entityId!)),
-      })
+        where: and(
+          eq(mobileMoneyTransactions.id, input.id),
+          eq(mobileMoneyTransactions.entityId, ctx.entityId!),
+        ),
+      });
       if (!tx) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" })
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Transaction not found",
+        });
       }
       if (tx.status !== "pending") {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `Transaction status is already "${tx.status}" — cannot update`,
-        })
+        });
       }
 
-      const updateData: Record<string, unknown> = { status: input.status }
+      const updateData: Record<string, unknown> = { status: input.status };
       if (input.status === "successful") {
-        updateData.completedAt = new Date()
+        updateData.completedAt = new Date();
       } else if (input.status === "failed" || input.status === "timeout") {
-        updateData.failedAt = new Date()
-        updateData.failureReason = input.failureReason
+        updateData.failedAt = new Date();
+        updateData.failureReason = input.failureReason;
       } else if (input.status === "reversed") {
-        updateData.completedAt = new Date()
+        updateData.completedAt = new Date();
       }
 
       const [updated] = await db
         .update(mobileMoneyTransactions)
         .set(updateData)
-        .where(and(eq(mobileMoneyTransactions.id, input.id), eq(mobileMoneyTransactions.entityId, ctx.entityId!)))
-        .returning()
-      return updated
+        .where(
+          and(
+            eq(mobileMoneyTransactions.id, input.id),
+            eq(mobileMoneyTransactions.entityId, ctx.entityId!),
+          ),
+        )
+        .returning();
+      return updated;
     }),
-})
+
+  deleteAccount: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const acct = await db.query.mobileMoneyAccounts.findFirst({
+          where: and(
+            eq(mobileMoneyAccounts.id, input.id),
+            eq(mobileMoneyAccounts.entityId, ctx.entityId!),
+          ),
+        });
+        if (!acct)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Mobile money account not found",
+          });
+        await db
+          .delete(mobileMoneyAccounts)
+          .where(eq(mobileMoneyAccounts.id, input.id));
+        await db
+          .insert(auditLog)
+          .values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "mobileMoney.deleteAccount",
+            entityType: "mobile_money_account",
+            entityIdRef: input.id,
+            newValues: { accountName: acct.accountName },
+          });
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete mobile money account",
+        });
+      }
+    }),
+
+  deleteTransaction: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const tx = await db.query.mobileMoneyTransactions.findFirst({
+          where: and(
+            eq(mobileMoneyTransactions.id, input.id),
+            eq(mobileMoneyTransactions.entityId, ctx.entityId!),
+          ),
+        });
+        if (!tx)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Transaction not found",
+          });
+        await db
+          .delete(mobileMoneyTransactions)
+          .where(eq(mobileMoneyTransactions.id, input.id));
+        await db
+          .insert(auditLog)
+          .values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "mobileMoney.deleteTransaction",
+            entityType: "mobile_money_transaction",
+            entityIdRef: input.id,
+            newValues: { type: tx.type },
+          });
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete transaction",
+        });
+      }
+    }),
+});

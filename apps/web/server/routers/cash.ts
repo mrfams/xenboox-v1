@@ -1,15 +1,15 @@
-import { z } from "zod"
-import { eq, and, desc } from "drizzle-orm"
-import { router, protectedProcedure } from "@/lib/trpc/server"
-import { db } from "@/lib/db"
+import { z } from "zod";
+import { eq, and, desc } from "drizzle-orm";
+import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
 import {
   cashAccounts,
   imprestFloats,
   imprestReceipts,
   pettyCashLedger,
-} from "@xenboox/db/schema"
-import { auditLog } from "@xenboox/db/schema/documents"
-import { TRPCError } from "@trpc/server"
+} from "@xenboox/db/schema";
+import { auditLog } from "@xenboox/db/schema/documents";
+import { TRPCError } from "@trpc/server";
 
 // ─── Cash Router ─────────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ export const cashRouter = router({
     return db.query.cashAccounts.findMany({
       where: eq(cashAccounts.entityId, ctx.entityId!),
       orderBy: [desc(cashAccounts.createdAt)],
-    })
+    });
   }),
 
   createCashAccount: protectedProcedure
@@ -28,16 +28,19 @@ export const cashRouter = router({
         name: z.string().min(1),
         currency: z.string().length(3).default("GMD"),
         isActive: z.boolean().default(true),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
         const [cashAccount] = await db
           .insert(cashAccounts)
           .values({ ...input, entityId: ctx.entityId! })
-          .returning()
+          .returning();
         if (!cashAccount) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create cash account" })
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create cash account",
+          });
         }
 
         await db.insert(auditLog).values({
@@ -46,13 +49,20 @@ export const cashRouter = router({
           action: "cash_account.create",
           entityType: "cash_account",
           entityIdRef: cashAccount.id,
-          newValues: { name: input.name, currency: input.currency, isActive: input.isActive },
-        })
+          newValues: {
+            name: input.name,
+            currency: input.currency,
+            isActive: input.isActive,
+          },
+        });
 
-        return cashAccount
+        return cashAccount;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create cash account" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create cash account",
+        });
       }
     }),
 
@@ -62,16 +72,21 @@ export const cashRouter = router({
         id: z.string().uuid(),
         name: z.string().min(1).optional(),
         isActive: z.boolean().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input
+      const { id, ...data } = input;
       const [updated] = await db
         .update(cashAccounts)
         .set(data)
-        .where(and(eq(cashAccounts.id, id), eq(cashAccounts.entityId, ctx.entityId!)))
-        .returning()
-      return updated
+        .where(
+          and(
+            eq(cashAccounts.id, id),
+            eq(cashAccounts.entityId, ctx.entityId!),
+          ),
+        )
+        .returning();
+      return updated;
     }),
 
   // ── Imprest Floats ──
@@ -79,10 +94,11 @@ export const cashRouter = router({
     return db.query.imprestFloats.findMany({
       where: eq(imprestFloats.entityId, ctx.entityId!),
       orderBy: [desc(imprestFloats.createdAt)],
-    })
+    });
   }),
 
   createImprestFloat: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director", "cashier"))
     .input(
       z.object({
         cashAccountId: z.string().uuid(),
@@ -91,7 +107,7 @@ export const cashRouter = router({
         amount: z.string(),
         issuedDate: z.string(),
         settleByDate: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
@@ -103,14 +119,20 @@ export const cashRouter = router({
             remainingBalance: input.amount,
             status: "active",
           })
-          .returning()
+          .returning();
         if (!float) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create imprest float" })
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create imprest float",
+          });
         }
-        return float
+        return float;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create imprest float" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create imprest float",
+        });
       }
     }),
 
@@ -118,15 +140,18 @@ export const cashRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const float = await db.query.imprestFloats.findFirst({
-        where: and(eq(imprestFloats.id, input.id), eq(imprestFloats.entityId, ctx.entityId!)),
-      })
-      if (!float) return null
+        where: and(
+          eq(imprestFloats.id, input.id),
+          eq(imprestFloats.entityId, ctx.entityId!),
+        ),
+      });
+      if (!float) return null;
 
       const receipts = await db.query.imprestReceipts.findMany({
         where: eq(imprestReceipts.imprestFloatId, float.id),
-      })
+      });
 
-      return { ...float, receipts }
+      return { ...float, receipts };
     }),
 
   addImprestReceipt: protectedProcedure
@@ -137,25 +162,31 @@ export const cashRouter = router({
         amount: z.string(),
         receiptDate: z.string(),
         documentId: z.string().uuid().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { imprestFloatId, amount: amountStr, ...receiptData } = input
-      const amount = parseFloat(amountStr)
+      const { imprestFloatId, amount: amountStr, ...receiptData } = input;
+      const amount = parseFloat(amountStr);
 
       const float = await db.query.imprestFloats.findFirst({
-        where: and(eq(imprestFloats.id, imprestFloatId), eq(imprestFloats.entityId, ctx.entityId!)),
-      })
+        where: and(
+          eq(imprestFloats.id, imprestFloatId),
+          eq(imprestFloats.entityId, ctx.entityId!),
+        ),
+      });
       if (!float) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Imprest float not found" })
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Imprest float not found",
+        });
       }
 
-      const currentBalance = parseFloat(float.remainingBalance)
+      const currentBalance = parseFloat(float.remainingBalance);
       if (amount > currentBalance) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `Receipt amount ${amountStr} exceeds remaining balance ${float.remainingBalance}`,
-        })
+        });
       }
 
       return db.transaction(async (tx) => {
@@ -166,19 +197,20 @@ export const cashRouter = router({
             imprestFloatId,
             amount: amountStr,
           })
-          .returning()
+          .returning();
 
-        const newBalance = currentBalance - amount
+        const newBalance = currentBalance - amount;
         await tx
           .update(imprestFloats)
           .set({ remainingBalance: Math.max(newBalance, 0).toFixed(2) })
-          .where(eq(imprestFloats.id, imprestFloatId))
+          .where(eq(imprestFloats.id, imprestFloatId));
 
-        return receipt
-      })
+        return receipt;
+      });
     }),
 
   settleImprestFloat: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -192,17 +224,23 @@ export const cashRouter = router({
             and(
               eq(imprestFloats.id, input.id),
               eq(imprestFloats.entityId, ctx.entityId!),
-              eq(imprestFloats.status, "active")
-            )
+              eq(imprestFloats.status, "active"),
+            ),
           )
-          .returning()
+          .returning();
         if (!updated) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Imprest float not found or already settled" })
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Imprest float not found or already settled",
+          });
         }
-        return updated
+        return updated;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to settle imprest float" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to settle imprest float",
+        });
       }
     }),
 
@@ -211,7 +249,7 @@ export const cashRouter = router({
     return db.query.pettyCashLedger.findMany({
       where: eq(pettyCashLedger.entityId, ctx.entityId!),
       orderBy: [desc(pettyCashLedger.createdAt)],
-    })
+    });
   }),
 
   createPettyCashEntry: protectedProcedure
@@ -225,7 +263,7 @@ export const cashRouter = router({
         balance: z.string(),
         category: z.string().optional(),
         reference: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
@@ -235,9 +273,12 @@ export const cashRouter = router({
             ...input,
             entityId: ctx.entityId!,
           })
-          .returning()
+          .returning();
         if (!entry) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create petty cash entry" })
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create petty cash entry",
+          });
         }
 
         await db.insert(auditLog).values({
@@ -246,13 +287,140 @@ export const cashRouter = router({
           action: "petty_cash.create_entry",
           entityType: "petty_cash_ledger",
           entityIdRef: entry.id,
-          newValues: { description: input.description, debit: input.debit, credit: input.credit, balance: input.balance },
-        })
+          newValues: {
+            description: input.description,
+            debit: input.debit,
+            credit: input.credit,
+            balance: input.balance,
+          },
+        });
 
-        return entry
+        return entry;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create petty cash entry" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create petty cash entry",
+        });
       }
     }),
-})
+
+  deleteCashAccount: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const account = await db.query.cashAccounts.findFirst({
+          where: and(
+            eq(cashAccounts.id, input.id),
+            eq(cashAccounts.entityId, ctx.entityId!),
+          ),
+        });
+        if (!account)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Cash account not found",
+          });
+        await db.delete(cashAccounts).where(eq(cashAccounts.id, input.id));
+        await db
+          .insert(auditLog)
+          .values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "cash.deleteCashAccount",
+            entityType: "cash_account",
+            entityIdRef: input.id,
+            newValues: { name: account.name },
+          });
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete cash account",
+        });
+      }
+    }),
+
+  deleteImprestFloat: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const float = await db.query.imprestFloats.findFirst({
+          where: and(
+            eq(imprestFloats.id, input.id),
+            eq(imprestFloats.entityId, ctx.entityId!),
+          ),
+        });
+        if (!float)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Imprest float not found",
+          });
+        if (float.status !== "active")
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot delete a settled or closed imprest float",
+          });
+        await db.delete(imprestFloats).where(eq(imprestFloats.id, input.id));
+        await db
+          .insert(auditLog)
+          .values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "cash.deleteImprestFloat",
+            entityType: "imprest_float",
+            entityIdRef: input.id,
+            newValues: { amount: float.amount },
+          });
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete imprest float",
+        });
+      }
+    }),
+
+  deletePettyCashEntry: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entry = await db.query.pettyCashLedger.findFirst({
+          where: and(
+            eq(pettyCashLedger.id, input.id),
+            eq(pettyCashLedger.entityId, ctx.entityId!),
+          ),
+        });
+        if (!entry)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Petty cash entry not found",
+          });
+        await db
+          .delete(pettyCashLedger)
+          .where(eq(pettyCashLedger.id, input.id));
+        await db
+          .insert(auditLog)
+          .values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "cash.deletePettyCashEntry",
+            entityType: "petty_cash",
+            entityIdRef: input.id,
+            newValues: {
+              debit: entry.debit,
+              credit: entry.credit,
+              balance: entry.balance,
+            },
+          });
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete petty cash entry",
+        });
+      }
+    }),
+});

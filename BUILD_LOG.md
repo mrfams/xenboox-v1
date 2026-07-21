@@ -6,6 +6,101 @@
 
 ---
 
+### [2026-07-21] — Enterprise Production Readiness Batch 3: N+1 Fixes, Error Handling, Migration 0014, Caching, Rate Limiting
+
+**N+1 Query Patterns Fixed:**
+
+- `reports.ts`: P&L + Balance Sheet — batched line queries with `inArray`
+- `journal.ts`: `getTrialBalance` — batched lines + accounts in single queries
+- `fiscal.ts`: `closePeriod` — batched line queries
+- `organization.ts`: `listUserEntities` + `listEntities` — batched entity queries
+
+**Missing try/catch on Critical Mutations:**
+
+- `organization.ts`: `create`, `revokeAccess`
+- `treasury.ts`: `matchReconciliationItem`
+- `chat.ts`: `sendMessage`, `forkConversation`
+
+**Database Migration 0014 (`unique_constraints_and_indexes`):**
+
+- UNIQUE indexes on: journal_entries(entity_id,entry_number), employees(entity_id,employee_number), bank_accounts(entity_id,account_number), suppliers(entity_id,tax_id), customers(entity_id,tax_id), mm_tx(provider_tx_id), etc.
+- Composite indexes on: journal_entries(entity_id,period_id,status), invoices_ap(entity_id,status,due_date), bank_transactions(entity_id,date), audit_log(entity_id,created_at), chat_messages(conversation_id,created_at), etc.
+
+**tRPC Global Error Handler:**
+
+- `errorFormatter` now logs all INTERNAL_SERVER_ERRORs with requestId + userId
+- Strips stack traces in production, returns safe user-facing message
+
+**Response Caching:**
+
+- In-memory TTL-based cache (30s) as `queryCacheMiddleware`
+- Applies to all `protectedProcedure` queries
+- LRU-style eviction at 500 entries
+
+**Agent API Rate Limiting:**
+
+- 10 requests/minute per user on `agent.chat` + `agent.invoke`
+- Falls back to in-memory limiter if Upstash unavailable
+
+**Email Verification Required:**
+
+- Login blocks unverified accounts in both tRPC `login` procedure and Auth.js `authorize` callback
+- Verification email already sent on registration (existing) — now enforced
+
+**Request Deduplication / Batch Config:**
+
+- `httpBatchLink` with `maxURLLength: 2048`
+- Query staleTime: 30s, retry: 1
+
+**Enterprise Doc Updated:**
+
+- `ENTERPRISE_PRODUCTION_GAPS_AND_DEFICIENCIES.md` — [DONE] markers added to ~20 items across Security, Database, Backend, Frontend, Performance sections
+
+### [2026-07-21] — Enterprise Production Readiness Batch 2: Session Mgmt, Audit Log, CHECK Constraints, Idempotency, Logging
+
+**Agent:** opencode
+**Duration:** ~60 min
+**Files Created:** 6 (sessions-section.tsx, audit.ts, audit-log/page.tsx, 0013_financial_check_constraints.sql)
+**Files Modified:** 7 (auth/index.ts, auth.ts, server.ts, settings/page.tsx, _app.ts, sidebar.tsx, treasury.ts)
+**Status:** ✅ TYPE CHECK CLEAN (web — zero errors)
+
+**What was built:**
+
+1. **Session Management UI** — Full active sessions page with revoke functionality:
+   - `apps/web/lib/auth/index.ts` — `authorize` callback now generates `sid` (UUID), stores session record in `sessions` table (IP, user agent, 30-day expiry), enforces max 10 sessions per user. `sid` carried to JWT token via user object.
+   - `apps/web/server/routers/auth.ts` — `listSessions` (returns all sessions for user with `isCurrent` flag), `revokeSession` (prevents self-revoke, validates ownership).
+   - `apps/web/lib/trpc/server.ts` — `authMiddleware` checks `sid` still exists in DB; revoked sessions are rejected with "Session has been revoked" error.
+   - `apps/web/components/settings/sessions-section.tsx` — NEW: Device detection (browser/OS/device from user-agent), current session badge, revoke button, loading skeleton, empty state.
+   - `apps/web/app/dashboard/settings/page.tsx` — Wired `SessionsSection` after MFA card.
+
+2. **Audit Log Viewer** — Read-only query interface for compliance:
+   - `apps/web/server/routers/audit.ts` — NEW: `list` procedure with pagination (limit/offset), filters (action search, entityType, date range), total count.
+   - `apps/web/app/dashboard/audit-log/page.tsx` — NEW: Search/filter UI, action color-coded badges, detail expansion (JSON), pagination controls.
+   - `apps/web/components/layout/sidebar.tsx` — Added "Audit Log" nav item with ScrollText icon.
+   - `apps/web/server/routers/_app.ts` — Registered `audit: auditRouter`.
+
+3. **Database CHECK Constraints migration** — Financial data integrity at DB level:
+   - `packages/db/migrations/0013_financial_check_constraints.sql` — 28 CHECK constraints: invoices (positive amounts, balance ≤ total), payments (positive), journal lines (non-zero), fixed assets (cost>0, salvage≥0, useful life>0), inventory (qty≥0, reorder>0), bank/MM tx (non-zero), cash accounts (balance≥0), imprest/petty cash (positive), budget (positive), POs/PO lines (positive).
+
+4. **Idempotency on payment/posting endpoints**:
+   - `apps/web/server/routers/treasury.ts` — `createBankTransaction`, `createReconciliation`, `closeReconciliation` switched to `mutateProcedure` with role checks.
+
+5. **Structured logging middleware**:
+   - `apps/web/lib/trpc/server.ts` — `loggingMiddleware` logs every procedure call (path, type, durationMs) at debug/query info/mutation levels. Applied to `protectedProcedure`, `adminProcedure`, `rlsProtectedProcedure`, `mutateProcedure`.
+
+**Decisions made:**
+
+- Session tracking uses the existing `sessions` table (Auth.js DrizzleAdapter schema) with raw SQL inserts (avoids Drizzle ORM type conflicts)
+- `sid` is generated in `authorize` callback (has `request` for headers) and passed to `jwt` callback via user object
+- Session enforcement happens in `authMiddleware` — DB lookup by `session_token` (unique index, fast lookup)
+- Audit log reuses existing `audit_log` table — no new schema needed
+- CHECK constraints are additive/non-destructive — existing data unaffected
+- Idempotency on treasury mutations prevents duplicate bank transactions/reconciliations
+
+**Blockers discovered:** None — all type checks pass.
+
+---
+
 ### [2026-07-19] - Data Ingestion Pipeline (Full Build)
 
 **Agent:** opencode

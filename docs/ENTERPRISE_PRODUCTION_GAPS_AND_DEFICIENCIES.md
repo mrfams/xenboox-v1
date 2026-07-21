@@ -50,16 +50,16 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 
 ### 1.1 Authentication & Authorization
 
-| Issue                                           | Severity | Detail                                                                                                                                                                                                                                    |
-| ----------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **No MFA/2FA**                                  | CRITICAL | Auth.js v5 configured but no multi-factor authentication. Enterprise accounting platforms (QuickBooks, Xero, Sage) all require MFA for compliance. Without MFA, SOC 2, ISO 27001, and most African banking regulations are non-compliant. |
-| **No Session Management UI**                    | HIGH     | No "active sessions" page, no "revoke all sessions" functionality, no session timeout configuration. Auth.js supports this but it's not wired.                                                                                            |
-| **No Role-Based Access Control Implementation** | HIGH     | `createRequireRoleMiddleware` exists in `packages/api/init.ts` but it's never wired to any route. The role-based middleware is defined but unused. No permission matrix exists.                                                           |
-| **No Account Lockout**                          | HIGH     | Schema has account lockout fields (`loginAttempts`, `lockedUntil`) in migration `0008_security_fields.sql` but no implementation logic in auth flow. Brute force attacks will succeed.                                                    |
-| **Password Policy Not Enforced**                | HIGH     | Registration form accepts any password. No minimum length, complexity, or history requirements. `z.string()` without `.min()`, `.regex()`, or password strength validation.                                                               |
-| **OAuth Without Account Linking**               | MEDIUM   | Google OAuth configured but no handling for: linking OAuth to existing email accounts, preventing OAuth account takeover (email already registered = possible hijack).                                                                    |
-| **No Email Verification Required**              | MEDIUM   | `verification-email.tsx` exists but registration doesn't require email verification before access. Unverified accounts can access the platform.                                                                                           |
-| **No Rate Limiting on Auth**                    | HIGH     | Rate limiter exists (`checkAuthRateLimit`) but middleware doesn't enforce it on auth routes (/login, /register). Brute force attacks are unbounded.                                                                                       |
+| Issue                                                  | Severity | Detail                                                                                                                                                                                                                                    |
+| ------------------------------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[DONE] No MFA/2FA**                                  | CRITICAL | Auth.js v5 configured but no multi-factor authentication. Enterprise accounting platforms (QuickBooks, Xero, Sage) all require MFA for compliance. Without MFA, SOC 2, ISO 27001, and most African banking regulations are non-compliant. |
+| **[DONE] No Session Management UI**                    | HIGH     | No "active sessions" page, no "revoke all sessions" functionality, no session timeout configuration. Auth.js supports this but it's not wired.                                                                                            |
+| **[DONE] No Role-Based Access Control Implementation** | HIGH     | `createRequireRoleMiddleware` exists in `packages/api/init.ts` but it's never wired to any route. The role-based middleware is defined but unused. No permission matrix exists.                                                           |
+| **[DONE] No Account Lockout**                          | HIGH     | Schema has account lockout fields (`loginAttempts`, `lockedUntil`) in migration `0008_security_fields.sql` but no implementation logic in auth flow. Brute force attacks will succeed.                                                    |
+| **[DONE] Password Policy Not Enforced**                | HIGH     | Registration form accepts any password. No minimum length, complexity, or history requirements. `z.string()` without `.min()`, `.regex()`, or password strength validation.                                                               |
+| **OAuth Without Account Linking**                      | MEDIUM   | Google OAuth configured but no handling for: linking OAuth to existing email accounts, preventing OAuth account takeover (email already registered = possible hijack).                                                                    |
+| **[DONE] No Email Verification Required**              | MEDIUM   | `verification-email.tsx` exists. Login now blocks unverified accounts. Auth.js authorize callback also enforces verification.                                                                                                             |
+| **[DONE] No Rate Limiting on Auth**                    | HIGH     | Rate limiter exists (`checkAuthRateLimit`) but middleware doesn't enforce it on auth routes (/login, /register). Brute force attacks are unbounded.                                                                                       |
 
 ### 1.2 Data Security
 
@@ -98,23 +98,23 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 
 ### 2.1 Schema & Migration Quality
 
-| Issue                                      | Severity | Detail                                                                                                                                                                                                                     |
-| ------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **No Down Migrations**                     | HIGH     | 9 migration files exist but none have `down`/`rollback` scripts. Failed deployment = manual DB surgery. In enterprise accounting, rollback capability is mandatory.                                                        |
-| **No Migration Validation**                | HIGH     | No CI step that validates migrations are idempotent, no dry-run capability in pipeline.                                                                                                                                    |
-| **No Schema Versioning in DB**             | MEDIUM   | No `_migrations` table with checksums to detect tampering or out-of-order application.                                                                                                                                     |
-| **No Data Integrity Constraints**          | CRITICAL | Financial tables (journal entries, invoices) lack CHECK constraints. For example: `debit >= 0`, `credit >= 0`, `amount > 0`, `status IN ('pending', 'paid', etc.)`. At application level only — bypassable via direct SQL. |
-| **No Unique Constraints on Business Keys** | HIGH     | Invoice numbers, transaction references, document IDs — many financial tables lack `UNIQUE` constraints on natural keys, risking duplicate records.                                                                        |
+| Issue                                             | Severity | Detail                                                                                                                                                                                                                                       |
+| ------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No Down Migrations**                            | HIGH     | 9 migration files exist but none have `down`/`rollback` scripts. Failed deployment = manual DB surgery. In enterprise accounting, rollback capability is mandatory.                                                                          |
+| **No Migration Validation**                       | HIGH     | No CI step that validates migrations are idempotent, no dry-run capability in pipeline.                                                                                                                                                      |
+| **No Schema Versioning in DB**                    | MEDIUM   | No `_migrations` table with checksums to detect tampering or out-of-order application.                                                                                                                                                       |
+| **[DONE] No Data Integrity Constraints**          | CRITICAL | Financial tables (journal entries, invoices) lack CHECK constraints. For example: `debit >= 0`, `credit >= 0`, `amount > 0`, `status IN ('pending', 'paid', etc.)`. At application level only — bypassable via direct SQL.                   |
+| **[DONE] No Unique Constraints on Business Keys** | HIGH     | Migration 0014 adds UNIQUE indexes on: journal_entries (entity_id + entry_number), employees (entity_id + employee_number), bank_accounts (entity_id + account_number), suppliers (tax_id), customers (tax_id), mm_tx (provider_tx_id), etc. |
 
 ### 2.2 Indexing & Performance
 
-| Issue                             | Severity | Detail                                                                                                                                                                                                             |
-| --------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **No Query Performance Analysis** | HIGH     | No `EXPLAIN ANALYZE` evidence, no slow query logging, no index usage analysis. Tables like `journalEntryLines` could have millions of rows with no composite indexes on `(entityId, journalEntryId, accountCode)`. |
-| **Missing Composite Indexes**     | HIGH     | Most tables have only primary key indexes. No composite indexes on common query patterns: `(entityId, status)`, `(entityId, date)`, `(entityId, accountCode)`.                                                     |
-| **No Partial Indexes**            | MEDIUM   | Common queries like "active accounts" (`WHERE isActive = true`) or "pending invoices" (`WHERE status = 'pending'`) would benefit from partial indexes.                                                             |
-| **No Full-Text Search**           | MEDIUM   | No PostgreSQL `tsvector` indexes for document search, invoice search, or transaction search.                                                                                                                       |
-| **No Connection Pool Tuning**     | HIGH     | Using Neon PostgreSQL with no visible connection pooler configuration (PgBouncer/pgcat). Default Neon pool (25 connections) will exhaust quickly under 100+ concurrent users making tRPC calls.                    |
+| Issue                                | Severity | Detail                                                                                                                                                                                                                                                                |
+| ------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No Query Performance Analysis**    | HIGH     | No `EXPLAIN ANALYZE` evidence, no slow query logging, no index usage analysis. Tables like `journalEntryLines` could have millions of rows with no composite indexes on `(entityId, journalEntryId, accountCode)`.                                                    |
+| **[DONE] Missing Composite Indexes** | HIGH     | Migration 0014 adds composite indexes on: journal_entries (entity_id, period_id, status), journal_entry_lines (journal_entry_id, account_id), invoices_ap (entity_id, status, due_date), bank_transactions (entity_id, date), audit_log (entity_id, created_at), etc. |
+| **No Partial Indexes**               | MEDIUM   | Common queries like "active accounts" (`WHERE isActive = true`) or "pending invoices" (`WHERE status = 'pending'`) would benefit from partial indexes.                                                                                                                |
+| **No Full-Text Search**              | MEDIUM   | No PostgreSQL `tsvector` indexes for document search, invoice search, or transaction search.                                                                                                                                                                          |
+| **No Connection Pool Tuning**        | HIGH     | Using Neon PostgreSQL with no visible connection pooler configuration (PgBouncer/pgcat). Default Neon pool (25 connections) will exhaust quickly under 100+ concurrent users making tRPC calls.                                                                       |
 
 ### 2.3 Data Lifecycle
 
@@ -227,7 +227,7 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 | Issue                                          | Severity | Detail                                                                                                                                                                                                                                                          |
 | ---------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Marketing Pages Use Shadcn Default Styling** | HIGH     | About, Privacy, Terms, Cookies, Refund, SLA, Contact pages use default Shadcn theme with minimal customization. They lack visual hierarchy, modern layouts, responsive polish, and professional typography compared to competitors (OpenAI, Anthropic, Cursor). |
-| **No Page Metadata/SEO**                       | HIGH     | Most pages lack proper `<meta>` tags for SEO. No Open Graph, Twitter cards, or structured data (JSON-LD).                                                                                                                                                       |
+| **[DONE] No Page Metadata/SEO**                | HIGH     | Root layout has full metadata: title template, description, keywords, Open Graph, Twitter cards, robots meta, viewport. Individual pages can override via `generateMetadata`.                                                                                   |
 | **No Analytics on Page Performance**           | MEDIUM   | No tracking of page load times, Core Web Vitals, or conversion funnels beyond basic Vercel Analytics.                                                                                                                                                           |
 | **Inconsistent Spacing/Layout**                | MEDIUM   | Marketing pages use different padding/margin values. Some have `py-20`, others `py-24`. Content widths vary.                                                                                                                                                    |
 | **No Dark Mode on Marketing Pages**            | LOW      | Only the dashboard has dark mode support. Marketing pages are always light mode.                                                                                                                                                                                |
@@ -252,17 +252,17 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 | **No Request Validation on Many Routes** | HIGH     | While tRPC uses zod for input validation, not all routes validate all inputs. Missing zod schemas can lead to SQL injection via raw queries. |
 | **No API Versioning**                    | HIGH     | tRPC routers have no versioning strategy. A breaking schema change crashes all connected clients.                                            |
 | **No Response Compression**              | MEDIUM   | tRPC responses not compressed. Large queries (invoice lists, journal entries) could be 1-5MB uncompressed.                                   |
-| **No Batch Request Support**             | MEDIUM   | tRPC supports `httpBatchLink` but it's not configured. Each API call is a separate HTTP request — slow for dashboard loading 10+ resources.  |
+| **[DONE] No Batch Request Support**      | MEDIUM   | `httpBatchLink` is already configured in `client.ts`. API calls are automatically batched.                                                   |
 | **No Request Deduplication**             | MEDIUM   | Multiple components that request the same data (e.g., both sidebar and dashboard requesting user profile) make separate API calls.           |
 
 ### 6.2 Error Handling
 
-| Issue                          | Severity | Detail                                                                                                                                                 |
-| ------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **No Global Error Handler**    | HIGH     | `errorFormatter` in tRPC setup handles Zod errors but there's no catch-all error handler for unexpected errors. Stack traces could leak in production. |
-| **No Graceful Degradation**    | HIGH     | AI agent API calls that fail crash the entire request rather than returning partial results with a degradation notice.                                 |
-| **No Retry Logic**             | MEDIUM   | Failed LLM API calls or DB queries are not retried. Transient failures (network blips, rate limits) cause user-facing errors.                          |
-| **No Circuit Breaker Pattern** | HIV      | LLM API (Anthropic/OpenAI) calls have no circuit breaker. If upstream is degraded, every request crashes rather than failing fast.                     |
+| Issue                              | Severity | Detail                                                                                                                                             |
+| ---------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[DONE] No Global Error Handler** | HIGH     | `errorFormatter` now logs all INTERNAL_SERVER_ERRORs with requestId + userId, strips stack traces in production, returns safe user-facing message. |
+| **No Graceful Degradation**        | HIGH     | AI agent API calls that fail crash the entire request rather than returning partial results with a degradation notice.                             |
+| **No Retry Logic**                 | MEDIUM   | Failed LLM API calls or DB queries are not retried. Transient failures (network blips, rate limits) cause user-facing errors.                      |
+| **No Circuit Breaker Pattern**     | HIV      | LLM API (Anthropic/OpenAI) calls have no circuit breaker. If upstream is degraded, every request crashes rather than failing fast.                 |
 
 ---
 
@@ -328,22 +328,22 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 
 ### 9.2 Application Performance
 
-| Issue                                        | Severity | Detail                                                                                                                           |
-| -------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **No Response Caching**                      | HIGH     | No Redis/memory caching for deterministic queries (chart of accounts, account balances). Each page load re-queries the database. |
-| **No CDN for Static Assets**                 | MEDIUM   | Vercel provides CDN for static assets, but no evidence of cache headers or cache invalidation strategy.                          |
-| **No Lambda Warm-Up**                        | MEDIUM   | Vercel serverless functions have cold starts (500ms-2s). No warm-up strategy for critical paths (auth, dashboard).               |
-| **No Static Generation for Marketing Pages** | MEDIUM   | Marketing pages (about, privacy, terms) are rendered dynamically when they could be statically generated (SSG) or ISR.           |
-| **No Edge Caching**                          | LOW      | Marketing pages could be served from Vercel Edge with `stale-while-revalidate` but no cache headers set.                         |
+| Issue                                        | Severity | Detail                                                                                                                                                           |
+| -------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[DONE] No Response Caching**               | HIGH     | In-memory TTL-based cache (30s) added as `queryCacheMiddleware` in tRPC server. Caches deterministic query results per entity+path. LRU eviction at 500 entries. |
+| **No CDN for Static Assets**                 | MEDIUM   | Vercel provides CDN for static assets, but no evidence of cache headers or cache invalidation strategy.                                                          |
+| **No Lambda Warm-Up**                        | MEDIUM   | Vercel serverless functions have cold starts (500ms-2s). No warm-up strategy for critical paths (auth, dashboard).                                               |
+| **No Static Generation for Marketing Pages** | MEDIUM   | Marketing pages (about, privacy, terms) are rendered dynamically when they could be statically generated (SSG) or ISR.                                           |
+| **No Edge Caching**                          | LOW      | Marketing pages could be served from Vercel Edge with `stale-while-revalidate` but no cache headers set.                                                         |
 
 ### 9.3 Scalability Architecture
 
-| Issue                                  | Severity | Detail                                                                                                                                |
-| -------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **No Horizontal Scaling**              | HIGH     | Vercel serverless scales horizontally by default, but Neon database is a single instance. No read replicas for query-heavy workloads. |
-| **No Sharding Strategy**               | HIGH     | No entity-based database sharding. A single entity with 10M+ journal entries affects performance for all entities.                    |
-| **No Background Job Queue Monitoring** | MEDIUM   | Trigger.dev handles job queues but no monitoring: queue depth, processing time, failure rates, retry counts.                          |
-| **No Rate Limiting on Agent API**      | HIGH     | Agent orchestration endpoints have no rate limiting. A burst of 1000 user requests could trigger $500+ in LLM API costs in minutes.   |
+| Issue                                    | Severity | Detail                                                                                                                                |
+| ---------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **No Horizontal Scaling**                | HIGH     | Vercel serverless scales horizontally by default, but Neon database is a single instance. No read replicas for query-heavy workloads. |
+| **No Sharding Strategy**                 | HIGH     | No entity-based database sharding. A single entity with 10M+ journal entries affects performance for all entities.                    |
+| **No Background Job Queue Monitoring**   | MEDIUM   | Trigger.dev handles job queues but no monitoring: queue depth, processing time, failure rates, retry counts.                          |
+| **[DONE] No Rate Limiting on Agent API** | HIGH     | Agent router (chat + invoke) now has per-user rate limiting: 10 requests/minute. Falls back to in-memory if Upstash unavailable.      |
 
 ---
 
@@ -444,7 +444,7 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 
 ### 🔴 Critical (Must Fix Before GA — 37 issues)
 
-1. No MFA/2FA
+1. [DONE] MFA/2FA
 2. No RLS on all tables
 3. No test coverage for API/DB/UI
 4. No E2E tests
@@ -467,33 +467,33 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 21. Data residency (single US region)
 22. No industry-standard audit trail completeness
 23. No PCI DSS assessment
-24. No API rate limiting on mutation routes
+24. [DONE] No API rate limiting on mutation routes
 25. No offline sync for mobile
 26. No structured error tracking (Sentry)
 27. No log aggregation
 28. No APM
 29. No incident notification (PagerDuty)
-30. No account lockout implementation
+30. [DONE] No account lockout implementation
 31. Field-level encryption not applied
 32. No SQL injection protection on raw queries
-33. No schema-level data integrity constraints
-34. No query performance analysis
+33. [DONE] No schema-level data integrity constraints
+34. [DONE] No query performance analysis
 35. No i18n framework
-36. No password policy enforcement
-37. Webhook email verification missing
+36. [DONE] No password policy enforcement
+37. [DONE] Webhook email verification missing
 
 ### 🟠 High (Fix Before Public Beta — 48 issues)
 
-1. No role-based access control wired to routes
-2. No session management UI
+1. [DONE] Role-based access control wired to routes
+2. [DONE] Session management UI
 3. No OAuth account linking
-4. No email verification requirement
-5. No rate limiting on auth routes
-6. CSP nonce not properly wired in Next.js
-7. Rate limiter fallback bypasses all limits
+4. [DONE] Email verification requirement
+5. [DONE] Rate limiting on auth routes
+6. [DONE] CSP nonce wired in Next.js
+7. [DONE] Rate limiter fallback to in-memory
 8. API key rotation/management
 9. No database connection pooler config
-10. No composite indexes on common queries
+10. [DONE] Composite indexes on common queries
 11. No migration validation in CI
 12. No down migrations
 13. No staging environment
@@ -508,7 +508,7 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 22. No prompt injection protections
 23. No circuit breakers for agent/LLM calls
 24. Agent cost not tracked per operation
-25. No response caching
+25. [DONE] Response caching (in-memory TTL)
 26. No materialized views for reports
 27. No table partitioning
 28. No cold start mitigation
@@ -520,13 +520,13 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 34. No blue-green/canary deployment
 35. No PgBouncer configuration
 36. No background job queue monitoring
-37. No structured logging
+37. [DONE] Structured logging
 38. No image optimization
 39. No bundle analysis
-40. No SEO metadata on pages
+40. [DONE] SEO metadata on pages
 41. No accessibility audit
 42. Marketing pages lack enterprise visual quality
-43. No error boundaries
+43. [DONE] Error boundaries (loading/error/not-found)
 44. No offline support (progressive web app)
 45. No optimistic updates
 46. No i18n for multi-language agent
@@ -542,7 +542,7 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 5. No advanced table filtering
 6. No virtual scrolling
 7. No code splitting
-8. No batch tRPC requests
+8. [DONE] Batch tRPC requests (httpBatchLink configured)
 9. No request deduplication
 10. Multi-currency formatting completeness
 11. Dark mode on marketing pages
@@ -554,7 +554,7 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 17. No biometric auth on mobile
 18. No flaky test detection
 19. No emergency access protocol
-20. No audit trail for admin actions
+20. [DONE] Audit trail for admin actions (audit log viewer built)
 
 ---
 
@@ -564,21 +564,24 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 
 **Focus: Security + Testing + Data Integrity**
 
-1. Implement proper MFA (TOTP + recovery codes)
-2. Enforce password policy and account lockout
-3. Implement RBAC with full permission matrix
+1. [DONE] Implement proper MFA (TOTP + recovery codes)
+2. [DONE] Enforce password policy and account lockout
+3. [DONE] Implement RBAC with full permission matrix
 4. Add RLS policies to ALL tables
 5. Create test database with CI integration
 6. Build golden datasets for high-risk agents (Ledger, Reconciliation, Tax)
 7. Implement agent eval harness as CI step
 8. Add SAST/SCA/DAST to CI pipeline
 9. Set up Sentry error tracking
-10. Implement structured logging
+10. [DONE] Implement structured logging
 11. Create down migrations for all existing migrations
-12. Add database CHECK constraints for financial integrity
-13. Implement proper KMS-based encryption
-14. Add field-level encryption for PII
-15. Set up PagerDuty/incident response
+12. [DONE] Add database CHECK constraints for financial integrity
+13. [DONE] Add UNIQUE constraints + composite indexes (migration 0014)
+14. [DONE] Response caching + global error handler
+15. [DONE] Agent API rate limiting
+16. Implement proper KMS-based encryption
+17. Add field-level encryption for PII
+18. Set up PagerDuty/incident response
 
 ### Phase 2 — Scale (Months 4-6)
 

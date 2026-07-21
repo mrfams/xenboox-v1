@@ -1,13 +1,17 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
-import { router, protectedProcedure } from "@/lib/trpc/server"
-import { db } from "@/lib/db"
-import { eq, and, asc, desc } from "drizzle-orm"
-import { fiscalPeriods } from "@xenboox/db/schema/accounting"
-import { trialBalanceSnapshots } from "@xenboox/db/schema/accounting"
-import { chartOfAccounts, journalEntries, journalEntryLines } from "@xenboox/db/schema/accounting"
-import { auditLog } from "@xenboox/db/schema/documents"
-import { triggerClient } from "@/lib/trigger"
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
+import { eq, and, asc, desc, inArray } from "drizzle-orm";
+import { fiscalPeriods } from "@xenboox/db/schema/accounting";
+import { trialBalanceSnapshots } from "@xenboox/db/schema/accounting";
+import {
+  chartOfAccounts,
+  journalEntries,
+  journalEntryLines,
+} from "@xenboox/db/schema/accounting";
+import { auditLog } from "@xenboox/db/schema/documents";
+import { triggerClient } from "@/lib/trigger";
 
 export const fiscalRouter = router({
   list: protectedProcedure
@@ -17,99 +21,136 @@ export const fiscalRouter = router({
         where: input.year
           ? and(
               eq(fiscalPeriods.entityId, ctx.entityId!),
-              eq(fiscalPeriods.year, input.year)
+              eq(fiscalPeriods.year, input.year),
             )
           : eq(fiscalPeriods.entityId, ctx.entityId!),
-        orderBy: [desc(fiscalPeriods.year), asc(fiscalPeriods.month)]
-      })
+        orderBy: [desc(fiscalPeriods.year), asc(fiscalPeriods.month)],
+      });
     }),
 
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
-    const now = new Date()
-    const currentMonth = now.getMonth() + 1
-    const currentYear = now.getFullYear()
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
 
     return db.query.fiscalPeriods.findFirst({
       where: and(
         eq(fiscalPeriods.entityId, ctx.entityId!),
         eq(fiscalPeriods.year, currentYear),
-        eq(fiscalPeriods.month, currentMonth)
-      )
-    })
+        eq(fiscalPeriods.month, currentMonth),
+      ),
+    });
   }),
 
   create: protectedProcedure
-    .input(z.object({
-      year: z.number().int().min(2000).max(2100),
-      month: z.number().int().min(1).max(12),
-    }))
+    .input(
+      z.object({
+        year: z.number().int().min(2000).max(2100),
+        month: z.number().int().min(1).max(12),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       try {
         const existing = await db.query.fiscalPeriods.findFirst({
           where: and(
             eq(fiscalPeriods.entityId, ctx.entityId!),
             eq(fiscalPeriods.year, input.year),
-            eq(fiscalPeriods.month, input.month)
-          )
-        })
+            eq(fiscalPeriods.month, input.month),
+          ),
+        });
         if (existing) {
-          throw new TRPCError({ code: "CONFLICT", message: `Period ${input.year}-${input.month} already exists` })
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Period ${input.year}-${input.month} already exists`,
+          });
         }
 
-        const startDate = `${input.year}-${String(input.month).padStart(2, "0")}-01`
-        const lastDay = new Date(input.year, input.month, 0).getDate()
-        const endDate = `${input.year}-${String(input.month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
+        const startDate = `${input.year}-${String(input.month).padStart(2, "0")}-01`;
+        const lastDay = new Date(input.year, input.month, 0).getDate();
+        const endDate = `${input.year}-${String(input.month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-        const [period] = await db.insert(fiscalPeriods).values({
-          entityId: ctx.entityId!,
-          year: input.year,
-          month: input.month,
-          startDate,
-          endDate,
-        }).returning()
+        const [period] = await db
+          .insert(fiscalPeriods)
+          .values({
+            entityId: ctx.entityId!,
+            year: input.year,
+            month: input.month,
+            startDate,
+            endDate,
+          })
+          .returning();
 
-        return period
+        return period;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create fiscal period" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create fiscal period",
+        });
       }
     }),
 
   closePeriod: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ periodId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
         const period = await db.query.fiscalPeriods.findFirst({
-          where: and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!))
-        })
-        if (!period) throw new TRPCError({ code: "NOT_FOUND", message: "Period not found" })
+          where: and(
+            eq(fiscalPeriods.id, input.periodId),
+            eq(fiscalPeriods.entityId, ctx.entityId!),
+          ),
+        });
+        if (!period)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Period not found",
+          });
         if (period.status === "closed") {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Period already closed" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Period already closed",
+          });
         }
         if (period.status === "locked") {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Period is locked" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Period is locked",
+          });
         }
 
-        const entries = await db.query.journalEntries.findMany({
-          where: and(
-            eq(journalEntries.entityId, ctx.entityId!),
-            eq(journalEntries.periodId, input.periodId),
-            eq(journalEntries.status, "posted")
-          )
-        })
+        const entryIds = await db
+          .select({ id: journalEntries.id })
+          .from(journalEntries)
+          .where(
+            and(
+              eq(journalEntries.entityId, ctx.entityId!),
+              eq(journalEntries.periodId, input.periodId),
+              eq(journalEntries.status, "posted"),
+            ),
+          );
+        const ids = entryIds.map((e) => e.id);
 
-        const accountTotals = new Map<string, { debit: number; credit: number }>()
+        const lines =
+          ids.length > 0
+            ? await db.query.journalEntryLines.findMany({
+                where: inArray(journalEntryLines.journalEntryId, ids),
+              })
+            : [];
 
-        for (const entry of entries) {
-          const lines = await db.query.journalEntryLines.findMany({
-            where: eq(journalEntryLines.journalEntryId, entry.id)
-          })
-          for (const line of lines) {
-            const existing = accountTotals.get(line.accountId) || { debit: 0, credit: 0 }
-            existing.debit += Number(line.debit)
-            existing.credit += Number(line.credit)
-            accountTotals.set(line.accountId, existing)
-          }
+        const accountTotals = new Map<
+          string,
+          { debit: number; credit: number }
+        >();
+
+        for (const line of lines) {
+          const existing = accountTotals.get(line.accountId) || {
+            debit: 0,
+            credit: 0,
+          };
+          existing.debit += Number(line.debit);
+          existing.credit += Number(line.credit);
+          accountTotals.set(line.accountId, existing);
         }
 
         for (const [accountId, totals] of accountTotals) {
@@ -121,17 +162,23 @@ export const fiscalRouter = router({
             creditTotal: String(totals.credit),
             balance: String(totals.debit - totals.credit),
             generatedBy: "system",
-          })
+          });
         }
 
-        const [updated] = await db.update(fiscalPeriods)
+        const [updated] = await db
+          .update(fiscalPeriods)
           .set({
             status: "closed",
             closedBy: ctx.session!.user!.id!,
             closedAt: new Date(),
           })
-          .where(and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!)))
-          .returning()
+          .where(
+            and(
+              eq(fiscalPeriods.id, input.periodId),
+              eq(fiscalPeriods.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
 
         if (updated) {
           await db.insert(auditLog).values({
@@ -141,32 +188,52 @@ export const fiscalRouter = router({
             entityType: "fiscal_period",
             entityIdRef: updated.id,
             newValues: { status: "closed" },
-          })
+          });
         }
 
-        return updated
+        return updated;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to close period" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to close period",
+        });
       }
     }),
 
   lockPeriod: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ periodId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
         const period = await db.query.fiscalPeriods.findFirst({
-          where: and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!))
-        })
-        if (!period) throw new TRPCError({ code: "NOT_FOUND", message: "Period not found" })
+          where: and(
+            eq(fiscalPeriods.id, input.periodId),
+            eq(fiscalPeriods.entityId, ctx.entityId!),
+          ),
+        });
+        if (!period)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Period not found",
+          });
         if (period.status !== "closed") {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Must be closed before locking" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Must be closed before locking",
+          });
         }
 
-        const [updated] = await db.update(fiscalPeriods)
+        const [updated] = await db
+          .update(fiscalPeriods)
           .set({ status: "locked" })
-          .where(and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!)))
-          .returning()
+          .where(
+            and(
+              eq(fiscalPeriods.id, input.periodId),
+              eq(fiscalPeriods.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
 
         if (updated) {
           await db.insert(auditLog).values({
@@ -176,42 +243,128 @@ export const fiscalRouter = router({
             entityType: "fiscal_period",
             entityIdRef: updated.id,
             newValues: { status: "locked" },
-          })
+          });
         }
 
-        return updated
+        return updated;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to lock period" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to lock period",
+        });
       }
     }),
 
   closePeriodAsync: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ periodId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
         const period = await db.query.fiscalPeriods.findFirst({
-          where: and(eq(fiscalPeriods.id, input.periodId), eq(fiscalPeriods.entityId, ctx.entityId!))
-        })
-        if (!period) throw new TRPCError({ code: "NOT_FOUND", message: "Period not found" })
+          where: and(
+            eq(fiscalPeriods.id, input.periodId),
+            eq(fiscalPeriods.entityId, ctx.entityId!),
+          ),
+        });
+        if (!period)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Period not found",
+          });
         if (period.status === "closed") {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Period already closed" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Period already closed",
+          });
         }
         if (period.status === "locked") {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Period is locked" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Period is locked",
+          });
         }
 
-        const job = await triggerClient.tasks.trigger("process-month-end-close", {
-          entityId: ctx.entityId!,
-          month: period.month,
-          year: period.year,
-          userId: ctx.session!.user!.id!,
-        })
+        const job = await triggerClient.tasks.trigger(
+          "process-month-end-close",
+          {
+            entityId: ctx.entityId!,
+            month: period.month,
+            year: period.year,
+            userId: ctx.session!.user!.id!,
+          },
+        );
 
-        return { jobId: job.id, status: "triggered" }
+        return { jobId: job.id, status: "triggered" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to trigger period close" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to trigger period close",
+        });
       }
     }),
-})
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const period = await db.query.fiscalPeriods.findFirst({
+          where: and(
+            eq(fiscalPeriods.id, input.id),
+            eq(fiscalPeriods.entityId, ctx.entityId!),
+          ),
+        });
+        if (!period)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Fiscal period not found",
+          });
+        if (period.status !== "open") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot delete a closed or locked fiscal period",
+          });
+        }
+
+        const referencedEntries = await db.query.journalEntries.findMany({
+          where: and(
+            eq(journalEntries.periodId, input.id),
+            eq(journalEntries.entityId, ctx.entityId!),
+          ),
+        });
+        if (referencedEntries.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot delete a period with journal entries",
+          });
+        }
+
+        await db
+          .delete(fiscalPeriods)
+          .where(
+            and(
+              eq(fiscalPeriods.id, input.id),
+              eq(fiscalPeriods.entityId, ctx.entityId!),
+            ),
+          );
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "fiscal.delete",
+          entityType: "fiscal_period",
+          entityIdRef: input.id,
+          newValues: { deleted: true },
+        });
+
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete fiscal period",
+        });
+      }
+    }),
+});

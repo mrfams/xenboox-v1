@@ -1,34 +1,8 @@
-/**
- * Mono Webhook Handler
- *
- * Receives transaction sync updates from Mono API.
- * Verifies webhook signature and processes incoming data.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { bankConnections } from "@xenboox/db/schema/integrations";
 import { eq } from "drizzle-orm";
-import crypto from "crypto";
-
-const MONO_WEBHOOK_SECRET = process.env.MONO_WEBHOOK_SECRET;
-
-function verifyMonoSignature(
-  payload: string,
-  signature: string | null,
-): boolean {
-  if (!MONO_WEBHOOK_SECRET || !signature) return false;
-
-  const expectedSignature = crypto
-    .createHmac("sha256", MONO_WEBHOOK_SECRET)
-    .update(payload)
-    .digest("hex");
-
-  return crypto.timingSafeEqual(
-    Buffer.from(expectedSignature),
-    Buffer.from(signature),
-  );
-}
+import { verifyMonoSignature } from "@/lib/webhook-verify";
 
 export async function POST(request: NextRequest) {
   try {

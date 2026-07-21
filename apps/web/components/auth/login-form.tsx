@@ -1,47 +1,77 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui"
-import { Input, Label, Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui"
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { Button } from "@/components/ui";
+import {
+  Input,
+  Label,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui";
 
 export function LoginForm() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loginMutation = trpc.auth.login.useMutation();
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setIsLoading(true)
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
+      // Use tRPC login to check credentials + MFA status
+      const result = await loginMutation.mutateAsync({ email, password });
 
-      if (result?.error) {
-        setError("Invalid email or password")
-        return
+      if ("mfaRequired" in result && result.mfaRequired) {
+        // Redirect to MFA challenge
+        router.push(
+          `/mfa-challenge?token=${encodeURIComponent(result.mfaToken)}`,
+        );
+        return;
       }
 
-      router.push("/dashboard")
-      router.refresh()
-    } catch {
-      setError("Something went wrong. Please try again.")
+      // No MFA required — sign in with the mobile token directly
+      if ("token" in result && result.token) {
+        const signInResult = await signIn("credentials", {
+          directAuthToken: result.token,
+          redirect: false,
+        });
+
+        if (signInResult?.error) {
+          setError("Failed to establish session. Please try again.");
+          return;
+        }
+
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        setError("Unexpected response from server.");
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   async function handleGoogleSignIn() {
-    setIsLoading(true)
-    await signIn("google", { callbackUrl: "/dashboard" })
+    setIsLoading(true);
+    await signIn("google", { callbackUrl: "/dashboard" });
   }
 
   return (
@@ -70,7 +100,10 @@ export function LoginForm() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <a href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground">
+              <a
+                href="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
                 Forgot password?
               </a>
             </div>
@@ -132,5 +165,5 @@ export function LoginForm() {
         </Button>
       </CardContent>
     </Card>
-  )
+  );
 }

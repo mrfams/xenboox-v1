@@ -1,17 +1,22 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
-import { eq, and, desc } from "drizzle-orm"
-import { router, protectedProcedure, mutateProcedure } from "@/lib/trpc/server"
-import { db } from "@/lib/db"
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { eq, and, desc } from "drizzle-orm";
+import {
+  router,
+  protectedProcedure,
+  mutateProcedure,
+  requireRole,
+} from "@/lib/trpc/server";
+import { db } from "@/lib/db";
 import {
   fixedAssets,
   depreciationSchedule,
   auditLog,
-} from "@xenboox/db/schema"
-import { userEntityAccess } from "@xenboox/db/schema/organization"
-import { users } from "@xenboox/db/schema/auth"
-import { sendAssetCreatedEmail } from "@/lib/email"
-import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment"
+} from "@xenboox/db/schema";
+import { userEntityAccess } from "@xenboox/db/schema/organization";
+import { users } from "@xenboox/db/schema/auth";
+import { sendAssetCreatedEmail } from "@/lib/email";
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 
 // ─── Fixed Assets Router ───────────────────────────────────────────────────
 
@@ -20,23 +25,29 @@ export const fixedAssetsRouter = router({
     return db.query.fixedAssets.findMany({
       where: eq(fixedAssets.entityId, ctx.entityId!),
       orderBy: [desc(fixedAssets.createdAt)],
-    })
+    });
   }),
 
   getAssetById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const asset = await db.query.fixedAssets.findFirst({
-        where: and(eq(fixedAssets.id, input.id), eq(fixedAssets.entityId, ctx.entityId!)),
-      })
-      if (!asset) return null
+        where: and(
+          eq(fixedAssets.id, input.id),
+          eq(fixedAssets.entityId, ctx.entityId!),
+        ),
+      });
+      if (!asset) return null;
 
       const schedule = await db.query.depreciationSchedule.findMany({
-        where: and(eq(depreciationSchedule.fixedAssetId, asset.id), eq(depreciationSchedule.entityId, ctx.entityId!)),
+        where: and(
+          eq(depreciationSchedule.fixedAssetId, asset.id),
+          eq(depreciationSchedule.entityId, ctx.entityId!),
+        ),
         orderBy: [desc(depreciationSchedule.createdAt)],
-      })
+      });
 
-      return { ...asset, depreciationSchedule: schedule }
+      return { ...asset, depreciationSchedule: schedule };
     }),
 
   createAsset: mutateProcedure
@@ -50,17 +61,19 @@ export const fixedAssetsRouter = router({
         cost: z.string(),
         salvageValue: z.string().default("0"),
         usefulLifeMonths: z.number().int().positive(),
-        depreciationMethod: z.enum(["straight_line", "reducing_balance", "units_of_production"]).default("straight_line"),
+        depreciationMethod: z
+          .enum(["straight_line", "reducing_balance", "units_of_production"])
+          .default("straight_line"),
         responsiblePerson: z.string().optional(),
         glAccountId: z.string().uuid().optional(),
         accumulatedDepreciationAccountId: z.string().uuid().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const cost = parseFloat(input.cost)
-        const salvage = parseFloat(input.salvageValue)
-        const nbv = cost - salvage
+        const cost = parseFloat(input.cost);
+        const salvage = parseFloat(input.salvageValue);
+        const nbv = cost - salvage;
 
         const [asset] = await db
           .insert(fixedAssets)
@@ -73,10 +86,13 @@ export const fixedAssetsRouter = router({
             netBookValue: nbv.toFixed(2),
             status: "active",
           })
-          .returning()
+          .returning();
 
         if (!asset) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create asset" })
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create asset",
+          });
         }
 
         await db.insert(auditLog).values({
@@ -85,35 +101,48 @@ export const fixedAssetsRouter = router({
           action: "fixedAssets.createAsset",
           entityType: "fixed_asset",
           entityIdRef: asset.id,
-          newValues: { name: input.name, assetClass: input.assetClass, cost: input.cost, salvageValue: input.salvageValue, usefulLifeMonths: input.usefulLifeMonths, depreciationMethod: input.depreciationMethod },
-        })
+          newValues: {
+            name: input.name,
+            assetClass: input.assetClass,
+            cost: input.cost,
+            salvageValue: input.salvageValue,
+            usefulLifeMonths: input.usefulLifeMonths,
+            depreciationMethod: input.depreciationMethod,
+          },
+        });
 
         // Send email notification (non-blocking)
         const ownerAccess = await db.query.userEntityAccess.findFirst({
           where: and(
             eq(userEntityAccess.entityId, ctx.entityId!),
-            eq(userEntityAccess.role, "owner")
+            eq(userEntityAccess.role, "owner"),
           ),
-          with: { user: true }
-        })
-        const recipientEmail = ownerAccess?.user?.email ?? ctx.session!.user!.email!
+          with: { user: true },
+        });
+        const recipientEmail =
+          ownerAccess?.user?.email ?? ctx.session!.user!.email!;
 
-        getEnrichedEntityContext(ctx.entityId!).then((entityCtx) => {
-          sendAssetCreatedEmail(recipientEmail, {
-            assetName: input.name,
-            assetClass: input.assetClass,
-            cost: input.cost,
-            currency: entityCtx.currency,
-            usefulLifeMonths: input.usefulLifeMonths,
-            depreciationMethod: input.depreciationMethod,
-            entityName: entityCtx.entityName,
-          }).catch(console.error)
-        }).catch(console.error)
+        getEnrichedEntityContext(ctx.entityId!)
+          .then((entityCtx) => {
+            sendAssetCreatedEmail(recipientEmail, {
+              assetName: input.name,
+              assetClass: input.assetClass,
+              cost: input.cost,
+              currency: entityCtx.currency,
+              usefulLifeMonths: input.usefulLifeMonths,
+              depreciationMethod: input.depreciationMethod,
+              entityName: entityCtx.entityName,
+            }).catch(console.error);
+          })
+          .catch(console.error);
 
-        return asset
+        return asset;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create asset" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create asset",
+        });
       }
     }),
 
@@ -123,34 +152,44 @@ export const fixedAssetsRouter = router({
         id: z.string().uuid(),
         name: z.string().min(1).optional(),
         location: z.string().optional(),
-        status: z.enum(["active", "disposed", "fully_depreciated", "under_maintenance"]).optional(),
+        status: z
+          .enum([
+            "active",
+            "disposed",
+            "fully_depreciated",
+            "under_maintenance",
+          ])
+          .optional(),
         condition: z.string().optional(),
         responsiblePerson: z.string().optional(),
         notes: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input
+      const { id, ...data } = input;
       const [updated] = await db
         .update(fixedAssets)
         .set(data)
-        .where(and(eq(fixedAssets.id, id), eq(fixedAssets.entityId, ctx.entityId!)))
-        .returning()
-      return updated
+        .where(
+          and(eq(fixedAssets.id, id), eq(fixedAssets.entityId, ctx.entityId!)),
+        )
+        .returning();
+      return updated;
     }),
 
   disposeAsset: mutateProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
         id: z.string().uuid(),
         disposalDate: z.string(),
         disposalMethod: z.enum(["sold", "scrapped", "donated", "written_off"]),
         disposalProceeds: z.string().default("0"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const { id, ...data } = input
+        const { id, ...data } = input;
         const [updated] = await db
           .update(fixedAssets)
           .set({
@@ -159,11 +198,19 @@ export const fixedAssetsRouter = router({
             disposalMethod: data.disposalMethod,
             disposalProceeds: data.disposalProceeds,
           })
-          .where(and(eq(fixedAssets.id, id), eq(fixedAssets.entityId, ctx.entityId!)))
-          .returning()
+          .where(
+            and(
+              eq(fixedAssets.id, id),
+              eq(fixedAssets.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
 
         if (!updated) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Asset not found" })
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Asset not found",
+          });
         }
 
         await db.insert(auditLog).values({
@@ -173,13 +220,21 @@ export const fixedAssetsRouter = router({
           entityType: "fixed_asset",
           entityIdRef: id,
           oldValues: { status: "active" },
-          newValues: { status: "disposed", disposalDate: data.disposalDate, disposalMethod: data.disposalMethod, disposalProceeds: data.disposalProceeds },
-        })
+          newValues: {
+            status: "disposed",
+            disposalDate: data.disposalDate,
+            disposalMethod: data.disposalMethod,
+            disposalProceeds: data.disposalProceeds,
+          },
+        });
 
-        return updated
+        return updated;
       } catch (error) {
-        if (error instanceof TRPCError) throw error
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to dispose asset" })
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to dispose asset",
+        });
       }
     }),
 
@@ -187,8 +242,56 @@ export const fixedAssetsRouter = router({
     .input(z.object({ assetId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return db.query.depreciationSchedule.findMany({
-        where: and(eq(depreciationSchedule.fixedAssetId, input.assetId), eq(depreciationSchedule.entityId, ctx.entityId!)),
+        where: and(
+          eq(depreciationSchedule.fixedAssetId, input.assetId),
+          eq(depreciationSchedule.entityId, ctx.entityId!),
+        ),
         orderBy: [desc(depreciationSchedule.createdAt)],
-      })
+      });
     }),
-})
+
+  deleteAsset: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const asset = await db.query.fixedAssets.findFirst({
+          where: and(
+            eq(fixedAssets.id, input.id),
+            eq(fixedAssets.entityId, ctx.entityId!),
+          ),
+        });
+        if (!asset)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Asset not found",
+          });
+        if (asset.status === "disposed")
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot delete a disposed asset",
+          });
+        // Delete depreciation schedule first
+        await db
+          .delete(depreciationSchedule)
+          .where(eq(depreciationSchedule.fixedAssetId, input.id));
+        await db.delete(fixedAssets).where(eq(fixedAssets.id, input.id));
+        await db
+          .insert(auditLog)
+          .values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "fixedAssets.deleteAsset",
+            entityType: "fixed_asset",
+            entityIdRef: input.id,
+            newValues: { name: asset.name },
+          });
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete asset",
+        });
+      }
+    }),
+});

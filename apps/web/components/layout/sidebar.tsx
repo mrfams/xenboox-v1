@@ -21,6 +21,7 @@ import {
   Boxes,
   Shield,
   Plug,
+  ScrollText,
   AlertCircle,
   Receipt,
   ChevronDown,
@@ -60,6 +61,7 @@ const moreModules: NavItem[] = [
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
   { label: "Integrations", href: "/dashboard/settings", icon: Plug },
   { label: "Admin", href: "/admin", icon: Shield },
+  { label: "Audit Log", href: "/dashboard/audit-log", icon: ScrollText },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
   { label: "Help", href: "/dashboard/help", icon: HelpCircle },
 ];

@@ -1,10 +1,3 @@
-/**
- * Email Inbound Webhook
- *
- * Receives forwarded emails via Resend or any SMTP forwarding service.
- * Creates an inbound email record and triggers processing.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -13,10 +6,24 @@ import {
 } from "@xenboox/db/schema/integrations";
 import { eq } from "drizzle-orm";
 import { triggerClient } from "@/lib/trigger";
+import { verifyWebhookSignature } from "@/lib/webhook-verify";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+
+    const signature =
+      request.headers.get("x-webhook-signature") ??
+      request.headers.get("svix-signature");
+
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      return NextResponse.json(
+        { error: "Invalid webhook signature" },
+        { status: 401 },
+      );
+    }
+
+    const body = JSON.parse(rawBody);
 
     const {
       from,

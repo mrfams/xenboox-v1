@@ -1,64 +1,92 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useSession, signOut } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Switch } from "@/components/ui"
-import { Separator } from "@/components/ui"
-import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail } from "lucide-react"
-import { trpc } from "@/lib/trpc/client"
-import { toast } from "sonner"
+import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Input,
+  Label,
+  Switch,
+} from "@/components/ui";
+import { Separator } from "@/components/ui";
+import {
+  LogOut,
+  User,
+  Shield,
+  Bell,
+  Save,
+  AlertCircle,
+  Check,
+  Mail,
+  Smartphone,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import { toast } from "sonner";
+import { MfaSection } from "@/components/settings/mfa-section";
+import { SessionsSection } from "@/components/settings/sessions-section";
 
 export default function SettingsPage() {
-  const { data: session, update: updateSession } = useSession()
+  const { data: session, update: updateSession } = useSession();
   const [profileForm, setProfileForm] = useState({
     name: session?.user?.name || "",
-  })
+  });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-  })
+  });
 
   const updateProfileMutation = trpc.auth.updateProfile.useMutation({
     onSuccess: async () => {
-      toast.success("Profile updated successfully")
-      await updateSession()
+      toast.success("Profile updated successfully");
+      await updateSession();
     },
     onError: (error) => {
-      toast.error(error.message)
+      toast.error(error.message);
     },
-  })
+  });
 
-  const requestVerificationMutation = trpc.auth.requestVerification.useMutation({
-    onSuccess: (data) => {
-      toast.success(data.message)
+  const requestVerificationMutation = trpc.auth.requestVerification.useMutation(
+    {
+      onSuccess: (data) => {
+        toast.success(data.message);
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
     },
-    onError: (error) => {
-      toast.error(error.message)
-    },
-  })
+  );
 
   const changePasswordMutation = trpc.auth.changePassword.useMutation({
     onSuccess: () => {
-      toast.success("Password changed successfully")
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      toast.success("Password changed successfully");
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
     },
     onError: (error) => {
-      toast.error(error.message)
+      toast.error(error.message);
     },
-  })
+  });
 
   // Notification preferences
-  const [notifEmailInvoices, setNotifEmailInvoices] = useState(true)
-  const [notifEmailReports, setNotifEmailReports] = useState(true)
-  const [notifEmailAlerts, setNotifEmailAlerts] = useState(true)
-  const [notifPushPayments, setNotifPushPayments] = useState(true)
-  const [notifPushApprovals, setNotifPushApprovals] = useState(false)
+  const [notifEmailInvoices, setNotifEmailInvoices] = useState(true);
+  const [notifEmailReports, setNotifEmailReports] = useState(true);
+  const [notifEmailAlerts, setNotifEmailAlerts] = useState(true);
+  const [notifPushPayments, setNotifPushPayments] = useState(true);
+  const [notifPushApprovals, setNotifPushApprovals] = useState(false);
 
-  const updateNotificationsMutation = trpc.auth.updateNotificationPreferences.useMutation({
-    onSuccess: () => toast.success("Notification preferences saved"),
-    onError: (error) => toast.error(error.message),
-  })
+  const updateNotificationsMutation =
+    trpc.auth.updateNotificationPreferences.useMutation({
+      onSuccess: () => toast.success("Notification preferences saved"),
+      onError: (error) => toast.error(error.message),
+    });
 
   const handleSaveNotifications = () => {
     updateNotificationsMutation.mutate({
@@ -67,29 +95,31 @@ export default function SettingsPage() {
       emailAlerts: notifEmailAlerts,
       pushPayments: notifPushPayments,
       pushApprovals: notifPushApprovals,
-    })
-  }
+    });
+  };
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!profileForm.name.trim()) {
-      toast.error("Name is required")
-      return
+      toast.error("Name is required");
+      return;
     }
-    updateProfileMutation.mutate({ name: profileForm.name.trim() })
-  }
+    updateProfileMutation.mutate({ name: profileForm.name.trim() });
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error("New passwords do not match")
-      return
+      toast.error("New passwords do not match");
+      return;
     }
-    changePasswordMutation.mutate(passwordForm)
-  }
+    changePasswordMutation.mutate(passwordForm);
+  };
 
-  const passwordsMatch = passwordForm.newPassword === passwordForm.confirmPassword
-  const showPasswordError = passwordForm.confirmPassword.length > 0 && !passwordsMatch
+  const passwordsMatch =
+    passwordForm.newPassword === passwordForm.confirmPassword;
+  const showPasswordError =
+    passwordForm.confirmPassword.length > 0 && !passwordsMatch;
 
   return (
     <div className="space-y-6">
@@ -149,7 +179,9 @@ export default function SettingsPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={updateProfileMutation.isPending || !profileForm.name.trim()}
+                disabled={
+                  updateProfileMutation.isPending || !profileForm.name.trim()
+                }
               >
                 {updateProfileMutation.isPending ? (
                   "Saving..."
@@ -179,7 +211,12 @@ export default function SettingsPage() {
                   id="currentPassword"
                   type="password"
                   value={passwordForm.currentPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      currentPassword: e.target.value,
+                    })
+                  }
                   placeholder="••••••••"
                   required
                 />
@@ -190,7 +227,12 @@ export default function SettingsPage() {
                   id="newPassword"
                   type="password"
                   value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      newPassword: e.target.value,
+                    })
+                  }
                   placeholder="••••••••"
                   required
                 />
@@ -201,7 +243,12 @@ export default function SettingsPage() {
                   id="confirmPassword"
                   type="password"
                   value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      confirmPassword: e.target.value,
+                    })
+                  }
                   placeholder="••••••••"
                   required
                 />
@@ -215,14 +262,24 @@ export default function SettingsPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={changePasswordMutation.isPending || !passwordsMatch || !passwordForm.currentPassword}
+                disabled={
+                  changePasswordMutation.isPending ||
+                  !passwordsMatch ||
+                  !passwordForm.currentPassword
+                }
               >
                 <Save className="mr-2 h-4 w-4" />
-                {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+                {changePasswordMutation.isPending
+                  ? "Changing..."
+                  : "Change Password"}
               </Button>
             </form>
           </CardContent>
         </Card>
+
+        <MfaSection />
+
+        <SessionsSection />
 
         <Card>
           <CardHeader>
@@ -242,23 +299,38 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>Invoice & Payment Updates</span>
-                  <span className="text-xs text-muted-foreground">When invoices are created, paid, or overdue</span>
+                  <span className="text-xs text-muted-foreground">
+                    When invoices are created, paid, or overdue
+                  </span>
                 </Label>
-                <Switch checked={notifEmailInvoices} onCheckedChange={setNotifEmailInvoices} />
+                <Switch
+                  checked={notifEmailInvoices}
+                  onCheckedChange={setNotifEmailInvoices}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>Financial Reports</span>
-                  <span className="text-xs text-muted-foreground">Monthly P&L, balance sheet, and custom reports</span>
+                  <span className="text-xs text-muted-foreground">
+                    Monthly P&L, balance sheet, and custom reports
+                  </span>
                 </Label>
-                <Switch checked={notifEmailReports} onCheckedChange={setNotifEmailReports} />
+                <Switch
+                  checked={notifEmailReports}
+                  onCheckedChange={setNotifEmailReports}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>System Alerts</span>
-                  <span className="text-xs text-muted-foreground">Budget thresholds, security events, and errors</span>
+                  <span className="text-xs text-muted-foreground">
+                    Budget thresholds, security events, and errors
+                  </span>
                 </Label>
-                <Switch checked={notifEmailAlerts} onCheckedChange={setNotifEmailAlerts} />
+                <Switch
+                  checked={notifEmailAlerts}
+                  onCheckedChange={setNotifEmailAlerts}
+                />
               </div>
             </div>
 
@@ -274,16 +346,26 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>Payment Received</span>
-                  <span className="text-xs text-muted-foreground">When a customer payment is processed</span>
+                  <span className="text-xs text-muted-foreground">
+                    When a customer payment is processed
+                  </span>
                 </Label>
-                <Switch checked={notifPushPayments} onCheckedChange={setNotifPushPayments} />
+                <Switch
+                  checked={notifPushPayments}
+                  onCheckedChange={setNotifPushPayments}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>Approval Requests</span>
-                  <span className="text-xs text-muted-foreground">When your approval is needed on an item</span>
+                  <span className="text-xs text-muted-foreground">
+                    When your approval is needed on an item
+                  </span>
                 </Label>
-                <Switch checked={notifPushApprovals} onCheckedChange={setNotifPushApprovals} />
+                <Switch
+                  checked={notifPushApprovals}
+                  onCheckedChange={setNotifPushApprovals}
+                />
               </div>
             </div>
 
@@ -293,7 +375,9 @@ export default function SettingsPage() {
               className="w-full"
             >
               <Save className="mr-2 h-4 w-4" />
-              {updateNotificationsMutation.isPending ? "Saving..." : "Save Preferences"}
+              {updateNotificationsMutation.isPending
+                ? "Saving..."
+                : "Save Preferences"}
             </Button>
           </CardContent>
         </Card>
@@ -321,5 +405,5 @@ export default function SettingsPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
