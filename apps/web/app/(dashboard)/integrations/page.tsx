@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Card, CardContent, Badge } from "@/components/ui";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -20,9 +21,11 @@ import {
   AlertCircle,
   FileText,
   Loader2,
+  Upload,
 } from "lucide-react";
 
 export default function IntegrationsPage() {
+  const router = useRouter();
   const [showConnectBank, setShowConnectBank] = useState(false);
   const [showEmailForwarding, setShowEmailForwarding] = useState(false);
 
@@ -50,6 +53,12 @@ export default function IntegrationsPage() {
       emailRules.refetch();
     },
   });
+
+  const triggerReminders =
+    trpc.integrations.triggerMonthlyBankReminders.useMutation({
+      onSuccess: () => toast.success("Monthly bank reminders triggered!"),
+      onError: (error) => toast.error(error.message),
+    });
 
   const isLoading =
     overview.isLoading || bankConnections.isLoading || emailRules.isLoading;
@@ -324,6 +333,56 @@ export default function IntegrationsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Manual Bank Upload Section */}
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">Manual Bank Upload</h3>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => triggerReminders.mutate()}
+                disabled={triggerReminders.isPending}
+              >
+                <AlertCircle className="h-4 w-4 mr-1" />
+                Send Reminders
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push("/dashboard/documents")}
+              >
+                <Upload className="h-4 w-4 mr-1" />
+                Go to Documents
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            If your bank doesn&apos;t have a public API, you can upload your
+            monthly bank statement as a PDF or CSV. We&apos;ll automatically
+            parse transactions and import them into your ledger.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 rounded-lg border p-3 text-xs">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span>Supported: PDF, CSV, Excel</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border p-3 text-xs">
+              <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <span>Auto-categorizes transactions</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border p-3 text-xs">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              <span>We&apos;ll remind you at month-end</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <ConnectBankDialog
         open={showConnectBank}

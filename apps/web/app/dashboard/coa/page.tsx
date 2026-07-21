@@ -1,36 +1,48 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { trpc } from "@/lib/trpc/client"
-import { PageHeader } from "@/components/shared/page-header"
-import { FilterBar } from "@/components/dashboard/filter-bar"
-import { EmptyState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading"
-import { Badge } from "@/components/ui"
-import { CreateAccountDialog } from "./create-dialog"
-import { BookOpen, Plus, ChevronRight, ChevronDown } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { PageHeader } from "@/components/shared/page-header";
+import { FilterBar } from "@/components/dashboard/filter-bar";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
+import {
+  Badge,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui";
+import { CreateAccountDialog } from "./create-dialog";
+import { BookOpen, Plus, ChevronRight, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type Account = {
-  id: string
-  code: string
-  name: string
-  type: string
-  subtype: string
-  description: string | null
-  parentId: string | null
-  isActive: boolean
-  children?: Account[]
-}
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  subtype: string;
+  description: string | null;
+  parentId: string | null;
+  isActive: boolean;
+  children?: Account[];
+};
 
 const typeColors: Record<string, string> = {
   asset: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   liability: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  equity: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  revenue: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  expense: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-}
+  equity:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  revenue:
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  expense:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+};
 
 const typeOptions = [
   { value: "asset", label: "Asset" },
@@ -38,19 +50,19 @@ const typeOptions = [
   { value: "equity", label: "Equity" },
   { value: "revenue", label: "Revenue" },
   { value: "expense", label: "Expense" },
-]
+];
 
 function AccountRow({
   account,
   depth = 0,
   onClick,
 }: {
-  account: Account
-  depth?: number
-  onClick: () => void
+  account: Account;
+  depth?: number;
+  onClick: () => void;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1)
-  const hasChildren = account.children && account.children.length > 0
+  const [expanded, setExpanded] = useState(depth < 1);
+  const hasChildren = account.children && account.children.length > 0;
 
   return (
     <>
@@ -64,8 +76,8 @@ function AccountRow({
             style={{ paddingLeft: `${depth * 24}px` }}
             onClick={(e) => {
               if (hasChildren) {
-                e.stopPropagation()
-                setExpanded(!expanded)
+                e.stopPropagation();
+                setExpanded(!expanded);
               }
             }}
           >
@@ -112,33 +124,46 @@ function AccountRow({
           />
         ))}
     </>
-  )
+  );
 }
 
 export default function COAPage() {
-  const router = useRouter()
-  const { data: accounts, isLoading } = trpc.coa.listHierarchy.useQuery()
-  const [createOpen, setCreateOpen] = useState(false)
-  const [activeType, setActiveType] = useState("")
+  const router = useRouter();
+  const { data: accounts, isLoading } = trpc.coa.listHierarchy.useQuery();
+  const importTemplate = trpc.coa.importTemplate.useMutation({
+    onSuccess: () => {
+      toast.success("Template imported");
+      utils.coa.listHierarchy.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const utils = trpc.useUtils();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [activeType, setActiveType] = useState("");
 
   function filterByType(accounts: Account[], type: string): Account[] {
-    if (!type) return accounts
+    if (!type) return accounts;
     return accounts
       .filter((a) => a.type === type)
       .map((a) => ({
         ...a,
         children: a.children ? filterByType(a.children, type) : [],
-      }))
+      }));
   }
 
-  const filtered = filterByType(accounts ?? [], activeType)
+  const filtered = filterByType(accounts ?? [], activeType);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Chart of Accounts"
         description="Manage your account hierarchy"
-        action={{ label: "New Account", onClick: () => setCreateOpen(true), icon: <Plus className="mr-2 h-4 w-4" /> }}
+        action={{
+          label: "New Account",
+          onClick: () => setCreateOpen(true),
+          icon: <Plus className="mr-2 h-4 w-4" />,
+        }}
       />
 
       <FilterBar
@@ -154,16 +179,41 @@ export default function COAPage() {
           title="No accounts yet"
           description="Create your chart of accounts to start recording transactions."
           action={
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="mr-2 h-4 w-4" /> Create Account
-            </button>
+            <div className="flex flex-col gap-2">
+              <Select
+                value={selectedTemplate}
+                onValueChange={setSelectedTemplate}
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Choose a template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="trading">Trading Business</SelectItem>
+                  <SelectItem value="services">Services Business</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    if (!selectedTemplate) {
+                      toast.error("Select a template first");
+                      return;
+                    }
+                    importTemplate.mutate({ templateId: selectedTemplate });
+                  }}
+                  disabled={!selectedTemplate || importTemplate.isPending}
+                >
+                  <BookOpen className="mr-2 h-4 w-4" /> Import Template
+                </Button>
+                <Button variant="outline" onClick={() => setCreateOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Create Manually
+                </Button>
+              </div>
+            </div>
           }
         />
       ) : (
-          <div className="overflow-x-auto rounded-lg border bg-card">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
@@ -189,9 +239,7 @@ export default function COAPage() {
                 <AccountRow
                   key={account.id}
                   account={account}
-                  onClick={() =>
-                    router.push(`/dashboard/coa/${account.id}`)
-                  }
+                  onClick={() => router.push(`/dashboard/coa/${account.id}`)}
                 />
               ))}
             </tbody>
@@ -201,5 +249,5 @@ export default function COAPage() {
 
       <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
-  )
+  );
 }

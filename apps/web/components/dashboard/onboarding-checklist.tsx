@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, Circle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
@@ -12,7 +14,9 @@ export type OnboardingStep = {
   description: string;
   completed: boolean;
   inProgress?: boolean;
+  href?: string;
   action?: string;
+  optional?: boolean;
 };
 
 type OnboardingChecklistProps = {
@@ -24,36 +28,44 @@ export function OnboardingChecklist({
   onAction,
   className,
 }: OnboardingChecklistProps) {
+  const router = useRouter();
+
   const [steps, setSteps] = useState<OnboardingStep[]>([
     {
       id: "org",
       label: "Create organization",
       description: "Your workspace is ready",
       completed: false,
+      href: "/dashboard/settings",
     },
     {
       id: "coa",
       label: "Set up chart of accounts",
       description: "Import or create account categories",
       completed: false,
+      href: "/dashboard/coa",
     },
     {
       id: "fiscal",
       label: "Configure fiscal year",
       description: "Set your financial year dates",
       completed: false,
+      href: "/dashboard/fiscal",
     },
     {
       id: "bank",
-      label: "Connect a bank account",
-      description: "Link via Mono or upload a statement",
+      label: "Connect bank or upload statement",
+      description: "Link via Mono or upload a statement manually",
       completed: false,
+      href: "/dashboard/integrations",
     },
     {
       id: "receipt",
-      label: "Upload your first receipt",
+      label: "Upload documents",
       description: "AI will classify and extract data",
       completed: false,
+      href: "/dashboard/documents",
+      optional: true,
     },
   ]);
 
@@ -96,6 +108,14 @@ export function OnboardingChecklist({
   const completedCount = steps.filter((s) => s.completed).length;
   const progress = steps.length > 0 ? (completedCount / steps.length) * 100 : 0;
 
+  const handleClick = (step: OnboardingStep) => {
+    if (step.href) {
+      router.push(step.href);
+    } else if (step.action) {
+      onAction?.(step.action);
+    }
+  };
+
   return (
     <div className={cn("rounded-xl border bg-card p-5", className)}>
       <div className="mb-4">
@@ -114,10 +134,18 @@ export function OnboardingChecklist({
       </div>
       <div className="space-y-1">
         {steps.map((step) => (
-          <div
+          <Link
             key={step.id}
+            href={step.href ?? "#"}
+            onClick={(e) => {
+              if (!step.href) {
+                e.preventDefault();
+              }
+              handleClick(step);
+            }}
             className={cn(
               "flex items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+              step.href && "cursor-pointer hover:bg-accent/50",
               step.completed && "text-muted-foreground",
               step.inProgress && "bg-primary/5",
             )}
@@ -135,25 +163,38 @@ export function OnboardingChecklist({
             </div>
             <div className="min-w-0 flex-1">
               <p
-                className={cn("font-medium", step.completed && "line-through")}
+                className={cn(
+                  "font-medium",
+                  step.completed && "line-through",
+                  step.optional && !step.completed && "text-muted-foreground",
+                )}
               >
                 {step.label}
+                {step.optional && (
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    (optional)
+                  </span>
+                )}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {step.description}
               </p>
             </div>
-            {!step.completed && step.action && (
+            {!step.completed && step.href && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="shrink-0 h-7 text-xs"
-                onClick={() => onAction?.(step.action!)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClick(step);
+                }}
               >
-                Setup
+                {step.id === "bank" ? "Connect / Upload" : "Setup"}
               </Button>
             )}
-          </div>
+          </Link>
         ))}
       </div>
     </div>

@@ -367,4 +367,46 @@ export const fiscalRouter = router({
         });
       }
     }),
+
+  createFullYear: protectedProcedure
+    .input(z.object({ year: z.number().int().min(2000).max(2100) }))
+    .mutation(async ({ ctx, input }) => {
+      const months = [];
+      for (let month = 1; month <= 12; month++) {
+        const startDate = `${input.year}-${String(month).padStart(2, "0")}-01`;
+        const lastDay = new Date(input.year, month, 0).getDate();
+        const endDate = `${input.year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+        const existing = await db.query.fiscalPeriods.findFirst({
+          where: and(
+            eq(fiscalPeriods.entityId, ctx.entityId!),
+            eq(fiscalPeriods.year, input.year),
+            eq(fiscalPeriods.month, month),
+          ),
+        });
+        if (existing) continue;
+
+        const [period] = await db
+          .insert(fiscalPeriods)
+          .values({
+            entityId: ctx.entityId!,
+            year: input.year,
+            month,
+            startDate,
+            endDate,
+          })
+          .returning();
+        months.push(period);
+      }
+
+      await db.insert(auditLog).values({
+        entityId: ctx.entityId!,
+        userId: ctx.session!.user!.id!,
+        action: "fiscal.createFullYear",
+        entityType: "fiscal_period",
+        newValues: { year: input.year, periodsCreated: months.length },
+      });
+
+      return { created: months.length, periods: months };
+    }),
 });

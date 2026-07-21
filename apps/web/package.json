@@ -25,6 +25,7 @@
     "@trpc/server": "^11.0.0",
     "@xenboox/agents": "workspace:*",
     "@xenboox/db": "workspace:*",
+    "@xenboox/jobs": "workspace:*",
     "@xenboox/ui": "workspace:*",
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",

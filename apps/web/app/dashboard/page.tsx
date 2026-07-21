@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -40,6 +41,8 @@ import {
   TrendingDown,
   AlertCircle,
   CheckCircle2,
+  X,
+  ChevronRight,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -151,7 +154,9 @@ function HealthScoreBadge({
 
 function OnboardingView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [chatMessage, setChatMessage] = useState("");
+  const [showSetup, setShowSetup] = useState(true);
 
   const suggestedPrompts = [
     {
@@ -166,6 +171,10 @@ function OnboardingView() {
     },
   ];
 
+  const handleInitialPrompt = (prompt: string) => {
+    router.push(`/dashboard/chat?initial=${encodeURIComponent(prompt)}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 p-6">
@@ -174,7 +183,19 @@ function OnboardingView() {
             <Sparkles className="h-6 w-6 text-primary" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-bold">Welcome to Xenboox</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-bold">Welcome to Xenboox</h1>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowSetup(false);
+                }}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Skip setup
+              </Button>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
               Your AI accounting team is ready. Tell your agent what to do —
               connect your bank, upload documents, or ask anything about your
@@ -192,9 +213,7 @@ function OnboardingView() {
                 onKeyDown={(e) =>
                   e.key === "Enter" &&
                   !e.shiftKey &&
-                  router.push(
-                    `/dashboard/chat?initial=${encodeURIComponent(chatMessage.trim())}`,
-                  )
+                  handleInitialPrompt(chatMessage.trim())
                 }
                 placeholder="Ask your AI anything — or start by describing your business..."
                 className="w-full rounded-xl border bg-background px-4 py-3 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-shadow"
@@ -202,11 +221,7 @@ function OnboardingView() {
               <Button
                 size="icon"
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
-                onClick={() =>
-                  router.push(
-                    `/dashboard/chat?initial=${encodeURIComponent(chatMessage.trim())}`,
-                  )
-                }
+                onClick={() => handleInitialPrompt(chatMessage.trim())}
                 disabled={!chatMessage.trim()}
               >
                 <Send className="h-4 w-4" />
@@ -220,11 +235,7 @@ function OnboardingView() {
                 <button
                   key={prompt.text}
                   type="button"
-                  onClick={() =>
-                    router.push(
-                      `/dashboard/chat?initial=${encodeURIComponent(prompt.text)}`,
-                    )
-                  }
+                  onClick={() => handleInitialPrompt(prompt.text)}
                   className="inline-flex items-center gap-1.5 rounded-lg border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
                 >
                   <Icon className="h-3 w-3" />
@@ -235,22 +246,74 @@ function OnboardingView() {
           </div>
         </div>
       </div>
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-            Get Started
-          </h2>
-          <QuickActions
-            onAction={(id: string) => {
-              if (id === "connect-bank" || id === "email-forwarding")
+
+      {showSetup && (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+              Get Started
+            </h2>
+            <QuickActions
+              onAction={(id: string) => {
+                if (id === "connect-bank" || id === "email-forwarding")
+                  router.push("/dashboard/integrations");
+                else if (id === "document-uploaded")
+                  router.push("/dashboard/documents");
+              }}
+            />
+          </div>
+          <OnboardingChecklist
+            onAction={(action: string) => {
+              if (action === "connect-bank") {
                 router.push("/dashboard/integrations");
-              else if (id === "document-uploaded")
+              } else if (action === "coa") {
+                router.push("/dashboard/coa");
+              } else if (action === "fiscal") {
+                router.push("/dashboard/fiscal");
+              } else if (action === "documents") {
                 router.push("/dashboard/documents");
+              }
             }}
           />
         </div>
-        <OnboardingChecklist onAction={() => {}} />
-      </div>
+      )}
+
+      {!showSetup && (
+        <Card className="bg-muted/30">
+          <CardContent className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              You can always access setup guides from the sidebar or by asking
+              your CFO Agent.
+            </p>
+            <div className="mt-3 flex justify-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/dashboard/coa")}
+              >
+                Chart of Accounts
+                <ChevronRight className="ml-1 h-3 w-3" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/dashboard/fiscal")}
+              >
+                Fiscal Year
+                <ChevronRight className="ml-1 h-3 w-3" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/dashboard/integrations")}
+              >
+                Integrations
+                <ChevronRight className="ml-1 h-3 w-3" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -315,7 +378,6 @@ function computeMetrics(
     accountCount,
     totalPendingApprovals,
     pendingPOs,
-    pendingApInvoices,
   };
 }
 

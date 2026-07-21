@@ -695,4 +695,11 @@ export const integrationsRouter = router({
       },
     };
   }),
+
+  triggerMonthlyBankReminders: protectedProcedure.mutation(async ({ ctx }) => {
+    await triggerClient.tasks.trigger("send-monthly-bank-reminders", {
+      entityId: ctx.entityId!,
+    });
+    return { success: true };
+  }),
 });

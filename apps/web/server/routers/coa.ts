@@ -218,4 +218,55 @@ export const coaRouter = router({
         });
       }
     }),
+
+  importTemplate: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .input(
+      z.object({
+        templateId: z.string(),
+        overrides: z
+          .record(
+            z.object({
+              code: z.string().optional(),
+              name: z.string().optional(),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { COA_TEMPLATES } = await import("@/lib/coa-templates");
+      const template = COA_TEMPLATES.find((t) => t.id === input.templateId);
+      if (!template) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Template not found",
+        });
+      }
+
+      const existingCodes = await db.query.chartOfAccounts.findMany({
+        where: eq(chartOfAccounts.entityId, ctx.entityId!),
+        columns: { code: true },
+      });
+      const existingCodeSet = new Set(existingCodes.map((a) => a.code));
+
+      const inserted: typeof existingCodes = [];
+      for (const account of template.accounts) {
+        if (existingCodeSet.has(account.code)) continue;
+        const [created] = await db
+          .insert(chartOfAccounts)
+          .values({
+            entityId: ctx.entityId!,
+            code: account.code,
+            name: input.overrides?.[account.code]?.name ?? account.name,
+            type: account.type,
+            subtype: account.subtype as any,
+            description: account.description,
+          })
+          .returning();
+        inserted.push(created);
+      }
+
+      return { imported: inserted.length };
+    }),
 });
