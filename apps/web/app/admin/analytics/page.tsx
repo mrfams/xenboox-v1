@@ -11,7 +11,7 @@ import {
   RefreshCw,
   Download,
 } from "lucide-react";
-import { toast } from "sonner"
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import { Progress } from "@/components/shared/progress";
@@ -20,25 +20,14 @@ export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("30d");
   const { data: aiUsage, isLoading } = trpc.admin.getAIUsage.useQuery();
 
-  const totalCalls =
-    aiUsage?.reduce(
-      (sum, a) => sum + a.count,
-      0,
-    ) || 0;
+  const totalCalls = aiUsage?.reduce((sum, a) => sum + a.count, 0) || 0;
   const avgLatency = aiUsage?.length
     ? Math.round(
-        aiUsage.reduce(
-          (sum, a) => sum + a.avgLatency,
-          0,
-        ) / aiUsage.length,
+        aiUsage.reduce((sum, a) => sum + a.avgLatency, 0) / aiUsage.length,
       )
     : 0;
   const avgConfidence = aiUsage?.length
-    ? (aiUsage.reduce(
-        (sum, a) => sum + a.avgConfidence,
-        0,
-      ) /
-        aiUsage.length) *
+    ? (aiUsage.reduce((sum, a) => sum + a.avgConfidence, 0) / aiUsage.length) *
       100
     : 0;
 
@@ -58,7 +47,10 @@ export default function AnalyticsPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline" onClick={() => toast.info("Report export will download a CSV file")}>
+          <Button
+            variant="outline"
+            onClick={() => toast.info("Report export will download a CSV file")}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export Report
           </Button>
@@ -92,7 +84,9 @@ export default function AnalyticsPage() {
               {isLoading ? "..." : totalCalls.toLocaleString()}
             </div>
             <div className="text-xs text-muted-foreground">
-              {totalCalls > 0 ? `${((totalCalls / Math.max(totalCalls - 1, 1)) * 100 - 100).toFixed(0)}%` : "—"}{" "}
+              {totalCalls > 0
+                ? `${((totalCalls / Math.max(totalCalls - 1, 1)) * 100 - 100).toFixed(0)}%`
+                : "—"}{" "}
               from previous period
             </div>
           </CardContent>

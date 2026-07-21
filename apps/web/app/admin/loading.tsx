@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@xenboox/ui"
+import { Card, CardContent } from "@xenboox/ui";
 
 export default function Loading() {
   return (
@@ -17,5 +17,5 @@ export default function Loading() {
         ))}
       </div>
     </div>
-  )
+  );
 }

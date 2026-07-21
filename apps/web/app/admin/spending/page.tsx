@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   Card,
@@ -18,7 +18,7 @@ import {
   Cloud,
   Calculator,
 } from "lucide-react";
-import { toast } from "sonner"
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { AIComparison, SpendAlert } from "@/lib/types";
 import { useState } from "react";
@@ -64,7 +64,10 @@ export default function SpendingPage() {
             Monitor AI spending against budgets with cost optimization insights
           </p>
         </div>
-        <Button variant="outline" onClick={() => toast.info("Budget management form will open here")}>
+        <Button
+          variant="outline"
+          onClick={() => toast.info("Budget management form will open here")}
+        >
           <Settings className="h-4 w-4 mr-2" />
           Manage Budgets
         </Button>

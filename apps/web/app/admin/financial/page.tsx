@@ -13,7 +13,7 @@ import {
   Calculator,
   FileText,
 } from "lucide-react";
-import { toast } from "sonner"
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import { Progress } from "@/components/shared/progress";
@@ -41,11 +41,16 @@ export default function FinancialPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => toast.info("Running financial analysis...")}>
+          <Button
+            variant="outline"
+            onClick={() => toast.info("Running financial analysis...")}
+          >
             <Calculator className="h-4 w-4 mr-2" />
             Run Analysis
           </Button>
-          <Button onClick={() => toast.info("Report generation will download a PDF")}>
+          <Button
+            onClick={() => toast.info("Report generation will download a PDF")}
+          >
             <FileText className="h-4 w-4 mr-2" />
             Generate Report
           </Button>

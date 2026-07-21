@@ -22,19 +22,19 @@ import {
   RefreshCw,
   UserCheck,
 } from "lucide-react";
-import { toast } from "sonner"
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 
 export default function AdminSettingsPage() {
   const saveMutation = trpc.admin.updateSettings.useMutation({
     onSuccess: () => {
-      toast.success("Settings saved successfully")
+      toast.success("Settings saved successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to save settings")
+      toast.error(error.message || "Failed to save settings");
     },
-  })
+  });
 
   const handleSave = () => {
     saveMutation.mutate({
@@ -52,8 +52,8 @@ export default function AdminSettingsPage() {
         openai: openaiBudget,
         haiku: haikuBudget,
       },
-    })
-  }
+    });
+  };
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [slackAlerts, setSlackAlerts] = useState(false);
   const [smsAlerts, setSmsAlerts] = useState(false);

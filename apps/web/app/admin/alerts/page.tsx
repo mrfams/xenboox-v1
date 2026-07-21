@@ -15,7 +15,7 @@ import {
   Settings,
   RefreshCw,
 } from "lucide-react";
-import { toast } from "sonner"
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import { Alert, AlertDescription } from "@xenboox/ui";
@@ -25,12 +25,9 @@ export default function AlertsPage() {
   const { data: alerts } = trpc.admin.getSpendAlerts.useQuery();
 
   const criticalAlerts =
-    alerts?.filter((a) => a.alertLevel === "critical") ||
-    [];
-  const warningAlerts =
-    alerts?.filter((a) => a.alertLevel === "warning") || [];
-  const lowAlerts =
-    alerts?.filter((a) => a.alertLevel === "low") || [];
+    alerts?.filter((a) => a.alertLevel === "critical") || [];
+  const warningAlerts = alerts?.filter((a) => a.alertLevel === "warning") || [];
+  const lowAlerts = alerts?.filter((a) => a.alertLevel === "low") || [];
   const activeAlerts = [...criticalAlerts, ...warningAlerts, ...lowAlerts];
 
   return (
@@ -43,7 +40,12 @@ export default function AlertsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => toast.info("Alert configuration dialog will open here")}>
+          <Button
+            variant="outline"
+            onClick={() =>
+              toast.info("Alert configuration dialog will open here")
+            }
+          >
             <Settings className="h-4 w-4 mr-2" />
             Alert Settings
           </Button>

@@ -1,6 +1,6 @@
-import Link from "next/link"
-import { Button } from "@xenboox/ui"
-import { Search, ArrowLeft } from "lucide-react"
+import Link from "next/link";
+import { Button } from "@xenboox/ui";
+import { Search, ArrowLeft } from "lucide-react";
 
 export default function AdminNotFound() {
   return (
@@ -23,5 +23,5 @@ export default function AdminNotFound() {
         </div>
       </div>
     </div>
-  )
+  );
 }

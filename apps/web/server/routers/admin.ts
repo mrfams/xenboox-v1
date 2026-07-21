@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure, adminProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc, count, sum, sql } from "drizzle-orm";
@@ -15,6 +16,7 @@ import {
 import { bankAccounts } from "@xenboox/db/schema/treasury";
 import { documents } from "@xenboox/db/schema/documents";
 import { agentActivity } from "@xenboox/db/schema/documents";
+import bcrypt from "bcryptjs";
 
 export type AIProvider =
   | "anthropic"
@@ -605,4 +607,169 @@ export const adminRouter = router({
 
     return costComparison;
   }),
+
+  createUser: adminProcedure
+    .input(
+      z.object({
+        name: z.string().min(2, "Name must be at least 2 characters").max(100),
+        email: z.string().email("Invalid email address"),
+        password: z
+          .string()
+          .min(8, "Password must be at least 8 characters")
+          .max(128),
+        role: z.enum([
+          "owner",
+          "admin",
+          "finance_director",
+          "accountant",
+          "payroll_officer",
+          "cashier",
+          "department_manager",
+          "employee",
+          "external_auditor",
+          "donor",
+        ]),
+        entityId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const existing = await db.query.users.findFirst({
+        where: eq(users.email, input.email),
+      });
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "An account with this email already exists",
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(input.password, 12);
+      const [user] = await db
+        .insert(users)
+        .values({
+          name: input.name,
+          email: input.email,
+          passwordHash,
+        })
+        .returning();
+
+      if (!user) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create user",
+        });
+      }
+
+      await db.insert(userEntityAccess).values({
+        userId: user.id,
+        entityId: input.entityId,
+        role: input.role,
+        grantedBy: input.entityId,
+      });
+
+      return user;
+    }),
+
+  updateUser: adminProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        name: z.string().min(2).max(100).optional(),
+        email: z.string().email().optional(),
+        role: z
+          .enum([
+            "owner",
+            "admin",
+            "finance_director",
+            "accountant",
+            "payroll_officer",
+            "cashier",
+            "department_manager",
+            "employee",
+            "external_auditor",
+            "donor",
+          ])
+          .optional(),
+        entityId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { userId, entityId, role, ...userUpdates } = input;
+      if (Object.keys(userUpdates).length > 0) {
+        await db.update(users).set(userUpdates).where(eq(users.id, userId));
+      }
+      if (entityId && role) {
+        await db
+          .insert(userEntityAccess)
+          .values({
+            userId,
+            entityId,
+            role,
+            grantedBy: userId,
+          })
+          .onConflictDoNothing();
+      }
+      return { success: true };
+    }),
+
+  deleteUser: adminProcedure
+    .input(z.object({ userId: z.string().uuid() }))
+    .mutation(async ({ input }) => {
+      await db.delete(users).where(eq(users.id, input.userId));
+      return { success: true };
+    }),
+
+  createOrganization: adminProcedure
+    .input(
+      z.object({
+        name: z.string().min(2, "Organization name is required").max(200),
+        slug: z.string().min(2, "Slug is required").max(100),
+        plan: z
+          .enum(["free", "starter", "growth", "pro", "firm"])
+          .default("free"),
+        ownerId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const [org] = await db
+        .insert(organizations)
+        .values({
+          name: input.name,
+          slug: input.slug,
+          plan: input.plan,
+          ownerId: input.ownerId,
+        })
+        .returning();
+      if (!org) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create organization",
+        });
+      }
+      return org;
+    }),
+
+  updateOrganization: adminProcedure
+    .input(
+      z.object({
+        orgId: z.string().uuid(),
+        name: z.string().min(2).max(200).optional(),
+        plan: z.enum(["free", "starter", "growth", "pro", "firm"]).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { orgId, ...updates } = input;
+      await db
+        .update(organizations)
+        .set(updates)
+        .where(eq(organizations.id, orgId));
+      return { success: true };
+    }),
+
+  deleteOrganization: adminProcedure
+    .input(z.object({ orgId: z.string().uuid() }))
+    .mutation(async ({ input }) => {
+      await db.delete(organizations).where(eq(organizations.id, input.orgId));
+      return { success: true };
+    }),
 });

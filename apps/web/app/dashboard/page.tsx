@@ -15,10 +15,10 @@ import {
 import { StatCard } from "@/components/dashboard/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/shared/loading";
-import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { ConfidenceBadge } from "@/components/dashboard/confidence-badge";
 import { AgentActivityItem } from "@/components/dashboard/agent-activity-item";
+import { OnboardingModal } from "@/components/dashboard/onboarding-modal";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ import {
   CheckCircle2,
   X,
   ChevronRight,
+  Settings,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -150,171 +151,36 @@ function HealthScoreBadge({
   );
 }
 
-// ─── Onboarding View ──────────────────────────────────────────────────────────
+// ─── Onboarding Modal ──────────────────────────────────────────────────────────
+// When user has no data, show a centered onboarding dialog.
+// Dismissing it leaves a floating reopen button fixed at the bottom-right.
 
-function OnboardingView() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [chatMessage, setChatMessage] = useState("");
-  const [showSetup, setShowSetup] = useState(true);
+type OnboardingWelcomeProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
-  const suggestedPrompts = [
-    {
-      text: "Set up my chart of accounts for a trading business",
-      icon: BookOpen,
-    },
-    { text: "I want to connect my bank account", icon: Landmark },
-    { text: "I have invoices to upload", icon: FileText },
-    {
-      text: "What accounting software can you import from?",
-      icon: MessageSquare,
-    },
-  ];
-
-  const handleInitialPrompt = (prompt: string) => {
-    router.push(`/dashboard/chat?initial=${encodeURIComponent(prompt)}`);
-  };
-
+function OnboardingWelcome({ open, onOpenChange }: OnboardingWelcomeProps) {
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15">
-            <Sparkles className="h-6 w-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold">Welcome to Xenboox</h1>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowSetup(false);
-                }}
-              >
-                <X className="h-4 w-4 mr-1" />
-                Skip setup
-              </Button>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-              Your AI accounting team is ready. Tell your agent what to do —
-              connect your bank, upload documents, or ask anything about your
-              finances.
-            </p>
-          </div>
-        </div>
-        <div className="mt-5">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={chatMessage}
-                onChange={(e) => setChatMessage(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" &&
-                  !e.shiftKey &&
-                  handleInitialPrompt(chatMessage.trim())
-                }
-                placeholder="Ask your AI anything — or start by describing your business..."
-                className="w-full rounded-xl border bg-background px-4 py-3 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-shadow"
-              />
-              <Button
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
-                onClick={() => handleInitialPrompt(chatMessage.trim())}
-                disabled={!chatMessage.trim()}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {suggestedPrompts.map((prompt) => {
-              const Icon = prompt.icon;
-              return (
-                <button
-                  key={prompt.text}
-                  type="button"
-                  onClick={() => handleInitialPrompt(prompt.text)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
-                >
-                  <Icon className="h-3 w-3" />
-                  {prompt.text}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+    <OnboardingModal
+      open={open}
+      onOpenChange={onOpenChange}
+      onDismissed={() => onOpenChange(false)}
+    />
+  );
+}
 
-      {showSetup && (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-              Get Started
-            </h2>
-            <QuickActions
-              onAction={(id: string) => {
-                if (id === "connect-bank" || id === "email-forwarding")
-                  router.push("/dashboard/integrations");
-                else if (id === "document-uploaded")
-                  router.push("/dashboard/documents");
-              }}
-            />
-          </div>
-          <OnboardingChecklist
-            onAction={(action: string) => {
-              if (action === "connect-bank") {
-                router.push("/dashboard/integrations");
-              } else if (action === "coa") {
-                router.push("/dashboard/coa");
-              } else if (action === "fiscal") {
-                router.push("/dashboard/fiscal");
-              } else if (action === "documents") {
-                router.push("/dashboard/documents");
-              }
-            }}
-          />
-        </div>
-      )}
-
-      {!showSetup && (
-        <Card className="bg-muted/30">
-          <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              You can always access setup guides from the sidebar or by asking
-              your CFO Agent.
-            </p>
-            <div className="mt-3 flex justify-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push("/dashboard/coa")}
-              >
-                Chart of Accounts
-                <ChevronRight className="ml-1 h-3 w-3" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push("/dashboard/fiscal")}
-              >
-                Fiscal Year
-                <ChevronRight className="ml-1 h-3 w-3" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push("/dashboard/integrations")}
-              >
-                Integrations
-                <ChevronRight className="ml-1 h-3 w-3" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+function FloatingSetupButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+      title="Open setup guide"
+    >
+      <Settings className="h-6 w-6" />
+      <span className="sr-only">Setup guide</span>
+    </button>
   );
 }
 
@@ -460,7 +326,55 @@ export default function DashboardPage() {
     );
   }
 
-  if (!hasData) return <OnboardingView />;
+  const [showOnboarding, setShowOnboarding] = useState(true);
+
+  if (!hasData) {
+    return (
+      <>
+        <div className="space-y-6">
+          <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h1 className="text-xl font-bold">Welcome to Xenboox</h1>
+                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                  Your AI accounting team is ready. Open the setup guide to get
+                  started — or ask your agent anything below.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button onClick={() => setShowOnboarding(true)}>
+                    <Settings className="mr-2 h-4 w-4" /> Open Setup Guide
+                  </Button>
+                  <Link href="/dashboard/chat">
+                    <Button variant="outline">
+                      Ask CFO Agent <ChevronRight className="ml-1 h-3 w-3" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <QuickActions
+            onAction={(id: string) => {
+              if (id === "connect-bank" || id === "email-forwarding")
+                router.push("/dashboard/integrations");
+              else if (id === "document-uploaded")
+                router.push("/dashboard/documents");
+            }}
+          />
+        </div>
+
+        <OnboardingWelcome
+          open={showOnboarding}
+          onOpenChange={setShowOnboarding}
+        />
+        <FloatingSetupButton onClick={() => setShowOnboarding(true)} />
+      </>
+    );
+  }
 
   return (
     <div className="space-y-6">
