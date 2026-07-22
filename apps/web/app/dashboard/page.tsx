@@ -44,6 +44,10 @@ import {
   X,
   ChevronRight,
   Settings,
+  RefreshCw,
+  Database,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -252,32 +256,61 @@ function computeMetrics(
 export default function DashboardPage() {
   const { entityId } = useEntity();
   const router = useRouter();
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   const {
     data: arInvoices,
     isLoading: arLoading,
     error: arError,
-  } = trpc.ar.listInvoices.useQuery();
+  } = trpc.ar.listInvoices.useQuery(undefined, {
+    onSuccess: () => {
+      setLastUpdated(new Date());
+    },
+  });
   const {
     data: apInvoices,
     isLoading: apLoading,
     error: apError,
-  } = trpc.ap.listInvoices.useQuery();
+  } = trpc.ap.listInvoices.useQuery(undefined, {
+    onSuccess: () => {
+      setLastUpdated(new Date());
+    },
+  });
   const {
     data: poList,
     isLoading: poLoading,
     error: poError,
-  } = trpc.ap.listPOs.useQuery();
+  } = trpc.ap.listPOs.useQuery(undefined, {
+    onSuccess: () => {
+      setLastUpdated(new Date());
+    },
+  });
   const {
     data: bankAccounts,
     isLoading: bankLoading,
     error: bankError,
-  } = trpc.treasury.listBankAccounts.useQuery();
+  } = trpc.treasury.listBankAccounts.useQuery(undefined, {
+    onSuccess: () => {
+      setLastUpdated(new Date());
+    },
+  });
   const {
     data: cashAccounts,
     isLoading: cashLoading,
     error: cashError,
-  } = trpc.cash.listCashAccounts.useQuery();
+  } = trpc.cash.listCashAccounts.useQuery(undefined, {
+    onSuccess: () => {
+      setLastUpdated(new Date());
+    },
+  });
+  const { data: bankSyncStatus } = trpc.treasury.getLastSync.useQuery(
+    undefined,
+    {
+      enabled: !!entityId,
+      refetchInterval: 120000,
+    },
+  );
 
   if (arError) toast.error("Failed to load receivables");
   if (apError) toast.error("Failed to load payables");
@@ -435,35 +468,99 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 2: Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={<DollarSign className="h-4 w-4" />}
-          label="Total Revenue"
-          value={formatCurrency(metrics.totalRevenue)}
-          changeLabel="This month"
-          href="/dashboard/ar/invoices"
-        />
-        <StatCard
-          icon={<FileText className="h-4 w-4" />}
-          label="Outstanding Receivables"
-          value={formatCurrency(metrics.outstandingReceivables)}
-          changeLabel={`${metrics.arCount} invoices`}
-          href="/dashboard/ar/invoices"
-        />
-        <StatCard
-          icon={<CreditCard className="h-4 w-4" />}
-          label="Outstanding Payables"
-          value={formatCurrency(metrics.outstandingPayables)}
-          changeLabel={`${metrics.apCount} bills`}
-          href="/dashboard/ap/invoices"
-        />
-        <StatCard
-          icon={<Landmark className="h-4 w-4" />}
-          label="Cash & Bank"
-          value={formatCurrency(metrics.totalCashBank)}
-          changeLabel={`${metrics.accountCount} accounts`}
-          href="/dashboard/treasury"
-        />
+      <div className="rounded-xl border bg-card">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
+        >
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            KPIs
+          </span>
+          <div className="flex items-center gap-3">
+            {lastUpdated && !isLoading && (
+              <span className="text-[11px] text-muted-foreground">
+                Updated{" "}
+                {lastUpdated.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+            {collapsed ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
+        </button>
+        {!collapsed && (
+          <div className="space-y-4 px-4 pb-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                icon={<DollarSign className="h-4 w-4" />}
+                label="Total Revenue"
+                value={formatCurrency(metrics.totalRevenue)}
+                changeLabel="This month"
+                href="/dashboard/ar/invoices"
+              />
+              <StatCard
+                icon={<FileText className="h-4 w-4" />}
+                label="Outstanding Receivables"
+                value={formatCurrency(metrics.outstandingReceivables)}
+                changeLabel={`${metrics.arCount} invoices`}
+                href="/dashboard/ar/invoices"
+              />
+              <StatCard
+                icon={<CreditCard className="h-4 w-4" />}
+                label="Outstanding Payables"
+                value={formatCurrency(metrics.outstandingPayables)}
+                changeLabel={`${metrics.apCount} bills`}
+                href="/dashboard/ap/invoices"
+              />
+              <StatCard
+                icon={<Landmark className="h-4 w-4" />}
+                label="Cash & Bank"
+                value={formatCurrency(metrics.totalCashBank)}
+                changeLabel={`${metrics.accountCount} accounts`}
+                href="/dashboard/treasury"
+              />
+            </div>
+            {bankSyncStatus && (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <Database className="h-3.5 w-3.5" />
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Bank sync last ran{" "}
+                  {new Date(bankSyncStatus.lastSyncAt).toLocaleString([], {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                <span>• {bankSyncStatus.status}</span>
+                <span>• {bankSyncStatus.recordCount ?? 0} records</span>
+                {bankSyncStatus.nextSyncScheduledAt && (
+                  <span>
+                    Next sync in{" "}
+                    {Math.max(
+                      1,
+                      Math.round(
+                        (new Date(
+                          bankSyncStatus.nextSyncScheduledAt,
+                        ).getTime() -
+                          Date.now()) /
+                          1000 /
+                          60,
+                      ),
+                    )}{" "}
+                    mins
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Row 3: Approval Queue Preview + Close Status */}

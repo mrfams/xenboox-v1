@@ -13,6 +13,7 @@ import {
   reconciliations,
   reconciliationItems,
   auditLog,
+  bankConnections,
 } from "@xenboox/db/schema";
 import { TRPCError } from "@trpc/server";
 
@@ -22,6 +23,34 @@ export const treasuryRouter = router({
       where: eq(bankAccounts.entityId, ctx.entityId!),
       orderBy: [desc(bankAccounts.createdAt)],
     });
+  }),
+
+  getLastSync: protectedProcedure.query(async ({ ctx }) => {
+    const connection = await db.query.bankConnections.findFirst({
+      where: eq(bankConnections.entityId, ctx.entityId!),
+      orderBy: [desc(bankConnections.lastSyncedAt)],
+    });
+
+    const recentTransactions = await db.query.bankTransactions.findFirst({
+      where: eq(bankTransactions.entityId, ctx.entityId!),
+      orderBy: [desc(bankTransactions.createdAt)],
+    });
+
+    const status = connection?.status ?? "unknown";
+    const nextSyncMinutes = 60;
+    const nextSyncAt = connection?.lastSyncedAt
+      ? new Date(
+          new Date(connection.lastSyncedAt).getTime() +
+            nextSyncMinutes * 60 * 1000,
+        ).toISOString()
+      : null;
+
+    return {
+      lastSyncAt: connection?.lastSyncedAt ?? null,
+      status: connection?.syncError ? "completed with issues" : status,
+      recordCount: recentTransactions ? 1 : 0,
+      nextSyncScheduledAt: nextSyncAt,
+    };
   }),
 
   createBankAccount: protectedProcedure

@@ -76,6 +76,7 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [suggestedFollowUps, setSuggestedFollowUps] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -118,6 +119,7 @@ export default function ChatPage() {
     onSuccess: (conversation) => {
       setActiveConversationId(conversation.id);
       setMessages([]);
+      setSuggestedFollowUps([]);
       utils.chat.listConversations.invalidate();
     },
   });
@@ -465,6 +467,7 @@ export default function ChatPage() {
                 case "message_stop":
                   setIsStreaming(false);
                   setActivity(null);
+                  setSuggestedFollowUps(data.suggestedFollowUps ?? []);
                   utils.chat.listConversations.invalidate();
                   utils.chat.getMessages.invalidate({
                     conversationId: activeConversationId,
@@ -828,6 +831,22 @@ export default function ChatPage() {
                     />
                   ))}
                   <AgentActivityIndicator activity={activity} />
+                  {suggestedFollowUps.length > 0 && !isStreaming && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {suggestedFollowUps.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleSend(suggestion);
+                          }}
+                          className="inline-flex items-center rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
               )}

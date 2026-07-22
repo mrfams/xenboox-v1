@@ -361,7 +361,9 @@ export const apRouter = router({
     .input(
       z.object({
         id: z.string().uuid(),
+        invoiceDate: z.string().optional(),
         dueDate: z.string().optional(),
+        totalAmount: z.string().optional(),
         notes: z.string().optional(),
         status: z
           .enum(["pending", "partial", "paid", "overdue", "voided"])
