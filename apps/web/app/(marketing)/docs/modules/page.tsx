@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import {
   Truck,
   CreditCard,
@@ -15,13 +15,14 @@ import {
   LayoutDashboard,
   Users,
   AlertCircle,
-} from "lucide-react"
-import Link from "next/link"
+} from "lucide-react";
+import Link from "next/link";
 
 const modules = [
   {
     title: "Accounts Payable",
-    description: "Suppliers, Purchase Orders, Invoices, Payments, Approval workflows.",
+    description:
+      "Suppliers, Purchase Orders, Invoices, Payments, Approval workflows.",
     href: "/docs/modules/ap",
     icon: Truck,
   },
@@ -39,7 +40,8 @@ const modules = [
   },
   {
     title: "Treasury",
-    description: "Bank Accounts, Transactions, Reconciliations, Cash Management.",
+    description:
+      "Bank Accounts, Transactions, Reconciliations, Cash Management.",
     href: "/docs/modules/treasury",
     icon: Landmark,
   },
@@ -51,7 +53,8 @@ const modules = [
   },
   {
     title: "Mobile Money",
-    description: "Mobile Money Accounts, Transactions, Reconciliation with bank statements.",
+    description:
+      "Mobile Money Accounts, Transactions, Reconciliation with bank statements.",
     href: "/docs/modules/mobile-money",
     icon: Wallet,
   },
@@ -127,13 +130,15 @@ const modules = [
     href: "/docs/modules/analytics",
     icon: BarChart3,
   },
-]
+];
 
 export default function ModulesDocsPage() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">Modules Documentation</h1>
+        <h1 className="text-4xl font-bold tracking-tight">
+          Modules Documentation
+        </h1>
         <p className="mt-4 text-muted-foreground">
           Comprehensive guides for all 19 accounting modules in Xenboox.
         </p>
@@ -171,5 +176,5 @@ export default function ModulesDocsPage() {
         </Link>
       </div>
     </>
-  )
+  );
 }

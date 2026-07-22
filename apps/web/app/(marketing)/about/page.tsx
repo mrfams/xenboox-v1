@@ -100,7 +100,7 @@ export default function AboutPage() {
         <div className="absolute inset-0 bg-grid-dark opacity-30" />
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-violet-500/10 to-transparent rounded-full blur-3xl" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-24 md:py-32">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 md:py-20">
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
               <Sparkles className="h-3 w-3 text-blue-400" />
@@ -126,7 +126,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Mission & Stats ── */}
-      <section className="py-20 md:py-28">
+      <section className="py-14 md:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
             <div>
@@ -184,9 +184,9 @@ export default function AboutPage() {
       </section>
 
       {/* ── Values ── */}
-      <section className="border-y bg-gradient-to-b from-slate-50 to-white py-20 md:py-28">
+      <section className="border-y bg-gradient-to-b from-slate-50 to-white py-14 md:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-8">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-white px-4 py-1.5 text-xs font-medium text-muted-foreground">
               <Heart className="h-3 w-3 text-red-400" />
               What We Believe
@@ -234,9 +234,9 @@ export default function AboutPage() {
       </section>
 
       {/* ── Timeline ── */}
-      <section className="py-20 md:py-28">
+      <section className="py-14 md:py-20">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-8">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-blue-50 px-4 py-1.5 text-xs font-medium text-blue-700">
               <Eye className="h-3 w-3" />
               Our Journey
@@ -277,7 +277,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Quote ── */}
-      <section className="border-y bg-gradient-to-b from-slate-50 to-white py-20 md:py-28">
+      <section className="border-y bg-gradient-to-b from-slate-50 to-white py-14 md:py-20">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
           <Quote className="h-10 w-10 mx-auto text-blue-500/30" />
           <blockquote className="mt-6 text-xl md:text-2xl font-medium leading-relaxed text-balance">
@@ -295,7 +295,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="py-20 md:py-28">
+      <section className="py-14 md:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
             Join us on this journey

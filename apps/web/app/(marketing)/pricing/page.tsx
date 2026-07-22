@@ -95,7 +95,7 @@ export default function PricingPage() {
     <>
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
         <div className="absolute inset-0 bg-grid-dark opacity-30" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 md:py-28 text-center">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 md:py-20 text-center">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60 mx-auto">
             <Sparkles className="h-3 w-3 text-blue-400" />
             Pricing
@@ -117,7 +117,7 @@ export default function PricingPage() {
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </section>
 
-      <section className="py-16 md:py-24">
+      <section className="py-10 md:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-6 lg:grid-cols-4">
             {tiers.map((tier) => (
@@ -177,7 +177,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="border-t bg-gradient-to-b from-slate-50 to-white py-16 md:py-20">
+      <section className="border-t bg-gradient-to-b from-slate-50 to-white py-10 md:py-14">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <h2 className="mb-10 text-center text-3xl font-bold tracking-tight">
             Frequently Asked Questions
@@ -230,7 +230,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="py-16 md:py-24">
+      <section className="py-10 md:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
             <h2 className="text-3xl font-bold tracking-tight">

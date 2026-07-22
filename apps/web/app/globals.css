@@ -126,11 +126,11 @@
   }
 
   .prose-policy h2 {
-    @apply mt-12 mb-4 text-xl font-semibold tracking-tight;
+    @apply mt-8 mb-3 text-xl font-semibold tracking-tight;
   }
 
   .prose-policy h3 {
-    @apply mt-8 mb-3 text-base font-semibold;
+    @apply mt-6 mb-2 text-base font-semibold;
   }
 
   .prose-policy p {

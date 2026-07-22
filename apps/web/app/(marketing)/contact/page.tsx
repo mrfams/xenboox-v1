@@ -79,7 +79,7 @@ export default function ContactPage() {
       {/* ── Hero ── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
         <div className="absolute inset-0 bg-grid-dark opacity-30" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 md:py-20">
           <div className="max-w-3xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
               <Sparkles className="h-3 w-3 text-blue-400" />
@@ -102,7 +102,7 @@ export default function ContactPage() {
       </section>
 
       {/* ── Contact Methods ── */}
-      <section className="py-16 md:py-20">
+      <section className="py-10 md:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2">
             {contactMethods.map((method) => (
@@ -141,9 +141,9 @@ export default function ContactPage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="border-y bg-gradient-to-b from-slate-50 to-white py-16 md:py-20">
+      <section className="border-y bg-gradient-to-b from-slate-50 to-white py-10 md:py-14">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-6">
             <h2 className="text-3xl font-bold tracking-tight">
               Common Questions
             </h2>
@@ -171,7 +171,7 @@ export default function ContactPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="py-16 md:py-20">
+      <section className="py-10 md:py-14">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
           <h2 className="text-3xl font-bold tracking-tight">
             Ready to get started?

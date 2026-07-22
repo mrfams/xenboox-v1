@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import {
   Crown,
   LayoutDashboard,
@@ -12,91 +12,105 @@ import {
   MessageSquare,
   AlertCircle,
   TrendingUp,
-} from "lucide-react"
-import Link from "next/link"
+} from "lucide-react";
+import Link from "next/link";
 
 const agents = [
   {
     title: "CFO Agent",
-    description: "Strategic financial planning, budget analysis, high-level reporting, AI comparison insights.",
+    description:
+      "Strategic financial planning, budget analysis, high-level reporting, AI comparison insights.",
     href: "/docs/agents/cfo",
     icon: Crown,
   },
   {
     title: "Controller Agent",
-    description: "Close checklist, period management, reconciliation oversight, compliance verification.",
+    description:
+      "Close checklist, period management, reconciliation oversight, compliance verification.",
     href: "/docs/agents/controller",
     icon: LayoutDashboard,
   },
   {
     title: "Ledger Agent",
-    description: "Double-entry posting, journal creation, account reconciliation, bookkeeping automation.",
+    description:
+      "Double-entry posting, journal creation, account reconciliation, bookkeeping automation.",
     href: "/docs/agents/ledger",
     icon: FileText,
   },
   {
     title: "Treasury Agent",
-    description: "Bank reconciliation, cash flow forecasting, liquidity management, payment processing.",
+    description:
+      "Bank reconciliation, cash flow forecasting, liquidity management, payment processing.",
     href: "/docs/agents/treasury",
     icon: Landmark,
   },
   {
     title: "Payroll Manager Agent",
-    description: "Payroll runs, deduction calculations, payslip generation, tax compliance.",
+    description:
+      "Payroll runs, deduction calculations, payslip generation, tax compliance.",
     href: "/docs/agents/payroll",
     icon: Shield,
   },
   {
     title: "Compliance Agent",
-    description: "Tax calculations, regulatory checks, audit preparation, statutory reporting.",
+    description:
+      "Tax calculations, regulatory checks, audit preparation, statutory reporting.",
     href: "/docs/agents/compliance",
     icon: AlertCircle,
   },
   {
     title: "AP Agent",
-    description: "Invoice processing, payment scheduling, supplier management, approval workflows.",
+    description:
+      "Invoice processing, payment scheduling, supplier management, approval workflows.",
     href: "/docs/agents/ap",
     icon: CreditCard,
   },
   {
     title: "AR Agent",
-    description: "Invoice generation, payment reminders, collections, customer communication.",
+    description:
+      "Invoice generation, payment reminders, collections, customer communication.",
     href: "/docs/agents/ar",
     icon: CreditCard,
   },
   {
     title: "Inventory Agent",
-    description: "Stock management, valuation, reorder alerts, warehouse optimization.",
+    description:
+      "Stock management, valuation, reorder alerts, warehouse optimization.",
     href: "/docs/agents/inventory",
     icon: Package,
   },
   {
     title: "Fixed Assets Agent",
-    description: "Asset tracking, depreciation schedules, disposal processing, tax reporting.",
+    description:
+      "Asset tracking, depreciation schedules, disposal processing, tax reporting.",
     href: "/docs/agents/fixed-assets",
     icon: BarChart3,
   },
   {
     title: "Cash Agent",
-    description: "Petty cash management, imprest float tracking, cash reconciliation.",
+    description:
+      "Petty cash management, imprest float tracking, cash reconciliation.",
     href: "/docs/agents/cash",
     icon: BarChart3,
   },
   {
     title: "Mobile Money Agent",
-    description: "Transaction processing, mobile money reconciliation, payment notifications.",
+    description:
+      "Transaction processing, mobile money reconciliation, payment notifications.",
     href: "/docs/agents/mobile-money",
     icon: BarChart3,
   },
   {
     title: "Chat Agent",
-    description: "Natural language commands, document processing, AI assistance.",
+    description:
+      "Natural language commands, document processing, AI assistance.",
     href: "/docs/agents/chat",
     icon: MessageSquare,
   },
   {
     title: "Reporting Agent",
-    description: "Report generation, export formats, custom queries, data visualization.",
+    description:
+      "Report generation, export formats, custom queries, data visualization.",
     href: "/docs/agents/reporting",
     icon: BarChart3,
   },
@@ -126,20 +140,23 @@ const agents = [
   },
   {
     title: "Audit Agent",
-    description: "Compliance checking, anomaly detection, audit trail generation.",
+    description:
+      "Compliance checking, anomaly detection, audit trail generation.",
     href: "/docs/agents/audit",
     icon: AlertCircle,
   },
-]
+];
 
 export default function AgentsDocsPage() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">AI Agents Documentation</h1>
+        <h1 className="text-4xl font-bold tracking-tight">
+          AI Agents Documentation
+        </h1>
         <p className="mt-4 text-muted-foreground">
-          Guides for all 19 AI-powered accounting assistants in Xenboox.
-          Each agent operates with confidence scoring and human oversight.
+          Guides for all 19 AI-powered accounting assistants in Xenboox. Each
+          agent operates with confidence scoring and human oversight.
         </p>
       </div>
 
@@ -175,5 +192,5 @@ export default function AgentsDocsPage() {
         </Link>
       </div>
     </>
-  )
+  );
 }

@@ -20,16 +20,16 @@ export default function RefundPolicyPage() {
     <>
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
         <div className="absolute inset-0 bg-grid-dark opacity-30" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-14 md:py-20">
           <div className="max-w-3xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
               <RefreshCw className="h-3 w-3 text-blue-400" />
               Policy
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
               Refund Policy
             </h1>
-            <p className="mt-4 text-white/50 max-w-xl">
+            <p className="mt-3 text-white/50 max-w-xl">
               Last updated: July 2026
             </p>
           </div>
@@ -37,9 +37,9 @@ export default function RefundPolicyPage() {
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </section>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-        <div className="flex gap-12 lg:gap-16">
-          <nav className="hidden lg:block w-56 shrink-0">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10 md:py-12">
+        <div className="flex gap-8 lg:gap-10">
+          <nav className="hidden lg:block w-48 shrink-0">
             <div className="sticky top-24 space-y-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
                 On this page
@@ -58,7 +58,7 @@ export default function RefundPolicyPage() {
           </nav>
 
           <div className="flex-1 min-w-0 prose-policy text-sm leading-relaxed text-muted-foreground max-w-3xl">
-            <div className="rounded-2xl border bg-gradient-to-br from-blue-50 to-white p-6 mb-10">
+            <div className="rounded-2xl border bg-gradient-to-br from-blue-50 to-white p-6 mb-6">
               <p>
                 <strong className="text-foreground">
                   We want you to be satisfied with Xenboox.
