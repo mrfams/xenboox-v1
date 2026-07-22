@@ -6,12 +6,30 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "exports": {
-    ".": "./index.ts",
-    "./lib/ocr": "./lib/ocr.ts",
-    "./lib/classification": "./lib/classification.ts",
-    "./lib/extraction": "./lib/extraction.ts",
-    "./lib/bank-csv-parser": "./lib/bank-csv-parser.ts",
-    "./lib/bank-statement-parser": "./lib/bank-statement-parser.ts"
+    ".": {
+      "import": "./index.ts",
+      "default": "./index.ts"
+    },
+    "./lib/ocr": {
+      "import": "./lib/ocr.ts",
+      "default": "./lib/ocr.ts"
+    },
+    "./lib/classification": {
+      "import": "./lib/classification.ts",
+      "default": "./lib/classification.ts"
+    },
+    "./lib/extraction": {
+      "import": "./lib/extraction.ts",
+      "default": "./lib/extraction.ts"
+    },
+    "./lib/bank-csv-parser": {
+      "import": "./lib/bank-csv-parser.ts",
+      "default": "./lib/bank-csv-parser.ts"
+    },
+    "./lib/bank-statement-parser": {
+      "import": "./lib/bank-statement-parser.ts",
+      "default": "./lib/bank-statement-parser.ts"
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
