@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui";
 import { Card } from "@/components/ui";
 
 export default function IngestionDashboardLoading() {

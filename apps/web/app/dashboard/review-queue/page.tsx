@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button, Badge, Card } from "@/components/ui";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
 import { formatDistanceToNow } from "date-fns";
 import {
