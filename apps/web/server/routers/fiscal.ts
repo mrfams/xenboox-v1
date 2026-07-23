@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  requireRole,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
@@ -82,11 +87,7 @@ export const fiscalRouter = router({
 
         return period;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create fiscal period",
-        });
+        handleMutationError(error, "Failed to create fiscal period");
       }
     }),
 
@@ -153,16 +154,21 @@ export const fiscalRouter = router({
           accountTotals.set(line.accountId, existing);
         }
 
-        for (const [accountId, totals] of accountTotals) {
-          await db.insert(trialBalanceSnapshots).values({
+        // Batch insert all trial balance snapshots in a single query (N+1 fix)
+        const snapshotValues = Array.from(accountTotals.entries()).map(
+          ([accountId, totals]) => ({
             entityId: ctx.entityId!,
             periodId: input.periodId,
             accountId,
             debitTotal: String(totals.debit),
             creditTotal: String(totals.credit),
             balance: String(totals.debit - totals.credit),
-            generatedBy: "system",
-          });
+            generatedBy: "system" as const,
+          }),
+        );
+
+        if (snapshotValues.length > 0) {
+          await db.insert(trialBalanceSnapshots).values(snapshotValues);
         }
 
         const [updated] = await db
@@ -193,11 +199,7 @@ export const fiscalRouter = router({
 
         return updated;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to close period",
-        });
+        handleMutationError(error, "Failed to close period");
       }
     }),
 
@@ -248,11 +250,7 @@ export const fiscalRouter = router({
 
         return updated;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to lock period",
-        });
+        handleMutationError(error, "Failed to lock period");
       }
     }),
 
@@ -297,11 +295,7 @@ export const fiscalRouter = router({
 
         return { jobId: job.id, status: "triggered" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to trigger period close",
-        });
+        handleMutationError(error, "Failed to trigger period close");
       }
     }),
 
@@ -360,31 +354,30 @@ export const fiscalRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete fiscal period",
-        });
+        handleMutationError(error, "Failed to delete fiscal period");
       }
     }),
 
   createFullYear: protectedProcedure
     .input(z.object({ year: z.number().int().min(2000).max(2100) }))
     .mutation(async ({ ctx, input }) => {
+      // Fetch all existing periods for this year upfront (N+1 fix)
+      const existingPeriods = await db.query.fiscalPeriods.findMany({
+        where: and(
+          eq(fiscalPeriods.entityId, ctx.entityId!),
+          eq(fiscalPeriods.year, input.year),
+        ),
+        columns: { month: true },
+      });
+      const existingMonths = new Set(existingPeriods.map((p) => p.month));
+
       const months = [];
       for (let month = 1; month <= 12; month++) {
+        if (existingMonths.has(month)) continue;
+
         const startDate = `${input.year}-${String(month).padStart(2, "0")}-01`;
         const lastDay = new Date(input.year, month, 0).getDate();
         const endDate = `${input.year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-
-        const existing = await db.query.fiscalPeriods.findFirst({
-          where: and(
-            eq(fiscalPeriods.entityId, ctx.entityId!),
-            eq(fiscalPeriods.year, input.year),
-            eq(fiscalPeriods.month, month),
-          ),
-        });
-        if (existing) continue;
 
         const [period] = await db
           .insert(fiscalPeriods)

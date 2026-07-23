@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
-import { router, protectedProcedure, mutateProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  mutateProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   customers,
@@ -61,11 +66,7 @@ export const arRouter = router({
 
         return customer;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create customer",
-        });
+        handleMutationError(error, "Failed to create customer");
       }
     }),
 
@@ -84,13 +85,19 @@ export const arRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(customers)
-        .set(data)
-        .where(and(eq(customers.id, id), eq(customers.entityId, ctx.entityId!)))
-        .returning();
-      return updated;
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(customers)
+          .set(data)
+          .where(
+            and(eq(customers.id, id), eq(customers.entityId, ctx.entityId!)),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update customer");
+      }
     }),
 
   getCustomerById: protectedProcedure
@@ -134,60 +141,64 @@ export const arRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { lines, ...invoiceData } = input;
+      try {
+        const { lines, ...invoiceData } = input;
 
-      let totalAmount = 0;
-      for (const line of lines) {
-        const qty = line.quantity;
-        const price = parseFloat(line.unitPrice);
-        totalAmount += qty * price;
-      }
-
-      return db.transaction(async (tx) => {
-        const [invoice] = await tx
-          .insert(salesInvoices)
-          .values({
-            ...invoiceData,
-            entityId: ctx.entityId!,
-            totalAmount: totalAmount.toFixed(2),
-            balance: totalAmount.toFixed(2),
-            status: "pending",
-          })
-          .returning();
-
-        if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
+        let totalAmount = 0;
         for (const line of lines) {
           const qty = line.quantity;
           const price = parseFloat(line.unitPrice);
-          const amount = (qty * price).toFixed(2);
-
-          await tx.insert(salesInvoiceLines).values({
-            salesInvoiceId: invoice.id,
-            accountId: line.accountId,
-            description: line.description,
-            quantity: qty.toFixed(2),
-            unitPrice: line.unitPrice,
-            amount,
-          });
+          totalAmount += qty * price;
         }
 
-        await tx.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id!,
-          action: "ar.createInvoice",
-          entityType: "sales_invoice",
-          entityIdRef: invoice.id,
-          newValues: {
-            customerId: input.customerId,
-            invoiceNumber: input.invoiceNumber,
-            totalAmount: totalAmount.toFixed(2),
-            dueDate: input.dueDate,
-          },
-        });
+        return await db.transaction(async (tx) => {
+          const [invoice] = await tx
+            .insert(salesInvoices)
+            .values({
+              ...invoiceData,
+              entityId: ctx.entityId!,
+              totalAmount: totalAmount.toFixed(2),
+              balance: totalAmount.toFixed(2),
+              status: "pending",
+            })
+            .returning();
 
-        return invoice;
-      });
+          if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+          for (const line of lines) {
+            const qty = line.quantity;
+            const price = parseFloat(line.unitPrice);
+            const amount = (qty * price).toFixed(2);
+
+            await tx.insert(salesInvoiceLines).values({
+              salesInvoiceId: invoice.id,
+              accountId: line.accountId,
+              description: line.description,
+              quantity: qty.toFixed(2),
+              unitPrice: line.unitPrice,
+              amount,
+            });
+          }
+
+          await tx.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "ar.createInvoice",
+            entityType: "sales_invoice",
+            entityIdRef: invoice.id,
+            newValues: {
+              customerId: input.customerId,
+              invoiceNumber: input.invoiceNumber,
+              totalAmount: totalAmount.toFixed(2),
+              dueDate: input.dueDate,
+            },
+          });
+
+          return invoice;
+        });
+      } catch (error) {
+        handleMutationError(error, "Failed to create invoice");
+      }
     }),
 
   updateInvoice: protectedProcedure
@@ -204,18 +215,22 @@ export const arRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(salesInvoices)
-        .set(data)
-        .where(
-          and(
-            eq(salesInvoices.id, id),
-            eq(salesInvoices.entityId, ctx.entityId!),
-          ),
-        )
-        .returning();
-      return updated;
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(salesInvoices)
+          .set(data)
+          .where(
+            and(
+              eq(salesInvoices.id, id),
+              eq(salesInvoices.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update invoice");
+      }
     }),
 
   getInvoiceById: protectedProcedure
@@ -262,104 +277,108 @@ export const arRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const {
-        salesInvoiceId,
-        amount: paymentAmountStr,
-        ...paymentData
-      } = input;
-      const paymentAmount = parseFloat(paymentAmountStr);
+      try {
+        const {
+          salesInvoiceId,
+          amount: paymentAmountStr,
+          ...paymentData
+        } = input;
+        const paymentAmount = parseFloat(paymentAmountStr);
 
-      const invoice = await db.query.salesInvoices.findFirst({
-        where: and(
-          eq(salesInvoices.id, salesInvoiceId),
-          eq(salesInvoices.entityId, ctx.entityId!),
-        ),
-      });
-      if (!invoice) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Invoice not found",
+        const invoice = await db.query.salesInvoices.findFirst({
+          where: and(
+            eq(salesInvoices.id, salesInvoiceId),
+            eq(salesInvoices.entityId, ctx.entityId!),
+          ),
         });
-      }
-
-      const currentBalance = parseFloat(invoice.balance);
-      if (paymentAmount > currentBalance) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Payment amount ${paymentAmountStr} exceeds invoice balance ${invoice.balance}`,
-        });
-      }
-
-      return db.transaction(async (tx) => {
-        const [payment] = await tx
-          .insert(paymentsAr)
-          .values({
-            ...paymentData,
-            entityId: ctx.entityId!,
-            salesInvoiceId,
-            amount: paymentAmountStr,
-          })
-          .returning();
-
-        const newBalance = currentBalance - paymentAmount;
-        const newPaidAmount = parseFloat(invoice.paidAmount) + paymentAmount;
-        const newStatus = newBalance <= 0 ? "paid" : "partial";
-
-        await tx
-          .update(salesInvoices)
-          .set({
-            paidAmount: newPaidAmount.toFixed(2),
-            balance: Math.max(newBalance, 0).toFixed(2),
-            status: newStatus,
-          })
-          .where(
-            and(
-              eq(salesInvoices.id, salesInvoiceId),
-              eq(salesInvoices.entityId, ctx.entityId!),
-            ),
-          );
-
-        await tx.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id!,
-          action: "ar.createPayment",
-          entityType: "payment_ar",
-          entityIdRef: payment.id,
-          newValues: {
-            salesInvoiceId,
-            amount: paymentAmountStr,
-            method: input.method,
-            reference: input.reference,
-          },
-        });
-
-        // Send email notification (non-blocking)
-        if (invoice) {
-          const customer = await tx.query.customers.findFirst({
-            where: and(
-              eq(customers.id, invoice.customerId),
-              eq(customers.entityId, ctx.entityId!),
-            ),
+        if (!invoice) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Invoice not found",
           });
-          if (customer && customer.contactEmail) {
-            getEnrichedEntityContext(ctx.entityId!)
-              .then((entityCtx) => {
-                sendPaymentReceivedEmail(customer.contactEmail!, {
-                  customerName: customer.name,
-                  invoiceNumber: invoice.invoiceNumber,
-                  amount: paymentAmountStr,
-                  currency: invoice.currency,
-                  paymentMethod: input.method,
-                  reference: input.reference,
-                  entityName: entityCtx.entityName,
-                }).catch(console.error);
-              })
-              .catch(console.error);
-          }
         }
 
-        return payment;
-      });
+        const currentBalance = parseFloat(invoice.balance);
+        if (paymentAmount > currentBalance) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Payment amount ${paymentAmountStr} exceeds invoice balance ${invoice.balance}`,
+          });
+        }
+
+        return await db.transaction(async (tx) => {
+          const [payment] = await tx
+            .insert(paymentsAr)
+            .values({
+              ...paymentData,
+              entityId: ctx.entityId!,
+              salesInvoiceId,
+              amount: paymentAmountStr,
+            })
+            .returning();
+
+          const newBalance = currentBalance - paymentAmount;
+          const newPaidAmount = parseFloat(invoice.paidAmount) + paymentAmount;
+          const newStatus = newBalance <= 0 ? "paid" : "partial";
+
+          await tx
+            .update(salesInvoices)
+            .set({
+              paidAmount: newPaidAmount.toFixed(2),
+              balance: Math.max(newBalance, 0).toFixed(2),
+              status: newStatus,
+            })
+            .where(
+              and(
+                eq(salesInvoices.id, salesInvoiceId),
+                eq(salesInvoices.entityId, ctx.entityId!),
+              ),
+            );
+
+          await tx.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "ar.createPayment",
+            entityType: "payment_ar",
+            entityIdRef: payment.id,
+            newValues: {
+              salesInvoiceId,
+              amount: paymentAmountStr,
+              method: input.method,
+              reference: input.reference,
+            },
+          });
+
+          // Send email notification (non-blocking)
+          if (invoice) {
+            const customer = await tx.query.customers.findFirst({
+              where: and(
+                eq(customers.id, invoice.customerId),
+                eq(customers.entityId, ctx.entityId!),
+              ),
+            });
+            if (customer && customer.contactEmail) {
+              getEnrichedEntityContext(ctx.entityId!)
+                .then((entityCtx) => {
+                  sendPaymentReceivedEmail(customer.contactEmail!, {
+                    customerName: customer.name,
+                    invoiceNumber: invoice.invoiceNumber,
+                    amount: paymentAmountStr,
+                    currency: invoice.currency,
+                    paymentMethod: input.method,
+                    reference: input.reference,
+                    entityName: entityCtx.entityName,
+                  }).catch(console.error);
+                })
+                .catch(console.error);
+            }
+          }
+
+          return payment;
+        });
+      } catch (error) {
+        handleMutationError(error, "Failed to create payment");
+      }
     }),
 
   // ── Delete Procedures ──
@@ -399,11 +418,7 @@ export const arRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete customer",
-        });
+        handleMutationError(error, "Failed to delete customer");
       }
     }),
 
@@ -453,11 +468,7 @@ export const arRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete invoice",
-        });
+        handleMutationError(error, "Failed to delete invoice");
       }
     }),
 
@@ -500,11 +511,7 @@ export const arRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete payment",
-        });
+        handleMutationError(error, "Failed to delete payment");
       }
     }),
 });

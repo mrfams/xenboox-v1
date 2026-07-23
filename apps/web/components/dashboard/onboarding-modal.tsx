@@ -11,6 +11,7 @@ import {
   Send,
   BookOpen,
   Landmark,
+  Building2,
   FileText,
   MessageSquare,
   Upload,
@@ -261,7 +262,7 @@ export function OnboardingModal({
                     key={step.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => step.href && handleStepClick(step.href)}
+                    onClick={() => step.href && handleStepClick(step.href!)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();

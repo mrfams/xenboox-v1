@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc } from "drizzle-orm";
-import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  requireRole,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   employees,
@@ -136,11 +141,7 @@ export const payrollRouter = router({
 
         return emp;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create employee",
-        });
+        handleMutationError(error, "Failed to create employee");
       }
     }),
 
@@ -211,11 +212,7 @@ export const payrollRouter = router({
 
         return run;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create payroll run",
-        });
+        handleMutationError(error, "Failed to create payroll run");
       }
     }),
 
@@ -236,6 +233,232 @@ export const payrollRouter = router({
           eq(payslips.entityId, ctx.entityId!),
         ),
       });
+    }),
+
+  // ── Update ──
+  updateEmployee: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        department: z.string().optional(),
+        jobTitle: z.string().optional(),
+        employmentType: z
+          .enum(["full_time", "part_time", "contractor", "intern"])
+          .optional(),
+        bankName: z.string().optional(),
+        bankAccountNumber: z.string().optional(),
+        taxId: z.string().optional(),
+        isActive: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(employees)
+          .set(data)
+          .where(
+            and(eq(employees.id, id), eq(employees.entityId, ctx.entityId!)),
+          )
+          .returning();
+
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "payroll.updateEmployee",
+            entityType: "employee",
+            entityIdRef: updated.id,
+            newValues: data,
+          });
+        }
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update employee");
+      }
+    }),
+
+  updatePayrollRun: protectedProcedure
+    .use(requireRole("owner", "admin", "payroll_officer"))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        status: z
+          .enum(["draft", "processing", "completed", "cancelled"])
+          .optional(),
+        notes: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(payrollRuns)
+          .set(data)
+          .where(
+            and(
+              eq(payrollRuns.id, id),
+              eq(payrollRuns.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "payroll.updatePayrollRun",
+            entityType: "payroll_run",
+            entityIdRef: updated.id,
+            newValues: data,
+          });
+        }
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update payroll run");
+      }
+    }),
+
+  // ── Payslips ──
+  getPayslipById: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return db.query.payslips.findFirst({
+        where: and(
+          eq(payslips.id, input.id),
+          eq(payslips.entityId, ctx.entityId!),
+        ),
+      });
+    }),
+
+  // ── Staff Loans ──
+  listStaffLoans: protectedProcedure
+    .input(z.object({ employeeId: z.string().uuid().optional() }))
+    .query(async ({ ctx, input }) => {
+      const conditions = [eq(staffLoans.entityId, ctx.entityId!)];
+      if (input.employeeId) {
+        conditions.push(eq(staffLoans.employeeId, input.employeeId));
+      }
+      return db.query.staffLoans.findMany({
+        where: and(...conditions),
+      });
+    }),
+
+  // ── Deduction Types ──
+  createDeductionType: protectedProcedure
+    .use(requireRole("owner", "admin", "payroll_officer"))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        isMandatory: z.boolean().default(false),
+        isPercentage: z.boolean().default(false),
+        defaultAmount: z.string().default("0"),
+        glAccountId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const [deduction] = await db
+          .insert(payrollDeductionTypes)
+          .values({ ...input, entityId: ctx.entityId! })
+          .returning();
+
+        if (deduction) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "payroll.createDeductionType",
+            entityType: "payroll_deduction_type",
+            entityIdRef: deduction.id,
+            newValues: { name: input.name, isMandatory: input.isMandatory },
+          });
+        }
+        return deduction;
+      } catch (error) {
+        handleMutationError(error, "Failed to create deduction type");
+      }
+    }),
+
+  updateDeductionType: protectedProcedure
+    .use(requireRole("owner", "admin", "payroll_officer"))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        isMandatory: z.boolean().optional(),
+        isPercentage: z.boolean().optional(),
+        defaultAmount: z.string().optional(),
+        isActive: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(payrollDeductionTypes)
+          .set(data)
+          .where(
+            and(
+              eq(payrollDeductionTypes.id, id),
+              eq(payrollDeductionTypes.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "payroll.updateDeductionType",
+            entityType: "payroll_deduction_type",
+            entityIdRef: updated.id,
+            newValues: data,
+          });
+        }
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update deduction type");
+      }
+    }),
+
+  deleteDeductionType: protectedProcedure
+    .use(requireRole("owner", "admin", "payroll_officer"))
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const existing = await db.query.payrollDeductionTypes.findFirst({
+          where: and(
+            eq(payrollDeductionTypes.id, input.id),
+            eq(payrollDeductionTypes.entityId, ctx.entityId!),
+          ),
+        });
+        if (!existing)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Deduction type not found",
+          });
+
+        await db
+          .delete(payrollDeductionTypes)
+          .where(eq(payrollDeductionTypes.id, input.id));
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "payroll.deleteDeductionType",
+          entityType: "payroll_deduction_type",
+          entityIdRef: input.id,
+          oldValues: { name: existing.name },
+        });
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to delete deduction type");
+      }
     }),
 
   // ── Delete ──
@@ -275,11 +498,7 @@ export const payrollRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete employee",
-        });
+        handleMutationError(error, "Failed to delete employee");
       }
     }),
 
@@ -320,11 +539,7 @@ export const payrollRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete payroll run",
-        });
+        handleMutationError(error, "Failed to delete payroll run");
       }
     }),
 });

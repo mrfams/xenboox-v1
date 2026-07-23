@@ -43,7 +43,15 @@ import {
 import { Search, Plus, Edit, Trash2, Building, Users } from "lucide-react";
 import { toast } from "sonner";
 
-type Organization = RouterOutputs["admin"]["listOrganizations"][number];
+type Organization = {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  createdAt: string;
+  owner?: { id: string; name?: string | null; email?: string | null } | null;
+  entities?: Array<{ id: string; name: string }>;
+};
 
 const PLAN_OPTIONS = [
   { value: "free", label: "Free" },
@@ -83,7 +91,10 @@ export default function OrganizationsPage() {
     offset: page * PAGE_SIZE,
     search: search || undefined,
   });
-  const { data: users } = trpc.admin.listUsers.useQuery();
+  const { data: users } = trpc.admin.listUsers.useQuery({
+    limit: 100,
+    offset: 0,
+  });
 
   const createMutation = trpc.admin.createOrganization.useMutation({
     onSuccess: () => {
@@ -244,7 +255,7 @@ export default function OrganizationsPage() {
                     <SelectValue placeholder="Select an owner" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users?.map((u) => (
+                    {users?.items?.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.name || u.email}
                       </SelectItem>

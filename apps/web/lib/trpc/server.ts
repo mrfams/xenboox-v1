@@ -346,4 +346,22 @@ export const mutateProcedure = t.procedure
   .use(entityScopingMiddleware)
   .use(idempotencyMiddleware);
 
+/**
+ * Handle errors in mutation try/catch blocks.
+ * Re-throws TRPCError instances unchanged (e.g. NOT_FOUND, BAD_REQUEST).
+ * Wraps unexpected errors in a generic 500 error.
+ *
+ * Usage:
+ *   try { ... } catch (error) {
+ *     handleMutationError(error, "Failed to create invoice");
+ *   }
+ */
+export function handleMutationError(error: unknown, message: string): never {
+  if (error instanceof TRPCError) throw error;
+  throw new TRPCError({
+    code: "INTERNAL_SERVER_ERROR",
+    message,
+  });
+}
+
 // Use createCaller from ./caller.ts to avoid circular dependency

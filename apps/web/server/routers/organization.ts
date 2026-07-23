@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { router, protectedProcedure, publicProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  publicProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import {
@@ -179,11 +184,7 @@ export const organizationRouter = router({
 
         return { organization: org, entity };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create organization",
-        });
+        handleMutationError(error, "Failed to create organization");
       }
     }),
 
@@ -424,11 +425,7 @@ export const organizationRouter = router({
           );
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to revoke access",
-        });
+        handleMutationError(error, "Failed to revoke access");
       }
     }),
 

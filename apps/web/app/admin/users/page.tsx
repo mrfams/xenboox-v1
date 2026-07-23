@@ -53,7 +53,18 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-type User = RouterOutputs["admin"]["listUsers"][number];
+type User = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  emailVerified?: Date | string | null;
+  createdAt: string;
+  userEntityAccess?: Array<{
+    id: string;
+    role: string;
+    entityId: string;
+  }>;
+};
 
 const ROLE_OPTIONS = [
   { value: "owner", label: "Owner" },

@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  requireRole,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, asc } from "drizzle-orm";
 import { chartOfAccounts } from "@xenboox/db/schema/accounting";
@@ -121,11 +126,7 @@ export const coaRouter = router({
 
         return account;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create account",
-        });
+        handleMutationError(error, "Failed to create account");
       }
     }),
 
@@ -211,11 +212,7 @@ export const coaRouter = router({
           );
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete account",
-        });
+        handleMutationError(error, "Failed to delete account");
       }
     }),
 

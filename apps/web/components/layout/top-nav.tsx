@@ -84,13 +84,15 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  const utils = trpc.useUtils();
+
   useEffect(() => {
     async function loadCommands() {
       try {
-        const invoices = await trpc.ar.listInvoices.fetch();
-        const customers = await trpc.ar.listCustomers.fetch();
-        const bankAccounts = await trpc.treasury.listBankAccounts.fetch();
-        const docs = await trpc.document.listDocuments.fetch();
+        const invoices = await utils.ar.listInvoices.fetch();
+        const customers = await utils.ar.listCustomers.fetch();
+        const bankAccounts = await utils.treasury.listBankAccounts.fetch();
+        const docs = await utils.document.listDocuments.fetch();
         const results: SearchItem[] = [
           ...(invoices ?? []).map((inv: Record<string, unknown>) => ({
             label: `Invoice ${inv.invoiceNumber as string}`,
@@ -123,7 +125,7 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
       }
     }
     loadCommands();
-  }, []);
+  }, [utils]);
 
   const user = session?.user;
   const initials = user?.name ? getInitials(user.name) : "??";

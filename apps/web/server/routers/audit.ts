@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, desc, and, gte, lte, like, sql } from "drizzle-orm";
 import { auditLog } from "@xenboox/db/schema/documents";
@@ -66,11 +70,7 @@ export const auditRouter = router({
           total,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch audit logs",
-        });
+        handleMutationError(error, "Failed to fetch audit logs");
       }
     }),
 });

@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, publicProcedure, protectedProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  publicProcedure,
+  protectedProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, desc } from "drizzle-orm";
 import { users, sessions, verificationTokens } from "@xenboox/db/schema/auth";
@@ -198,11 +203,7 @@ export const authRouter = router({
           email: user.email,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred",
-        });
+        handleMutationError(error, "An unexpected error occurred");
       }
     }),
 
@@ -355,15 +356,10 @@ export const authRouter = router({
           email: user.email,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        console.error("[auth] Register error:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred during registration",
-        });
+        handleMutationError(
+          error,
+          "An unexpected error occurred during registration",
+        );
       }
     }),
 
@@ -424,11 +420,7 @@ export const authRouter = router({
           message: "If the email exists, a reset link has been sent",
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred",
-        });
+        handleMutationError(error, "An unexpected error occurred");
       }
     }),
 
@@ -499,11 +491,7 @@ export const authRouter = router({
           message: "Password has been reset successfully",
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred",
-        });
+        handleMutationError(error, "An unexpected error occurred");
       }
     }),
 
@@ -524,11 +512,7 @@ export const authRouter = router({
 
         return { success: true, message: "Profile updated successfully" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred",
-        });
+        handleMutationError(error, "An unexpected error occurred");
       }
     }),
 
@@ -632,11 +616,7 @@ export const authRouter = router({
 
       return { success: true, message: "Verification email sent" };
     } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "An unexpected error occurred",
-      });
+      handleMutationError(error, "An unexpected error occurred");
     }
   }),
 
@@ -684,11 +664,7 @@ export const authRouter = router({
 
         return { success: true, message: "Email verified successfully" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred",
-        });
+        handleMutationError(error, "An unexpected error occurred");
       }
     }),
 
@@ -717,11 +693,7 @@ export const authRouter = router({
 
         return { success: true, message: "Push token updated successfully" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred",
-        });
+        handleMutationError(error, "An unexpected error occurred");
       }
     }),
 
@@ -756,11 +728,7 @@ export const authRouter = router({
 
         return { success: true, message: "Notification preferences saved" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred",
-        });
+        handleMutationError(error, "An unexpected error occurred");
       }
     }),
 
@@ -792,11 +760,7 @@ export const authRouter = router({
         createdAt: s.createdAt,
       }));
     } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to list sessions",
-      });
+      handleMutationError(error, "Failed to list sessions");
     }
   }),
 
@@ -842,11 +806,7 @@ export const authRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to revoke session",
-        });
+        handleMutationError(error, "Failed to revoke session");
       }
     }),
 
@@ -893,11 +853,7 @@ export const authRouter = router({
         backupCodes: setup.backupCodes,
       };
     } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to set up MFA",
-      });
+      handleMutationError(error, "Failed to set up MFA");
     }
   }),
 
@@ -950,11 +906,7 @@ export const authRouter = router({
 
         return { success: true, message: "MFA has been enabled successfully" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to verify MFA setup",
-        });
+        handleMutationError(error, "Failed to verify MFA setup");
       }
     }),
 
@@ -1054,11 +1006,10 @@ export const authRouter = router({
           message: "Invalid verification code",
         });
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred during MFA verification",
-        });
+        handleMutationError(
+          error,
+          "An unexpected error occurred during MFA verification",
+        );
       }
     }),
 
@@ -1127,11 +1078,7 @@ export const authRouter = router({
 
         return { success: true, message: "MFA has been disabled" };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to disable MFA",
-        });
+        handleMutationError(error, "Failed to disable MFA");
       }
     }),
 
@@ -1164,11 +1111,7 @@ export const authRouter = router({
 
       return { backupCodes };
     } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to regenerate backup codes",
-      });
+      handleMutationError(error, "Failed to regenerate backup codes");
     }
   }),
 
@@ -1203,11 +1146,7 @@ export const authRouter = router({
         needsAttention: user.twoFactorEnabled && backupCodesCount <= 2,
       };
     } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to get MFA status",
-      });
+      handleMutationError(error, "Failed to get MFA status");
     }
   }),
 });

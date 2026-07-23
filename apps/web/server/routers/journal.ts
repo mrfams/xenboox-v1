@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
+  handleMutationError,
   router,
   protectedProcedure,
   mutateProcedure,
@@ -153,28 +154,23 @@ export const journalRouter = router({
           })
           .returning();
 
-        const lines = await Promise.all(
-          input.lines.map((line) =>
-            db
-              .insert(journalEntryLines)
-              .values({
-                journalEntryId: entry.id,
-                accountId: line.accountId,
-                debit: line.debit,
-                credit: line.credit,
-                description: line.description,
-              })
-              .returning(),
-          ),
-        );
+        // Batch insert all lines in a single query (N+1 fix)
+        const lineValues = input.lines.map((line) => ({
+          journalEntryId: entry.id,
+          accountId: line.accountId,
+          debit: line.debit,
+          credit: line.credit,
+          description: line.description,
+        }));
 
-        return { entry, lines: lines.flat() };
+        const lines = await db
+          .insert(journalEntryLines)
+          .values(lineValues)
+          .returning();
+
+        return { entry, lines };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create journal entry",
-        });
+        handleMutationError(error, "Failed to create journal entry");
       }
     }),
 
@@ -237,11 +233,7 @@ export const journalRouter = router({
 
         return updated;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to post journal entry",
-        });
+        handleMutationError(error, "Failed to post journal entry");
       }
     }),
 
@@ -341,11 +333,7 @@ export const journalRouter = router({
 
         return { original: entry, reversal };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to reverse journal entry",
-        });
+        handleMutationError(error, "Failed to reverse journal entry");
       }
     }),
 
@@ -429,11 +417,7 @@ export const journalRouter = router({
           isBalanced: Math.abs(totalDebit - totalCredit) < 0.01,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to generate trial balance",
-        });
+        handleMutationError(error, "Failed to generate trial balance");
       }
     }),
 
@@ -484,11 +468,7 @@ export const journalRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete journal entry",
-        });
+        handleMutationError(error, "Failed to delete journal entry");
       }
     }),
 });

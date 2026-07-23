@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+} from "@/lib/trpc/server";
 import {
   orchestrate,
   classifyUserMessage,
@@ -75,11 +79,7 @@ export const agentRouter = router({
           errors: result.errors,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Agent processing failed",
-        });
+        handleMutationError(error, "Agent processing failed");
       }
     }),
 
@@ -126,11 +126,7 @@ export const agentRouter = router({
           duration: result.duration,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Agent invocation failed",
-        });
+        handleMutationError(error, "Agent invocation failed");
       }
     }),
 

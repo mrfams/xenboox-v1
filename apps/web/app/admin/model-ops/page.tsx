@@ -16,6 +16,8 @@ import {
   Activity,
   RotateCcw,
   Play,
+} from "lucide-react";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -24,7 +26,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "lucide-react";
+} from "@/components/ui";
 
 type Assignment = {
   id: string;
@@ -86,12 +88,12 @@ export default function ModelOpsPage() {
   >("assignments");
 
   const { data: assignments, isLoading: loadingAssignments } =
-    trpc.modelOps.listAssignments.useQuery<Assignment>();
+    trpc.modelOps.listAssignments.useQuery();
   const { data: models, isLoading: loadingModels } =
-    trpc.modelOps.listModels.useQuery<Model>();
+    trpc.modelOps.listModels.useQuery();
   const { data: evaluations, isLoading: loadingEvals } =
-    trpc.modelOps.listEvaluations.useQuery<Evaluation>();
-  const { data: costData } = trpc.modelOps.listCostTracking.useQuery<CostRow>({
+    trpc.modelOps.listEvaluations.useQuery();
+  const { data: costData } = trpc.modelOps.listCostTracking.useQuery({
     limit: 50,
   });
 

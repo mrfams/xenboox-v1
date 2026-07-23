@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import {
+  handleMutationError,
   router,
   protectedProcedure,
   mutateProcedure,
@@ -66,11 +67,7 @@ export const apRouter = router({
 
         return supplier;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create supplier",
-        });
+        handleMutationError(error, "Failed to create supplier");
       }
     }),
 
@@ -88,13 +85,19 @@ export const apRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(suppliers)
-        .set(data)
-        .where(and(eq(suppliers.id, id), eq(suppliers.entityId, ctx.entityId!)))
-        .returning();
-      return updated;
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(suppliers)
+          .set(data)
+          .where(
+            and(eq(suppliers.id, id), eq(suppliers.entityId, ctx.entityId!)),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update supplier");
+      }
     }),
 
   getSupplierById: protectedProcedure
@@ -138,59 +141,63 @@ export const apRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { lines, ...poData } = input;
+      try {
+        const { lines, ...poData } = input;
 
-      let totalAmount = 0;
-      for (const line of lines) {
-        const qty = line.quantity;
-        const price = parseFloat(line.unitPrice);
-        totalAmount += qty * price;
-      }
-
-      return db.transaction(async (tx) => {
-        const [po] = await tx
-          .insert(purchaseOrders)
-          .values({
-            ...poData,
-            entityId: ctx.entityId!,
-            totalAmount: totalAmount.toFixed(2),
-            status: "draft",
-          })
-          .returning();
-
-        if (!po) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
+        let totalAmount = 0;
         for (const line of lines) {
           const qty = line.quantity;
           const price = parseFloat(line.unitPrice);
-          const amount = (qty * price).toFixed(2);
-
-          await tx.insert(poLines).values({
-            purchaseOrderId: po.id,
-            accountId: line.accountId,
-            description: line.description,
-            quantity: qty.toFixed(2),
-            unitPrice: line.unitPrice,
-            amount,
-          });
+          totalAmount += qty * price;
         }
 
-        await tx.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id!,
-          action: "ap.createPO",
-          entityType: "purchase_order",
-          entityIdRef: po.id,
-          newValues: {
-            supplierId: input.supplierId,
-            poNumber: input.poNumber,
-            totalAmount: totalAmount.toFixed(2),
-            lineCount: lines.length,
-          },
-        });
+        return await db.transaction(async (tx) => {
+          const [po] = await tx
+            .insert(purchaseOrders)
+            .values({
+              ...poData,
+              entityId: ctx.entityId!,
+              totalAmount: totalAmount.toFixed(2),
+              status: "draft",
+            })
+            .returning();
 
-        return po;
-      });
+          if (!po) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+          for (const line of lines) {
+            const qty = line.quantity;
+            const price = parseFloat(line.unitPrice);
+            const amount = (qty * price).toFixed(2);
+
+            await tx.insert(poLines).values({
+              purchaseOrderId: po.id,
+              accountId: line.accountId,
+              description: line.description,
+              quantity: qty.toFixed(2),
+              unitPrice: line.unitPrice,
+              amount,
+            });
+          }
+
+          await tx.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "ap.createPO",
+            entityType: "purchase_order",
+            entityIdRef: po.id,
+            newValues: {
+              supplierId: input.supplierId,
+              poNumber: input.poNumber,
+              totalAmount: totalAmount.toFixed(2),
+              lineCount: lines.length,
+            },
+          });
+
+          return po;
+        });
+      } catch (error) {
+        handleMutationError(error, "Failed to create purchase order");
+      }
     }),
 
   updatePO: protectedProcedure
@@ -214,18 +221,22 @@ export const apRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(purchaseOrders)
-        .set(data)
-        .where(
-          and(
-            eq(purchaseOrders.id, id),
-            eq(purchaseOrders.entityId, ctx.entityId!),
-          ),
-        )
-        .returning();
-      return updated;
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(purchaseOrders)
+          .set(data)
+          .where(
+            and(
+              eq(purchaseOrders.id, id),
+              eq(purchaseOrders.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update purchase order");
+      }
     }),
 
   getPOById: protectedProcedure
@@ -250,22 +261,26 @@ export const apRouter = router({
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await db
-        .update(purchaseOrders)
-        .set({
-          status: "approved",
-          approvedAt: new Date(),
-          approvedBy: ctx.session!.user!.id!,
-        })
-        .where(
-          and(
-            eq(purchaseOrders.id, input.id),
-            eq(purchaseOrders.entityId, ctx.entityId!),
-            eq(purchaseOrders.status, "draft"),
-          ),
-        )
-        .returning();
-      return updated;
+      try {
+        const [updated] = await db
+          .update(purchaseOrders)
+          .set({
+            status: "approved",
+            approvedAt: new Date(),
+            approvedBy: ctx.session!.user!.id!,
+          })
+          .where(
+            and(
+              eq(purchaseOrders.id, input.id),
+              eq(purchaseOrders.entityId, ctx.entityId!),
+              eq(purchaseOrders.status, "draft"),
+            ),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to approve purchase order");
+      }
     }),
 
   // ── AP Invoices ──
@@ -300,61 +315,65 @@ export const apRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { lines, purchaseOrderId, ...invoiceData } = input;
+      try {
+        const { lines, purchaseOrderId, ...invoiceData } = input;
 
-      let totalAmount = 0;
-      for (const line of lines) {
-        const qty = line.quantity;
-        const price = parseFloat(line.unitPrice);
-        totalAmount += qty * price;
-      }
-
-      return db.transaction(async (tx) => {
-        const [invoice] = await tx
-          .insert(invoicesAp)
-          .values({
-            ...invoiceData,
-            entityId: ctx.entityId!,
-            purchaseOrderId: purchaseOrderId ?? null,
-            totalAmount: totalAmount.toFixed(2),
-            balance: totalAmount.toFixed(2),
-            status: "pending",
-          })
-          .returning();
-
-        if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
+        let totalAmount = 0;
         for (const line of lines) {
           const qty = line.quantity;
           const price = parseFloat(line.unitPrice);
-          const amount = (qty * price).toFixed(2);
-
-          await tx.insert(invoiceApLines).values({
-            invoiceApId: invoice.id,
-            accountId: line.accountId,
-            description: line.description,
-            quantity: qty.toFixed(2),
-            unitPrice: line.unitPrice,
-            amount,
-          });
+          totalAmount += qty * price;
         }
 
-        await tx.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id!,
-          action: "ap.createInvoice",
-          entityType: "invoice_ap",
-          entityIdRef: invoice.id,
-          newValues: {
-            supplierId: input.supplierId,
-            invoiceNumber: input.invoiceNumber,
-            totalAmount: totalAmount.toFixed(2),
-            dueDate: input.dueDate,
-          },
-        });
+        return await db.transaction(async (tx) => {
+          const [invoice] = await tx
+            .insert(invoicesAp)
+            .values({
+              ...invoiceData,
+              entityId: ctx.entityId!,
+              purchaseOrderId: purchaseOrderId ?? null,
+              totalAmount: totalAmount.toFixed(2),
+              balance: totalAmount.toFixed(2),
+              status: "pending",
+            })
+            .returning();
 
-        return invoice;
-      });
+          if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+          for (const line of lines) {
+            const qty = line.quantity;
+            const price = parseFloat(line.unitPrice);
+            const amount = (qty * price).toFixed(2);
+
+            await tx.insert(invoiceApLines).values({
+              invoiceApId: invoice.id,
+              accountId: line.accountId,
+              description: line.description,
+              quantity: qty.toFixed(2),
+              unitPrice: line.unitPrice,
+              amount,
+            });
+          }
+
+          await tx.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "ap.createInvoice",
+            entityType: "invoice_ap",
+            entityIdRef: invoice.id,
+            newValues: {
+              supplierId: input.supplierId,
+              invoiceNumber: input.invoiceNumber,
+              totalAmount: totalAmount.toFixed(2),
+              dueDate: input.dueDate,
+            },
+          });
+
+          return invoice;
+        });
+      } catch (error) {
+        handleMutationError(error, "Failed to create invoice");
+      }
     }),
 
   updateInvoice: protectedProcedure
@@ -371,15 +390,19 @@ export const apRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(invoicesAp)
-        .set(data)
-        .where(
-          and(eq(invoicesAp.id, id), eq(invoicesAp.entityId, ctx.entityId!)),
-        )
-        .returning();
-      return updated;
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(invoicesAp)
+          .set(data)
+          .where(
+            and(eq(invoicesAp.id, id), eq(invoicesAp.entityId, ctx.entityId!)),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update invoice");
+      }
     }),
 
   getInvoiceById: protectedProcedure
@@ -427,100 +450,104 @@ export const apRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { invoiceApId, amount: paymentAmountStr, ...paymentData } = input;
-      const paymentAmount = parseFloat(paymentAmountStr);
+      try {
+        const { invoiceApId, amount: paymentAmountStr, ...paymentData } = input;
+        const paymentAmount = parseFloat(paymentAmountStr);
 
-      const invoice = await db.query.invoicesAp.findFirst({
-        where: and(
-          eq(invoicesAp.id, invoiceApId),
-          eq(invoicesAp.entityId, ctx.entityId!),
-        ),
-      });
-      if (!invoice) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Invoice not found",
+        const invoice = await db.query.invoicesAp.findFirst({
+          where: and(
+            eq(invoicesAp.id, invoiceApId),
+            eq(invoicesAp.entityId, ctx.entityId!),
+          ),
         });
-      }
-
-      const currentBalance = parseFloat(invoice.balance);
-      if (paymentAmount > currentBalance) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Payment amount ${paymentAmountStr} exceeds invoice balance ${invoice.balance}`,
-        });
-      }
-
-      return db.transaction(async (tx) => {
-        const [payment] = await tx
-          .insert(paymentsAp)
-          .values({
-            ...paymentData,
-            entityId: ctx.entityId!,
-            invoiceApId,
-            amount: paymentAmountStr,
-          })
-          .returning();
-
-        const newBalance = currentBalance - paymentAmount;
-        const newPaidAmount = parseFloat(invoice.paidAmount) + paymentAmount;
-        const newStatus = newBalance <= 0 ? "paid" : "partial";
-
-        await tx
-          .update(invoicesAp)
-          .set({
-            paidAmount: newPaidAmount.toFixed(2),
-            balance: Math.max(newBalance, 0).toFixed(2),
-            status: newStatus,
-          })
-          .where(
-            and(
-              eq(invoicesAp.id, invoiceApId),
-              eq(invoicesAp.entityId, ctx.entityId!),
-            ),
-          );
-
-        await tx.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id!,
-          action: "ap.createPayment",
-          entityType: "payment_ap",
-          entityIdRef: payment.id,
-          newValues: {
-            invoiceApId,
-            amount: paymentAmountStr,
-            method: input.method,
-            reference: input.reference,
-          },
-        });
-
-        // Send email notification (non-blocking)
-        if (invoice) {
-          const supplier = await tx.query.suppliers.findFirst({
-            where: and(
-              eq(suppliers.id, invoice.supplierId),
-              eq(suppliers.entityId, ctx.entityId!),
-            ),
+        if (!invoice) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Invoice not found",
           });
-          if (supplier && supplier.contactEmail) {
-            getEnrichedEntityContext(ctx.entityId!)
-              .then((entityCtx) => {
-                sendPaymentSentEmail(supplier.contactEmail!, {
-                  supplierName: supplier.name,
-                  invoiceNumber: invoice.invoiceNumber,
-                  amount: paymentAmountStr,
-                  currency: invoice.currency,
-                  paymentMethod: input.method,
-                  reference: input.reference,
-                  entityName: entityCtx.entityName,
-                }).catch(console.error);
-              })
-              .catch(console.error);
-          }
         }
 
-        return payment;
-      });
+        const currentBalance = parseFloat(invoice.balance);
+        if (paymentAmount > currentBalance) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Payment amount ${paymentAmountStr} exceeds invoice balance ${invoice.balance}`,
+          });
+        }
+
+        return await db.transaction(async (tx) => {
+          const [payment] = await tx
+            .insert(paymentsAp)
+            .values({
+              ...paymentData,
+              entityId: ctx.entityId!,
+              invoiceApId,
+              amount: paymentAmountStr,
+            })
+            .returning();
+
+          const newBalance = currentBalance - paymentAmount;
+          const newPaidAmount = parseFloat(invoice.paidAmount) + paymentAmount;
+          const newStatus = newBalance <= 0 ? "paid" : "partial";
+
+          await tx
+            .update(invoicesAp)
+            .set({
+              paidAmount: newPaidAmount.toFixed(2),
+              balance: Math.max(newBalance, 0).toFixed(2),
+              status: newStatus,
+            })
+            .where(
+              and(
+                eq(invoicesAp.id, invoiceApId),
+                eq(invoicesAp.entityId, ctx.entityId!),
+              ),
+            );
+
+          await tx.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "ap.createPayment",
+            entityType: "payment_ap",
+            entityIdRef: payment.id,
+            newValues: {
+              invoiceApId,
+              amount: paymentAmountStr,
+              method: input.method,
+              reference: input.reference,
+            },
+          });
+
+          // Send email notification (non-blocking)
+          if (invoice) {
+            const supplier = await tx.query.suppliers.findFirst({
+              where: and(
+                eq(suppliers.id, invoice.supplierId),
+                eq(suppliers.entityId, ctx.entityId!),
+              ),
+            });
+            if (supplier && supplier.contactEmail) {
+              getEnrichedEntityContext(ctx.entityId!)
+                .then((entityCtx) => {
+                  sendPaymentSentEmail(supplier.contactEmail!, {
+                    supplierName: supplier.name,
+                    invoiceNumber: invoice.invoiceNumber,
+                    amount: paymentAmountStr,
+                    currency: invoice.currency,
+                    paymentMethod: input.method,
+                    reference: input.reference,
+                    entityName: entityCtx.entityName,
+                  }).catch(console.error);
+                })
+                .catch(console.error);
+            }
+          }
+
+          return payment;
+        });
+      } catch (error) {
+        handleMutationError(error, "Failed to create payment");
+      }
     }),
 
   // ── Delete Procedures ──
@@ -558,11 +585,7 @@ export const apRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete supplier",
-        });
+        handleMutationError(error, "Failed to delete supplier");
       }
     }),
 
@@ -614,11 +637,7 @@ export const apRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete purchase order",
-        });
+        handleMutationError(error, "Failed to delete purchase order");
       }
     }),
 
@@ -670,11 +689,7 @@ export const apRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete invoice",
-        });
+        handleMutationError(error, "Failed to delete invoice");
       }
     }),
 
@@ -714,11 +729,7 @@ export const apRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete payment",
-        });
+        handleMutationError(error, "Failed to delete payment");
       }
     }),
 });

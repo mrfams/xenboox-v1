@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import {
+  handleMutationError,
   router,
   protectedProcedure,
   mutateProcedure,
@@ -94,11 +95,7 @@ export const treasuryRouter = router({
 
         return bankAccount;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create bank account",
-        });
+        handleMutationError(error, "Failed to create bank account");
       }
     }),
 
@@ -116,29 +113,33 @@ export const treasuryRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(bankAccounts)
-        .set({ ...data, updatedAt: new Date() })
-        .where(
-          and(
-            eq(bankAccounts.id, id),
-            eq(bankAccounts.entityId, ctx.entityId!),
-          ),
-        )
-        .returning();
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(bankAccounts)
+          .set({ ...data, updatedAt: new Date() })
+          .where(
+            and(
+              eq(bankAccounts.id, id),
+              eq(bankAccounts.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
 
-      if (updated) {
-        await db.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id!,
-          action: "treasury.updateBankAccount",
-          entityType: "bank_account",
-          entityIdRef: updated.id,
-          newValues: data,
-        });
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "treasury.updateBankAccount",
+            entityType: "bank_account",
+            entityIdRef: updated.id,
+            newValues: data,
+          });
+        }
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update bank account");
       }
-      return updated;
     }),
 
   getBankAccountById: protectedProcedure
@@ -208,11 +209,7 @@ export const treasuryRouter = router({
 
         return tx;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create bank transaction",
-        });
+        handleMutationError(error, "Failed to create bank transaction");
       }
     }),
 
@@ -279,11 +276,7 @@ export const treasuryRouter = router({
 
         return recon;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create reconciliation",
-        });
+        handleMutationError(error, "Failed to create reconciliation");
       }
     }),
 
@@ -381,11 +374,7 @@ export const treasuryRouter = router({
 
         return item;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to match reconciliation item",
-        });
+        handleMutationError(error, "Failed to match reconciliation item");
       }
     }),
 
@@ -393,33 +382,151 @@ export const treasuryRouter = router({
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await db
-        .update(reconciliations)
-        .set({
-          status: "closed",
-          closedAt: new Date(),
-          closedBy: ctx.session!.user!.id!,
-        })
-        .where(
-          and(
-            eq(reconciliations.id, input.id),
-            eq(reconciliations.entityId, ctx.entityId!),
-            eq(reconciliations.status, "unmatched"),
-          ),
-        )
-        .returning();
+      try {
+        const [updated] = await db
+          .update(reconciliations)
+          .set({
+            status: "closed",
+            closedAt: new Date(),
+            closedBy: ctx.session!.user!.id!,
+          })
+          .where(
+            and(
+              eq(reconciliations.id, input.id),
+              eq(reconciliations.entityId, ctx.entityId!),
+              eq(reconciliations.status, "unmatched"),
+            ),
+          )
+          .returning();
 
-      if (updated) {
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "treasury.closeReconciliation",
+            entityType: "reconciliation",
+            entityIdRef: updated.id,
+            newValues: { status: "closed" },
+          });
+        }
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to close reconciliation");
+      }
+    }),
+
+  listBankConnections: protectedProcedure.query(({ ctx }) => {
+    return db.query.bankConnections.findMany({
+      where: eq(bankConnections.entityId, ctx.entityId!),
+      orderBy: [desc(bankConnections.createdAt)],
+    });
+  }),
+
+  updateBankTransaction: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        description: z.string().min(1).optional(),
+        amount: z.string().optional(),
+        reference: z.string().optional(),
+        isReconciled: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(bankTransactions)
+          .set(data)
+          .where(
+            and(
+              eq(bankTransactions.id, id),
+              eq(bankTransactions.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update bank transaction");
+      }
+    }),
+
+  updateReconciliation: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        notes: z.string().optional(),
+        statementBalance: z.string().optional(),
+        bookBalance: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(reconciliations)
+          .set(data)
+          .where(
+            and(
+              eq(reconciliations.id, id),
+              eq(reconciliations.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update reconciliation");
+      }
+    }),
+
+  deleteReconciliationItem: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const item = await db.query.reconciliationItems.findFirst({
+          where: eq(reconciliationItems.id, input.id),
+          with: {
+            bankTransaction: true,
+          },
+        });
+        if (!item)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Reconciliation item not found",
+          });
+
+        // Verify ownership via the parent reconciliation
+        const recon = await db.query.reconciliations.findFirst({
+          where: and(
+            eq(reconciliations.id, item.reconciliationId),
+            eq(reconciliations.entityId, ctx.entityId!),
+          ),
+        });
+        if (!recon) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Reconciliation item does not belong to this entity",
+          });
+        }
+
+        await db
+          .delete(reconciliationItems)
+          .where(eq(reconciliationItems.id, input.id));
+
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
           userId: ctx.session!.user!.id!,
-          action: "treasury.closeReconciliation",
-          entityType: "reconciliation",
-          entityIdRef: updated.id,
-          newValues: { status: "closed" },
+          action: "treasury.deleteReconciliationItem",
+          entityType: "reconciliation_item",
+          entityIdRef: input.id,
+          oldValues: { matchedAmount: item.matchedAmount },
         });
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to delete reconciliation item");
       }
-      return updated;
     }),
 
   deleteBankAccount: protectedProcedure
@@ -468,11 +575,7 @@ export const treasuryRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete bank account",
-        });
+        handleMutationError(error, "Failed to delete bank account");
       }
     }),
 
@@ -512,11 +615,7 @@ export const treasuryRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete bank transaction",
-        });
+        handleMutationError(error, "Failed to delete bank transaction");
       }
     }),
 
@@ -556,11 +655,7 @@ export const treasuryRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete reconciliation",
-        });
+        handleMutationError(error, "Failed to delete reconciliation");
       }
     }),
 });

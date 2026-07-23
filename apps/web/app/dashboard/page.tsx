@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
@@ -256,54 +256,49 @@ function computeMetrics(
 export default function DashboardPage() {
   const { entityId } = useEntity();
   const router = useRouter();
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [collapsed, setCollapsed] = useState(false);
 
   const {
     data: arInvoices,
     isLoading: arLoading,
     error: arError,
-  } = trpc.ar.listInvoices.useQuery(undefined, {
-    onSuccess: () => {
-      setLastUpdated(new Date());
-    },
-  });
+  } = trpc.ar.listInvoices.useQuery(undefined);
   const {
     data: apInvoices,
     isLoading: apLoading,
     error: apError,
-  } = trpc.ap.listInvoices.useQuery(undefined, {
-    onSuccess: () => {
-      setLastUpdated(new Date());
-    },
-  });
+  } = trpc.ap.listInvoices.useQuery(undefined);
   const {
     data: poList,
     isLoading: poLoading,
     error: poError,
-  } = trpc.ap.listPOs.useQuery(undefined, {
-    onSuccess: () => {
-      setLastUpdated(new Date());
-    },
-  });
+  } = trpc.ap.listPOs.useQuery(undefined);
   const {
     data: bankAccounts,
     isLoading: bankLoading,
     error: bankError,
-  } = trpc.treasury.listBankAccounts.useQuery(undefined, {
-    onSuccess: () => {
-      setLastUpdated(new Date());
-    },
-  });
+  } = trpc.treasury.listBankAccounts.useQuery(undefined);
   const {
     data: cashAccounts,
     isLoading: cashLoading,
     error: cashError,
-  } = trpc.cash.listCashAccounts.useQuery(undefined, {
-    onSuccess: () => {
-      setLastUpdated(new Date());
-    },
-  });
+  } = trpc.cash.listCashAccounts.useQuery(undefined);
+
+  useEffect(() => {
+    if (arError) toast.error("Failed to load receivables");
+  }, [arError]);
+  useEffect(() => {
+    if (apError) toast.error("Failed to load payables");
+  }, [apError]);
+  useEffect(() => {
+    if (poError) toast.error("Failed to load purchase orders");
+  }, [poError]);
+  useEffect(() => {
+    if (bankError) toast.error("Failed to load bank accounts");
+  }, [bankError]);
+  useEffect(() => {
+    if (cashError) toast.error("Failed to load cash accounts");
+  }, [cashError]);
   const { data: bankSyncStatus } = trpc.treasury.getLastSync.useQuery(
     undefined,
     {
@@ -311,12 +306,6 @@ export default function DashboardPage() {
       refetchInterval: 120000,
     },
   );
-
-  if (arError) toast.error("Failed to load receivables");
-  if (apError) toast.error("Failed to load payables");
-  if (poError) toast.error("Failed to load purchase orders");
-  if (bankError) toast.error("Failed to load bank accounts");
-  if (cashError) toast.error("Failed to load cash accounts");
 
   const isLoading =
     arLoading || apLoading || poLoading || bankLoading || cashLoading;
@@ -477,15 +466,6 @@ export default function DashboardPage() {
             KPIs
           </span>
           <div className="flex items-center gap-3">
-            {lastUpdated && !isLoading && (
-              <span className="text-[11px] text-muted-foreground">
-                Updated{" "}
-                {lastUpdated.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            )}
             {collapsed ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             ) : (

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
@@ -181,11 +185,7 @@ export const documentRouter = router({
 
         return { documentId: doc.id };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to confirm document upload",
-        });
+        handleMutationError(error, "Failed to confirm document upload");
       }
     }),
 
@@ -226,11 +226,7 @@ export const documentRouter = router({
 
         return { downloadUrl, mimeType: doc.mimeType };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to generate download URL",
-        });
+        handleMutationError(error, "Failed to generate download URL");
       }
     }),
 
@@ -265,11 +261,7 @@ export const documentRouter = router({
 
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete document",
-        });
+        handleMutationError(error, "Failed to delete document");
       }
     }),
 

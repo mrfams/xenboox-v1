@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc } from "drizzle-orm";
-import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  requireRole,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   inventoryItems,
@@ -61,11 +66,44 @@ export const inventoryRouter = router({
 
         return wh;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create warehouse",
-        });
+        handleMutationError(error, "Failed to create warehouse");
+      }
+    }),
+
+  getWarehouseById: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(({ ctx, input }) => {
+      return db.query.warehouses.findFirst({
+        where: and(
+          eq(warehouses.id, input.id),
+          eq(warehouses.entityId, ctx.entityId!),
+        ),
+      });
+    }),
+
+  updateWarehouse: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        location: z.string().optional(),
+        managerName: z.string().optional(),
+        isActive: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(warehouses)
+          .set(data)
+          .where(
+            and(eq(warehouses.id, id), eq(warehouses.entityId, ctx.entityId!)),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update warehouse");
       }
     }),
 
@@ -154,11 +192,7 @@ export const inventoryRouter = router({
 
         return item;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create inventory item",
-        });
+        handleMutationError(error, "Failed to create inventory item");
       }
     }),
 
@@ -174,18 +208,22 @@ export const inventoryRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(inventoryItems)
-        .set(data)
-        .where(
-          and(
-            eq(inventoryItems.id, id),
-            eq(inventoryItems.entityId, ctx.entityId!),
-          ),
-        )
-        .returning();
-      return updated;
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(inventoryItems)
+          .set(data)
+          .where(
+            and(
+              eq(inventoryItems.id, id),
+              eq(inventoryItems.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update inventory item");
+      }
     }),
 
   // ── Transactions ──
@@ -324,11 +362,7 @@ export const inventoryRouter = router({
           return txRecord;
         });
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create inventory transaction",
-        });
+        handleMutationError(error, "Failed to create inventory transaction");
       }
     }),
 
@@ -367,23 +401,17 @@ export const inventoryRouter = router({
             message: "Warehouse not found",
           });
         await db.delete(warehouses).where(eq(warehouses.id, input.id));
-        await db
-          .insert(auditLog)
-          .values({
-            entityId: ctx.entityId!,
-            userId: ctx.session!.user!.id!,
-            action: "inventory.deleteWarehouse",
-            entityType: "warehouse",
-            entityIdRef: input.id,
-            newValues: { name: wh.name },
-          });
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "inventory.deleteWarehouse",
+          entityType: "warehouse",
+          entityIdRef: input.id,
+          newValues: { name: wh.name },
+        });
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete warehouse",
-        });
+        handleMutationError(error, "Failed to delete warehouse");
       }
     }),
 
@@ -403,23 +431,45 @@ export const inventoryRouter = router({
             message: "Inventory item not found",
           });
         await db.delete(inventoryItems).where(eq(inventoryItems.id, input.id));
-        await db
-          .insert(auditLog)
-          .values({
-            entityId: ctx.entityId!,
-            userId: ctx.session!.user!.id!,
-            action: "inventory.deleteItem",
-            entityType: "inventory_item",
-            entityIdRef: input.id,
-            newValues: { name: item.name },
-          });
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "inventory.deleteItem",
+          entityType: "inventory_item",
+          entityIdRef: input.id,
+          newValues: { name: item.name },
+        });
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete inventory item",
-        });
+        handleMutationError(error, "Failed to delete inventory item");
+      }
+    }),
+
+  updateTransaction: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        notes: z.string().optional(),
+        unitCost: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(inventoryTransactions)
+          .set(data)
+          .where(
+            and(
+              eq(inventoryTransactions.id, id),
+              eq(inventoryTransactions.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update inventory transaction");
       }
     }),
 
@@ -441,23 +491,17 @@ export const inventoryRouter = router({
         await db
           .delete(inventoryTransactions)
           .where(eq(inventoryTransactions.id, input.id));
-        await db
-          .insert(auditLog)
-          .values({
-            entityId: ctx.entityId!,
-            userId: ctx.session!.user!.id!,
-            action: "inventory.deleteTransaction",
-            entityType: "inventory_transaction",
-            entityIdRef: input.id,
-            newValues: { type: tx.type },
-          });
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "inventory.deleteTransaction",
+          entityType: "inventory_transaction",
+          entityIdRef: input.id,
+          newValues: { type: tx.type },
+        });
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete transaction",
-        });
+        handleMutationError(error, "Failed to delete transaction");
       }
     }),
 });

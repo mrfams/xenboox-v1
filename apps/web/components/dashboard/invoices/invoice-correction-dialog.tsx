@@ -23,13 +23,16 @@ import {
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+type InvoiceStatus =
+  "draft" | "pending" | "partial" | "paid" | "overdue" | "cancelled";
+
 type Invoice = {
   id: string;
   invoiceNumber: string;
   invoiceDate: string;
   dueDate: string;
   totalAmount: string;
-  status: string;
+  status: InvoiceStatus;
   notes?: string | null;
 };
 

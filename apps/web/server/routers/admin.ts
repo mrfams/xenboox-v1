@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure, adminProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  adminProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc, count, sum, sql } from "drizzle-orm";
 import { users } from "@xenboox/db/schema/auth";
@@ -630,27 +635,31 @@ export const adminRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      // In production, this would persist to database or config service
-      // For now, validate and return success with logged audit trail
-      console.log("[admin] Settings update:", {
-        notifications: {
-          emailAlerts: input.emailAlerts,
-          slackAlerts: input.slackAlerts,
-          smsAlerts: input.smsAlerts,
-        },
-        ai: {
-          autoScaling: input.autoScaling,
-          costOptimization: input.costOptimization,
-          providerFallback: input.providerFallback,
-        },
-        system: {
-          maintenanceMode: input.maintenanceMode,
-          debugMode: input.debugMode,
-          auditLogging: input.auditLogging,
-        },
-        budgets: input.budgets,
-      });
-      return { success: true };
+      try {
+        // In production, this would persist to database or config service
+        // For now, validate and return success with logged audit trail
+        console.log("[admin] Settings update:", {
+          notifications: {
+            emailAlerts: input.emailAlerts,
+            slackAlerts: input.slackAlerts,
+            smsAlerts: input.smsAlerts,
+          },
+          ai: {
+            autoScaling: input.autoScaling,
+            costOptimization: input.costOptimization,
+            providerFallback: input.providerFallback,
+          },
+          system: {
+            maintenanceMode: input.maintenanceMode,
+            debugMode: input.debugMode,
+            auditLogging: input.auditLogging,
+          },
+          budgets: input.budgets,
+        });
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to update settings");
+      }
     }),
 
   getCostComparison: adminProcedure.query(async () => {
@@ -709,41 +718,45 @@ export const adminRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      const existing = await db.query.users.findFirst({
-        where: eq(users.email, input.email),
-      });
-      if (existing) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "An account with this email already exists",
+      try {
+        const existing = await db.query.users.findFirst({
+          where: eq(users.email, input.email),
         });
-      }
+        if (existing) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "An account with this email already exists",
+          });
+        }
 
-      const passwordHash = await bcrypt.hash(input.password, 12);
-      const [user] = await db
-        .insert(users)
-        .values({
-          name: input.name,
-          email: input.email,
-          passwordHash,
-        })
-        .returning();
+        const passwordHash = await bcrypt.hash(input.password, 12);
+        const [user] = await db
+          .insert(users)
+          .values({
+            name: input.name,
+            email: input.email,
+            passwordHash,
+          })
+          .returning();
 
-      if (!user) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create user",
+        if (!user) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create user",
+          });
+        }
+
+        await db.insert(userEntityAccess).values({
+          userId: user.id,
+          entityId: input.entityId,
+          role: input.role,
+          grantedBy: input.entityId,
         });
+
+        return user;
+      } catch (error) {
+        handleMutationError(error, "Failed to create user");
       }
-
-      await db.insert(userEntityAccess).values({
-        userId: user.id,
-        entityId: input.entityId,
-        role: input.role,
-        grantedBy: input.entityId,
-      });
-
-      return user;
     }),
 
   updateUser: adminProcedure
@@ -770,29 +783,37 @@ export const adminRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      const { userId, entityId, role, ...userUpdates } = input;
-      if (Object.keys(userUpdates).length > 0) {
-        await db.update(users).set(userUpdates).where(eq(users.id, userId));
+      try {
+        const { userId, entityId, role, ...userUpdates } = input;
+        if (Object.keys(userUpdates).length > 0) {
+          await db.update(users).set(userUpdates).where(eq(users.id, userId));
+        }
+        if (entityId && role) {
+          await db
+            .insert(userEntityAccess)
+            .values({
+              userId,
+              entityId,
+              role,
+              grantedBy: userId,
+            })
+            .onConflictDoNothing();
+        }
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to update user");
       }
-      if (entityId && role) {
-        await db
-          .insert(userEntityAccess)
-          .values({
-            userId,
-            entityId,
-            role,
-            grantedBy: userId,
-          })
-          .onConflictDoNothing();
-      }
-      return { success: true };
     }),
 
   deleteUser: adminProcedure
     .input(z.object({ userId: z.string().uuid() }))
     .mutation(async ({ input }) => {
-      await db.delete(users).where(eq(users.id, input.userId));
-      return { success: true };
+      try {
+        await db.delete(users).where(eq(users.id, input.userId));
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to delete user");
+      }
     }),
 
   createOrganization: adminProcedure
@@ -807,22 +828,26 @@ export const adminRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      const [org] = await db
-        .insert(organizations)
-        .values({
-          name: input.name,
-          slug: input.slug,
-          plan: input.plan,
-          ownerId: input.ownerId,
-        })
-        .returning();
-      if (!org) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create organization",
-        });
+      try {
+        const [org] = await db
+          .insert(organizations)
+          .values({
+            name: input.name,
+            slug: input.slug,
+            plan: input.plan,
+            ownerId: input.ownerId,
+          })
+          .returning();
+        if (!org) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create organization",
+          });
+        }
+        return org;
+      } catch (error) {
+        handleMutationError(error, "Failed to create organization");
       }
-      return org;
     }),
 
   updateOrganization: adminProcedure
@@ -834,18 +859,26 @@ export const adminRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      const { orgId, ...updates } = input;
-      await db
-        .update(organizations)
-        .set(updates)
-        .where(eq(organizations.id, orgId));
-      return { success: true };
+      try {
+        const { orgId, ...updates } = input;
+        await db
+          .update(organizations)
+          .set(updates)
+          .where(eq(organizations.id, orgId));
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to update organization");
+      }
     }),
 
   deleteOrganization: adminProcedure
     .input(z.object({ orgId: z.string().uuid() }))
     .mutation(async ({ input }) => {
-      await db.delete(organizations).where(eq(organizations.id, input.orgId));
-      return { success: true };
+      try {
+        await db.delete(organizations).where(eq(organizations.id, input.orgId));
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to delete organization");
+      }
     }),
 });

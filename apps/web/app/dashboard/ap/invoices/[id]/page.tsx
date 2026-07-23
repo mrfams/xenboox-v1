@@ -281,7 +281,7 @@ export default function BillDetailPage() {
           invoiceDate: invoice.invoiceDate,
           dueDate: invoice.dueDate,
           totalAmount: String(invoice.totalAmount),
-          status: invoice.status,
+          status: invoice.status as "pending" | "partial" | "overdue",
           notes: invoice.notes,
         }}
         onConfirmed={() => {}}

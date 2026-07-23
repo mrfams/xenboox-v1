@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { router, protectedProcedure, adminProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  adminProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 import {

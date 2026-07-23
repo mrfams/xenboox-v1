@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, asc, inArray } from "drizzle-orm";
 import {
@@ -137,11 +141,7 @@ export const reportsRouter = router({
           netIncome,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to generate P&L report",
-        });
+        handleMutationError(error, "Failed to generate P&L report");
       }
     }),
 
@@ -281,11 +281,7 @@ export const reportsRouter = router({
             Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to generate balance sheet",
-        });
+        handleMutationError(error, "Failed to generate balance sheet");
       }
     }),
 

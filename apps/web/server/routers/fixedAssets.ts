@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc } from "drizzle-orm";
 import {
+  handleMutationError,
   router,
   protectedProcedure,
   mutateProcedure,
@@ -138,11 +139,7 @@ export const fixedAssetsRouter = router({
 
         return asset;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create asset",
-        });
+        handleMutationError(error, "Failed to create asset");
       }
     }),
 
@@ -166,15 +163,22 @@ export const fixedAssetsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(fixedAssets)
-        .set(data)
-        .where(
-          and(eq(fixedAssets.id, id), eq(fixedAssets.entityId, ctx.entityId!)),
-        )
-        .returning();
-      return updated;
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(fixedAssets)
+          .set(data)
+          .where(
+            and(
+              eq(fixedAssets.id, id),
+              eq(fixedAssets.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update asset");
+      }
     }),
 
   disposeAsset: mutateProcedure
@@ -230,11 +234,7 @@ export const fixedAssetsRouter = router({
 
         return updated;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to dispose asset",
-        });
+        handleMutationError(error, "Failed to dispose asset");
       }
     }),
 
@@ -275,23 +275,17 @@ export const fixedAssetsRouter = router({
           .delete(depreciationSchedule)
           .where(eq(depreciationSchedule.fixedAssetId, input.id));
         await db.delete(fixedAssets).where(eq(fixedAssets.id, input.id));
-        await db
-          .insert(auditLog)
-          .values({
-            entityId: ctx.entityId!,
-            userId: ctx.session!.user!.id!,
-            action: "fixedAssets.deleteAsset",
-            entityType: "fixed_asset",
-            entityIdRef: input.id,
-            newValues: { name: asset.name },
-          });
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "fixedAssets.deleteAsset",
+          entityType: "fixed_asset",
+          entityIdRef: input.id,
+          newValues: { name: asset.name },
+        });
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete asset",
-        });
+        handleMutationError(error, "Failed to delete asset");
       }
     }),
 });

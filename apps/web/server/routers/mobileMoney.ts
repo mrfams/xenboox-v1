@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
-import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  requireRole,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   mobileMoneyAccounts,
@@ -188,23 +193,17 @@ export const mobileMoneyRouter = router({
         await db
           .delete(mobileMoneyAccounts)
           .where(eq(mobileMoneyAccounts.id, input.id));
-        await db
-          .insert(auditLog)
-          .values({
-            entityId: ctx.entityId!,
-            userId: ctx.session!.user!.id!,
-            action: "mobileMoney.deleteAccount",
-            entityType: "mobile_money_account",
-            entityIdRef: input.id,
-            newValues: { accountName: acct.accountName },
-          });
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "mobileMoney.deleteAccount",
+          entityType: "mobile_money_account",
+          entityIdRef: input.id,
+          newValues: { accountName: acct.accountName },
+        });
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete mobile money account",
-        });
+        handleMutationError(error, "Failed to delete mobile money account");
       }
     }),
 
@@ -226,23 +225,17 @@ export const mobileMoneyRouter = router({
         await db
           .delete(mobileMoneyTransactions)
           .where(eq(mobileMoneyTransactions.id, input.id));
-        await db
-          .insert(auditLog)
-          .values({
-            entityId: ctx.entityId!,
-            userId: ctx.session!.user!.id!,
-            action: "mobileMoney.deleteTransaction",
-            entityType: "mobile_money_transaction",
-            entityIdRef: input.id,
-            newValues: { type: tx.type },
-          });
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "mobileMoney.deleteTransaction",
+          entityType: "mobile_money_transaction",
+          entityIdRef: input.id,
+          newValues: { type: tx.type },
+        });
         return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete transaction",
-        });
+        handleMutationError(error, "Failed to delete transaction");
       }
     }),
 });

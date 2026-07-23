@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, asc, lte, ilike, or, ne } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   conversations,
@@ -361,11 +365,7 @@ export const chatRouter = router({
           errors: result.errors,
         };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to send message",
-        });
+        handleMutationError(error, "Failed to send message");
       }
     }),
 
@@ -510,11 +510,7 @@ export const chatRouter = router({
 
         return newConversation;
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fork conversation",
-        });
+        handleMutationError(error, "Failed to fork conversation");
       }
     }),
 
