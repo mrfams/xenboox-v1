@@ -6,9 +6,11 @@ import {
   protectedProcedure,
 } from "@/lib/trpc/server";
 import {
-  orchestrate,
-  classifyUserMessage,
-} from "@xenboox/agents/core/orchestrator";
+  processChatInput,
+  seedDefaultThresholds,
+  runCFOPipeline,
+  createInputEvent,
+} from "@xenboox/agents/core/pipeline";
 import type { AgentTaskType } from "@xenboox/agents/core/orchestrator";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 
@@ -61,22 +63,29 @@ export const agentRouter = router({
           });
         }
 
-        const taskType = classifyUserMessage(input.message);
+        // Seed default thresholds (safe, idempotent)
+        seedDefaultThresholds().catch((e) =>
+          console.warn("[agent] Failed to seed confidence thresholds:", e),
+        );
 
-        const result = await orchestrate({
-          taskType,
+        // Use the full CFO Agent Pipeline
+        const result = await processChatInput({
+          userId: ctx.session!.user!.id!,
+          orgId: ctx.entityId!,
           entityId: ctx.entityId!,
           entityName: input.entityName,
           currency: input.currency,
-          input: { description: input.message },
+          message: input.message,
+          channel: "web_chat",
         });
 
         return {
-          taskId: result.taskId,
-          response: result.humanResponse ?? result.reasoning,
+          response: result.response,
           agentId: result.agentId,
           confidence: result.confidence,
           errors: result.errors,
+          decision: result.decision,
+          escalationItems: result.escalationItems,
         };
       } catch (error) {
         handleMutationError(error, "Agent processing failed");
@@ -106,24 +115,32 @@ export const agentRouter = router({
           });
         }
 
-        const result = await orchestrate({
-          taskType: input.taskType as AgentTaskType,
+        // Use the full CFO Agent Pipeline for invoke as well
+        const event = createInputEvent({
+          channel: "web_chat",
+          userId: ctx.session!.user!.id!,
+          orgId: ctx.entityId!,
           entityId: ctx.entityId!,
           entityName: input.entityName,
           currency: input.currency,
-          input: input.input,
+          rawContent: JSON.stringify(input.input),
         });
 
+        const pipelineResult = await runCFOPipeline(event);
+
         return {
-          taskId: result.taskId,
-          agentId: result.agentId,
-          tier: result.tier,
-          confidence: result.confidence,
-          reasoning: result.reasoning,
-          result: result.result,
-          humanResponse: result.humanResponse,
-          errors: result.errors,
-          duration: result.duration,
+          agentId: pipelineResult.auditEntry.agentId,
+          confidence:
+            pipelineResult.summaries.reduce((sum, s) => sum + s.confidence, 0) /
+            Math.max(pipelineResult.summaries.length, 1),
+          reasoning: pipelineResult.response,
+          result: pipelineResult.summaries,
+          humanResponse: pipelineResult.response,
+          errors: pipelineResult.summaries.flatMap((s) =>
+            s.escalations.map((e) => e.description),
+          ),
+          decision: pipelineResult.decision.action,
+          duration: pipelineResult.durationMs,
         };
       } catch (error) {
         handleMutationError(error, "Agent invocation failed");

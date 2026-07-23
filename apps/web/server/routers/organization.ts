@@ -4,6 +4,7 @@ import {
   router,
   protectedProcedure,
   publicProcedure,
+  mutateProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
@@ -17,6 +18,7 @@ import { bankAccounts } from "@xenboox/db/schema/treasury";
 import { invoicesAp, salesInvoices } from "@xenboox/db/schema/ap-ar";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { TRPCError } from "@trpc/server";
+import { runOnboardingPipeline } from "@xenboox/agents";
 
 export const organizationRouter = router({
   // ─── CURRENT USER ──────────────────────────────
@@ -472,5 +474,13 @@ export const organizationRouter = router({
         )
         .returning();
       return updated;
+    }),
+
+  // ─── Pipeline 6: Autonomous Onboarding ─────────────────────────────────
+
+  runOnboardingPipeline: mutateProcedure
+    .input(z.object({ entityName: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      return runOnboardingPipeline(ctx.entityId!, input.entityName);
     }),
 });

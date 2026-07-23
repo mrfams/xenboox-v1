@@ -9,6 +9,7 @@ import {
 import { db } from "@/lib/db";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
+import { entities } from "@xenboox/db/schema/organization";
 import { trialBalanceSnapshots } from "@xenboox/db/schema/accounting";
 import {
   chartOfAccounts,
@@ -17,6 +18,10 @@ import {
 } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
 import { triggerClient } from "@/lib/trigger";
+import {
+  executeClosePipeline,
+  getCloseStatus,
+} from "@xenboox/agents/core/close-pipeline";
 
 export const fiscalRouter = router({
   list: protectedProcedure
@@ -355,6 +360,81 @@ export const fiscalRouter = router({
         return { success: true };
       } catch (error) {
         handleMutationError(error, "Failed to delete fiscal period");
+      }
+    }),
+
+  /**
+   * Get the real-time close status for the current period.
+   * Returns step-by-step status for all 7 close steps.
+   */
+  getCloseStatus: protectedProcedure
+    .input(
+      z
+        .object({
+          periodId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return getCloseStatus(ctx.entityId!, input?.periodId);
+    }),
+
+  /**
+   * Initiate the autonomous close pipeline.
+   * Runs all 7 close steps with validation, department fan-out,
+   * automated adjustments, and period close.
+   */
+  initiateClose: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .input(
+      z.object({
+        periodId: z.string().uuid(),
+        triggerSource: z
+          .enum(["manual", "scheduled", "agent"])
+          .default("manual"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Fetch entity context
+        const entity = await db.query.entities.findFirst({
+          where: eq(entities.id, ctx.entityId!),
+        });
+
+        const result = await executeClosePipeline({
+          entityId: ctx.entityId!,
+          entityName: entity?.name ?? "Organization",
+          currency: entity?.currency ?? "GMD",
+          periodId: input.periodId,
+          userId: ctx.session!.user!.id!,
+          triggerSource: input.triggerSource,
+        });
+
+        // Log audit
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "close.initiateClose",
+          entityType: "fiscal_period",
+          entityIdRef: input.periodId,
+          newValues: {
+            triggerSource: input.triggerSource,
+            status: result.status,
+            stepsCompleted: result.steps.filter((s) => s.status === "completed")
+              .length,
+            errors: result.errors,
+          },
+        });
+
+        return {
+          status: result.status,
+          steps: result.steps,
+          errors: result.errors,
+          warnings: result.warnings,
+          overallConfidence: result.overallConfidence,
+        };
+      } catch (error) {
+        handleMutationError(error, "Failed to initiate close pipeline");
       }
     }),
 

@@ -39,7 +39,7 @@ const MFA_TOKEN_EXPIRY = "5m";
 const JWT_SECRET = new TextEncoder().encode(process.env.AUTH_SECRET);
 
 async function createMobileToken(payload: { sub: string; email: string }) {
-  return new SignJWT(payload)
+  return new SignJWT({ ...payload, purpose: "direct_auth" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(MOBILE_TOKEN_EXPIRY)

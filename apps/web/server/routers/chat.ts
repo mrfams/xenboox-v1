@@ -16,14 +16,10 @@ import {
 } from "@xenboox/db/schema/chat";
 import { users } from "@xenboox/db/schema/auth";
 import {
-  orchestrate,
-  classifyUserMessage,
-} from "@xenboox/agents/core/orchestrator";
-import {
-  getEnrichedEntityContext,
-  enrichPrompt,
-} from "@/lib/entity-context-enrichment";
-import { CFO_SYSTEM_PROMPT } from "@xenboox/agents/core/prompts";
+  processChatInput,
+  seedDefaultThresholds,
+} from "@xenboox/agents/core/pipeline";
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 
 export const chatRouter = router({
   /**
@@ -298,33 +294,27 @@ export const chatRouter = router({
           })
           .where(eq(conversations.id, input.conversationId));
 
-        // Load conversation history for context
-        const history = await db.query.chatMessages.findMany({
-          where: eq(chatMessages.conversationId, input.conversationId),
-          orderBy: (messages, { asc }) => [asc(messages.createdAt)],
-          limit: 50,
-        });
+        // Seed confidence thresholds if not yet seeded (safe, ON CONFLICT DO NOTHING)
+        seedDefaultThresholds().catch((e) =>
+          console.warn("[chat] Failed to seed confidence thresholds:", e),
+        );
 
-        // Fetch enriched entity context from database
+        // Fetch enriched entity context
         const entityCtx = await getEnrichedEntityContext(ctx.entityId!);
 
-        // Classify and route to agent
-        const taskType = classifyUserMessage(input.message);
-        const result = await orchestrate({
-          taskType,
+        // Use the full CFO Agent Pipeline
+        const pipelineResult = await processChatInput({
+          userId: ctx.session!.user!.id!,
+          orgId: ctx.entityId!, // entity is the org context for this user
           entityId: ctx.entityId!,
           entityName: entityCtx.entityName,
           currency: entityCtx.currency,
-          input: {
-            description: input.message,
-            conversationHistory: history.map((m) => ({
-              role: m.role,
-              content: m.content ?? "",
-            })),
-          },
+          message: input.message,
+          conversationId: input.conversationId,
+          channel: "web_chat",
         });
 
-        const responseContent = result.humanResponse ?? result.reasoning;
+        const responseContent = pipelineResult.response;
         const latencyMs = Date.now() - startTime;
 
         // Persist assistant message
@@ -335,14 +325,14 @@ export const chatRouter = router({
             role: "assistant",
             content: responseContent,
             status: "completed",
-            confidence: result.confidence,
-            agentModel: "claude-sonnet-4.6",
+            confidence: pipelineResult.confidence,
+            agentModel: "cfo-pipeline-v1",
             latencyMs,
             metadata: {
-              agentId: result.agentId,
-              tier: result.tier,
-              taskType,
-              errors: result.errors,
+              agentId: pipelineResult.agentId,
+              decision: pipelineResult.decision,
+              escalationItems: pipelineResult.escalationItems,
+              errors: pipelineResult.errors,
             },
           })
           .returning();
@@ -359,10 +349,10 @@ export const chatRouter = router({
         return {
           messageId: assistantMessage[0].id,
           content: responseContent,
-          confidence: result.confidence,
-          agentId: result.agentId,
+          confidence: pipelineResult.confidence,
+          agentId: pipelineResult.agentId,
           latencyMs,
-          errors: result.errors,
+          errors: pipelineResult.errors,
         };
       } catch (error) {
         handleMutationError(error, "Failed to send message");

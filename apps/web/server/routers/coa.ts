@@ -257,7 +257,33 @@ export const coaRouter = router({
             code: account.code,
             name: input.overrides?.[account.code]?.name ?? account.name,
             type: account.type,
-            subtype: account.subtype as any,
+            subtype: account.subtype as
+              | "current_asset"
+              | "fixed_asset"
+              | "bank_account"
+              | "cash"
+              | "accounts_receivable"
+              | "inventory"
+              | "prepaid"
+              | "current_liability"
+              | "long_term_liability"
+              | "accounts_payable"
+              | "tax_liability"
+              | "accrued_liability"
+              | "owner_equity"
+              | "retained_earnings"
+              | "current_year_earnings"
+              | "sales_revenue"
+              | "service_revenue"
+              | "other_income"
+              | "interest_income"
+              | "cost_of_goods_sold"
+              | "operating_expense"
+              | "payroll_expense"
+              | "tax_expense"
+              | "depreciation"
+              | "interest_expense"
+              | "other_expense",
             description: account.description,
           })
           .returning();

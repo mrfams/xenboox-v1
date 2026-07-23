@@ -60,6 +60,12 @@ export {
   DEPARTMENT_AGENTS,
   DEPARTMENT_CLOSE_TASK,
   ALL_DEPARTMENTS,
+  runReconciliationPipeline,
+  getReconciliationStatus,
+  runCashPipeline,
+  runReportingPipeline,
+  detectReportablePeriods,
+  runOnboardingPipeline,
 } from "./core";
 export type {
   ModelTier,
@@ -93,6 +99,18 @@ export type {
   DepartmentResult,
   EscalationAction,
   AgentDepartment,
+  BankReconciliationResult,
+  ReconciliationItemResult,
+  ReconciliationPipelineResult,
+  CashPipelineResult,
+  CashPosition,
+  ImprestStatus,
+  DiscrepancyItem,
+  ReportingPipelineResult,
+  ReportData,
+  ReportablePeriod,
+  OnboardingPipelineResult,
+  OnboardingStep,
 } from "./core";
 
 // ─── Eval Harness ────────────────────────────────────────────────────────────

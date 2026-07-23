@@ -5,6 +5,7 @@ import {
   router,
   protectedProcedure,
   requireRole,
+  mutateProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@xenboox/db/schema";
 import { auditLog } from "@xenboox/db/schema/documents";
 import { TRPCError } from "@trpc/server";
+import { runCashPipeline } from "@xenboox/agents";
 
 // ─── Cash Router ─────────────────────────────────────────────────────────────
 
@@ -531,5 +533,13 @@ export const cashRouter = router({
       } catch (error) {
         handleMutationError(error, "Failed to delete petty cash entry");
       }
+    }),
+
+  // ─── Pipeline 4: Cash & Imprest ────────────────────────────────────────
+
+  runCashPipeline: mutateProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .mutation(async ({ ctx }) => {
+      return runCashPipeline(ctx.entityId!);
     }),
 });

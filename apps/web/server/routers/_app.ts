@@ -23,6 +23,7 @@ import { integrationsRouter } from "./integrations";
 import { modelOpsRouter } from "./model-ops";
 import { auditRouter } from "./audit";
 import { ingestionRouter } from "./ingestion";
+import { approvalsRouter } from "./approvals";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -50,6 +51,7 @@ export const appRouter = router({
   modelOps: modelOpsRouter,
   audit: auditRouter,
   ingestion: ingestionRouter,
+  approvals: approvalsRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -17,6 +17,10 @@ import {
   bankConnections,
 } from "@xenboox/db/schema";
 import { TRPCError } from "@trpc/server";
+import {
+  runReconciliationPipeline,
+  getReconciliationStatus,
+} from "@xenboox/agents";
 
 export const treasuryRouter = router({
   listBankAccounts: protectedProcedure.query(({ ctx }) => {
@@ -658,4 +662,31 @@ export const treasuryRouter = router({
         handleMutationError(error, "Failed to delete reconciliation");
       }
     }),
+
+  // ─── Pipeline 3: Autonomous Bank Reconciliation ──────────────────────
+
+  /**
+   * Run the autonomous reconciliation pipeline.
+   * Optionally specify which bank accounts to reconcile.
+   */
+  runReconciliation: mutateProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .input(
+      z
+        .object({
+          bankAccountIds: z.array(z.string().uuid()).optional(),
+        })
+        .optional(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return runReconciliationPipeline(ctx.entityId!, input?.bankAccountIds);
+    }),
+
+  /**
+   * Get reconciliation status summary for all bank accounts.
+   * Does NOT run the pipeline — just reads current state.
+   */
+  getReconciliationStatus: protectedProcedure.query(async ({ ctx }) => {
+    return getReconciliationStatus(ctx.entityId!);
+  }),
 });

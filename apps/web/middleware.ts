@@ -99,15 +99,17 @@ export default auth(async (req) => {
   response.headers.set("x-nonce", nonce);
   response.headers.set("x-request-id", requestId);
 
-  // CSRF-style origin validation for mutations
-  if (isOnApi && isMutation) {
+  // CSRF-style origin validation for mutations (skip auth — Auth.js handles CSRF)
+  if (isOnApi && isMutation && !pathname.startsWith("/api/auth")) {
     if (!validateOrigin(req)) {
       return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
     }
   }
 
   // Rate limiting
-  if (isOnApi || isOnAuthRoute) {
+  // Skip rate limiting for auth callbacks — tRPC auth.login already validates
+  const isAuthCallback = pathname.startsWith("/api/auth/callback/credentials");
+  if ((isOnApi || isOnAuthRoute) && !isAuthCallback) {
     try {
       const limiter = await getRateLimiter();
       const ip = req.headers.get("x-forwarded-for") ?? "anonymous";
@@ -115,10 +117,7 @@ export default auth(async (req) => {
 
       let result: Awaited<ReturnType<typeof limiter.checkApiRateLimit>>;
 
-      if (
-        pathname === "/login" ||
-        pathname.startsWith("/api/auth/callback/credentials")
-      ) {
+      if (pathname === "/login") {
         result = await limiter.checkAuthLoginRateLimit(identifier);
         response.headers.set("X-RateLimit-Category", "auth-login");
       } else if (pathname === "/register") {

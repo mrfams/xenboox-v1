@@ -4,15 +4,18 @@ import {
   handleMutationError,
   router,
   protectedProcedure,
+  mutateProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, asc, inArray } from "drizzle-orm";
+import { runReportingPipeline, detectReportablePeriods } from "@xenboox/agents";
 import {
   chartOfAccounts,
   journalEntries,
   journalEntryLines,
   fiscalPeriods,
 } from "@xenboox/db/schema/accounting";
+import { entities } from "@xenboox/db/schema/organization";
 
 type AccountRow = {
   accountId: string;
@@ -291,4 +294,30 @@ export const reportsRouter = router({
       orderBy: [asc(fiscalPeriods.startDate)],
     });
   }),
+
+  getReportablePeriods: protectedProcedure.query(async ({ ctx }) => {
+    return detectReportablePeriods(ctx.entityId!);
+  }),
+
+  // ─── Pipeline 5: Autonomous Reporting ──────────────────────────────────
+
+  runReportingPipeline: mutateProcedure
+    .input(
+      z
+        .object({
+          periodId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const entity = await db.query.entities.findFirst({
+        where: eq(entities.id, ctx.entityId!),
+      });
+      return runReportingPipeline({
+        entityId: ctx.entityId!,
+        entityName: entity?.name ?? "Entity",
+        currency: entity?.currency ?? "GMD",
+        periodId: input?.periodId,
+      });
+    }),
 });

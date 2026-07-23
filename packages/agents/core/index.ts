@@ -153,3 +153,87 @@ export {
   ALL_DEPARTMENTS,
 } from "./registry";
 export type { AgentDepartment } from "./registry";
+
+// ─── Pipeline (CFO Agent Orchestration) ────────
+export {
+  runCFOPipeline,
+  processChatInput,
+  createInputEvent,
+  resolveIntent,
+  checkPermission,
+  evaluateConfidenceGate,
+  synthesizeResponse,
+  getConfidenceThreshold,
+  seedDefaultThresholds,
+  pushToApprovalQueue,
+  logRoutingDecision,
+  DEFAULT_THRESHOLDS,
+} from "./pipeline";
+export type {
+  InputEvent,
+  InputChannel,
+  IntentType,
+  ResolvedIntent,
+  SummaryObject,
+  ScopedTask,
+  PipelineDecision,
+  PipelineResponse,
+  EscalationItem as PipelineEscalationItem,
+} from "./pipeline";
+
+// ─── Session State Management ──────────────────
+export {
+  getOrCreateSession,
+  updateSessionAfterTurn,
+  resolveAmbiguousReference,
+  resetSession,
+} from "./session-state";
+export type { SessionContext, ConversationMemory } from "./session-state";
+
+// ─── Close Pipeline (Pipeline 2 of 6) ──────────
+export { executeClosePipeline, getCloseStatus } from "./close-pipeline";
+export type {
+  CloseState,
+  CloseStep,
+  CloseStepId,
+  CloseStepStatus,
+  CloseTriggerSource,
+} from "./close-pipeline";
+
+// ─── Reconciliation Pipeline (Pipeline 3 of 6) ────
+export {
+  runReconciliationPipeline,
+  getReconciliationStatus,
+} from "./reconciliation-pipeline";
+export type {
+  BankReconciliationResult,
+  ReconciliationItemResult,
+  ReconciliationPipelineResult,
+} from "./reconciliation-pipeline";
+
+// ─── Cash & Imprest Pipeline (Pipeline 4 of 6) ────
+export { runCashPipeline } from "./cash-pipeline";
+export type {
+  CashPipelineResult,
+  CashPosition,
+  ImprestStatus,
+  DiscrepancyItem,
+} from "./cash-pipeline";
+
+// ─── Reporting Pipeline (Pipeline 5 of 6) ──────────
+export {
+  runReportingPipeline,
+  detectReportablePeriods,
+} from "./reporting-pipeline";
+export type {
+  ReportingPipelineResult,
+  ReportData,
+  ReportablePeriod,
+} from "./reporting-pipeline";
+
+// ─── Onboarding Pipeline (Pipeline 6 of 6) ─────────
+export { runOnboardingPipeline } from "./onboarding-pipeline";
+export type {
+  OnboardingPipelineResult,
+  OnboardingStep,
+} from "./onboarding-pipeline";

@@ -9,21 +9,40 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui";
-import {
-  Building2,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  RefreshCw,
-  Unplug,
-} from "lucide-react";
+import { Building2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
+
+// ─── Mono Connect Types ────────────────────────────────────────────────
+
+declare global {
+  interface Window {
+    MonoConnect: new (config: MonoConnectConfig) => MonoConnectInstance;
+  }
+}
+
+interface MonoConnectConfig {
+  key: string;
+  onSuccess: (params: { code: string }) => void;
+  onClose: () => void;
+  onLoad?: () => void;
+  onEvent?: (event: string, data: Record<string, unknown>) => void;
+}
+
+interface MonoConnectInstance {
+  setup: (params: { institution?: string }) => void;
+  open: () => void;
+  close: () => void;
+}
+
+// ─── Props ──────────────────────────────────────────────────────────────
 
 interface ConnectBankProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+// ─── Supported Banks ────────────────────────────────────────────────────
 
 const GHANA_BANKS = [
   { id: "gtbank", name: "Guaranty Trust Bank (GTBank)" },
@@ -51,6 +70,25 @@ const GAMBIA_BANKS = [
   { id: "aboro_intl", name: "Aboro International" },
 ];
 
+// ─── Mono Connect Loader ───────────────────────────────────────────────
+
+function loadMonoConnectScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window.MonoConnect !== "undefined") {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://connect.mono.co/connect.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+}
+
+// ─── Component ──────────────────────────────────────────────────────────
+
 export function ConnectBankDialog({ open, onOpenChange }: ConnectBankProps) {
   const [step, setStep] = useState<
     "select" | "connecting" | "success" | "error"
@@ -64,43 +102,78 @@ export function ConnectBankDialog({ open, onOpenChange }: ConnectBankProps) {
   const completeConnection =
     trpc.integrations.completeBankConnection.useMutation();
 
+  // ── Load Mono Connect script on mount ────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    loadMonoConnectScript().then((loaded) => {
+      if (!cancelled && loaded) {
+        // Script loaded successfully — widget ready
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  // ── Get Mono public key ──────────────────────────────────────────────
+  const monoPublicKey = process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY;
+
   const handleConnect = useCallback(async () => {
     if (!selectedBank || !accountNumber.trim()) return;
 
     setStep("connecting");
     setErrorMessage("");
 
+    const bankInfo = [...GHANA_BANKS, ...GAMBIA_BANKS].find(
+      (b) => b.id === selectedBank,
+    );
+
     try {
-      // 1. Create pending connection
-      const bankInfo = [...GHANA_BANKS, ...GAMBIA_BANKS].find(
-        (b) => b.id === selectedBank,
-      );
-      const { connectionId, institutionId } =
-        await initiateConnection.mutateAsync({
-          institutionName: bankInfo?.name ?? selectedBank,
-          accountNumber: accountNumber.trim(),
-          institutionId: selectedBank,
-        });
-
-      // 2. In production, this would open Mono Connect popup
-      // For now, we simulate the OAuth flow
-      // In real implementation:
-      // const mono = new MonoConnect({ key: process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY })
-      // mono.setup({ institution_id: institutionId, onSuccess: (publicToken) => { ... } })
-
-      // Simulate successful connection after delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // 3. Complete the connection (in production, Mono callback provides the ID)
-      await completeConnection.mutateAsync({
-        connectionId,
-        providerConnectionId: `mono_${connectionId.slice(0, 8)}`,
-        accountName: bankInfo?.name,
-        currency: "GMD",
+      // 1. Create pending connection on backend
+      const { connectionId } = await initiateConnection.mutateAsync({
+        institutionName: bankInfo?.name ?? selectedBank,
+        accountNumber: accountNumber.trim(),
+        institutionId: selectedBank,
       });
 
-      setStep("success");
-      toast.success("Bank account connected successfully!");
+      // 2. Open Mono Connect widget
+      if (typeof window.MonoConnect !== "undefined" && monoPublicKey) {
+        const mono = new window.MonoConnect({
+          key: monoPublicKey,
+          onSuccess: async ({ code }) => {
+            // Mono returns an authorization code — use it to complete
+            await completeConnection.mutateAsync({
+              connectionId,
+              providerConnectionId: code,
+              accountName: bankInfo?.name,
+              currency: "GMD",
+            });
+            setStep("success");
+            toast.success("Bank account connected successfully!");
+          },
+          onClose: () => {
+            setStep("select");
+          },
+        });
+
+        mono.setup({});
+        mono.open();
+      } else {
+        // ── Fallback: Simulate if Mono CDN unavailable ─────────────────
+        console.warn(
+          "[mono] Mono Connect SDK not loaded — using simulation. Set NEXT_PUBLIC_MONO_PUBLIC_KEY to enable.",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await completeConnection.mutateAsync({
+          connectionId,
+          providerConnectionId: `mono_sim_${connectionId.slice(0, 8)}`,
+          accountName: bankInfo?.name,
+          currency: "GMD",
+        });
+        setStep("success");
+        toast.success("Bank account connected (simulation)");
+      }
     } catch (error) {
       setStep("error");
       setErrorMessage(
@@ -108,7 +181,13 @@ export function ConnectBankDialog({ open, onOpenChange }: ConnectBankProps) {
       );
       toast.error("Failed to connect bank account");
     }
-  }, [selectedBank, accountNumber, initiateConnection, completeConnection]);
+  }, [
+    selectedBank,
+    accountNumber,
+    initiateConnection,
+    completeConnection,
+    monoPublicKey,
+  ]);
 
   const handleClose = useCallback(() => {
     setStep("select");
