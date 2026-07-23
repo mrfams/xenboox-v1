@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": ["./.agents/skills"]
+  },
+  "permission": {
+    "skill": {
+      "*": "ask"
+    }
+  },
+  "mcp": {
+    "gbrain": {
+      "type": "local",
+      "command": ["npx", "-y", "gbrain", "serve"],
+      "environment": {
+        "GBRAIN_BRAIN_DIR": "${workspaceFolder}/.brain",
+        "GBRAIN_DB_PATH": "${workspaceFolder}/.brain/data"
+      }
+    },
+    "sequential-thinking": {
+      "type": "local",
+      "command": ["npx", "-y", "@anthropic/mcp-server-sequential-thinking"],
+      "enabled": false
+    },
+    "filesystem": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@anthropic/mcp-server-filesystem",
+        "${workspaceFolder}"
+      ],
+      "enabled": false
+    }
+  }
+}

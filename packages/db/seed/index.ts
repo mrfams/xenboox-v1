@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "../index";
 import { users } from "../schema/auth";
 import {
@@ -69,14 +71,20 @@ import {
   modelCostTracking,
 } from "../schema/models";
 
-// ─── IDs (deterministic for seeding) ─────────────────────────────
+const USER_ID = crypto.randomUUID();
+const ORG_ID = crypto.randomUUID();
+const ENTITY_ID = crypto.randomUUID();
 
-const USER_ID = "00000000-0000-0000-0000-000000000001";
-const ORG_ID = "00000000-0000-0000-0000-000000000002";
-const ENTITY_ID = "00000000-0000-0000-0000-000000000003";
+function seedUuid(type: string, n: number): string {
+  const hash = crypto.createHash("sha256").update(`${type}-${n}`).digest("hex");
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
 
 // Account IDs (deterministic)
-const A = (code: string) => `00000000-0000-0000-0000-00000000${code}`;
+const A = (code: string) => {
+  const hash = crypto.createHash("sha256").update(`acct-${code}`).digest("hex");
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+};
 
 const ACCT = {
   // Assets
@@ -329,6 +337,9 @@ const coa = [
 export async function seed() {
   console.log("Seeding database...");
 
+  // Clear existing seed data for clean re-seed
+  await db.execute(sql`TRUNCATE TABLE users, organizations, entities CASCADE`);
+
   // 1. User
   console.log("  Creating user...");
   await db
@@ -337,7 +348,9 @@ export async function seed() {
       id: USER_ID,
       name: "Demo User",
       email: "demo@xenboox.com",
-      passwordHash: "$2b$10$placeholder_hash_for_demo_only",
+      passwordHash:
+        "$2a$12$QrxmI9v0MpLRsg6gWTH7F./KZOQl3fOoJDHGI4VzjOV0LHcpMED/2",
+      emailVerified: new Date("2026-01-01"),
     })
     .onConflictDoNothing();
 
@@ -406,7 +419,7 @@ export async function seed() {
   console.log("  Creating fiscal periods...");
   const periodIds: string[] = [];
   for (let month = 1; month <= 12; month++) {
-    const pid = `00000000-0000-0000-0000-2026000000${String(month).padStart(2, "0")}`;
+    const pid = seedUuid("pd", month);
     periodIds.push(pid);
     const startDate = `2026-${String(month).padStart(2, "0")}-01`;
     const lastDay = new Date(2026, month, 0).getDate();
@@ -595,7 +608,7 @@ export async function seed() {
   ];
 
   for (const entry of journalData) {
-    const jeId = `00000000-0000-0000-0000-journal${String(entry.entryNumber).padStart(4, "0")}`;
+    const jeId = `${seedUuid("f0", entry.entryNumber)}`;
     await db
       .insert(journalEntries)
       .values({
@@ -648,7 +661,7 @@ export async function seed() {
 
   const supplierIds: string[] = [];
   for (let i = 0; i < supplierData.length; i++) {
-    const sid = `00000000-0000-0000-0000-supplier0000${i + 1}`;
+    const sid = `${seedUuid("a1", i + 1)}`;
     supplierIds.push(sid);
     await db
       .insert(suppliers)
@@ -685,7 +698,7 @@ export async function seed() {
 
   const customerIds: string[] = [];
   for (let i = 0; i < customerData.length; i++) {
-    const cid = `00000000-0000-0000-0000-customer0000${i + 1}`;
+    const cid = `${seedUuid("a2", i + 1)}`;
     customerIds.push(cid);
     await db
       .insert(customers)
@@ -727,7 +740,7 @@ export async function seed() {
   ];
 
   for (const inv of apInvoiceData) {
-    const invId = `00000000-0000-0000-0000-apinv${inv.invoiceNo.slice(-3)}`;
+    const invId = `${seedUuid("a3", parseInt(inv.invoiceNo.slice(-3)))}`;
     await db
       .insert(invoicesAp)
       .values({
@@ -772,7 +785,7 @@ export async function seed() {
   ];
 
   for (const inv of arInvoiceData) {
-    const invId = `00000000-0000-0000-0000-arinv${inv.invoiceNo.slice(-3)}`;
+    const invId = `${seedUuid("a4", parseInt(inv.invoiceNo.slice(-3)))}`;
     await db
       .insert(salesInvoices)
       .values({
@@ -837,7 +850,7 @@ export async function seed() {
 
   const employeeIds: string[] = [];
   for (let i = 0; i < employeeData.length; i++) {
-    const eid = `00000000-0000-0000-0000-employee00${String(i + 1).padStart(2, "0")}`;
+    const eid = `${seedUuid("a5", i + 1)}`;
     employeeIds.push(eid);
     const emp = employeeData[i];
     await db
@@ -917,7 +930,7 @@ export async function seed() {
 
   const assetIds: string[] = [];
   for (let i = 0; i < assetData.length; i++) {
-    const acid = `00000000-0000-0000-0000-asset0000${i + 1}`;
+    const acid = `${seedUuid("a6", i + 1)}`;
     assetIds.push(acid);
     const a = assetData[i];
     const cost = parseFloat(a.cost);
@@ -954,16 +967,17 @@ export async function seed() {
   // 14. Sample Warehouses & Inventory Items
   console.log("  Creating warehouses and inventory...");
   const warehouseIds: string[] = [];
-  for (const whName of ["Main Warehouse", "Brikama Store"]) {
-    const wid = `00000000-0000-0000-0000-warehouse${whName.slice(0, 4).toLowerCase()}`;
+  const whNames = ["Main Warehouse", "Brikama Store"];
+  for (let whi = 0; whi < whNames.length; whi++) {
+    const wid = seedUuid("a7", whi + 1);
     warehouseIds.push(wid);
     await db
       .insert(warehouses)
       .values({
         id: wid,
         entityId: ENTITY_ID,
-        name: whName,
-        location: whName === "Main Warehouse" ? "Serrekunda" : "Brikama",
+        name: whNames[whi],
+        location: whNames[whi] === "Main Warehouse" ? "Serrekunda" : "Brikama",
         isActive: true,
       })
       .onConflictDoNothing();
@@ -1014,7 +1028,7 @@ export async function seed() {
 
   const inventoryItemIds: string[] = [];
   for (let i = 0; i < inventoryData.length; i++) {
-    const iid = `00000000-0000-0000-0000-invitem0${i + 1}`;
+    const iid = `${seedUuid("a8", i + 1)}`;
     inventoryItemIds.push(iid);
     const item = inventoryData[i];
     await db
@@ -1059,7 +1073,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < bankAccountData.length; i++) {
-    const bid = `00000000-0000-0000-0000-bank0000${i + 1}`;
+    const bid = `${seedUuid("a9", i + 1)}`;
     bankAccountIds.push(bid);
     const b = bankAccountData[i];
     await db
@@ -1156,7 +1170,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < bankTxData.length; i++) {
-    const tid = `00000000-0000-0000-0000-btx000${String(i + 1).padStart(3, "0")}`;
+    const tid = `${seedUuid("b0", i + 1)}`;
     const tx = bankTxData[i];
     await db
       .insert(bankTransactions)
@@ -1213,7 +1227,7 @@ export async function seed() {
 
   const dedTypeIds: string[] = [];
   for (let i = 0; i < dedTypes.length; i++) {
-    const did = `00000000-0000-0000-0000-dedtype00${i + 1}`;
+    const did = `${seedUuid("b1", i + 1)}`;
     dedTypeIds.push(did);
     const d = dedTypes[i];
     await db
@@ -1260,7 +1274,7 @@ export async function seed() {
 
   const poIds: string[] = [];
   for (let i = 0; i < poData.length; i++) {
-    const pid = `00000000-0000-0000-0000-po0000${i + 1}`;
+    const pid = `${seedUuid("b2", i + 1)}`;
     poIds.push(pid);
     const p = poData[i];
     await db
@@ -1307,14 +1321,19 @@ export async function seed() {
   await db
     .update(invoicesAp)
     .set({ purchaseOrderId: poIds[0] })
-    .where({ entityId: ENTITY_ID } as any);
+    .where(
+      and(
+        eq(invoicesAp.entityId, ENTITY_ID),
+        eq(invoicesAp.invoiceNumber, "INV-2026-001"),
+      ),
+    );
 
   // 20. AR Invoice Lines
   console.log("  Creating AR invoice lines...");
   const arInvIds = [
-    `00000000-0000-0000-0000-arinv001`,
-    `00000000-0000-0000-0000-arinv002`,
-    `00000000-0000-0000-0000-arinv003`,
+    `${seedUuid("a4", 1)}`,
+    `${seedUuid("a4", 2)}`,
+    `${seedUuid("a4", 3)}`,
   ];
 
   const arLineData = [
@@ -1376,7 +1395,7 @@ export async function seed() {
   ];
 
   for (let r = 0; r < payrollRunData.length; r++) {
-    const rid = `00000000-0000-0000-0000-prun000${r + 1}`;
+    const rid = `${seedUuid("b3", r + 1)}`;
     runIds.push(rid);
     const run = payrollRunData[r];
     await db
@@ -1521,7 +1540,7 @@ export async function seed() {
   ];
 
   for (const entry of julyEntries) {
-    const jeId = `00000000-0000-0000-0000-journal${String(entry.entryNumber).padStart(4, "0")}`;
+    const jeId = `${seedUuid("f0", entry.entryNumber)}`;
     await db
       .insert(journalEntries)
       .values({
@@ -1657,7 +1676,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < invTxData.length; i++) {
-    const txid = `00000000-0000-0000-0000-itx000${String(i + 1).padStart(3, "0")}`;
+    const txid = `${seedUuid("c0", i + 1)}`;
     const tx = invTxData[i];
     await db
       .insert(inventoryTransactions)
@@ -1688,7 +1707,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < cashAccountData.length; i++) {
-    const cid = `00000000-0000-0000-0000-cash000${i + 1}`;
+    const cid = `${seedUuid("b4", i + 1)}`;
     cashAccountIds.push(cid);
     const c = cashAccountData[i];
     await db
@@ -1726,7 +1745,7 @@ export async function seed() {
 
   const imprestIds: string[] = [];
   for (let i = 0; i < imprestData.length; i++) {
-    const iid = `00000000-0000-0000-0000-imprest0${i + 1}`;
+    const iid = `${seedUuid("b5", i + 1)}`;
     imprestIds.push(iid);
     const imp = imprestData[i];
     const remaining = parseFloat(imp.amount) - parseFloat(imp.spent);
@@ -1783,7 +1802,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < receiptData.length; i++) {
-    const rid = `00000000-0000-0000-0000-receipt0${i + 1}`;
+    const rid = `${seedUuid("b6", i + 1)}`;
     const r = receiptData[i];
     await db
       .insert(imprestReceipts)
@@ -1838,7 +1857,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < pettyCashData.length; i++) {
-    const pid = `00000000-0000-0000-0000-pcl000${i + 1}`;
+    const pid = `${seedUuid("b7", i + 1)}`;
     const p = pettyCashData[i];
     await db
       .insert(pettyCashLedger)
@@ -1876,7 +1895,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < mmAccountData.length; i++) {
-    const mid = `00000000-0000-0000-0000-mm0000${i + 1}`;
+    const mid = `${seedUuid("b8", i + 1)}`;
     mmAccountIds.push(mid);
     const m = mmAccountData[i];
     await db
@@ -1954,7 +1973,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < mmTxData.length; i++) {
-    const tid = `00000000-0000-0000-0000-mmtx00${i + 1}`;
+    const tid = `${seedUuid("b9", i + 1)}`;
     const tx = mmTxData[i];
     const netAmount = parseFloat(tx.amount) - parseFloat(tx.fee);
     await db
@@ -1998,9 +2017,9 @@ export async function seed() {
   ];
 
   for (let i = 0; i < apPaymentData.length; i++) {
-    const pid = `00000000-0000-0000-0000-appay00${i + 1}`;
+    const pid = `${seedUuid("c1", i + 1)}`;
     const p = apPaymentData[i];
-    const invId = `00000000-0000-0000-0000-apinv${String(p.invoiceIdx + 1).padStart(3, "0")}`;
+    const invId = `${seedUuid("a3", p.invoiceIdx + 1)}`;
     await db
       .insert(paymentsAp)
       .values({
@@ -2036,9 +2055,9 @@ export async function seed() {
   ];
 
   for (let i = 0; i < arPaymentData.length; i++) {
-    const pid = `00000000-0000-0000-0000-arpay00${i + 1}`;
+    const pid = `${seedUuid("c2", i + 1)}`;
     const p = arPaymentData[i];
-    const invId = `00000000-0000-0000-0000-arinv${String(p.invoiceIdx + 1).padStart(3, "0")}`;
+    const invId = `${seedUuid("a4", p.invoiceIdx + 1)}`;
     await db
       .insert(paymentsAr)
       .values({
@@ -2057,9 +2076,9 @@ export async function seed() {
   // 34. AP Invoice Lines
   console.log("  Creating AP invoice lines...");
   const apInvIds = [
-    `00000000-0000-0000-0000-apinv001`,
-    `00000000-0000-0000-0000-apinv002`,
-    `00000000-0000-0000-0000-apinv003`,
+    `${seedUuid("a3", 1)}`,
+    `${seedUuid("a3", 2)}`,
+    `${seedUuid("a3", 3)}`,
   ];
 
   const apLineData = [
@@ -2129,7 +2148,7 @@ export async function seed() {
 
   const reconIds: string[] = [];
   for (let i = 0; i < reconData.length; i++) {
-    const rid = `00000000-0000-0000-0000-recon00${i + 1}`;
+    const rid = `${seedUuid("c3", i + 1)}`;
     reconIds.push(rid);
     const r = reconData[i];
     await db
@@ -2152,8 +2171,8 @@ export async function seed() {
   // 36. Reconciliation Items (matched bank transactions)
   console.log("  Creating reconciliation items...");
   for (let i = 0; i < 5; i++) {
-    const riid = `00000000-0000-0000-0000-ri${String(i + 1).padStart(4, "0")}`;
-    const txId = `00000000-0000-0000-0000-btx000${String(i + 1).padStart(3, "0")}`;
+    const riid = `${seedUuid("c8", i + 1)}`;
+    const txId = `${seedUuid("b0", i + 1)}`;
     await db
       .insert(reconciliationItems)
       .values({
@@ -2172,42 +2191,42 @@ export async function seed() {
     {
       name: "Invoice-SI-2026-001.pdf",
       type: "invoice" as const,
-      status: "done" as const,
+      status: "processed" as const,
       mimeType: "application/pdf",
       size: 245000,
     },
     {
       name: "Receipt-NAWEC-July.pdf",
       type: "receipt" as const,
-      status: "done" as const,
+      status: "processed" as const,
       mimeType: "application/pdf",
       size: 89000,
     },
     {
       name: "PO-2026-001.pdf",
       type: "po" as const,
-      status: "done" as const,
+      status: "processed" as const,
       mimeType: "application/pdf",
       size: 156000,
     },
     {
       name: "Employment-Contract-Ousman.pdf",
       type: "contract" as const,
-      status: "detected" as const,
+      status: "uploaded" as const,
       mimeType: "application/pdf",
       size: 340000,
     },
     {
       name: "Bank-Statement-Jun2026.pdf",
       type: "bank_statement" as const,
-      status: "synced" as const,
+      status: "processed" as const,
       mimeType: "application/pdf",
       size: 520000,
     },
     {
       name: "Payroll-June-2026.xlsx",
       type: "payroll_report" as const,
-      status: "detected" as const,
+      status: "uploaded" as const,
       mimeType:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       size: 78000,
@@ -2216,7 +2235,7 @@ export async function seed() {
 
   const docIds: string[] = [];
   for (let i = 0; i < docData.length; i++) {
-    const did = `00000000-0000-0000-0000-doc000${i + 1}`;
+    const did = `${seedUuid("c4", i + 1)}`;
     docIds.push(did);
     const d = docData[i];
     await db
@@ -2244,7 +2263,7 @@ export async function seed() {
     .values({
       documentId: docIds[0],
       entityType: "sales_invoice",
-      entityId: `00000000-0000-0000-0000-arinv001`,
+      entityId: `${seedUuid("a4", 1)}`,
     })
     .onConflictDoNothing();
 
@@ -2253,7 +2272,7 @@ export async function seed() {
     .values({
       documentId: docIds[2],
       entityType: "purchase_order",
-      entityId: `00000000-0000-0000-0000-po00001`,
+      entityId: `${seedUuid("b2", 1)}`,
     })
     .onConflictDoNothing();
 
@@ -2281,25 +2300,25 @@ export async function seed() {
     {
       action: "invoice_ap.created",
       entityType: "invoice_ap",
-      entityIdRef: `00000000-0000-0000-0000-apinv001`,
+      entityIdRef: `${seedUuid("a3", 1)}`,
       newValues: { total: "85000" },
     },
     {
       action: "invoice_ar.created",
       entityType: "invoice_ar",
-      entityIdRef: `00000000-0000-0000-0000-arinv001`,
+      entityIdRef: `${seedUuid("a4", 1)}`,
       newValues: { total: "175000" },
     },
     {
       action: "journal_entry.posted",
       entityType: "journal_entry",
-      entityIdRef: `00000000-0000-0000-0000-journal0001`,
+      entityIdRef: `${seedUuid("f0", 1)}`,
       newValues: { description: "Opening balances" },
     },
     {
       action: "payroll.run_approved",
       entityType: "payroll_run",
-      entityIdRef: `00000000-0000-0000-0000-prun0001`,
+      entityIdRef: `${seedUuid("b3", 1)}`,
       newValues: { period: "2026-06", net: "147050" },
     },
     {
@@ -2311,7 +2330,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < auditData.length; i++) {
-    const aid = `00000000-0000-0000-0000-audit00${i + 1}`;
+    const aid = `${seedUuid("c5", i + 1)}`;
     const a = auditData[i];
     await db
       .insert(auditLog)
@@ -2369,7 +2388,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < agentData.length; i++) {
-    const acid = `00000000-0000-0000-0000-agentact${String(i + 1).padStart(2, "0")}`;
+    const acid = `${seedUuid("c7", i + 1)}`;
     const a = agentData[i];
     await db
       .insert(agentActivity)
@@ -2421,7 +2440,7 @@ export async function seed() {
   ];
 
   for (let i = 0; i < exchangeData.length; i++) {
-    const eid = `00000000-0000-0000-0000-exrate0${i + 1}`;
+    const eid = `${seedUuid("c6", i + 1)}`;
     const e = exchangeData[i];
     await db
       .insert(exchangeRates)

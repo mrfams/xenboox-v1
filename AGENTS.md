@@ -284,15 +284,42 @@ Every plan MUST include ALL of these sections. No shortcuts.
 
 ---
 
+---
+
+## Skill Auto-Loading
+
+When starting a task, auto-load the relevant skill(s) from `.agents/skills/` based on task category:
+
+| Task Category               | Skill(s) to Load                                        | Source       |
+| --------------------------- | ------------------------------------------------------- | ------------ |
+| **Code review / PR review** | `review`, `code-review`                                 | gstack, Matt |
+| **Bug diagnosis**           | `diagnosing-bugs`                                       | Matt         |
+| **New feature (TDD)**       | `tdd`                                                   | Matt         |
+| **Architecture / planning** | `plan-eng-review`, `domain-modeling`, `grill-with-docs` | gstack, Matt |
+| **Security audit**          | `cso`                                                   | gstack       |
+| **QA testing**              | `qa`                                                    | gstack       |
+| **Product questioning**     | `office-hours`                                          | gstack       |
+| **Agent work**              | `agent-eval`                                            | xenboox      |
+| **Database migration**      | `create-migration`                                      | xenboox      |
+| **New API route**           | `create-api-route`                                      | xenboox      |
+| **New module**              | `create-module`                                         | xenboox      |
+| **New agent**               | `create-agent`                                          | xenboox      |
+| **Month-end close**         | `month-end-close`                                       | xenboox      |
+
+Load the skill via the `skill` tool before starting work. For multi-category tasks, load all relevant skills.
+
+---
+
 ## When Working on This Codebase
 
-1. **Follow the Build Workflow** — Plan, Approve, Build, Log. Every time.
-2. **Read BUILD_LOG.md first** — check what exists, what's next, and what's blocked.
-3. Read ARCHITECTURE.md for design decisions.
-4. Read DATABASE.md for schema details.
-5. Read the relevant agent spec in docs/agents/ before modifying agent code.
-6. Run `pnpm typecheck` and `pnpm lint` before committing.
-7. Run `pnpm test` if tests exist for the area you're changing.
-8. Follow the entity scoping rule — always.
-9. Keep the PRD as the source of truth for product decisions.
-10. **Update BUILD_LOG.md when done** — add a session entry, update module status, note next steps.
+1. **Auto-load relevant skills** — See Skill Auto-Loading section above. Load skills at session start based on task category.
+2. **Follow the Build Workflow** — Plan, Approve, Build, Log. Every time.
+3. **Read BUILD_LOG.md first** — check what exists, what's next, and what's blocked.
+4. Read ARCHITECTURE.md for design decisions.
+5. Read DATABASE.md for schema details.
+6. Read the relevant agent spec in docs/agents/ before modifying agent code.
+7. Run `pnpm typecheck` and `pnpm lint` before committing.
+8. Run `pnpm test` if tests exist for the area you're changing.
+9. Follow the entity scoping rule — always.
+10. Keep the PRD as the source of truth for product decisions.
+11. **Update BUILD_LOG.md when done** — add a session entry, update module status, note next steps.

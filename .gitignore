@@ -48,5 +48,14 @@ coverage/
 # LangFuse
 langfuse-data/
 
+# GBrain — brain DB data (not the markdown knowledge)
+.brain/data/
+.brain/*.db
+.brain/node_modules/
+
+# Agent skills cache
+~/.claude/skills/
+~/.config/opencode/skills/
+
 .vercel
 .env*

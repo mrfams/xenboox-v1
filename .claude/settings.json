@@ -1,0 +1,18 @@
+{
+  "skills": ["../.agents/skills"],
+  "mcpServers": {
+    "gbrain": {
+      "command": "npx",
+      "args": ["-y", "gbrain", "serve"],
+      "env": {
+        "GBRAIN_BRAIN_DIR": "${workspaceFolder}/.brain",
+        "GBRAIN_DB_PATH": "${workspaceFolder}/.brain/data"
+      }
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-server-sequential-thinking"],
+      "disabled": true
+    }
+  }
+}
