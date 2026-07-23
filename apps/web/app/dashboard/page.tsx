@@ -257,6 +257,7 @@ export default function DashboardPage() {
   const { entityId } = useEntity();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(true);
 
   const {
     data: arInvoices,
@@ -347,8 +348,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const [showOnboarding, setShowOnboarding] = useState(true);
 
   if (!hasData) {
     return (
