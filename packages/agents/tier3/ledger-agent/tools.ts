@@ -1,5 +1,5 @@
 import { db } from "@xenboox/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import {
   chartOfAccounts,
   journalEntries,
@@ -88,13 +88,17 @@ export async function validateAccountsExist(
   entries: PendingEntry["entries"],
   entityId: string,
 ): Promise<ValidationResult> {
+  const accountIds = [...new Set(entries.map((e) => e.accountId))];
+  const accounts = await db.query.chartOfAccounts.findMany({
+    where: and(
+      eq(chartOfAccounts.entityId, entityId),
+      inArray(chartOfAccounts.id, accountIds),
+    ),
+  });
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
   for (const entry of entries) {
-    const account = await db.query.chartOfAccounts.findFirst({
-      where: and(
-        eq(chartOfAccounts.id, entry.accountId),
-        eq(chartOfAccounts.entityId, entityId),
-      ),
-    });
+    const account = accountMap.get(entry.accountId);
     if (!account) {
       return {
         valid: false,
@@ -303,37 +307,54 @@ export async function generateTrialBalance(entityId: string, periodId: string) {
     ),
   });
 
-  const accountMap = new Map<
+  if (entries.length === 0) {
+    return {
+      periodId,
+      periodLabel: period
+        ? `${period.year}-${String(period.month).padStart(2, "0")}`
+        : "Unknown",
+      generatedAt: new Date().toISOString(),
+      accounts: [],
+      totalDebits: 0,
+      totalCredits: 0,
+      balanced: true,
+    };
+  }
+
+  const entryIds = entries.map((e) => e.id);
+  const allLines = await db.query.journalEntryLines.findMany({
+    where: inArray(journalEntryLines.journalEntryId, entryIds),
+  });
+
+  const accountIds = [...new Set(allLines.map((l) => l.accountId))];
+  const accountsData = await db.query.chartOfAccounts.findMany({
+    where: inArray(chartOfAccounts.id, accountIds),
+  });
+  const accountMap = new Map(accountsData.map((a) => [a.id, a]));
+
+  const accountTotals = new Map<
     string,
     { code: string; name: string; type: string; debit: number; credit: number }
   >();
 
-  for (const entry of entries) {
-    const lines = await db.query.journalEntryLines.findMany({
-      where: eq(journalEntryLines.journalEntryId, entry.id),
-    });
-
-    for (const line of lines) {
-      const existing = accountMap.get(line.accountId);
-      if (existing) {
-        existing.debit += Number(line.debit);
-        existing.credit += Number(line.credit);
-      } else {
-        const account = await db.query.chartOfAccounts.findFirst({
-          where: eq(chartOfAccounts.id, line.accountId),
-        });
-        accountMap.set(line.accountId, {
-          code: account?.code ?? "???",
-          name: account?.name ?? "Unknown",
-          type: account?.type ?? "asset",
-          debit: Number(line.debit),
-          credit: Number(line.credit),
-        });
-      }
+  for (const line of allLines) {
+    const existing = accountTotals.get(line.accountId);
+    if (existing) {
+      existing.debit += Number(line.debit);
+      existing.credit += Number(line.credit);
+    } else {
+      const acc = accountMap.get(line.accountId);
+      accountTotals.set(line.accountId, {
+        code: acc?.code ?? "???",
+        name: acc?.name ?? "Unknown",
+        type: acc?.type ?? "asset",
+        debit: Number(line.debit),
+        credit: Number(line.credit),
+      });
     }
   }
 
-  const accounts = Array.from(accountMap.entries()).map(
+  const accounts = Array.from(accountTotals.entries()).map(
     ([accountId, data]) => ({
       accountId,
       accountCode: data.code,

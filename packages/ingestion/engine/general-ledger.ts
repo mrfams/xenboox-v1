@@ -501,7 +501,7 @@ export async function listJournalEntries(
   entityId: string,
   options: {
     periodId?: string;
-    status?: string;
+    status?: "draft" | "pending_review" | "posted" | "reversed" | "voided";
     limit?: number;
     offset?: number;
     fromDate?: string;
@@ -542,22 +542,3 @@ export async function listJournalEntries(
 
   return { entries: details, total };
 }
-
-// ─── Barrel Export ──────────────────────────────────────────────────────────
-
-export type {
-  AccountBalance,
-  GLTransaction,
-  AccountHistory,
-  TopMovingAccount,
-  JournalEntryDetail,
-};
-
-export {
-  getAccountBalance,
-  getAccountHistory,
-  getTrialBalance,
-  getJournalEntryDetail,
-  getTopMovingAccounts,
-  listJournalEntries,
-};

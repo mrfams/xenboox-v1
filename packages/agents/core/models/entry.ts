@@ -1,16 +1,14 @@
-import { ModelRouter, getModelRouter } from "./router";
+import { getModelRouter } from "./router";
 import { getLangfuse } from "../langfuse";
 import type {
   CallModelParams,
   NormalizedModelResponse,
   ProviderId,
-  TaskType,
 } from "./types";
-import { getAssignment } from "./loader";
 import { isTaskTypeAllowedForAgent } from "../security";
 
 // Map task types to model tiers for default assignment when DB has no row
-const TASK_TO_DEFAULT_MODEL: Record<
+const _TASK_TO_DEFAULT_MODEL: Record<
   string,
   { model: string; provider: ProviderId }
 > = {
@@ -111,14 +109,6 @@ export async function callModel(
   const startTime = Date.now();
 
   try {
-    // Look up assignment from DB or use defaults
-    const defaultConfig = TASK_TO_DEFAULT_MODEL[params.taskType];
-    const assignment = await getAssignment(params.agentName, params.taskType);
-    const effectiveModel =
-      assignment?.liveModelId ?? defaultConfig?.model ?? "claude-haiku-4-5";
-    const effectiveProvider =
-      assignment?.liveProvider ?? defaultConfig?.provider ?? "anthropic";
-
     const result = await router.execute(
       params.agentName,
       params.taskType,

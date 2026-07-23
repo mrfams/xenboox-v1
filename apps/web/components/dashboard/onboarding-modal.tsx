@@ -313,7 +313,7 @@ export function OnboardingModal({
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          handleStepClick(step.href);
+                          handleStepClick(step.href!);
                         }}
                       >
                         {step.id === "bank" ? "Connect / Upload" : "Setup"}

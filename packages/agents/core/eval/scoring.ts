@@ -1,10 +1,11 @@
-import type {
-  EvalCase,
-  EvalResult,
-  SingleAgentEvalSummary,
-  EvalSuiteSummary,
-  FlowStepResult,
-  FlowEvalResult,
+import {
+  type EvalCase,
+  type EvalResult,
+  type EvalEscalationType,
+  type SingleAgentEvalSummary,
+  type EvalSuiteSummary,
+  type FlowStepResult,
+  type FlowEvalResult,
 } from "./types";
 
 export function scoreExactMatch(
@@ -98,8 +99,7 @@ export function buildEvalResult(
     actualOutput: agentResponse.result,
     expectedOutput: testCase.expectedOutput,
     outputMatch,
-    actualEscalation:
-      actualEscalationType as import("./types").EvalEscalationType,
+    actualEscalation: actualEscalationType as EvalEscalationType,
     expectedEscalation: testCase.expectedEscalation,
     escalationMatch,
     expectedEscalationTarget: testCase.expectedEscalationTarget,

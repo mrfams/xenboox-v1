@@ -74,7 +74,7 @@ describe("DEPARTMENT_AGENTS", () => {
   });
 
   it("each department maps to a valid agentId", () => {
-    for (const [dept, agentId] of Object.entries(DEPARTMENT_AGENTS)) {
+    for (const [_dept, agentId] of Object.entries(DEPARTMENT_AGENTS)) {
       expect(AGENT_REGISTRY[agentId]).toBeDefined();
     }
   });

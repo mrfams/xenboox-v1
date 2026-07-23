@@ -1,16 +1,7 @@
 import { db } from "@xenboox/db";
 import { eq, and } from "drizzle-orm";
-import {
-  documents,
-  documentLinks,
-  auditLog,
-} from "@xenboox/db/schema/documents";
-import type {
-  CurrentDocument,
-  ExtractionResult,
-  ClassificationResult,
-  LinkResult,
-} from "./state";
+import { documents, documentLinks } from "@xenboox/db/schema/documents";
+import type { ClassificationResult, LinkResult } from "./state";
 import { extractText } from "@xenboox/jobs/lib/ocr";
 import { classifyDocument } from "@xenboox/jobs/lib/classification";
 import { extractStructuredData } from "@xenboox/jobs/lib/extraction";

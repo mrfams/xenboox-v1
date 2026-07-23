@@ -751,7 +751,9 @@ async function answerWhatNeedsAttention(
 async function getCurrentPeriod(
   entityId: string,
   periodId?: string,
-): Promise<{ id: string; year: number; month: number; status: string } | null> {
+): Promise<
+  { id: string; year: number; month: number; status: string } | undefined
+> {
   if (periodId) {
     return db.query.fiscalPeriods.findFirst({
       where: and(
@@ -783,7 +785,9 @@ async function getPreviousPeriod(
   entityId: string,
   currentPeriodId?: string,
   specificPeriodId?: string,
-): Promise<{ id: string; year: number; month: number; status: string } | null> {
+): Promise<
+  { id: string; year: number; month: number; status: string } | undefined
+> {
   if (specificPeriodId) {
     return db.query.fiscalPeriods.findFirst({
       where: and(
@@ -793,7 +797,7 @@ async function getPreviousPeriod(
     });
   }
 
-  if (!currentPeriodId) return null;
+  if (!currentPeriodId) return undefined;
 
   const current = await db.query.fiscalPeriods.findFirst({
     where: and(
@@ -802,7 +806,7 @@ async function getPreviousPeriod(
     ),
   });
 
-  if (!current) return null;
+  if (!current) return undefined;
 
   const prevMonth = current.month === 1 ? 12 : current.month - 1;
   const prevYear = current.month === 1 ? current.year - 1 : current.year;
@@ -824,11 +828,3 @@ function formatCurrency(amount: number): string {
     maximumFractionDigits: 2,
   }).format(amount);
 }
-
-// ─── Barrel Export ──────────────────────────────────────────────────────────
-
-export type { FinancialAssistantResponse };
-
-export { askFinancialQuestion };
-
-export type { FinancialQuestion };

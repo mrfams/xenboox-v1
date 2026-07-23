@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type InvoiceStatus =
-  "draft" | "pending" | "partial" | "paid" | "overdue" | "cancelled";
+  "draft" | "pending" | "partial" | "paid" | "overdue" | "cancelled" | "voided";
 
 type Invoice = {
   id: string;
@@ -44,7 +44,7 @@ type CorrectionDialogProps = {
   type: "ar" | "ap";
 };
 
-const editableStatuses = ["pending", "partial", "overdue"];
+const editableStatuses = ["pending", "partial", "overdue"] as const;
 
 export function InvoiceCorrectionDialog({
   open,
@@ -94,7 +94,7 @@ export function InvoiceCorrectionDialog({
       dueDate: due,
       totalAmount: amount,
       notes: notes || undefined,
-      status: editableStatuses.includes(status)
+      status: ["pending", "partial", "overdue"].includes(status)
         ? (status as (typeof editableStatuses)[number])
         : undefined,
     });
@@ -163,10 +163,13 @@ export function InvoiceCorrectionDialog({
             />
           </div>
 
-          {editableStatuses.includes(invoice.status) && (
+          {["pending", "partial", "overdue"].includes(invoice.status) && (
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select
+                value={status}
+                onValueChange={(v) => setStatus(v as typeof status)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>

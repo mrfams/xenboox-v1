@@ -35,6 +35,132 @@ import {
 import { postJournalEntry } from "@xenboox/ingestion/engine/journal-generator";
 import { propagatePosting } from "@xenboox/ingestion/engine/propagation";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface PendingReviewItem {
+  id: string;
+  documentId: string;
+  name: string;
+  type: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  createdAt: string;
+  updatedAt: string | null;
+  confidence: number;
+  workflow: string;
+  action: string;
+  dominantSignal: string;
+  reviewItems: Array<Record<string, unknown>>;
+  classification: {
+    category: string;
+    confidence: number;
+  };
+  hasProposedEntry: boolean;
+}
+
+export interface PendingReviewsResponse {
+  items: PendingReviewItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ReviewDetailResponse {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  ocrText: string | null;
+  ocrConfidence: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  metadata: Record<string, unknown>;
+  review: {
+    confidence: number;
+    workflow: string;
+    action: string;
+    dominantSignal: string;
+    reason: string;
+    reviewItems: Array<Record<string, unknown>>;
+    proposedEntry: Record<string, unknown> | null;
+  };
+  classification: {
+    category: string;
+    confidence: number;
+    reasoning: string;
+  };
+  extraction: {
+    data: Record<string, unknown>;
+    fieldConfidence: Record<string, number>;
+    confidence: number;
+  };
+}
+
+export interface IngestionStatsResponse {
+  total: number;
+  autoPosted: number;
+  pendingReview: number;
+  failed: number;
+  processing: number;
+  autoPostRate: number;
+}
+
+export interface AgentApprovalItem {
+  id: string;
+  source: "agent";
+  title: string;
+  description: string;
+  confidence: number;
+  priority: "critical" | "high" | "medium" | "low";
+  type: string;
+  workflow: string;
+  documentName: string;
+  createdAt: string | Date;
+  metadata: Record<string, unknown>;
+}
+
+export interface AgentApprovalsResponse {
+  items: AgentApprovalItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface DashboardResponse {
+  stats: IngestionStatsResponse;
+  confidenceDistribution: {
+    excellent: number;
+    good: number;
+    fair: number;
+    low: number;
+    unknown: number;
+  };
+  workflowDistribution: Record<string, number>;
+  activityFeed: Array<{
+    id: string;
+    action: string;
+    agentName: string;
+    status: string;
+    input: Record<string, unknown> | null;
+    output: Record<string, unknown> | null;
+    confidence: number | null;
+    durationMs: number | null;
+    errorMessage: string | null;
+    createdAt: string;
+  }>;
+  recentEntries: Array<{
+    id: string;
+    entryNumber: number | null;
+    description: string;
+    date: string;
+    reference: string | null;
+    confidence: number | null;
+    postedAt: string | null;
+  }>;
+}
+
 // ─── Notification Helper ────────────────────────────────────────────────────
 
 /**
@@ -116,7 +242,7 @@ export const ingestionRouter = router({
         })
         .optional(),
     )
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }): Promise<PendingReviewsResponse> => {
       const { limit = 20, offset = 0, status = "all" } = input ?? {};
 
       // Find documents where ingestion metadata indicates pending review
@@ -157,8 +283,14 @@ export const ingestionRouter = router({
             type: doc.type,
             mimeType: doc.mimeType,
             sizeBytes: doc.sizeBytes,
-            createdAt: doc.createdAt,
-            updatedAt: doc.updatedAt,
+            createdAt:
+              doc.createdAt instanceof Date
+                ? doc.createdAt.toISOString()
+                : doc.createdAt,
+            updatedAt:
+              doc.updatedAt instanceof Date
+                ? doc.updatedAt.toISOString()
+                : (doc.updatedAt ?? null),
             confidence: (ingestion.confidence as number) ?? 0,
             workflow: (ingestion.workflow as string) ?? "unknown",
             action: (ingestion.action as string) ?? "pending_review",
@@ -200,7 +332,7 @@ export const ingestionRouter = router({
    */
   getReviewDetails: protectedProcedure
     .input(z.object({ documentId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }): Promise<ReviewDetailResponse> => {
       const doc = await db.query.documents.findFirst({
         where: and(
           eq(documents.id, input.documentId),
@@ -232,8 +364,14 @@ export const ingestionRouter = router({
         sizeBytes: doc.sizeBytes,
         ocrText: doc.ocrText,
         ocrConfidence: doc.ocrConfidence,
-        createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt,
+        createdAt:
+          doc.createdAt instanceof Date
+            ? doc.createdAt.toISOString()
+            : doc.createdAt,
+        updatedAt:
+          doc.updatedAt instanceof Date
+            ? doc.updatedAt.toISOString()
+            : (doc.updatedAt ?? null),
         metadata: meta,
         review: {
           confidence: (ingestion.confidence as number) ?? 0,
@@ -287,166 +425,176 @@ export const ingestionRouter = router({
         notes: z.string().max(500).optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      try {
-        const doc = await db.query.documents.findFirst({
-          where: and(
-            eq(documents.id, input.documentId),
-            eq(documents.entityId, ctx.entityId!),
-          ),
-        });
-
-        if (!doc) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Document not found",
+    .mutation(
+      async ({
+        ctx,
+        input,
+      }): Promise<{
+        success: boolean;
+        journalEntryId: string;
+        entryNumber: number | null;
+      }> => {
+        try {
+          const doc = await db.query.documents.findFirst({
+            where: and(
+              eq(documents.id, input.documentId),
+              eq(documents.entityId, ctx.entityId!),
+            ),
           });
-        }
 
-        const meta = (doc.metadata ?? {}) as Record<string, unknown>;
-        const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-        const proposedEntry = (ingestion.proposedEntry ?? {}) as Record<
-          string,
-          unknown
-        >;
-        const workflow = (ingestion.workflow as string) ?? "journal_adjustment";
+          if (!doc) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Document not found",
+            });
+          }
 
-        if (!proposedEntry || !proposedEntry.lines) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "No proposed journal entry found for this document",
+          const meta = (doc.metadata ?? {}) as Record<string, unknown>;
+          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+          const proposedEntry = (ingestion.proposedEntry ?? {}) as Record<
+            string,
+            unknown
+          >;
+          const workflow =
+            (ingestion.workflow as string) ?? "journal_adjustment";
+
+          if (!proposedEntry || !proposedEntry.lines) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "No proposed journal entry found for this document",
+            });
+          }
+
+          // Apply any user edits to the proposed entry
+          const entry = input.editedEntry
+            ? {
+                ...proposedEntry,
+                ...input.editedEntry,
+                lines: input.editedEntry.lines ?? proposedEntry.lines,
+              }
+            : proposedEntry;
+
+          // Validate the entry is balanced
+          const totalDebit = (
+            entry.lines as Array<{ debit: number; credit: number }>
+          ).reduce(
+            (s: number, l: { debit: number; credit: number }) => s + l.debit,
+            0,
+          );
+          const totalCredit = (
+            entry.lines as Array<{ debit: number; credit: number }>
+          ).reduce(
+            (s: number, l: { debit: number; credit: number }) => s + l.credit,
+            0,
+          );
+
+          if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Journal entry not balanced: debits ${totalDebit.toFixed(2)} != credits ${totalCredit.toFixed(2)}`,
+            });
+          }
+
+          // Determine the fiscal period
+          const entryDate =
+            (entry.date as string) ?? new Date().toISOString().split("T")[0];
+          const dateObj = new Date(entryDate);
+          const period = await db.query.fiscalPeriods.findFirst({
+            where: and(
+              eq(fiscalPeriods.entityId, ctx.entityId!),
+              eq(fiscalPeriods.year, dateObj.getFullYear()),
+              eq(fiscalPeriods.month, dateObj.getMonth() + 1),
+            ),
           });
-        }
 
-        // Apply any user edits to the proposed entry
-        const entry = input.editedEntry
-          ? {
-              ...proposedEntry,
-              ...input.editedEntry,
-              lines: input.editedEntry.lines ?? proposedEntry.lines,
-            }
-          : proposedEntry;
+          if (!period) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `No fiscal period found for date ${entryDate}. Create fiscal periods first.`,
+            });
+          }
 
-        // Validate the entry is balanced
-        const totalDebit = (
-          entry.lines as Array<{ debit: number; credit: number }>
-        ).reduce(
-          (s: number, l: { debit: number; credit: number }) => s + l.debit,
-          0,
-        );
-        const totalCredit = (
-          entry.lines as Array<{ debit: number; credit: number }>
-        ).reduce(
-          (s: number, l: { debit: number; credit: number }) => s + l.credit,
-          0,
-        );
+          // Post the journal entry
+          const { journalEntryId, entryNumber } = await postJournalEntry(
+            ctx.entityId!,
+            entry as any,
+            0.95, // User approval = high confidence
+            `user-${ctx.session!.user!.id}`,
+          );
 
-        if (Math.abs(totalDebit - totalCredit) > 0.01) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Journal entry not balanced: debits ${totalDebit.toFixed(2)} != credits ${totalCredit.toFixed(2)}`,
+          // Propagate to downstream modules
+          await propagatePosting(
+            ctx.entityId!,
+            entry as any,
+            workflow as any,
+            journalEntryId,
+          );
+
+          // Create document link
+          await db.insert(documentLinks).values({
+            documentId: doc.id,
+            entityType: "journal_entry",
+            entityId: journalEntryId,
           });
-        }
 
-        // Determine the fiscal period
-        const entryDate =
-          (entry.date as string) ?? new Date().toISOString().split("T")[0];
-        const dateObj = new Date(entryDate);
-        const period = await db.query.fiscalPeriods.findFirst({
-          where: and(
-            eq(fiscalPeriods.entityId, ctx.entityId!),
-            eq(fiscalPeriods.year, dateObj.getFullYear()),
-            eq(fiscalPeriods.month, dateObj.getMonth() + 1),
-          ),
-        });
+          // Update document status
+          await db
+            .update(documents)
+            .set({
+              status: "done",
+              metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{ingestion}', ${JSON.stringify(
+                {
+                  ...ingestion,
+                  resolvedAt: new Date().toISOString(),
+                  resolvedBy: ctx.session!.user!.id,
+                  resolvedAction: "approved",
+                  journalEntryId,
+                  entryNumber,
+                  notes: input.notes,
+                },
+              )}::jsonb)`,
+            } as any)
+            .where(eq(documents.id, doc.id));
 
-        if (!period) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `No fiscal period found for date ${entryDate}. Create fiscal periods first.`,
+          // Create audit log
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id,
+            action: "ingestion.approved",
+            entityType: "document",
+            entityIdRef: doc.id,
+            newValues: {
+              journalEntryId,
+              entryNumber,
+              workflow,
+              confidence: 0.95,
+              notes: input.notes,
+            },
+            confidence: "0.95",
           });
-        }
 
-        // Post the journal entry
-        const { journalEntryId, entryNumber } = await postJournalEntry(
-          ctx.entityId!,
-          entry as any,
-          0.95, // User approval = high confidence
-          `user-${ctx.session!.user!.id}`,
-        );
-
-        // Propagate to downstream modules
-        await propagatePosting(
-          ctx.entityId!,
-          entry as any,
-          workflow as any,
-          journalEntryId,
-        );
-
-        // Create document link
-        await db.insert(documentLinks).values({
-          documentId: doc.id,
-          entityType: "journal_entry",
-          entityId: journalEntryId,
-        });
-
-        // Update document status
-        await db
-          .update(documents)
-          .set({
-            status: "done",
-            metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{ingestion}', ${JSON.stringify(
-              {
-                ...ingestion,
-                resolvedAt: new Date().toISOString(),
-                resolvedBy: ctx.session!.user!.id,
-                resolvedAction: "approved",
-                journalEntryId,
-                entryNumber,
-                notes: input.notes,
-              },
-            )}::jsonb)`,
-          } as any)
-          .where(eq(documents.id, doc.id));
-
-        // Create audit log
-        await db.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id,
-          action: "ingestion.approved",
-          entityType: "document",
-          entityIdRef: doc.id,
-          newValues: {
+          // Send confirmation notification with journal entry link
+          await sendResolutionNotification(
+            ctx.entityId!,
+            ctx.session!.user!.id!,
+            doc.id,
+            "approved",
+            doc.name,
+            workflow,
             journalEntryId,
             entryNumber,
-            workflow,
-            confidence: 0.95,
-            notes: input.notes,
-          },
-          confidence: "0.95",
-        });
+          );
 
-        // Send confirmation notification with journal entry link
-        await sendResolutionNotification(
-          ctx.entityId!,
-          ctx.session!.user!.id,
-          doc.id,
-          "approved",
-          doc.name,
-          workflow,
-          journalEntryId,
-          entryNumber,
-        );
-
-        return {
-          success: true,
-          journalEntryId,
-          entryNumber,
-        };
-      } catch (error) {
-        handleMutationError(error, "Failed to approve review");
-      }
-    }),
+          return {
+            success: true,
+            journalEntryId,
+            entryNumber,
+          };
+        } catch (error) {
+          handleMutationError(error, "Failed to approve review");
+        }
+      },
+    ),
 
   /**
    * Reject a pending review. The document will not be posted.
@@ -458,7 +606,7 @@ export const ingestionRouter = router({
         reason: z.string().min(1).max(1000),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ ctx, input }): Promise<{ success: boolean }> => {
       try {
         const doc = await db.query.documents.findFirst({
           where: and(
@@ -511,7 +659,7 @@ export const ingestionRouter = router({
         // Send rejection notification with rerun action data
         await sendResolutionNotification(
           ctx.entityId!,
-          ctx.session!.user!.id,
+          ctx.session!.user!.id!,
           doc.id,
           "rejected",
           doc.name,
@@ -533,49 +681,61 @@ export const ingestionRouter = router({
    */
   rerunIngestion: protectedProcedure
     .input(z.object({ documentId: z.string().uuid() }))
-    .mutation(async ({ ctx, input }) => {
-      try {
-        const doc = await db.query.documents.findFirst({
-          where: and(
-            eq(documents.id, input.documentId),
-            eq(documents.entityId, ctx.entityId!),
-          ),
-        });
-
-        if (!doc) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Document not found",
+    .mutation(
+      async ({
+        ctx,
+        input,
+      }): Promise<{
+        success: boolean;
+        confidence: number;
+        action: string;
+        posted: boolean | undefined;
+        journalEntryId: string | undefined;
+        error: string | undefined;
+      }> => {
+        try {
+          const doc = await db.query.documents.findFirst({
+            where: and(
+              eq(documents.id, input.documentId),
+              eq(documents.entityId, ctx.entityId!),
+            ),
           });
+
+          if (!doc) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Document not found",
+            });
+          }
+
+          // Reset document to synced status
+          await db
+            .update(documents)
+            .set({
+              status: "synced",
+              metadata: sql`COALESCE(metadata, '{}'::jsonb) - 'ingestion'`,
+            } as any)
+            .where(eq(documents.id, doc.id));
+
+          // Run the ingestion pipeline again
+          const result = await runIngestionPipeline(
+            input.documentId,
+            ctx.entityId!,
+          );
+
+          return {
+            success: result.success,
+            confidence: result.confidence.overall,
+            action: result.postingDecision.action,
+            posted: result.postingResult?.posted,
+            journalEntryId: result.postingResult?.journalEntryId,
+            error: result.error,
+          };
+        } catch (error) {
+          handleMutationError(error, "Failed to rerun ingestion");
         }
-
-        // Reset document to synced status
-        await db
-          .update(documents)
-          .set({
-            status: "synced",
-            metadata: sql`COALESCE(metadata, '{}'::jsonb) - 'ingestion'`,
-          } as any)
-          .where(eq(documents.id, doc.id));
-
-        // Run the ingestion pipeline again
-        const result = await runIngestionPipeline(
-          input.documentId,
-          ctx.entityId!,
-        );
-
-        return {
-          success: result.success,
-          confidence: result.confidence.overall,
-          action: result.postingDecision.action,
-          posted: result.postingResult?.posted,
-          journalEntryId: result.postingResult?.journalEntryId,
-          error: result.error,
-        };
-      } catch (error) {
-        handleMutationError(error, "Failed to rerun ingestion");
-      }
-    }),
+      },
+    ),
 
   /**
    * Get ingestion statistics for the dashboard.
@@ -583,134 +743,140 @@ export const ingestionRouter = router({
   /**
    * Comprehensive dashboard data: stats, recent entries, confidence distribution, activity feed.
    */
-  getDashboard: protectedProcedure.query(async ({ ctx }) => {
-    // ── Pipeline Stats ──
-    const allDocs = await db.query.documents.findMany({
-      where: eq(documents.entityId, ctx.entityId!),
-    });
+  getDashboard: protectedProcedure.query(
+    async ({ ctx }): Promise<DashboardResponse> => {
+      // ── Pipeline Stats ──
+      const allDocs = await db.query.documents.findMany({
+        where: eq(documents.entityId, ctx.entityId!),
+      });
 
-    const total = allDocs.length;
-    const autoPosted = allDocs.filter((d) => {
-      const meta = (d.metadata ?? {}) as Record<string, unknown>;
-      const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-      return ingestion.action === "auto_post";
-    }).length;
-    const pendingReview = allDocs.filter((d) => {
-      const meta = (d.metadata ?? {}) as Record<string, unknown>;
-      const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-      return ingestion.requiresReview === true;
-    }).length;
-    const failed = allDocs.filter((d) => d.status === "failed").length;
-    const processing = allDocs.filter(
-      (d) =>
-        d.status === "processing" ||
-        d.status === "extracted" ||
-        d.status === "synced" ||
-        d.status === "agent_processing",
-    ).length;
-    const autoPostRate = total > 0 ? Math.round((autoPosted / total) * 100) : 0;
-
-    // ── Confidence Distribution ──
-    const configDistribution = {
-      excellent: allDocs.filter((d) => {
+      const total = allDocs.length;
+      const autoPosted = allDocs.filter((d) => {
         const meta = (d.metadata ?? {}) as Record<string, unknown>;
         const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-        return (ingestion.confidence as number) >= 0.95;
-      }).length,
-      good: allDocs.filter((d) => {
+        return ingestion.action === "auto_post";
+      }).length;
+      const pendingReview = allDocs.filter((d) => {
         const meta = (d.metadata ?? {}) as Record<string, unknown>;
         const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-        const c = ingestion.confidence as number;
-        return c >= 0.85 && c < 0.95;
-      }).length,
-      fair: allDocs.filter((d) => {
-        const meta = (d.metadata ?? {}) as Record<string, unknown>;
-        const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-        const c = ingestion.confidence as number;
-        return c >= 0.6 && c < 0.85;
-      }).length,
-      low: allDocs.filter((d) => {
-        const meta = (d.metadata ?? {}) as Record<string, unknown>;
-        const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-        const c = ingestion.confidence as number;
-        return c > 0 && c < 0.6;
-      }).length,
-      unknown: allDocs.filter((d) => {
-        const meta = (d.metadata ?? {}) as Record<string, unknown>;
-        const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-        return !ingestion.confidence;
-      }).length,
-    };
+        return ingestion.requiresReview === true;
+      }).length;
+      const failed = allDocs.filter((d) => d.status === "failed").length;
+      const processing = allDocs.filter(
+        (d) =>
+          d.status === "processing" ||
+          d.status === "extracted" ||
+          d.status === "synced" ||
+          d.status === "agent_processing",
+      ).length;
+      const autoPostRate =
+        total > 0 ? Math.round((autoPosted / total) * 100) : 0;
 
-    // ── Recent Activity Feed ──
-    const recentActivity = await db.query.agentActivity.findMany({
-      where: and(
-        eq(agentActivity.entityId, ctx.entityId!),
-        sql`${agentActivity.agentName} = 'ingestion-engine'`,
-      ),
-      orderBy: [desc(agentActivity.createdAt)],
-      limit: 30,
-    });
+      // ── Confidence Distribution ──
+      const configDistribution = {
+        excellent: allDocs.filter((d) => {
+          const meta = (d.metadata ?? {}) as Record<string, unknown>;
+          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+          return (ingestion.confidence as number) >= 0.95;
+        }).length,
+        good: allDocs.filter((d) => {
+          const meta = (d.metadata ?? {}) as Record<string, unknown>;
+          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+          const c = ingestion.confidence as number;
+          return c >= 0.85 && c < 0.95;
+        }).length,
+        fair: allDocs.filter((d) => {
+          const meta = (d.metadata ?? {}) as Record<string, unknown>;
+          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+          const c = ingestion.confidence as number;
+          return c >= 0.6 && c < 0.85;
+        }).length,
+        low: allDocs.filter((d) => {
+          const meta = (d.metadata ?? {}) as Record<string, unknown>;
+          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+          const c = ingestion.confidence as number;
+          return c > 0 && c < 0.6;
+        }).length,
+        unknown: allDocs.filter((d) => {
+          const meta = (d.metadata ?? {}) as Record<string, unknown>;
+          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+          return !ingestion.confidence;
+        }).length,
+      };
 
-    const activityFeed = recentActivity.map((act) => ({
-      id: act.id,
-      action: act.action,
-      agentName: act.agentName,
-      status: act.status,
-      input: act.input as Record<string, unknown> | null,
-      output: act.output as Record<string, unknown> | null,
-      confidence: act.confidence ? parseFloat(act.confidence) : null,
-      durationMs: act.durationMs,
-      errorMessage: act.errorMessage,
-      createdAt: act.createdAt,
-    }));
+      // ── Recent Activity Feed ──
+      const recentActivity = await db.query.agentActivity.findMany({
+        where: and(
+          eq(agentActivity.entityId, ctx.entityId!),
+          sql`${agentActivity.agentName} = 'ingestion-engine'`,
+        ),
+        orderBy: [desc(agentActivity.createdAt)],
+        limit: 30,
+      });
 
-    // ── Recent Auto-Posted Entries ──
-    const recentJournalEntries = await db.query.journalEntries.findMany({
-      where: and(
-        eq(journalEntries.entityId, ctx.entityId!),
-        eq(journalEntries.status, "posted"),
-        eq(journalEntries.source, "document_upload"),
-      ),
-      orderBy: [desc(journalEntries.createdAt)],
-      limit: 10,
-    });
+      const activityFeed = recentActivity.map((act) => ({
+        id: act.id,
+        action: act.action,
+        agentName: act.agentName,
+        status: act.status,
+        input: act.input as Record<string, unknown> | null,
+        output: act.output as Record<string, unknown> | null,
+        confidence: act.confidence ? parseFloat(act.confidence) : null,
+        durationMs: act.durationMs,
+        errorMessage: act.errorMessage,
+        createdAt:
+          act.createdAt instanceof Date
+            ? act.createdAt.toISOString()
+            : act.createdAt,
+      }));
 
-    // ── Workflow Distribution ──
-    const workflowCounts = allDocs.reduce(
-      (acc, doc) => {
-        const meta = (doc.metadata ?? {}) as Record<string, unknown>;
-        const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-        const workflow = (ingestion.workflow as string) ?? "unknown";
-        acc[workflow] = (acc[workflow] ?? 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
+      // ── Recent Auto-Posted Entries ──
+      const recentJournalEntries = await db.query.journalEntries.findMany({
+        where: and(
+          eq(journalEntries.entityId, ctx.entityId!),
+          eq(journalEntries.status, "posted"),
+          eq(journalEntries.source, "document_upload"),
+        ),
+        orderBy: [desc(journalEntries.createdAt)],
+        limit: 10,
+      });
 
-    return {
-      stats: {
-        total,
-        autoPosted,
-        pendingReview,
-        failed,
-        processing,
-        autoPostRate,
-      },
-      confidenceDistribution: configDistribution,
-      workflowDistribution: workflowCounts,
-      activityFeed,
-      recentEntries: recentJournalEntries.map((e) => ({
-        id: e.id,
-        entryNumber: e.entryNumber,
-        description: e.description,
-        date: e.date,
-        reference: e.reference,
-        confidence: e.confidence ? parseFloat(e.confidence) : null,
-        postedAt: e.postedAt?.toISOString() ?? null,
-      })),
-    };
-  }),
+      // ── Workflow Distribution ──
+      const workflowCounts = allDocs.reduce(
+        (acc, doc) => {
+          const meta = (doc.metadata ?? {}) as Record<string, unknown>;
+          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+          const workflow = (ingestion.workflow as string) ?? "unknown";
+          acc[workflow] = (acc[workflow] ?? 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+
+      return {
+        stats: {
+          total,
+          autoPosted,
+          pendingReview,
+          failed,
+          processing,
+          autoPostRate,
+        },
+        confidenceDistribution: configDistribution,
+        workflowDistribution: workflowCounts,
+        activityFeed,
+        recentEntries: recentJournalEntries.map((e) => ({
+          id: e.id,
+          entryNumber: e.entryNumber,
+          description: e.description,
+          date: e.date,
+          reference: e.reference,
+          confidence: e.confidence ? parseFloat(e.confidence) : null,
+          postedAt: e.postedAt?.toISOString() ?? null,
+        })),
+      };
+    },
+  ),
 
   /**
    * List agent-generated approval items.
@@ -731,7 +897,7 @@ export const ingestionRouter = router({
         })
         .optional(),
     )
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }): Promise<AgentApprovalsResponse> => {
       const { limit = 20, offset = 0 } = input ?? {};
 
       // Known agent names that can generate approval items
@@ -848,7 +1014,7 @@ export const ingestionRouter = router({
 
         // Priority based on confidence and action
         const isEscalation = reviewActions.includes(act.action);
-        const priority =
+        const priority: "critical" | "high" | "medium" | "low" =
           isEscalation || confidence < 0.4
             ? "critical"
             : confidence < 0.6
@@ -895,42 +1061,45 @@ export const ingestionRouter = router({
       };
     }),
 
-  getStats: protectedProcedure.query(async ({ ctx }) => {
-    const allDocs = await db.query.documents.findMany({
-      where: eq(documents.entityId, ctx.entityId!),
-    });
+  getStats: protectedProcedure.query(
+    async ({ ctx }): Promise<IngestionStatsResponse> => {
+      const allDocs = await db.query.documents.findMany({
+        where: eq(documents.entityId, ctx.entityId!),
+      });
 
-    const total = allDocs.length;
-    const autoPosted = allDocs.filter((d) => {
-      const meta = (d.metadata ?? {}) as Record<string, unknown>;
-      const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-      return ingestion.action === "auto_post";
-    }).length;
+      const total = allDocs.length;
+      const autoPosted = allDocs.filter((d) => {
+        const meta = (d.metadata ?? {}) as Record<string, unknown>;
+        const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+        return ingestion.action === "auto_post";
+      }).length;
 
-    const pendingReview = allDocs.filter((d) => {
-      const meta = (d.metadata ?? {}) as Record<string, unknown>;
-      const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-      return ingestion.requiresReview === true;
-    }).length;
+      const pendingReview = allDocs.filter((d) => {
+        const meta = (d.metadata ?? {}) as Record<string, unknown>;
+        const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
+        return ingestion.requiresReview === true;
+      }).length;
 
-    const failed = allDocs.filter((d) => d.status === "failed").length;
-    const processing = allDocs.filter(
-      (d) =>
-        d.status === "processing" ||
-        d.status === "extracted" ||
-        d.status === "synced" ||
-        d.status === "agent_processing",
-    ).length;
+      const failed = allDocs.filter((d) => d.status === "failed").length;
+      const processing = allDocs.filter(
+        (d) =>
+          d.status === "processing" ||
+          d.status === "extracted" ||
+          d.status === "synced" ||
+          d.status === "agent_processing",
+      ).length;
 
-    const autoPostRate = total > 0 ? Math.round((autoPosted / total) * 100) : 0;
+      const autoPostRate =
+        total > 0 ? Math.round((autoPosted / total) * 100) : 0;
 
-    return {
-      total,
-      autoPosted,
-      pendingReview,
-      failed,
-      processing,
-      autoPostRate,
-    };
-  }),
+      return {
+        total,
+        autoPosted,
+        pendingReview,
+        failed,
+        processing,
+        autoPostRate,
+      };
+    },
+  ),
 });

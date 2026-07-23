@@ -274,7 +274,8 @@ export const inventoryRouter = router({
           with: { user: true },
         });
         const recipientEmail =
-          ownerAccess?.user?.email ?? ctx.session!.user!.email!;
+          (ownerAccess?.user as { email?: string } | undefined)?.email ??
+          ctx.session!.user!.email!;
 
         return db.transaction(async (tx) => {
           const [txRecord] = await tx

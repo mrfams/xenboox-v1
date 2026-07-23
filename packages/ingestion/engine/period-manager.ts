@@ -22,7 +22,7 @@
  */
 
 import { db } from "@xenboox/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import {
   fiscalPeriods,
   periodStatusEnum,
@@ -174,10 +174,10 @@ async function openPeriod(
     };
   }
 
-  // Can open from "created" or "closed" status
-  if (period.status !== "created" && period.status !== "closed") {
+  // Can open from "closed" or "locked" status
+  if (!["closed", "locked"].includes(period.status)) {
     errors.push(
-      `Cannot open period in status "${period.status}". Period must be "created" or "closed" to open.`,
+      `Cannot open period in status "${period.status}". Period must be "closed" or "locked" to open.`,
     );
     return {
       success: false,
@@ -718,9 +718,3 @@ function formatCurrency(amount: number): string {
     currency: "USD",
   }).format(amount);
 }
-
-// ─── Barrel Export ──────────────────────────────────────────────────────────
-
-export type { PeriodSummary, PeriodActionResult, PeriodValidation };
-
-export { executePeriodAction, getPeriodSummary };

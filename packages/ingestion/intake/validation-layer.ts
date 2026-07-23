@@ -45,10 +45,10 @@ import type {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 /** Confidence threshold below which a field is flagged for review */
-const LOW_CONFIDENCE_THRESHOLD = 0.7;
+export const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
 /** Minimum required fields per document category */
-const REQUIRED_FIELDS: Record<string, string[]> = {
+export const REQUIRED_FIELDS: Record<string, string[]> = {
   invoice: [
     "vendorName",
     "invoiceNumber",
@@ -79,10 +79,10 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
 };
 
 /** Amount threshold that triggers mandatory human review (configurable per entity) */
-const DEFAULT_REVIEW_THRESHOLD = 10_000; // $10k
+export const DEFAULT_REVIEW_THRESHOLD = 10_000; // $10k
 
 /** Benford's Law expected digit distribution (first digit) */
-const BENFORD_DISTRIBUTION: Record<string, number> = {
+export const BENFORD_DISTRIBUTION: Record<string, number> = {
   "1": 0.301,
   "2": 0.176,
   "3": 0.125,
@@ -264,6 +264,7 @@ export async function runValidation(
 async function detectFraud(state: IngestionState): Promise<ValidationFlag[]> {
   const flags: ValidationFlag[] = [];
   const data = state.extraction.data;
+  const category = state.classification.category;
   const totalAmount = (data.totalAmount as number) ?? 0;
   const dataStr = JSON.stringify(data).toLowerCase();
 
@@ -632,14 +633,3 @@ function formatCurrency(amount: number): string {
     currency: "USD",
   }).format(amount);
 }
-
-// ─── Barrel Export ──────────────────────────────────────────────────────────
-
-export {
-  REQUIRED_FIELDS,
-  DEFAULT_REVIEW_THRESHOLD,
-  BENFORD_DISTRIBUTION,
-  LOW_CONFIDENCE_THRESHOLD,
-};
-
-export type { ValidationFlag };

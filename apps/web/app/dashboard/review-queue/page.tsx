@@ -5,6 +5,12 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Button, Badge, Card } from "@/components/ui";
 import { Skeleton } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
+import type {
+  PendingReviewsResponse,
+  ReviewDetailResponse,
+  IngestionStatsResponse,
+  PendingReviewItem,
+} from "@/server/routers/ingestion";
 import { formatDistanceToNow } from "date-fns";
 import {
   CheckCircle2,
@@ -32,11 +38,13 @@ export default function ReviewQueuePage() {
 
   // Queries
   const { data: stats, isLoading: statsLoading } =
-    trpc.ingestion.getStats.useQuery();
+    trpc.ingestion.getStats.useQuery<IngestionStatsResponse>();
   const { data: reviewsData, isLoading: reviewsLoading } =
-    trpc.ingestion.listPendingReviews.useQuery({ limit: 50 });
+    trpc.ingestion.listPendingReviews.useQuery<PendingReviewsResponse>({
+      limit: 50,
+    });
   const { data: reviewDetail, isLoading: detailLoading } =
-    trpc.ingestion.getReviewDetails.useQuery(
+    trpc.ingestion.getReviewDetails.useQuery<ReviewDetailResponse>(
       { documentId: selectedDoc! },
       { enabled: !!selectedDoc },
     );
@@ -252,9 +260,7 @@ function ReviewCard({
   isSelected,
   onSelect,
 }: {
-  item: NonNullable<
-    ReturnType<typeof trpc.ingestion.listPendingReviews.useQuery>["data"]
-  >["items"][number];
+  item: PendingReviewItem;
   isSelected: boolean;
   onSelect: () => void;
 }) {
@@ -332,9 +338,7 @@ function ReviewDetailPanel({
   isRejecting,
   isRerunning,
 }: {
-  detail: NonNullable<
-    ReturnType<typeof trpc.ingestion.getReviewDetails.useQuery>["data"]
-  >;
+  detail: ReviewDetailResponse;
   onApprove: (notes?: string) => void;
   onReject: (reason: string) => void;
   onRerun: () => void;

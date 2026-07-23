@@ -47,7 +47,7 @@ type Organization = {
   id: string;
   name: string;
   slug: string;
-  plan: string;
+  plan: (typeof PLAN_OPTIONS)[number]["value"];
   createdAt: string;
   owner?: { id: string; name?: string | null; email?: string | null } | null;
   entities?: Array<{ id: string; name: string }>;
@@ -346,7 +346,7 @@ export default function OrganizationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredOrgs.map((org: Organization) => (
+                    {filteredOrgs.map((org) => (
                       <TableRow key={org.id}>
                         <TableCell>
                           <div>
@@ -362,7 +362,19 @@ export default function OrganizationsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {org.owner?.name || org.owner?.email || "Unknown"}
+                          {(
+                            org.owner as {
+                              name?: string;
+                              email?: string;
+                            } | null
+                          )?.name ||
+                            (
+                              org.owner as {
+                                name?: string;
+                                email?: string;
+                              } | null
+                            )?.email ||
+                            "Unknown"}
                         </TableCell>
                         <TableCell>
                           <span className="flex items-center gap-1">
@@ -378,14 +390,14 @@ export default function OrganizationsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openEditDialog(org)}
+                              onClick={() => openEditDialog(org as any)}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openDeleteDialog(org)}
+                              onClick={() => openDeleteDialog(org as any)}
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>

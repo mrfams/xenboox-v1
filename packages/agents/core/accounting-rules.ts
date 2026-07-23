@@ -13,9 +13,8 @@
  * known-input/known-correct-output cases (golden dataset).
  */
 
-import { z } from "zod";
 import { db } from "@xenboox/db";
-import { eq, and, sql, desc, inArray } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import {
   journalEntryLines,
   journalEntries,
@@ -717,14 +716,15 @@ export async function matchReconciliation(
   const dateStartStr = dateStart.toISOString().split("T")[0]!;
   const dateEndStr = dateEnd.toISOString().split("T")[0]!;
 
-  // Get journal entries in the date window for this entity
+  // Get journal entries in the date window for this entity.
+  // Fetch all needed columns (date, description) in the initial query
+  // to avoid N+1 re-fetches in the scoring loop below.
   const entriesInWindow = await db.query.journalEntries.findMany({
     where: and(
       eq(journalEntries.entityId, entityId),
       sql`${journalEntries.date} >= ${dateStartStr}`,
       sql`${journalEntries.date} <= ${dateEndStr}`,
     ),
-    columns: { id: true },
     limit: 100,
   });
 
@@ -740,6 +740,9 @@ export async function matchReconciliation(
       ],
     };
   }
+
+  // Build a lookup map so the scoring loop below never re-queries
+  const entryMap = new Map(entriesInWindow.map((e) => [e.id, e]));
 
   // Fetch lines for those entries — we'll filter by amount in JS
   const potentialLines = await db.query.journalEntryLines.findMany({
@@ -760,10 +763,8 @@ export async function matchReconciliation(
       score += 0.5;
     }
 
-    // Check date proximity
-    const entry = await db.query.journalEntries.findFirst({
-      where: eq(journalEntries.id, line.journalEntryId),
-    });
+    // Check date proximity — O(1) lookup from pre-built map
+    const entry = entryMap.get(line.journalEntryId);
 
     if (entry) {
       const entryDate = new Date(entry.date);

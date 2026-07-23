@@ -34,9 +34,9 @@ type Assignment = {
   taskType: string;
   liveProvider: string;
   liveModelId: string;
-  fallbackModelId?: string;
-  fallbackProvider?: string;
-  trafficSplit?: Record<string, unknown>;
+  fallbackModelId: string | null;
+  fallbackProvider: string | null;
+  trafficSplit: Record<string, number> | null;
   isActive: boolean;
 };
 

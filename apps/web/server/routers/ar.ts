@@ -5,6 +5,7 @@ import {
   router,
   protectedProcedure,
   mutateProcedure,
+  paginationSchema,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -22,12 +23,16 @@ import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 
 export const arRouter = router({
   // ── Customers ──
-  listCustomers: protectedProcedure.query(({ ctx }) => {
-    return db.query.customers.findMany({
-      where: eq(customers.entityId, ctx.entityId!),
-      orderBy: [desc(customers.createdAt)],
-    });
-  }),
+  listCustomers: protectedProcedure
+    .input(paginationSchema)
+    .query(({ ctx, input }) => {
+      return db.query.customers.findMany({
+        where: eq(customers.entityId, ctx.entityId!),
+        orderBy: [desc(customers.createdAt)],
+        limit: input.limit,
+        offset: input.offset,
+      });
+    }),
 
   createCustomer: mutateProcedure
     .input(
@@ -112,12 +117,16 @@ export const arRouter = router({
     }),
 
   // ── Sales Invoices ──
-  listInvoices: protectedProcedure.query(({ ctx }) => {
-    return db.query.salesInvoices.findMany({
-      where: eq(salesInvoices.entityId, ctx.entityId!),
-      orderBy: [desc(salesInvoices.createdAt)],
-    });
-  }),
+  listInvoices: protectedProcedure
+    .input(paginationSchema)
+    .query(({ ctx, input }) => {
+      return db.query.salesInvoices.findMany({
+        where: eq(salesInvoices.entityId, ctx.entityId!),
+        orderBy: [desc(salesInvoices.createdAt)],
+        limit: input.limit,
+        offset: input.offset,
+      });
+    }),
 
   createInvoice: mutateProcedure
     .input(
@@ -252,12 +261,16 @@ export const arRouter = router({
     }),
 
   // ── AR Payments ──
-  listPayments: protectedProcedure.query(({ ctx }) => {
-    return db.query.paymentsAr.findMany({
-      where: eq(paymentsAr.entityId, ctx.entityId!),
-      orderBy: [desc(paymentsAr.createdAt)],
-    });
-  }),
+  listPayments: protectedProcedure
+    .input(paginationSchema)
+    .query(({ ctx, input }) => {
+      return db.query.paymentsAr.findMany({
+        where: eq(paymentsAr.entityId, ctx.entityId!),
+        orderBy: [desc(paymentsAr.createdAt)],
+        limit: input.limit,
+        offset: input.offset,
+      });
+    }),
 
   createPayment: mutateProcedure
     .input(

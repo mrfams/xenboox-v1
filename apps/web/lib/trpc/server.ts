@@ -8,6 +8,13 @@ import { idempotencyKeys } from "@xenboox/db/schema";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 
+export const paginationSchema = z.object({
+  limit: z.number().int().min(1).max(100).default(25),
+  offset: z.number().int().min(0).default(0),
+});
+
+export type PaginationInput = z.infer<typeof paginationSchema>;
+
 const cacheStore = new Map<string, { data: unknown; expiresAt: number }>();
 const CACHE_TTL_MS = 30_000;
 

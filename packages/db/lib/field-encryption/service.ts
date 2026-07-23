@@ -2,7 +2,7 @@ import { db } from "../../index";
 import { encryptedFields } from "../../schema/security";
 import { eq, and } from "drizzle-orm";
 import { encrypt, decrypt, hash } from "../encryption";
-import { getFieldConfig, getFieldsForTable } from "./config";
+import { getFieldsForTable } from "./config";
 
 const MASTER_PASSWORD =
   process.env.FIELD_ENCRYPTION_KEY ??

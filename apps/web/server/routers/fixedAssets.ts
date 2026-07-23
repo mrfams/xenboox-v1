@@ -121,7 +121,8 @@ export const fixedAssetsRouter = router({
           with: { user: true },
         });
         const recipientEmail =
-          ownerAccess?.user?.email ?? ctx.session!.user!.email!;
+          (ownerAccess?.user as { email?: string } | undefined)?.email ??
+          ctx.session!.user!.email!;
 
         getEnrichedEntityContext(ctx.entityId!)
           .then((entityCtx) => {

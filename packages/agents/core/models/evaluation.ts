@@ -11,11 +11,7 @@
  */
 
 import { db } from "@xenboox/db";
-import {
-  modelEvaluations,
-  modelAssignments,
-  modelRegistry,
-} from "@xenboox/db/schema";
+import { modelEvaluations, modelAssignments } from "@xenboox/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getModelRouter } from "./router";
 import type { ProviderId, TaskType } from "./types";
@@ -220,12 +216,10 @@ export async function runGate2(params: {
   });
 
   // Track comparisons
-  let totalComparisons = 0;
-  let agreements = 0;
+  const totalComparisons = 0;
+  const agreements = 0;
 
   // Shadow mode runs until minimum sample is reached or duration expires
-  const startTime = Date.now();
-  const maxDuration = (params.durationDays ?? 14) * 24 * 60 * 60 * 1000;
 
   // In a real implementation, this would hook into the live traffic pipeline
   // and run the candidate model alongside the live model without writing to DB.
@@ -307,7 +301,6 @@ export async function runGate3(params: {
   taskType: string;
   trafficPercent?: number;
 }): Promise<{ passed: boolean }> {
-  const thresholds = getThresholds(params.agentName, params.taskType);
   const trafficPercent = params.trafficPercent ?? 5;
   const incumbentModel = "claude-sonnet-4-6";
 
@@ -495,7 +488,7 @@ async function loadGoldDataset(
 ): Promise<GoldTestCase[]> {
   try {
     // Try loading from datasets directory
-    const path = customPath ?? `../../datasets/${agentName}/${taskType}.json`;
+    const _path = customPath ?? `../../datasets/${agentName}/${taskType}.json`;
     // In production, this would load from a pre-compiled golden dataset
     // For now, return a minimal default set
     return getDefaultTestCases(agentName, taskType);

@@ -152,7 +152,7 @@ export default function COAPage() {
       }));
   }
 
-  const filtered = filterByType(accounts ?? [], activeType);
+  const filtered = filterByType((accounts ?? []) as Account[], activeType);
 
   return (
     <div className="space-y-6">

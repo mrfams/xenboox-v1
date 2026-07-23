@@ -112,7 +112,8 @@ export default function UsersPage() {
     offset: page * PAGE_SIZE,
     search: search || undefined,
   });
-  const { data: orgs } = trpc.admin.listOrganizations.useQuery();
+  const { data: orgsData } = trpc.admin.listOrganizations.useQuery({});
+  const orgs = orgsData?.items ?? [];
 
   const createMutation = trpc.admin.createUser.useMutation({
     onSuccess: () => {
@@ -192,7 +193,8 @@ export default function UsersPage() {
     setEditForm({
       name: user.name || "",
       email: user.email || "",
-      role: access?.role || "employee",
+      role: (access?.role ||
+        "employee") as (typeof ROLE_OPTIONS)[number]["value"],
       entityId: access?.entityId || defaultEntityId,
     });
     setOpenEdit(true);
@@ -413,7 +415,7 @@ export default function UsersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user: User) => (
+                    {filteredUsers.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">
                           {user.name || "Unnamed User"}
@@ -431,11 +433,12 @@ export default function UsersPage() {
                                   {access.role?.replace("_", " ")}
                                 </Badge>
                               ))}
-                            {user.userEntityAccess?.length > 2 && (
-                              <Badge variant="outline">
-                                +{user.userEntityAccess.length - 2} more
-                              </Badge>
-                            )}
+                            {user.userEntityAccess &&
+                              user.userEntityAccess.length > 2 && (
+                                <Badge variant="outline">
+                                  +{user.userEntityAccess.length - 2} more
+                                </Badge>
+                              )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -457,14 +460,18 @@ export default function UsersPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openEditDialog(user)}
+                              onClick={() =>
+                                openEditDialog(user as unknown as User)
+                              }
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openDeleteDialog(user)}
+                              onClick={() =>
+                                openDeleteDialog(user as unknown as User)
+                              }
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>

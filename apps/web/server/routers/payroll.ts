@@ -287,7 +287,7 @@ export const payrollRouter = router({
       z.object({
         id: z.string().uuid(),
         status: z
-          .enum(["draft", "processing", "completed", "cancelled"])
+          .enum(["draft", "validated", "approved", "paid", "closed"])
           .optional(),
         notes: z.string().optional(),
       }),
@@ -353,6 +353,8 @@ export const payrollRouter = router({
     .input(
       z.object({
         name: z.string().min(1),
+        code: z.string().min(1),
+        type: z.enum(["tax", "social_security", "benefit", "loan", "other"]),
         description: z.string().optional(),
         isMandatory: z.boolean().default(false),
         isPercentage: z.boolean().default(false),

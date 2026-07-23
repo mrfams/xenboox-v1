@@ -1,6 +1,6 @@
-import { Annotation } from "@langchain/langgraph"
-import { z } from "zod"
-import type { AuditEntry } from "../../core/state"
+import { Annotation } from "@langchain/langgraph";
+import { z } from "zod";
+import type { AuditEntry } from "../../core/state";
 
 export const CfoTaskTypeEnum = z.enum([
   "instruction",
@@ -9,14 +9,14 @@ export const CfoTaskTypeEnum = z.enum([
   "escalation_review",
   "error_recovery",
   "report_request",
-])
+]);
 
 export const CfoTaskStatusEnum = z.enum([
   "pending",
   "in_progress",
   "awaiting_human",
   "completed",
-])
+]);
 
 export const CfoCloseStatusEnum = z.enum([
   "not_started",
@@ -26,16 +26,18 @@ export const CfoCloseStatusEnum = z.enum([
   "closing",
   "closed",
   "reopened",
-])
+]);
 
 export const DepartmentConfirmationSchema = z.object({
   confirmed: z.boolean(),
   summary: z.string().nullable(),
   confidence: z.number().min(0).max(1).nullable(),
   confirmedAt: z.string().nullable(),
-})
+});
 
-export type DepartmentConfirmation = z.infer<typeof DepartmentConfirmationSchema>
+export type DepartmentConfirmation = z.infer<
+  typeof DepartmentConfirmationSchema
+>;
 
 export const EscalationItemSchema = z.object({
   id: z.string().uuid(),
@@ -46,16 +48,16 @@ export const EscalationItemSchema = z.object({
   createdAt: z.string(),
   resolvedAt: z.string().nullable(),
   resolution: z.string().nullable(),
-})
+});
 
-export type EscalationItem = z.infer<typeof EscalationItemSchema>
+export type EscalationItem = z.infer<typeof EscalationItemSchema>;
 
-const defaultDepartmentConfirmation = (): DepartmentConfirmation => ({
+const _defaultDepartmentConfirmation = (): DepartmentConfirmation => ({
   confirmed: false,
   summary: null,
   confidence: null,
   confirmedAt: null,
-})
+});
 
 export const CfoState = Annotation.Root({
   // Entity context
@@ -65,28 +67,28 @@ export const CfoState = Annotation.Root({
 
   // Current task
   currentTask: Annotation<{
-    type: z.infer<typeof CfoTaskTypeEnum>
-    description: string
-    assignedAt: string
-    status: z.infer<typeof CfoTaskStatusEnum>
+    type: z.infer<typeof CfoTaskTypeEnum>;
+    description: string;
+    assignedAt: string;
+    status: z.infer<typeof CfoTaskStatusEnum>;
   } | null>,
 
   // Department confirmations (during close)
   departmentStatus: Annotation<{
-    controller: DepartmentConfirmation
-    treasury: DepartmentConfirmation
-    payrollManager: DepartmentConfirmation
-    compliance: DepartmentConfirmation
+    controller: DepartmentConfirmation;
+    treasury: DepartmentConfirmation;
+    payrollManager: DepartmentConfirmation;
+    compliance: DepartmentConfirmation;
   } | null>,
 
   // Close state
   closeState: Annotation<{
-    period: string
-    status: z.infer<typeof CfoCloseStatusEnum>
-    initiatedAt: string | null
-    closedAt: string | null
-    approvedByHuman: boolean
-    reopenCount: number
+    period: string;
+    status: z.infer<typeof CfoCloseStatusEnum>;
+    initiatedAt: string | null;
+    closedAt: string | null;
+    approvedByHuman: boolean;
+    reopenCount: number;
   } | null>,
 
   // Escalation queue
@@ -114,6 +116,6 @@ export const CfoState = Annotation.Root({
     reducer: (curr, prev) => [...curr, ...prev],
     default: () => [],
   }),
-})
+});
 
-export type CfoStateType = typeof CfoState.State
+export type CfoStateType = typeof CfoState.State;

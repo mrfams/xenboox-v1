@@ -453,10 +453,4 @@ function formatBytes(bytes: number): string {
 
 export type { DuplicateResult };
 
-export {
-  ALLOWED_MIME_TYPES,
-  MAX_FILE_SIZES,
-  RATE_LIMIT_UPLOADS,
-  RATE_LIMIT_WINDOW_MS,
-  VIRUS_SCAN_SIZE_THRESHOLD,
-};
+export { RATE_LIMIT_UPLOADS, RATE_LIMIT_WINDOW_MS, VIRUS_SCAN_SIZE_THRESHOLD };

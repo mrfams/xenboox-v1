@@ -4,7 +4,6 @@ import type {
   ModelAssignmentRecord,
   ModelRegistryEntry,
   RouteHealth,
-  ProviderAdapter,
 } from "./types";
 import { getAdapter } from "./adapters";
 import { db } from "@xenboox/db";
@@ -145,7 +144,7 @@ export class ModelRouter {
   async getRoutes(
     agentName: string,
     taskType: string,
-    entityId: string,
+    _entityId: string,
   ): Promise<ProviderRoute[]> {
     await this.refreshCache();
     const assignment = await this.getAssignment(agentName, taskType);

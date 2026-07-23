@@ -601,7 +601,7 @@ async function checkFraud(entityId: string): Promise<FraudCheck> {
   items.push(...duplicatePatterns);
 
   // ── Unusual Velocity ──
-  const velocityFlag = checkSubmissionVelocity(entityId);
+  const velocityFlag = await checkSubmissionVelocity(entityId);
   if (velocityFlag) items.push(velocityFlag);
 
   const criticalFlags = items.filter(
@@ -1200,19 +1200,3 @@ function formatCurrency(amount: number): string {
     currency: "USD",
   }).format(Math.abs(amount));
 }
-
-// ─── Barrel Export ──────────────────────────────────────────────────────────
-
-export type {
-  MonitoringReport,
-  ReconciliationCheck,
-  AnomalyCheck,
-  AnomalyItem,
-  FraudCheck,
-  FraudFlagItem,
-  MissingDocumentCheck,
-  TrendCheck,
-  CashFlowCheck,
-};
-
-export { runMonitoringCycle };

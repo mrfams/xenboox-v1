@@ -1,62 +1,73 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useParams } from "next/navigation"
-import { trpc } from "@/lib/trpc/client"
-import { DetailShell } from "@/components/dashboard/detail-shell"
-import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
-import { EditAccountDialog } from "./edit-dialog"
-import { Badge, Button } from "@/components/ui"
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui"
-import { Pencil, Power } from "lucide-react"
-import { TableSkeleton } from "@/components/shared/loading"
-import { formatDate, formatCurrency } from "@/lib/utils"
-import { toast } from "sonner"
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { DetailShell } from "@/components/dashboard/detail-shell";
+import { ConfirmDialog } from "@/components/dashboard/confirm-dialog";
+import { EditAccountDialog, type Account } from "./edit-dialog";
+import { Badge, Button } from "@/components/ui";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui";
+import { Pencil, Power } from "lucide-react";
+import { TableSkeleton } from "@/components/shared/loading";
+import { formatDate, formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 
 const typeColors: Record<string, string> = {
   asset: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   liability: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  equity: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  revenue: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  expense: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-}
+  equity:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  revenue:
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  expense:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+};
 
 export default function AccountDetailPage() {
-  const params = useParams()
-  const id = params.id as string
+  const params = useParams();
+  const id = params.id as string;
 
-  const { data: account, isLoading } = trpc.coa.getById.useQuery({ id })
-  const utils = trpc.useUtils()
+  const { data: account, isLoading } = trpc.coa.getById.useQuery({ id });
+  const utils = trpc.useUtils();
 
-  const [editOpen, setEditOpen] = useState(false)
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const toggleActive = trpc.coa.update.useMutation({
     onSuccess: () => {
-      toast.success(account?.isActive ? "Account deactivated" : "Account activated")
-      utils.coa.getById.invalidate({ id })
-      utils.coa.listHierarchy.invalidate()
+      toast.success(
+        account?.isActive ? "Account deactivated" : "Account activated",
+      );
+      utils.coa.getById.invalidate({ id });
+      utils.coa.listHierarchy.invalidate();
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
   if (isLoading) {
     return (
-      <DetailShell
-        title="Account Details"
-        backHref="/dashboard/coa"
-      >
+      <DetailShell title="Account Details" backHref="/dashboard/coa">
         <TableSkeleton rows={4} columns={2} />
       </DetailShell>
-    )
+    );
   }
 
   if (!account) {
     return (
       <DetailShell title="Account not found" backHref="/dashboard/coa">
-        <p className="text-muted-foreground">The requested account does not exist.</p>
+        <p className="text-muted-foreground">
+          The requested account does not exist.
+        </p>
       </DetailShell>
-    )
+    );
   }
 
   return (
@@ -121,7 +132,7 @@ export default function AccountDetailPage() {
       <EditAccountDialog
         open={editOpen}
         onOpenChange={setEditOpen}
-        account={account}
+        account={account as Account}
       />
 
       <ConfirmDialog
@@ -140,10 +151,10 @@ export default function AccountDetailPage() {
           toggleActive.mutate({
             id: account.id,
             isActive: !account.isActive,
-          })
-          setConfirmOpen(false)
+          });
+          setConfirmOpen(false);
         }}
       />
     </DetailShell>
-  )
+  );
 }
