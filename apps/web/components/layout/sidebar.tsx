@@ -24,6 +24,7 @@ import {
   ScrollText,
   AlertCircle,
   Receipt,
+  Zap,
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
@@ -42,6 +43,12 @@ type NavItem = {
 
 const primaryNav: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: LayoutDashboard },
+  {
+    label: "Approvals",
+    href: "/dashboard/review-queue",
+    icon: AlertCircle,
+    badge: "!",
+  },
   { label: "Money In/Out", href: "/dashboard/ar/invoices", icon: Receipt },
   { label: "Cash", href: "/dashboard/treasury", icon: Wallet },
   { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
@@ -58,6 +65,7 @@ const moreModules: NavItem[] = [
   { label: "Payroll", href: "/dashboard/payroll", icon: Users },
   { label: "Fixed Assets", href: "/dashboard/fixed-assets", icon: HardHat },
   { label: "Inventory", href: "/dashboard/inventory", icon: Boxes },
+  { label: "Ingestion", href: "/dashboard/ingestion", icon: Zap, badge: "AI" },
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
   { label: "Integrations", href: "/dashboard/settings", icon: Plug },
   { label: "Admin", href: "/admin", icon: Shield },

@@ -7,3 +7,4 @@ export { processInboundEmail } from "./email-processing";
 export { syncMonoTransactions } from "./mono-sync";
 export { autoLinkDocument } from "./auto-link";
 export { sendMonthlyBankReminders } from "./reminders";
+export { runDocumentIngestion } from "./ingestion";

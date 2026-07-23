@@ -1,0 +1,55 @@
+{
+  "name": "@xenboox/ingestion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": {
+      "import": "./index.ts",
+      "default": "./index.ts"
+    },
+    "./core/types": {
+      "import": "./core/types.ts",
+      "default": "./core/types.ts"
+    },
+    "./core/confidence": {
+      "import": "./core/confidence.ts",
+      "default": "./core/confidence.ts"
+    },
+    "./engine/accounting-treatment": {
+      "import": "./engine/accounting-treatment.ts",
+      "default": "./engine/accounting-treatment.ts"
+    },
+    "./engine/coa-mapper": {
+      "import": "./engine/coa-mapper.ts",
+      "default": "./engine/coa-mapper.ts"
+    },
+    "./engine/journal-generator": {
+      "import": "./engine/journal-generator.ts",
+      "default": "./engine/journal-generator.ts"
+    },
+    "./engine/posting-engine": {
+      "import": "./engine/posting-engine.ts",
+      "default": "./engine/posting-engine.ts"
+    },
+    "./engine/propagation": {
+      "import": "./engine/propagation.ts",
+      "default": "./engine/propagation.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xenboox/db": "workspace:*",
+    "@xenboox/jobs": "workspace:*",
+    "@xenboox/agents": "workspace:*",
+    "drizzle-orm": "0.44.2",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

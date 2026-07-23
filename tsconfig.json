@@ -20,7 +20,9 @@
       "@xenboox/db": ["./packages/db"],
       "@xenboox/agents": ["./packages/agents"],
       "@xenboox/ui": ["./packages/ui"],
-      "@xenboox/config": ["./packages/config"]
+      "@xenboox/config": ["./packages/config"],
+      "@xenboox/ingestion": ["./packages/ingestion"],
+      "@xenboox/ingestion/*": ["./packages/ingestion/*"]
     }
   },
   "exclude": ["node_modules"]

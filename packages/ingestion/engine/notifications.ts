@@ -1,0 +1,248 @@
+/**
+ * Ingestion Notification Service
+ *
+ * Sends real-time notifications when the ingestion pipeline flags documents
+ * for review, auto-posts with notification, or encounters errors.
+ *
+ * Notifications are created directly in the database and surfaced through
+ * the existing notification system (bell icon, notifications page, etc.).
+ * In the future, this can be extended to push (email, SMS, push notification).
+ */
+
+import { db } from "@xenboox/db";
+import { notifications, userEntityAccess } from "@xenboox/db/schema";
+import { eq } from "drizzle-orm";
+import type { IngestionState, PostingDecision } from "../core/types";
+
+// ─── Notification Types ─────────────────────────────────────────────────────
+
+type NotificationType =
+  "ingestion_review" | "ingestion_rejected" | "ingestion_posted";
+
+type NotificationPriority = "critical" | "high" | "medium" | "low";
+
+// ─── Main Notification Sender ───────────────────────────────────────────────
+
+/**
+ * Send notifications about ingestion pipeline decisions to all users
+ * who have access to the current entity.
+ *
+ * Called from the posting engine after a decision is made.
+ */
+export async function sendIngestionNotifications(
+  entityId: string,
+  state: IngestionState,
+  decision: PostingDecision,
+  journalEntryId?: string,
+): Promise<void> {
+  const documentName = state.extraction?.data?.vendorName
+    ? `${state.classification.category} - ${state.extraction.data.vendorName}`
+    : state.extraction?.data?.customerName
+      ? `${state.classification.category} - ${state.extraction.data.customerName}`
+      : `Document ${state.documentId.slice(0, 8)}`;
+
+  switch (decision.action) {
+    case "pending_review":
+      await sendPendingReviewNotification(
+        entityId,
+        state,
+        decision,
+        documentName,
+      );
+      break;
+
+    case "escalated":
+      await sendEscalatedNotification(entityId, state, decision, documentName);
+      break;
+
+    case "auto_post":
+      if (decision.confidence < 0.95) {
+        // Auto-post with notification (85-94% threshold)
+        await sendAutoPostWithNotifyNotification(
+          entityId,
+          state,
+          decision,
+          journalEntryId,
+          documentName,
+        );
+      }
+      break;
+
+    case "rejected":
+      await sendRejectedNotification(entityId, state, decision, documentName);
+      break;
+  }
+}
+
+// ─── Individual Notification Senders ────────────────────────────────────────
+
+/**
+ * Notify users that a document needs review (confidence 60-84%).
+ */
+async function sendPendingReviewNotification(
+  entityId: string,
+  state: IngestionState,
+  decision: PostingDecision,
+  documentName: string,
+): Promise<void> {
+  const confidencePct = Math.round((decision.confidence ?? 0) * 100);
+  const lowFields = (decision.reviewItems ?? [])
+    .filter((item) => item.confidence < 0.7)
+    .map((item) => item.label)
+    .slice(0, 3)
+    .join(", ");
+
+  await createNotificationForEntity(entityId, {
+    type: "ingestion_review",
+    priority: "high",
+    title: `${state.workflow?.replace(/_/g, " ")} needs review`,
+    body: `${documentName} — Confidence ${confidencePct}%. ${lowFields ? `Low confidence fields: ${lowFields}.` : `Review and approve the proposed journal entry.`}`,
+    data: {
+      documentId: state.documentId,
+      workflow: state.workflow,
+      confidence: decision.confidence,
+      action: decision.action,
+      reviewItems: decision.reviewItems,
+      proposedEntry: state.proposedJournal,
+    },
+  });
+}
+
+/**
+ * Notify users that a document was escalated (confidence 40-59%).
+ */
+async function sendEscalatedNotification(
+  entityId: string,
+  state: IngestionState,
+  decision: PostingDecision,
+  documentName: string,
+): Promise<void> {
+  const confidencePct = Math.round((decision.confidence ?? 0) * 100);
+  const dominantSignal = state.compositeConfidence?.dominantSignal ?? "unknown";
+
+  await createNotificationForEntity(entityId, {
+    type: "ingestion_review",
+    priority: "critical",
+    title: `⚠️ ${state.workflow?.replace(/_/g, " ")} — escalated`,
+    body: `${documentName} — Confidence ${confidencePct}% (below 60% threshold). Issue: ${dominantSignal.replace(/_/g, " ")}. Requires human intervention.`,
+    data: {
+      documentId: state.documentId,
+      workflow: state.workflow,
+      confidence: decision.confidence,
+      action: "escalated",
+      dominantSignal,
+      reviewItems: decision.reviewItems,
+      proposedEntry: state.proposedJournal,
+    },
+  });
+}
+
+/**
+ * Notify users that a document was auto-posted (85-94% confidence range).
+ */
+async function sendAutoPostWithNotifyNotification(
+  entityId: string,
+  state: IngestionState,
+  decision: PostingDecision,
+  journalEntryId?: string,
+  documentName?: string,
+): Promise<void> {
+  const confidencePct = Math.round((decision.confidence ?? 0) * 100);
+
+  await createNotificationForEntity(entityId, {
+    type: "ingestion_posted",
+    priority: "medium",
+    title: `${state.workflow?.replace(/_/g, " ")} auto-posted`,
+    body: `${documentName ?? "Document"} — Posted automatically with ${confidencePct}% confidence. Journal entry created.`,
+    data: {
+      documentId: state.documentId,
+      workflow: state.workflow,
+      confidence: decision.confidence,
+      journalEntryId,
+      action: "auto_post",
+    },
+  });
+}
+
+/**
+ * Notify users that a document was rejected (validation failure or <40% confidence).
+ */
+async function sendRejectedNotification(
+  entityId: string,
+  state: IngestionState,
+  decision: PostingDecision,
+  documentName: string,
+): Promise<void> {
+  await createNotificationForEntity(entityId, {
+    type: "ingestion_rejected",
+    priority: "high",
+    title: `${state.workflow?.replace(/_/g, " ")} — rejected`,
+    body: `${documentName} — Could not process. ${decision.reason?.slice(0, 200) ?? "Validation failed."}`,
+    data: {
+      documentId: state.documentId,
+      workflow: state.workflow,
+      confidence: decision.confidence,
+      reason: decision.reason,
+      validationErrors: state.validation?.errors,
+      action: decision.action,
+    },
+  });
+}
+
+// ─── Database Helper ────────────────────────────────────────────────────────
+
+interface NotificationInput {
+  type: NotificationType;
+  priority: NotificationPriority;
+  title: string;
+  body: string;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Create notifications for all users who have access to the entity.
+ * This ensures the right people see review requests and alerts.
+ */
+async function createNotificationForEntity(
+  entityId: string,
+  input: NotificationInput,
+): Promise<void> {
+  try {
+    // Find all users with access to this entity
+    const accessRecords = await db.query.userEntityAccess.findMany({
+      where: eq(userEntityAccess.entityId, entityId),
+      with: {
+        user: true,
+      },
+    });
+
+    if (accessRecords.length === 0) {
+      console.warn(
+        `[notifications] No users found for entity ${entityId}. Skipping notification.`,
+      );
+      return;
+    }
+
+    // Create a notification for each user
+    const notificationValues = accessRecords.map((record) => ({
+      userId: record.userId,
+      entityId,
+      type: input.type,
+      priority: input.priority,
+      title: input.title,
+      body: input.body,
+      data: JSON.stringify(input.data),
+      status: "sent" as const,
+      sentAt: new Date(),
+    }));
+
+    await db.insert(notifications).values(notificationValues);
+
+    console.info(
+      `[notifications] ${input.type} notification sent to ${accessRecords.length} users for entity ${entityId}`,
+    );
+  } catch (error) {
+    // Notification failure should never break the ingestion pipeline
+    console.error("[notifications] Failed to send notification:", error);
+  }
+}

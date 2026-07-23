@@ -330,6 +330,19 @@ async function stageAgentProcessing(
       entityId,
     });
   }
+
+  // Always trigger the autonomous accounting ingestion pipeline
+  // This runs after the document is fully processed and classified.
+  // It will determine the accounting treatment, map to COA, generate
+  // journal entries, score confidence, and auto-post or request review.
+  logger.info("Triggering autonomous accounting ingestion", {
+    documentId,
+    category: classification.category,
+  });
+  await triggerClient.tasks.trigger("run-document-ingestion", {
+    documentId,
+    entityId,
+  });
 }
 
 // ---------------------------------------------------------------------------
