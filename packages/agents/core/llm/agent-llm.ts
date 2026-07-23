@@ -12,8 +12,7 @@
  */
 
 import { callModel } from "../models/entry";
-import type { ProviderId, TaskType } from "../models/types";
-import { langfuse } from "../langfuse";
+import type { TaskType } from "../models/types";
 
 export type LLMRole = "user" | "assistant" | "system";
 
@@ -53,37 +52,31 @@ const TIER_TO_TASK: Record<string, TaskType> = {
  */
 export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
   const taskType = TIER_TO_TASK[params.tier] ?? "chat_response";
-  const startTime = Date.now();
 
-  try {
-    const result = await callModel({
-      agentName: params.agentId,
-      taskType,
-      entityId: params.entityId,
-      systemPrompt: params.systemPrompt,
-      messages: params.messages.map((m) => ({
-        role: m.role as "user" | "assistant" | "system",
-        content: m.content,
-      })),
-      traceId: params.traceId,
-    });
+  const result = await callModel({
+    agentName: params.agentId,
+    taskType,
+    entityId: params.entityId,
+    systemPrompt: params.systemPrompt,
+    messages: params.messages.map((m) => ({
+      role: m.role as "user" | "assistant" | "system",
+      content: m.content,
+    })),
+    traceId: params.traceId,
+  });
 
-    return {
-      content: result.content,
-      usage: {
-        inputTokens: result.tokensUsed.input,
-        outputTokens: result.tokensUsed.output,
-        totalTokens: result.tokensUsed.total,
-      },
-      provider: result.providerId,
-      model: result.modelId,
-      durationMs: result.latencyMs,
-      costCents: 0, // Cost tracking moved to model_cost_tracking table
-    };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw error;
-  }
+  return {
+    content: result.content,
+    usage: {
+      inputTokens: result.tokensUsed.input,
+      outputTokens: result.tokensUsed.output,
+      totalTokens: result.tokensUsed.total,
+    },
+    provider: result.providerId,
+    model: result.modelId,
+    durationMs: result.latencyMs,
+    costCents: 0, // Cost tracking moved to model_cost_tracking table
+  };
 }
 
 export interface LLMStreamCallbacks {
@@ -100,38 +93,31 @@ export async function* streamLLM(
   params: LLMCallParams,
 ): AsyncGenerator<string, LLMCallResult, unknown> {
   const taskType = TIER_TO_TASK[params.tier] ?? "chat_response";
-  const startTime = Date.now();
-  let fullContent = "";
 
-  try {
-    const result = await callModel({
-      agentName: params.agentId,
-      taskType,
-      entityId: params.entityId,
-      systemPrompt: params.systemPrompt,
-      messages: params.messages.map((m) => ({
-        role: m.role as "user" | "assistant" | "system",
-        content: m.content,
-      })),
-      traceId: params.traceId,
-    });
+  const result = await callModel({
+    agentName: params.agentId,
+    taskType,
+    entityId: params.entityId,
+    systemPrompt: params.systemPrompt,
+    messages: params.messages.map((m) => ({
+      role: m.role as "user" | "assistant" | "system",
+      content: m.content,
+    })),
+    traceId: params.traceId,
+  });
 
-    fullContent = result.content;
-    yield result.content;
+  yield result.content;
 
-    return {
-      content: result.content,
-      usage: {
-        inputTokens: result.tokensUsed.input,
-        outputTokens: result.tokensUsed.output,
-        totalTokens: result.tokensUsed.total,
-      },
-      provider: result.providerId,
-      model: result.modelId,
-      durationMs: result.latencyMs,
-      costCents: 0,
-    };
-  } catch (error) {
-    throw error;
-  }
+  return {
+    content: result.content,
+    usage: {
+      inputTokens: result.tokensUsed.input,
+      outputTokens: result.tokensUsed.output,
+      totalTokens: result.tokensUsed.total,
+    },
+    provider: result.providerId,
+    model: result.modelId,
+    durationMs: result.latencyMs,
+    costCents: 0,
+  };
 }

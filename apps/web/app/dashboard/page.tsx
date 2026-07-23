@@ -262,7 +262,7 @@ export default function DashboardPage() {
     data: arInvoices,
     isLoading: arLoading,
     error: arError,
-  } = trpc.ar.listInvoices.useQuery(undefined);
+  } = trpc.ar.listInvoices.useQuery({});
   const {
     data: apInvoices,
     isLoading: apLoading,
@@ -511,12 +511,14 @@ export default function DashboardPage() {
                 <span className="flex items-center gap-1.5">
                   <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Bank sync last ran{" "}
-                  {new Date(bankSyncStatus.lastSyncAt).toLocaleString([], {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {bankSyncStatus.lastSyncAt
+                    ? new Date(bankSyncStatus.lastSyncAt).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
                 </span>
                 <span>• {bankSyncStatus.status}</span>
                 <span>• {bankSyncStatus.recordCount ?? 0} records</span>

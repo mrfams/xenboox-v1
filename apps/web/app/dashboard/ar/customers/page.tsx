@@ -1,48 +1,52 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { trpc } from "@/lib/trpc/client"
-import { PageHeader } from "@/components/shared/page-header"
-import { EmptyState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading"
-import { FilterBar } from "@/components/dashboard/filter-bar"
-import { CreateCustomerDialog } from "./create-dialog"
-import { Badge } from "@/components/ui"
-import { Users, Plus } from "lucide-react"
-import type { FilterState } from "@/components/dashboard/filter-bar"
+import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
+import { FilterBar } from "@/components/dashboard/filter-bar";
+import { CreateCustomerDialog } from "./create-dialog";
+import { Badge } from "@/components/ui";
+import { Users, Plus } from "lucide-react";
+import type { FilterState } from "@/components/dashboard/filter-bar";
 
 export default function CustomersPage() {
-  const router = useRouter()
-  const { data: customers, isLoading } = trpc.ar.listCustomers.useQuery()
-  const [createOpen, setCreateOpen] = useState(false)
+  const router = useRouter();
+  const { data: customers, isLoading } = trpc.ar.listCustomers.useQuery({});
+  const [createOpen, setCreateOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
-    search: "", dateFrom: "", dateTo: "", status: "", sort: "name-asc",
-  })
+    search: "",
+    dateFrom: "",
+    dateTo: "",
+    status: "",
+    sort: "name-asc",
+  });
 
   const filtered = useMemo(() => {
-    if (!customers) return []
-    let result = [...customers]
+    if (!customers) return [];
+    let result = [...customers];
     if (filters.search) {
-      const q = filters.search.toLowerCase()
+      const q = filters.search.toLowerCase();
       result = result.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
-          (c.contactEmail ?? "").toLowerCase().includes(q)
-      )
+          (c.contactEmail ?? "").toLowerCase().includes(q),
+      );
     }
     if (filters.status === "active") {
-      result = result.filter((c) => c.isActive)
+      result = result.filter((c) => c.isActive);
     } else if (filters.status === "inactive") {
-      result = result.filter((c) => !c.isActive)
+      result = result.filter((c) => !c.isActive);
     }
     if (filters.sort === "name-desc") {
-      result.sort((a, b) => b.name.localeCompare(a.name))
+      result.sort((a, b) => b.name.localeCompare(a.name));
     } else {
-      result.sort((a, b) => a.name.localeCompare(b.name))
+      result.sort((a, b) => a.name.localeCompare(b.name));
     }
-    return result
-  }, [customers, filters])
+    return result;
+  }, [customers, filters]);
 
   return (
     <div className="space-y-6">
@@ -81,11 +85,21 @@ export default function CustomersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Name</th>
-                <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Contact</th>
-                <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Payment Terms</th>
-                <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Credit Limit</th>
-                <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">Status</th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                  Name
+                </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                  Contact
+                </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                  Payment Terms
+                </th>
+                <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                  Credit Limit
+                </th>
+                <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -93,16 +107,29 @@ export default function CustomersPage() {
                 <tr
                   key={customer.id}
                   className="border-b hover:bg-muted/50 cursor-pointer"
-                  onClick={() => router.push(`/dashboard/ar/customers/${customer.id}`)}
+                  onClick={() =>
+                    router.push(`/dashboard/ar/customers/${customer.id}`)
+                  }
                 >
-                  <td className="py-3 px-4 text-sm font-medium">{customer.name}</td>
-                  <td className="py-3 px-4 text-sm text-muted-foreground">{customer.contactEmail || "—"}</td>
+                  <td className="py-3 px-4 text-sm font-medium">
+                    {customer.name}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-muted-foreground">
+                    {customer.contactEmail || "—"}
+                  </td>
                   <td className="py-3 px-4 text-sm">{customer.paymentTerms}</td>
                   <td className="py-3 px-4 text-sm text-right font-mono">
-                    {customer.creditLimit ? parseFloat(customer.creditLimit).toLocaleString("en-GM", { minimumFractionDigits: 2 }) : "—"}
+                    {customer.creditLimit
+                      ? parseFloat(customer.creditLimit).toLocaleString(
+                          "en-GM",
+                          { minimumFractionDigits: 2 },
+                        )
+                      : "—"}
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <Badge variant={customer.isActive ? "success" : "secondary"}>
+                    <Badge
+                      variant={customer.isActive ? "success" : "secondary"}
+                    >
                       {customer.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </td>
@@ -115,5 +142,5 @@ export default function CustomersPage() {
 
       <CreateCustomerDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
-  )
+  );
 }

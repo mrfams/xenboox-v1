@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { trpc } from "@/lib/trpc/client"
-import { AccountPicker } from "@/components/dashboard/account-picker"
-import { CreateDialog } from "@/components/dashboard/create-dialog"
+import { useState } from "react";
+import { trpc } from "@/lib/trpc/client";
+import { AccountPicker } from "@/components/dashboard/account-picker";
+import { CreateDialog } from "@/components/dashboard/create-dialog";
 import {
   Input,
   Label,
@@ -14,98 +14,113 @@ import {
   SelectValue,
   Textarea,
   Button,
-} from "@/components/ui"
-import { toast } from "sonner"
-import { Plus, Trash2 } from "lucide-react"
+} from "@/components/ui";
+import { toast } from "sonner";
+import { Plus, Trash2 } from "lucide-react";
 
 type CreateInvoiceDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
 type LineItem = {
-  description: string
-  accountId: string | null
-  quantity: string
-  unitPrice: string
-}
+  description: string;
+  accountId: string | null;
+  quantity: string;
+  unitPrice: string;
+};
 
-export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogProps) {
-  const utils = trpc.useUtils()
+export function CreateInvoiceDialog({
+  open,
+  onOpenChange,
+}: CreateInvoiceDialogProps) {
+  const utils = trpc.useUtils();
 
-  const { data: customers } = trpc.ar.listCustomers.useQuery()
+  const { data: customers } = trpc.ar.listCustomers.useQuery({});
 
-  const [customerId, setCustomerId] = useState("")
-  const [invoiceNumber, setInvoiceNumber] = useState("")
-  const [invoiceDate, setInvoiceDate] = useState("")
-  const [dueDate, setDueDate] = useState("")
-  const [currency, setCurrency] = useState("GMD")
-  const [notes, setNotes] = useState("")
+  const [customerId, setCustomerId] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [currency, setCurrency] = useState("GMD");
+  const [notes, setNotes] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { description: "", accountId: null, quantity: "", unitPrice: "" },
-  ])
+  ]);
 
   const createInvoice = trpc.ar.createInvoice.useMutation({
     onSuccess: () => {
-      toast.success("Invoice created")
-      utils.ar.listInvoices.invalidate()
-      onOpenChange(false)
-      resetForm()
+      toast.success("Invoice created");
+      utils.ar.listInvoices.invalidate();
+      onOpenChange(false);
+      resetForm();
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
   function resetForm() {
-    setCustomerId("")
-    setInvoiceNumber("")
-    setInvoiceDate("")
-    setDueDate("")
-    setCurrency("GMD")
-    setNotes("")
-    setLineItems([{ description: "", accountId: null, quantity: "", unitPrice: "" }])
+    setCustomerId("");
+    setInvoiceNumber("");
+    setInvoiceDate("");
+    setDueDate("");
+    setCurrency("GMD");
+    setNotes("");
+    setLineItems([
+      { description: "", accountId: null, quantity: "", unitPrice: "" },
+    ]);
   }
 
   function addLineItem() {
     setLineItems((prev) => [
       ...prev,
       { description: "", accountId: null, quantity: "", unitPrice: "" },
-    ])
+    ]);
   }
 
   function removeLineItem(index: number) {
-    setLineItems((prev) => prev.filter((_, i) => i !== index))
+    setLineItems((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function updateLineItem(index: number, field: keyof LineItem, value: string | null) {
+  function updateLineItem(
+    index: number,
+    field: keyof LineItem,
+    value: string | null,
+  ) {
     setLineItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-    )
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+    );
   }
 
   function handleSubmit() {
     if (!customerId) {
-      toast.error("Customer is required")
-      return
+      toast.error("Customer is required");
+      return;
     }
     if (!invoiceNumber.trim()) {
-      toast.error("Invoice number is required")
-      return
+      toast.error("Invoice number is required");
+      return;
     }
     if (!invoiceDate) {
-      toast.error("Invoice date is required")
-      return
+      toast.error("Invoice date is required");
+      return;
     }
     if (!dueDate) {
-      toast.error("Due date is required")
-      return
+      toast.error("Due date is required");
+      return;
     }
 
     const validItems = lineItems.filter(
-      (item) => item.description.trim() && item.quantity && item.unitPrice && item.accountId
-    )
+      (item) =>
+        item.description.trim() &&
+        item.quantity &&
+        item.unitPrice &&
+        item.accountId,
+    );
     if (validItems.length === 0) {
-      toast.error("At least one line item with description, account, quantity, and price is required")
-      return
+      toast.error(
+        "At least one line item with description, account, quantity, and price is required",
+      );
+      return;
     }
 
     createInvoice.mutate({
@@ -121,15 +136,15 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         quantity: Number(item.quantity),
         unitPrice: Number(item.unitPrice).toFixed(2),
       })),
-    })
+    });
   }
 
   return (
     <CreateDialog
       open={open}
       onOpenChange={(o) => {
-        if (!o) resetForm()
-        onOpenChange(o)
+        if (!o) resetForm();
+        onOpenChange(o);
       }}
       title="New Sales Invoice"
       description="Create a customer invoice."
@@ -212,20 +227,30 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Line Items</Label>
-            <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addLineItem}
+            >
               <Plus className="mr-1 h-3 w-3" />
               Add Line
             </Button>
           </div>
 
           {lineItems.map((item, idx) => (
-            <div key={idx} className="grid grid-cols-[1fr_200px_80px_100px_32px] items-end gap-2 rounded-lg border p-3">
+            <div
+              key={idx}
+              className="grid grid-cols-[1fr_200px_80px_100px_32px] items-end gap-2 rounded-lg border p-3"
+            >
               <div className="space-y-1">
                 <Label className="text-xs">Description</Label>
                 <Input
                   placeholder="Item description"
                   value={item.description}
-                  onChange={(e) => updateLineItem(idx, "description", e.target.value)}
+                  onChange={(e) =>
+                    updateLineItem(idx, "description", e.target.value)
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -242,7 +267,9 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                   min="0"
                   placeholder="0"
                   value={item.quantity}
-                  onChange={(e) => updateLineItem(idx, "quantity", e.target.value)}
+                  onChange={(e) =>
+                    updateLineItem(idx, "quantity", e.target.value)
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -253,7 +280,9 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                   step="0.01"
                   placeholder="0.00"
                   value={item.unitPrice}
-                  onChange={(e) => updateLineItem(idx, "unitPrice", e.target.value)}
+                  onChange={(e) =>
+                    updateLineItem(idx, "unitPrice", e.target.value)
+                  }
                 />
               </div>
               <Button
@@ -271,5 +300,5 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         </div>
       </div>
     </CreateDialog>
-  )
+  );
 }

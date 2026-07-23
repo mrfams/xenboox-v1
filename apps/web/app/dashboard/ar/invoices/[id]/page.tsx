@@ -26,8 +26,8 @@ export default function SalesInvoiceDetailPage() {
   const id = params.id as string;
 
   const { data: invoice, isLoading } = trpc.ar.getInvoiceById.useQuery({ id });
-  const { data: customers } = trpc.ar.listCustomers.useQuery();
-  const { data: payments } = trpc.ar.listPayments.useQuery();
+  const { data: customers } = trpc.ar.listCustomers.useQuery({});
+  const { data: payments } = trpc.ar.listPayments.useQuery({});
 
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
