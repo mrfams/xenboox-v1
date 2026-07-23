@@ -3458,3 +3458,20 @@ Each entity includes: user + org + entity + owner access, 25 COA accounts, 3 fis
 ---
 
 _Last updated: 2026-07-22 (Multi-Entity Seed Data + RBAC/Entity Welcome)_
+---
+
+### [2026-07-23] � Document Ingestion Engine + Unified Approval Queue
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** N/A � existing uncommitted work from prior session
+**Commit:** 31aab04
+
+**What was pushed:**
+
+- packages/ingestion/ � new package: intake service, validation layer, accounting treatment engine, COA mapper, period manager, GL posting, monitoring, notifications, tax calculator
+- pps/web/app/dashboard/ingestion/ � ingestion dashboard page
+- pps/web/app/dashboard/review-queue/ � human review queue dashboard
+- pps/web/server/routers/ingestion.ts � tRPC router for ingestion (stats, list reviews, approve, reject, rerun, detail)
+- Files modified: approvals page (unified agent + ingestion queue), notifications page (ingestion result actions), sidebar, jobs package, notifications schema, tsconfig
+
+Note: pnpm typecheck failed with OOM on this machine � not a code issue.
