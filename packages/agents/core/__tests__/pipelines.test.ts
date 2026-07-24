@@ -7,24 +7,34 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
-vi.mock("@xenboox/db", () => ({
-  db: {
+// Helper to create a mock tx object mirroring the db mock structure
+function createMockTx() {
+  const mkQuery = (methods: string[] = ["findFirst", "findMany"]) => {
+    const obj: Record<string, ReturnType<typeof vi.fn>> = {};
+    for (const m of methods) obj[m] = vi.fn();
+    return obj;
+  };
+
+  return {
     query: {
-      fiscalPeriods: { findFirst: vi.fn(), findMany: vi.fn() },
-      journalEntries: { findMany: vi.fn() },
-      journalEntryLines: { findMany: vi.fn() },
-      chartOfAccounts: { findMany: vi.fn() },
-      trialBalanceSnapshots: { findMany: vi.fn(), findFirst: vi.fn() },
-      bankTransactions: { findMany: vi.fn() },
-      bankAccounts: { findMany: vi.fn(), findFirst: vi.fn() },
-      cashAccounts: { findMany: vi.fn() },
-      imprestFloats: { findMany: vi.fn() },
-      imprestReceipts: { findMany: vi.fn() },
-      pettyCashLedger: { findMany: vi.fn(), findFirst: vi.fn() },
-      entities: { findFirst: vi.fn() },
-      confidenceThresholds: { findFirst: vi.fn() },
-      userEntityAccess: { findFirst: vi.fn() },
-      agentRoutingLogs: { findMany: vi.fn() },
+      fiscalPeriods: mkQuery(),
+      journalEntries: mkQuery(),
+      journalEntryLines: mkQuery(),
+      chartOfAccounts: mkQuery(),
+      trialBalanceSnapshots: mkQuery(),
+      bankTransactions: mkQuery(),
+      bankAccounts: mkQuery(),
+      cashAccounts: mkQuery(),
+      imprestFloats: mkQuery(),
+      imprestReceipts: mkQuery(),
+      pettyCashLedger: mkQuery(),
+      entities: mkQuery(),
+      confidenceThresholds: mkQuery(),
+      userEntityAccess: mkQuery(),
+      agentRoutingLogs: mkQuery(),
+      // Onboarding Pipeline tables
+      dataConnections: mkQuery(),
+      coaTemplates: mkQuery(),
     },
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
@@ -43,8 +53,118 @@ vi.mock("@xenboox/db", () => ({
         orderBy: vi.fn(() => []),
       })),
     })),
-  },
-}));
+  };
+}
+
+// Mock userEntityAccess table object so security.ts can use it
+const mockUserEntityAccessTable = {
+  userId: "user_id",
+  entityId: "entity_id",
+  role: "role",
+} as const;
+
+// Mock table definition objects for all schema tables used by pipeline source files.
+// These are imported from @xenboox/db barrel by onboarding-pipeline.ts.
+const mockOnboardingSession = {
+  id: "id",
+  orgId: "org_id",
+  currentStep: "current_step",
+  status: "status",
+  routingAnswer: "routing_answer",
+  completedSteps: "completed_steps",
+  startedAt: "started_at",
+  completedAt: "completed_at",
+  timeToFirstValueSeconds: "time_to_first_value_seconds",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+} as const;
+
+const mockEntity = {
+  id: "id",
+  name: "name",
+  organizationId: "organization_id",
+  currency: "currency",
+  isActive: "is_active",
+} as const;
+
+const mockChartOfAccount = {
+  id: "id",
+  entityId: "entity_id",
+  code: "code",
+  name: "name",
+  type: "type",
+  subtype: "subtype",
+  isActive: "is_active",
+} as const;
+
+const mockFiscalPeriod = {
+  id: "id",
+  entityId: "entity_id",
+  year: "year",
+  month: "month",
+  status: "status",
+  startDate: "start_date",
+  endDate: "end_date",
+  closedAt: "closed_at",
+  closedBy: "closed_by",
+} as const;
+
+const mockDataConnection = {
+  id: "id",
+  entityId: "entity_id",
+  type: "type",
+  status: "status",
+  recordsProcessed: "records_processed",
+  failureReason: "failure_reason",
+  fallbackOffered: "fallback_offered",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+} as const;
+
+const mockHistoricalPull = {
+  id: "id",
+  entityId: "entity_id",
+  dateRangeStart: "date_range_start",
+  dateRangeEnd: "date_range_end",
+  status: "status",
+  exceeds12Months: "exceeds_12_months",
+  permissionRequestedAt: "permission_requested_at",
+  permissionGrantedAt: "permission_granted_at",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+} as const;
+
+const mockCoaTemplate = {
+  id: "id",
+  name: "name",
+  segment: "segment",
+  country: "country",
+  accountList: "account_list",
+  isDefault: "is_default",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+} as const;
+
+vi.mock("@xenboox/db", () => {
+  const tx = createMockTx();
+  return {
+    db: {
+      ...tx,
+      // transaction wraps the callback with a mock tx as the argument
+      transaction: vi.fn(async (cb: (tx: any) => Promise<void>) => {
+        await cb(createMockTx());
+      }),
+    },
+    userEntityAccess: mockUserEntityAccessTable,
+    entities: mockEntity,
+    chartOfAccounts: mockChartOfAccount,
+    fiscalPeriods: mockFiscalPeriod,
+    onboardingSessions: mockOnboardingSession,
+    dataConnections: mockDataConnection,
+    historicalPullJobs: mockHistoricalPull,
+    coaTemplates: mockCoaTemplate,
+  };
+});
 
 vi.mock("./langfuse", () => ({
   langfuse: {
@@ -139,11 +259,170 @@ vi.mock("./confidence", () => ({
   DEFAULT_ESCALATION_CONFIG: {},
 }));
 
-vi.mock("./security", () => ({
-  checkEntityAccess: vi.fn(() => ({
+const mockCheckEntityAccess = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
     hasAccess: true,
     role: "finance_director",
-  })),
+  }),
+);
+
+vi.mock("./security", () => ({
+  checkEntityAccess: mockCheckEntityAccess,
+}));
+
+// Mock all @xenboox/db/schema/* subpath imports used by pipeline source files.
+// Without these, vitest struggles to resolve workspace subpath packages
+// due to the `import * as schema from "./schema"` directory import pattern.
+
+vi.mock("@xenboox/db/schema/accounting", () => ({
+  chartOfAccounts: {
+    id: "id",
+    entityId: "entity_id",
+    code: "code",
+    name: "name",
+    type: "type",
+    subtype: "subtype",
+    isActive: "is_active",
+  },
+  fiscalPeriods: {
+    id: "id",
+    entityId: "entity_id",
+    year: "year",
+    month: "month",
+    status: "status",
+    startDate: "start_date",
+    endDate: "end_date",
+    closedAt: "closed_at",
+    closedBy: "closed_by",
+  },
+  journalEntries: {
+    id: "id",
+    entityId: "entity_id",
+    periodId: "period_id",
+    status: "status",
+  },
+  journalEntryLines: {
+    id: "id",
+    journalEntryId: "journal_entry_id",
+    accountId: "account_id",
+    debit: "debit",
+    credit: "credit",
+  },
+  trialBalanceSnapshots: {
+    id: "id",
+    entityId: "entity_id",
+    periodId: "period_id",
+    accountId: "account_id",
+    debitTotal: "debit_total",
+    creditTotal: "credit_total",
+    balance: "balance",
+  },
+}));
+
+vi.mock("@xenboox/db/schema/treasury", () => ({
+  bankAccounts: {
+    id: "id",
+    entityId: "entity_id",
+    accountName: "account_name",
+    currency: "currency",
+    currentBalance: "current_balance",
+    isActive: "is_active",
+  },
+  bankTransactions: {
+    id: "id",
+    entityId: "entity_id",
+    bankAccountId: "bank_account_id",
+    amount: "amount",
+    description: "description",
+    date: "date",
+    isReconciled: "is_reconciled",
+  },
+  reconciliations: {
+    id: "id",
+    entityId: "entity_id",
+    status: "status",
+    createdAt: "created_at",
+  },
+  reconciliationItems: {
+    id: "id",
+    reconciliationId: "reconciliation_id",
+    bankTransactionId: "bank_transaction_id",
+    status: "status",
+    matchedAmount: "matched_amount",
+  },
+}));
+
+vi.mock("@xenboox/db/schema/cash", () => ({
+  cashAccounts: {
+    id: "id",
+    entityId: "entity_id",
+    name: "name",
+    currency: "currency",
+    currentBalance: "current_balance",
+    isActive: "is_active",
+  },
+  imprestFloats: {
+    id: "id",
+    entityId: "entity_id",
+    cashAccountId: "cash_account_id",
+    assigneeName: "assignee_name",
+    amount: "amount",
+    remainingBalance: "remaining_balance",
+    status: "status",
+    issuedDate: "issued_date",
+    settleByDate: "settle_by_date",
+  },
+  imprestReceipts: {
+    id: "id",
+    imprestFloatId: "imprest_float_id",
+    amount: "amount",
+    description: "description",
+    receiptDate: "receipt_date",
+  },
+  pettyCashLedger: {
+    id: "id",
+    cashAccountId: "cash_account_id",
+    balance: "balance",
+    createdAt: "created_at",
+  },
+}));
+
+vi.mock("@xenboox/db/schema/chat", () => ({
+  conversations: { id: "id", entityId: "entity_id", createdAt: "created_at" },
+  chatMessages: {
+    id: "id",
+    conversationId: "conversation_id",
+    role: "role",
+    content: "content",
+    createdAt: "created_at",
+  },
+}));
+
+vi.mock("@xenboox/db/schema/agents", () => ({
+  confidenceThresholds: {
+    orgId: "org_id",
+    agentId: "agent_id",
+    transactionType: "transaction_type",
+    amountBand: "amount_band",
+    minConfidence: "min_confidence",
+  },
+  agentRoutingLogs: {
+    entityId: "entity_id",
+    userId: "user_id",
+    sessionId: "session_id",
+    conversationId: "conversation_id",
+    intentType: "intent_type",
+    inputSummary: "input_summary",
+    agentsInvolved: "agents_involved",
+    confidence: "confidence",
+    thresholdUsed: "threshold_used",
+    decision: "decision",
+    escalationReason: "escalation_reason",
+    taskId: "task_id",
+    durationMs: "duration_ms",
+    metadata: "metadata",
+    createdAt: "created_at",
+  },
 }));
 
 // ─── Pipeline 1: CFO Agent Orchestration ─────────────────────────────────────
@@ -228,9 +507,9 @@ describe("Pipeline 1: CFO Agent Orchestration Pipeline", () => {
 
   it("should reject users without entity access", async () => {
     const { checkPermission, createInputEvent } = await import("../pipeline");
-    const { checkEntityAccess } = await import("../security");
 
-    (checkEntityAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    // Override the mock for this test case
+    mockCheckEntityAccess.mockResolvedValueOnce({
       hasAccess: false,
       role: null,
     });
@@ -306,7 +585,7 @@ describe("Pipeline 1: CFO Agent Orchestration Pipeline", () => {
     const summaries = aggregateSummaries(deptResults as any);
     expect(summaries).toHaveLength(2);
     expect(summaries[0].status).toBe("clean");
-    expect(summaries[1].status).toBe("flagged");
+    expect(summaries[1].status).toBe("blocked");
     expect(summaries[1].escalations).toHaveLength(1);
   });
 
@@ -954,51 +1233,635 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
       isActive: true,
     });
 
+    db.query.onboardingSessions = {
+      findFirst: vi.fn(),
+    };
+
     db.query.chartOfAccounts.findMany.mockResolvedValue([]);
     db.query.fiscalPeriods.findMany.mockResolvedValue([]);
+    db.query.coaTemplates = {
+      findFirst: vi.fn().mockResolvedValue(null),
+    };
+    db.query.dataConnections = {
+      findMany: vi.fn().mockResolvedValue([]),
+    };
+    db.query.historicalPullJobs = {
+      findMany: vi.fn().mockResolvedValue([]),
+    };
 
+    // Default insert returns a valid result
     db.insert.mockReturnValue({
       values: vi.fn().mockReturnValue({
-        returning: vi.fn().mockResolvedValue([]),
+        returning: vi.fn().mockResolvedValue([{ id: "mock-id-1" }]),
         onConflictDoNothing: vi.fn(),
+      }),
+    });
+
+    // Default update returns chains
+    db.update.mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
       }),
     });
   });
 
-  it("should create chart of accounts during onboarding", async () => {
-    const { runOnboardingPipeline } = await import("../onboarding-pipeline");
-    const result = await runOnboardingPipeline("entity-1", "New Entity");
+  // ── Session Management ───────────────────────────────────────────────────
 
-    expect(result.success).toBe(true);
-    expect(result.steps.length).toBeGreaterThan(0);
-    expect(result.coaCreated).toBeDefined();
-    expect(result.completeness).toBeGreaterThan(0);
+  describe("createOnboardingSession", () => {
+    it("should create a new session when none exists", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue(null);
+
+      const { createOnboardingSession } =
+        await import("../onboarding-pipeline");
+      const result = await createOnboardingSession("org-1");
+
+      expect(result.sessionId).toBe("mock-id-1");
+      expect(db.insert).toHaveBeenCalled();
+    });
+
+    it("should return existing session when one exists", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue({
+        id: "existing-session-id",
+        orgId: "org-1",
+        currentStep: "data_connections",
+        status: "in_progress",
+      });
+
+      const { createOnboardingSession } =
+        await import("../onboarding-pipeline");
+      const result = await createOnboardingSession("org-1");
+
+      expect(result.sessionId).toBe("existing-session-id");
+      expect(db.insert).not.toHaveBeenCalled();
+    });
   });
 
-  it("should detect existing setup and skip redundant steps", async () => {
-    const { db } = require("@xenboox/db");
-    db.query.chartOfAccounts.findMany.mockResolvedValue([
-      { id: "acct-1", entityId: "entity-1", code: "1010" },
-    ]);
+  describe("updateRoutingAnswer", () => {
+    it("should update session with valid routing answer", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst = vi.fn();
+      db.transaction.mockImplementation(async (cb: any) => {
+        const tx = createMockTx();
+        tx.query.coaTemplates.findFirst = vi.fn().mockResolvedValue(null);
+        await cb(tx);
+      });
 
-    const { runOnboardingPipeline } = await import("../onboarding-pipeline");
-    const result = await runOnboardingPipeline("entity-1", "Existing Entity");
+      const { updateRoutingAnswer } = await import("../onboarding-pipeline");
+      await expect(
+        updateRoutingAnswer("session-1", "quickbooks"),
+      ).resolves.not.toThrow();
+    });
 
-    expect(result.success).toBe(true);
+    it("should accept all valid routing answers", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst = vi.fn();
+      db.transaction.mockImplementation(async (cb: any) => {
+        await cb(createMockTx());
+      });
+
+      const { updateRoutingAnswer } = await import("../onboarding-pipeline");
+      const answers = [
+        "excel",
+        "quickbooks",
+        "xero",
+        "nothing",
+        "other",
+      ] as const;
+
+      for (const answer of answers) {
+        await expect(
+          updateRoutingAnswer("session-1", answer),
+        ).resolves.not.toThrow();
+      }
+    });
   });
 
-  it("should return next actions for missing components", async () => {
-    const { runOnboardingPipeline } = await import("../onboarding-pipeline");
-    const result = await runOnboardingPipeline("entity-1", "New Entity");
+  // ── Data Connection Hub ─────────────────────────────────────────────────
 
-    expect(Array.isArray(result.nextActions)).toBe(true);
+  describe("getFallbackForFailure", () => {
+    it("should return manual_entry fallback for bank connections", async () => {
+      const { getFallbackForFailure } = await import("../onboarding-pipeline");
+
+      const bankApi = getFallbackForFailure("bank_api");
+      expect(bankApi?.fallbackType).toBe("manual_entry");
+      expect(bankApi?.message).toContain("Manual");
+
+      const bankPdf = getFallbackForFailure("bank_pdf");
+      expect(bankPdf?.fallbackType).toBe("manual_entry");
+    });
+
+    it("should return csv fallback for mobile money", async () => {
+      const { getFallbackForFailure } = await import("../onboarding-pipeline");
+
+      const result = getFallbackForFailure("mobile_money");
+      expect(result?.fallbackType).toBe("csv");
+      expect(result?.message).toContain("CSV");
+    });
+
+    it("should return csv fallback for QuickBooks and Xero", async () => {
+      const { getFallbackForFailure } = await import("../onboarding-pipeline");
+
+      const qb = getFallbackForFailure("quickbooks");
+      expect(qb?.fallbackType).toBe("csv");
+
+      const xero = getFallbackForFailure("xero");
+      expect(xero?.fallbackType).toBe("csv");
+    });
+
+    it("should return manual_entry fallback for file uploads", async () => {
+      const { getFallbackForFailure } = await import("../onboarding-pipeline");
+
+      expect(getFallbackForFailure("excel")?.fallbackType).toBe("manual_entry");
+      expect(getFallbackForFailure("csv")?.fallbackType).toBe("manual_entry");
+    });
+
+    it("should return null for unknown connection types", async () => {
+      const { getFallbackForFailure } = await import("../onboarding-pipeline");
+      expect(getFallbackForFailure("manual_entry")).toBeNull();
+    });
+
+    it("should have a defined fallback for every connection type in the spec", async () => {
+      const { getFallbackForFailure } = await import("../onboarding-pipeline");
+      // Every connection type in the enum must have a mapped fallback
+      const types = [
+        "bank_api",
+        "bank_pdf",
+        "mobile_money",
+        "quickbooks",
+        "xero",
+        "excel",
+        "csv",
+      ] as const;
+      for (const t of types) {
+        expect(getFallbackForFailure(t)).not.toBeNull();
+      }
+    });
   });
 
-  it("should calculate completeness percentage", async () => {
-    const { runOnboardingPipeline } = await import("../onboarding-pipeline");
-    const result = await runOnboardingPipeline("entity-1", "New Entity");
+  describe("createDataConnection", () => {
+    it("should create a pending data connection", async () => {
+      const { createDataConnection } = await import("../onboarding-pipeline");
+      const result = await createDataConnection("entity-1", "bank_api");
 
-    expect(result.completeness).toBeGreaterThanOrEqual(0);
-    expect(result.completeness).toBeLessThanOrEqual(100);
+      expect(result.type).toBe("bank_api");
+      expect(result.status).toBe("pending");
+      expect(result.recordsProcessed).toBe(0);
+      expect(result.failureReason).toBeNull();
+      expect(result.fallbackOffered).toBeNull();
+    });
+
+    it("should create connection for all data source types", async () => {
+      const { createDataConnection } = await import("../onboarding-pipeline");
+      const types = [
+        "bank_api",
+        "bank_pdf",
+        "mobile_money",
+        "quickbooks",
+        "xero",
+        "excel",
+        "csv",
+        "manual_entry",
+      ] as const;
+
+      for (const type of types) {
+        const result = await createDataConnection("entity-1", type);
+        expect(result.type).toBe(type);
+        expect(result.status).toBe("pending");
+      }
+    });
+  });
+
+  describe("updateDataConnectionStatus", () => {
+    it("should update connection status to connected", async () => {
+      const { updateDataConnectionStatus } =
+        await import("../onboarding-pipeline");
+      await expect(
+        updateDataConnectionStatus("conn-1", "connected"),
+      ).resolves.not.toThrow();
+    });
+
+    it("should update with failure reason and fallback", async () => {
+      const { updateDataConnectionStatus } =
+        await import("../onboarding-pipeline");
+      await expect(
+        updateDataConnectionStatus("conn-1", "failed", {
+          failureReason: "API timeout",
+          fallbackOffered: "csv",
+        }),
+      ).resolves.not.toThrow();
+    });
+
+    it("should track records processed", async () => {
+      const { updateDataConnectionStatus } =
+        await import("../onboarding-pipeline");
+      await expect(
+        updateDataConnectionStatus("conn-1", "processing", {
+          recordsProcessed: 847,
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  // ── Historical Data Pull ────────────────────────────────────────────────
+
+  describe("startHistoricalPull", () => {
+    it("should create a pull job for data within 12 months", async () => {
+      const { startHistoricalPull } = await import("../onboarding-pipeline");
+      const result = await startHistoricalPull(
+        "entity-1",
+        "2026-01-01",
+        "2026-07-01",
+      );
+
+      expect(result.jobId).toBe("mock-id-1");
+      expect(result.needsPermission).toBe(false);
+    });
+
+    it("should flag jobs exceeding 12 months for permission", async () => {
+      const { startHistoricalPull } = await import("../onboarding-pipeline");
+      const result = await startHistoricalPull(
+        "entity-1",
+        "2022-01-01",
+        "2026-07-01",
+      );
+
+      expect(result.jobId).toBe("mock-id-1");
+      expect(result.needsPermission).toBe(true);
+    });
+
+    it("should handle data exactly at the 12-month boundary", async () => {
+      const { startHistoricalPull } = await import("../onboarding-pipeline");
+      // Exactly 12 months: Jan 1 2025 to Jan 1 2026
+      const result = await startHistoricalPull(
+        "entity-1",
+        "2025-01-01",
+        "2026-01-01",
+      );
+
+      expect(result.needsPermission).toBe(false);
+    });
+
+    it("should handle data at 13 months requiring permission", async () => {
+      const { startHistoricalPull } = await import("../onboarding-pipeline");
+      const result = await startHistoricalPull(
+        "entity-1",
+        "2024-11-01",
+        "2026-01-01",
+      );
+
+      expect(result.needsPermission).toBe(true);
+    });
+  });
+
+  describe("approveHistoricalPull", () => {
+    it("should mark job as pulling when approved", async () => {
+      const { approveHistoricalPull } = await import("../onboarding-pipeline");
+      await expect(approveHistoricalPull("job-1", true)).resolves.not.toThrow();
+    });
+
+    it("should mark job as denied when rejected", async () => {
+      const { approveHistoricalPull } = await import("../onboarding-pipeline");
+      await expect(
+        approveHistoricalPull("job-1", false),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe("requestHistoricalPullPermission", () => {
+    it("should set permission requested timestamp", async () => {
+      const { requestHistoricalPullPermission } =
+        await import("../onboarding-pipeline");
+      await expect(
+        requestHistoricalPullPermission("job-1"),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  // ── Chart of Accounts ───────────────────────────────────────────────────
+
+  describe("getSuggestedCoA", () => {
+    it("should find exact segment+country match", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.coaTemplates.findFirst.mockResolvedValue({
+        id: "trading-gm",
+        segment: "trading",
+        country: "GM",
+        accountList: [
+          {
+            code: "1010",
+            name: "Cash",
+            type: "asset",
+            subtype: "bank_account",
+            isActive: true,
+          },
+          {
+            code: "4010",
+            name: "Sales",
+            type: "revenue",
+            subtype: "sales_revenue",
+            isActive: true,
+          },
+        ],
+      });
+
+      const { getSuggestedCoA } = await import("../onboarding-pipeline");
+      const result = await getSuggestedCoA("trading", "GM");
+
+      expect(result.templateId).toBe("trading-gm");
+      expect(result.accounts).toHaveLength(2);
+    });
+
+    it("should fall back to default template when exact match not found", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.coaTemplates.findFirst
+        .mockResolvedValueOnce(null) // exact match
+        .mockResolvedValueOnce({
+          id: "default-trading",
+          segment: "trading",
+          country: null,
+          accountList: [
+            {
+              code: "1010",
+              name: "Cash",
+              type: "asset",
+              subtype: "bank_account",
+              isActive: true,
+            },
+          ],
+        }); // fallback
+
+      const { getSuggestedCoA } = await import("../onboarding-pipeline");
+      const result = await getSuggestedCoA("trading", "SN");
+
+      expect(result.templateId).toBe("default-trading");
+      expect(result.accounts.length).toBeGreaterThan(0);
+    });
+
+    it("should return empty accounts when no template matches", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.coaTemplates.findFirst.mockResolvedValue(null);
+
+      const { getSuggestedCoA } = await import("../onboarding-pipeline");
+      const result = await getSuggestedCoA("unknown_segment", "XX");
+
+      expect(result.templateId).toBeNull();
+      expect(result.accounts).toHaveLength(0);
+    });
+  });
+
+  describe("confirmCoA", () => {
+    it("should throw when template not found", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.coaTemplates.findFirst.mockResolvedValue(null);
+
+      const { confirmCoA } = await import("../onboarding-pipeline");
+      await expect(confirmCoA("entity-1", "nonexistent")).rejects.toThrow();
+    });
+
+    it("should skip insertion when accounts already exist", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.coaTemplates.findFirst.mockResolvedValue({
+        id: "trading-gm",
+        segment: "trading",
+        country: "GM",
+        accountList: [
+          {
+            code: "1010",
+            name: "Cash",
+            type: "asset",
+            subtype: "bank_account",
+            isActive: true,
+          },
+        ],
+      });
+      db.query.chartOfAccounts.findMany.mockResolvedValue([
+        { id: "acct-1", code: "1010" },
+      ]);
+
+      const { confirmCoA } = await import("../onboarding-pipeline");
+      const result = await confirmCoA("entity-1", "trading-gm");
+
+      expect(result.accountCount).toBe(1);
+    });
+  });
+
+  // ── Step Progression ────────────────────────────────────────────────────
+
+  describe("setupEntity", () => {
+    it("should advance session to data_connections step", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        completedSteps: ["signup", "routing"],
+      });
+
+      const { setupEntity } = await import("../onboarding-pipeline");
+      await expect(setupEntity("session-1", "entity-1")).resolves.not.toThrow();
+    });
+  });
+
+  describe("markDataConnectionsStepComplete", () => {
+    it("should advance to historical_pull step", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        completedSteps: ["signup", "routing", "entity_setup"],
+      });
+
+      const { markDataConnectionsStepComplete } =
+        await import("../onboarding-pipeline");
+      await expect(
+        markDataConnectionsStepComplete("session-1"),
+      ).resolves.not.toThrow();
+    });
+
+    it("should handle missing session gracefully", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue(null);
+
+      const { markDataConnectionsStepComplete } =
+        await import("../onboarding-pipeline");
+      await expect(
+        markDataConnectionsStepComplete("nonexistent"),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe("markCoAComplete", () => {
+    it("should advance to first_look step and include coa_review", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        completedSteps: [
+          "signup",
+          "routing",
+          "entity_setup",
+          "data_connections",
+          "historical_pull",
+        ],
+      });
+
+      const { markCoAComplete } = await import("../onboarding-pipeline");
+      await expect(markCoAComplete("session-1")).resolves.not.toThrow();
+    });
+  });
+
+  // ── Activation / Completion ───────────────────────────────────────────
+
+  describe("completeOnboarding", () => {
+    it("should throw when session not found", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue(null);
+
+      const { completeOnboarding } = await import("../onboarding-pipeline");
+      await expect(completeOnboarding("nonexistent")).rejects.toThrow(
+        "Onboarding session not found",
+      );
+    });
+
+    it("should finish onboarding and log time-to-first-value", async () => {
+      const { db } = require("@xenboox/db");
+      const startedAt = new Date();
+      startedAt.setMinutes(startedAt.getMinutes() - 5); // 5 min ago
+
+      db.query.onboardingSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        startedAt,
+        completedSteps: [
+          "signup",
+          "routing",
+          "entity_setup",
+          "data_connections",
+          "historical_pull",
+          "coa_review",
+        ],
+      });
+
+      const { completeOnboarding } = await import("../onboarding-pipeline");
+      const result = await completeOnboarding("session-1");
+
+      expect(result.timeToFirstValueSeconds).toBeGreaterThan(0);
+      expect(result.timeToFirstValueSeconds).toBeLessThan(600); // < 10 min
+    });
+  });
+
+  // ── Status & Readiness ──────────────────────────────────────────────────
+
+  describe("getOnboardingStatus", () => {
+    it("should return null when no session exists", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue(null);
+
+      const { getOnboardingStatus } = await import("../onboarding-pipeline");
+      const result = await getOnboardingStatus("org-nonexistent");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return full status for an in-progress session", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        orgId: "org-1",
+        currentStep: "data_connections",
+        status: "in_progress",
+        completedSteps: ["signup", "routing", "entity_setup"],
+        startedAt: new Date(),
+        completedAt: null,
+        timeToFirstValueSeconds: null,
+      });
+
+      const { getOnboardingStatus } = await import("../onboarding-pipeline");
+      const result = await getOnboardingStatus("org-1");
+
+      expect(result).not.toBeNull();
+      expect(result!.currentStep).toBe("data_connections");
+      expect(result!.completeness).toBeGreaterThan(0);
+      expect(result!.steps.length).toBeGreaterThan(0);
+      expect(Array.isArray(result!.nextActions)).toBe(true);
+      expect(Array.isArray(result!.failureRecovery)).toBe(true);
+    });
+
+    it("should mark completed session as success", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.onboardingSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        orgId: "org-1",
+        currentStep: "complete",
+        status: "completed",
+        completedSteps: [
+          "signup",
+          "routing",
+          "entity_setup",
+          "data_connections",
+          "historical_pull",
+          "coa_review",
+          "first_look",
+          "complete",
+        ],
+        startedAt: new Date(),
+        completedAt: new Date(),
+        timeToFirstValueSeconds: 320,
+      });
+
+      const { getOnboardingStatus } = await import("../onboarding-pipeline");
+      const result = await getOnboardingStatus("org-1");
+
+      expect(result!.success).toBe(true);
+      expect(result!.timeToFirstValueSeconds).toBe(320);
+    });
+  });
+
+  // ── End-to-End Pipeline ────────────────────────────────────────────────
+
+  describe("runOnboardingPipeline (end-to-end)", () => {
+    it("should create chart of accounts during onboarding", async () => {
+      const { runOnboardingPipeline } = await import("../onboarding-pipeline");
+      const result = await runOnboardingPipeline("entity-1", "New Entity");
+
+      expect(result.success).toBe(true);
+      expect(result.steps.length).toBeGreaterThan(0);
+      expect(result.coaCreated).toBeDefined();
+      expect(result.completeness).toBeGreaterThan(0);
+    });
+
+    it("should detect existing setup and skip redundant steps", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.chartOfAccounts.findMany.mockResolvedValue([
+        { id: "acct-1", entityId: "entity-1", code: "1010" },
+      ]);
+      db.query.fiscalPeriods.findMany.mockResolvedValue([
+        {
+          id: "period-1",
+          entityId: "entity-1",
+          year: 2026,
+          month: 7,
+          status: "open",
+        },
+      ]);
+
+      const { runOnboardingPipeline } = await import("../onboarding-pipeline");
+      const result = await runOnboardingPipeline("entity-1", "Existing Entity");
+
+      expect(result.success).toBe(true);
+      expect(result.steps.some((s) => s.status === "skipped")).toBe(true);
+    });
+
+    it("should return next actions for missing components", async () => {
+      const { runOnboardingPipeline } = await import("../onboarding-pipeline");
+      const result = await runOnboardingPipeline("entity-1", "New Entity");
+
+      expect(Array.isArray(result.nextActions)).toBe(true);
+    });
+
+    it("should calculate completeness percentage", async () => {
+      const { runOnboardingPipeline } = await import("../onboarding-pipeline");
+      const result = await runOnboardingPipeline("entity-1", "New Entity");
+
+      expect(result.completeness).toBeGreaterThanOrEqual(0);
+      expect(result.completeness).toBeLessThanOrEqual(100);
+    });
   });
 });

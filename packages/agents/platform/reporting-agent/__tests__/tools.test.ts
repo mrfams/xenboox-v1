@@ -24,16 +24,6 @@ function mockJournalEntries(entries: Array<Record<string, unknown>>) {
   vi.mocked(db.query.journalEntries.findMany).mockResolvedValue(entries as any);
 }
 
-function mockJournalEntryLines(
-  callback: (entryId: string) => Array<Record<string, unknown>>,
-) {
-  vi.mocked(db.query.journalEntryLines.findMany).mockImplementation(
-    async (opts?: { where?: unknown }) => {
-      return [] as any;
-    },
-  );
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
 });

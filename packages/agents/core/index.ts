@@ -1,3 +1,7 @@
+// ─── Structured Logger ─────────────────────────
+export { logger, setLogContext } from "./logger";
+export type { LogEntry, LogLevel } from "./logger";
+
 // ─── Security ──────────────────────────────────
 export {
   checkEntityAccess,

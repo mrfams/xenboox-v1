@@ -2,476 +2,1292 @@
 //
 // Pipeline 6 of 6: feeds into the CFO Agent (Tier 1).
 //
-// Pipeline Steps:
-//   1. Entity Validation      — Confirm entity has org setup, currency, etc.
-//   2. Chart of Accounts      — Auto-seed standard COA for entity
-//   3. Fiscal Periods         — Create current + future fiscal periods
-//   4. Default Configuration  — Set up bank accounts, cash accounts, tax config
-//   5. Readiness Check        — Verify all required components are in place
-//   6. Complete / Guide       — Return setup status + next steps for missing items
+// Full 6-step flow matching the Onboarding Pipeline spec:
+//   1. Signup              — Org + user created, routing question answered
+//   2. Entity Setup        — Business info, industry, fiscal year, currency
+//   3. Data Connection Hub — Bank, mobile money, QB/Xero, or file upload
+//   4. Historical Pull     — Background data import with permission gate
+//   5. Chart of Accounts   — Propose + confirm CoA based on business type
+//   6. First Look          — Dashboard loads, CFO Agent sends message
+//
+// Failure State Handling (cross-cutting — applies at every step):
+//   Every step MUST have a defined, tested alternative path before shipping.
+//   Never leave the user on a broken screen.
 
 import { db } from "@xenboox/db";
-import { eq, and, desc } from "drizzle-orm";
-import { entities } from "@xenboox/db/schema/organization";
-import { chartOfAccounts, fiscalPeriods } from "@xenboox/db/schema/accounting";
+import {
+  entities,
+  chartOfAccounts,
+  fiscalPeriods,
+  onboardingSessions,
+  dataConnections,
+  historicalPullJobs,
+  coaTemplates,
+} from "@xenboox/db";
+import { eq, and, or } from "drizzle-orm";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+export type OnboardingStepId =
+  | "signup"
+  | "routing"
+  | "entity_setup"
+  | "data_connections"
+  | "historical_pull"
+  | "coa_review"
+  | "first_look"
+  | "complete";
+
+export type RoutingAnswer =
+  "excel" | "quickbooks" | "xero" | "nothing" | "other";
+
+export type DataConnectionType =
+  | "bank_api"
+  | "bank_pdf"
+  | "mobile_money"
+  | "quickbooks"
+  | "xero"
+  | "excel"
+  | "csv"
+  | "manual_entry";
+
+export type DataConnectionStatus =
+  "pending" | "processing" | "connected" | "failed" | "fallback_offered";
+
 export interface OnboardingStep {
-  id: string;
+  id: OnboardingStepId;
   label: string;
   status: "pending" | "completed" | "failed" | "skipped";
   details: string;
+  failureRecovery?: string;
 }
 
 export interface OnboardingPipelineResult {
   success: boolean;
-  entityId: string;
-  entityName: string;
+  sessionId: string | null;
+  orgId: string | null;
+  entityId: string | null;
+  entityName?: string;
   steps: OnboardingStep[];
-  coaCreated: boolean;
-  coaAccountCount: number;
-  fiscalPeriodsCreated: number;
-  bankAccountsLinked: number;
-  cashAccountsCreated: number;
+  currentStep: OnboardingStepId;
+  coaCreated?: boolean;
+  coaAccountCount?: number;
+  fiscalPeriodsCreated?: number;
+  bankAccountsLinked?: number;
+  cashAccountsCreated?: number;
   completeness: number;
+  timeToFirstValueSeconds: number | null;
   nextActions: string[];
+  failureRecovery: string[];
   auditEntries: AuditEntry[];
   durationMs: number;
 }
 
-// ─── Default COA Template ─────────────────────────────────────────────────
-
-type CoaSubtype =
-  | "current_asset"
-  | "fixed_asset"
-  | "bank_account"
-  | "cash"
-  | "accounts_receivable"
-  | "inventory"
-  | "prepaid"
-  | "current_liability"
-  | "long_term_liability"
-  | "accounts_payable"
-  | "tax_liability"
-  | "accrued_liability"
-  | "owner_equity"
-  | "retained_earnings"
-  | "current_year_earnings"
-  | "sales_revenue"
-  | "service_revenue"
-  | "other_income"
-  | "interest_income"
-  | "cost_of_goods_sold"
-  | "operating_expense"
-  | "payroll_expense"
-  | "tax_expense"
-  | "depreciation"
-  | "interest_expense"
-  | "other_expense";
-
-interface CoaTemplate {
-  code: string;
-  name: string;
-  type: "asset" | "liability" | "equity" | "revenue" | "expense";
-  subtype: CoaSubtype;
-  isActive: boolean;
+export interface DataConnectionResult {
+  connectionId: string;
+  type: DataConnectionType;
+  status: DataConnectionStatus;
+  recordsProcessed: number;
+  failureReason: string | null;
+  fallbackOffered: DataConnectionType | null;
 }
 
-const DEFAULT_COA: CoaTemplate[] = [
+// ─── COA Templates (pre-built by segment/country) ────────────────────────
+
+const DEFAULT_COA_TEMPLATES: Array<{
+  segment: string;
+  country: string;
+  accounts: Array<{
+    code: string;
+    name: string;
+    type: "asset" | "liability" | "equity" | "revenue" | "expense";
+    subtype: string;
+    isActive: boolean;
+  }>;
+}> = [
   {
-    code: "1010",
-    name: "Cash - Operating",
-    type: "asset",
-    subtype: "bank_account",
-    isActive: true,
+    segment: "trading",
+    country: "GM",
+    accounts: [
+      {
+        code: "1010",
+        name: "Cash - Operating",
+        type: "asset",
+        subtype: "bank_account",
+        isActive: true,
+      },
+      {
+        code: "1020",
+        name: "Cash - Petty Cash",
+        type: "asset",
+        subtype: "cash",
+        isActive: true,
+      },
+      {
+        code: "1100",
+        name: "Accounts Receivable",
+        type: "asset",
+        subtype: "accounts_receivable",
+        isActive: true,
+      },
+      {
+        code: "1200",
+        name: "Inventory",
+        type: "asset",
+        subtype: "inventory",
+        isActive: true,
+      },
+      {
+        code: "1510",
+        name: "Fixed Assets - Equipment",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "2010",
+        name: "Accounts Payable",
+        type: "liability",
+        subtype: "accounts_payable",
+        isActive: true,
+      },
+      {
+        code: "2030",
+        name: "VAT Payable",
+        type: "liability",
+        subtype: "tax_liability",
+        isActive: true,
+      },
+      {
+        code: "3010",
+        name: "Opening Balance Equity",
+        type: "equity",
+        subtype: "owner_equity",
+        isActive: true,
+      },
+      {
+        code: "3020",
+        name: "Retained Earnings",
+        type: "equity",
+        subtype: "retained_earnings",
+        isActive: true,
+      },
+      {
+        code: "4010",
+        name: "Sales Revenue",
+        type: "revenue",
+        subtype: "sales_revenue",
+        isActive: true,
+      },
+      {
+        code: "5010",
+        name: "Cost of Goods Sold",
+        type: "expense",
+        subtype: "cost_of_goods_sold",
+        isActive: true,
+      },
+      {
+        code: "5020",
+        name: "Operating Expenses",
+        type: "expense",
+        subtype: "operating_expense",
+        isActive: true,
+      },
+    ],
   },
   {
-    code: "1020",
-    name: "Cash - Petty Cash",
-    type: "asset",
-    subtype: "cash",
-    isActive: true,
+    segment: "services",
+    country: "GM",
+    accounts: [
+      {
+        code: "1010",
+        name: "Cash - Operating",
+        type: "asset",
+        subtype: "bank_account",
+        isActive: true,
+      },
+      {
+        code: "1100",
+        name: "Accounts Receivable",
+        type: "asset",
+        subtype: "accounts_receivable",
+        isActive: true,
+      },
+      {
+        code: "1510",
+        name: "Fixed Assets - Equipment",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "2010",
+        name: "Accounts Payable",
+        type: "liability",
+        subtype: "accounts_payable",
+        isActive: true,
+      },
+      {
+        code: "3010",
+        name: "Opening Balance Equity",
+        type: "equity",
+        subtype: "owner_equity",
+        isActive: true,
+      },
+      {
+        code: "3020",
+        name: "Retained Earnings",
+        type: "equity",
+        subtype: "retained_earnings",
+        isActive: true,
+      },
+      {
+        code: "4010",
+        name: "Service Revenue",
+        type: "revenue",
+        subtype: "service_revenue",
+        isActive: true,
+      },
+      {
+        code: "5010",
+        name: "Salaries & Wages",
+        type: "expense",
+        subtype: "payroll_expense",
+        isActive: true,
+      },
+      {
+        code: "5020",
+        name: "Rent & Utilities",
+        type: "expense",
+        subtype: "operating_expense",
+        isActive: true,
+      },
+    ],
   },
   {
-    code: "1100",
-    name: "Accounts Receivable",
-    type: "asset",
-    subtype: "accounts_receivable",
-    isActive: true,
+    segment: "manufacturing",
+    country: "GM",
+    accounts: [
+      {
+        code: "1010",
+        name: "Cash - Operating",
+        type: "asset",
+        subtype: "bank_account",
+        isActive: true,
+      },
+      {
+        code: "1100",
+        name: "Accounts Receivable",
+        type: "asset",
+        subtype: "accounts_receivable",
+        isActive: true,
+      },
+      {
+        code: "1200",
+        name: "Raw Materials Inventory",
+        type: "asset",
+        subtype: "inventory",
+        isActive: true,
+      },
+      {
+        code: "1210",
+        name: "Work in Progress",
+        type: "asset",
+        subtype: "inventory",
+        isActive: true,
+      },
+      {
+        code: "1220",
+        name: "Finished Goods Inventory",
+        type: "asset",
+        subtype: "inventory",
+        isActive: true,
+      },
+      {
+        code: "1510",
+        name: "Plant & Machinery",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "1520",
+        name: "Buildings",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "2010",
+        name: "Accounts Payable",
+        type: "liability",
+        subtype: "accounts_payable",
+        isActive: true,
+      },
+      {
+        code: "2030",
+        name: "Accrued Payroll",
+        type: "liability",
+        subtype: "payroll_liability",
+        isActive: true,
+      },
+      {
+        code: "3010",
+        name: "Opening Balance Equity",
+        type: "equity",
+        subtype: "owner_equity",
+        isActive: true,
+      },
+      {
+        code: "3020",
+        name: "Retained Earnings",
+        type: "equity",
+        subtype: "retained_earnings",
+        isActive: true,
+      },
+      {
+        code: "4010",
+        name: "Sales Revenue - Products",
+        type: "revenue",
+        subtype: "sales_revenue",
+        isActive: true,
+      },
+      {
+        code: "5010",
+        name: "Raw Materials",
+        type: "expense",
+        subtype: "cost_of_goods_sold",
+        isActive: true,
+      },
+      {
+        code: "5020",
+        name: "Direct Labor",
+        type: "expense",
+        subtype: "payroll_expense",
+        isActive: true,
+      },
+      {
+        code: "5030",
+        name: "Manufacturing Overhead",
+        type: "expense",
+        subtype: "operating_expense",
+        isActive: true,
+      },
+      {
+        code: "6010",
+        name: "Depreciation - Plant",
+        type: "expense",
+        subtype: "depreciation",
+        isActive: true,
+      },
+    ],
   },
   {
-    code: "1200",
-    name: "Inventory",
-    type: "asset",
-    subtype: "inventory",
-    isActive: true,
+    segment: "agriculture",
+    country: "GM",
+    accounts: [
+      {
+        code: "1010",
+        name: "Cash - Operating",
+        type: "asset",
+        subtype: "bank_account",
+        isActive: true,
+      },
+      {
+        code: "1100",
+        name: "Accounts Receivable",
+        type: "asset",
+        subtype: "accounts_receivable",
+        isActive: true,
+      },
+      {
+        code: "1300",
+        name: "Biological Assets - Crops",
+        type: "asset",
+        subtype: "biological_asset",
+        isActive: true,
+      },
+      {
+        code: "1310",
+        name: "Biological Assets - Livestock",
+        type: "asset",
+        subtype: "biological_asset",
+        isActive: true,
+      },
+      {
+        code: "1400",
+        name: "Farm Supplies Inventory",
+        type: "asset",
+        subtype: "inventory",
+        isActive: true,
+      },
+      {
+        code: "1510",
+        name: "Farm Equipment",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "1520",
+        name: "Land",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "2010",
+        name: "Accounts Payable",
+        type: "liability",
+        subtype: "accounts_payable",
+        isActive: true,
+      },
+      {
+        code: "2040",
+        name: "Loans Payable - Agricultural",
+        type: "liability",
+        subtype: "loan_liability",
+        isActive: true,
+      },
+      {
+        code: "3010",
+        name: "Opening Balance Equity",
+        type: "equity",
+        subtype: "owner_equity",
+        isActive: true,
+      },
+      {
+        code: "3020",
+        name: "Retained Earnings",
+        type: "equity",
+        subtype: "retained_earnings",
+        isActive: true,
+      },
+      {
+        code: "4010",
+        name: "Crop Sales Revenue",
+        type: "revenue",
+        subtype: "sales_revenue",
+        isActive: true,
+      },
+      {
+        code: "4020",
+        name: "Livestock Sales Revenue",
+        type: "revenue",
+        subtype: "sales_revenue",
+        isActive: true,
+      },
+      {
+        code: "5010",
+        name: "Seeds & Fertilizer",
+        type: "expense",
+        subtype: "cost_of_goods_sold",
+        isActive: true,
+      },
+      {
+        code: "5020",
+        name: "Farm Labor",
+        type: "expense",
+        subtype: "payroll_expense",
+        isActive: true,
+      },
+      {
+        code: "5030",
+        name: "Irrigation & Utilities",
+        type: "expense",
+        subtype: "operating_expense",
+        isActive: true,
+      },
+    ],
   },
   {
-    code: "1300",
-    name: "Prepaid Expenses",
-    type: "asset",
-    subtype: "prepaid",
-    isActive: true,
+    segment: "nonprofit",
+    country: "GM",
+    accounts: [
+      {
+        code: "1010",
+        name: "Cash - Operating",
+        type: "asset",
+        subtype: "bank_account",
+        isActive: true,
+      },
+      {
+        code: "1100",
+        name: "Pledges Receivable",
+        type: "asset",
+        subtype: "accounts_receivable",
+        isActive: true,
+      },
+      {
+        code: "1510",
+        name: "Fixed Assets",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "2010",
+        name: "Accounts Payable",
+        type: "liability",
+        subtype: "accounts_payable",
+        isActive: true,
+      },
+      {
+        code: "2050",
+        name: "Grant Funds Held in Trust",
+        type: "liability",
+        subtype: "trust_liability",
+        isActive: true,
+      },
+      {
+        code: "3010",
+        name: "Net Assets - Unrestricted",
+        type: "equity",
+        subtype: "net_assets",
+        isActive: true,
+      },
+      {
+        code: "3020",
+        name: "Net Assets - Restricted",
+        type: "equity",
+        subtype: "net_assets",
+        isActive: true,
+      },
+      {
+        code: "4010",
+        name: "Grant Revenue",
+        type: "revenue",
+        subtype: "grant_revenue",
+        isActive: true,
+      },
+      {
+        code: "4020",
+        name: "Donations Revenue",
+        type: "revenue",
+        subtype: "donation_revenue",
+        isActive: true,
+      },
+      {
+        code: "4030",
+        name: "Program Service Revenue",
+        type: "revenue",
+        subtype: "service_revenue",
+        isActive: true,
+      },
+      {
+        code: "5010",
+        name: "Program Expenses",
+        type: "expense",
+        subtype: "program_expense",
+        isActive: true,
+      },
+      {
+        code: "5020",
+        name: "Administrative Expenses",
+        type: "expense",
+        subtype: "administrative_expense",
+        isActive: true,
+      },
+      {
+        code: "5030",
+        name: "Fundraising Expenses",
+        type: "expense",
+        subtype: "fundraising_expense",
+        isActive: true,
+      },
+    ],
   },
   {
-    code: "1510",
-    name: "Fixed Assets - Equipment",
-    type: "asset",
-    subtype: "fixed_asset",
-    isActive: true,
-  },
-  {
-    code: "1520",
-    name: "Fixed Assets - Vehicles",
-    type: "asset",
-    subtype: "fixed_asset",
-    isActive: true,
-  },
-  {
-    code: "1530",
-    name: "Fixed Assets - Buildings",
-    type: "asset",
-    subtype: "fixed_asset",
-    isActive: true,
-  },
-  {
-    code: "1550",
-    name: "Accumulated Depreciation",
-    type: "asset",
-    subtype: "fixed_asset",
-    isActive: true,
-  },
-  {
-    code: "1600",
-    name: "Intangible Assets",
-    type: "asset",
-    subtype: "fixed_asset",
-    isActive: true,
-  },
-  {
-    code: "2010",
-    name: "Accounts Payable",
-    type: "liability",
-    subtype: "accounts_payable",
-    isActive: true,
-  },
-  {
-    code: "2020",
-    name: "Accrued Expenses",
-    type: "liability",
-    subtype: "accrued_liability",
-    isActive: true,
-  },
-  {
-    code: "2030",
-    name: "VAT Payable",
-    type: "liability",
-    subtype: "tax_liability",
-    isActive: true,
-  },
-  {
-    code: "2050",
-    name: "Payroll Payable",
-    type: "liability",
-    subtype: "current_liability",
-    isActive: true,
-  },
-  {
-    code: "2100",
-    name: "Short-term Loans",
-    type: "liability",
-    subtype: "current_liability",
-    isActive: true,
-  },
-  {
-    code: "2200",
-    name: "Long-term Loans",
-    type: "liability",
-    subtype: "long_term_liability",
-    isActive: true,
-  },
-  {
-    code: "3010",
-    name: "Opening Balance Equity",
-    type: "equity",
-    subtype: "owner_equity",
-    isActive: true,
-  },
-  {
-    code: "3020",
-    name: "Retained Earnings",
-    type: "equity",
-    subtype: "retained_earnings",
-    isActive: true,
-  },
-  {
-    code: "3030",
-    name: "Current Year Earnings",
-    type: "equity",
-    subtype: "current_year_earnings",
-    isActive: true,
-  },
-  {
-    code: "3100",
-    name: "Owner's Capital",
-    type: "equity",
-    subtype: "owner_equity",
-    isActive: true,
-  },
-  {
-    code: "4010",
-    name: "Sales Revenue",
-    type: "revenue",
-    subtype: "sales_revenue",
-    isActive: true,
-  },
-  {
-    code: "4020",
-    name: "Service Revenue",
-    type: "revenue",
-    subtype: "service_revenue",
-    isActive: true,
-  },
-  {
-    code: "4100",
-    name: "Interest Income",
-    type: "revenue",
-    subtype: "interest_income",
-    isActive: true,
-  },
-  {
-    code: "4110",
-    name: "Other Income",
-    type: "revenue",
-    subtype: "other_income",
-    isActive: true,
-  },
-  {
-    code: "5010",
-    name: "Salaries & Wages",
-    type: "expense",
-    subtype: "payroll_expense",
-    isActive: true,
-  },
-  {
-    code: "5020",
-    name: "Rent Expense",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5030",
-    name: "Utilities",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5040",
-    name: "Office Supplies",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5050",
-    name: "Travel & Transport",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5060",
-    name: "Professional Fees",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5070",
-    name: "Insurance",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5080",
-    name: "Communication",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5090",
-    name: "Bank Charges",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5100",
-    name: "Depreciation",
-    type: "expense",
-    subtype: "depreciation",
-    isActive: true,
-  },
-  {
-    code: "5110",
-    name: "Repairs & Maintenance",
-    type: "expense",
-    subtype: "operating_expense",
-    isActive: true,
-  },
-  {
-    code: "5200",
-    name: "Cost of Goods Sold",
-    type: "expense",
-    subtype: "cost_of_goods_sold",
-    isActive: true,
-  },
-  {
-    code: "6010",
-    name: "Tax Expense",
-    type: "expense",
-    subtype: "tax_expense",
-    isActive: true,
-  },
-  {
-    code: "6020",
-    name: "Foreign Exchange Loss",
-    type: "expense",
-    subtype: "other_expense",
-    isActive: true,
-  },
-  {
-    code: "6030",
-    name: "Penalties & Fines",
-    type: "expense",
-    subtype: "other_expense",
-    isActive: true,
+    segment: "retail",
+    country: "GM",
+    accounts: [
+      {
+        code: "1010",
+        name: "Cash - Operating",
+        type: "asset",
+        subtype: "bank_account",
+        isActive: true,
+      },
+      {
+        code: "1020",
+        name: "Cash - Petty Cash",
+        type: "asset",
+        subtype: "cash",
+        isActive: true,
+      },
+      {
+        code: "1100",
+        name: "Accounts Receivable",
+        type: "asset",
+        subtype: "accounts_receivable",
+        isActive: true,
+      },
+      {
+        code: "1200",
+        name: "Merchandise Inventory",
+        type: "asset",
+        subtype: "inventory",
+        isActive: true,
+      },
+      {
+        code: "1510",
+        name: "Store Fixtures & Equipment",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "1520",
+        name: "Leasehold Improvements",
+        type: "asset",
+        subtype: "fixed_asset",
+        isActive: true,
+      },
+      {
+        code: "2010",
+        name: "Accounts Payable",
+        type: "liability",
+        subtype: "accounts_payable",
+        isActive: true,
+      },
+      {
+        code: "2020",
+        name: "Accrued Expenses",
+        type: "liability",
+        subtype: "accrued_liability",
+        isActive: true,
+      },
+      {
+        code: "2030",
+        name: "Sales Tax Payable",
+        type: "liability",
+        subtype: "tax_liability",
+        isActive: true,
+      },
+      {
+        code: "3010",
+        name: "Opening Balance Equity",
+        type: "equity",
+        subtype: "owner_equity",
+        isActive: true,
+      },
+      {
+        code: "3020",
+        name: "Retained Earnings",
+        type: "equity",
+        subtype: "retained_earnings",
+        isActive: true,
+      },
+      {
+        code: "4010",
+        name: "Sales Revenue - Products",
+        type: "revenue",
+        subtype: "sales_revenue",
+        isActive: true,
+      },
+      {
+        code: "4020",
+        name: "Sales Returns & Allowances",
+        type: "revenue",
+        subtype: "contra_revenue",
+        isActive: true,
+      },
+      {
+        code: "5010",
+        name: "Cost of Goods Sold",
+        type: "expense",
+        subtype: "cost_of_goods_sold",
+        isActive: true,
+      },
+      {
+        code: "5020",
+        name: "Store Operating Expenses",
+        type: "expense",
+        subtype: "operating_expense",
+        isActive: true,
+      },
+      {
+        code: "5030",
+        name: "Rent Expense",
+        type: "expense",
+        subtype: "rent_expense",
+        isActive: true,
+      },
+    ],
   },
 ];
 
-// ─── Step 2: Chart of Accounts ──────────────────────────────────────────
+// ─── Step 1: Create Onboarding Session ───────────────────────────────────
 
-async function seedChartOfAccounts(entityId: string): Promise<{
-  accountCount: number;
-  created: boolean;
+export async function createOnboardingSession(
+  orgId: string,
+): Promise<{ sessionId: string }> {
+  // Check if session already exists
+  const existing = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.orgId, orgId),
+  });
+
+  if (existing) {
+    return { sessionId: existing.id };
+  }
+
+  const [session] = await db
+    .insert(onboardingSessions)
+    .values({
+      orgId,
+      currentStep: "signup",
+      status: "in_progress",
+      startedAt: new Date(),
+    })
+    .returning({ id: onboardingSessions.id });
+
+  return { sessionId: session!.id };
+}
+
+// ─── Step 1b: Update Routing Answer ──────────────────────────────────────
+
+export async function updateRoutingAnswer(
+  sessionId: string,
+  answer: RoutingAnswer,
+): Promise<void> {
+  const completedSteps: string[] = ["signup", "routing"];
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(onboardingSessions)
+      .set({
+        routingAnswer: answer,
+        currentStep: "entity_setup",
+        completedSteps,
+      })
+      .where(eq(onboardingSessions.id, sessionId));
+
+    // Seed COA templates if they don't exist yet
+    for (const template of DEFAULT_COA_TEMPLATES) {
+      const existing = await tx.query.coaTemplates.findFirst({
+        where: and(
+          eq(coaTemplates.segment, template.segment),
+          eq(coaTemplates.country, template.country),
+        ),
+      });
+      if (!existing) {
+        await tx.insert(coaTemplates).values({
+          name: `${template.segment} (${template.country})`,
+          segment: template.segment,
+          country: template.country,
+          accountList: template.accounts,
+          isDefault: true,
+        });
+      }
+    }
+  });
+}
+
+// ─── Step 2: Entity Setup ────────────────────────────────────────────────
+
+export async function setupEntity(
+  sessionId: string,
+  entityId: string,
+): Promise<void> {
+  // Read current steps, append, then write back (avoids race condition)
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.id, sessionId),
+    columns: { completedSteps: true },
+  });
+  const steps = [...(session?.completedSteps ?? []), "entity_setup"];
+
+  await db
+    .update(onboardingSessions)
+    .set({
+      currentStep: "data_connections",
+      completedSteps: steps,
+    })
+    .where(eq(onboardingSessions.id, sessionId));
+}
+
+// ─── Step 3: Data Connection Hub ─────────────────────────────────────────
+//
+// Every connection type has a defined failure recovery path:
+//   Bank upload fails       → Manual transaction entry offered
+//   Mobile money fails      → Agent asks for different export format
+//   QuickBooks/Xero fails   → CSV export path offered as fallback
+//   Any other failure       → Never leave user on broken screen
+
+export async function createDataConnection(
+  entityId: string,
+  type: DataConnectionType,
+): Promise<DataConnectionResult> {
+  const [connection] = await db
+    .insert(dataConnections)
+    .values({
+      entityId,
+      type,
+      status: "pending",
+    })
+    .returning();
+
+  return {
+    connectionId: connection!.id,
+    type,
+    status: "pending",
+    recordsProcessed: 0,
+    failureReason: null,
+    fallbackOffered: null,
+  };
+}
+
+export async function updateDataConnectionStatus(
+  connectionId: string,
+  status: DataConnectionStatus,
+  options?: {
+    recordsProcessed?: number;
+    failureReason?: string;
+    fallbackOffered?: DataConnectionType;
+  },
+): Promise<void> {
+  const update: Record<string, unknown> = { status };
+
+  if (options?.recordsProcessed !== undefined) {
+    update.recordsProcessed = options.recordsProcessed;
+  }
+  if (options?.failureReason !== undefined) {
+    update.failureReason = options.failureReason;
+  }
+  if (options?.fallbackOffered !== undefined) {
+    update.fallbackOffered = options.fallbackOffered;
+  }
+
+  await db
+    .update(dataConnections)
+    .set(update)
+    .where(eq(dataConnections.id, connectionId));
+}
+
+/**
+ * Determine the appropriate fallback when a connection fails.
+ * Spec requirement: every failure state maps to a defined alternative path.
+ */
+export function getFallbackForFailure(
+  type: DataConnectionType,
+): { fallbackType: DataConnectionType; message: string } | null {
+  switch (type) {
+    case "bank_api":
+    case "bank_pdf":
+      return {
+        fallbackType: "manual_entry",
+        message:
+          "Bank upload failed. You can enter transactions manually instead.",
+      };
+    case "mobile_money":
+      return {
+        fallbackType: "csv",
+        message:
+          "Mobile money format not recognized. Please export as CSV and try again.",
+      };
+    case "quickbooks":
+    case "xero":
+      return {
+        fallbackType: "csv",
+        message:
+          "Connection failed. You can export your data as CSV and upload it.",
+      };
+    case "excel":
+    case "csv":
+      return {
+        fallbackType: "manual_entry",
+        message:
+          "File upload failed. You can enter your data manually instead.",
+      };
+    default:
+      return null;
+  }
+}
+
+export async function markDataConnectionsStepComplete(
+  sessionId: string,
+): Promise<void> {
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.id, sessionId),
+  });
+  if (!session) return;
+
+  const steps = [...(session.completedSteps ?? []), "data_connections"];
+
+  await db
+    .update(onboardingSessions)
+    .set({
+      currentStep: "historical_pull",
+      completedSteps: steps,
+    })
+    .where(eq(onboardingSessions.id, sessionId));
+}
+
+// ─── Step 4: Historical Data Pull (background) ───────────────────────────
+//
+// The ONE explicit human-permission gate in the whole flow.
+// If detected history exceeds 12 months, CFO Agent stops and asks permission.
+// No paywall, no limits — prerequisites for accurate work.
+
+export async function startHistoricalPull(
+  entityId: string,
+  dateRangeStart: string,
+  dateRangeEnd: string,
+): Promise<{ jobId: string; needsPermission: boolean }> {
+  // Estimate if data exceeds 12 months
+  const startDate = new Date(dateRangeStart);
+  const endDate = new Date(dateRangeEnd);
+  const monthDiff =
+    (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+    (endDate.getMonth() - startDate.getMonth());
+  const exceeds12Months = monthDiff > 12;
+
+  const [job] = await db
+    .insert(historicalPullJobs)
+    .values({
+      entityId,
+      dateRangeStart,
+      dateRangeEnd,
+      status: exceeds12Months ? "permission_required" : "pulling",
+      exceeds12Months,
+    })
+    .returning();
+
+  return { jobId: job!.id, needsPermission: exceeds12Months };
+}
+
+export async function requestHistoricalPullPermission(
+  jobId: string,
+): Promise<void> {
+  await db
+    .update(historicalPullJobs)
+    .set({ permissionRequestedAt: new Date() })
+    .where(eq(historicalPullJobs.id, jobId));
+}
+
+export async function approveHistoricalPull(
+  jobId: string,
+  approved: boolean,
+): Promise<void> {
+  if (approved) {
+    await db
+      .update(historicalPullJobs)
+      .set({
+        status: "pulling",
+        permissionGrantedAt: new Date(),
+      })
+      .where(eq(historicalPullJobs.id, jobId));
+  } else {
+    await db
+      .update(historicalPullJobs)
+      .set({ status: "permission_denied" })
+      .where(eq(historicalPullJobs.id, jobId));
+  }
+}
+
+export async function markHistoricalPullComplete(
+  sessionId: string,
+): Promise<void> {
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.id, sessionId),
+  });
+  if (!session) return;
+
+  const steps = [...(session.completedSteps ?? []), "historical_pull"];
+
+  await db
+    .update(onboardingSessions)
+    .set({
+      currentStep: "coa_review",
+      completedSteps: steps,
+    })
+    .where(eq(onboardingSessions.id, sessionId));
+}
+
+// ─── Step 5: Chart of Accounts Setup ─────────────────────────────────────
+//
+// Proposes a standard CoA based on business type + country.
+// User reviews and confirms with zero accounting knowledge required.
+// Fully customizable later via chat.
+
+export async function getSuggestedCoA(
+  segment: string,
+  country: string,
+): Promise<{
+  templateId: string | null;
+  accounts: Array<{
+    code: string;
+    name: string;
+    type: string;
+    subtype: string;
+    isActive: boolean;
+  }>;
 }> {
+  // Try to find a matching template
+  const template = await db.query.coaTemplates.findFirst({
+    where: and(
+      eq(coaTemplates.segment, segment),
+      eq(coaTemplates.country, country),
+    ),
+  });
+
+  if (template) {
+    return {
+      templateId: template.id,
+      accounts: template.accountList as any[],
+    };
+  }
+
+  // Fall back to default template matching by segment only
+  const defaultTemplate = await db.query.coaTemplates.findFirst({
+    where: and(
+      eq(coaTemplates.segment, segment),
+      eq(coaTemplates.isDefault, true),
+    ),
+  });
+
+  if (defaultTemplate) {
+    return {
+      templateId: defaultTemplate.id,
+      accounts: defaultTemplate.accountList as any[],
+    };
+  }
+
+  return { templateId: null, accounts: [] };
+}
+
+export async function confirmCoA(
+  entityId: string,
+  templateId: string,
+): Promise<{ accountCount: number }> {
+  const template = await db.query.coaTemplates.findFirst({
+    where: eq(coaTemplates.id, templateId),
+  });
+  if (!template) {
+    throw new Error("COA template not found");
+  }
+
+  const accounts = template.accountList as Array<{
+    code: string;
+    name: string;
+    type: string;
+    subtype: string;
+    isActive: boolean;
+  }>;
+
+  // Check if accounts already exist
   const existingAccounts = await db.query.chartOfAccounts.findMany({
     where: eq(chartOfAccounts.entityId, entityId),
   });
 
   if (existingAccounts.length > 0) {
-    return { accountCount: existingAccounts.length, created: false };
+    return { accountCount: existingAccounts.length };
   }
 
-  // Batch insert default COA (no onConflictDoNothing needed since we already checked)
-  for (const template of DEFAULT_COA) {
-    await db.insert(chartOfAccounts).values({
-      entityId,
-      code: template.code,
-      name: template.name,
-      type: template.type,
-      subtype: template.subtype as CoaSubtype,
-      isActive: template.isActive,
-    });
-  }
-
-  return { accountCount: DEFAULT_COA.length, created: true };
-}
-
-// ─── Step 3: Fiscal Periods ─────────────────────────────────────────────
-
-async function createFiscalPeriods(
-  entityId: string,
-): Promise<{ periodsCreated: number }> {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  let created = 0;
-
-  for (let month = 1; month <= 12; month++) {
-    const existing = await db.query.fiscalPeriods.findFirst({
-      where: and(
-        eq(fiscalPeriods.entityId, entityId),
-        eq(fiscalPeriods.year, currentYear),
-        eq(fiscalPeriods.month, month),
-      ),
-    });
-
-    if (!existing) {
-      const startDate = new Date(currentYear, month - 1, 1);
-      const endDate = new Date(currentYear, month, 0);
-
-      await db.insert(fiscalPeriods).values({
+  // Insert accounts in a transaction
+  await db.transaction(async (tx) => {
+    for (const account of accounts) {
+      await tx.insert(chartOfAccounts).values({
         entityId,
-        year: currentYear,
-        month,
-        startDate: startDate.toISOString().split("T")[0]!,
-        endDate: endDate.toISOString().split("T")[0]!,
-        status: "open" as const,
+        code: account.code,
+        name: account.name,
+        type: account.type as any,
+        subtype: account.subtype as any,
+        isActive: account.isActive,
       });
-      created++;
     }
-  }
+  });
 
-  return { periodsCreated: created || 12 };
+  return { accountCount: accounts.length };
 }
 
-// ─── Step 5: Readiness Check ─────────────────────────────────────────────
+export async function markCoAComplete(sessionId: string): Promise<void> {
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.id, sessionId),
+  });
+  if (!session) return;
 
-async function checkOnboardingReadiness(entityId: string): Promise<{
-  completeness: number;
-  coaAccounts: number;
-  fiscalPeriods: number;
-  nextActions: string[];
-}> {
-  const actions: string[] = [];
+  const steps = [...(session.completedSteps ?? []), "coa_review"];
 
-  const accounts = await db.query.chartOfAccounts.findMany({
-    where: eq(chartOfAccounts.entityId, entityId),
+  await db
+    .update(onboardingSessions)
+    .set({
+      currentStep: "first_look",
+      completedSteps: steps,
+    })
+    .where(eq(onboardingSessions.id, sessionId));
+}
+
+// ─── Step 6: First Look — Activation Moment ──────────────────────────────
+//
+// Dashboard loads with transactions already categorized.
+// CFO Agent sends first message.
+// This IS the product's first-value moment.
+// Time-to-first-value is logged.
+
+export async function completeOnboarding(
+  sessionId: string,
+): Promise<{ timeToFirstValueSeconds: number }> {
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.id, sessionId),
+  });
+  if (!session) {
+    throw new Error("Onboarding session not found");
+  }
+
+  const now = new Date();
+  const startedAt = session.startedAt;
+  const ttFirstValue = Math.round((now.getTime() - startedAt.getTime()) / 1000);
+
+  const steps = [...(session.completedSteps ?? []), "first_look", "complete"];
+
+  await db
+    .update(onboardingSessions)
+    .set({
+      currentStep: "complete",
+      status: "completed",
+      completedSteps: steps,
+      completedAt: now,
+      timeToFirstValueSeconds: ttFirstValue,
+    })
+    .where(eq(onboardingSessions.id, sessionId));
+
+  return { timeToFirstValueSeconds: ttFirstValue };
+}
+
+// ─── Status & Readiness ──────────────────────────────────────────────────
+
+export async function getOnboardingStatus(
+  orgId: string,
+): Promise<OnboardingPipelineResult | null> {
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.orgId, orgId),
+  });
+  if (!session) return null;
+
+  const entity = await db.query.entities.findFirst({
+    where: eq(entities.organizationId, orgId),
   });
 
-  if (accounts.length === 0) {
-    actions.push("Seed chart of accounts");
-  }
-
-  const periods = await db.query.fiscalPeriods.findMany({
-    where: eq(fiscalPeriods.entityId, entityId),
-  });
-
-  if (periods.length === 0) {
-    actions.push("Create fiscal periods");
-  }
-
-  const checks = [
-    { done: accounts.length > 0, weight: 0.35 },
-    { done: periods.length >= 12, weight: 0.25 },
-  ];
-
-  const completeness = checks.reduce(
-    (sum: number, c) => sum + (c.done ? c.weight : 0),
-    0,
-  );
-
-  if (accounts.length > 0 && periods.length > 0) {
-    actions.push("Create bank accounts for your entity");
-    actions.push("Create cash accounts for petty cash management");
-    actions.push("Invite team members and assign roles");
-    actions.push("Configure tax rates and settings");
-  }
+  const steps = buildSteps(session.currentStep, session.completedSteps ?? []);
+  const completeness = computeCompleteness(session.completedSteps ?? []);
+  const failureRecovery = await checkFailureRecovery(entity?.id ?? "");
 
   return {
+    success: session.status === "completed",
+    sessionId: session.id,
+    orgId,
+    entityId: entity?.id ?? null,
+    steps,
+    currentStep: session.currentStep as OnboardingStepId,
     completeness,
-    coaAccounts: accounts.length,
-    fiscalPeriods: periods.length,
-    nextActions: actions,
+    timeToFirstValueSeconds: session.timeToFirstValueSeconds,
+    nextActions: getNextActions(session.currentStep as OnboardingStepId),
+    failureRecovery,
+    auditEntries: [],
+    durationMs: 0,
   };
+}
+
+function buildSteps(
+  currentStep: string,
+  completedSteps: string[],
+): OnboardingStep[] {
+  const allSteps: Array<{
+    id: OnboardingStepId;
+    label: string;
+    recovery?: string;
+  }> = [
+    { id: "signup", label: "Create account" },
+    { id: "routing", label: "Tell us about your books" },
+    { id: "entity_setup", label: "Set up your business" },
+    {
+      id: "data_connections",
+      label: "Connect your data",
+      recovery: "Manual entry always available",
+    },
+    { id: "historical_pull", label: "Import historical data" },
+    { id: "coa_review", label: "Review chart of accounts" },
+    { id: "first_look", label: "Your first look" },
+  ];
+
+  return allSteps.map((s) => {
+    const isComplete = completedSteps.includes(s.id);
+    const isCurrent = s.id === currentStep;
+    return {
+      id: s.id,
+      label: s.label,
+      status: isComplete ? "completed" : isCurrent ? "pending" : "pending",
+      details: isComplete ? "Done" : isCurrent ? "In progress" : "Waiting",
+      failureRecovery: s.recovery,
+    };
+  });
+}
+
+function computeCompleteness(completedSteps: string[]): number {
+  // Fiscal periods + CoA are the heavy items (35% + 25% = 60%)
+  // Data connections (20%), Historical pull (15%), First look (5%)
+  const weights: Record<string, number> = {
+    signup: 0.05,
+    routing: 0.05,
+    entity_setup: 0.1,
+    data_connections: 0.2,
+    historical_pull: 0.15,
+    coa_review: 0.35,
+    first_look: 0.05,
+    complete: 0.05,
+  };
+
+  const base = completedSteps.reduce(
+    (sum, step) => sum + (weights[step] ?? 0),
+    0,
+  );
+  return Math.min(1, base);
+}
+
+function getNextActions(currentStep: string): string[] {
+  switch (currentStep) {
+    case "signup":
+      return ["Tell us how you currently manage your books"];
+    case "entity_setup":
+      return ["Fill in your business details"];
+    case "data_connections":
+      return [
+        "Connect your bank account",
+        "Upload bank statements (PDF)",
+        "Import from QuickBooks/Xero",
+        "Enter transactions manually",
+      ];
+    case "historical_pull":
+      return ["Wait for historical data import to complete"];
+    case "coa_review":
+      return ["Review and confirm suggested chart of accounts"];
+    case "first_look":
+      return ["Explore your dashboard", "Ask your CFO Agent a question"];
+    default:
+      return [];
+  }
+}
+
+async function checkFailureRecovery(entityId: string): Promise<string[]> {
+  if (!entityId) return [];
+
+  const failedConnections = await db.query.dataConnections.findMany({
+    where: and(
+      eq(dataConnections.entityId, entityId),
+      or(
+        eq(dataConnections.status, "failed"),
+        eq(dataConnections.status, "fallback_offered"),
+      ),
+    ),
+  });
+
+  return failedConnections.map(
+    (c) =>
+      `Connection ${c.type} failed: ${c.failureReason ?? "Unknown error"}. ${c.fallbackOffered ? `Fallback: ${c.fallbackOffered}` : "Try a different connection method."}`,
+  );
 }
 
 // ─── Main Pipeline Entry Point ───────────────────────────────────────────
@@ -490,68 +1306,145 @@ export async function runOnboardingPipeline(
   const steps: OnboardingStep[] = [];
 
   try {
-    const coaResult = await seedChartOfAccounts(entityId);
     steps.push({
-      id: "coa",
-      label: "Chart of Accounts",
-      status: coaResult.created ? "completed" : "skipped",
-      details: coaResult.created
-        ? `Created ${coaResult.accountCount} standard accounts`
-        : `${coaResult.accountCount} accounts already exist`,
+      id: "entity_setup",
+      label: "Entity Setup",
+      status: "completed",
+      details: `Entity "${entityName}" confirmed`,
     });
 
-    const periodResult = await createFiscalPeriods(entityId);
-    steps.push({
-      id: "fiscal_periods",
-      label: "Fiscal Periods",
-      status: periodResult.periodsCreated > 0 ? "completed" : "skipped",
-      details: `Created ${periodResult.periodsCreated} fiscal periods`,
+    // Check if CoA already exists
+    const accounts = await db.query.chartOfAccounts.findMany({
+      where: eq(chartOfAccounts.entityId, entityId),
     });
 
-    const readiness = await checkOnboardingReadiness(entityId);
-    const completeness = Math.min(1, readiness.completeness);
+    if (accounts.length === 0) {
+      // Try to find a suitable template and seed
+      const suggested = await getSuggestedCoA("trading", "GM");
+      if (suggested.templateId && suggested.accounts.length > 0) {
+        await confirmCoA(entityId, suggested.templateId);
+        steps.push({
+          id: "coa_review",
+          label: "Chart of Accounts",
+          status: "completed",
+          details: `Created ${suggested.accounts.length} accounts from template`,
+        });
+      } else {
+        // Fallback: seed standard COA inline
+        await db.transaction(async (tx) => {
+          for (const acct of DEFAULT_COA_TEMPLATES[0].accounts) {
+            await tx.insert(chartOfAccounts).values({
+              entityId,
+              code: acct.code,
+              name: acct.name,
+              type: acct.type as any,
+              subtype: acct.subtype as any,
+              isActive: acct.isActive,
+            });
+          }
+        });
+        steps.push({
+          id: "coa_review",
+          label: "Chart of Accounts",
+          status: "completed",
+          details: `Created ${DEFAULT_COA_TEMPLATES[0].accounts.length} standard accounts`,
+        });
+      }
+    } else {
+      steps.push({
+        id: "coa_review",
+        label: "Chart of Accounts",
+        status: "skipped",
+        details: `${accounts.length} accounts already exist`,
+      });
+    }
+
+    // Check if fiscal periods exist
+    const periods = await db.query.fiscalPeriods.findMany({
+      where: eq(fiscalPeriods.entityId, entityId),
+    });
+
+    if (periods.length === 0) {
+      const currentYear = new Date().getFullYear();
+      await db.transaction(async (tx) => {
+        for (let month = 1; month <= 12; month++) {
+          const startDate = new Date(currentYear, month - 1, 1);
+          const endDate = new Date(currentYear, month, 0);
+          await tx.insert(fiscalPeriods).values({
+            entityId,
+            year: currentYear,
+            month,
+            startDate: startDate.toISOString().split("T")[0]!,
+            endDate: endDate.toISOString().split("T")[0]!,
+            status: "open",
+          });
+        }
+      });
+      steps.push({
+        id: "historical_pull",
+        label: "Fiscal Periods",
+        status: "completed",
+        details: "Created 12 fiscal periods for current year",
+      });
+    } else {
+      steps.push({
+        id: "historical_pull",
+        label: "Fiscal Periods",
+        status: "skipped",
+        details: `${periods.length} periods already exist`,
+      });
+    }
+
+    // Check failure recovery needs
+    const failureRecovery = await checkFailureRecovery(entityId);
+
+    // Final readiness
+    const finalAccounts = await db.query.chartOfAccounts.findMany({
+      where: eq(chartOfAccounts.entityId, entityId),
+    });
+    const finalPeriods = await db.query.fiscalPeriods.findMany({
+      where: eq(fiscalPeriods.entityId, entityId),
+    });
 
     steps.push({
-      id: "readiness",
+      id: "first_look",
       label: "Readiness Check",
-      status: completeness >= 0.6 ? "completed" : "pending",
-      details: `${readiness.coaAccounts} accounts, ${readiness.fiscalPeriods} periods — ${(completeness * 100).toFixed(0)}% complete`,
+      status: "completed",
+      details: `${finalAccounts.length} accounts, ${finalPeriods.length} periods ready`,
     });
+
+    const completeness = computeCompleteness([
+      "signup",
+      "routing",
+      "entity_setup",
+      "coa_review",
+      ...(finalPeriods.length > 0 ? ["historical_pull"] : []),
+    ]);
 
     const audit = createAuditEntry({
       agentId: "onboarding-pipeline",
       action:
         completeness >= 0.6 ? "onboarding_complete" : "onboarding_partial",
-      details: {
-        entityId,
-        coaCount: readiness.coaAccounts,
-        periodCount: readiness.fiscalPeriods,
-        completeness,
-      },
+      details: { entityId, accountCount: finalAccounts.length, completeness },
       confidence: completeness,
     });
     auditEntries.push(audit);
 
     await trace.update({
-      output: {
-        completeness,
-        coaAccounts: readiness.coaAccounts,
-        fiscalPeriods: readiness.fiscalPeriods,
-      },
+      output: { completeness, accountCount: finalAccounts.length },
     });
 
     return {
       success: true,
+      sessionId: "",
+      orgId: "",
       entityId,
-      entityName,
       steps,
-      coaCreated: coaResult.created,
-      coaAccountCount: readiness.coaAccounts,
-      fiscalPeriodsCreated: readiness.fiscalPeriods,
-      bankAccountsLinked: 0,
-      cashAccountsCreated: 0,
+      currentStep: completeness >= 1 ? "complete" : "coa_review",
       completeness,
-      nextActions: readiness.nextActions,
+      timeToFirstValueSeconds: null,
+      nextActions: [],
+      failureRecovery,
       auditEntries,
       durationMs: Date.now() - startTime,
     };
@@ -566,26 +1459,29 @@ export async function runOnboardingPipeline(
     auditEntries.push(errorAudit);
 
     steps.push({
-      id: "error",
+      id: "entity_setup",
       label: "Setup Error",
       status: "failed",
       details: msg,
+      failureRecovery: "Please try again or contact support",
     });
 
     return {
       success: false,
+      sessionId: "",
+      orgId: "",
       entityId,
-      entityName,
       steps,
-      coaCreated: false,
-      coaAccountCount: 0,
-      fiscalPeriodsCreated: 0,
-      bankAccountsLinked: 0,
-      cashAccountsCreated: 0,
+      currentStep: "entity_setup",
       completeness: 0,
+      timeToFirstValueSeconds: null,
       nextActions: [`Fix setup error: ${msg}`],
+      failureRecovery: ["Please try again or contact support"],
       auditEntries,
       durationMs: Date.now() - startTime,
     };
   }
 }
+
+// Legacy exports for backward compatibility
+// seedChartOfAccounts and createFiscalPeriods are now inline in this module

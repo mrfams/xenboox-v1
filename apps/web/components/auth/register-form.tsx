@@ -61,7 +61,8 @@ export function RegisterForm() {
         return;
       }
 
-      router.push("/dashboard");
+      // Redirect to onboarding wizard instead of dashboard
+      router.push("/register/onboarding");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
