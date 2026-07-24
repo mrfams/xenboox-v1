@@ -246,11 +246,27 @@ export type {
 export {
   runReportingPipeline,
   detectReportablePeriods,
+  createReportRequest,
+  takeLedgerSnapshot,
+  buildProfitAndLoss,
+  buildBalanceSheet,
+  buildCashFlow,
+  checkTrialBalance,
+  calculateFxImpact,
+  generateNarrative,
+  createStatementVersion,
+  getReportAuditTrail,
 } from "./reporting-pipeline";
 export type {
   ReportingPipelineResult,
   ReportData,
   ReportablePeriod,
+  ProfitAndLossStatement,
+  BalanceSheetStatement,
+  CashFlowStatement,
+  LedgerSnapshot,
+  FxImpact,
+  ReportRequestInput,
 } from "./reporting-pipeline";
 
 // ─── Onboarding Pipeline (Pipeline 6 of 6) ─────────

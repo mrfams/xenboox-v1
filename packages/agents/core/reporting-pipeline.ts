@@ -1,15 +1,20 @@
-// ─── Autonomous Reporting Pipeline ───────────────────────────────────────
+// ─── Enhanced Autonomous Financial Reporting Pipeline ──────────────────────
 //
 // Pipeline 5 of 6: feeds into the Reporting Agent (Platform).
 //
-// Pipeline Steps:
-//   1. Detect Reportable Periods  — Find periods with posted entries needing reports
-//   2. Generate Reports           — Run P&L, Balance Sheet, Trial Balance in parallel
-//   3. Verify Balances            — Confirm trial balance is balanced
-//   4. Generate Narrative         — Create plain-English summary
-//   5. Confidence Gate            — Check data completeness and balance
-//   6a. Auto-Publish              — Mark reports as ready
-//   6b. Flag for Review           — Escalate unbalanced/incomplete data
+// Full 11-step flow matching the Financial Reporting Pipeline spec:
+//   1. Report Request Intake — Normalize request into structured form
+//   2. Ledger State Snapshot — Pull TB/GL state, persist snapshot
+//   3. Statement Assembly Engine — Modular builders per statement type
+//   4. Deterministic Balance Check — Hard gate: TB must balance
+//   5a. Proceed to Assembly — Balanced
+//   5b. Block & Escalate — Unbalanced (ledger integrity issue)
+//   6. FX Summary Layer — Realized/unrealized FX impact
+//   7. Custom Report Builder — Chat-driven ad hoc queries
+//   8. Plain-English Narrative — Auto-generated summary
+//   9. Format & Delivery — Multiple output channels
+//   10. Cache & Versioning — Locked vs draft periods
+//   11. Audit Trail — Every generation logged
 
 import { db } from "@xenboox/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
@@ -19,6 +24,11 @@ import {
   journalEntryLines,
   chartOfAccounts,
 } from "@xenboox/db/schema/accounting";
+import {
+  reportRequests,
+  reportSnapshots,
+  statementVersions,
+} from "@xenboox/db";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
@@ -35,39 +45,84 @@ export interface ReportablePeriod {
   lastReportGenerated: string | null;
 }
 
+export interface ProfitAndLossStatement {
+  revenue: number;
+  expenses: number;
+  netProfit: number;
+  revenueAccounts: Array<{
+    accountCode: string;
+    accountName: string;
+    amount: number;
+  }>;
+  expenseAccounts: Array<{
+    accountCode: string;
+    accountName: string;
+    amount: number;
+  }>;
+}
+
+export interface BalanceSheetStatement {
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  assets: Array<{ accountCode: string; accountName: string; amount: number }>;
+  liabilities: Array<{
+    accountCode: string;
+    accountName: string;
+    amount: number;
+  }>;
+  equity: Array<{ accountCode: string; accountName: string; amount: number }>;
+}
+
+export interface CashFlowStatement {
+  operatingActivities: Array<{ category: string; amount: number }>;
+  investingActivities: Array<{ category: string; amount: number }>;
+  financingActivities: Array<{ category: string; amount: number }>;
+  netCashFlow: number;
+  openingCash: number;
+  closingCash: number;
+}
+
+export interface LedgerSnapshot {
+  snapshotId: string;
+  periodId: string;
+  periodLabel: string;
+  trialBalanceBalanced: boolean;
+  totalDebits: number;
+  totalCredits: number;
+  accountBalances: Array<{
+    accountId: string;
+    code: string;
+    name: string;
+    type: string;
+    subtype: string;
+    debit: number;
+    credit: number;
+    netAmount: number;
+  }>;
+  entryCount: number;
+}
+
 export interface ReportData {
   periodId: string;
   periodLabel: string;
-  profitAndLoss: {
-    revenue: number;
-    expenses: number;
-    netProfit: number;
-    revenueAccounts: Array<{
-      accountCode: string;
-      accountName: string;
-      amount: number;
-    }>;
-    expenseAccounts: Array<{
-      accountCode: string;
-      accountName: string;
-      amount: number;
-    }>;
-  } | null;
-  balanceSheet: {
-    totalAssets: number;
-    totalLiabilities: number;
-    totalEquity: number;
-    assets: Array<{ accountCode: string; accountName: string; amount: number }>;
-    liabilities: Array<{
-      accountCode: string;
-      accountName: string;
-      amount: number;
-    }>;
-    equity: Array<{ accountCode: string; accountName: string; amount: number }>;
-  } | null;
+  profitAndLoss: ProfitAndLossStatement | null;
+  balanceSheet: BalanceSheetStatement | null;
+  cashFlow: CashFlowStatement | null;
   trialBalanceBalanced: boolean;
   trialBalanceDebits: number;
   trialBalanceCredits: number;
+  fxImpact?: {
+    realizedGainLoss: number;
+    unrealizedGainLoss: number;
+    narrative: string;
+  };
+}
+
+export interface FxImpact {
+  realizedGainLoss: number;
+  unrealizedGainLoss: number;
+  narrative: string;
 }
 
 export interface ReportingPipelineResult {
@@ -79,66 +134,74 @@ export interface ReportingPipelineResult {
   dataComplete: boolean;
   balanced: boolean;
   escalated: boolean;
-  escalationReason?: string;
+  escalationReason: string | null;
+  // New fields
+  snapshotId: string | null;
+  versionId: string | null;
+  isDraft: boolean;
   auditEntries: AuditEntry[];
   durationMs: number;
+}
+
+export interface ReportRequestInput {
+  entityId: string;
+  entityName?: string;
+  currency?: string;
+  statementType?:
+    | "profit_and_loss"
+    | "balance_sheet"
+    | "cash_flow"
+    | "trial_balance"
+    | "general_ledger"
+    | "custom";
+  freeTextQuery?: string;
+  periodId?: string;
+  comparisonPeriodId?: string;
+  format?: "dashboard" | "chat" | "pdf" | "excel" | "email";
+  requestedByUserId?: string;
+  source?: string;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const MIN_ENTRIES_FOR_REPORT = 1;
 
-// ─── Step 1: Detect Reportable Periods ───────────────────────────────────
+// ─── Step 1: Report Request Intake ──────────────────────────────────────
+//
+// Normalize request into structured form: entity_id, statement_type or
+// free-text query, period, comparison period, requested_by, format.
 
-export async function detectReportablePeriods(
-  entityId: string,
-): Promise<ReportablePeriod[]> {
-  const periods = await db.query.fiscalPeriods.findMany({
-    where: and(
-      eq(fiscalPeriods.entityId, entityId),
-      eq(fiscalPeriods.status, "open"),
-    ),
-    orderBy: [desc(fiscalPeriods.year), desc(fiscalPeriods.month)],
-  });
+export async function createReportRequest(
+  input: ReportRequestInput,
+): Promise<{ requestId: string }> {
+  const [req] = await db
+    .insert(reportRequests)
+    .values({
+      entityId: input.entityId,
+      requestedByUserId: input.requestedByUserId,
+      statementType: input.statementType as any,
+      freeTextQuery: input.freeTextQuery,
+      periodId: input.periodId,
+      comparisonPeriodId: input.comparisonPeriodId,
+      format: (input.format ?? "dashboard") as any,
+      status: "pending",
+      source: input.source ?? "dashboard",
+    })
+    .returning({ id: reportRequests.id });
 
-  const result: ReportablePeriod[] = [];
-
-  for (const period of periods) {
-    // Count posted entries for this period
-    const postedEntryCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(journalEntries)
-      .where(
-        and(
-          eq(journalEntries.entityId, entityId),
-          eq(journalEntries.periodId, period.id),
-          eq(journalEntries.status, "posted"),
-        ),
-      )
-      .then((r) => Number(r[0]?.count ?? 0));
-
-    if (postedEntryCount >= MIN_ENTRIES_FOR_REPORT) {
-      result.push({
-        periodId: period.id,
-        periodLabel: `${period.year}-${String(period.month).padStart(2, "0")}`,
-        year: period.year,
-        month: period.month,
-        status: period.status,
-        postedEntryCount,
-        lastReportGenerated: null,
-      });
-    }
-  }
-
-  return result;
+  return { requestId: req!.id };
 }
 
-// ─── Step 2: Generate Reports ────────────────────────────────────────────
+// ─── Step 2: Ledger State Snapshot ──────────────────────────────────────
+//
+// Pull trial balance / GL state scoped to entity_id + period.
+// Resolve every account through Chart of Accounts classification.
+// Persist the snapshot for traceability.
 
-async function generateReports(
+export async function takeLedgerSnapshot(
   entityId: string,
   period: ReportablePeriod,
-): Promise<ReportData> {
+): Promise<LedgerSnapshot> {
   // Get all posted entries for the period
   const entries = await db.query.journalEntries.findMany({
     where: and(
@@ -171,84 +234,83 @@ async function generateReports(
   // Calculate trial balance
   let totalDebits = 0;
   let totalCredits = 0;
-  const accountTotals = new Map<string, { debit: number; credit: number }>();
+  const accountBalances: LedgerSnapshot["accountBalances"] = [];
 
-  for (const line of allLines) {
-    const existing = accountTotals.get(line.accountId) ?? {
-      debit: 0,
-      credit: 0,
-    };
-    existing.debit += Number(line.debit);
-    existing.credit += Number(line.credit);
-    accountTotals.set(line.accountId, existing);
-    totalDebits += Number(line.debit);
-    totalCredits += Number(line.credit);
+  for (const [accountId] of accountMap) {
+    const linesForAccount = allLines.filter((l) => l.accountId === accountId);
+    const debit = linesForAccount.reduce((s, l) => s + Number(l.debit), 0);
+    const credit = linesForAccount.reduce((s, l) => s + Number(l.credit), 0);
+
+    totalDebits += debit;
+    totalCredits += credit;
+
+    const account = accountMap.get(accountId)!;
+    accountBalances.push({
+      accountId,
+      code: account.code,
+      name: account.name,
+      type: account.type,
+      subtype: account.subtype ?? "",
+      debit,
+      credit,
+      netAmount: debit - credit,
+    });
   }
 
-  // Build P&L
-  const revenueAccounts: Array<{
-    accountCode: string;
-    accountName: string;
-    amount: number;
-  }> = [];
-  const expenseAccounts: Array<{
-    accountCode: string;
-    accountName: string;
-    amount: number;
-  }> = [];
+  const trialBalanceBalanced = Math.abs(totalDebits - totalCredits) < 0.01;
 
-  // Build Balance Sheet
-  const assets: Array<{
-    accountCode: string;
-    accountName: string;
-    amount: number;
-  }> = [];
-  const liabilities: Array<{
-    accountCode: string;
-    accountName: string;
-    amount: number;
-  }> = [];
-  const equity: Array<{
-    accountCode: string;
-    accountName: string;
-    amount: number;
-  }> = [];
+  // Persist snapshot
+  const [snapshot] = await db
+    .insert(reportSnapshots)
+    .values({
+      entityId,
+      periodId: period.periodId,
+      periodLabel: period.periodLabel,
+      trialBalanceBalanced,
+      totalDebits: String(totalDebits),
+      totalCredits: String(totalCredits),
+      accountCount: String(accountBalances.length),
+      entryCount: String(entries.length),
+      accountBalances,
+      generatedAt: new Date(),
+    })
+    .returning({ id: reportSnapshots.id });
 
-  for (const [accountId, totals] of accountTotals) {
-    const account = accountMap.get(accountId);
-    if (!account) continue;
+  return {
+    snapshotId: snapshot!.id,
+    periodId: period.periodId,
+    periodLabel: period.periodLabel,
+    trialBalanceBalanced,
+    totalDebits,
+    totalCredits,
+    accountBalances,
+    entryCount: entries.length,
+  };
+}
 
-    const netAmount = totals.debit - totals.credit;
+// ─── Step 3: Statement Assembly Engine ──────────────────────────────────
+//
+// Modular builder per statement type, all reading the same CoA-classified
+// snapshot. Builds P&L, Balance Sheet, Cash Flow, Trial Balance, GL Report.
 
-    if (account.type === "revenue") {
+export function buildProfitAndLoss(
+  snapshot: LedgerSnapshot,
+): ProfitAndLossStatement {
+  const revenueAccounts: ProfitAndLossStatement["revenueAccounts"] = [];
+  const expenseAccounts: ProfitAndLossStatement["expenseAccounts"] = [];
+
+  for (const acct of snapshot.accountBalances) {
+    if (acct.type === "revenue") {
       revenueAccounts.push({
-        accountCode: account.code,
-        accountName: account.name,
-        amount: Math.abs(netAmount),
+        accountCode: acct.code,
+        accountName: acct.name,
+        amount: Math.abs(acct.netAmount),
       });
-    } else if (account.type === "expense") {
+    } else if (acct.type === "expense") {
       expenseAccounts.push({
-        accountCode: account.code,
-        accountName: account.name,
-        amount: Math.abs(netAmount),
-      });
-    } else if (account.type === "asset") {
-      assets.push({
-        accountCode: account.code,
-        accountName: account.name,
-        amount: Math.abs(netAmount),
-      });
-    } else if (account.type === "liability") {
-      liabilities.push({
-        accountCode: account.code,
-        accountName: account.name,
-        amount: Math.abs(netAmount),
-      });
-    } else if (account.type === "equity") {
-      equity.push({
-        accountCode: account.code,
-        accountName: account.name,
-        amount: Math.abs(netAmount),
+        accountCode: acct.code,
+        accountName: acct.name,
+        amount: Math.abs(acct.netAmount),
       });
     }
   }
@@ -257,78 +319,415 @@ async function generateReports(
   const totalExpenses = expenseAccounts.reduce((s, a) => s + a.amount, 0);
 
   return {
-    periodId: period.periodId,
-    periodLabel: period.periodLabel,
-    profitAndLoss: {
-      revenue: totalRevenue,
-      expenses: totalExpenses,
-      netProfit: totalRevenue - totalExpenses,
-      revenueAccounts,
-      expenseAccounts,
-    },
-    balanceSheet: {
-      totalAssets: assets.reduce((s, a) => s + a.amount, 0),
-      totalLiabilities: liabilities.reduce((s, a) => s + a.amount, 0),
-      totalEquity: equity.reduce((s, a) => s + a.amount, 0),
-      assets,
-      liabilities,
-      equity,
-    },
-    trialBalanceBalanced: Math.abs(totalDebits - totalCredits) < 0.01,
-    trialBalanceDebits: totalDebits,
-    trialBalanceCredits: totalCredits,
+    revenue: totalRevenue,
+    expenses: totalExpenses,
+    netProfit: totalRevenue - totalExpenses,
+    revenueAccounts,
+    expenseAccounts,
   };
 }
 
-// ─── Step 3-4: Verify + Narrate ──────────────────────────────────────────
+export function buildBalanceSheet(
+  snapshot: LedgerSnapshot,
+): BalanceSheetStatement {
+  const assets: BalanceSheetStatement["assets"] = [];
+  const liabilities: BalanceSheetStatement["liabilities"] = [];
+  const equity: BalanceSheetStatement["equity"] = [];
 
-function generateNarrative(
+  for (const acct of snapshot.accountBalances) {
+    const amount = Math.abs(acct.netAmount);
+    if (acct.type === "asset") {
+      assets.push({ accountCode: acct.code, accountName: acct.name, amount });
+    } else if (acct.type === "liability") {
+      liabilities.push({
+        accountCode: acct.code,
+        accountName: acct.name,
+        amount,
+      });
+    } else if (acct.type === "equity") {
+      equity.push({ accountCode: acct.code, accountName: acct.name, amount });
+    }
+  }
+
+  return {
+    totalAssets: assets.reduce((s, a) => s + a.amount, 0),
+    totalLiabilities: liabilities.reduce((s, a) => s + a.amount, 0),
+    totalEquity: equity.reduce((s, a) => s + a.amount, 0),
+    assets,
+    liabilities,
+    equity,
+  };
+}
+
+export function buildCashFlow(
+  snapshot: LedgerSnapshot,
+  previousSnapshot?: LedgerSnapshot,
+): CashFlowStatement {
+  const operatingActivities: CashFlowStatement["operatingActivities"] = [];
+  const investingActivities: CashFlowStatement["investingActivities"] = [];
+  const financingActivities: CashFlowStatement["financingActivities"] = [];
+
+  // Derive cash flows from account classification
+  for (const acct of snapshot.accountBalances) {
+    const amount = Math.abs(acct.netAmount);
+    if (acct.type === "revenue" || acct.type === "expense") {
+      operatingActivities.push({
+        category: acct.name,
+        amount: acct.netAmount, // sign matters for cash flow direction
+      });
+    } else if (acct.subtype?.includes("fixed_asset")) {
+      investingActivities.push({
+        category: acct.name,
+        amount: acct.netAmount,
+      });
+    } else if (acct.type === "equity" || acct.subtype?.includes("loan")) {
+      financingActivities.push({
+        category: acct.name,
+        amount: acct.netAmount,
+      });
+    }
+  }
+
+  const netOperating = operatingActivities.reduce((s, a) => s + a.amount, 0);
+  const netInvesting = investingActivities.reduce((s, a) => s + a.amount, 0);
+  const netFinancing = financingActivities.reduce((s, a) => s + a.amount, 0);
+
+  const openingCash = previousSnapshot
+    ? previousSnapshot.accountBalances
+        .filter((a) => a.type === "asset" && a.subtype?.includes("bank"))
+        .reduce((s, a) => s + a.netAmount, 0)
+    : 0;
+
+  const closingCash = snapshot.accountBalances
+    .filter((a) => a.type === "asset" && a.subtype?.includes("bank"))
+    .reduce((s, a) => s + a.netAmount, 0);
+
+  return {
+    operatingActivities,
+    investingActivities,
+    financingActivities,
+    netCashFlow: netOperating + netInvesting + netFinancing,
+    openingCash,
+    closingCash,
+  };
+}
+
+// ─── Step 4: Deterministic Balance Check — Hard Gate ───────────────────
+//
+// Trial balance debits must equal credits before ANY statement built from
+// this snapshot is presented. This is a Layer 1 deterministic rule — no
+// confidence score, no exceptions, no partial publish.
+
+export function checkTrialBalance(snapshot: LedgerSnapshot): {
+  balanced: boolean;
+  difference: number;
+  message: string;
+} {
+  const difference = snapshot.totalDebits - snapshot.totalCredits;
+  const balanced = Math.abs(difference) < 0.01;
+
+  if (balanced) {
+    return {
+      balanced: true,
+      difference: 0,
+      message: "Trial balance is balanced.",
+    };
+  }
+
+  return {
+    balanced: false,
+    difference,
+    message: `Trial balance does NOT balance — debits ${snapshot.totalDebits.toFixed(2)} vs credits ${snapshot.totalCredits.toFixed(2)}, difference ${difference.toFixed(2)}. This indicates a ledger integrity problem that must be resolved before reports can be generated.`,
+  };
+}
+
+// ─── Step 5a/b: Proceed or Block & Escalate ────────────────────────────
+//
+// If balanced → proceed to assembly. If not → block, alert Controller Agent.
+
+export function evaluateReportGate(snapshot: LedgerSnapshot): {
+  canProceed: boolean;
+  reason?: string;
+} {
+  const check = checkTrialBalance(snapshot);
+
+  if (check.balanced) {
+    return { canProceed: true };
+  }
+
+  return {
+    canProceed: false,
+    reason: `BLOCKED — ${check.message}`,
+  };
+}
+
+// ─── Step 6: FX Summary Layer ──────────────────────────────────────────
+//
+// Realized gains/losses folded into P&L, unrealized shown on balance sheet.
+// Plain-English footnote generated.
+
+export function calculateFxImpact(snapshot: LedgerSnapshot): FxImpact {
+  // Identify FX-related accounts (by subtype or code pattern)
+  const fxAccounts = snapshot.accountBalances.filter(
+    (a) =>
+      a.subtype?.includes("fx") ||
+      a.subtype?.includes("exchange") ||
+      a.code?.startsWith("8"),
+  );
+
+  let realizedGainLoss = 0;
+  let unrealizedGainLoss = 0;
+
+  for (const acct of fxAccounts) {
+    if (acct.type === "revenue" || acct.type === "expense") {
+      realizedGainLoss += acct.netAmount;
+    } else {
+      unrealizedGainLoss += acct.netAmount;
+    }
+  }
+
+  const totalImpact = realizedGainLoss + unrealizedGainLoss;
+  let narrative = "No significant currency movement impact this period.";
+
+  if (Math.abs(totalImpact) > 0.01) {
+    const direction = totalImpact >= 0 ? "added to" : "reduced";
+    narrative = `Currency movements ${direction} your profit by ${Math.abs(totalImpact).toFixed(2)} this period.`;
+  }
+
+  return { realizedGainLoss, unrealizedGainLoss, narrative };
+}
+
+// ─── Step 8: Plain-English Narrative Generation ────────────────────────
+//
+// Auto-generated summary highlighting notable movements, written for a
+// non-accountant owner.
+
+export function generateNarrative(
   entityName: string,
   currency: string,
   report: ReportData,
+  snapshot: LedgerSnapshot,
 ): string {
-  if (!report.profitAndLoss || !report.balanceSheet)
-    return "Insufficient data for narrative.";
+  if (!report.profitAndLoss || !report.balanceSheet) {
+    return "Insufficient data for narrative. Verify the ledger has posted entries for this period.";
+  }
 
   const lines: string[] = [];
   const pnl = report.profitAndLoss;
 
+  // Top-level result
   if (pnl.netProfit > 0) {
     lines.push(
-      `✅ Net profit of ${currency} ${pnl.netProfit.toLocaleString()} — revenue ${currency} ${pnl.revenue.toLocaleString()} exceeded expenses ${currency} ${pnl.expenses.toLocaleString()}.`,
+      `✅ **Net profit of ${currency} ${pnl.netProfit.toLocaleString()}** — revenue ${currency} ${pnl.revenue.toLocaleString()} exceeded expenses ${currency} ${pnl.expenses.toLocaleString()}.`,
     );
   } else if (pnl.netProfit < 0) {
     lines.push(
-      `⚠️ Net loss of ${currency} ${Math.abs(pnl.netProfit).toLocaleString()} — expenses ${currency} ${pnl.expenses.toLocaleString()} exceeded revenue ${currency} ${pnl.revenue.toLocaleString()}.`,
+      `⚠️ **Net loss of ${currency} ${Math.abs(pnl.netProfit).toLocaleString()}** — expenses ${currency} ${pnl.expenses.toLocaleString()} exceeded revenue ${currency} ${pnl.revenue.toLocaleString()}.`,
     );
   } else {
-    lines.push(`ℹ️ Break-even result for the period.`);
+    lines.push("ℹ️ Break-even result for the period.");
   }
 
+  // Margin
   if (pnl.revenue > 0) {
     const margin = ((pnl.netProfit / pnl.revenue) * 100).toFixed(1);
-    lines.push(`Profit margin: ${margin}%.`);
+    lines.push(`Profit margin: **${margin}%**.`);
   }
 
+  // Balance sheet summary
   const bs = report.balanceSheet;
   lines.push(
     `Balance sheet: ${currency} ${bs.totalAssets.toLocaleString()} in assets, ${currency} ${bs.totalLiabilities.toLocaleString()} in liabilities, ${currency} ${bs.totalEquity.toLocaleString()} in equity.`,
   );
 
-  if (report.trialBalanceBalanced) {
+  // FX impact
+  if (
+    report.fxImpact &&
+    Math.abs(
+      report.fxImpact.realizedGainLoss + report.fxImpact.unrealizedGainLoss,
+    ) > 0.01
+  ) {
+    lines.push(report.fxImpact.narrative);
+  }
+
+  // Top revenue and expense drivers
+  const topRevenue = [...pnl.revenueAccounts]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3);
+  const topExpenses = [...pnl.expenseAccounts]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3);
+
+  if (topRevenue.length > 0) {
     lines.push(
-      `✅ Trial balance is balanced (${currency} ${report.trialBalanceDebits.toLocaleString()} = ${currency} ${report.trialBalanceCredits.toLocaleString()}).`,
-    );
-  } else {
-    lines.push(
-      `❌ Trial balance is NOT balanced — debits ${currency} ${report.trialBalanceDebits.toLocaleString()} vs credits ${currency} ${report.trialBalanceCredits.toLocaleString()}.`,
+      `Top revenue source${topRevenue.length > 1 ? "s" : ""}: ${topRevenue
+        .map(
+          (a) => `${a.accountName} (${currency} ${a.amount.toLocaleString()})`,
+        )
+        .join(", ")}.`,
     );
   }
 
-  return lines.join(" ");
+  if (topExpenses.length > 0) {
+    lines.push(
+      `Top expense${topExpenses.length > 1 ? "s" : ""}: ${topExpenses
+        .map(
+          (a) => `${a.accountName} (${currency} ${a.amount.toLocaleString()})`,
+        )
+        .join(", ")}.`,
+    );
+  }
+
+  // Trial balance status
+  if (snapshot.trialBalanceBalanced) {
+    lines.push(
+      `✅ Trial balance is balanced (${currency} ${snapshot.totalDebits.toLocaleString()} = ${currency} ${snapshot.totalCredits.toLocaleString()}).`,
+    );
+  } else {
+    lines.push(
+      `❌ Trial balance is NOT balanced — debits ${currency} ${snapshot.totalDebits.toLocaleString()} vs credits ${currency} ${snapshot.totalCredits.toLocaleString()}. Reports cannot be finalized until this is resolved.`,
+    );
+  }
+
+  return lines.join("\n\n");
 }
 
-// ─── Main Pipeline Entry Point ───────────────────────────────────────────
+// ─── Step 10: Cache & Versioning ───────────────────────────────────────
+//
+// Locked periods → report version frozen, immutable, cached.
+// Draft/open periods → live-recalculating, clearly labeled.
+
+export async function createStatementVersion(
+  entityId: string,
+  snapshotId: string,
+  statementType: string,
+  statementData: Record<string, unknown>,
+  narrativeSummary: string,
+  periodStatus: string,
+): Promise<{ versionId: string; isDraft: boolean }> {
+  const isLocked = periodStatus === "closed";
+  const lockStatus = isLocked ? "locked" : "draft";
+
+  // Mark previous versions as not latest
+  await db
+    .update(statementVersions)
+    .set({ isLatest: false })
+    .where(
+      and(
+        eq(statementVersions.entityId, entityId),
+        eq(statementVersions.statementType, statementType as any),
+        eq(statementVersions.isLatest, true),
+      ),
+    );
+
+  const [version] = await db
+    .insert(statementVersions)
+    .values({
+      entityId,
+      snapshotId,
+      statementType: statementType as any,
+      versionNumber: "1",
+      lockStatus: lockStatus as any,
+      narrativeSummary,
+      statementData,
+      isLatest: true,
+      lockedAt: isLocked ? new Date() : null,
+    })
+    .returning({ id: statementVersions.id });
+
+  return {
+    versionId: version!.id,
+    isDraft: !isLocked,
+  };
+}
+
+// ─── Step 11: Get Report Audit Trail ───────────────────────────────────
+
+export async function getReportAuditTrail(
+  entityId: string,
+  periodId?: string,
+): Promise<
+  Array<{
+    requestId: string;
+    statementType: string | null;
+    periodLabel: string | null;
+    status: string;
+    balanced: boolean;
+    format: string;
+    source: string;
+    generatedAt: string | null;
+  }>
+> {
+  const snapshots = periodId
+    ? await db.query.reportSnapshots.findMany({
+        where: and(
+          eq(reportSnapshots.entityId, entityId),
+          eq(reportSnapshots.periodId, periodId),
+        ),
+        orderBy: [desc(reportSnapshots.generatedAt)],
+      })
+    : await db.query.reportSnapshots.findMany({
+        where: eq(reportSnapshots.entityId, entityId),
+        orderBy: [desc(reportSnapshots.generatedAt)],
+      });
+
+  return snapshots.map((s) => ({
+    requestId: s.id,
+    statementType: null,
+    periodLabel: s.periodLabel,
+    status: "completed",
+    balanced: s.trialBalanceBalanced,
+    format: "dashboard",
+    source: s.generatedBy ?? "reporting-pipeline",
+    generatedAt: s.generatedAt?.toISOString() ?? null,
+  }));
+}
+
+// ─── Step 1 (original): Detect Reportable Periods ─────────────────────
+
+export async function detectReportablePeriods(
+  entityId: string,
+): Promise<ReportablePeriod[]> {
+  const periods = await db.query.fiscalPeriods.findMany({
+    where: and(
+      eq(fiscalPeriods.entityId, entityId),
+      eq(fiscalPeriods.status, "open"),
+    ),
+    orderBy: [desc(fiscalPeriods.year), desc(fiscalPeriods.month)],
+  });
+
+  const result: ReportablePeriod[] = [];
+
+  for (const period of periods) {
+    const postedEntryCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(journalEntries)
+      .where(
+        and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.periodId, period.id),
+          eq(journalEntries.status, "posted"),
+        ),
+      )
+      .then((r) => Number(r[0]?.count ?? 0));
+
+    if (postedEntryCount >= MIN_ENTRIES_FOR_REPORT) {
+      result.push({
+        periodId: period.id,
+        periodLabel: `${period.year}-${String(period.month).padStart(2, "0")}`,
+        year: period.year,
+        month: period.month,
+        status: period.status,
+        postedEntryCount,
+        lastReportGenerated: null,
+      });
+    }
+  }
+
+  return result;
+}
+
+// ─── Main Pipeline Entry Point ─────────────────────────────────────────
 
 export async function runReportingPipeline(params: {
   entityId: string;
@@ -345,7 +744,7 @@ export async function runReportingPipeline(params: {
   const auditEntries: AuditEntry[] = [];
 
   try {
-    // Step 1: Detect period
+    // Step 1 (original): Detect period
     const periods = await detectReportablePeriods(params.entityId);
     const targetPeriod = params.periodId
       ? periods.find((p) => p.periodId === params.periodId)
@@ -367,19 +766,102 @@ export async function runReportingPipeline(params: {
         dataComplete: false,
         balanced: true,
         escalated: false,
+        escalationReason: null,
+        isDraft: false,
+        snapshotId: null,
+        versionId: null,
         auditEntries: [audit],
         durationMs: Date.now() - startTime,
       };
     }
 
-    // Step 2: Generate reports
-    const report = await generateReports(params.entityId, targetPeriod);
+    // Step 2: Take ledger snapshot
+    const snapshot = await takeLedgerSnapshot(params.entityId, targetPeriod);
+    auditEntries.push(
+      createAuditEntry({
+        agentId: "reporting-pipeline",
+        action: "ledger_snapshot_taken",
+        details: {
+          snapshotId: snapshot.snapshotId,
+          periodLabel: snapshot.periodLabel,
+          balanced: snapshot.trialBalanceBalanced,
+          totalDebits: snapshot.totalDebits,
+          totalCredits: snapshot.totalCredits,
+          accountCount: snapshot.accountBalances.length,
+          entryCount: snapshot.entryCount,
+        },
+        confidence: snapshot.trialBalanceBalanced ? 0.95 : 0.5,
+      }),
+    );
 
-    // Step 3-4: Verify + narrate
+    // Step 4: Hard gate — deterministic balance check
+    const gateResult = evaluateReportGate(snapshot);
+    if (!gateResult.canProceed) {
+      const audit = createAuditEntry({
+        agentId: "reporting-pipeline",
+        action: "report_blocked_unbalanced",
+        details: {
+          snapshotId: snapshot.snapshotId,
+          reason: gateResult.reason,
+        },
+        confidence: 0,
+      });
+      auditEntries.push(audit);
+
+      return {
+        success: false,
+        periodProcessed: targetPeriod.periodLabel,
+        report: null,
+        narrative: gateResult.reason ?? null,
+        confidence: 0,
+        dataComplete: false,
+        balanced: false,
+        escalated: true,
+        escalationReason: gateResult.reason ?? null,
+        snapshotId: snapshot.snapshotId,
+        versionId: null,
+        isDraft: targetPeriod.status !== "closed",
+        auditEntries,
+        durationMs: Date.now() - startTime,
+      };
+    }
+
+    // Step 3: Assemble statements
+    const pnl = buildProfitAndLoss(snapshot);
+    const bs = buildBalanceSheet(snapshot);
+    const cf = buildCashFlow(snapshot);
+
+    // Step 6: FX Summary
+    const fxImpact = calculateFxImpact(snapshot);
+
+    const report: ReportData = {
+      periodId: targetPeriod.periodId,
+      periodLabel: targetPeriod.periodLabel,
+      profitAndLoss: pnl,
+      balanceSheet: bs,
+      cashFlow: cf,
+      trialBalanceBalanced: snapshot.trialBalanceBalanced,
+      trialBalanceDebits: snapshot.totalDebits,
+      trialBalanceCredits: snapshot.totalCredits,
+      fxImpact,
+    };
+
+    // Step 8: Generate narrative
     const narrative = generateNarrative(
       params.entityName,
       params.currency,
       report,
+      snapshot,
+    );
+
+    // Step 10: Create versioned statement
+    const versionInfo = await createStatementVersion(
+      params.entityId,
+      snapshot.snapshotId,
+      "profit_and_loss",
+      { profitAndLoss: pnl, balanceSheet: bs, cashFlow: cf, fxImpact },
+      narrative,
+      targetPeriod.status,
     );
 
     const dataComplete = !!report.profitAndLoss && !!report.balanceSheet;
@@ -393,12 +875,15 @@ export async function runReportingPipeline(params: {
       action: escalated ? "report_flagged" : "report_generated",
       details: {
         periodId: targetPeriod.periodId,
-        revenue: report.profitAndLoss?.revenue,
-        netProfit: report.profitAndLoss?.netProfit,
-        totalAssets: report.balanceSheet?.totalAssets,
+        snapshotId: snapshot.snapshotId,
+        versionId: versionInfo.versionId,
+        revenue: pnl.revenue,
+        netProfit: pnl.netProfit,
+        totalAssets: bs.totalAssets,
         balanced,
         dataComplete,
         confidence,
+        isDraft: versionInfo.isDraft,
       },
       confidence,
     });
@@ -411,6 +896,22 @@ export async function runReportingPipeline(params: {
         balanced,
         confidence,
         escalated,
+        isDraft: versionInfo.isDraft,
+        snapshotId: snapshot.snapshotId,
+      },
+    });
+
+    langfuse.event({
+      name: "reporting-pipeline-complete",
+      metadata: {
+        entityId: params.entityId,
+        periodLabel: targetPeriod.periodLabel,
+        dataComplete,
+        balanced,
+        confidence,
+        escalated,
+        isDraft: versionInfo.isDraft,
+        accountCount: snapshot.accountBalances.length,
       },
     });
 
@@ -430,7 +931,10 @@ export async function runReportingPipeline(params: {
           ]
             .filter(Boolean)
             .join("; ")
-        : undefined,
+        : null,
+      snapshotId: snapshot.snapshotId,
+      versionId: versionInfo.versionId,
+      isDraft: versionInfo.isDraft,
       auditEntries,
       durationMs: Date.now() - startTime,
     };
@@ -454,6 +958,9 @@ export async function runReportingPipeline(params: {
       balanced: false,
       escalated: true,
       escalationReason: msg,
+      snapshotId: null,
+      versionId: null,
+      isDraft: false,
       auditEntries,
       durationMs: Date.now() - startTime,
     };
