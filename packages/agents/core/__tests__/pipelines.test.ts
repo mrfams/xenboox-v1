@@ -33,8 +33,10 @@ function createMockTx() {
       userEntityAccess: mkQuery(),
       agentRoutingLogs: mkQuery(),
       // Onboarding Pipeline tables
+      onboardingSessions: mkQuery(),
       dataConnections: mkQuery(),
       coaTemplates: mkQuery(),
+      historicalPullJobs: mkQuery(),
       // Reconciliation Pipeline tables
       statementLines: mkQuery(),
       matchRecords: mkQuery(),
