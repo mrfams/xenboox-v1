@@ -23,3 +23,4 @@ export * from "./legal";
 export * from "./agents";
 export * from "./onboarding";
 export * from "./statement";
+export * from "./close";

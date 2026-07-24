@@ -195,13 +195,35 @@ export {
 export type { SessionContext, ConversationMemory } from "./session-state";
 
 // ─── Close Pipeline (Pipeline 2 of 6) ──────────
-export { executeClosePipeline, getCloseStatus } from "./close-pipeline";
+export {
+  executeClosePipeline,
+  getCloseStatus,
+  // Enhanced 12-step flow
+  openCloseSession,
+  collectCloseConfirmations,
+  evaluateCloseGate,
+  generateClosePackage,
+  notifyCloseOwner,
+  processPassiveApproval,
+  reopenPeriodWithRecovery,
+  getReopenDepthGovernor,
+  getCloseAuditTrail,
+  getCloseSessionStatus,
+} from "./close-pipeline";
 export type {
   CloseState,
   CloseStep,
   CloseStepId,
   CloseStepStatus,
   CloseTriggerSource,
+  // Enhanced types
+  CloseSessionStatus,
+  CloseConfirmation,
+  ClosePackage,
+  CloseGateDecision,
+  ReopenRequest,
+  ReopenDepthGovernor,
+  CloseSessionFullStatus,
 } from "./close-pipeline";
 
 // ─── Reconciliation Pipeline (Pipeline 3 of 6) ────

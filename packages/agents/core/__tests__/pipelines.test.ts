@@ -44,6 +44,11 @@ function createMockTx() {
       cashLocations: mkQuery(),
       cashTransactions: mkQuery(),
       discrepancyFlags: mkQuery(),
+      // Close Pipeline (Pipeline 2) tables
+      closeSessions: mkQuery(),
+      closeConfirmations: mkQuery(),
+      closeVersions: mkQuery(),
+      reopenRequests: mkQuery(),
     },
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
@@ -437,6 +442,59 @@ vi.mock("@xenboox/db/schema/cash", () => ({
     id: "id",
     cashAccountId: "cash_account_id",
     balance: "balance",
+    createdAt: "created_at",
+  },
+}));
+
+vi.mock("@xenboox/db/schema/close", () => ({
+  closeSessions: {
+    id: "id",
+    entityId: "entity_id",
+    fiscalPeriodId: "fiscal_period_id",
+    periodLabel: "period_label",
+    status: "status",
+    triggeredBy: "triggered_by",
+    triggeredByUserId: "triggered_by_user_id",
+    openedAt: "opened_at",
+    closedAt: "closed_at",
+    lockedAt: "locked_at",
+    overallConfidence: "overall_confidence",
+    errors: "errors",
+    warnings: "warnings",
+    metadata: "metadata",
+  },
+  closeConfirmations: {
+    id: "id",
+    closeSessionId: "close_session_id",
+    agentId: "agent_id",
+    status: "status",
+    confidence: "confidence",
+    openItems: "open_items",
+    summary: "summary",
+    details: "details",
+    collectedAt: "collected_at",
+    createdAt: "created_at",
+  },
+  closeVersions: {
+    id: "id",
+    closeSessionId: "close_session_id",
+    versionNumber: "version_number",
+    packageRef: "package_ref",
+    isCorrection: "is_correction",
+    correctionReason: "correction_reason",
+    supersededBy: "superseded_by",
+    createdAt: "created_at",
+  },
+  reopenRequests: {
+    id: "id",
+    closeSessionId: "close_session_id",
+    raisedByUserId: "raised_by_user_id",
+    raisedVia: "raised_via",
+    description: "description",
+    classification: "classification",
+    affectedPeriods: "affected_periods",
+    approvedAt: "approved_at",
+    resolvedAt: "resolved_at",
     createdAt: "created_at",
   },
 }));
@@ -970,6 +1028,424 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
     });
 
     expect(result.status).toBe("failed");
+  });
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Enhanced 12-Step Close Flow
+  // ────────────────────────────────────────────────────────────────────────────
+
+  describe("Enhanced 12-Step Close Flow", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      const { db } = require("@xenboox/db");
+
+      // Mock closeSessions queries
+      db.query.closeSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        entityId: "entity-1",
+        fiscalPeriodId: "period-1",
+        periodLabel: "2026-07",
+        status: "in_progress",
+        triggeredBy: "manual",
+        openedAt: new Date(),
+        lockedAt: null,
+        closedAt: null,
+        createdAt: new Date(),
+      });
+
+      db.query.closeSessions.findMany.mockResolvedValue([
+        {
+          id: "session-1",
+          entityId: "entity-1",
+          fiscalPeriodId: "period-1",
+          periodLabel: "2026-07",
+          status: "in_progress",
+          triggeredBy: "manual",
+          openedAt: new Date(),
+          lockedAt: null,
+          closedAt: null,
+          createdAt: new Date(),
+        },
+      ]);
+
+      // Mock closeConfirmations
+      db.query.closeConfirmations.findMany.mockResolvedValue([]);
+
+      // Mock closeVersions
+      db.query.closeVersions.findMany.mockResolvedValue([]);
+
+      // Mock reopenRequests
+      db.query.reopenRequests.findFirst.mockResolvedValue(null);
+      db.query.reopenRequests.findMany.mockResolvedValue([]);
+
+      // Mock insert returning ID
+      db.insert.mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([{ id: "session-1" }]),
+          onConflictDoNothing: vi.fn(),
+        }),
+      });
+
+      // Mock update chaining
+      db.update.mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(undefined),
+        }),
+      });
+
+      // Mock transaction
+      db.transaction.mockImplementation(async (cb: any) => {
+        await cb(createMockTx());
+      });
+    });
+
+    // ── openCloseSession ───────────────────────────────────────────────────
+
+    describe("openCloseSession (Step 1)", () => {
+      it("should create a close session", async () => {
+        const { openCloseSession } = await import("../close-pipeline");
+        const result = await openCloseSession({
+          entityId: "entity-1",
+          fiscalPeriodId: "period-1",
+          periodLabel: "2026-07",
+          triggeredBy: "manual",
+          triggeredByUserId: "user-1",
+        });
+
+        expect(result.sessionId).toBe("session-1");
+      });
+    });
+
+    // ── collectCloseConfirmations ───────────────────────────────────────────
+
+    describe("collectCloseConfirmations (Step 2)", () => {
+      it("should collect and persist confirmations", async () => {
+        const { collectCloseConfirmations } = await import("../close-pipeline");
+        const result = await collectCloseConfirmations({
+          closeSessionId: "session-1",
+          entityId: "entity-1",
+          entityName: "Test Entity",
+          currency: "GMD",
+          periodLabel: "2026-07",
+        });
+
+        expect(result.confirmations).toHaveLength(4); // 4 departments
+        expect(result.allConfirmed).toBe(true);
+        expect(result.overallConfidence).toBeGreaterThan(0);
+      });
+
+      it("should handle blocked departments", async () => {
+        // Override orchestrator mock for this test
+        const orchestrator = require("./orchestrator");
+        orchestrator.fanOutToDepartments.mockResolvedValueOnce(
+          ["controller", "treasury", "payroll_manager", "compliance"].map(
+            (dept, i) => ({
+              department: dept,
+              agentId: dept,
+              confidence: i === 1 ? 0.5 : 0.9,
+              reasoning:
+                i === 1 ? "Treasury has open items" : `${dept} confirmed`,
+              confirmed: i !== 1, // treasury not confirmed
+              summary: i === 1 ? "Open items exist" : `${dept} ready`,
+              errors: i === 1 ? ["Reconciliation incomplete"] : [],
+            }),
+          ),
+        );
+
+        const { collectCloseConfirmations } = await import("../close-pipeline");
+        const result = await collectCloseConfirmations({
+          closeSessionId: "session-1",
+          entityId: "entity-1",
+          entityName: "Test Entity",
+          currency: "GMD",
+          periodLabel: "2026-07",
+        });
+
+        expect(result.allConfirmed).toBe(false);
+        expect(
+          result.confirmations.find((c: any) => c.agentId === "treasury")
+            ?.status,
+        ).toBe("blocked");
+      });
+    });
+
+    // ── evaluateCloseGate ──────────────────────────────────────────────────
+
+    describe("evaluateCloseGate (Step 3)", () => {
+      it("should allow close when all confirmed", async () => {
+        const { evaluateCloseGate } = await import("../close-pipeline");
+        const confirmations = [
+          {
+            agentId: "controller",
+            status: "confirmed" as const,
+            confidence: 0.95,
+            openItems: [],
+            summary: "All good",
+          },
+          {
+            agentId: "treasury",
+            status: "confirmed" as const,
+            confidence: 0.92,
+            openItems: [],
+            summary: "Clean",
+          },
+        ];
+
+        const result = await evaluateCloseGate(confirmations);
+        expect(result.canClose).toBe(true);
+        expect(result.blockingAgents).toHaveLength(0);
+      });
+
+      it("should block close when any department is blocked", async () => {
+        const { evaluateCloseGate } = await import("../close-pipeline");
+        const confirmations = [
+          {
+            agentId: "controller",
+            status: "confirmed" as const,
+            confidence: 0.95,
+            openItems: [],
+            summary: "All good",
+          },
+          {
+            agentId: "treasury",
+            status: "blocked" as const,
+            confidence: 0.5,
+            openItems: [
+              {
+                item: "Reconciliation incomplete",
+                severity: "blocking" as const,
+              },
+            ],
+            summary: "Has open items",
+          },
+        ];
+
+        const result = await evaluateCloseGate(confirmations);
+        expect(result.canClose).toBe(false);
+        expect(result.blockingAgents).toHaveLength(1);
+        expect(result.blockingAgents[0]).toContain("treasury");
+      });
+
+      it("should block close when confidence below threshold", async () => {
+        const { evaluateCloseGate } = await import("../close-pipeline");
+        const confirmations = [
+          {
+            agentId: "controller",
+            status: "confirmed" as const,
+            confidence: 0.3,
+            openItems: [],
+            summary: "Low confidence",
+          },
+        ];
+
+        const result = await evaluateCloseGate(confirmations, 0.7);
+        expect(result.canClose).toBe(false);
+        expect(result.blockingAgents).toHaveLength(1);
+        expect(result.overallConfidence).toBe(0.3);
+      });
+    });
+
+    // ── generateClosePackage ────────────────────────────────────────────────
+
+    describe("generateClosePackage (Step 5)", () => {
+      it("should generate and persist a close package", async () => {
+        const { generateClosePackage } = await import("../close-pipeline");
+        const result = await generateClosePackage({
+          closeSessionId: "session-1",
+          entityName: "Test Entity",
+          narrativeSummary: "All departments confirmed. Period closed cleanly.",
+          packageData: { netIncome: 150000 },
+        });
+
+        expect(result.versionNumber).toBe(1);
+        expect(result.narrativeSummary).toContain("closed cleanly");
+      });
+    });
+
+    // ── notifyCloseOwner ────────────────────────────────────────────────────
+
+    describe("notifyCloseOwner (Step 6 - Hard Rule)", () => {
+      it("should notify owner and update session status", async () => {
+        const { notifyCloseOwner } = await import("../close-pipeline");
+        const result = await notifyCloseOwner({
+          closeSessionId: "session-1",
+          entityId: "entity-1",
+          entityName: "Test Entity",
+          periodLabel: "2026-07",
+          narrativeSummary: "Period closed",
+          recipientUserId: "user-1",
+        });
+
+        expect(result.notified).toBe(true);
+        expect(result.notificationTimestamp).toBeDefined();
+      });
+    });
+
+    // ── processPassiveApproval ───────────────────────────────────────────────
+
+    describe("processPassiveApproval (Step 7)", () => {
+      it("should approve and lock when no flag raised", async () => {
+        const { processPassiveApproval } = await import("../close-pipeline");
+        const result = await processPassiveApproval({
+          closeSessionId: "session-1",
+          entityId: "entity-1",
+        });
+
+        expect(result.approved).toBe(true);
+        expect(result.flagged).toBe(false);
+        expect(result.lockedAt).toBeDefined();
+      });
+
+      it("should flag when reopen request exists", async () => {
+        const { db } = require("@xenboox/db");
+        db.query.reopenRequests.findFirst.mockResolvedValue({
+          id: "reopen-1",
+          closeSessionId: "session-1",
+          description: "Revenue figures are incorrect",
+          createdAt: new Date(),
+        });
+
+        const { processPassiveApproval } = await import("../close-pipeline");
+        const result = await processPassiveApproval({
+          closeSessionId: "session-1",
+          entityId: "entity-1",
+        });
+
+        expect(result.approved).toBe(false);
+        expect(result.flagged).toBe(true);
+        expect(result.lockedAt).toBeNull();
+      });
+    });
+
+    // ── reopenPeriodWithRecovery ─────────────────────────────────────────────
+
+    describe("reopenPeriodWithRecovery (Step 9)", () => {
+      it("should create reopen request for simple correction", async () => {
+        const { db } = require("@xenboox/db");
+        db.query.closeSessions.findFirst.mockResolvedValue({
+          id: "session-1",
+          fiscalPeriodId: "period-1",
+        });
+
+        const { reopenPeriodWithRecovery } = await import("../close-pipeline");
+        const result = await reopenPeriodWithRecovery({
+          closeSessionId: "session-1",
+          entityId: "entity-1",
+          raisedByUserId: "user-1",
+          raisedVia: "dashboard",
+          description: "Wrong expense categorization",
+          classification: "simple_correction",
+        });
+
+        expect(result.reopenRequestId).toBeDefined();
+        expect(result.recoveryPath).toContain("Simple correction");
+      });
+
+      it("should create reopen request for cascading error", async () => {
+        const { db } = require("@xenboox/db");
+        db.query.closeSessions.findFirst.mockResolvedValue({
+          id: "session-1",
+          fiscalPeriodId: "period-1",
+        });
+
+        const { reopenPeriodWithRecovery } = await import("../close-pipeline");
+        const result = await reopenPeriodWithRecovery({
+          closeSessionId: "session-1",
+          entityId: "entity-1",
+          raisedByUserId: "user-1",
+          raisedVia: "chat",
+          description: "FX rates used incorrectly across all of Q2",
+          classification: "cascading_error",
+          affectedPeriods: ["2026-04", "2026-05", "2026-06"],
+        });
+
+        expect(result.recoveryPath).toContain("Cascading error");
+        expect(result.recoveryPath).toContain("3 affected");
+      });
+    });
+
+    // ── getReopenDepthGovernant ──────────────────────────────────────────────
+
+    describe("getReopenDepthGovernor (Step 10)", () => {
+      it("should allow immediate recovery for recent periods (< 3 months)", async () => {
+        const { getReopenDepthGovernor } = await import("../close-pipeline");
+        const now = new Date();
+        const recentLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+        const result = await getReopenDepthGovernor(recentLabel);
+        expect(result.allowed).toBe(true);
+        expect(result.requiresApproval).toBe(false);
+        expect(result.warning).toContain("Immediate");
+      });
+
+      it("should require approval for periods 3-12 months back", async () => {
+        const { getReopenDepthGovernor } = await import("../close-pipeline");
+        const oldDate = new Date();
+        oldDate.setMonth(oldDate.getMonth() - 6);
+        const oldLabel = `${oldDate.getFullYear()}-${String(oldDate.getMonth() + 1).padStart(2, "0")}`;
+
+        const result = await getReopenDepthGovernor(oldLabel);
+        expect(result.allowed).toBe(true);
+        expect(result.requiresApproval).toBe(true);
+        expect(result.warning).toContain("6 months back");
+      });
+
+      it("should require scope assessment for periods beyond 12 months", async () => {
+        const { getReopenDepthGovernor } = await import("../close-pipeline");
+        const oldDate = new Date();
+        oldDate.setFullYear(oldDate.getFullYear() - 2);
+        const oldLabel = `${oldDate.getFullYear()}-${String(oldDate.getMonth() + 1).padStart(2, "0")}`;
+
+        const result = await getReopenDepthGovernor(oldLabel);
+        expect(result.allowed).toBe(true);
+        expect(result.requiresApproval).toBe(true);
+        expect(result.warning).toContain("scope assessment");
+        expect(result.depthMonths).toBeGreaterThan(12);
+      });
+    });
+
+    // ── getCloseAuditTrail ───────────────────────────────────────────────────
+
+    describe("getCloseAuditTrail (Step 11)", () => {
+      it("should retrieve complete audit trail", async () => {
+        const { getCloseAuditTrail } = await import("../close-pipeline");
+        const result = await getCloseAuditTrail("session-1");
+
+        expect(result.session).toBeDefined();
+        expect(result.session!.id).toBe("session-1");
+        expect(result.versions).toBeDefined();
+        expect(result.confirmations).toBeDefined();
+        expect(result.reopenRequests).toBeDefined();
+      });
+    });
+
+    // ── getCloseSessionStatus ───────────────────────────────────────────────
+
+    describe("getCloseSessionStatus", () => {
+      it("should return full close session status", async () => {
+        const { getCloseSessionStatus } = await import("../close-pipeline");
+        const result = await getCloseSessionStatus("entity-1", "2026-07");
+
+        expect(result.sessionId).toBe("session-1");
+        expect(result.period).toBe("2026-07");
+        expect(result.isLocked).toBe(false);
+        expect(result.confirmations).toBeDefined();
+        expect(result.versions).toBeDefined();
+        expect(result.reopenRequests).toBeDefined();
+      });
+
+      it("should return empty state when no session exists", async () => {
+        const { db } = require("@xenboox/db");
+        db.query.closeSessions.findFirst.mockResolvedValue(null);
+
+        const { getCloseSessionStatus } = await import("../close-pipeline");
+        const result = await getCloseSessionStatus("entity-999", "2026-07");
+
+        expect(result.sessionId).toBeNull();
+        expect(result.isLocked).toBe(false);
+        expect(result.confirmations).toHaveLength(0);
+      });
+    });
   });
 });
 

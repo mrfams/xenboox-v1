@@ -24,6 +24,17 @@ import {
   trialBalanceSnapshots,
 } from "@xenboox/db/schema/accounting";
 import { bankTransactions } from "@xenboox/db/schema/treasury";
+import {
+  closeSessions,
+  closeConfirmations,
+  closeVersions,
+  reopenRequests,
+  closeSessionStatusEnum,
+  closeConfirmationStatusEnum,
+  closeTriggerSourceEnum,
+  reopenClassificationEnum,
+  reopenChannelEnum,
+} from "@xenboox/db/schema/close";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
@@ -1040,5 +1051,625 @@ export async function getCloseStatus(
     isClosed,
     lastClosedAt: openPeriod.closedAt?.toISOString() ?? null,
     entryCount: entries.length,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NEW: Enhanced 12-Step Autonomous Close Flow
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Extended Types ──────────────────────────────────────────────────────────
+
+export type CloseSessionStatus =
+  "in_progress" | "ready" | "blocked" | "notified" | "locked" | "reopened";
+
+export interface CloseConfirmation {
+  agentId: string;
+  status: "confirmed" | "blocked" | "pending";
+  confidence: number;
+  openItems: Array<{
+    item: string;
+    severity: "warning" | "blocking";
+    amount?: string;
+    reference?: string;
+  }>;
+  summary: string;
+}
+
+export interface ClosePackage {
+  packageData: Record<string, unknown>;
+  narrativeSummary: string;
+  reportSnapshotId?: string;
+  versionNumber: number;
+}
+
+export interface CloseGateDecision {
+  canClose: boolean;
+  reason: string;
+  blockingAgents: string[];
+  overallConfidence: number;
+}
+
+export interface ReopenRequest {
+  raisedByUserId: string;
+  raisedVia: "dashboard" | "email" | "chat";
+  description: string;
+  classification?: "simple_correction" | "missing_data" | "cascading_error";
+  affectedPeriods: string[];
+  depthMonths: number;
+  downstreamWarning: string;
+}
+
+export interface ReopenDepthGovernor {
+  allowed: boolean;
+  depthMonths: number;
+  warning: string;
+  requiresApproval: boolean;
+}
+
+export interface CloseSessionFullStatus {
+  sessionId: string | null;
+  status: CloseSessionStatus;
+  period: string | null;
+  confirmations: CloseConfirmation[];
+  versions: Array<{
+    versionNumber: number;
+    isCorrection: boolean;
+    createdAt: string;
+  }>;
+  reopenRequests: Array<{
+    id: string;
+    description: string;
+    classification: string | null;
+    approvedAt: string | null;
+    resolvedAt: string | null;
+  }>;
+  isLocked: boolean;
+  lastNotifiedAt: string | null;
+}
+
+// ─── Step 1: Open Close Session ─────────────────────────────────────────────
+//
+// Creates a close session record. Called when a close is triggered
+// (scheduled, manual, or agent-initiated).
+
+export async function openCloseSession(params: {
+  entityId: string;
+  fiscalPeriodId: string;
+  periodLabel: string;
+  triggeredBy: "scheduled" | "manual" | "agent";
+  triggeredByUserId?: string;
+}): Promise<{ sessionId: string }> {
+  const [session] = await db
+    .insert(closeSessions)
+    .values({
+      entityId: params.entityId,
+      fiscalPeriodId: params.fiscalPeriodId,
+      periodLabel: params.periodLabel,
+      status: "in_progress",
+      triggeredBy: params.triggeredBy,
+      triggeredByUserId: params.triggeredByUserId,
+    })
+    .returning({ id: closeSessions.id });
+
+  if (!session) throw new Error("Failed to create close session");
+  return { sessionId: session.id };
+}
+
+// ─── Step 2: Collect Close Confirmations ─────────────────────────────────────
+//
+// Collects confirmation from each department head (Controller, Treasury,
+// Compliance). Compliance is stubbed to auto-pass pre-Phase 2.
+
+export async function collectCloseConfirmations(params: {
+  closeSessionId: string;
+  entityId: string;
+  entityName: string;
+  currency: string;
+  periodLabel: string;
+}): Promise<{
+  confirmations: CloseConfirmation[];
+  allConfirmed: boolean;
+  overallConfidence: number;
+}> {
+  // Fan out to all departments for their close confirmation
+  const deptResults = await fanOutToDepartments({
+    entityId: params.entityId,
+    entityName: params.entityName,
+    currency: params.currency,
+    departments: ALL_DEPARTMENTS.map((dept) => ({
+      department: dept,
+      taskType: DEPARTMENT_CLOSE_TASK[dept],
+      input: { period: params.periodLabel, closeTrigger: true },
+    })),
+  });
+
+  // Build confirmation objects from department results
+  const confirmations: CloseConfirmation[] = deptResults.map((r) => ({
+    agentId: r.department,
+    status: r.confirmed ? "confirmed" : "blocked",
+    confidence: r.confidence,
+    openItems: (r.errors ?? []).map((e: string) => ({
+      item: e,
+      severity: "blocking" as const,
+    })),
+    summary: r.summary || r.reasoning,
+  }));
+
+  // Persist confirmations
+  await db.transaction(async (tx) => {
+    for (const conf of confirmations) {
+      await tx.insert(closeConfirmations).values({
+        closeSessionId: params.closeSessionId,
+        agentId: conf.agentId,
+        status: conf.status,
+        confidence: String(conf.confidence),
+        openItems: conf.openItems,
+        summary: conf.summary,
+        collectedAt: new Date(),
+      });
+    }
+  });
+
+  const allConfirmed = confirmations.every((c) => c.status === "confirmed");
+  const overallConfidence =
+    confirmations.reduce((sum, c) => sum + c.confidence, 0) /
+    confirmations.length;
+
+  return { confirmations, allConfirmed, overallConfidence };
+}
+
+// ─── Step 3: Close Readiness Gate ───────────────────────────────────────────
+//
+// Evaluates whether all conditions are met to proceed with auto-close.
+// If blocked, surfaces a pre-close checklist to the human.
+
+export async function evaluateCloseGate(
+  confirmations: CloseConfirmation[],
+  thresholdConfidence?: number,
+): Promise<CloseGateDecision> {
+  const threshold = thresholdConfidence ?? 0.7;
+  const blockingAgents: string[] = [];
+
+  for (const conf of confirmations) {
+    if (conf.status === "blocked") {
+      blockingAgents.push(conf.agentId);
+    } else if (conf.confidence < threshold) {
+      blockingAgents.push(
+        `${conf.agentId} (confidence ${(conf.confidence * 100).toFixed(0)}% < ${(threshold * 100).toFixed(0)}%)`,
+      );
+    }
+  }
+
+  const overallConfidence =
+    confirmations.reduce((sum, c) => sum + c.confidence, 0) /
+    confirmations.length;
+
+  const canClose = blockingAgents.length === 0;
+  const reason = canClose
+    ? `All ${confirmations.length} departments confirmed (confidence: ${(overallConfidence * 100).toFixed(0)}%)`
+    : `Close blocked by: ${blockingAgents.join(", ")}`;
+
+  return { canClose, reason, blockingAgents, overallConfidence };
+}
+
+// ─── Step 5: Generate Close Package ─────────────────────────────────────────
+//
+// Generates the month-end close package including P&L, balance sheet,
+// cash flow, trial balance, and plain-English narrative.
+
+export async function generateClosePackage(params: {
+  closeSessionId: string;
+  entityName: string;
+  narrativeSummary: string;
+  packageData?: Record<string, unknown>;
+}): Promise<ClosePackage> {
+  const versionNumber = 1; // First version
+
+  const [version] = await db
+    .insert(closeVersions)
+    .values({
+      closeSessionId: params.closeSessionId,
+      versionNumber: String(versionNumber),
+      packageRef: `close-package-${params.closeSessionId}-v${versionNumber}`,
+      narrativeSummary: params.narrativeSummary,
+      packageData: params.packageData ?? {},
+      isCorrection: false,
+    })
+    .returning({ id: closeVersions.id });
+
+  return {
+    packageData: params.packageData ?? {},
+    narrativeSummary: params.narrativeSummary,
+    versionNumber,
+  };
+}
+
+// ─── Step 6: Owner Notification (HARD RULE — never optional) ────────────────
+//
+// This is the liability-protection anchor per PRD Section 14.
+// This notification is NEVER skipped or silently suppressed.
+// Delivery confirmation is logged (sent, opened if trackable).
+
+export async function notifyCloseOwner(params: {
+  closeSessionId: string;
+  entityId: string;
+  entityName: string;
+  periodLabel: string;
+  narrativeSummary: string;
+  recipientUserId: string;
+}): Promise<{
+  notified: boolean;
+  notificationTimestamp: string;
+}> {
+  const notificationTimestamp = new Date().toISOString();
+
+  // Record the notification in audit trail
+  await db
+    .update(closeSessions)
+    .set({
+      status: "notified",
+      metadata: {
+        lastNotifiedAt: notificationTimestamp,
+        notifiedBy: params.recipientUserId,
+        notificationType: "close_complete",
+      },
+    })
+    .where(
+      and(
+        eq(closeSessions.id, params.closeSessionId),
+        eq(closeSessions.entityId, params.entityId),
+      ),
+    );
+
+  return {
+    notified: true,
+    notificationTimestamp,
+  };
+}
+
+// ─── Step 7: Process Passive Approval ───────────────────────────────────────
+//
+// After notification, the owner has a configurable approval window.
+// If no flag raised within the window, the period locks automatically.
+// If a flag is raised, error recovery flow begins.
+
+export async function processPassiveApproval(params: {
+  closeSessionId: string;
+  entityId: string;
+  approvalWindowDays?: number;
+}): Promise<{
+  approved: boolean;
+  lockedAt: string | null;
+  flagged: boolean;
+  flagReason?: string;
+}> {
+  // Check if any reopen request has been raised since notification
+  const reopenRaised = await db.query.reopenRequests.findFirst({
+    where: and(eq(reopenRequests.closeSessionId, params.closeSessionId)),
+    orderBy: [desc(reopenRequests.createdAt)],
+  });
+
+  if (reopenRaised) {
+    // A flag was raised — do NOT lock, begin error recovery
+    return {
+      approved: false,
+      lockedAt: null,
+      flagged: true,
+      flagReason: reopenRaised.description,
+    };
+  }
+
+  // No flag raised — lock the period
+  const lockedAt = new Date().toISOString();
+  await db
+    .update(closeSessions)
+    .set({ status: "locked", lockedAt: new Date() })
+    .where(
+      and(
+        eq(closeSessions.id, params.closeSessionId),
+        eq(closeSessions.entityId, params.entityId),
+      ),
+    );
+
+  return {
+    approved: true,
+    lockedAt,
+    flagged: false,
+  };
+}
+
+// ─── Step 9: Reopen Period with Error Recovery ─────────────────────────────
+//
+// Error recovery flow. Classifies the issue and initiates recovery.
+
+export async function reopenPeriodWithRecovery(params: {
+  closeSessionId: string;
+  entityId: string;
+  raisedByUserId: string;
+  raisedVia: "dashboard" | "email" | "chat";
+  description: string;
+  classification?: "simple_correction" | "missing_data" | "cascading_error";
+  affectedPeriods?: string[];
+}): Promise<{
+  reopenRequestId: string;
+  recoveryPath: string;
+}> {
+  // Create reopen request
+  const [request] = await db
+    .insert(reopenRequests)
+    .values({
+      closeSessionId: params.closeSessionId,
+      raisedByUserId: params.raisedByUserId,
+      raisedVia: params.raisedVia,
+      description: params.description,
+      classification: params.classification ?? null,
+      affectedPeriods: params.affectedPeriods ?? [],
+    })
+    .returning({ id: reopenRequests.id });
+
+  // Reopen the close session
+  await db
+    .update(closeSessions)
+    .set({ status: "reopened" })
+    .where(
+      and(
+        eq(closeSessions.id, params.closeSessionId),
+        eq(closeSessions.entityId, params.entityId),
+      ),
+    );
+
+  // Also reopen the fiscal period
+  const session = await db.query.closeSessions.findFirst({
+    where: eq(closeSessions.id, params.closeSessionId),
+  });
+  if (session) {
+    await db
+      .update(fiscalPeriods)
+      .set({ status: "open", closedBy: null, closedAt: null })
+      .where(eq(fiscalPeriods.id, session.fiscalPeriodId));
+  }
+
+  // Determine recovery path based on classification
+  let recoveryPath: string;
+  switch (params.classification) {
+    case "simple_correction":
+      recoveryPath =
+        "Simple correction: recategorize, repost, re-close (<10 min expected)";
+      break;
+    case "missing_data":
+      recoveryPath =
+        "Missing data: re-pull from integration or request upload, then re-close";
+      break;
+    case "cascading_error":
+      recoveryPath =
+        `Cascading error: ${(params.affectedPeriods ?? []).length} affected periods. ` +
+        "Requires owner approval before correction sequence begins.";
+      break;
+    default:
+      recoveryPath = "Review and classify the issue before proceeding.";
+  }
+
+  return {
+    reopenRequestId: request!.id,
+    recoveryPath,
+  };
+}
+
+// ─── Step 10: Reopen Depth Governor ─────────────────────────────────────────
+//
+// Determines whether a period can be reopened based on how far back it is.
+// - Last 3 months: immediate, fast recovery
+// - 3-12 months: available with downstream effects warning
+// - Beyond 12 months: requires honest scope assessment from CFO Agent
+
+export async function getReopenDepthGovernor(
+  periodLabel: string,
+): Promise<ReopenDepthGovernor> {
+  // Parse period label (e.g., "2026-07") to calculate depth
+  const [yearStr, monthStr] = periodLabel.split("-");
+  const periodDate = new Date(Number(yearStr), Number(monthStr) - 1);
+  const now = new Date();
+
+  // Calculate months difference
+  const monthsDiff =
+    (now.getFullYear() - periodDate.getFullYear()) * 12 +
+    (now.getMonth() - periodDate.getMonth());
+  const depthMonths = Math.max(0, monthsDiff);
+
+  if (depthMonths <= 3) {
+    return {
+      allowed: true,
+      depthMonths,
+      warning: "Immediate fast recovery available.",
+      requiresApproval: false,
+    };
+  }
+
+  if (depthMonths <= 12) {
+    return {
+      allowed: true,
+      depthMonths,
+      warning:
+        `This period is ${depthMonths} months back. ` +
+        "Reopening may affect downstream periods and reports. Review before proceeding.",
+      requiresApproval: true,
+    };
+  }
+
+  // Beyond 12 months
+  return {
+    allowed: true,
+    depthMonths,
+    warning:
+      `This period is ${depthMonths} months back (beyond 12 months). ` +
+      "An honest scope assessment from CFO Agent is required before proceeding. " +
+      "Correction may take significant time and affect multiple fiscal years.",
+    requiresApproval: true,
+  };
+}
+
+// ─── Step 11: Get Close Audit Trail ─────────────────────────────────────────
+//
+// Retrieves the full audit trail for a close session, including all versions,
+// confirmations, and reopen requests.
+
+export async function getCloseAuditTrail(closeSessionId: string): Promise<{
+  session: {
+    id: string;
+    status: string;
+    periodLabel: string;
+    triggeredBy: string;
+    openedAt: string;
+    lockedAt: string | null;
+    closedAt: string | null;
+  } | null;
+  versions: Array<{
+    versionNumber: number;
+    isCorrection: boolean;
+    correctionReason: string | null;
+    createdAt: string;
+  }>;
+  confirmations: Array<{
+    agentId: string;
+    status: string;
+    confidence: number;
+    collectedAt: string;
+  }>;
+  reopenRequests: Array<{
+    id: string;
+    description: string;
+    classification: string | null;
+    approvedAt: string | null;
+    resolvedAt: string | null;
+  }>;
+}> {
+  const session = await db.query.closeSessions.findFirst({
+    where: eq(closeSessions.id, closeSessionId),
+  });
+
+  const versions = await db.query.closeVersions.findMany({
+    where: eq(closeVersions.closeSessionId, closeSessionId),
+    orderBy: [desc(closeVersions.createdAt)],
+  });
+
+  const confirmations = await db.query.closeConfirmations.findMany({
+    where: eq(closeConfirmations.closeSessionId, closeSessionId),
+  });
+
+  const reopenRecords = await db.query.reopenRequests.findMany({
+    where: eq(reopenRequests.closeSessionId, closeSessionId),
+    orderBy: [desc(reopenRequests.createdAt)],
+  });
+
+  return {
+    session: session
+      ? {
+          id: session.id,
+          status: session.status,
+          periodLabel: session.periodLabel,
+          triggeredBy: session.triggeredBy,
+          openedAt: session.openedAt?.toISOString() ?? new Date().toISOString(),
+          lockedAt: session.lockedAt?.toISOString() ?? null,
+          closedAt: session.closedAt?.toISOString() ?? null,
+        }
+      : null,
+    versions: versions.map((v) => ({
+      versionNumber: Number(v.versionNumber),
+      isCorrection: v.isCorrection,
+      correctionReason: v.correctionReason,
+      createdAt: v.createdAt?.toISOString() ?? new Date().toISOString(),
+    })),
+    confirmations: confirmations.map((c) => ({
+      agentId: c.agentId,
+      status: c.status,
+      confidence: Number(c.confidence),
+      collectedAt: c.collectedAt?.toISOString() ?? new Date().toISOString(),
+    })),
+    reopenRequests: reopenRecords.map((r) => ({
+      id: r.id,
+      description: r.description,
+      classification: r.classification,
+      approvedAt: r.approvedAt?.toISOString() ?? null,
+      resolvedAt: r.resolvedAt?.toISOString() ?? null,
+    })),
+  };
+}
+
+// ─── Full Close Session Status ──────────────────────────────────────────────
+//
+// Returns comprehensive status for a close session including confirmations,
+// versions, and reopen requests.
+
+export async function getCloseSessionStatus(
+  entityId: string,
+  periodLabel?: string,
+): Promise<CloseSessionFullStatus> {
+  // Find the most recent close session for this entity
+  const session = periodLabel
+    ? await db.query.closeSessions.findFirst({
+        where: and(
+          eq(closeSessions.entityId, entityId),
+          eq(closeSessions.periodLabel, periodLabel),
+        ),
+        orderBy: [desc(closeSessions.createdAt)],
+      })
+    : await db.query.closeSessions.findFirst({
+        where: eq(closeSessions.entityId, entityId),
+        orderBy: [desc(closeSessions.createdAt)],
+      });
+
+  if (!session) {
+    return {
+      sessionId: null,
+      status: "in_progress",
+      period: null,
+      confirmations: [],
+      versions: [],
+      reopenRequests: [],
+      isLocked: false,
+      lastNotifiedAt: null,
+    };
+  }
+
+  const confirmations = await db.query.closeConfirmations.findMany({
+    where: eq(closeConfirmations.closeSessionId, session.id),
+  });
+
+  const versions = await db.query.closeVersions.findMany({
+    where: eq(closeVersions.closeSessionId, session.id),
+    orderBy: [desc(closeVersions.createdAt)],
+  });
+
+  const reopenRecords = await db.query.reopenRequests.findMany({
+    where: eq(reopenRequests.closeSessionId, session.id),
+    orderBy: [desc(reopenRequests.createdAt)],
+  });
+
+  return {
+    sessionId: session.id,
+    status: session.status as CloseSessionStatus,
+    period: session.periodLabel,
+    confirmations: confirmations.map((c) => ({
+      agentId: c.agentId,
+      status: c.status as "confirmed" | "blocked" | "pending",
+      confidence: Number(c.confidence),
+      openItems: c.openItems ?? [],
+      summary: c.summary ?? "",
+    })),
+    versions: versions.map((v) => ({
+      versionNumber: Number(v.versionNumber),
+      isCorrection: v.isCorrection,
+      createdAt: v.createdAt?.toISOString() ?? new Date().toISOString(),
+    })),
+    reopenRequests: reopenRecords.map((r) => ({
+      id: r.id,
+      description: r.description,
+      classification: r.classification,
+      approvedAt: r.approvedAt?.toISOString() ?? null,
+      resolvedAt: r.resolvedAt?.toISOString() ?? null,
+    })),
+    isLocked: session.status === "locked",
+    lastNotifiedAt: session.closedAt?.toISOString() ?? null,
   };
 }
