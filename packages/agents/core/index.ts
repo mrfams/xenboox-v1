@@ -297,3 +297,26 @@ export type {
   OnboardingPipelineResult,
   OnboardingStep,
 } from "./onboarding-pipeline";
+
+// ─── Payroll Pipeline (Phase 2, Pipeline 1 of 5) ─────
+export {
+  executePayrollPipeline,
+  runPayrollPipeline,
+  getPayrollStatus,
+  calculatePayeForJurisdiction,
+  calculateSocialSecurityForJurisdiction,
+  STATUTORY_RULES,
+} from "./payroll-pipeline";
+export type {
+  PayrollRunResult,
+  PayrollStep,
+  PayrollStepId,
+  PayrollStepStatus,
+  Jurisdiction,
+  EmploymentType,
+  StatutoryRule,
+  EmployeePayrollData,
+  ExceptionIntakeItem,
+  CalculatedPayroll,
+  ComplianceDeadline,
+} from "./payroll-pipeline";

@@ -20,6 +20,8 @@ import {
 } from "@xenboox/db/schema";
 import { sendEmployeeCreatedEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
+import { runPayrollPipeline, getPayrollStatus } from "@xenboox/agents";
+import type { ExceptionIntakeItem } from "@xenboox/agents";
 
 // ─── Payroll Router ────────────────────────────────────────────────────────
 
@@ -543,5 +545,101 @@ export const payrollRouter = router({
       } catch (error) {
         handleMutationError(error, "Failed to delete payroll run");
       }
+    }),
+
+  // ── Payroll Pipeline ──
+
+  /**
+   * Run the full autonomous payroll pipeline for a given period.
+   * Role-gated: only owner, admin, finance_director, and payroll_officer can trigger.
+   * Salary data is enforcement at the query layer via entity scoping.
+   * Payroll Worker Agent never posts to the ledger directly.
+   */
+  runPayrollPipeline: protectedProcedure
+    .use(requireRole("owner", "admin", "finance_director", "payroll_officer"))
+    .input(
+      z.object({
+        period: z.string().regex(/^\d{4}-\d{2}$/),
+        triggerSource: z
+          .enum(["manual", "scheduled", "agent"])
+          .default("manual"),
+        skipValidation: z.boolean().default(false),
+        exceptions: z
+          .array(
+            z.object({
+              type: z.enum([
+                "new_starter",
+                "leaver",
+                "salary_change",
+                "bonus",
+                "allowance_change",
+              ]),
+              employeeId: z.string().uuid().optional(),
+              employeeNumber: z.string().optional(),
+              effectiveDate: z.string(),
+              details: z.record(z.unknown()),
+              applied: z.boolean().default(false),
+              appliedAt: z.string().optional(),
+            }),
+          )
+          .optional()
+          .default([]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entityCtx = await getEnrichedEntityContext(ctx.entityId!);
+        const result = await runPayrollPipeline({
+          entityId: ctx.entityId!,
+          entityName: entityCtx.entityName,
+          currency: entityCtx.currency,
+          period: input.period,
+          userId: ctx.session!.user!.id!,
+          triggerSource: input.triggerSource,
+          skipValidation: input.skipValidation,
+          exceptions: input.exceptions as ExceptionIntakeItem[],
+        });
+
+        // Audit log
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "payroll.runPipeline",
+          entityType: "payroll_run",
+          entityIdRef: result.payrollRunId ?? "",
+          newValues: {
+            period: input.period,
+            status: result.status,
+            employeeCount: result.employeeCount,
+            totalGrossPay: result.totalGrossPay,
+            totalNetPay: result.totalNetPay,
+            escalated: result.escalated,
+            confidence: result.overallConfidence,
+          },
+        });
+
+        return result;
+      } catch (error) {
+        handleMutationError(error, "Failed to run payroll pipeline");
+      }
+    }),
+
+  /**
+   * Get payroll pipeline status — summary of recent runs and compliance deadlines.
+   * Read-only, accessible to any authenticated entity member.
+   */
+  getPayrollPipelineStatus: protectedProcedure
+    .input(
+      z
+        .object({
+          period: z
+            .string()
+            .regex(/^\d{4}-\d{2}$/)
+            .optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return getPayrollStatus(ctx.entityId!, input?.period);
     }),
 });

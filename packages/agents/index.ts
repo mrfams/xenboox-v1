@@ -66,6 +66,10 @@ export {
   runReportingPipeline,
   detectReportablePeriods,
   runOnboardingPipeline,
+  runPayrollPipeline,
+  executePayrollPipeline,
+  getPayrollStatus,
+  STATUTORY_RULES,
 } from "./core";
 export type {
   ModelTier,
@@ -111,6 +115,17 @@ export type {
   ReportablePeriod,
   OnboardingPipelineResult,
   OnboardingStep,
+  PayrollRunResult,
+  PayrollStep,
+  PayrollStepId,
+  PayrollStepStatus,
+  Jurisdiction,
+  EmploymentType,
+  StatutoryRule,
+  EmployeePayrollData,
+  ExceptionIntakeItem,
+  CalculatedPayroll,
+  ComplianceDeadline,
 } from "./core";
 
 // ─── Eval Harness ────────────────────────────────────────────────────────────
