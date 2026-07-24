@@ -24,3 +24,4 @@ export * from "./agents";
 export * from "./onboarding";
 export * from "./statement";
 export * from "./close";
+export * from "./tax-compliance";

@@ -66,6 +66,9 @@ export {
   runReportingPipeline,
   detectReportablePeriods,
   runOnboardingPipeline,
+  runTaxCompliancePipeline,
+  executeTaxCompliancePipeline,
+  getTaxComplianceStatus,
   runPayrollPipeline,
   executePayrollPipeline,
   getPayrollStatus,
@@ -126,6 +129,16 @@ export type {
   ExceptionIntakeItem,
   CalculatedPayroll,
   ComplianceDeadline,
+  TaxComplianceResult,
+  TaxStep,
+  TaxStepId,
+  TaxStepStatus,
+  VatCalculation,
+  WithholdingCalculation,
+  PayeFilingData,
+  CorporateTaxData,
+  RegulatoryRisk,
+  FilingDeadlineItem,
 } from "./core";
 
 // ─── Eval Harness ────────────────────────────────────────────────────────────

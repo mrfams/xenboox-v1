@@ -298,6 +298,29 @@ export type {
   OnboardingStep,
 } from "./onboarding-pipeline";
 
+// ─── Tax & Compliance Pipeline (Phase 2, Pipeline 2 of 5) ─────
+export {
+  runTaxCompliancePipeline,
+  executeTaxCompliancePipeline,
+  getTaxComplianceStatus,
+} from "./tax-compliance-pipeline";
+export type {
+  TaxComplianceResult,
+  TaxStep,
+  TaxStepId,
+  TaxStepStatus,
+  Jurisdiction as TaxJurisdiction,
+  VatCalculation,
+  WithholdingCalculation,
+  PayeFilingData,
+  CorporateTaxData,
+  FormatExportItem,
+  RegulatoryRisk,
+  FilingDeadlineItem,
+  TaxRuleProposal,
+  JurisdictionTaxRule,
+} from "./tax-compliance-pipeline";
+
 // ─── Payroll Pipeline (Phase 2, Pipeline 1 of 5) ─────
 export {
   executePayrollPipeline,
