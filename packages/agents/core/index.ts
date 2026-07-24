@@ -321,6 +321,20 @@ export type {
   JurisdictionTaxRule,
 } from "./tax-compliance-pipeline";
 
+// ─── Audit Pipeline (Phase 2, Pipeline 3 of 5) ───────────
+export { runAuditPipeline, getAuditStatus } from "./audit-pipeline";
+export type {
+  AuditPipelineResult,
+  AuditStep,
+  AuditStepId,
+  AuditStepStatus,
+  AuditSampleItem,
+  DriftScoreItem,
+  AnomalyItem,
+  AuditPackageItem,
+  AuditorSessionItem,
+} from "./audit-pipeline";
+
 // ─── Payroll Pipeline (Phase 2, Pipeline 1 of 5) ─────
 export {
   executePayrollPipeline,

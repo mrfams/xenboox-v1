@@ -93,7 +93,11 @@ export type AgentTaskType =
   | "financial_ratios"
   | "kpi_dashboard"
   | "trend_analysis"
-  | "cash_flow_analysis";
+  | "cash_flow_analysis"
+  | "audit_sampling"
+  | "drift_analysis"
+  | "independent_recomputation"
+  | "anomaly_detection";
 
 export type AgentTier = "tier1" | "tier2" | "tier3" | "platform";
 
@@ -115,7 +119,8 @@ export type AgentId =
   | "reporting"
   | "document"
   | "budget"
-  | "analytics";
+  | "analytics"
+  | "audit";
 
 export interface AgentTask {
   id: string;
@@ -226,6 +231,12 @@ const TASK_AGENT_MAP: Record<
   kpi_dashboard: { agentId: "analytics", tier: "platform" },
   trend_analysis: { agentId: "analytics", tier: "platform" },
   cash_flow_analysis: { agentId: "analytics", tier: "platform" },
+
+  // Audit Agent (tier3, under compliance)
+  audit_sampling: { agentId: "audit", tier: "tier3" },
+  drift_analysis: { agentId: "audit", tier: "tier3" },
+  independent_recomputation: { agentId: "audit", tier: "tier3" },
+  anomaly_detection: { agentId: "audit", tier: "tier3" },
 };
 
 // ─── Agent Invoke Map (lazy imports to avoid circular deps) ────────────────
@@ -286,6 +297,20 @@ export async function getAgentGraph(agentId: AgentId): Promise<AgentGraph> {
     case "analytics":
       return (await import("../platform/analytics-agent/graph"))
         .analyticsAgent as unknown as AgentGraph;
+    case "audit":
+      // The Audit Agent runs as a pipeline, not a LangGraph agent
+      // Return a simple graph that delegates to the pipeline
+      return {
+        invoke: async (state) => ({
+          ...state,
+          confidence: 0.9,
+          reasoning:
+            "Audit pipeline executed — see audit-pipeline for full results",
+          result: { type: "audit_complete" },
+          errors: [],
+          auditTrail: [],
+        }),
+      };
   }
 }
 

@@ -1,21 +1,18 @@
-import type { AgentId, AgentTier, AgentTaskType } from "./orchestrator"
+import type { AgentId, AgentTier, AgentTaskType } from "./orchestrator";
 
 // ─── Department Types ────────────────────────────────────────────────────────
 
 export type AgentDepartment =
-  | "controller"
-  | "treasury"
-  | "payroll_manager"
-  | "compliance"
+  "controller" | "treasury" | "payroll_manager" | "compliance";
 
 // ─── Agent Metadata ─────────────────────────────────────────────────────────
 
 type AgentMetadata = {
-  agentId: AgentId
-  tier: AgentTier
-  department: AgentDepartment | null
-  taskTypes: AgentTaskType[]
-}
+  agentId: AgentId;
+  tier: AgentTier;
+  department: AgentDepartment | null;
+  taskTypes: AgentTaskType[];
+};
 
 export const AGENT_REGISTRY: Record<AgentId, AgentMetadata> = {
   cfo: {
@@ -88,7 +85,12 @@ export const AGENT_REGISTRY: Record<AgentId, AgentMetadata> = {
     agentId: "cash",
     tier: "tier3",
     department: "treasury",
-    taskTypes: ["cash_count", "imprest_issue", "imprest_retire", "cash_discrepancy"],
+    taskTypes: [
+      "cash_count",
+      "imprest_issue",
+      "imprest_retire",
+      "cash_discrepancy",
+    ],
   },
   mobile_money: {
     agentId: "mobile_money",
@@ -100,7 +102,12 @@ export const AGENT_REGISTRY: Record<AgentId, AgentMetadata> = {
     agentId: "payroll_worker",
     tier: "tier3",
     department: "payroll_manager",
-    taskTypes: ["calculate_paye", "calculate_social_security", "generate_payslip", "process_payroll_batch"],
+    taskTypes: [
+      "calculate_paye",
+      "calculate_social_security",
+      "generate_payslip",
+      "process_payroll_batch",
+    ],
   },
   reporting: {
     agentId: "reporting",
@@ -118,24 +125,47 @@ export const AGENT_REGISTRY: Record<AgentId, AgentMetadata> = {
     agentId: "budget",
     tier: "platform",
     department: null,
-    taskTypes: ["variance_analysis", "budget_vs_actual", "create_budget", "budget_forecast"],
+    taskTypes: [
+      "variance_analysis",
+      "budget_vs_actual",
+      "create_budget",
+      "budget_forecast",
+    ],
   },
   analytics: {
     agentId: "analytics",
     tier: "platform",
     department: null,
-    taskTypes: ["financial_ratios", "kpi_dashboard", "trend_analysis", "cash_flow_analysis"],
+    taskTypes: [
+      "financial_ratios",
+      "kpi_dashboard",
+      "trend_analysis",
+      "cash_flow_analysis",
+    ],
   },
-}
+  audit: {
+    agentId: "audit",
+    tier: "tier3",
+    department: "compliance",
+    taskTypes: [
+      "audit_sampling",
+      "drift_analysis",
+      "independent_recomputation",
+      "anomaly_detection",
+    ],
+  },
+};
 
 // ─── Reverse Lookups ─────────────────────────────────────────────────────────
 
 /** Maps taskType → agentId for direct dispatch */
 export const TASK_TO_AGENT: Record<string, AgentId> = Object.entries(
-  AGENT_REGISTRY
-).flatMap(([id, meta]) =>
-  meta.taskTypes.map((t): [string, AgentId] => [t, id as AgentId])
-).reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {} as Record<string, AgentId>)
+  AGENT_REGISTRY,
+)
+  .flatMap(([id, meta]) =>
+    meta.taskTypes.map((t): [string, AgentId] => [t, id as AgentId]),
+  )
+  .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {} as Record<string, AgentId>);
 
 /** Maps department name → agentId for hierarchical dispatch */
 export const DEPARTMENT_AGENTS: Record<AgentDepartment, AgentId> = {
@@ -143,7 +173,7 @@ export const DEPARTMENT_AGENTS: Record<AgentDepartment, AgentId> = {
   treasury: "treasury",
   payroll_manager: "payroll_manager",
   compliance: "compliance",
-}
+};
 
 /** Maps department → taskType used during month-end close */
 export const DEPARTMENT_CLOSE_TASK: Record<AgentDepartment, AgentTaskType> = {
@@ -151,7 +181,7 @@ export const DEPARTMENT_CLOSE_TASK: Record<AgentDepartment, AgentTaskType> = {
   treasury: "daily_report",
   payroll_manager: "process_payroll",
   compliance: "filing_status",
-}
+};
 
 /** All departments in the hierarchy (used for fan-out) */
 export const ALL_DEPARTMENTS: AgentDepartment[] = [
@@ -159,4 +189,4 @@ export const ALL_DEPARTMENTS: AgentDepartment[] = [
   "treasury",
   "payroll_manager",
   "compliance",
-]
+];

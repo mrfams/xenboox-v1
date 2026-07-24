@@ -73,6 +73,8 @@ export {
   executePayrollPipeline,
   getPayrollStatus,
   STATUTORY_RULES,
+  runAuditPipeline,
+  getAuditStatus,
 } from "./core";
 export type {
   ModelTier,
@@ -139,6 +141,15 @@ export type {
   CorporateTaxData,
   RegulatoryRisk,
   FilingDeadlineItem,
+  AuditPipelineResult,
+  AuditStep,
+  AuditStepId,
+  AuditStepStatus,
+  AuditSampleItem,
+  DriftScoreItem,
+  AnomalyItem,
+  AuditPackageItem,
+  AuditorSessionItem,
 } from "./core";
 
 // ─── Eval Harness ────────────────────────────────────────────────────────────
