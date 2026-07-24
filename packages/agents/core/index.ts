@@ -208,11 +208,18 @@ export type {
 export {
   runReconciliationPipeline,
   getReconciliationStatus,
+  reviewReconciliationSession,
 } from "./reconciliation-pipeline";
 export type {
   BankReconciliationResult,
   ReconciliationItemResult,
   ReconciliationPipelineResult,
+  MatchTier,
+  UnmatchedReason,
+  UnmatchedItemDetail,
+  AccountToReconcile,
+  StatementLineResult,
+  MatchResult,
 } from "./reconciliation-pipeline";
 
 // ─── Cash & Imprest Pipeline (Pipeline 4 of 6) ────

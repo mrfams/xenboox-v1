@@ -20,3 +20,4 @@ export * from "./integrations";
 export * from "./legal";
 export * from "./agents";
 export * from "./onboarding";
+export * from "./statement";

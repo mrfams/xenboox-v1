@@ -35,6 +35,11 @@ function createMockTx() {
       // Onboarding Pipeline tables
       dataConnections: mkQuery(),
       coaTemplates: mkQuery(),
+      // Reconciliation Pipeline tables
+      statementLines: mkQuery(),
+      matchRecords: mkQuery(),
+      reconciliationSessions: mkQuery(),
+      mobileMoneyAccounts: mkQuery(),
     },
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
@@ -163,6 +168,30 @@ vi.mock("@xenboox/db", () => {
     dataConnections: mockDataConnection,
     historicalPullJobs: mockHistoricalPull,
     coaTemplates: mockCoaTemplate,
+    // Reconciliation Pipeline table defs
+    statementLines: { id: "id", entityId: "entity_id" } as const,
+    matchRecords: { id: "id", entityId: "entity_id" } as const,
+    reconciliationSessions: {
+      id: "id",
+      entityId: "entity_id",
+      periodStart: "period_start",
+      periodEnd: "period_end",
+      status: "status",
+      accountsIncluded: "accounts_included",
+      matchedCount: "matched_count",
+      unmatchedCount: "unmatched_count",
+      totalCount: "total_count",
+      overallConfidence: "overall_confidence",
+      reviewedBy: "reviewed_by",
+      reviewedAt: "reviewed_at",
+      closedAt: "closed_at",
+      notes: "notes",
+    } as const,
+    mobileMoneyAccounts: {
+      id: "id",
+      entityId: "entity_id",
+      isActive: "is_active",
+    } as const,
   };
 });
 
@@ -323,9 +352,12 @@ vi.mock("@xenboox/db/schema/treasury", () => ({
   bankAccounts: {
     id: "id",
     entityId: "entity_id",
+    name: "name",
+    bankName: "bank_name",
     accountName: "account_name",
     currency: "currency",
     currentBalance: "current_balance",
+    openingBalance: "opening_balance",
     isActive: "is_active",
   },
   bankTransactions: {
@@ -334,14 +366,21 @@ vi.mock("@xenboox/db/schema/treasury", () => ({
     bankAccountId: "bank_account_id",
     amount: "amount",
     description: "description",
-    date: "date",
+    transactionDate: "transaction_date",
+    reference: "reference",
     isReconciled: "is_reconciled",
   },
   reconciliations: {
     id: "id",
     entityId: "entity_id",
+    bankAccountId: "bank_account_id",
+    statementDate: "statement_date",
+    statementBalance: "statement_balance",
+    bookBalance: "book_balance",
+    difference: "difference",
     status: "status",
     createdAt: "created_at",
+    closedAt: "closed_at",
   },
   reconciliationItems: {
     id: "id",
@@ -349,6 +388,17 @@ vi.mock("@xenboox/db/schema/treasury", () => ({
     bankTransactionId: "bank_transaction_id",
     status: "status",
     matchedAmount: "matched_amount",
+  },
+}));
+
+vi.mock("@xenboox/db/schema/mobile-money", () => ({
+  mobileMoneyAccounts: {
+    id: "id",
+    entityId: "entity_id",
+    bankAccountId: "bank_account_id",
+    provider: "provider",
+    phoneNumber: "phone_number",
+    isActive: "is_active",
   },
 }));
 
@@ -926,73 +976,732 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     vi.clearAllMocks();
     const { db } = require("@xenboox/db");
 
+    // Default mock: 2 active accounts
     db.query.bankAccounts.findMany.mockResolvedValue([
       {
         id: "ba-1",
         entityId: "entity-1",
-        accountName: "Operating Account",
+        name: "Operating Account",
+        bankName: "Trust Bank",
         currency: "GMD",
         currentBalance: "500000",
+        openingBalance: "450000",
         isActive: true,
       },
       {
         id: "ba-2",
         entityId: "entity-1",
-        accountName: "Savings Account",
+        name: "Savings Account",
+        bankName: "Ecobank",
         currency: "GMD",
         currentBalance: "1000000",
+        openingBalance: "950000",
         isActive: true,
       },
     ]);
 
-    db.query.bankTransactions.findMany.mockResolvedValue([
-      {
-        id: "tx-1",
-        bankAccountId: "ba-1",
-        amount: "15000",
-        description: "Customer payment",
-        date: "2026-07-15",
-        isReconciled: false,
+    // Default mock: 2 unreconciled transactions for ba-1
+    db.query.bankTransactions.findMany.mockImplementation(
+      async ({ where }: any) => {
+        const params = where as any;
+        const accountId = params?.find((p: any) =>
+          p?.brand?.includes?.("bank_account_id"),
+        );
+        // Return transactions only for main account
+        if (accountId?.values?.includes?.("ba-1")) {
+          return [
+            {
+              id: "tx-1",
+              bankAccountId: "ba-1",
+              amount: "15000",
+              transactionDate: "2026-07-15",
+              description: "Customer payment - Invoice INV-001",
+              reference: "INV-001",
+              isReconciled: false,
+            },
+            {
+              id: "tx-2",
+              bankAccountId: "ba-1",
+              amount: "-5000",
+              transactionDate: "2026-07-16",
+              description: "Supplier payment",
+              reference: null,
+              isReconciled: false,
+            },
+          ];
+        }
+        return [];
       },
-      {
-        id: "tx-2",
-        bankAccountId: "ba-1",
-        amount: "-5000",
-        description: "Supplier payment",
-        date: "2026-07-16",
-        isReconciled: false,
-      },
-    ]);
-
-    db.query.journalEntryLines.findMany.mockResolvedValue([]);
-    db.query.journalEntries.findMany.mockResolvedValue([]);
-    db.query.reconciliations.findMany.mockImplementation(
-      async ({ where }: any) => [],
     );
 
+    // Default: no matching journal entries
+    db.query.journalEntries.findMany.mockResolvedValue([]);
+    db.query.journalEntryLines.findMany.mockResolvedValue([]);
+
+    // Default: no existing reconciliation for these accounts
+    db.query.reconciliations.findFirst.mockResolvedValue(null);
+    db.query.reconciliationSessions.findFirst.mockResolvedValue(null);
+
+    // Default: no mobile money accounts
+    db.query.mobileMoneyAccounts.findMany.mockResolvedValue([]);
+
+    // Default insert returns a valid ID
     db.insert.mockReturnValue({
       values: vi.fn().mockReturnValue({
         returning: vi.fn().mockResolvedValue([{ id: "recon-1" }]),
         onConflictDoNothing: vi.fn(),
       }),
     });
+
+    // Default update returns chain
+    db.update.mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    });
+
+    // Default transaction
+    db.transaction.mockImplementation(async (cb: any) => {
+      await cb(createMockTx());
+    });
   });
 
-  it("should detect unreconciled accounts", async () => {
-    const { runReconciliationPipeline } =
-      await import("../reconciliation-pipeline");
-    const result = await runReconciliationPipeline("entity-1");
+  // ── scoreMatch ────────────────────────────────────────────────────────────
 
-    expect(result.success).toBeDefined();
-    expect(result.results).toBeDefined();
+  describe("scoreMatch", () => {
+    it("should return exact tier for exact amount + date + reference match", async () => {
+      const { scoreMatch } = await import("../reconciliation-pipeline");
+      const result = scoreMatch(
+        {
+          amount: 15000,
+          date: new Date("2026-07-15"),
+          reference: "INV-001",
+          description: "Customer payment",
+        },
+        {
+          amount: 15000,
+          date: "2026-07-15",
+          description: "Sale INV-001",
+          reference: "INV-001",
+        },
+      );
+
+      expect(result.tier).toBe("exact");
+      expect(result.totalScore).toBeGreaterThanOrEqual(0.95);
+      expect(result.amountScore).toBe(1);
+      expect(result.referenceScore).toBe(1);
+    });
+
+    it("should return strong tier for amount + date match with description similarity", async () => {
+      const { scoreMatch } = await import("../reconciliation-pipeline");
+      const result = scoreMatch(
+        {
+          amount: 15000,
+          date: new Date("2026-07-14"),
+          reference: "",
+          description: "Customer payment INV-001",
+        },
+        {
+          amount: 15000,
+          date: "2026-07-15",
+          description: "Customer payment INV-001",
+          reference: null,
+        },
+      );
+
+      expect(result.tier).toBe("strong");
+      expect(result.totalScore).toBeGreaterThanOrEqual(0.8);
+      expect(result.totalScore).toBeLessThan(0.95);
+    });
+
+    it("should return weak tier for partial matches", async () => {
+      const { scoreMatch } = await import("../reconciliation-pipeline");
+      const result = scoreMatch(
+        {
+          amount: 15000,
+          date: new Date("2026-07-10"),
+          reference: "",
+          description: "Customer payment",
+        },
+        {
+          amount: 15000,
+          date: "2026-07-15",
+          description: "Invoice payment",
+          reference: null,
+        },
+      );
+
+      expect(result.tier).toBe("weak");
+      expect(result.totalScore).toBeGreaterThanOrEqual(0.6);
+      expect(result.totalScore).toBeLessThan(0.8);
+    });
+
+    it("should score below threshold for no match", async () => {
+      const { scoreMatch } = await import("../reconciliation-pipeline");
+      const result = scoreMatch(
+        {
+          amount: 15000,
+          date: new Date("2026-07-01"),
+          reference: "",
+          description: "Customer payment",
+        },
+        {
+          amount: 500,
+          date: "2026-06-01",
+          description: "Bank fees",
+          reference: null,
+        },
+      );
+
+      expect(result.totalScore).toBeLessThan(0.6);
+    });
+
+    it("should give higher score for exact reference match", async () => {
+      const { scoreMatch } = await import("../reconciliation-pipeline");
+      const refResult = scoreMatch(
+        {
+          amount: 10000,
+          date: new Date("2026-07-15"),
+          reference: "REF-123",
+          description: "Payment",
+        },
+        {
+          amount: 10000,
+          date: "2026-07-15",
+          description: "Payment",
+          reference: "REF-123",
+        },
+      );
+
+      const noRefResult = scoreMatch(
+        {
+          amount: 10000,
+          date: new Date("2026-07-15"),
+          reference: "",
+          description: "Payment",
+        },
+        {
+          amount: 10000,
+          date: "2026-07-15",
+          description: "Payment",
+          reference: null,
+        },
+      );
+
+      expect(refResult.totalScore).toBeGreaterThan(noRefResult.totalScore);
+    });
   });
 
-  it("should return reconciliation status", async () => {
-    const { getReconciliationStatus } =
-      await import("../reconciliation-pipeline");
-    const result = await getReconciliationStatus("entity-1");
+  // ── detectDuplicates ─────────────────────────────────────────────────────
 
-    expect(Array.isArray(result)).toBe(true);
+  describe("detectDuplicates", () => {
+    it("should return not duplicate when no existing session", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.reconciliationSessions.findFirst.mockResolvedValue(null);
+
+      const { detectDuplicates } = await import("../reconciliation-pipeline");
+      const result = await detectDuplicates("entity-1", "ba-1", "2026-07-31");
+
+      expect(result.isDuplicate).toBe(false);
+    });
+
+    it("should detect duplicate when session exists for same account+period", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.reconciliationSessions.findFirst.mockResolvedValue({
+        id: "existing-session",
+        entityId: "entity-1",
+        status: "open",
+      });
+
+      const { detectDuplicates } = await import("../reconciliation-pipeline");
+      const result = await detectDuplicates("entity-1", "ba-1", "2026-07-31");
+
+      expect(result.isDuplicate).toBe(true);
+      expect(result.existingSessionId).toBe("existing-session");
+    });
+  });
+
+  // ── classifyPendingSettlement ─────────────────────────────────────────────
+
+  describe("classifyPendingSettlement", () => {
+    it("should return false for non-mobile-money accounts", async () => {
+      const { classifyPendingSettlement } =
+        await import("../reconciliation-pipeline");
+      const result = classifyPendingSettlement(
+        new Date().toISOString().split("T")[0]!,
+        1000,
+        false,
+      );
+      expect(result).toBe(false);
+    });
+
+    it("should return true for recent mobile money transactions (< 3 days)", async () => {
+      const { classifyPendingSettlement } =
+        await import("../reconciliation-pipeline");
+      const today = new Date().toISOString().split("T")[0]!;
+      const result = classifyPendingSettlement(today, 1000, true);
+      expect(result).toBe(true);
+    });
+
+    it("should return false for old mobile money transactions", async () => {
+      const { classifyPendingSettlement } =
+        await import("../reconciliation-pipeline");
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 10);
+      const result = classifyPendingSettlement(
+        oldDate.toISOString().split("T")[0]!,
+        1000,
+        true,
+      );
+      expect(result).toBe(false);
+    });
+  });
+
+  // ── determineUnmatchedDetail ──────────────────────────────────────────────
+
+  describe("determineUnmatchedDetail", () => {
+    it("should return pending_settlement reason when flagged", async () => {
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
+      const result = determineUnmatchedDetail([], true);
+      expect(result.reason).toBe("pending_settlement");
+      expect(result.suggestedAction).toContain("settlement");
+    });
+
+    it("should return no_candidate when no candidates exist", async () => {
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
+      const result = determineUnmatchedDetail([], false);
+      expect(result.reason).toBe("no_candidate");
+      expect(result.suggestedAction).toContain("No matching");
+    });
+
+    it("should return multiple_candidates when > 1 candidates", async () => {
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
+      const result = determineUnmatchedDetail(
+        [
+          { journalEntryId: "je-1", amount: 1000, totalScore: 0.9 },
+          { journalEntryId: "je-2", amount: 1000, totalScore: 0.7 },
+        ],
+        false,
+      );
+      expect(result.reason).toBe("multiple_candidates");
+      expect(result.candidates).toHaveLength(2);
+    });
+
+    it("should return below_confidence when single candidate below threshold", async () => {
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
+      const result = determineUnmatchedDetail(
+        [{ journalEntryId: "je-1", amount: 1000, totalScore: 0.4 }],
+        false,
+      );
+      expect(result.reason).toBe("below_confidence");
+      expect(result.candidates).toHaveLength(1);
+      expect(result.candidates![0].id).toBe("je-1");
+    });
+
+    it("should return amount_mismatch as default catch-all", async () => {
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
+      const result = determineUnmatchedDetail(
+        [{ journalEntryId: "je-1", amount: 1000, totalScore: 0.7 }],
+        false,
+      );
+      expect(result.reason).toBe("amount_mismatch");
+    });
+  });
+
+  // ── getReconciliationConfidenceThreshold ──────────────────────────────────
+
+  describe("getReconciliationConfidenceThreshold", () => {
+    it("should return default threshold when no DB entry found", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.confidenceThresholds.findFirst.mockResolvedValue(null);
+
+      const { getReconciliationConfidenceThreshold } =
+        await import("../reconciliation-pipeline");
+      const result = await getReconciliationConfidenceThreshold(
+        "entity-1",
+        500,
+      );
+
+      expect(result.threshold).toBe(0.85);
+      expect(result.source).toBe("default");
+    });
+
+    it("should return DB threshold when found", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.confidenceThresholds.findFirst.mockResolvedValue({
+        minConfidence: "0.75",
+        agentId: "reconciliation-agent",
+        transactionType: "reconciliation_match",
+        amountBand: "100-1000",
+      });
+
+      const { getReconciliationConfidenceThreshold } =
+        await import("../reconciliation-pipeline");
+      const result = await getReconciliationConfidenceThreshold(
+        "entity-1",
+        500,
+      );
+
+      expect(result.threshold).toBe(0.75);
+      expect(result.source).toBe("db");
+    });
+
+    it("should use correct amount band for small transactions", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.confidenceThresholds.findFirst.mockResolvedValue({
+        minConfidence: "0.9",
+        agentId: "reconciliation-agent",
+        transactionType: "reconciliation_match",
+        amountBand: "<100",
+      });
+
+      const { getReconciliationConfidenceThreshold } =
+        await import("../reconciliation-pipeline");
+      const result = await getReconciliationConfidenceThreshold("entity-1", 50);
+
+      expect(result.threshold).toBe(0.9);
+      expect(result.source).toBe("db");
+    });
+  });
+
+  // ── reviewReconciliationSession ───────────────────────────────────────────
+
+  describe("reviewReconciliationSession", () => {
+    it("should approve and close session when no unmatched items", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.reconciliationSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        unmatchedCount: "0",
+        status: "review_pending",
+      });
+
+      const { reviewReconciliationSession } =
+        await import("../reconciliation-pipeline");
+      const result = await reviewReconciliationSession(
+        "session-1",
+        "treasury-agent",
+        true,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe("clean");
+    });
+
+    it("should reject close when unmatched items exist (hard rule)", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.reconciliationSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        unmatchedCount: "3",
+        status: "review_pending",
+      });
+
+      const { reviewReconciliationSession } =
+        await import("../reconciliation-pipeline");
+      const result = await reviewReconciliationSession(
+        "session-1",
+        "treasury-agent",
+        true,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.status).toBe("review_pending");
+    });
+
+    it("should keep session in review_pending when rejected", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.reconciliationSessions.findFirst.mockResolvedValue({
+        id: "session-1",
+        unmatchedCount: "0",
+        status: "review_pending",
+      });
+
+      const { reviewReconciliationSession } =
+        await import("../reconciliation-pipeline");
+      const result = await reviewReconciliationSession(
+        "session-1",
+        "treasury-agent",
+        false,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.status).toBe("review_pending");
+    });
+
+    it("should throw on non-existent session", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.reconciliationSessions.findFirst.mockResolvedValue(null);
+
+      const { reviewReconciliationSession } =
+        await import("../reconciliation-pipeline");
+      await expect(
+        reviewReconciliationSession("nonexistent", "treasury-agent", true),
+      ).rejects.toThrow("not found");
+    });
+  });
+
+  // ── retrieveLedgerCandidates ─────────────────────────────────────────────
+
+  describe("retrieveLedgerCandidates", () => {
+    it("should return empty array when no journal entries found", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.journalEntries.findMany.mockResolvedValue([]);
+
+      const { retrieveLedgerCandidates } =
+        await import("../reconciliation-pipeline");
+      const result = await retrieveLedgerCandidates(
+        "entity-1",
+        "2026-07-15",
+        1000,
+        false,
+      );
+
+      expect(result).toHaveLength(0);
+    });
+
+    it("should widen date window for mobile money accounts", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.journalEntries.findMany.mockResolvedValue([
+        {
+          id: "je-1",
+          entityId: "entity-1",
+          status: "posted",
+          date: "2026-07-12",
+          description: "Test entry",
+          reference: null,
+        },
+      ]);
+      db.query.journalEntryLines.findMany.mockResolvedValue([
+        {
+          id: "jel-1",
+          journalEntryId: "je-1",
+          accountId: "acct-1",
+          debit: "1000",
+          credit: "0",
+        },
+      ]);
+
+      const { retrieveLedgerCandidates } =
+        await import("../reconciliation-pipeline");
+      const result = await retrieveLedgerCandidates(
+        "entity-1",
+        "2026-07-15",
+        1000,
+        true, // mobile money
+      );
+
+      // Should find candidate because ±5 day window covers July 12
+      expect(result.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ── normalizeStatementLine ───────────────────────────────────────────────
+
+  describe("normalizeStatementLine", () => {
+    it("should insert a new statement line", async () => {
+      const { normalizeStatementLine } =
+        await import("../reconciliation-pipeline");
+      const result = await normalizeStatementLine({
+        entityId: "entity-1",
+        bankAccountId: "ba-1",
+        provider: "bank",
+        providerName: "Trust Bank",
+        date: "2026-07-15",
+        amount: "15000",
+        currency: "GMD",
+        description: "Customer payment",
+        reference: "INV-001",
+        source: "csv_import",
+      });
+
+      expect(result.lineId).toBeDefined();
+    });
+  });
+
+  // ── runReconciliationPipeline (End-to-End Scenarios) ─────────────────────
+
+  describe("runReconciliationPipeline (end-to-end)", () => {
+    it("should return empty result when no accounts exist", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.bankAccounts.findMany.mockResolvedValue([]);
+
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(0);
+      expect(result.sessionClosed).toBe(true);
+    });
+
+    it("should run for all active accounts by default", async () => {
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      expect(result.results).toHaveLength(2); // ba-1, ba-2
+      expect(result.totalTransactions).toBe(2); // tx-1, tx-2 for ba-1 only
+    });
+
+    it("should filter to specific accounts when requested", async () => {
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1", ["ba-1"]);
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].accountId).toBe("ba-1");
+    });
+
+    it("should handle mobile money account detection", async () => {
+      const { db } = require("@xenboox/db");
+      // Link ba-2 to mobile money
+      db.query.mobileMoneyAccounts.findMany.mockResolvedValue([
+        {
+          id: "mm-1",
+          entityId: "entity-1",
+          bankAccountId: "ba-2",
+          provider: "Wave",
+          isActive: true,
+        },
+      ]);
+
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      expect(result.success).toBe(true);
+      expect(result.totalTransactions).toBe(2);
+    });
+
+    it("should return pipeline metadata", async () => {
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      expect(result.auditEntries).toBeDefined();
+      expect(result.durationMs).toBeGreaterThan(0);
+      expect(result.overallMatchRate).toBeDefined();
+    });
+
+    it("should handle pipeline errors gracefully", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.bankAccounts.findMany.mockRejectedValue(
+        new Error("Database timeout"),
+      );
+
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      expect(result.success).toBe(false);
+      expect(result.auditEntries.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ── getReconciliationStatus ───────────────────────────────────────────────
+
+  describe("getReconciliationStatus", () => {
+    it("should return per-account status", async () => {
+      const { getReconciliationStatus } =
+        await import("../reconciliation-pipeline");
+      const result = await getReconciliationStatus("entity-1");
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(2);
+      expect(result[0].accountId).toBeDefined();
+      expect(result[0].accountName).toBeDefined();
+      expect(result[0].unreconciledCount).toBeDefined();
+    });
+
+    it("should include last reconciliation data", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.reconciliations.findFirst.mockResolvedValue({
+        id: "recon-1",
+        entityId: "entity-1",
+        bankAccountId: "ba-1",
+        statementDate: "2026-06-30",
+        status: "closed",
+        createdAt: new Date(),
+      });
+
+      const { getReconciliationStatus } =
+        await import("../reconciliation-pipeline");
+      const result = await getReconciliationStatus("entity-1");
+
+      const ba1Status = result.find((r) => r.accountId === "ba-1");
+      expect(ba1Status?.lastReconciledDate).toBe("2026-06-30");
+      expect(ba1Status?.lastReconciliationStatus).toBe("closed");
+    });
+  });
+
+  // ── Hard Rule: No Close With Unresolved Items ─────────────────────────────
+
+  describe("Hard Rule: No Close With Unresolved Items", () => {
+    it("should enforce hard rule - unmatched items prevent close", async () => {
+      const { db } = require("@xenboox/db");
+      // No matching journal entries → unmatched items
+      db.query.journalEntries.findMany.mockResolvedValue([]);
+      db.query.journalEntryLines.findMany.mockResolvedValue([]);
+
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      // ba-1 has 2 unmatched transactions → hard rule prevents close
+      const ba1Result = result.results.find((r) => r.accountId === "ba-1");
+      expect(ba1Result?.status).toBe("review_pending");
+      expect(ba1Result?.unmatchedCount).toBe(2);
+      expect(result.sessionClosed).toBe(false);
+    });
+
+    it("should show escalation reason for hard rule violation", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.journalEntries.findMany.mockResolvedValue([]);
+      db.query.journalEntryLines.findMany.mockResolvedValue([]);
+
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      const ba1Result = result.results.find((r) => r.accountId === "ba-1");
+      expect(ba1Result?.escalationReason).toContain("Hard rule");
+    });
+
+    it("should produce unmatched details with specific reasons", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.journalEntries.findMany.mockResolvedValue([]);
+      db.query.journalEntryLines.findMany.mockResolvedValue([]);
+
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      const ba1Result = result.results.find((r) => r.accountId === "ba-1");
+      expect(ba1Result?.unmatchedDetails.length).toBeGreaterThan(0);
+      expect(ba1Result?.unmatchedDetails[0].reason).toBeDefined();
+      expect(ba1Result?.unmatchedDetails[0].suggestedAction).toBeDefined();
+    });
+  });
+
+  // ── Multi-Account Aggregation ─────────────────────────────────────────────
+
+  describe("Multi-Account Aggregation", () => {
+    it("should aggregate results across all accounts", async () => {
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
+      const result = await runReconciliationPipeline("entity-1");
+
+      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.totalMatched).toBeGreaterThanOrEqual(0);
+      expect(result.totalUnmatched).toBeGreaterThanOrEqual(0);
+      expect(result.closedAccounts + result.reviewPendingAccounts).toBe(
+        result.results.length,
+      );
+    });
   });
 });
 
