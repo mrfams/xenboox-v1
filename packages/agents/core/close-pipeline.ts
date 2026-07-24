@@ -665,58 +665,62 @@ async function runAutomatedAdjustments(
     if (accumAccount && expenseAccount) {
       const today = new Date().toISOString().split("T")[0]!;
 
-      for (const asset of fixedAssetAccounts) {
-        // Calculate depreciation: 10% per annum straight-line, monthly
-        // Use account code as a proxy for asset cost tier
-        const estimatedAssetCost = Math.max(0, Number(asset.code) * 1000);
-        const monthlyDepreciation = Math.max(
-          1,
-          Math.round((estimatedAssetCost * 0.1) / 12),
-        );
-        const depreciationAmount = String(monthlyDepreciation);
-
-        const [entry] = await db
-          .insert(journalEntries)
-          .values({
-            entityId,
-            entryNumber: 9000 + Math.floor(Math.random() * 1000),
-            description: `Depreciation - ${asset.name}`,
-            date: today,
-            periodId,
-            status: "posted",
-            postedBy: "system",
-            postedAt: new Date(),
-            source: "automatic_close_adjustment",
-          })
-          .returning({ id: journalEntries.id });
-
-        if (entry) {
-          await db.insert(journalEntryLines).values([
-            {
-              journalEntryId: entry.id,
-              accountId: expenseAccount.id,
-              debit: depreciationAmount,
-              credit: "0",
-              description: `Depreciation expense - ${asset.name}`,
-            },
-            {
-              journalEntryId: entry.id,
-              accountId: accumAccount.id,
-              debit: "0",
-              credit: depreciationAmount,
-              description: `Accumulated depreciation - ${asset.name}`,
-            },
-          ]);
-          depreciationCount++;
-          adjustments.push(
-            `Depreciation for ${asset.name}: ${depreciationAmount}`,
+      // Wrap depreciation entry creation in a transaction to guarantee atomicity
+      await db.transaction(async (tx) => {
+        for (const asset of fixedAssetAccounts) {
+          // Calculate depreciation: 10% per annum straight-line, monthly
+          // Use account code as a proxy for asset cost tier
+          const estimatedAssetCost = Math.max(0, Number(asset.code) * 1000);
+          const monthlyDepreciation = Math.max(
+            1,
+            Math.round((estimatedAssetCost * 0.1) / 12),
           );
+          const depreciationAmount = String(monthlyDepreciation);
+
+          const [entry] = await tx
+            .insert(journalEntries)
+            .values({
+              entityId,
+              entryNumber: 9000 + Math.floor(Math.random() * 1000),
+              description: `Depreciation - ${asset.name}`,
+              date: today,
+              periodId,
+              status: "posted",
+              postedBy: "system",
+              postedAt: new Date(),
+              source: "automatic_close_adjustment",
+            })
+            .returning({ id: journalEntries.id });
+
+          if (entry) {
+            await tx.insert(journalEntryLines).values([
+              {
+                journalEntryId: entry.id,
+                accountId: expenseAccount.id,
+                debit: depreciationAmount,
+                credit: "0",
+                description: `Depreciation expense - ${asset.name}`,
+              },
+              {
+                journalEntryId: entry.id,
+                accountId: accumAccount.id,
+                debit: "0",
+                credit: depreciationAmount,
+                description: `Accumulated depreciation - ${asset.name}`,
+              },
+            ]);
+            depreciationCount++;
+            adjustments.push(
+              `Depreciation for ${asset.name}: ${depreciationAmount}`,
+            );
+          }
         }
-      }
+      });
     }
 
     return { success: true, depreciationCount, adjustments };
   } catch (error) {
+    // Pipeline failure does not crash the orchestrator
     return { success: false, depreciationCount, adjustments };
   }
 }
@@ -808,66 +812,69 @@ async function executePeriodClose(
     let snapshotCount = 0;
     let closedAt: Date | null = null;
 
-    if (ids.length > 0) {
-      // Batch-fetch ALL journal entry lines in a SINGLE query using inArray
-      const accountTotals = new Map<
-        string,
-        { debit: number; credit: number }
-      >();
+    // Wrap snapshot creation + period close in a DB transaction
+    await db.transaction(async (tx) => {
+      if (ids.length > 0) {
+        // Batch-fetch ALL journal entry lines in a SINGLE query using inArray
+        const accountTotals = new Map<
+          string,
+          { debit: number; credit: number }
+        >();
 
-      const allLines = await db.query.journalEntryLines.findMany({
-        where: inArray(
-          journalEntryLines.journalEntryId,
-          ids as [string, ...string[]],
-        ),
-      });
+        const allLines = await tx.query.journalEntryLines.findMany({
+          where: inArray(
+            journalEntryLines.journalEntryId,
+            ids as [string, ...string[]],
+          ),
+        });
 
-      for (const line of allLines) {
-        const existing = accountTotals.get(line.accountId) ?? {
-          debit: 0,
-          credit: 0,
-        };
-        existing.debit += Number(line.debit);
-        existing.credit += Number(line.credit);
-        accountTotals.set(line.accountId, existing);
+        for (const line of allLines) {
+          const existing = accountTotals.get(line.accountId) ?? {
+            debit: 0,
+            credit: 0,
+          };
+          existing.debit += Number(line.debit);
+          existing.credit += Number(line.credit);
+          accountTotals.set(line.accountId, existing);
+        }
+
+        // Batch insert all trial balance snapshots
+        const snapshotValues = Array.from(accountTotals.entries()).map(
+          ([accountId, totals]) => ({
+            entityId,
+            periodId,
+            accountId,
+            debitTotal: String(totals.debit),
+            creditTotal: String(totals.credit),
+            balance: String(totals.debit - totals.credit),
+            generatedBy: "close-pipeline",
+          }),
+        );
+
+        if (snapshotValues.length > 0) {
+          await tx.insert(trialBalanceSnapshots).values(snapshotValues);
+          snapshotCount = snapshotValues.length;
+        }
       }
 
-      // Batch insert all trial balance snapshots
-      const snapshotValues = Array.from(accountTotals.entries()).map(
-        ([accountId, totals]) => ({
-          entityId,
-          periodId,
-          accountId,
-          debitTotal: String(totals.debit),
-          creditTotal: String(totals.credit),
-          balance: String(totals.debit - totals.credit),
-          generatedBy: "close-pipeline",
-        }),
-      );
+      // Close the period
+      closedAt = new Date();
+      await tx
+        .update(fiscalPeriods)
+        .set({
+          status: "closed",
+          closedBy: userId,
+          closedAt,
+        })
+        .where(
+          and(
+            eq(fiscalPeriods.id, periodId),
+            eq(fiscalPeriods.entityId, entityId),
+          ),
+        );
+    });
 
-      if (snapshotValues.length > 0) {
-        await db.insert(trialBalanceSnapshots).values(snapshotValues);
-        snapshotCount = snapshotValues.length;
-      }
-    }
-
-    // Close the period
-    closedAt = new Date();
-    await db
-      .update(fiscalPeriods)
-      .set({
-        status: "closed",
-        closedBy: userId,
-        closedAt,
-      })
-      .where(
-        and(
-          eq(fiscalPeriods.id, periodId),
-          eq(fiscalPeriods.entityId, entityId),
-        ),
-      );
-
-    return { success: true, snapshotCount, closedAt: closedAt.toISOString() };
+    return { success: true, snapshotCount, closedAt: closedAt!.toISOString() };
   } catch (error) {
     return { success: false, snapshotCount: 0, closedAt: null };
   }

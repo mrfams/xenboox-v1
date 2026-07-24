@@ -12,7 +12,8 @@
     "UPSTASH_REDIS_REST_TOKEN",
     "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY",
-    "RESEND_API_KEY"
+    "RESEND_API_KEY",
+    "NODE_OPTIONS"
   ],
   "tasks": {
     "dev": {

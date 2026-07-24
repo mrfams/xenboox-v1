@@ -22,9 +22,27 @@ type SendEmailOptions = {
 
 // ─── Base Sender ────────────────────────────────────────────────────────────
 
+// Structured JSON logger for production use (replaces console.warn/error)
+function log(level: "warn" | "error", message: string, data?: unknown) {
+  const entry = JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level,
+    service: "email",
+    message,
+    ...(data ? { data } : {}),
+  });
+  if (level === "error") {
+    // eslint-disable-next-line no-console
+    console.error(entry);
+  } else {
+    // eslint-disable-next-line no-console
+    console.warn(entry);
+  }
+}
+
 async function sendEmail({ to, subject, html }: SendEmailOptions) {
   if (!resend) {
-    console.warn("[email] RESEND_API_KEY not configured — skipping email send");
+    log("warn", "RESEND_API_KEY not configured — skipping email send");
     return;
   }
   const { error } = await resend.emails.send({
@@ -35,7 +53,7 @@ async function sendEmail({ to, subject, html }: SendEmailOptions) {
   });
 
   if (error) {
-    console.error("[email] Failed to send:", error);
+    log("error", "Failed to send email", { errorMessage: error.message });
     throw new Error(`Email send failed: ${error.message}`);
   }
 }

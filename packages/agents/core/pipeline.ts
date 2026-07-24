@@ -314,25 +314,27 @@ export const DEFAULT_THRESHOLDS: Array<{
  * Safe to call on every startup — INSERT ON CONFLICT DO NOTHING.
  */
 export async function seedDefaultThresholds(): Promise<void> {
-  for (const t of DEFAULT_THRESHOLDS) {
-    await db
-      .insert(confidenceThresholds)
-      .values({
-        orgId: null, // platform default
-        agentId: t.agentId,
-        transactionType: t.transactionType,
-        amountBand: t.amountBand,
-        minConfidence: t.minConfidence.toString(),
-      })
-      .onConflictDoNothing({
-        target: [
-          confidenceThresholds.orgId,
-          confidenceThresholds.agentId,
-          confidenceThresholds.transactionType,
-          confidenceThresholds.amountBand,
-        ],
-      });
-  }
+  await db.transaction(async (tx) => {
+    for (const t of DEFAULT_THRESHOLDS) {
+      await tx
+        .insert(confidenceThresholds)
+        .values({
+          orgId: null, // platform default
+          agentId: t.agentId,
+          transactionType: t.transactionType,
+          amountBand: t.amountBand,
+          minConfidence: t.minConfidence.toString(),
+        })
+        .onConflictDoNothing({
+          target: [
+            confidenceThresholds.orgId,
+            confidenceThresholds.agentId,
+            confidenceThresholds.transactionType,
+            confidenceThresholds.amountBand,
+          ],
+        });
+    }
+  });
 }
 
 // ─── Step 1: Input Intake ──────────────────────────────────────────────────
@@ -832,31 +834,29 @@ export async function pushToApprovalQueue(
   escalation: EscalationItem,
   event: InputEvent,
 ): Promise<void> {
-  // Record in routing log with escalation flag
-  await db.insert(agentRoutingLogs).values({
-    entityId: event.entityId,
-    userId: event.userId,
-    sessionId: event.sessionId,
-    conversationId: event.conversationId
-      ? (event.conversationId as string)
-      : undefined,
-    intentType: "approval_response",
-    inputSummary: escalation.what,
-    agentsInvolved: [escalation.whichAgent],
-    confidence: escalation.confidence.toString(),
-    decision: "escalated",
-    escalationReason: escalation.why,
-    taskId: escalation.id,
-    metadata: JSON.stringify({
-      recommendedAction: escalation.recommendedAction,
-      amount: escalation.amount,
-    }),
+  // Wrap queue operations in a transaction for atomicity
+  await db.transaction(async (tx) => {
+    await tx.insert(agentRoutingLogs).values({
+      entityId: event.entityId,
+      userId: event.userId,
+      sessionId: event.sessionId,
+      conversationId: event.conversationId
+        ? (event.conversationId as string)
+        : undefined,
+      intentType: "approval_response",
+      inputSummary: escalation.what,
+      agentsInvolved: [escalation.whichAgent],
+      confidence: escalation.confidence.toString(),
+      decision: "escalated",
+      escalationReason: escalation.why,
+      taskId: escalation.id,
+      metadata: JSON.stringify({
+        recommendedAction: escalation.recommendedAction,
+        amount: escalation.amount,
+      }),
+    });
+    // Future: insert into approvals table + notification records here
   });
-
-  // Note: In production, this should also:
-  // 1. Create an approval queue item in the approvals table
-  // 2. Send a notification (email/push/in-app) to the human
-  // 3. Update any dashboard realtime feeds
 }
 
 // ─── Step 9: Response Synthesis ────────────────────────────────────────────

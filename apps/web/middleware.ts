@@ -106,10 +106,9 @@ export default auth(async (req) => {
     }
   }
 
-  // Rate limiting
-  // Skip rate limiting for auth callbacks — tRPC auth.login already validates
+  // Rate limiting — apply only to mutations, not page views or redirects
   const isAuthCallback = pathname.startsWith("/api/auth/callback/credentials");
-  if ((isOnApi || isOnAuthRoute) && !isAuthCallback) {
+  if (isMutation && (isOnApi || isOnAuthRoute) && !isAuthCallback) {
     try {
       const limiter = await getRateLimiter();
       const ip = req.headers.get("x-forwarded-for") ?? "anonymous";
@@ -169,6 +168,11 @@ export default auth(async (req) => {
     }
 
     if (isOnApi) return response;
+  }
+
+  // Pass through all /api/* routes — Auth.js and tRPC handle auth themselves
+  if (isOnApi) {
+    return response;
   }
 
   // Redirect logged-in users away from auth pages

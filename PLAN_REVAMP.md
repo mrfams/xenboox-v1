@@ -1,58 +1,73 @@
-# Plan: Revamp Public-Facing Pages (footer/header + docs)
+# Autoplan — Onboarding Pipeline Build Plan
 
-## What
+## What We're Building
 
-Transform the flat, black-and-white public pages into a modern, breathing, premium marketing experience — consistent with the dark gradient homepage already built. Apply to every page linked in the header/footer nav and the docs site. Remove internal/unprofessional claims (e.g. "19 AI agents", "60+ database tables", "20 modules", Gambia-specific internal tax internals, internal agent-hierarchy descriptions) from publicly visible copy.
+The Onboarding Pipeline (Pipeline 6 of 6) transforms the signup-to-first-value journey from ~12 minutes to a guided, failure-resilient flow. Built on top of the existing pipeline at `packages/agents/core/onboarding-pipeline.ts`.
 
-Scope excludes the homepage (`app/(marketing)/page.tsx`) per explicit instruction.
+## File List
 
-## Design Language (senior UI/UX direction)
+### 1. Database Schema (`packages/db/schema/onboarding.ts` — NEW)
 
-- Dark, premium default aesthetic with gradient mesh backgrounds, soft glows, glassmorphism cards, animated scroll reveals, hover lift, accent color (indigo/violet/emerald/amber).
-- Reuse the visual system already proven on the homepage (gradients, FloatingShape, CountUp, SectionWrapper).
-- Light/dark aware via Tailwind `dark:` where needed; pages render with a `dark` wrapper so they feel alive.
-- Respect `prefers-reduced-motion`.
-- No new runtime deps — extend `globals.css` with keyframes + reuse `framer-motion` (already available).
+- `onboardingSessions` table (org_id, current_step, status, routing_answer, tt_first_value_seconds)
+- `dataConnections` table (entity_id, type, status, records_processed, failure_reason)
+- `historicalPullJobs` table (entity_id, date_range, status, permission_gate)
+- `coaTemplates` table (segment, country, account_list)
 
-## File List (create)
+### 2. DB Barrel Export (`packages/db/schema/index.ts` — MODIFY)
 
-- `apps/web/app/(marketing)/components/marketing.tsx` — shared, reusable section primitives:
-  - `PageHero` (gradient hero w/ eyebrow + title + subtitle + actions)
-  - `GradientBg` / `GlowOrb` (animated background)
-  - `Reveal` (framer-motion scroll-in wrapper)
-  - `FeatureCard`, `BentoCard`, `StatPill`, `SectionHeading`, `CtaBand`
-  - `GlassCard`
-- `apps/web/app/globals.css` — add keyframes (`float`, `gradient`, `marquee`, `shimmer`, `blob`) + utility classes already referenced.
+- Add `export * from "./onboarding"`
 
-## File List (modify — pages linked in footer/header)
+### 3. Onboarding Pipeline (`packages/agents/core/onboarding-pipeline.ts` — MODIFY)
 
-- `features/page.tsx` — gradient hero, bento feature grid, remove "19 agents" internal detail.
-- `pricing/page.tsx` — gradient hero, glowing pricing cards (highlighted tier), remove "All 19 AI agents" copy.
-- `about/page.tsx` — gradient hero, mission + animated value cards, remove "19/20/60+ DB tables" stats.
-- `contact/page.tsx` — gradient hero, contact cards, FAQ.
-- `blog/page.tsx` — gradient hero, animated post cards.
-- `careers/page.tsx` — gradient hero, benefit + opening cards.
-- `download/page.tsx` — gradient hero, platform cards, store buttons.
-- `privacy/page.tsx`, `terms/page.tsx`, `cookies/page.tsx`, `refund/page.tsx`, `sla/page.tsx` — keep legal text intact but wrap in a polished "legal document" shell (gradient hero header, sticky table-of-contents sidebar, readable prose container). Do NOT alter legal wording.
-- `docs/page.tsx` — already has a hero; upgrade to full dark gradient system, remove "19 modules / 19 agents" internal counts.
-- `docs/modules/page.tsx` + `docs/security/page.tsx` + sample module pages (`docs/modules/treasury`, `getting-started`) — wrap in consistent dark shell; remove internal counts.
+- Add `runOnboardingSession()` — orchestrates the full 6-step flow
+- Add `getOnboardingStatus()` — returns current step + progress
+- Add `updateRoutingAnswer()` — stores user's bookkeeping answer
+- Add `createDataConnection()` — creates + tracks connection attempts
+- Add `requestHistoricalPullPermission()` — the ONE human gate
+- Add `completeOnboarding()` — logs time-to-first-value
 
-## Rules Applied
+### 4. tRPC Onboarding Router (`apps/web/server/routers/onboarding.ts` — NEW)
 
-- AGENTS.md: entity scoping untouched (no DB queries here). Keep TS strict, no `any`.
-- Do not change legal wording (compliance). Only restyle + remove internal marketing claims.
-- Keep dark mode toggle working; new components default to a rich dark presentation.
+- `getStatus` — publicProcedure, returns current onboarding state
+- `updateRoutingAnswer` — publicProcedure, stores routing answer
+- `createEntity` — publicProcedure, extends registration
+- `connectData` — publicProcedure, creates data connection
+- `requestHistoricalPull` — protectedProcedure, requests permission
+- `approveHistoricalPull` — protectedProcedure, grants permission
+- `completeFlow` — protectedProcedure, finalizes onboarding
 
-## After Building
+### 5. Router Registration (`apps/web/server/routers/_app.ts` — MODIFY)
 
-- `pnpm --filter=web lint`
-- `pnpm --filter=web typecheck`
-- `pnpm --filter=web build` (verify pages compile)
-- Create git branch `revamp/marketing-pages`, commit, open PR.
+- Add onboarding router
 
-## What I Won't Touch
+### 6. Onboarding Wizard UI (`apps/web/components/onboarding/onboarding-wizard.tsx` — NEW)
 
-- Homepage `page.tsx` (excluded by instruction).
-- Dashboard/app `()` routes, auth routes, admin routes.
-- Any DB schema, tRPC, agents code.
-- Legal page text content.
+- Step 1: Routing question ("How do you manage your books?")
+- Step 2: Entity setup (business info)
+- Step 3: Data Connection Hub (bank, mobile money, upload)
+- Step 4: Historical pull (background progress)
+- Step 5: Chart of Accounts preview + confirm
+- Step 6: First Look — activation moment
+
+### 7. Onboarding Page (`apps/web/app/(auth)/register/onboarding/` — NEW)
+
+- Multi-step onboarding wizard page
+
+### 8. Updated Register Form (`apps/web/components/auth/register-form.tsx` — MODIFY)
+
+- Add routing question after organization name
+
+## Build Order
+
+1. DB schema first (no dependencies)
+2. Pipeline agent (depends on schema)
+3. tRPC router (depends on pipeline)
+4. UI components (depends on router)
+5. Registration form update (depends on router)
+
+## Verification
+
+- pnpm typecheck
+- pnpm test --filter=@xenboox/web
+- pnpm test --filter=@xenboox/agents
+- pnpm lint
