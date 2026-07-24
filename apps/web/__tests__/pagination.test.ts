@@ -29,6 +29,16 @@ describe("paginationSchema", () => {
   });
 });
 
+vi.mock("@xenboox/db/schema/organization", () => ({
+  organizations: { id: "id", ownerId: "owner_id", name: "name" },
+  entities: { id: "id", organizationId: "organization_id", name: "name" },
+  userEntityAccess: {
+    userId: "user_id",
+    entityId: "entity_id",
+    role: "role",
+  },
+}));
+
 vi.mock("@/lib/db", () => ({
   db: {
     query: {
@@ -38,10 +48,15 @@ vi.mock("@/lib/db", () => ({
       userEntityAccess: {
         findFirst: vi.fn().mockResolvedValue({ id: "access-1" }),
       },
+      sessions: { findFirst: vi.fn().mockResolvedValue({ id: "session-1" }) },
     },
     insert: vi.fn().mockReturnThis(),
     values: vi.fn().mockReturnThis(),
     returning: vi.fn().mockResolvedValue([]),
+    execute: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    where: vi.fn().mockResolvedValue(undefined),
   },
 }));
 

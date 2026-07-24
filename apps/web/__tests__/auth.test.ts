@@ -28,6 +28,28 @@ vi.mock("@/lib/resend", () => ({
   EMAIL_FROM: "test@test.com",
 }));
 
+vi.mock("@/lib/security/rate-limiter", () => ({
+  getRateLimiter: vi.fn(() => ({
+    checkAuthRegisterRateLimit: vi.fn().mockResolvedValue({ success: true }),
+    checkAuthPasswordRateLimit: vi.fn().mockResolvedValue({ success: true }),
+  })),
+}));
+
+vi.mock("@/lib/logger", () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn().mockReturnValue({
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+    }),
+  },
+}));
+
 const caller = appRouter.createCaller({ session: null, headers: {} });
 
 describe("Auth Router", () => {
@@ -39,7 +61,7 @@ describe("Auth Router", () => {
     const validInput = {
       name: "Test User",
       email: "test@example.com",
-      password: "password123",
+      password: "Pass123!",
       organizationName: "Test Org",
     };
 
@@ -142,10 +164,11 @@ describe("Auth Router", () => {
     it("should reject invalid token", async () => {
       vi.mocked(db.query.users.findFirst).mockResolvedValue(undefined as any);
 
+      // Password must satisfy strength criteria: uppercase, lowercase, number, special char
       await expect(
         caller.auth.resetPassword({
           token: "bad-token",
-          newPassword: "newpassword123",
+          newPassword: "NewPass123!",
         }),
       ).rejects.toThrow("Invalid or expired reset token");
     });
@@ -157,10 +180,11 @@ describe("Auth Router", () => {
         resetPasswordExpires: new Date("2020-01-01"),
       } as any);
 
+      // Password must satisfy strength criteria: uppercase, lowercase, number, special char
       await expect(
         caller.auth.resetPassword({
           token: "valid-token",
-          newPassword: "newpassword123",
+          newPassword: "NewPass123!",
         }),
       ).rejects.toThrow("expired");
     });
