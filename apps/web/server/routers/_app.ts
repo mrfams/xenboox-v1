@@ -27,6 +27,7 @@ import { approvalsRouter } from "./approvals";
 import { onboardingRouter } from "./onboarding";
 import { taxComplianceRouter } from "./tax-compliance";
 import { auditPipelineRouter } from "./audit-pipeline";
+import { expenseRouter } from "./expense";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -58,6 +59,7 @@ export const appRouter = router({
   onboarding: onboardingRouter,
   taxCompliance: taxComplianceRouter,
   auditPipeline: auditPipelineRouter,
+  expense: expenseRouter,
 });
 
 export type AppRouter = typeof appRouter;

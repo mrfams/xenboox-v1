@@ -97,7 +97,11 @@ export type AgentTaskType =
   | "audit_sampling"
   | "drift_analysis"
   | "independent_recomputation"
-  | "anomaly_detection";
+  | "anomaly_detection"
+  | "submit_expense"
+  | "approve_expense"
+  | "reimburse_expense"
+  | "expense_report";
 
 export type AgentTier = "tier1" | "tier2" | "tier3" | "platform";
 
@@ -120,7 +124,8 @@ export type AgentId =
   | "document"
   | "budget"
   | "analytics"
-  | "audit";
+  | "audit"
+  | "expense";
 
 export interface AgentTask {
   id: string;
@@ -237,6 +242,12 @@ const TASK_AGENT_MAP: Record<
   drift_analysis: { agentId: "audit", tier: "tier3" },
   independent_recomputation: { agentId: "audit", tier: "tier3" },
   anomaly_detection: { agentId: "audit", tier: "tier3" },
+
+  // Expense Agent (tier3, under treasury)
+  submit_expense: { agentId: "expense", tier: "tier3" },
+  approve_expense: { agentId: "expense", tier: "tier3" },
+  reimburse_expense: { agentId: "expense", tier: "tier3" },
+  expense_report: { agentId: "expense", tier: "tier3" },
 };
 
 // ─── Agent Invoke Map (lazy imports to avoid circular deps) ────────────────
@@ -307,6 +318,19 @@ export async function getAgentGraph(agentId: AgentId): Promise<AgentGraph> {
           reasoning:
             "Audit pipeline executed — see audit-pipeline for full results",
           result: { type: "audit_complete" },
+          errors: [],
+          auditTrail: [],
+        }),
+      };
+    case "expense":
+      // The Expense Agent runs as a pipeline, not a LangGraph agent
+      return {
+        invoke: async (state) => ({
+          ...state,
+          confidence: 0.85,
+          reasoning:
+            "Expense pipeline executed — see expense-pipeline for full results",
+          result: { type: "expense_complete" },
           errors: [],
           auditTrail: [],
         }),

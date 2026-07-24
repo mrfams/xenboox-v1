@@ -75,6 +75,8 @@ export {
   STATUTORY_RULES,
   runAuditPipeline,
   getAuditStatus,
+  runExpensePipeline,
+  getExpenseStatus,
 } from "./core";
 export type {
   ModelTier,
@@ -150,6 +152,16 @@ export type {
   AnomalyItem,
   AuditPackageItem,
   AuditorSessionItem,
+  ExpenseStep,
+  ExpenseStepId,
+  ExpenseStepStatus,
+  ClaimStatus,
+  ClaimSource,
+  PolicyCheckResult,
+  ApprovalRoutingResult,
+  BudgetImpactResult,
+  ExpenseConfidenceResult,
+  ExpenseResult,
 } from "./core";
 
 // ─── Eval Harness ────────────────────────────────────────────────────────────

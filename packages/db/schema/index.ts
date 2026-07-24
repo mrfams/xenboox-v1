@@ -25,4 +25,5 @@ export * from "./onboarding";
 export * from "./statement";
 export * from "./close";
 export * from "./tax-compliance";
+export * from "./expense";
 export * from "./audit-pipeline";

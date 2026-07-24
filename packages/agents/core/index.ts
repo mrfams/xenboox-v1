@@ -335,6 +335,23 @@ export type {
   AuditorSessionItem,
 } from "./audit-pipeline";
 
+// ─── Expense Pipeline (Phase 2, Pipeline 4 of 5) ────────────
+export { runExpensePipeline, getExpenseStatus } from "./expense-pipeline";
+export type {
+  ExpenseStep,
+  ExpenseStepId,
+  ExpenseStepStatus,
+  ClaimStatus,
+  ClaimSource,
+  SubmittedClaim,
+  ClaimLineItemInput,
+  PolicyCheckResult,
+  ApprovalRoutingResult,
+  BudgetImpactResult,
+  ExpenseConfidenceResult,
+  ExpenseResult,
+} from "./expense-pipeline";
+
 // ─── Payroll Pipeline (Phase 2, Pipeline 1 of 5) ─────
 export {
   executePayrollPipeline,

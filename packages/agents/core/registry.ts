@@ -154,6 +154,17 @@ export const AGENT_REGISTRY: Record<AgentId, AgentMetadata> = {
       "anomaly_detection",
     ],
   },
+  expense: {
+    agentId: "expense",
+    tier: "tier3",
+    department: "treasury",
+    taskTypes: [
+      "submit_expense",
+      "approve_expense",
+      "reimburse_expense",
+      "expense_report",
+    ],
+  },
 };
 
 // ─── Reverse Lookups ─────────────────────────────────────────────────────────
