@@ -13,6 +13,7 @@ export * from "./security";
 export * from "./models";
 export * from "./fixed-assets";
 export * from "./inventory";
+export * from "./cash-locations";
 export * from "./payroll";
 export * from "./idempotency";
 export * from "./notifications";

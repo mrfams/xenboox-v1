@@ -223,12 +223,23 @@ export type {
 } from "./reconciliation-pipeline";
 
 // ─── Cash & Imprest Pipeline (Pipeline 4 of 6) ────
-export { runCashPipeline } from "./cash-pipeline";
+export {
+  runCashPipeline,
+  recordCashTransaction,
+  processImprestRetirement,
+  flagDiscrepancy,
+  getDailyReconReport,
+  reviewCashSession,
+  getVerificationSchedule,
+} from "./cash-pipeline";
 export type {
   CashPipelineResult,
   CashPosition,
   ImprestStatus,
   DiscrepancyItem,
+  TillPosition,
+  ImprestRetirementResult,
+  DailyReconReport,
 } from "./cash-pipeline";
 
 // ─── Reporting Pipeline (Pipeline 5 of 6) ──────────

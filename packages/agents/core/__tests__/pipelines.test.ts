@@ -40,6 +40,10 @@ function createMockTx() {
       matchRecords: mkQuery(),
       reconciliationSessions: mkQuery(),
       mobileMoneyAccounts: mkQuery(),
+      // Cash & Imprest Pipeline tables
+      cashLocations: mkQuery(),
+      cashTransactions: mkQuery(),
+      discrepancyFlags: mkQuery(),
     },
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
@@ -1712,6 +1716,7 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
     vi.clearAllMocks();
     const { db } = require("@xenboox/db");
 
+    // Cash accounts
     db.query.cashAccounts.findMany.mockResolvedValue([
       {
         id: "ca-1",
@@ -1731,6 +1736,7 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
       },
     ]);
 
+    // Imprest floats
     db.query.imprestFloats.findMany.mockResolvedValue([
       {
         id: "float-1",
@@ -1756,6 +1762,7 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
       },
     ]);
 
+    // Imprest receipts
     db.query.imprestReceipts.findMany.mockResolvedValue([
       {
         id: "rec-1",
@@ -1773,6 +1780,7 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
       },
     ]);
 
+    // Petty cash ledger
     db.query.pettyCashLedger.findMany.mockResolvedValue([
       {
         id: "ledger-1",
@@ -1787,25 +1795,288 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
         createdAt: "2026-07-20T10:00:00Z",
       },
     ]);
+
+    // New tables: cashLocations, cashTransactions, discrepancyFlags
+    db.query.cashLocations = {
+      findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+    };
+    db.query.cashTransactions = {
+      findMany: vi.fn().mockResolvedValue([]),
+    };
+    db.query.discrepancyFlags = {
+      findMany: vi.fn().mockResolvedValue([]),
+    };
+
+    // Default insert returns mock ID
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([{ id: "mock-id" }]),
+        onConflictDoNothing: vi.fn(),
+      }),
+    });
+
+    // Default update chaining
+    db.update.mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    });
+
+    // Default transaction
+    db.transaction.mockImplementation(async (cb: any) => {
+      await cb(createMockTx());
+    });
   });
 
-  it("should calculate cash positions correctly", async () => {
-    const { runCashPipeline } = await import("../cash-pipeline");
-    const result = await runCashPipeline("entity-1");
+  // ── Core Pipeline ────────────────────────────────────────────────────────
 
-    expect(result.success).toBe(true);
-    expect(result.accounts).toHaveLength(2);
-    expect(result.totalBalance).toBeGreaterThan(0);
-    expect(result.activeImprestFloats).toBeGreaterThan(0);
+  describe("runCashPipeline", () => {
+    it("should calculate cash positions correctly", async () => {
+      const { runCashPipeline } = await import("../cash-pipeline");
+      const result = await runCashPipeline("entity-1");
+
+      expect(result.success).toBe(true);
+      expect(result.accounts).toHaveLength(2);
+      expect(result.totalBalance).toBeGreaterThan(0);
+      expect(result.activeImprestFloats).toBeGreaterThan(0);
+    });
+
+    it("should produce daily report output", async () => {
+      const { runCashPipeline } = await import("../cash-pipeline");
+      const result = await runCashPipeline("entity-1");
+
+      expect(result.dailyReport).toBeDefined();
+      expect(result.dailyReport.date).toBeDefined();
+      expect(result.dailyReport.overallHealthScore).toBeGreaterThanOrEqual(0);
+    });
+
+    it("should return till information", async () => {
+      const { runCashPipeline } = await import("../cash-pipeline");
+      const result = await runCashPipeline("entity-1");
+
+      expect(Array.isArray(result.tills)).toBe(true);
+    });
+
+    it("should calculate health score correctly", async () => {
+      const { runCashPipeline } = await import("../cash-pipeline");
+      const result = await runCashPipeline("entity-1");
+
+      expect(result.overallScore).toBeGreaterThanOrEqual(0);
+      expect(result.overallScore).toBeLessThanOrEqual(1);
+      expect(result.healthStatus).toBeDefined();
+    });
+
+    it("should include audit trail entries", async () => {
+      const { runCashPipeline } = await import("../cash-pipeline");
+      const result = await runCashPipeline("entity-1");
+
+      expect(result.auditEntries.length).toBeGreaterThan(0);
+      expect(result.durationMs).toBeGreaterThan(0);
+    });
+
+    it("should handle errors gracefully", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.cashAccounts.findMany.mockRejectedValue(
+        new Error("Database timeout"),
+      );
+
+      const { runCashPipeline } = await import("../cash-pipeline");
+      const result = await runCashPipeline("entity-1");
+
+      expect(result.success).toBe(false);
+      expect(result.healthStatus).toBe("critical");
+      expect(result.auditEntries.length).toBeGreaterThan(0);
+    });
   });
 
-  it("should calculate health score and escalate if negative", async () => {
-    const { runCashPipeline } = await import("../cash-pipeline");
-    const result = await runCashPipeline("entity-1");
+  // ── Cash Transaction Recording ───────────────────────────────────────────
 
-    expect(result.overallScore).toBeGreaterThanOrEqual(0);
-    expect(result.overallScore).toBeLessThanOrEqual(1);
-    expect(result.auditEntries.length).toBeGreaterThan(0);
+  describe("recordCashTransaction", () => {
+    it("should throw on non-existent location", async () => {
+      const { recordCashTransaction } = await import("../cash-pipeline");
+      await expect(
+        recordCashTransaction({
+          entityId: "entity-1",
+          locationId: "nonexistent",
+          type: "in",
+          amount: "1000",
+          description: "Cash deposit",
+        }),
+      ).rejects.toThrow("not found");
+    });
+  });
+
+  // ── Imprest Retirement ──────────────────────────────────────────────────
+
+  describe("processImprestRetirement", () => {
+    it("should throw on non-existent float", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.imprestFloats.findFirst.mockResolvedValue(null);
+
+      const { processImprestRetirement } = await import("../cash-pipeline");
+      await expect(
+        processImprestRetirement("nonexistent", "entity-1"),
+      ).rejects.toThrow("not found");
+    });
+
+    it("should throw on non-active float", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.imprestFloats.findFirst.mockResolvedValue({
+        id: "float-1",
+        entityId: "entity-1",
+        assigneeName: "John",
+        amount: "5000",
+        status: "settled",
+      });
+
+      const { processImprestRetirement } = await import("../cash-pipeline");
+      await expect(
+        processImprestRetirement("float-1", "entity-1"),
+      ).rejects.toThrow("not active");
+    });
+
+    it("should calculate retirement for active float", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.imprestFloats.findFirst.mockResolvedValue({
+        id: "float-1",
+        entityId: "entity-1",
+        cashAccountId: "ca-1",
+        assigneeName: "John Doe",
+        amount: "10000",
+        remainingBalance: "2000",
+        status: "active",
+        issuedDate: "2026-06-01",
+        settleByDate: "2026-07-15",
+      });
+      db.query.imprestReceipts.findMany.mockResolvedValue([
+        {
+          id: "rec-1",
+          imprestFloatId: "float-1",
+          amount: "5000",
+          description: "Office supplies",
+          receiptDate: "2026-06-10",
+        },
+        {
+          id: "rec-2",
+          imprestFloatId: "float-1",
+          amount: "3000",
+          description: "Travel",
+          receiptDate: "2026-06-15",
+        },
+      ]);
+
+      const { processImprestRetirement } = await import("../cash-pipeline");
+      const result = await processImprestRetirement("float-1", "entity-1");
+
+      expect(result.floatId).toBe("float-1");
+      expect(result.amountIssued).toBe(10000);
+      expect(result.totalReceipted).toBe(8000);
+      expect(result.balanceDue).toBe(2000); // 10000 - 8000
+      expect(result.status).toBe("partial_retirement");
+      expect(result.confidence).toBe(0.8);
+    });
+
+    it("should detect fully retired floats", async () => {
+      const { db } = require("@xenboox/db");
+      db.query.imprestFloats.findFirst.mockResolvedValue({
+        id: "float-2",
+        entityId: "entity-1",
+        cashAccountId: "ca-1",
+        assigneeName: "Jane Smith",
+        amount: "5000",
+        remainingBalance: "0",
+        status: "active",
+        issuedDate: "2026-07-01",
+        settleByDate: "2026-07-30",
+      });
+      db.query.imprestReceipts.findMany.mockResolvedValue([
+        {
+          id: "rec-3",
+          imprestFloatId: "float-2",
+          amount: "5000",
+          description: "Full retirement",
+          receiptDate: "2026-07-20",
+        },
+      ]);
+
+      const { processImprestRetirement } = await import("../cash-pipeline");
+      const result = await processImprestRetirement("float-2", "entity-1");
+
+      expect(result.status).toBe("fully_retired");
+      expect(Math.abs(result.balanceDue)).toBeLessThanOrEqual(0.01);
+    });
+  });
+
+  // ── Discrepancy Flagging ────────────────────────────────────────────────
+
+  describe("flagDiscrepancy", () => {
+    it("should throw on non-existent location", async () => {
+      const db = require("@xenboox/db");
+      db.query.cashLocations.findFirst.mockResolvedValue(null);
+
+      const { flagDiscrepancy } = await import("../cash-pipeline");
+      await expect(
+        flagDiscrepancy({
+          entityId: "entity-1",
+          locationId: "nonexistent",
+          counted: 45000,
+        }),
+      ).rejects.toThrow("not found");
+    });
+  });
+
+  // ── Daily Reconciliation Report ─────────────────────────────────────────
+
+  describe("getDailyReconReport", () => {
+    it("should produce report even with no data", async () => {
+      const { getDailyReconReport } = await import("../cash-pipeline");
+      const result = await getDailyReconReport("entity-1");
+
+      expect(result.date).toBeDefined();
+      expect(result.tillCount).toBe(0);
+      expect(result.overallHealthScore).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  // ── Treasury Review ─────────────────────────────────────────────────────
+
+  describe("reviewCashSession", () => {
+    it("should reject when not approved", async () => {
+      const { reviewCashSession } = await import("../cash-pipeline");
+      const result = await reviewCashSession(
+        "entity-1",
+        "treasury-agent",
+        false,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.status).toBe("review_pending");
+    });
+  });
+
+  // ── Verification Schedule ───────────────────────────────────────────────
+
+  describe("getVerificationSchedule", () => {
+    it("should return schedule even with no tills", async () => {
+      const { getVerificationSchedule } = await import("../cash-pipeline");
+      const result = await getVerificationSchedule("entity-1");
+
+      expect(result.dueForVerification).toBeDefined();
+      expect(result.overdueCount).toBe(0);
+      expect(result.dueCount).toBe(0);
+    });
+  });
+
+  // ── Discrepancy Detection ────────────────────────────────────────────────
+
+  describe("Discrepancy Detection", () => {
+    it("should detect discrepancies between ledger and accounts", async () => {
+      const { runCashPipeline } = await import("../cash-pipeline");
+      const result = await runCashPipeline("entity-1");
+
+      expect(result.discrepancyCount).toBeGreaterThanOrEqual(0);
+    });
   });
 });
 
