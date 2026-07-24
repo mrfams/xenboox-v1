@@ -27,6 +27,7 @@ import { approvalsRouter } from "./approvals";
 import { onboardingRouter } from "./onboarding";
 import { taxComplianceRouter } from "./tax-compliance";
 import { auditPipelineRouter } from "./audit-pipeline";
+import { analyticsRouter } from "./analytics";
 import { expenseRouter } from "./expense";
 
 export const appRouter = router({
@@ -60,6 +61,7 @@ export const appRouter = router({
   taxCompliance: taxComplianceRouter,
   auditPipeline: auditPipelineRouter,
   expense: expenseRouter,
+  analytics: analyticsRouter,
 });
 
 export type AppRouter = typeof appRouter;

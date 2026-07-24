@@ -77,6 +77,8 @@ export {
   getAuditStatus,
   runExpensePipeline,
   getExpenseStatus,
+  runAnalyticsPipeline,
+  getAnalyticsStatus,
 } from "./core";
 export type {
   ModelTier,
@@ -162,6 +164,16 @@ export type {
   BudgetImpactResult,
   ExpenseConfidenceResult,
   ExpenseResult,
+  AnalyticsResult,
+  AnalyticsStep,
+  AnalyticsStepId,
+  AnalyticsStepStatus,
+  AggregatedData,
+  TrendItem,
+  AnomalyItem as AnalyticsAnomalyItem,
+  CashFlowForecast,
+  HealthScoreResult,
+  ProactiveAlert,
 } from "./core";
 
 // ─── Eval Harness ────────────────────────────────────────────────────────────

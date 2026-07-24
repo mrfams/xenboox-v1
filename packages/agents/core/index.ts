@@ -335,6 +335,21 @@ export type {
   AuditorSessionItem,
 } from "./audit-pipeline";
 
+// ─── Analytics & Insights Pipeline (Phase 2, Pipeline 5 of 5) ─
+export { runAnalyticsPipeline, getAnalyticsStatus } from "./analytics-pipeline";
+export type {
+  AnalyticsResult,
+  AnalyticsStep,
+  AnalyticsStepId,
+  AnalyticsStepStatus,
+  AggregatedData,
+  TrendItem,
+  AnomalyItem as AnalyticsAnomalyItem,
+  CashFlowForecast,
+  HealthScoreResult,
+  ProactiveAlert,
+} from "./analytics-pipeline";
+
 // ─── Expense Pipeline (Phase 2, Pipeline 4 of 5) ────────────
 export { runExpensePipeline, getExpenseStatus } from "./expense-pipeline";
 export type {
