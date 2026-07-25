@@ -35,3 +35,4 @@ export * from "./consolidation";
 export * from "./firm";
 export * from "./jurisdiction";
 export * from "./api-platform";
+export * from "./branding";

@@ -31,6 +31,7 @@ import {
   Building2,
   Globe,
   KeyRound,
+  Palette,
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
@@ -39,6 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge, Button } from "@/components/ui";
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
+import { useWhiteLabel } from "@/components/layout/white-label-provider";
 
 type NavItem = {
   label: string;
@@ -140,6 +142,12 @@ const moreModules: NavItem[] = [
     badge: "Dev",
   },
   { label: "Audit Log", href: "/dashboard/audit-log", icon: ScrollText },
+  {
+    label: "White Label",
+    href: "/dashboard/branding",
+    icon: Palette,
+    badge: "Firm",
+  },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
   { label: "Employees", href: "/dashboard/payroll", icon: Users },
   { label: "Payroll Runs", href: "/dashboard/payroll/runs", icon: Receipt },
@@ -149,6 +157,56 @@ const moreModules: NavItem[] = [
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function WhiteLabelLogo() {
+  const { branding } = useWhiteLabel();
+
+  if (branding?.isActive && branding.displayName) {
+    return (
+      <Link href="/dashboard" className="flex items-center gap-2 group">
+        {branding.logoUrl ? (
+          <img
+            src={branding.logoUrl}
+            alt={branding.displayName}
+            className="h-8 w-8 rounded-lg object-contain"
+          />
+        ) : (
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-lg font-bold text-sm"
+            style={{
+              backgroundColor:
+                branding.colorScheme?.primary || "hsl(var(--primary))",
+              color:
+                branding.colorScheme?.primaryForeground ||
+                "hsl(var(--primary-foreground))",
+            }}
+          >
+            {branding.displayName.charAt(0)}
+          </div>
+        )}
+        <span
+          className="text-lg font-bold tracking-tight"
+          style={
+            branding.colorScheme?.primary
+              ? { color: branding.colorScheme.primary }
+              : undefined
+          }
+        >
+          {branding.displayName}
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <Link href="/dashboard" className="flex items-center gap-2">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+        X
+      </div>
+      <span className="text-lg font-bold tracking-tight">Xenboox</span>
+    </Link>
+  );
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
@@ -178,12 +236,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Logo + Entity Switcher */}
         <div className="flex flex-col gap-3 border-b p-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-              X
-            </div>
-            <span className="text-lg font-bold tracking-tight">Xenboox</span>
-          </Link>
+          <WhiteLabelLogo />
+
           <EntitySwitcher />
         </div>
 

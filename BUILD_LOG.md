@@ -6,6 +6,93 @@
 
 ---
 
+### [2026-07-25] — White-Label Pipeline (Phase 3) — Firm-Tier Branding
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Created:** 3
+**Files Modified:** 4
+
+**What was built:**
+
+### Phase 1 — Database Schema
+
+**File:** `packages/db/schema/branding.ts` — NEW
+
+Two tables:
+
+| Table                  | Purpose                                                | Key Columns                                                                                            |
+| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `firm_branding_config` | Single row per firm org — logo, colors, display name   | firm_org_id (unique), display_name, is_active, logo_url, favicon_url, color_scheme (jsonb), custom_css |
+| `custom_domains`       | Firm's custom domains/subdomains with DNS verification | domain (unique), verified, verification_token, is_primary, ssl_provisioned                             |
+
+### Phase 2 — tRPC Router
+
+**File:** `apps/web/server/routers/branding.ts` — NEW
+
+7 endpoints, all gated by Firm tier check:
+
+| Endpoint       | Method   | Auth        | Description                                                      |
+| -------------- | -------- | ----------- | ---------------------------------------------------------------- |
+| `checkAccess`  | Query    | Protected   | Returns whether org is on Firm tier (white-label eligible)       |
+| `getConfig`    | Query    | Protected   | Current branding config (null if not configured)                 |
+| `updateConfig` | Mutation | Owner/Admin | Upsert branding config with audit logging                        |
+| `listDomains`  | Query    | Protected   | List custom domains for the firm                                 |
+| `addDomain`    | Mutation | Owner/Admin | Add custom domain → generates TXT verification token, logs audit |
+| `verifyDomain` | Mutation | Owner/Admin | Mark domain as verified (simulated DNS check)                    |
+| `removeDomain` | Mutation | Owner/Admin | Remove custom domain with audit trail                            |
+
+### Phase 3 — WhiteLabelProvider Context
+
+**File:** `apps/web/components/layout/white-label-provider.tsx` — NEW
+
+- React context + `useWhiteLabel()` hook providing `branding`, `loading`, `isFirmTier`, `activeDomain`
+- Detects custom domain from `window.location.hostname`
+- Fetches branding config from tRPC (only if Firm tier)
+- Injects CSS custom properties (`--wl-primary`, etc.) when branding is active
+- `BrandingConfig` interface with `Record<string, string>` color scheme
+
+### Phase 4 — Frontend Branding Dashboard
+
+**File:** `apps/web/app/dashboard/branding/page.tsx` — NEW (~450 lines)
+
+Full branding settings page:
+
+- Brand Identity form: display name, logo URL, favicon URL, active toggle, hide Xenboox branding
+- 7 color picker fields with live color inputs (primary, foreground, accent, destructive, muted, border)
+- Live preview banner showing branded navigation bar
+- Custom domains section with add/verify/remove actions
+- Custom CSS editor
+- Firm-plan-gated: non-Firm users see upgrade prompt
+
+### Phase 5 — Layout Integration
+
+**Files Modified:**
+
+- `packages/db/schema/index.ts` — Added branding barrel export
+- `apps/web/server/routers/_app.ts` — Registered `branding: brandingRouter`
+- `apps/web/app/dashboard/layout.tsx` — Wrapped dashboard in `<WhiteLabelProvider>`
+- `apps/web/components/layout/sidebar.tsx` — Added `WhiteLabelLogo` component that renders branded logo + name when branding is active, falls back to Xenboox. Added "White Label" nav link with `Palette` icon.
+
+### Architecture Compliance
+
+| Rule                                          | Implementation                                                                                  |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Presentation only — never data isolation/RBAC | All branding code is purely CSS/UI overrides. No RBAC or entity-scoping changes.                |
+| Xenboox fallback when branding inactive       | `WhiteLabelLogo` falls back to standard Xenboox logo. `isActive` toggle controls visibility.    |
+| Firm tier gated                               | Every endpoint checks `organizations.plan === "firm"` before returning data.                    |
+| Owner/Admin only for mutations                | `updateConfig`, `addDomain`, `verifyDomain`, `removeDomain` use `requireRole("owner", "admin")` |
+| Audit trail                                   | Every branding mutation logged to `audit_log` with previous/new values.                         |
+
+### Verification
+
+| Check                      | Status                                                    |
+| -------------------------- | --------------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors (pre-existing firm pipeline errors only) |
+| Code review                | ✅ All fixes verified correct                             |
+
+---
+
 ### [2026-07-25] — Jurisdiction Expansion Pipeline (Phase 3) — Nigeria & Ghana
 
 **Agent:** Buffy (Autonomous Engineer)
