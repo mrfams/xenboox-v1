@@ -6,6 +6,44 @@
 
 ---
 
+### [2026-07-26] — Autonomous Onboarding Pipeline: Enterprise-Grade Production Hardening
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~20 min
+**Files Modified:** 1 (`packages/agents/core/onboarding-pipeline.ts`)
+
+**What was built:**
+
+### Enterprise Patterns Integrated
+
+| Pattern                         | Implementation                                                                                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Idempotency Check**           | `generateIdempotencyKey()` + `checkIdempotency()` at pipeline entry — prevents duplicate onboarding runs for the same entity                           |
+| **Pipeline-Level Timeout**      | Wrapped entire pipeline in IIFE with `withTimeout()` — configurable `maxExecutionMs` via `PipelineTimeoutConfig` (defaults to 30s)                     |
+| **Retry + Circuit Breaker**     | COA seeding (template + fallback) and fiscal period creation wrapped with `withRetry()` + `withTimeout()` for resilience against transient DB failures |
+| **Step Timeout Guards**         | CoA check, template lookup, period check, failure recovery check, and final readiness queries all wrapped with `withTimeout(maxStepExecutionMs)`       |
+| **Per-Step Telemetry**          | 6 phases tracked: Entity Setup, CoA Seed, Fiscal Periods, Failure Recovery, Readiness, Audit                                                           |
+| **PII Redaction**               | `redactPIIFromObject()` applied to all audit entry details before logging                                                                              |
+| **TimeoutError Detection**      | Catch block differentiates timeouts from other errors with explicit `isTimeout` flag                                                                   |
+| **Parallel Query Optimization** | Final readiness check uses `Promise.all` for simultaneous accounts + periods queries                                                                   |
+| **LangFuse Telemetry**          | Trace creation with metadata, trace update on completion, event on pipeline-complete                                                                   |
+
+### Backward Compatibility
+
+- Function signature unchanged for callers — optional `timeoutConfig` parameter added, existing 2-arg calls still work
+- Return type `OnboardingPipelineResult` unchanged — no breaking change
+- All callers (organization.ts, onboarding.ts, tests) unaffected
+
+### Verification
+
+| Check                         | Status                           |
+| ----------------------------- | -------------------------------- |
+| Typecheck (`@xenboox/agents`) | ✅ No errors                     |
+| Typecheck (`@xenboox/web`)    | ✅ No errors                     |
+| Code review                   | ✅ All patterns verified correct |
+
+---
+
 ### [2026-07-26] — Financial Reporting Pipeline: Enterprise-Grade Production Hardening
 
 **Agent:** Buffy (Autonomous Engineer)

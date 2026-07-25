@@ -28,6 +28,18 @@ import { eq, and, or } from "drizzle-orm";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
+import {
+  withRetry,
+  withTimeout,
+  redactPIIFromObject,
+  checkIdempotency,
+  setIdempotencyResult,
+  generateIdempotencyKey,
+  startCacheCleanup,
+  TimeoutError,
+  DEFAULT_PIPELINE_TIMEOUT,
+} from "./retry";
+import type { PipelineTimeoutConfig } from "./retry";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -93,6 +105,55 @@ export interface DataConnectionResult {
   recordsProcessed: number;
   failureReason: string | null;
   fallbackOffered: DataConnectionType | null;
+}
+
+// ─── Per-Step Telemetry ──────────────────────────────────────────────────
+
+export interface OnboardingStepTelemetry {
+  step: string;
+  label: string;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  status: "completed" | "skipped" | "failed";
+  metadata?: Record<string, unknown>;
+}
+
+function recordOnboardingStep(
+  telemetry: OnboardingStepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+): OnboardingStepTelemetry {
+  const durationMs = Date.now() - startedAt;
+  const entry: OnboardingStepTelemetry = {
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs,
+    status: "completed",
+  };
+  telemetry.push(entry);
+  return entry;
+}
+
+function recordOnboardingFailedStep(
+  telemetry: OnboardingStepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+  error?: string,
+): void {
+  telemetry.push({
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    status: "failed",
+    metadata: error ? { error } : undefined,
+  });
 }
 
 // ─── COA Templates (pre-built by segment/country) ────────────────────────
@@ -1295,192 +1356,383 @@ async function checkFailureRecovery(entityId: string): Promise<string[]> {
 export async function runOnboardingPipeline(
   entityId: string,
   entityName: string,
+  timeoutConfig?: Partial<PipelineTimeoutConfig>,
 ): Promise<OnboardingPipelineResult> {
   const startTime = Date.now();
-  const trace = await langfuse.trace({
-    name: "onboarding-pipeline",
-    metadata: { entityId, entityName },
+  const pipelineTimeout: PipelineTimeoutConfig = {
+    ...DEFAULT_PIPELINE_TIMEOUT,
+    ...timeoutConfig,
+  };
+  const stepTelemetry: OnboardingStepTelemetry[] = [];
+  const telemetryStart = Date.now();
+
+  // ── Enterprise: Idempotency Check ─────────────────────────────────────
+  const idempotencyKey = generateIdempotencyKey({
+    channel: "onboarding-pipeline",
+    userId: "system",
+    entityId,
+    rawContent: `onboarding:${entityId}:${entityName}`,
+    sessionId: `onboard-${entityId}`,
   });
+  const cachedResult = checkIdempotency(idempotencyKey);
+  if (cachedResult) {
+    const cached = cachedResult as OnboardingPipelineResult;
+    return { ...cached, durationMs: Date.now() - startTime };
+  }
 
-  const auditEntries: AuditEntry[] = [];
-  const steps: OnboardingStep[] = [];
+  startCacheCleanup();
 
-  try {
-    steps.push({
-      id: "entity_setup",
-      label: "Entity Setup",
-      status: "completed",
-      details: `Entity "${entityName}" confirmed`,
+  // ── Enterprise: Pipeline-Level Timeout ───────────────────────────────
+  const pipelinePromise = (async () => {
+    const trace = await langfuse.trace({
+      name: "onboarding-pipeline",
+      metadata: {
+        entityId,
+        entityName,
+        timeoutMs: pipelineTimeout.maxExecutionMs,
+        idempotencyKey: idempotencyKey.slice(0, 16),
+      },
     });
 
-    // Check if CoA already exists
-    const accounts = await db.query.chartOfAccounts.findMany({
-      where: eq(chartOfAccounts.entityId, entityId),
-    });
+    const auditEntries: AuditEntry[] = [];
+    const steps: OnboardingStep[] = [];
 
-    if (accounts.length === 0) {
-      // Try to find a suitable template and seed
-      const suggested = await getSuggestedCoA("trading", "GM");
-      if (suggested.templateId && suggested.accounts.length > 0) {
-        await confirmCoA(entityId, suggested.templateId);
-        steps.push({
-          id: "coa_review",
-          label: "Chart of Accounts",
-          status: "completed",
-          details: `Created ${suggested.accounts.length} accounts from template`,
-        });
-      } else {
-        // Fallback: seed standard COA inline
-        await db.transaction(async (tx) => {
-          for (const acct of DEFAULT_COA_TEMPLATES[0].accounts) {
-            await tx.insert(chartOfAccounts).values({
-              entityId,
-              code: acct.code,
-              name: acct.name,
-              type: acct.type as any,
-              subtype: acct.subtype as any,
-              isActive: acct.isActive,
-            });
-          }
-        });
-        steps.push({
-          id: "coa_review",
-          label: "Chart of Accounts",
-          status: "completed",
-          details: `Created ${DEFAULT_COA_TEMPLATES[0].accounts.length} standard accounts`,
-        });
-      }
-    } else {
+    try {
+      // ── Step: Entity Setup ───────────────────────────────────────────
+      let stepStart = Date.now();
       steps.push({
-        id: "coa_review",
-        label: "Chart of Accounts",
-        status: "skipped",
-        details: `${accounts.length} accounts already exist`,
+        id: "entity_setup",
+        label: "Entity Setup",
+        status: "completed",
+        details: `Entity "${entityName}" confirmed`,
       });
-    }
+      recordOnboardingStep(
+        stepTelemetry,
+        "entity_setup",
+        "Entity Setup",
+        stepStart,
+      );
 
-    // Check if fiscal periods exist
-    const periods = await db.query.fiscalPeriods.findMany({
-      where: eq(fiscalPeriods.entityId, entityId),
-    });
+      // ── Step: CoA Check & Seed (with retry + timeout) ────────────────
+      stepStart = Date.now();
+      const accounts = await withTimeout(
+        () =>
+          db.query.chartOfAccounts.findMany({
+            where: eq(chartOfAccounts.entityId, entityId),
+          }),
+        pipelineTimeout.maxStepExecutionMs,
+        "coa-check",
+      );
 
-    if (periods.length === 0) {
-      const currentYear = new Date().getFullYear();
-      await db.transaction(async (tx) => {
-        for (let month = 1; month <= 12; month++) {
-          const startDate = new Date(currentYear, month - 1, 1);
-          const endDate = new Date(currentYear, month, 0);
-          await tx.insert(fiscalPeriods).values({
-            entityId,
-            year: currentYear,
-            month,
-            startDate: startDate.toISOString().split("T")[0]!,
-            endDate: endDate.toISOString().split("T")[0]!,
-            status: "open",
+      if (accounts.length === 0) {
+        // Try to find a suitable template and seed (with retry)
+        const suggested = await withTimeout(
+          () => getSuggestedCoA("trading", "GM"),
+          pipelineTimeout.maxStepExecutionMs,
+          "coa-template-lookup",
+        );
+
+        if (suggested.templateId && suggested.accounts.length > 0) {
+          // Retry on confirmCoA for resilience against transient DB failures
+          const coaResult = await withRetry(
+            () =>
+              withTimeout(
+                () => confirmCoA(entityId, suggested.templateId!),
+                pipelineTimeout.maxStepExecutionMs,
+                "coa-confirm",
+              ),
+            {
+              agentId: "onboarding-pipeline",
+              operationName: "confirm-coa",
+              context: { entityId, templateId: suggested.templateId },
+            },
+          );
+          steps.push({
+            id: "coa_review",
+            label: "Chart of Accounts",
+            status: "completed",
+            details: `Created ${coaResult.accountCount} accounts from template`,
+          });
+        } else {
+          // Fallback: seed standard COA inline with retry
+          await withRetry(
+            () =>
+              withTimeout(
+                async () => {
+                  await db.transaction(async (tx) => {
+                    for (const acct of DEFAULT_COA_TEMPLATES[0].accounts) {
+                      await tx.insert(chartOfAccounts).values({
+                        entityId,
+                        code: acct.code,
+                        name: acct.name,
+                        type: acct.type as any,
+                        subtype: acct.subtype as any,
+                        isActive: acct.isActive,
+                      });
+                    }
+                  });
+                },
+                pipelineTimeout.maxStepExecutionMs,
+                "coa-seed-fallback",
+              ),
+            {
+              agentId: "onboarding-pipeline",
+              operationName: "seed-coa-fallback",
+              context: { entityId },
+            },
+          );
+          steps.push({
+            id: "coa_review",
+            label: "Chart of Accounts",
+            status: "completed",
+            details: `Created ${DEFAULT_COA_TEMPLATES[0].accounts.length} standard accounts`,
           });
         }
-      });
+      } else {
+        steps.push({
+          id: "coa_review",
+          label: "Chart of Accounts",
+          status: "skipped",
+          details: `${accounts.length} accounts already exist`,
+        });
+      }
+      recordOnboardingStep(
+        stepTelemetry,
+        "coa_seed",
+        "Chart of Accounts",
+        stepStart,
+      );
+
+      // ── Step: Fiscal Periods Check & Create (with timeout) ───────────
+      stepStart = Date.now();
+      const periods = await withTimeout(
+        () =>
+          db.query.fiscalPeriods.findMany({
+            where: eq(fiscalPeriods.entityId, entityId),
+          }),
+        pipelineTimeout.maxStepExecutionMs,
+        "periods-check",
+      );
+
+      if (periods.length === 0) {
+        const currentYear = new Date().getFullYear();
+        await withRetry(
+          () =>
+            withTimeout(
+              async () => {
+                await db.transaction(async (tx) => {
+                  for (let month = 1; month <= 12; month++) {
+                    const startDate = new Date(currentYear, month - 1, 1);
+                    const endDate = new Date(currentYear, month, 0);
+                    await tx.insert(fiscalPeriods).values({
+                      entityId,
+                      year: currentYear,
+                      month,
+                      startDate: startDate.toISOString().split("T")[0]!,
+                      endDate: endDate.toISOString().split("T")[0]!,
+                      status: "open",
+                    });
+                  }
+                });
+              },
+              pipelineTimeout.maxStepExecutionMs,
+              "periods-create",
+            ),
+          {
+            agentId: "onboarding-pipeline",
+            operationName: "create-fiscal-periods",
+            context: { entityId },
+          },
+        );
+        steps.push({
+          id: "historical_pull",
+          label: "Fiscal Periods",
+          status: "completed",
+          details: "Created 12 fiscal periods for current year",
+        });
+      } else {
+        steps.push({
+          id: "historical_pull",
+          label: "Fiscal Periods",
+          status: "skipped",
+          details: `${periods.length} periods already exist`,
+        });
+      }
+      recordOnboardingStep(
+        stepTelemetry,
+        "fiscal_periods",
+        "Fiscal Periods",
+        stepStart,
+      );
+
+      // ── Step: Failure Recovery Check (with timeout) ──────────────────
+      stepStart = Date.now();
+      const failureRecovery = await withTimeout(
+        () => checkFailureRecovery(entityId),
+        pipelineTimeout.maxStepExecutionMs,
+        "failure-recovery",
+      );
+      recordOnboardingStep(
+        stepTelemetry,
+        "failure_recovery",
+        "Failure Recovery Check",
+        stepStart,
+      );
+
+      // ── Step: Final Readiness Check ──────────────────────────────────
+      stepStart = Date.now();
+      const [finalAccounts, finalPeriods] = await Promise.all([
+        withTimeout(
+          () =>
+            db.query.chartOfAccounts.findMany({
+              where: eq(chartOfAccounts.entityId, entityId),
+            }),
+          pipelineTimeout.maxStepExecutionMs,
+          "final-accounts",
+        ),
+        withTimeout(
+          () =>
+            db.query.fiscalPeriods.findMany({
+              where: eq(fiscalPeriods.entityId, entityId),
+            }),
+          pipelineTimeout.maxStepExecutionMs,
+          "final-periods",
+        ),
+      ]);
+
       steps.push({
-        id: "historical_pull",
-        label: "Fiscal Periods",
+        id: "first_look",
+        label: "Readiness Check",
         status: "completed",
-        details: "Created 12 fiscal periods for current year",
+        details: `${finalAccounts.length} accounts, ${finalPeriods.length} periods ready`,
       });
-    } else {
+      recordOnboardingStep(
+        stepTelemetry,
+        "readiness",
+        "Final Readiness Check",
+        stepStart,
+      );
+
+      // ── Completeness & Audit (with PII Redaction) ────────────────────
+      const completeness = computeCompleteness([
+        "signup",
+        "routing",
+        "entity_setup",
+        "coa_review",
+        ...(finalPeriods.length > 0 ? ["historical_pull"] : []),
+      ]);
+
+      const audit = createAuditEntry({
+        agentId: "onboarding-pipeline",
+        action:
+          completeness >= 0.6 ? "onboarding_complete" : "onboarding_partial",
+        details: redactPIIFromObject({
+          entityId,
+          accountCount: finalAccounts.length,
+          completeness,
+        }),
+        confidence: completeness,
+      });
+      auditEntries.push(audit);
+
+      await trace.update({
+        output: {
+          completeness,
+          accountCount: finalAccounts.length,
+          stepCount: stepTelemetry.length,
+          totalStepDurationMs: stepTelemetry.reduce(
+            (s, t) => s + t.durationMs,
+            0,
+          ),
+        },
+      });
+
+      langfuse.event({
+        name: "onboarding-pipeline-complete",
+        metadata: {
+          entityId,
+          completeness,
+          accountCount: finalAccounts.length,
+          periodCount: finalPeriods.length,
+          stepsCompleted: stepTelemetry.length,
+        },
+      });
+
+      const result: OnboardingPipelineResult = {
+        success: true,
+        sessionId: "",
+        orgId: "",
+        entityId,
+        steps,
+        currentStep: completeness >= 1 ? "complete" : "coa_review",
+        completeness,
+        timeToFirstValueSeconds: null,
+        nextActions: [],
+        failureRecovery,
+        auditEntries,
+        durationMs: Date.now() - startTime,
+      };
+
+      setIdempotencyResult(idempotencyKey, result);
+      return result;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isTimeout = error instanceof TimeoutError;
+      const errorAudit = createAuditEntry({
+        agentId: "onboarding-pipeline",
+        action: "pipeline_failed",
+        details: redactPIIFromObject({
+          entityId,
+          error: isTimeout ? `Pipeline timed out: ${msg}` : msg,
+          isTimeout,
+        }),
+        confidence: 0,
+      });
+      auditEntries.push(errorAudit);
+
+      recordOnboardingFailedStep(
+        stepTelemetry,
+        "pipeline_error",
+        "Pipeline Execution",
+        telemetryStart,
+        msg,
+      );
+
+      await trace.update({
+        output: { status: "error", error: msg, isTimeout },
+      });
+
       steps.push({
-        id: "historical_pull",
-        label: "Fiscal Periods",
-        status: "skipped",
-        details: `${periods.length} periods already exist`,
+        id: "entity_setup",
+        label: "Setup Error",
+        status: "failed",
+        details: msg,
+        failureRecovery: "Please try again or contact support",
       });
+
+      const errorResult: OnboardingPipelineResult = {
+        success: false,
+        sessionId: "",
+        orgId: "",
+        entityId,
+        steps,
+        currentStep: "entity_setup",
+        completeness: 0,
+        timeToFirstValueSeconds: null,
+        nextActions: [`Fix setup error: ${msg}`],
+        failureRecovery: ["Please try again or contact support"],
+        auditEntries,
+        durationMs: Date.now() - startTime,
+      };
+      return errorResult;
     }
+  })(); // <-- IIFE invoked immediately
 
-    // Check failure recovery needs
-    const failureRecovery = await checkFailureRecovery(entityId);
-
-    // Final readiness
-    const finalAccounts = await db.query.chartOfAccounts.findMany({
-      where: eq(chartOfAccounts.entityId, entityId),
-    });
-    const finalPeriods = await db.query.fiscalPeriods.findMany({
-      where: eq(fiscalPeriods.entityId, entityId),
-    });
-
-    steps.push({
-      id: "first_look",
-      label: "Readiness Check",
-      status: "completed",
-      details: `${finalAccounts.length} accounts, ${finalPeriods.length} periods ready`,
-    });
-
-    const completeness = computeCompleteness([
-      "signup",
-      "routing",
-      "entity_setup",
-      "coa_review",
-      ...(finalPeriods.length > 0 ? ["historical_pull"] : []),
-    ]);
-
-    const audit = createAuditEntry({
-      agentId: "onboarding-pipeline",
-      action:
-        completeness >= 0.6 ? "onboarding_complete" : "onboarding_partial",
-      details: { entityId, accountCount: finalAccounts.length, completeness },
-      confidence: completeness,
-    });
-    auditEntries.push(audit);
-
-    await trace.update({
-      output: { completeness, accountCount: finalAccounts.length },
-    });
-
-    return {
-      success: true,
-      sessionId: "",
-      orgId: "",
-      entityId,
-      steps,
-      currentStep: completeness >= 1 ? "complete" : "coa_review",
-      completeness,
-      timeToFirstValueSeconds: null,
-      nextActions: [],
-      failureRecovery,
-      auditEntries,
-      durationMs: Date.now() - startTime,
-    };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    const errorAudit = createAuditEntry({
-      agentId: "onboarding-pipeline",
-      action: "pipeline_failed",
-      details: { entityId, error: msg },
-      confidence: 0,
-    });
-    auditEntries.push(errorAudit);
-
-    steps.push({
-      id: "entity_setup",
-      label: "Setup Error",
-      status: "failed",
-      details: msg,
-      failureRecovery: "Please try again or contact support",
-    });
-
-    return {
-      success: false,
-      sessionId: "",
-      orgId: "",
-      entityId,
-      steps,
-      currentStep: "entity_setup",
-      completeness: 0,
-      timeToFirstValueSeconds: null,
-      nextActions: [`Fix setup error: ${msg}`],
-      failureRecovery: ["Please try again or contact support"],
-      auditEntries,
-      durationMs: Date.now() - startTime,
-    };
-  }
+  return withTimeout(
+    () => pipelinePromise,
+    pipelineTimeout.maxExecutionMs,
+    "onboarding-pipeline",
+  );
 }
 
 // Legacy exports for backward compatibility
