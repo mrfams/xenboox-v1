@@ -6,6 +6,97 @@
 
 ---
 
+### [2026-07-25] — Accounting Firm Dashboard & Client Switcher Pipeline (Phase 3)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~60 min
+**Files Created:** 4
+**Files Modified:** 4
+
+**What was built:**
+
+### Phase 1 — Database Schema
+
+**File:** `packages/db/schema/firm.ts` — NEW
+
+Two tables:
+
+| Table                      | Purpose                                 | Key Columns                                                                                                                          |
+| -------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `client_engagements`       | Links a firm's org to a client's entity | firm_org_id, client_entity_id, status (active/ended/pending_consent), engagement_type, client_consented_at, added_by_id              |
+| `firm_dashboard_snapshots` | Cached read-only rollup per client      | health_status, books_current, unreconciled_items, overdue_invoices, pending_approvals, days_until_close, cash_balance, snapshot_data |
+
+Indexes: ce_firm, ce_client, ce_status, ce_pair on engagements; fds_firm, fds_client, fds_status on snapshots.
+
+### Phase 2 — tRPC Router
+
+**File:** `apps/web/server/routers/firm.ts` — NEW
+
+7 endpoints:
+
+| Endpoint                | Method   | Auth        | Description                                                                                                                                      |
+| ----------------------- | -------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `listClients`           | Query    | Protected   | Lists active client engagements with dashboard snapshots. firm_org derived from user session, not client input. Supports status filter + search. |
+| `getClientHealth`       | Query    | Protected   | Detailed read-only health for a specific client. Verifies engagement exists before returning data. Auto-refreshes snapshot.                      |
+| `linkClient`            | Mutation | Owner/Admin | Creates engagement + grants external_auditor access via user_entity_access. Logs audit trail.                                                    |
+| `unlinkClient`          | Mutation | Owner/Admin | Ends engagement + revokes access. Client entity remains intact. Logs audit trail.                                                                |
+| `listAvailableEntities` | Query    | Protected   | Entities in firm's org not yet linked as clients. Supports search.                                                                               |
+| `refreshSnapshot`       | Mutation | Protected   | Manually refreshes a client's dashboard snapshot.                                                                                                |
+| `listEngagementHistory` | Query    | Protected   | All engagement records (active + ended).                                                                                                         |
+
+Key constraint: `refreshClientSnapshot` helper uses Drizzle ORM (same as every other query in the codebase) — reads from client entity's own tables without writing to them.
+
+### Phase 3 — Frontend Pages
+
+**File:** `apps/web/app/dashboard/firm/page.tsx` — NEW
+
+Firm dashboard with:
+
+- 3 status summary cards (healthy / needs review / critical counts)
+- Active client list with health badges, key metrics (overdue invoices, unreconciled items, cash balance), refresh + open actions
+- AddClientDialog with entity search, engagement type selection, consent checkbox
+- Loading state, error state, empty state, non-firm-user fallback
+
+**File:** `apps/web/app/dashboard/firm/clients/[id]/page.tsx` — NEW
+
+Client detail page with:
+
+- Health status banner (healthy / needs review / critical with contextual descriptions)
+- 4 metric cards (cash balance, overdue invoices, unreconciled items, days until close)
+- Books status section (current/not current, last close period, next close due, pending approvals)
+- Engagement details section (type, status, engagement date, consent status, notes)
+
+### Phase 4 — Integration
+
+**Files Modified:**
+
+- `packages/db/schema/index.ts` — Added firm schema barrel export
+- `apps/web/server/routers/_app.ts` — Registered `firm: firmRouter`
+- `apps/web/components/layout/sidebar.tsx` — Added "Firm Dashboard" nav link with Building2 icon in More section
+
+### Architecture Compliance
+
+| Constraint                      | Implementation                                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Cross-client isolation          | firm_org_id derived from user session, not client input. Every query scoped to session user's org. |
+| Read-only aggregation           | `refreshClientSnapshot` reads from client entity's own tables. Never writes to client data.        |
+| Entity remains under client org | `client_engagements.client_entity_id` references entity — entity stays in client's org.            |
+| Standard entity isolation       | Firm users get access via `user_entity_access` table (same as all other surfaces).                 |
+| Audit trail                     | Every link/unlink logged to `audit_log` with entityIdRef.                                          |
+| Client consent                  | Engagement supports `pending_consent` → `active` flow with timestamp tracking.                     |
+| Client-independent access       | Client's own users can log in independently — firm access is additive via user_entity_access.      |
+
+### Verification
+
+| Check                         | Status                                                                                   |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| Typecheck (`@xenboox/web`)    | ✅ No new errors                                                                         |
+| Typecheck (`@xenboox/agents`) | ✅ No new errors (pre-existing seed/4month-expansion.ts only)                            |
+| Code review (round 1)         | ✅ 5 issues identified — all fixed                                                       |
+| Code review (round 2)         | ✅ All fixes verified correct (cn import, Drizzle ORM instead of raw SQL, clean imports) |
+
+---
+
 ### [2026-07-25] — Consolidation Pipeline: Production Hardening Pass (8 Code Review Issues Fixed)
 
 **Agent:** Buffy (Autonomous Engineer)

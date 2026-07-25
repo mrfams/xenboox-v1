@@ -33,6 +33,7 @@ import { assetPipelineRouter } from "./asset-pipeline";
 import { budgetRouter } from "./budget";
 import { inventoryPipelineRouter } from "./inventory-pipeline";
 import { consolidationRouter } from "./consolidation";
+import { firmRouter } from "./firm";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -70,6 +71,7 @@ export const appRouter = router({
   budget: budgetRouter,
   inventoryPipeline: inventoryPipelineRouter,
   consolidation: consolidationRouter,
+  firm: firmRouter,
 });
 
 export type AppRouter = typeof appRouter;
