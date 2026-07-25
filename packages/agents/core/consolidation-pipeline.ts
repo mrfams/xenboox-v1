@@ -498,6 +498,13 @@ export async function runConsolidationPipeline(
         ),
         orderBy: [desc(exchangeRates.validFrom)],
       });
+
+      if (!rateRecord) {
+        warnings.push(
+          `No exchange rate found for ${sub.currency} → ${parentCurrency}. Using rate of 1.0 — translated amounts may be inaccurate for ${sub.subsidiaryName}.`,
+        );
+      }
+
       const exchangeRate = rateRecord ? Number(rateRecord.rate) : 1.0;
 
       // Get trial balance for subsidiary
@@ -820,40 +827,36 @@ export async function runConsolidationPipeline(
     step9.status = "in_progress";
     step9.startedAt = new Date().toISOString();
 
-    // Verify that elimination entries are NOT posted to entity-level ledger
-    const postedToLedger = await db.query.journalEntries.findMany({
+    // Verify that NO elimination entries were posted to any entity-level ledger
+    // Check parent entity first
+    let integrityIssues = 0;
+
+    const parentPosted = await db.query.journalEntries.findMany({
       where: and(
         eq(journalEntries.entityId, entityId),
         eq(journalEntries.source, "consolidation"),
       ),
     });
 
-    let integrityIssues = 0;
-    if (postedToLedger.length > 0) {
+    if (parentPosted.length > 0) {
       integrityIssues++;
       warnings.push(
-        `Integrity issue: ${postedToLedger.length} elimination journal entries found in entity-level ledger`,
+        `Integrity issue: ${parentPosted.length} consolidation-sourced journal entries found in PARENT entity ledger`,
       );
     }
+
+    // Then check all subsidiary ledgers too
     for (const sub of subsidiaries) {
-      const subJournalsBefore = await db.query.journalEntries.findMany({
+      const subPosted = await db.query.journalEntries.findMany({
         where: and(
           eq(journalEntries.entityId, sub.subsidiaryId),
-          gte(
-            journalEntries.createdAt,
-            new Date(`${period.slice(0, 4)}-01-01`),
-          ),
+          eq(journalEntries.source, "consolidation"),
         ),
       });
-
-      // Check if any of these journal entries were created/modified by consolidation
-      const consolidationEntries = subJournalsBefore.filter(
-        (je) => je.source === "consolidation",
-      );
-      if (consolidationEntries.length > 0) {
+      if (subPosted.length > 0) {
         integrityIssues++;
         warnings.push(
-          `Integrity issue: ${sub.subsidiaryName} has ${consolidationEntries.length} journal entries sourced from consolidation`,
+          `Integrity issue: ${subPosted.length} consolidation-sourced journal entries found in subsidiary ledger for ${sub.subsidiaryName}`,
         );
       }
     }
