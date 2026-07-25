@@ -47,10 +47,6 @@ export const consolidationRouter = router({
         });
       }
 
-      const org = await db.query.entities.findFirst({
-        where: eq(entities.id, ctx.entityId!),
-      });
-
       try {
         const result = await runConsolidationPipeline({
           entityId: ctx.entityId!,
@@ -97,6 +93,31 @@ export const consolidationRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify the run is in reviewing status before approving
+      const run = await db.query.consolidationRuns.findFirst({
+        where: and(
+          eq(consolidationRuns.id, input.runId),
+          eq(consolidationRuns.parentEntityId, ctx.entityId!),
+        ),
+      });
+
+      if (!run) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Consolidation run not found",
+        });
+      }
+
+      if (run.status !== "reviewing") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            run.status === "completed"
+              ? "This consolidation run has already been approved"
+              : `Cannot approve run with status "${run.status}". Run must be in "reviewing" status.`,
+        });
+      }
+
       try {
         await approveConsolidationRun({
           runId: input.runId,

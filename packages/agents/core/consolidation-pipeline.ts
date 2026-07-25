@@ -50,7 +50,7 @@ import {
   chartOfAccounts,
   trialBalanceSnapshots,
 } from "@xenboox/db/schema/accounting";
-import { auditLog } from "@xenboox/db/schema/documents";
+import { auditLog, exchangeRates } from "@xenboox/db/schema/documents";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -190,6 +190,24 @@ export async function runConsolidationPipeline(
     .returning();
 
   const runId = run?.id;
+  if (!runId) {
+    return {
+      success: false,
+      period,
+      entityId,
+      steps: [],
+      subsidiaries: [],
+      icTransactions: [],
+      eliminations: [],
+      translations: [],
+      minorityInterests: [],
+      consolidatedTotals: null,
+      integrityCheckPassed: null,
+      errors: ["Failed to create consolidation run record"],
+      warnings: [],
+    };
+  }
+
   let subsidiaries: EntitySubsidiary[] = [];
   let icTransactions: ICTransactionItem[] = [];
   let eliminations: EliminationItem[] = [];
@@ -367,7 +385,7 @@ export async function runConsolidationPipeline(
       const [ee] = await db
         .insert(eliminationEntries)
         .values({
-          consolidationRunId: runId ?? "N/A",
+          consolidationRunId: runId,
           entityId: pair[0].entityId,
           counterpartyEntityId: pair[0].counterpartyId,
           eliminationType: elimType,
@@ -390,6 +408,34 @@ export async function runConsolidationPipeline(
           debitCredit: ee.debitCredit,
         });
         totalElimAmount += Number(ee.amount);
+
+        // Create corresponding credit entry for double-entry accounting
+        const [creditEe] = await db
+          .insert(eliminationEntries)
+          .values({
+            consolidationRunId: runId,
+            entityId: pair[0].counterpartyId,
+            counterpartyEntityId: pair[0].entityId,
+            eliminationType: elimType,
+            description: `Elimination (contra): ${pair.map((t) => t.description).join(" / ")}`,
+            amount: avgAmount.toFixed(2),
+            debitCredit: "credit",
+            sourceTagIds: pair.map((t) => t.tagId),
+            currency: pair[0].currency,
+          })
+          .returning();
+
+        if (creditEe) {
+          elims.push({
+            entryId: creditEe.id,
+            entityId: creditEe.entityId,
+            counterpartyId: creditEe.counterpartyEntityId,
+            type: creditEe.eliminationType,
+            description: creditEe.description,
+            amount: Number(creditEe.amount),
+            debitCredit: creditEe.debitCredit,
+          });
+        }
       }
     }
 
@@ -444,9 +490,15 @@ export async function runConsolidationPipeline(
         continue;
       }
 
-      // Simulate exchange rate lookup (in prod, use exchange rate table)
-      const exchangeRate =
-        sub.currency === "USD" ? 65.0 : sub.currency === "EUR" ? 70.0 : 1.0;
+      // Look up exchange rate from database (uses existing FX layer)
+      const rateRecord = await db.query.exchangeRates.findFirst({
+        where: and(
+          eq(exchangeRates.fromCurrency, sub.currency),
+          eq(exchangeRates.toCurrency, parentCurrency),
+        ),
+        orderBy: [desc(exchangeRates.validFrom)],
+      });
+      const exchangeRate = rateRecord ? Number(rateRecord.rate) : 1.0;
 
       // Get trial balance for subsidiary
       const subAccounts = await db.query.trialBalanceSnapshots.findMany({
@@ -769,13 +821,20 @@ export async function runConsolidationPipeline(
     step9.startedAt = new Date().toISOString();
 
     // Verify that elimination entries are NOT posted to entity-level ledger
-    const postedEliminations = eliminations.filter((e) => {
-      // Check if any journal entry references this elimination
-      return false; // In prod, check journal_entries.metadata for consolidation reference
+    const postedToLedger = await db.query.journalEntries.findMany({
+      where: and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.source, "consolidation"),
+      ),
     });
 
-    // Verify subsidiary trial balances are unchanged
     let integrityIssues = 0;
+    if (postedToLedger.length > 0) {
+      integrityIssues++;
+      warnings.push(
+        `Integrity issue: ${postedToLedger.length} elimination journal entries found in entity-level ledger`,
+      );
+    }
     for (const sub of subsidiaries) {
       const subJournalsBefore = await db.query.journalEntries.findMany({
         where: and(
@@ -840,7 +899,7 @@ export async function runConsolidationPipeline(
       userId,
       action: "consolidationPipeline.run",
       entityType: "consolidation_run",
-      entityIdRef: runId ?? "N/A",
+      entityIdRef: runId,
       newValues: {
         period,
         totalSubsidiaries: subsidiaries.length,

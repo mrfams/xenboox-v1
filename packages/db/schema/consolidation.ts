@@ -228,6 +228,8 @@ export const eliminationEntries = pgTable(
     // Maps to a COA account in the parent entity's chart
     isPosted: boolean("is_posted").notNull().default(false),
     // NEVER true — elimination entries live in consolidation layer only
+    // DB CHECK constraint (is_posted = false) should be added via migration
+    // to enforce this at the database level (see migration pattern in 0013_financial_check_constraints.sql)
     note: text("note"),
     ...timestamps,
   },
