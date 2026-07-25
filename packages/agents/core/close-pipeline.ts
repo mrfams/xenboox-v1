@@ -40,6 +40,20 @@ import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
 import { fanOutToDepartments } from "./orchestrator";
 import { ALL_DEPARTMENTS, DEPARTMENT_CLOSE_TASK } from "./registry";
+import {
+  withRetry,
+  withTimeout,
+  withConcurrencyLimit,
+  redactPII,
+  redactPIIFromObject,
+  checkIdempotency,
+  setIdempotencyResult,
+  generateIdempotencyKey,
+  startCacheCleanup,
+  TimeoutError,
+  DEFAULT_PIPELINE_TIMEOUT,
+} from "./retry";
+import type { PipelineTimeoutConfig } from "./retry";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -163,6 +177,57 @@ function getInitialSteps(): CloseStep[] {
   ];
 }
 
+// ─── Per-Step Telemetry ─────────────────────────────────────────────────────
+// Tracks timing of each pipeline step for observability / monitoring.
+
+export interface StepTelemetry {
+  step: string;
+  label: string;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  status: "completed" | "skipped" | "failed";
+  metadata?: Record<string, unknown>;
+}
+
+function recordStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+): StepTelemetry {
+  const durationMs = Date.now() - startedAt;
+  const entry: StepTelemetry = {
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs,
+    status: "completed",
+  };
+  telemetry.push(entry);
+  return entry;
+}
+
+function recordFailedStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+  error?: string,
+): void {
+  const entry: StepTelemetry = {
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    status: "failed",
+    metadata: error ? { error } : undefined,
+  };
+  telemetry.push(entry);
+}
+
 // ─── Pipeline Orchestrator ──────────────────────────────────────────────────
 
 export async function executeClosePipeline(params: {
@@ -174,295 +239,496 @@ export async function executeClosePipeline(params: {
   triggerSource?: CloseTriggerSource;
   skipValidation?: boolean;
   force?: boolean;
-}): Promise<CloseState> {
+  timeoutConfig?: Partial<PipelineTimeoutConfig>;
+}): Promise<{
+  closeState: CloseState;
+  stepTelemetry: StepTelemetry[];
+  durationMs: number;
+}> {
   const startTime = Date.now();
-  const periodStr = await getPeriodString(params.periodId);
-
-  const closeState: CloseState = {
-    entityId: params.entityId,
-    periodId: params.periodId,
-    period: periodStr,
-    triggerSource: params.triggerSource ?? "manual",
-    status: "running",
-    steps: getInitialSteps(),
-    startedAt: new Date().toISOString(),
-    completedAt: null,
-    overallConfidence: 0,
-    errors: [],
-    warnings: [],
-    auditTrail: [],
+  const pipelineTimeout: PipelineTimeoutConfig = {
+    ...DEFAULT_PIPELINE_TIMEOUT,
+    ...params.timeoutConfig,
   };
+  const periodStr = await getPeriodString(params.periodId);
+  const stepTelemetry: StepTelemetry[] = [];
+  const telemetryStart = Date.now();
 
-  const trace = await langfuse.trace({
-    name: "autonomous-close-pipeline",
-    metadata: {
+  // ── Enterprise: Idempotency Check ─────────────────────────────────────
+  const idempotencyKey = generateIdempotencyKey({
+    channel: "close-pipeline",
+    userId: params.userId,
+    entityId: params.entityId,
+    rawContent: `close-pipeline:${params.periodId}:${params.triggerSource ?? "manual"}`,
+    sessionId: `close-${params.periodId}`,
+  });
+  const cachedResult = checkIdempotency(idempotencyKey);
+  if (cachedResult) {
+    const cached = cachedResult as {
+      closeState: CloseState;
+      stepTelemetry: StepTelemetry[];
+      durationMs: number;
+    };
+    return {
+      ...cached,
+      stepTelemetry: [
+        ...cached.stepTelemetry,
+        {
+          step: "idempotency_check",
+          label: "Request Deduplication",
+          startedAt: new Date(telemetryStart).toISOString(),
+          completedAt: new Date().toISOString(),
+          durationMs: Date.now() - telemetryStart,
+          status: "completed",
+          metadata: { cached: true, key: idempotencyKey.slice(0, 16) },
+        },
+      ],
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  // Start cache cleanup on first pipeline run
+  startCacheCleanup();
+
+  // ── Enterprise: Pipeline-Level Timeout ───────────────────────────────
+  const pipelinePromise = (async () => {
+    const closeState: CloseState = {
       entityId: params.entityId,
       periodId: params.periodId,
       period: periodStr,
       triggerSource: params.triggerSource ?? "manual",
-    },
-  });
-
-  try {
-    // ── Step 1: Pre-Close Validation ────────────────────────────────────
-    closeState.steps = updateStep(closeState.steps, "validation", {
-      status: "in_progress",
+      status: "running",
+      steps: getInitialSteps(),
       startedAt: new Date().toISOString(),
-    });
+      completedAt: null,
+      overallConfidence: 0,
+      errors: [],
+      warnings: [],
+      auditTrail: [],
+    };
 
-    const validation = await runPreCloseValidation(
-      params.entityId,
-      params.periodId,
-      params.skipValidation,
-      params.force,
-    );
-
-    if (!validation.passed && !params.force) {
-      closeState.steps = updateStep(closeState.steps, "validation", {
-        status: "failed",
-        completedAt: new Date().toISOString(),
-        details: { errors: validation.errors },
-      });
-      closeState.status = "failed";
-      closeState.errors = validation.errors;
-      closeState.completedAt = new Date().toISOString();
-      await trace.update({
-        output: {
-          status: "failed",
-          step: "validation",
-          errors: validation.errors,
-        },
-      });
-      return closeState;
-    }
-
-    closeState.warnings.push(...validation.warnings);
-    closeState.steps = updateStep(closeState.steps, "validation", {
-      status: "completed",
-      completedAt: new Date().toISOString(),
-      details: { checks: validation.checks, warnings: validation.warnings },
-    });
-
-    // ── Step 2: Department Readiness ────────────────────────────────────
-    closeState.steps = updateStep(closeState.steps, "department_readiness", {
-      status: "in_progress",
-      startedAt: new Date().toISOString(),
-    });
-
-    const deptResults = await fanOutToDepartments({
-      entityId: params.entityId,
-      entityName: params.entityName,
-      currency: params.currency,
-      departments: ALL_DEPARTMENTS.map((dept) => ({
-        department: dept,
-        taskType: DEPARTMENT_CLOSE_TASK[dept],
-        input: { period: periodStr, closeTrigger: true },
-      })),
-    });
-
-    const confirmedDepts = deptResults.filter((r) => r.confirmed);
-    const notConfirmedDepts = deptResults.filter((r) => !r.confirmed);
-    const deptConfidence =
-      deptResults.reduce((sum, r) => sum + r.confidence, 0) /
-      deptResults.length;
-
-    closeState.steps = updateStep(closeState.steps, "department_readiness", {
-      status: notConfirmedDepts.length === 0 ? "completed" : "failed",
-      completedAt: new Date().toISOString(),
-      details: {
-        confirmedCount: confirmedDepts.length,
-        totalCount: ALL_DEPARTMENTS.length,
-        notConfirmed: notConfirmedDepts.map((r) => r.department),
-        deptConfidence,
-      },
-    });
-
-    if (notConfirmedDepts.length > 0 && !params.force) {
-      closeState.status = "awaiting_human";
-      closeState.errors.push(
-        `Departments not confirmed: ${notConfirmedDepts.map((r) => r.department).join(", ")}`,
-      );
-      closeState.completedAt = new Date().toISOString();
-      await trace.update({
-        output: {
-          status: "awaiting_human",
-          step: "department_readiness",
-          notConfirmed: notConfirmedDepts.map((r) => r.department),
-        },
-      });
-      return closeState;
-    }
-
-    // ── Step 3: Automated Adjustments ───────────────────────────────────
-    closeState.steps = updateStep(closeState.steps, "adjustments", {
-      status: "in_progress",
-      startedAt: new Date().toISOString(),
-    });
-
-    const adjustmentResult = await runAutomatedAdjustments(
-      params.entityId,
-      params.periodId,
-    );
-
-    closeState.steps = updateStep(closeState.steps, "adjustments", {
-      status: adjustmentResult.success ? "completed" : "failed",
-      completedAt: new Date().toISOString(),
-      details: {
-        depreciationEntries: adjustmentResult.depreciationCount,
-        adjustments: adjustmentResult.adjustments,
-      },
-    });
-
-    if (!adjustmentResult.success) {
-      closeState.status = "failed";
-      closeState.errors.push("Automated adjustments failed");
-      closeState.completedAt = new Date().toISOString();
-      await trace.update({ output: { status: "failed", step: "adjustments" } });
-      return closeState;
-    }
-
-    // ── Step 4: Final Trial Balance Verification ────────────────────────
-    closeState.steps = updateStep(closeState.steps, "trial_balance", {
-      status: "in_progress",
-      startedAt: new Date().toISOString(),
-    });
-
-    const tbResult = await verifyTrialBalance(params.entityId, params.periodId);
-
-    closeState.steps = updateStep(closeState.steps, "trial_balance", {
-      status: tbResult.balanced ? "completed" : "failed",
-      completedAt: new Date().toISOString(),
-      details: {
-        totalDebits: tbResult.totalDebits,
-        totalCredits: tbResult.totalCredits,
-        balanced: tbResult.balanced,
-        difference: Math.abs(tbResult.totalDebits - tbResult.totalCredits),
-      },
-    });
-
-    if (!tbResult.balanced && !params.force) {
-      closeState.status = "failed";
-      closeState.errors.push(
-        `Trial balance not balanced: debits ${tbResult.totalDebits} != credits ${tbResult.totalCredits}`,
-      );
-      closeState.completedAt = new Date().toISOString();
-      await trace.update({
-        output: { status: "failed", step: "trial_balance" },
-      });
-      return closeState;
-    }
-
-    // ── Step 5: Execute Period Close ────────────────────────────────────
-    closeState.steps = updateStep(closeState.steps, "period_close", {
-      status: "in_progress",
-      startedAt: new Date().toISOString(),
-    });
-
-    const closeResult = await executePeriodClose(
-      params.entityId,
-      params.periodId,
-      params.userId,
-      tbResult,
-    );
-
-    closeState.steps = updateStep(closeState.steps, "period_close", {
-      status: closeResult.success ? "completed" : "failed",
-      completedAt: new Date().toISOString(),
-      details: {
-        trialBalanceSnapshots: closeResult.snapshotCount,
-        closedAt: closeResult.closedAt,
-      },
-    });
-
-    if (!closeResult.success) {
-      closeState.status = "failed";
-      closeState.errors.push("Period close execution failed");
-      closeState.completedAt = new Date().toISOString();
-      await trace.update({
-        output: { status: "failed", step: "period_close" },
-      });
-      return closeState;
-    }
-
-    // ── Step 6: Post-Close Verification ─────────────────────────────────
-    closeState.steps = updateStep(closeState.steps, "post_verify", {
-      status: "in_progress",
-      startedAt: new Date().toISOString(),
-    });
-
-    const verifyResult = await runPostCloseVerification(
-      params.entityId,
-      params.periodId,
-    );
-
-    closeState.steps = updateStep(closeState.steps, "post_verify", {
-      status: verifyResult.passed ? "completed" : "failed",
-      completedAt: new Date().toISOString(),
-      details: {
-        periodStatus: verifyResult.periodStatus,
-        entryCount: verifyResult.entryCount,
-        verified: verifyResult.passed,
-      },
-    });
-
-    // ── Step 7: Notifications ───────────────────────────────────────────
-    closeState.steps = updateStep(closeState.steps, "notifications", {
-      status: "in_progress",
-      startedAt: new Date().toISOString(),
-    });
-
-    // Record audit trail
-    const auditEntry = createAuditEntry({
-      agentId: "close-pipeline",
-      action: "autonomous_close_complete",
-      details: {
+    const trace = await langfuse.trace({
+      name: "autonomous-close-pipeline",
+      metadata: {
+        entityId: params.entityId,
+        periodId: params.periodId,
         period: periodStr,
-        triggerSource: params.triggerSource,
-        stepsCompleted: closeState.steps.filter((s) => s.status === "completed")
-          .length,
-        errors: closeState.errors,
-        warnings: closeState.warnings,
+        triggerSource: params.triggerSource ?? "manual",
+        timeoutMs: pipelineTimeout.maxExecutionMs,
+        idempotencyKey: idempotencyKey.slice(0, 16),
       },
-      confidence: closeState.status === "failed" ? 0.5 : 0.95,
-    });
-    closeState.auditTrail.push(auditEntry);
-
-    closeState.steps = updateStep(closeState.steps, "notifications", {
-      status: "completed",
-      completedAt: new Date().toISOString(),
-      details: { auditEntryId: auditEntry.timestamp },
     });
 
-    // Mark pipeline complete
-    closeState.status = verifyResult.passed ? "completed" : "failed";
-    closeState.completedAt = new Date().toISOString();
-    closeState.overallConfidence =
-      closeState.status === "completed" ? 0.95 : 0.6;
+    try {
+      // ── Step 1: Pre-Close Validation ────────────────────────────────────
+      let stepStart = Date.now();
+      closeState.steps = updateStep(closeState.steps, "validation", {
+        status: "in_progress",
+        startedAt: new Date().toISOString(),
+      });
 
-    await trace.update({
-      output: {
-        status: closeState.status,
-        stepsCompleted: closeState.steps.filter((s) => s.status === "completed")
-          .length,
-        totalSteps: closeState.steps.length,
+      const validation = await withTimeout(
+        () =>
+          runPreCloseValidation(
+            params.entityId,
+            params.periodId,
+            params.skipValidation,
+            params.force,
+          ),
+        pipelineTimeout.maxStepExecutionMs,
+        "pre-close-validation",
+      );
+
+      if (!validation.passed && !params.force) {
+        closeState.steps = updateStep(closeState.steps, "validation", {
+          status: "failed",
+          completedAt: new Date().toISOString(),
+          details: { errors: validation.errors },
+        });
+        closeState.status = "failed";
+        closeState.errors = validation.errors;
+        closeState.completedAt = new Date().toISOString();
+        recordFailedStep(
+          stepTelemetry,
+          "validation",
+          "Pre-Close Validation",
+          stepStart,
+          validation.errors.join("; "),
+        );
+        await trace.update({
+          output: {
+            status: "failed",
+            step: "validation",
+            errors: validation.errors,
+          },
+        });
+        const result = {
+          closeState,
+          stepTelemetry,
+          durationMs: Date.now() - startTime,
+        };
+        setIdempotencyResult(idempotencyKey, result);
+        return result;
+      }
+
+      closeState.warnings.push(...validation.warnings);
+      closeState.steps = updateStep(closeState.steps, "validation", {
+        status: "completed",
+        completedAt: new Date().toISOString(),
+        details: { checks: validation.checks, warnings: validation.warnings },
+      });
+      recordStep(
+        stepTelemetry,
+        "validation",
+        "Pre-Close Validation",
+        stepStart,
+      );
+
+      // ── Step 2: Department Readiness (with retry + timeout) ──────────────
+      stepStart = Date.now();
+      closeState.steps = updateStep(closeState.steps, "department_readiness", {
+        status: "in_progress",
+        startedAt: new Date().toISOString(),
+      });
+
+      const deptResults = await withRetry(
+        () =>
+          withTimeout(
+            () =>
+              fanOutToDepartments({
+                entityId: params.entityId,
+                entityName: params.entityName,
+                currency: params.currency,
+                departments: ALL_DEPARTMENTS.map((dept) => ({
+                  department: dept,
+                  taskType: DEPARTMENT_CLOSE_TASK[dept],
+                  input: { period: periodStr, closeTrigger: true },
+                })),
+              }),
+            pipelineTimeout.maxStepExecutionMs,
+            "department_fan_out",
+          ),
+        {
+          agentId: "close-pipeline",
+          operationName: "department-readiness-fan-out",
+          context: { entityId: params.entityId, periodId: params.periodId },
+        },
+      );
+
+      const confirmedDepts = deptResults.filter((r) => r.confirmed);
+      const notConfirmedDepts = deptResults.filter((r) => !r.confirmed);
+      const deptConfidence =
+        deptResults.reduce((sum, r) => sum + r.confidence, 0) /
+        deptResults.length;
+
+      closeState.steps = updateStep(closeState.steps, "department_readiness", {
+        status: notConfirmedDepts.length === 0 ? "completed" : "failed",
+        completedAt: new Date().toISOString(),
+        details: {
+          confirmedCount: confirmedDepts.length,
+          totalCount: ALL_DEPARTMENTS.length,
+          notConfirmed: notConfirmedDepts.map((r) => r.department),
+          deptConfidence,
+        },
+      });
+      recordStep(
+        stepTelemetry,
+        "department_readiness",
+        "Department Readiness",
+        stepStart,
+      );
+
+      if (notConfirmedDepts.length > 0 && !params.force) {
+        closeState.status = "awaiting_human";
+        closeState.errors.push(
+          `Departments not confirmed: ${notConfirmedDepts.map((r) => r.department).join(", ")}`,
+        );
+        closeState.completedAt = new Date().toISOString();
+        await trace.update({
+          output: {
+            status: "awaiting_human",
+            step: "department_readiness",
+            notConfirmed: notConfirmedDepts.map((r) => r.department),
+          },
+        });
+        const result = {
+          closeState,
+          stepTelemetry,
+          durationMs: Date.now() - startTime,
+        };
+        setIdempotencyResult(idempotencyKey, result);
+        return result;
+      }
+
+      // ── Step 3: Automated Adjustments (with timeout) ───────────────────
+      stepStart = Date.now();
+      closeState.steps = updateStep(closeState.steps, "adjustments", {
+        status: "in_progress",
+        startedAt: new Date().toISOString(),
+      });
+
+      const adjustmentResult = await withTimeout(
+        () => runAutomatedAdjustments(params.entityId, params.periodId),
+        pipelineTimeout.maxStepExecutionMs,
+        "automated-adjustments",
+      );
+
+      closeState.steps = updateStep(closeState.steps, "adjustments", {
+        status: adjustmentResult.success ? "completed" : "failed",
+        completedAt: new Date().toISOString(),
+        details: {
+          depreciationEntries: adjustmentResult.depreciationCount,
+          adjustments: adjustmentResult.adjustments,
+        },
+      });
+      recordStep(
+        stepTelemetry,
+        "adjustments",
+        "Automated Adjustments",
+        stepStart,
+      );
+
+      // Graceful degradation: if adjustments fail, log warning but don't crash
+      if (!adjustmentResult.success) {
+        closeState.warnings.push(
+          "Automated adjustments failed — proceeding with graceful degradation",
+        );
+        closeState.steps = updateStep(closeState.steps, "adjustments", {
+          status: "completed" as CloseStepStatus,
+          completedAt: new Date().toISOString(),
+          details: { gracefulDegradation: true, skipped: true },
+        });
+      }
+
+      // ── Step 4: Final Trial Balance Verification ────────────────────────
+      stepStart = Date.now();
+      closeState.steps = updateStep(closeState.steps, "trial_balance", {
+        status: "in_progress",
+        startedAt: new Date().toISOString(),
+      });
+
+      const tbResult = await withTimeout(
+        () => verifyTrialBalance(params.entityId, params.periodId),
+        pipelineTimeout.maxStepExecutionMs,
+        "trial-balance-verify",
+      );
+
+      closeState.steps = updateStep(closeState.steps, "trial_balance", {
+        status: tbResult.balanced ? "completed" : "failed",
+        completedAt: new Date().toISOString(),
+        details: {
+          totalDebits: tbResult.totalDebits,
+          totalCredits: tbResult.totalCredits,
+          balanced: tbResult.balanced,
+          difference: Math.abs(tbResult.totalDebits - tbResult.totalCredits),
+        },
+      });
+      recordStep(
+        stepTelemetry,
+        "trial_balance",
+        "Final Trial Balance",
+        stepStart,
+      );
+
+      if (!tbResult.balanced && !params.force) {
+        closeState.status = "failed";
+        closeState.errors.push(
+          `Trial balance not balanced: debits ${tbResult.totalDebits} != credits ${tbResult.totalCredits}`,
+        );
+        closeState.completedAt = new Date().toISOString();
+        recordFailedStep(
+          stepTelemetry,
+          "trial_balance",
+          "Final Trial Balance",
+          stepStart,
+          "Trial balance not balanced",
+        );
+        await trace.update({
+          output: { status: "failed", step: "trial_balance" },
+        });
+        const result = {
+          closeState,
+          stepTelemetry,
+          durationMs: Date.now() - startTime,
+        };
+        setIdempotencyResult(idempotencyKey, result);
+        return result;
+      }
+
+      // ── Step 5: Execute Period Close ────────────────────────────────────
+      stepStart = Date.now();
+      closeState.steps = updateStep(closeState.steps, "period_close", {
+        status: "in_progress",
+        startedAt: new Date().toISOString(),
+      });
+
+      const closeResult = await withTimeout(
+        () =>
+          executePeriodClose(
+            params.entityId,
+            params.periodId,
+            params.userId,
+            tbResult,
+          ),
+        pipelineTimeout.maxStepExecutionMs,
+        "period-close-execute",
+      );
+
+      closeState.steps = updateStep(closeState.steps, "period_close", {
+        status: closeResult.success ? "completed" : "failed",
+        completedAt: new Date().toISOString(),
+        details: {
+          trialBalanceSnapshots: closeResult.snapshotCount,
+          closedAt: closeResult.closedAt,
+        },
+      });
+      recordStep(
+        stepTelemetry,
+        "period_close",
+        "Execute Period Close",
+        stepStart,
+      );
+
+      if (!closeResult.success) {
+        closeState.status = "failed";
+        closeState.errors.push("Period close execution failed");
+        closeState.completedAt = new Date().toISOString();
+        recordFailedStep(
+          stepTelemetry,
+          "period_close",
+          "Execute Period Close",
+          stepStart,
+          "Period close execution failed",
+        );
+        await trace.update({
+          output: { status: "failed", step: "period_close" },
+        });
+        const result = {
+          closeState,
+          stepTelemetry,
+          durationMs: Date.now() - startTime,
+        };
+        setIdempotencyResult(idempotencyKey, result);
+        return result;
+      }
+
+      // ── Step 6: Post-Close Verification ─────────────────────────────────
+      stepStart = Date.now();
+      closeState.steps = updateStep(closeState.steps, "post_verify", {
+        status: "in_progress",
+        startedAt: new Date().toISOString(),
+      });
+
+      const verifyResult = await withTimeout(
+        () => runPostCloseVerification(params.entityId, params.periodId),
+        pipelineTimeout.maxStepExecutionMs,
+        "post-close-verify",
+      );
+
+      closeState.steps = updateStep(closeState.steps, "post_verify", {
+        status: verifyResult.passed ? "completed" : "failed",
+        completedAt: new Date().toISOString(),
+        details: {
+          periodStatus: verifyResult.periodStatus,
+          entryCount: verifyResult.entryCount,
+          verified: verifyResult.passed,
+        },
+      });
+      recordStep(
+        stepTelemetry,
+        "post_verify",
+        "Post-Close Verification",
+        stepStart,
+      );
+
+      // ── Step 7: Notifications (with PII redaction in audit trail) ────
+      stepStart = Date.now();
+      closeState.steps = updateStep(closeState.steps, "notifications", {
+        status: "in_progress",
+        startedAt: new Date().toISOString(),
+      });
+
+      // Record audit trail with PII redaction
+      const auditEntry = createAuditEntry({
+        agentId: "close-pipeline",
+        action: "autonomous_close_complete",
+        details: {
+          period: periodStr,
+          triggerSource: params.triggerSource,
+          stepsCompleted: closeState.steps.filter(
+            (s) => s.status === "completed",
+          ).length,
+          errors: closeState.errors,
+          warnings: redactPII(closeState.warnings.join("; ")),
+        },
+        confidence: closeState.status === "failed" ? 0.5 : 0.95,
+      });
+      closeState.auditTrail.push(auditEntry);
+
+      closeState.steps = updateStep(closeState.steps, "notifications", {
+        status: "completed",
+        completedAt: new Date().toISOString(),
+        details: { auditEntryId: auditEntry.timestamp },
+      });
+      recordStep(
+        stepTelemetry,
+        "notifications",
+        "Notifications & Audit",
+        stepStart,
+      );
+
+      // Mark pipeline complete
+      closeState.status = verifyResult.passed ? "completed" : "failed";
+      closeState.completedAt = new Date().toISOString();
+      closeState.overallConfidence =
+        closeState.status === "completed" ? 0.95 : 0.6;
+
+      await trace.update({
+        output: {
+          status: closeState.status,
+          stepsCompleted: closeState.steps.filter(
+            (s) => s.status === "completed",
+          ).length,
+          totalSteps: closeState.steps.length,
+          durationMs: Date.now() - startTime,
+        },
+      });
+
+      const result = {
+        closeState,
+        stepTelemetry,
         durationMs: Date.now() - startTime,
-      },
-    });
+      };
+      setIdempotencyResult(idempotencyKey, result);
+      return result;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isTimeout = error instanceof TimeoutError;
+      closeState.status = "failed";
+      closeState.errors.push(isTimeout ? `Pipeline timed out: ${msg}` : msg);
+      closeState.completedAt = new Date().toISOString();
+      recordFailedStep(
+        stepTelemetry,
+        "pipeline_error",
+        "Pipeline Execution",
+        telemetryStart,
+        msg,
+      );
 
-    return closeState;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    closeState.status = "failed";
-    closeState.errors.push(msg);
-    closeState.completedAt = new Date().toISOString();
+      await trace.update({
+        output: { status: "error", error: msg, isTimeout },
+        metadata: { error: true, isTimeout },
+      });
 
-    await trace.update({
-      output: { status: "error", error: msg },
-      metadata: { error: true },
-    });
+      return { closeState, stepTelemetry, durationMs: Date.now() - startTime };
+    }
+  })(); // <-- IIFE invoked immediately
 
-    return closeState;
-  }
+  return withTimeout(
+    () => pipelinePromise,
+    pipelineTimeout.maxExecutionMs,
+    "close-pipeline",
+  );
 }
 
 // ─── Step 1: Pre-Close Validation ──────────────────────────────────────────

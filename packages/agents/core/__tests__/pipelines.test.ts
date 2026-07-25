@@ -969,7 +969,7 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
 
   it("should execute close pipeline successfully", async () => {
     const { executeClosePipeline } = await import("../close-pipeline");
-    const result = await executeClosePipeline({
+    const { closeState } = await executeClosePipeline({
       entityId: "entity-1",
       entityName: "Test Entity",
       currency: "GMD",
@@ -977,9 +977,9 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
       userId: "user-1",
     });
 
-    expect(result.status).toBe("completed");
-    expect(result.overallConfidence).toBeGreaterThan(0.9);
-    expect(result.completedAt).toBeDefined();
+    expect(closeState.status).toBe("completed");
+    expect(closeState.overallConfidence).toBeGreaterThan(0.9);
+    expect(closeState.completedAt).toBeDefined();
   });
 
   it("should fail validation for already closed period", async () => {
@@ -995,7 +995,7 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
     });
 
     const { executeClosePipeline } = await import("../close-pipeline");
-    const result = await executeClosePipeline({
+    const { closeState } = await executeClosePipeline({
       entityId: "entity-1",
       entityName: "Test",
       currency: "GMD",
@@ -1003,8 +1003,8 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
       userId: "user-1",
     });
 
-    expect(result.status).toBe("failed");
-    expect(result.errors.length).toBeGreaterThan(0);
+    expect(closeState.status).toBe("failed");
+    expect(closeState.errors.length).toBeGreaterThan(0);
   });
 
   it("should report close status correctly", async () => {
@@ -1021,7 +1021,7 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
     db.query.fiscalPeriods.findFirst.mockResolvedValue(null);
 
     const { executeClosePipeline } = await import("../close-pipeline");
-    const result = await executeClosePipeline({
+    const { closeState } = await executeClosePipeline({
       entityId: "entity-1",
       entityName: "Test",
       currency: "GMD",
@@ -1029,7 +1029,7 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
       userId: "user-1",
     });
 
-    expect(result.status).toBe("failed");
+    expect(closeState.status).toBe("failed");
   });
 
   // ────────────────────────────────────────────────────────────────────────────

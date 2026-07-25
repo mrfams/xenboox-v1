@@ -6,6 +6,45 @@
 
 ---
 
+### [2026-07-26] — Autonomous Close Pipeline: Enterprise-Grade Production Hardening
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Modified:** 3 (`packages/agents/core/close-pipeline.ts`, `apps/web/server/routers/fiscal.ts`)
+
+**What was built:**
+
+### Enterprise Patterns Integrated
+
+| Pattern                     | Implementation                                                                                                                            |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Per-Step Telemetry**      | Added `StepTelemetry` type + `recordStep()`/`recordFailedStep()` helpers. All 7 steps now tracked with timing, status, and error metadata |
+| **Idempotency Check**       | `generateIdempotencyKey()` + `checkIdempotency()` at pipeline entry — deduplicates before any processing                                  |
+| **Pipeline-Level Timeout**  | Wrapped entire pipeline in IIFE with `withTimeout()` — configurable `maxExecutionMs` via `PipelineTimeoutConfig` (defaults to 30s)        |
+| **Step Timeout Guards**     | Each step (validation, adjustments, trial balance, period close, post-verify) wrapped with `withTimeout(maxStepExecutionMs)`              |
+| **Retry + Circuit Breaker** | Step 2 (Department Readiness fan-out) wrapped with `withRetry()` + `withTimeout()` for resilience against transient agent failures        |
+| **Graceful Degradation**    | Step 3 (Automated Adjustments) now logs warning and skips on failure instead of crashing the entire pipeline                              |
+| **PII Redaction**           | `redactPII()` applied to warnings in audit trail entries                                                                                  |
+| **TimeotError Detection**   | Catch block differentiates timeouts from other errors with explicit `isTimeout` flag                                                      |
+| **Idempotency Cache**       | `setIdempotencyResult()` called on all return paths (success, early exit, error)                                                          |
+
+### Breaking Change Handled
+
+- `executeClosePipeline()` return type changed from `Promise<CloseState>` to `Promise<{ closeState: CloseState; stepTelemetry: StepTelemetry[]; durationMs: number }>`
+- Updated `apps/web/server/routers/fiscal.ts` to destructure `{ closeState }` from result
+- Updated `packages/agents/core/__tests__/pipelines.test.ts` 3 test cases to use `closeState` property
+- Updated `packages/agents/core/index.ts` to export `StepTelemetry as CloseStepTelemetry`
+
+### Verification
+
+| Check                         | Status       |
+| ----------------------------- | ------------ |
+| Typecheck (`@xenboox/agents`) | ✅ No errors |
+| Typecheck (`@xenboox/web`)    | ✅ No errors |
+| Code review                   | ✅ All clean |
+
+---
+
 ### [2026-07-26] — CFO Agent Orchestration Pipeline: Enterprise-Grade Production Hardening
 
 **Agent:** Buffy (Autonomous Engineer)

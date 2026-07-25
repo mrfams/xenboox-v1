@@ -243,6 +243,7 @@ export type {
   CloseStepId,
   CloseStepStatus,
   CloseTriggerSource,
+  StepTelemetry as CloseStepTelemetry,
   // Enhanced types
   CloseSessionStatus,
   CloseConfirmation,

@@ -401,7 +401,7 @@ export const fiscalRouter = router({
           where: eq(entities.id, ctx.entityId!),
         });
 
-        const result = await executeClosePipeline({
+        const { closeState } = await executeClosePipeline({
           entityId: ctx.entityId!,
           entityName: entity?.name ?? "Organization",
           currency: entity?.currency ?? "GMD",
@@ -419,19 +419,20 @@ export const fiscalRouter = router({
           entityIdRef: input.periodId,
           newValues: {
             triggerSource: input.triggerSource,
-            status: result.status,
-            stepsCompleted: result.steps.filter((s) => s.status === "completed")
-              .length,
-            errors: result.errors,
+            status: closeState.status,
+            stepsCompleted: closeState.steps.filter(
+              (s) => s.status === "completed",
+            ).length,
+            errors: closeState.errors,
           },
         });
 
         return {
-          status: result.status,
-          steps: result.steps,
-          errors: result.errors,
-          warnings: result.warnings,
-          overallConfidence: result.overallConfidence,
+          status: closeState.status,
+          steps: closeState.steps,
+          errors: closeState.errors,
+          warnings: closeState.warnings,
+          overallConfidence: closeState.overallConfidence,
         };
       } catch (error) {
         handleMutationError(error, "Failed to initiate close pipeline");
