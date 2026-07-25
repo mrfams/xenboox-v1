@@ -34,3 +34,4 @@ export * from "./inventory-pipeline";
 export * from "./consolidation";
 export * from "./firm";
 export * from "./jurisdiction";
+export * from "./api-platform";
