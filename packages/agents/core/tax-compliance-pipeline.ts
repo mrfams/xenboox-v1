@@ -775,6 +775,9 @@ export async function executeTaxCompliancePipeline(params: {
     );
     result.filingDeadlines = deadlines;
 
+    // Persist filing deadlines to the DB table so the frontend can query them
+    await saveFilingDeadlines(params.entityId, deadlines);
+
     result.steps = updateStep(result.steps, "filing_deadline_calendar", {
       status: "completed",
       completedAt: new Date().toISOString(),
@@ -1412,11 +1415,11 @@ function generateFormatExports(
   const [year, month] = period.split("-");
 
   for (const jur of jurisdictions) {
-    // VAT return export
+    // VAT return export (JSON + CSV)
     if (result.vatCalculation) {
       exports.push({
         jurisdiction: jur,
-        format: `json`,
+        format: "json",
         packageType: "vat_calculation",
         fileName: `${jur}_VAT_Return_${period}.json`,
         content: {
@@ -1432,9 +1435,20 @@ function generateFormatExports(
         },
         exportedAt: now,
       });
+
+      exports.push({
+        jurisdiction: jur,
+        format: "csv",
+        packageType: "vat_calculation",
+        fileName: `${jur}_VAT_Return_${period}.csv`,
+        content: {
+          raw: `Period,Entity,VAT Rate,Output VAT,Input VAT,Net Position,Payable,Jurisdiction\n${period},${entityName},${(JURISDICTION_CONFIGS[jur]?.vatRate ?? 0) * 100}%,${result.vatCalculation.outputVat},${result.vatCalculation.inputVat},${result.vatCalculation.netPosition},${result.vatCalculation.isPayable},${jur}\n`,
+        },
+        exportedAt: now,
+      });
     }
 
-    // PAYE filing export
+    // PAYE filing export (JSON + CSV)
     if (result.payeFiling) {
       exports.push({
         jurisdiction: jur,
@@ -1454,9 +1468,20 @@ function generateFormatExports(
         },
         exportedAt: now,
       });
+
+      exports.push({
+        jurisdiction: jur,
+        format: "csv",
+        packageType: "paye_filing_prep",
+        fileName: `${jur}_PAYE_Filing_${period}.csv`,
+        content: {
+          raw: `Period,Entity,Employees,Gross Pay,PAYE Deducted,Social Security,Filing Deadline,Jurisdiction\n${period},${entityName},${result.payeFiling.employeeCount},${result.payeFiling.totalGrossPay},${result.payeFiling.totalPaye},${result.payeFiling.totalSocialSecurity},${result.payeFiling.filingDeadline},${jur}\n`,
+        },
+        exportedAt: now,
+      });
     }
 
-    // Withholding tax export
+    // Withholding tax export (JSON + CSV)
     if (result.withholdingSummary && result.withholdingSummary.count > 0) {
       exports.push({
         jurisdiction: jur,
@@ -1480,9 +1505,27 @@ function generateFormatExports(
         },
         exportedAt: now,
       });
+
+      // CSV with per-record detail
+      const csvRows = result.withholdingSummary.withholdingRecords
+        .map(
+          (r) =>
+            `${r.payeeName},${r.payeeType},${r.amount},${r.rate * 100}%,${r.taxWithheld}`,
+        )
+        .join("\n");
+      exports.push({
+        jurisdiction: jur,
+        format: "csv",
+        packageType: "withholding_tax",
+        fileName: `${jur}_WHT_Return_${period}.csv`,
+        content: {
+          raw: `Payee,Type,Amount,Rate,Tax Withheld\n${csvRows}\n`,
+        },
+        exportedAt: now,
+      });
     }
 
-    // Corporate tax export (annual only)
+    // Corporate tax export (annual only — JSON + CSV)
     if (result.corporateTax) {
       exports.push({
         jurisdiction: jur,
@@ -1504,10 +1547,49 @@ function generateFormatExports(
         },
         exportedAt: now,
       });
+
+      exports.push({
+        jurisdiction: jur,
+        format: "csv",
+        packageType: "corporate_tax_package",
+        fileName: `${jur}_Corporate_Tax_${year}.csv`,
+        content: {
+          raw: `Fiscal Year,Entity,Revenue,Cost of Sales,Gross Profit,OpEx,Net Profit,Tax Liability,Tax Rate,Jurisdiction\n${year},${entityName},${result.corporateTax.grossRevenue},${result.corporateTax.costOfSales},${result.corporateTax.grossProfit},${result.corporateTax.operatingExpenses},${result.corporateTax.netProfitBeforeTax},${result.corporateTax.estimatedTaxLiability},${result.corporateTax.taxRate * 100}%,${jur}\n`,
+        },
+        exportedAt: now,
+      });
     }
   }
 
   return exports;
+}
+
+// ─── Persist Filing Deadlines to DB ──────────────────────────────────────
+//
+// Saves generated filing deadlines to the filingDeadlines table so the
+// frontend's listFilingDeadlines endpoint has data to serve.
+
+async function saveFilingDeadlines(
+  entityId: string,
+  deadlines: FilingDeadlineItem[],
+): Promise<void> {
+  for (const dl of deadlines) {
+    try {
+      // Omit id — let Drizzle auto-generate UUID from uuidId()
+      await db.insert(filingDeadlines).values({
+        entityId,
+        jurisdiction: dl.jurisdiction,
+        filingType: dl.filingType,
+        name: dl.name,
+        dueDate: dl.dueDate,
+        period: dl.period,
+        estimatedAmount: dl.estimatedAmount ? String(dl.estimatedAmount) : null,
+        status: dl.status === "overdue" ? "overdue" : "pending",
+      });
+    } catch {
+      // Individual deadline persistence failure should not crash the pipeline
+    }
+  }
 }
 
 // ─── Step 8: Filing Deadline Calendar ────────────────────────────────────
@@ -1616,7 +1698,7 @@ function detectRegulatoryRisks(
       risks.push({
         id: "risk-vat-refund",
         type: "audit_flag",
-        jurisdiction: "GM",
+        jurisdiction: deadlines.length > 0 ? deadlines[0]!.jurisdiction : "GM",
         description: `Large VAT refund position: ${netPosition.toLocaleString()} — may trigger audit`,
         severity: "medium",
         autoEscalated: true,
@@ -1629,10 +1711,13 @@ function detectRegulatoryRisks(
   if (result.payeFiling) {
     const deadlineDate = new Date(result.payeFiling.filingDeadline);
     if (deadlineDate < now) {
+      // Determine actual jurisdiction from filing deadlines or use a reasonable default
+      const payeJurisdiction: Jurisdiction =
+        deadlines.find((d) => d.filingType === "paye")?.jurisdiction ?? "GM";
       risks.push({
         id: "risk-paye-deadline",
         type: "deadline_missed",
-        jurisdiction: "GM",
+        jurisdiction: payeJurisdiction,
         description: `PAYE filing deadline passed: ${result.payeFiling.filingDeadline} — penalties may apply`,
         severity: "high",
         autoEscalated: true,
@@ -1718,6 +1803,18 @@ function finalizeResult(
     completedAt: new Date().toISOString(),
   };
 }
+
+// ─── Exported Helpers for Testing ────────────────────────────────────────────
+//
+// These functions are exported for unit testing purposes. They are also used
+// internally by the pipeline orchestrator.
+
+export {
+  performComplianceReview,
+  detectRegulatoryRisks,
+  detectTaxRuleChanges,
+  generateFormatExports,
+};
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

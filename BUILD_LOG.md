@@ -6,6 +6,71 @@
 
 ---
 
+### [2026-07-26] — Tax & Compliance Pipeline Enhancement (Phase 2)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Modified:** 2
+**Files Created:** 1
+
+**What was built:**
+
+### Critical Bug Fixes
+
+**Filing deadlines now persist to DB:**
+
+- Added `saveFilingDeadlines()` function called from the main orchestrator after `generateFilingDeadlines()` completes
+- Fixes a silent bug where the filing deadline calendar was always empty — deadlines were generated in-memory but never saved to the `filingDeadlines` DB table
+- Uses Drizzle auto-generated UUIDs (omits `id` field) to avoid invalid UUID strings
+
+**Fixed hardcoded "GM" jurisdiction in regulatory risk detection:**
+
+- VAT refund risk: now uses `deadlines[0]!.jurisdiction` instead of hardcoded `"GM"`
+- PAYE deadline risk: resolves actual jurisdiction from deadlines where `filingType === 'paye'`
+
+### Enhancements
+
+**CSV format exports added alongside JSON:**
+
+- All 4 export types (VAT return, PAYE filing, withholding tax, corporate tax) now produce CSV with proper headers
+- Practical for firms needing to import tax data into other filing software
+
+**Private functions exported for testing:**
+
+- Exported `performComplianceReview`, `detectRegulatoryRisks`, `detectTaxRuleChanges`, `generateFormatExports`
+
+### Test Coverage
+
+**NEW:** `packages/agents/core/__tests__/tax-compliance-pipeline.test.ts` — 43 tests covering all 11 pipeline steps:
+
+| Step                          | Coverage                                                                    |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| 1. Jurisdiction Rule Registry | 3 tests (default configs, persisted rules, empty)                           |
+| 2. VAT Calculation Engine     | 4 tests (input/output/net, persistence, empty period)                       |
+| 3. Withholding Tax            | 2 tests (calculation, skip when no AP)                                      |
+| 4. PAYE Filing Prep           | 2 tests (skip when no payroll, with payroll)                                |
+| 5. Corporate Tax              | 3 tests (skip non-year-end, explicit request, year-end)                     |
+| 6. Confidence Gate            | 2 tests (high confidence, mandatory review flag)                            |
+| 7. Format Export + CSV        | 3 tests (JSON exists, CSV exists, naming convention)                        |
+| 8. Filing Deadlines           | 4 tests (multi-jurisdiction, overdue check, DB persistence, quarterly)      |
+| 9. Regulatory Risk            | 4 tests (overdue detection, always-escalate rule, jurisdiction, standalone) |
+| 10. Tax Rule Update           | 3 tests (no proposals, simulate, never auto-applied)                        |
+| 11. Tax Position Summary      | 2 tests (audit trail, completion)                                           |
+| End-to-End                    | 4 tests (11 steps, error handling, timing, specified jurisdictions)         |
+| Status Query                  | 2 tests (with data, empty)                                                  |
+| Compliance Gate               | 2 tests (confidence lowering, escalation)                                   |
+
+### Verification
+
+| Check                         | Status                                             |
+| ----------------------------- | -------------------------------------------------- |
+| Typecheck (`@xenboox/agents`) | ✅ No errors                                       |
+| Typecheck (`@xenboox/web`)    | ✅ No errors                                       |
+| Code review (round 1)         | ✅ 2 critical issues found (UUID, exports) — fixed |
+| Code review (round 2)         | ✅ All fixes verified correct                      |
+
+---
+
 ### [2026-07-25] — Benchmarking & Consent Architecture Pipeline (Phase 3)
 
 **Agent:** Buffy (Autonomous Engineer)
