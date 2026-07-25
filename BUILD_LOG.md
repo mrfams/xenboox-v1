@@ -6,6 +6,38 @@
 
 ---
 
+### [2026-07-26] — Financial Reporting Pipeline: Enterprise-Grade Production Hardening
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~20 min
+**Files Modified:** 1 (`packages/agents/core/reporting-pipeline.ts`)
+
+**What was built:**
+
+### Enterprise Patterns Integrated
+
+| Pattern                     | Implementation                                                                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Idempotency Check**       | `generateIdempotencyKey()` + `checkIdempotency()` at pipeline entry — prevents duplicate report generation for the same entity/period               |
+| **Pipeline-Level Timeout**  | Wrapped entire pipeline in IIFE with `withTimeout()` — configurable `maxExecutionMs` via `PipelineTimeoutConfig` (defaults to 30s)                  |
+| **Retry + Circuit Breaker** | Steps 2 (Ledger Snapshot) and 9-10 (Statement Versioning) wrapped with `withRetry()` + `withTimeout()` for resilience against transient DB failures |
+| **Step Timeout Guards**     | Steps 1 (Detect Periods), 2 (Ledger Snapshot), 3-4 (Balance Gate), and 9-10 (Versioning) all wrapped with `withTimeout(maxStepExecutionMs)`         |
+| **Per-Step Telemetry**      | 9 phases tracked: Detect Periods, Ledger Snapshot, Balance Gate, Assemble Statements, Versioning, Audit Trail                                       |
+| **PII Redaction**           | `redactPIIFromObject()` applied to all audit entry details and trace output before logging                                                          |
+| **TimeoutError Detection**  | Catch block differentiates timeouts from other errors with explicit `isTimeout` flag                                                                |
+| **Graceful Degradation**    | No-op result for no reportable periods, blocked result for unbalanced ledger, error result for pipeline failure                                     |
+| **LangFuse Telemetry**      | Trace creation with metadata, trace update on completion, event on pipeline-complete                                                                |
+
+### Verification
+
+| Check                         | Status                           |
+| ----------------------------- | -------------------------------- |
+| Typecheck (`@xenboox/agents`) | ✅ No errors                     |
+| Typecheck (`@xenboox/web`)    | ✅ No errors                     |
+| Code review                   | ✅ All patterns verified correct |
+
+---
+
 ### [2026-07-26] — Autonomous Cash & Imprest Pipeline: Enterprise-Grade Production Hardening
 
 **Agent:** Buffy (Autonomous Engineer)

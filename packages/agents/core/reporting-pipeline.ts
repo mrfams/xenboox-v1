@@ -32,6 +32,18 @@ import {
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
+import {
+  withRetry,
+  withTimeout,
+  redactPIIFromObject,
+  checkIdempotency,
+  setIdempotencyResult,
+  generateIdempotencyKey,
+  startCacheCleanup,
+  TimeoutError,
+  DEFAULT_PIPELINE_TIMEOUT,
+} from "./retry";
+import type { PipelineTimeoutConfig } from "./retry";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -727,242 +739,451 @@ export async function detectReportablePeriods(
   return result;
 }
 
+// ─── Per-Step Telemetry ─────────────────────────────────────────────────────
+
+export interface StepTelemetry {
+  step: string;
+  label: string;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  status: "completed" | "skipped" | "failed";
+  metadata?: Record<string, unknown>;
+}
+
+function recordStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+): StepTelemetry {
+  const durationMs = Date.now() - startedAt;
+  const entry: StepTelemetry = {
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs,
+    status: "completed",
+  };
+  telemetry.push(entry);
+  return entry;
+}
+
+function recordFailedStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+  error?: string,
+): void {
+  telemetry.push({
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    status: "failed",
+    metadata: error ? { error } : undefined,
+  });
+}
+
 // ─── Main Pipeline Entry Point ─────────────────────────────────────────
 
-export async function runReportingPipeline(params: {
-  entityId: string;
-  entityName: string;
-  currency: string;
-  periodId?: string;
-}): Promise<ReportingPipelineResult> {
+export async function runReportingPipeline(
+  params: {
+    entityId: string;
+    entityName: string;
+    currency: string;
+    periodId?: string;
+  },
+  timeoutConfig?: Partial<PipelineTimeoutConfig>,
+): Promise<ReportingPipelineResult> {
   const startTime = Date.now();
-  const trace = await langfuse.trace({
-    name: "reporting-pipeline",
-    metadata: { entityId: params.entityId, periodId: params.periodId },
+  const pipelineTimeout: PipelineTimeoutConfig = {
+    ...DEFAULT_PIPELINE_TIMEOUT,
+    ...timeoutConfig,
+  };
+  const stepTelemetry: StepTelemetry[] = [];
+  const telemetryStart = Date.now();
+
+  // ── Enterprise: Idempotency Check ─────────────────────────────────────
+  const idempotencyKey = generateIdempotencyKey({
+    channel: "reporting-pipeline",
+    userId: "system",
+    entityId: params.entityId,
+    rawContent: `reporting:${params.entityId}:${params.periodId ?? "latest"}`,
+    sessionId: `report-${params.entityId}`,
   });
+  const cachedResult = checkIdempotency(idempotencyKey);
+  if (cachedResult) {
+    const cached = cachedResult as ReportingPipelineResult;
+    return { ...cached, durationMs: Date.now() - startTime };
+  }
 
-  const auditEntries: AuditEntry[] = [];
+  startCacheCleanup();
 
-  try {
-    // Step 1 (original): Detect period
-    const periods = await detectReportablePeriods(params.entityId);
-    const targetPeriod = params.periodId
-      ? periods.find((p) => p.periodId === params.periodId)
-      : (periods[0] ?? null);
+  // ── Enterprise: Pipeline-Level Timeout ───────────────────────────────
+  const pipelinePromise = (async () => {
+    const trace = await langfuse.trace({
+      name: "reporting-pipeline",
+      metadata: {
+        entityId: params.entityId,
+        periodId: params.periodId,
+        timeoutMs: pipelineTimeout.maxExecutionMs,
+        idempotencyKey: idempotencyKey.slice(0, 16),
+      },
+    });
 
-    if (!targetPeriod) {
+    const auditEntries: AuditEntry[] = [];
+
+    try {
+      // ── Step 1: Detect Reportable Periods ─────────────────────────────
+      let stepStart = Date.now();
+      const periods = await withTimeout(
+        () => detectReportablePeriods(params.entityId),
+        pipelineTimeout.maxStepExecutionMs,
+        "detect-periods",
+      );
+
+      const targetPeriod = params.periodId
+        ? periods.find((p) => p.periodId === params.periodId)
+        : (periods[0] ?? null);
+
+      if (!targetPeriod) {
+        const audit = createAuditEntry({
+          agentId: "reporting-pipeline",
+          action: "no_reportable_periods",
+          details: redactPIIFromObject({ entityId: params.entityId }),
+          confidence: 1,
+        });
+        recordStep(
+          stepTelemetry,
+          "detect_periods",
+          "Detect Reportable Periods",
+          stepStart,
+        );
+        const noOpResult: ReportingPipelineResult = {
+          success: true,
+          periodProcessed: params.periodId ?? "none",
+          report: null,
+          narrative: "No reportable periods found — no posted entries exist.",
+          confidence: 1,
+          dataComplete: false,
+          balanced: true,
+          escalated: false,
+          escalationReason: null,
+          isDraft: false,
+          snapshotId: null,
+          versionId: null,
+          auditEntries: [audit],
+          durationMs: Date.now() - startTime,
+        };
+        setIdempotencyResult(idempotencyKey, noOpResult);
+        return noOpResult;
+      }
+      recordStep(
+        stepTelemetry,
+        "detect_periods",
+        "Detect Reportable Periods",
+        stepStart,
+      );
+
+      // ── Step 2: Take Ledger Snapshot (with retry) ────────────────────
+      stepStart = Date.now();
+      const snapshot = await withRetry(
+        () =>
+          withTimeout(
+            () => takeLedgerSnapshot(params.entityId, targetPeriod),
+            pipelineTimeout.maxStepExecutionMs,
+            "take-ledger-snapshot",
+          ),
+        {
+          agentId: "reporting-pipeline",
+          operationName: "take-ledger-snapshot",
+          context: {
+            entityId: params.entityId,
+            periodId: targetPeriod.periodId,
+          },
+        },
+      );
+
+      auditEntries.push(
+        createAuditEntry({
+          agentId: "reporting-pipeline",
+          action: "ledger_snapshot_taken",
+          details: redactPIIFromObject({
+            snapshotId: snapshot.snapshotId,
+            periodLabel: snapshot.periodLabel,
+            balanced: snapshot.trialBalanceBalanced,
+            totalDebits: snapshot.totalDebits,
+            totalCredits: snapshot.totalCredits,
+            accountCount: snapshot.accountBalances.length,
+            entryCount: snapshot.entryCount,
+          }),
+          confidence: snapshot.trialBalanceBalanced ? 0.95 : 0.5,
+        }),
+      );
+      recordStep(
+        stepTelemetry,
+        "ledger_snapshot",
+        "Take Ledger Snapshot",
+        stepStart,
+      );
+
+      // ── Step 3-4: Hard Gate — Balance Check ──────────────────────────
+      stepStart = Date.now();
+      const gateResult = evaluateReportGate(snapshot);
+      if (!gateResult.canProceed) {
+        const audit = createAuditEntry({
+          agentId: "reporting-pipeline",
+          action: "report_blocked_unbalanced",
+          details: redactPIIFromObject({
+            snapshotId: snapshot.snapshotId,
+            reason: gateResult.reason,
+          }),
+          confidence: 0,
+        });
+        auditEntries.push(audit);
+        recordFailedStep(
+          stepTelemetry,
+          "balance_gate",
+          "Balance Check Gate",
+          stepStart,
+          gateResult.reason,
+        );
+        const blockedResult: ReportingPipelineResult = {
+          success: false,
+          periodProcessed: targetPeriod.periodLabel,
+          report: null,
+          narrative: gateResult.reason ?? null,
+          confidence: 0,
+          dataComplete: false,
+          balanced: false,
+          escalated: true,
+          escalationReason: gateResult.reason ?? null,
+          snapshotId: snapshot.snapshotId,
+          versionId: null,
+          isDraft: targetPeriod.status !== "closed",
+          auditEntries,
+          durationMs: Date.now() - startTime,
+        };
+        setIdempotencyResult(idempotencyKey, blockedResult);
+        return blockedResult;
+      }
+      recordStep(
+        stepTelemetry,
+        "balance_gate",
+        "Balance Check Gate",
+        stepStart,
+      );
+
+      // ── Step 3: Assemble Statements (sync — fast, no timeout needed) ─
+      stepStart = Date.now();
+      const pnl = buildProfitAndLoss(snapshot);
+      const bs = buildBalanceSheet(snapshot);
+      const cf = buildCashFlow(snapshot);
+      const fxImpact = calculateFxImpact(snapshot);
+
+      const report: ReportData = {
+        periodId: targetPeriod.periodId,
+        periodLabel: targetPeriod.periodLabel,
+        profitAndLoss: pnl,
+        balanceSheet: bs,
+        cashFlow: cf,
+        trialBalanceBalanced: snapshot.trialBalanceBalanced,
+        trialBalanceDebits: snapshot.totalDebits,
+        trialBalanceCredits: snapshot.totalCredits,
+        fxImpact,
+      };
+
+      // Step 8: Generate narrative (sync)
+      const narrative = generateNarrative(
+        params.entityName,
+        params.currency,
+        report,
+        snapshot,
+      );
+      recordStep(
+        stepTelemetry,
+        "assemble",
+        "Assemble Statements & Narrative",
+        stepStart,
+      );
+
+      // ── Step 9-10: Create Versioned Statement (with retry) ────────────
+      stepStart = Date.now();
+      const versionInfo = await withRetry(
+        () =>
+          withTimeout(
+            () =>
+              createStatementVersion(
+                params.entityId,
+                snapshot.snapshotId,
+                "profit_and_loss",
+                {
+                  profitAndLoss: pnl,
+                  balanceSheet: bs,
+                  cashFlow: cf,
+                  fxImpact,
+                },
+                narrative,
+                targetPeriod.status,
+              ),
+            pipelineTimeout.maxStepExecutionMs,
+            "create-statement-version",
+          ),
+        {
+          agentId: "reporting-pipeline",
+          operationName: "create-statement-version",
+          context: {
+            entityId: params.entityId,
+            snapshotId: snapshot.snapshotId,
+          },
+        },
+      );
+      recordStep(stepTelemetry, "versioning", "Cache & Versioning", stepStart);
+
+      // ── Step 11: Audit Trail (with PII Redaction) ─────────────────────
+      stepStart = Date.now();
+      const dataComplete = !!report.profitAndLoss && !!report.balanceSheet;
+      const balanced = report.trialBalanceBalanced;
+      const confidence =
+        dataComplete && balanced ? 0.92 : dataComplete ? 0.7 : 0.4;
+      const escalated = !balanced || !dataComplete;
+
       const audit = createAuditEntry({
         agentId: "reporting-pipeline",
-        action: "no_reportable_periods",
-        details: { entityId: params.entityId },
-        confidence: 1,
+        action: escalated ? "report_flagged" : "report_generated",
+        details: redactPIIFromObject({
+          periodId: targetPeriod.periodId,
+          snapshotId: snapshot.snapshotId,
+          versionId: versionInfo.versionId,
+          revenue: pnl.revenue,
+          netProfit: pnl.netProfit,
+          totalAssets: bs.totalAssets,
+          balanced,
+          dataComplete,
+          confidence,
+          isDraft: versionInfo.isDraft,
+        }),
+        confidence,
       });
-      return {
+      auditEntries.push(audit);
+      recordStep(
+        stepTelemetry,
+        "audit_trail",
+        "Audit Trail (PII Redacted)",
+        stepStart,
+      );
+
+      await trace.update({
+        output: {
+          period: targetPeriod.periodLabel,
+          dataComplete,
+          balanced,
+          confidence,
+          escalated,
+          isDraft: versionInfo.isDraft,
+          snapshotId: snapshot.snapshotId,
+          stepCount: stepTelemetry.length,
+          totalStepDurationMs: stepTelemetry.reduce(
+            (s, t) => s + t.durationMs,
+            0,
+          ),
+        },
+      });
+
+      langfuse.event({
+        name: "reporting-pipeline-complete",
+        metadata: {
+          entityId: params.entityId,
+          periodLabel: targetPeriod.periodLabel,
+          dataComplete,
+          balanced,
+          confidence,
+          escalated,
+          isDraft: versionInfo.isDraft,
+          accountCount: snapshot.accountBalances.length,
+        },
+      });
+
+      const result: ReportingPipelineResult = {
         success: true,
-        periodProcessed: params.periodId ?? "none",
-        report: null,
-        narrative: "No reportable periods found — no posted entries exist.",
-        confidence: 1,
-        dataComplete: false,
-        balanced: true,
-        escalated: false,
-        escalationReason: null,
-        isDraft: false,
-        snapshotId: null,
-        versionId: null,
-        auditEntries: [audit],
+        periodProcessed: targetPeriod.periodLabel,
+        report,
+        narrative,
+        confidence,
+        dataComplete,
+        balanced,
+        escalated,
+        escalationReason: escalated
+          ? [
+              !balanced ? "Trial balance not balanced" : null,
+              !dataComplete ? "Report data incomplete" : null,
+            ]
+              .filter(Boolean)
+              .join("; ")
+          : null,
+        snapshotId: snapshot.snapshotId,
+        versionId: versionInfo.versionId,
+        isDraft: versionInfo.isDraft,
+        auditEntries,
         durationMs: Date.now() - startTime,
       };
-    }
 
-    // Step 2: Take ledger snapshot
-    const snapshot = await takeLedgerSnapshot(params.entityId, targetPeriod);
-    auditEntries.push(
-      createAuditEntry({
+      setIdempotencyResult(idempotencyKey, result);
+      return result;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isTimeout = error instanceof TimeoutError;
+      const errorAudit = createAuditEntry({
         agentId: "reporting-pipeline",
-        action: "ledger_snapshot_taken",
+        action: "pipeline_failed",
         details: {
-          snapshotId: snapshot.snapshotId,
-          periodLabel: snapshot.periodLabel,
-          balanced: snapshot.trialBalanceBalanced,
-          totalDebits: snapshot.totalDebits,
-          totalCredits: snapshot.totalCredits,
-          accountCount: snapshot.accountBalances.length,
-          entryCount: snapshot.entryCount,
-        },
-        confidence: snapshot.trialBalanceBalanced ? 0.95 : 0.5,
-      }),
-    );
-
-    // Step 4: Hard gate — deterministic balance check
-    const gateResult = evaluateReportGate(snapshot);
-    if (!gateResult.canProceed) {
-      const audit = createAuditEntry({
-        agentId: "reporting-pipeline",
-        action: "report_blocked_unbalanced",
-        details: {
-          snapshotId: snapshot.snapshotId,
-          reason: gateResult.reason,
+          entityId: params.entityId,
+          error: isTimeout ? `Pipeline timed out: ${msg}` : msg,
+          isTimeout,
         },
         confidence: 0,
       });
-      auditEntries.push(audit);
+      auditEntries.push(errorAudit);
 
-      return {
+      recordFailedStep(
+        stepTelemetry,
+        "pipeline_error",
+        "Pipeline Execution",
+        telemetryStart,
+        msg,
+      );
+
+      await trace.update({
+        output: { status: "error", error: msg, isTimeout },
+      });
+
+      const errorResult: ReportingPipelineResult = {
         success: false,
-        periodProcessed: targetPeriod.periodLabel,
+        periodProcessed: params.periodId ?? "unknown",
         report: null,
-        narrative: gateResult.reason ?? null,
+        narrative: null,
         confidence: 0,
         dataComplete: false,
         balanced: false,
         escalated: true,
-        escalationReason: gateResult.reason ?? null,
-        snapshotId: snapshot.snapshotId,
+        escalationReason: msg,
+        snapshotId: null,
         versionId: null,
-        isDraft: targetPeriod.status !== "closed",
+        isDraft: false,
         auditEntries,
         durationMs: Date.now() - startTime,
       };
+      return errorResult;
     }
+  })(); // <-- IIFE invoked immediately
 
-    // Step 3: Assemble statements
-    const pnl = buildProfitAndLoss(snapshot);
-    const bs = buildBalanceSheet(snapshot);
-    const cf = buildCashFlow(snapshot);
-
-    // Step 6: FX Summary
-    const fxImpact = calculateFxImpact(snapshot);
-
-    const report: ReportData = {
-      periodId: targetPeriod.periodId,
-      periodLabel: targetPeriod.periodLabel,
-      profitAndLoss: pnl,
-      balanceSheet: bs,
-      cashFlow: cf,
-      trialBalanceBalanced: snapshot.trialBalanceBalanced,
-      trialBalanceDebits: snapshot.totalDebits,
-      trialBalanceCredits: snapshot.totalCredits,
-      fxImpact,
-    };
-
-    // Step 8: Generate narrative
-    const narrative = generateNarrative(
-      params.entityName,
-      params.currency,
-      report,
-      snapshot,
-    );
-
-    // Step 10: Create versioned statement
-    const versionInfo = await createStatementVersion(
-      params.entityId,
-      snapshot.snapshotId,
-      "profit_and_loss",
-      { profitAndLoss: pnl, balanceSheet: bs, cashFlow: cf, fxImpact },
-      narrative,
-      targetPeriod.status,
-    );
-
-    const dataComplete = !!report.profitAndLoss && !!report.balanceSheet;
-    const balanced = report.trialBalanceBalanced;
-    const confidence =
-      dataComplete && balanced ? 0.92 : dataComplete ? 0.7 : 0.4;
-    const escalated = !balanced || !dataComplete;
-
-    const audit = createAuditEntry({
-      agentId: "reporting-pipeline",
-      action: escalated ? "report_flagged" : "report_generated",
-      details: {
-        periodId: targetPeriod.periodId,
-        snapshotId: snapshot.snapshotId,
-        versionId: versionInfo.versionId,
-        revenue: pnl.revenue,
-        netProfit: pnl.netProfit,
-        totalAssets: bs.totalAssets,
-        balanced,
-        dataComplete,
-        confidence,
-        isDraft: versionInfo.isDraft,
-      },
-      confidence,
-    });
-    auditEntries.push(audit);
-
-    await trace.update({
-      output: {
-        period: targetPeriod.periodLabel,
-        dataComplete,
-        balanced,
-        confidence,
-        escalated,
-        isDraft: versionInfo.isDraft,
-        snapshotId: snapshot.snapshotId,
-      },
-    });
-
-    langfuse.event({
-      name: "reporting-pipeline-complete",
-      metadata: {
-        entityId: params.entityId,
-        periodLabel: targetPeriod.periodLabel,
-        dataComplete,
-        balanced,
-        confidence,
-        escalated,
-        isDraft: versionInfo.isDraft,
-        accountCount: snapshot.accountBalances.length,
-      },
-    });
-
-    return {
-      success: true,
-      periodProcessed: targetPeriod.periodLabel,
-      report,
-      narrative,
-      confidence,
-      dataComplete,
-      balanced,
-      escalated,
-      escalationReason: escalated
-        ? [
-            !balanced ? "Trial balance not balanced" : null,
-            !dataComplete ? "Report data incomplete" : null,
-          ]
-            .filter(Boolean)
-            .join("; ")
-        : null,
-      snapshotId: snapshot.snapshotId,
-      versionId: versionInfo.versionId,
-      isDraft: versionInfo.isDraft,
-      auditEntries,
-      durationMs: Date.now() - startTime,
-    };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    const errorAudit = createAuditEntry({
-      agentId: "reporting-pipeline",
-      action: "pipeline_failed",
-      details: { entityId: params.entityId, error: msg },
-      confidence: 0,
-    });
-    auditEntries.push(errorAudit);
-
-    return {
-      success: false,
-      periodProcessed: params.periodId ?? "unknown",
-      report: null,
-      narrative: null,
-      confidence: 0,
-      dataComplete: false,
-      balanced: false,
-      escalated: true,
-      escalationReason: msg,
-      snapshotId: null,
-      versionId: null,
-      isDraft: false,
-      auditEntries,
-      durationMs: Date.now() - startTime,
-    };
-  }
+  return withTimeout(
+    () => pipelinePromise,
+    pipelineTimeout.maxExecutionMs,
+    "reporting-pipeline",
+  );
 }
