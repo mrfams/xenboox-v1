@@ -6,6 +6,53 @@
 
 ---
 
+### [2026-07-26] — Multi-Entity & Consolidation Pipeline: Enterprise-Grade Production Hardening (Phase 3)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Modified:** 1 (`packages/agents/core/consolidation-pipeline.ts`)
+
+**What was built:**
+
+### Enterprise Patterns Integrated
+
+| Pattern                     | Implementation                                                                                                                      |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Idempotency Check**       | `generateIdempotencyKey()` + `checkIdempotency()` at pipeline entry — prevents duplicate consolidation runs for same entity/period  |
+| **Pipeline-Level Timeout**  | Wrapped entire pipeline in IIFE with `withTimeout()` — configurable `maxExecutionMs` via `PipelineTimeoutConfig` (defaults to 30s)  |
+| **Retry + Circuit Breaker** | Elimination engine (matchedPairs → eliminationEntries DB write loop) wrapped with `withRetry()` for transient DB failure resilience |
+| **Step Timeout Guards**     | Consolidation run creation wrapped with `withTimeout(maxStepExecutionMs)`                                                           |
+| **Per-Step Telemetry**      | StepTelemetry type + recordStep/recordFailedStep helpers, telemetry for Step 10 (audit trail)                                       |
+| **PII Redaction**           | `redactPIIFromObject()` applied to audit trail `newValues` before logging to DB                                                     |
+| **TimeoutError Detection**  | Catch block differentiates timeouts from other errors with explicit `isTimeout` flag                                                |
+| **Scope Safety**            | All mutable state declared outside try block so catch handler can access it                                                         |
+| **runId Safety**            | Early-return guard ensures runId is non-null before Step 1; `if (runId)` guard in catch block                                       |
+| **Clean Imports**           | Removed unused imports: `not`, `lte`, `organizations`, `journalEntryLines`, `chartOfAccounts`                                       |
+
+### Fixes Applied During Development
+
+| Issue                                                 | Fix                                                                                |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Syntax error — orphaned catch block                   | Added outer `try { }` wrapping entire pipeline execution inside IIFE               |
+| `elims`/`totalElimAmount` scope bug after `withRetry` | Changed references to use outer `eliminations.length` / `eliminations.reduce(...)` |
+| `runId!` unsafe assertion in catch block              | Replaced with `if (runId)` guard                                                   |
+
+### Key Constraints Maintained
+
+- Elimination entries exist ONLY in the consolidation layer (no direct ledger writes)
+- Controller sign-off still mandatory (not confidence-skippable)
+- Return type unchanged — no breaking change to callers
+
+### Verification
+
+| Check                                   | Status                  |
+| --------------------------------------- | ----------------------- |
+| Typecheck (`@xenboox/agents`)           | ✅ No errors            |
+| Typecheck (`@xenboox/web`)              | ✅ No errors            |
+| Code review (scope fix, imports, retry) | ✅ All verified correct |
+
+---
+
 ### [2026-07-26] — Autonomous Onboarding Pipeline: Enterprise-Grade Production Hardening
 
 **Agent:** Buffy (Autonomous Engineer)
