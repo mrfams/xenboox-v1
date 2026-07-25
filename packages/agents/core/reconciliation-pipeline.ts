@@ -39,6 +39,19 @@ import { confidenceThresholds } from "@xenboox/db/schema/agents";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
+import {
+  withRetry,
+  withTimeout,
+  withConcurrencyLimit,
+  redactPIIFromObject,
+  checkIdempotency,
+  setIdempotencyResult,
+  generateIdempotencyKey,
+  startCacheCleanup,
+  TimeoutError,
+  DEFAULT_PIPELINE_TIMEOUT,
+} from "./retry";
+import type { PipelineTimeoutConfig } from "./retry";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -960,58 +973,403 @@ async function aggregateResults(
   };
 }
 
+// ─── Per-Step Telemetry ─────────────────────────────────────────────────────
+
+export interface StepTelemetry {
+  step: string;
+  label: string;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  status: "completed" | "skipped" | "failed";
+  metadata?: Record<string, unknown>;
+}
+
+function recordStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+): StepTelemetry {
+  const durationMs = Date.now() - startedAt;
+  const entry: StepTelemetry = {
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs,
+    status: "completed",
+  };
+  telemetry.push(entry);
+  return entry;
+}
+
+function recordFailedStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+  error?: string,
+): void {
+  telemetry.push({
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    status: "failed",
+    metadata: error ? { error } : undefined,
+  });
+}
+
 // ─── Main Pipeline Entry Point ──────────────────────────────────────────
 
 /**
  * Run the full 12-step Autonomous Reconciliation Pipeline for an entity.
- *
- * @param entityId - The entity to reconcile
- * @param specificAccountIds - Optional: only reconcile specific accounts
- * @returns Full pipeline result with per-account details
+ * Enterprise-grade: idempotency check, timeout, retry, concurrency limits,
+ * per-step telemetry, graceful degradation, and PII redaction.
  */
 export async function runReconciliationPipeline(
   entityId: string,
   specificAccountIds?: string[],
+  timeoutConfig?: Partial<PipelineTimeoutConfig>,
 ): Promise<ReconciliationPipelineResult> {
   const startTime = Date.now();
-  const trace = await langfuse.trace({
-    name: "reconciliation-pipeline",
-    metadata: { entityId, specificAccountIds },
+  const pipelineTimeout: PipelineTimeoutConfig = {
+    ...DEFAULT_PIPELINE_TIMEOUT,
+    ...timeoutConfig,
+  };
+  const stepTelemetry: StepTelemetry[] = [];
+  const telemetryStart = Date.now();
+
+  // ── Enterprise: Idempotency Check ─────────────────────────────────────
+  const idempotencyKey = generateIdempotencyKey({
+    channel: "reconciliation-pipeline",
+    userId: "system",
+    entityId,
+    rawContent: `reconciliation:${entityId}:${(specificAccountIds ?? []).join(",")}`,
+    sessionId: `recon-${entityId}`,
   });
+  const cachedResult = checkIdempotency(idempotencyKey);
+  if (cachedResult) {
+    const cached = cachedResult as ReconciliationPipelineResult;
+    return {
+      ...cached,
+      durationMs: Date.now() - startTime,
+    };
+  }
 
-  const auditEntries: AuditEntry[] = [];
+  startCacheCleanup();
 
-  try {
-    // Step 1: Detect accounts needing reconciliation
-    const accounts = await db.query.bankAccounts.findMany({
-      where: and(
-        eq(bankAccounts.entityId, entityId),
-        eq(bankAccounts.isActive, true),
-      ),
+  // ── Enterprise: Pipeline-Level Timeout ───────────────────────────────
+  const pipelinePromise = (async () => {
+    const trace = await langfuse.trace({
+      name: "reconciliation-pipeline",
+      metadata: {
+        entityId,
+        specificAccountIds,
+        timeoutMs: pipelineTimeout.maxExecutionMs,
+        idempotencyKey: idempotencyKey.slice(0, 16),
+      },
     });
 
-    const targetAccounts = specificAccountIds
-      ? accounts.filter((a) => specificAccountIds.includes(a.id))
-      : accounts;
+    const auditEntries: AuditEntry[] = [];
 
-    if (targetAccounts.length === 0) {
-      const audit = createAuditEntry({
-        agentId: "reconciliation-pipeline",
-        action: "no_accounts_to_reconcile",
-        details: { entityId, message: "No active accounts found" },
-        confidence: 1,
-      });
-      auditEntries.push(audit);
+    try {
+      // ── Step: Detect Accounts ─────────────────────────────────────────
+      let stepStart = Date.now();
+      const accounts = await withTimeout(
+        () =>
+          db.query.bankAccounts.findMany({
+            where: and(
+              eq(bankAccounts.entityId, entityId),
+              eq(bankAccounts.isActive, true),
+            ),
+          }),
+        pipelineTimeout.maxStepExecutionMs,
+        "detect-accounts",
+      );
+
+      const targetAccounts = specificAccountIds
+        ? accounts.filter((a) => specificAccountIds.includes(a.id))
+        : accounts;
+
+      if (targetAccounts.length === 0) {
+        const audit = createAuditEntry({
+          agentId: "reconciliation-pipeline",
+          action: "no_accounts_to_reconcile",
+          details: { entityId, message: "No active accounts found" },
+          confidence: 1,
+        });
+        auditEntries.push(audit);
+        recordStep(
+          stepTelemetry,
+          "detect_accounts",
+          "Detect Accounts",
+          stepStart,
+        );
+        await trace.update({
+          output: { status: "no_op", reason: "No accounts to reconcile" },
+        });
+        const result = {
+          success: true,
+          results: [],
+          overallConfidence: 1,
+          overallMatchRate: 1,
+          totalMatched: 0,
+          totalUnmatched: 0,
+          totalPendingSettlement: 0,
+          totalTransactions: 0,
+          escalatedAccounts: 0,
+          closedAccounts: 0,
+          reviewPendingAccounts: 0,
+          sessionClosed: true,
+          auditEntries,
+          durationMs: Date.now() - startTime,
+        };
+        setIdempotencyResult(idempotencyKey, result);
+        return result;
+      }
+      recordStep(
+        stepTelemetry,
+        "detect_accounts",
+        "Detect Accounts",
+        stepStart,
+      );
+
+      // ── Step: Detect Mobile Money Accounts ────────────────────────────
+      stepStart = Date.now();
+      const mmAccounts = await withTimeout(
+        () =>
+          db.query.mobileMoneyAccounts.findMany({
+            where: and(
+              eq(mobileMoneyAccounts.entityId, entityId),
+              eq(mobileMoneyAccounts.isActive, true),
+            ),
+          }),
+        pipelineTimeout.maxStepExecutionMs,
+        "detect-mobile-money",
+      );
+      const mmAccountIds = new Set(mmAccounts.map((a) => a.id));
+      recordStep(
+        stepTelemetry,
+        "detect_mobile_money",
+        "Detect Mobile Money",
+        stepStart,
+      );
+
+      // ── Step: Process Accounts (with concurrency limit + retry) ────────
+      stepStart = Date.now();
+      const CONCURRENCY_LIMIT = 3;
+
+      // Build account reconcile task functions with graceful degradation
+      const accountTasks = targetAccounts.map(
+        (account) =>
+          async (): Promise<{
+            result: BankReconciliationResult;
+            audit: AuditEntry;
+          } | null> => {
+            try {
+              const reconAccount: AccountToReconcile = {
+                id: account.id,
+                name: account.name,
+                bankName: account.bankName,
+                currency: account.currency,
+                currentBalance: Number(account.currentBalance),
+                openingBalance: Number(account.openingBalance),
+                lastReconciledDate: null,
+                lastReconciliationId: null,
+                isMobileMoney: mmAccountIds.has(account.id),
+              };
+
+              // Enterprise: retry + timeout for each account reconciliation
+              const reconResult = await withRetry(
+                () =>
+                  withTimeout(
+                    () => reconcileAccount(entityId, reconAccount),
+                    pipelineTimeout.maxStepExecutionMs,
+                    `reconcile-account:${account.id}`,
+                  ),
+                {
+                  agentId: "reconciliation-pipeline",
+                  operationName: `reconcile-account-${account.id}`,
+                  context: { entityId, accountId: account.id },
+                },
+              );
+
+              const audit = createAuditEntry({
+                agentId: "reconciliation-pipeline",
+                action: `account_${reconResult.status}`,
+                details: {
+                  accountId: account.id,
+                  accountName: account.name,
+                  status: reconResult.status,
+                  matchedCount: reconResult.matchedCount,
+                  unmatchedCount: reconResult.unmatchedCount,
+                  matchRate: reconResult.matchRate,
+                  confidence: reconResult.confidence,
+                },
+                confidence: reconResult.confidence,
+              });
+
+              return { result: reconResult, audit };
+            } catch (error) {
+              // Graceful degradation: individual account failure logged, skipped
+              const msg =
+                error instanceof Error ? error.message : String(error);
+              const failAudit = createAuditEntry({
+                agentId: "reconciliation-pipeline",
+                action: "account_failed",
+                details: {
+                  accountId: account.id,
+                  accountName: account.name,
+                  error: msg,
+                  gracefulDegradation: true,
+                },
+                confidence: 0,
+              });
+              auditEntries.push(failAudit);
+              return null;
+            }
+          },
+      );
+
+      // Execute with concurrency limit + retry for the entire batch
+      const accountResults = await withTimeout(
+        () => withConcurrencyLimit(accountTasks, CONCURRENCY_LIMIT),
+        pipelineTimeout.maxStepExecutionMs * 2,
+        "account-processing-batch",
+      );
+
+      // Extract results, handling graceful degradation for failed accounts
+      const results: BankReconciliationResult[] = [];
+      for (const ar of accountResults) {
+        if (ar) {
+          results.push(ar.result);
+          auditEntries.push(ar.audit);
+        }
+        // Graceful degradation: null results are silently skipped
+      }
+
+      // If all accounts failed, log a warning
+      if (results.length === 0 && targetAccounts.length > 0) {
+        const warnAudit = createAuditEntry({
+          agentId: "reconciliation-pipeline",
+          action: "all_accounts_failed",
+          details: {
+            entityId,
+            totalAccounts: targetAccounts.length,
+            gracefulDegradation: true,
+          },
+          confidence: 0,
+        });
+        auditEntries.push(warnAudit);
+      }
+
+      recordStep(
+        stepTelemetry,
+        "process_accounts",
+        "Process Accounts (Concurrent)",
+        stepStart,
+      );
+
+      // ── Steps 8-12: Aggregate, Hard Rule, Report, Audit ───────────────
+      stepStart = Date.now();
+
+      // Aggregate results with retry for resilience
+      const pipelineResult = await withRetry(
+        () =>
+          withTimeout(
+            () => aggregateResults(entityId, results, startTime),
+            pipelineTimeout.maxStepExecutionMs,
+            "aggregate-results",
+          ),
+        {
+          agentId: "reconciliation-pipeline",
+          operationName: "aggregate-results",
+          context: { entityId, accountCount: results.length },
+        },
+      );
+
+      pipelineResult.auditEntries = [
+        ...auditEntries,
+        ...pipelineResult.auditEntries,
+      ];
+
+      // PII redaction on audit details before finalizing
+      pipelineResult.auditEntries = pipelineResult.auditEntries.map((e) => ({
+        ...e,
+        details: e.details ? redactPIIFromObject(e.details) : e.details,
+      }));
+
+      recordStep(stepTelemetry, "aggregate", "Aggregate & Audit", stepStart);
 
       await trace.update({
-        output: { status: "no_op", reason: "No accounts to reconcile" },
+        output: {
+          status: pipelineResult.sessionClosed ? "clean" : "review_pending",
+          accountsProcessed: targetAccounts.length,
+          totalMatched: pipelineResult.totalMatched,
+          totalUnmatched: pipelineResult.totalUnmatched,
+          overallMatchRate: pipelineResult.overallMatchRate,
+          overallConfidence: pipelineResult.overallConfidence,
+          closedAccounts: pipelineResult.closedAccounts,
+          escalatedAccounts: pipelineResult.escalatedAccounts,
+          reviewPendingAccounts: pipelineResult.reviewPendingAccounts,
+          sessionId: pipelineResult.sessionId,
+          stepCount: stepTelemetry.length,
+          totalStepDurationMs: stepTelemetry.reduce(
+            (s, t) => s + t.durationMs,
+            0,
+          ),
+        },
+      });
+
+      langfuse.event({
+        name: "reconciliation-pipeline-complete",
+        metadata: {
+          entityId,
+          accountsProcessed: targetAccounts.length,
+          sessionClosed: pipelineResult.sessionClosed,
+          needsTreasuryReview:
+            pipelineResult.reviewPendingAccounts > 0 ||
+            pipelineResult.escalatedAccounts > 0,
+        },
+      });
+
+      setIdempotencyResult(idempotencyKey, pipelineResult);
+      return pipelineResult;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isTimeout = error instanceof TimeoutError;
+      const errorAudit = createAuditEntry({
+        agentId: "reconciliation-pipeline",
+        action: "pipeline_failed",
+        details: {
+          entityId,
+          error: isTimeout ? `Pipeline timed out: ${msg}` : msg,
+          isTimeout,
+        },
+        confidence: 0,
+      });
+      auditEntries.push(errorAudit);
+
+      recordFailedStep(
+        stepTelemetry,
+        "pipeline_error",
+        "Pipeline Execution",
+        telemetryStart,
+        msg,
+      );
+
+      await trace.update({
+        output: { status: "error", error: msg, isTimeout },
       });
 
       return {
-        success: true,
+        success: false,
         results: [],
-        overallConfidence: 1,
-        overallMatchRate: 1,
+        overallConfidence: 0,
+        overallMatchRate: 0,
         totalMatched: 0,
         totalUnmatched: 0,
         totalPendingSettlement: 0,
@@ -1019,121 +1377,18 @@ export async function runReconciliationPipeline(
         escalatedAccounts: 0,
         closedAccounts: 0,
         reviewPendingAccounts: 0,
-        sessionClosed: true,
+        sessionClosed: false,
         auditEntries,
         durationMs: Date.now() - startTime,
       };
     }
+  })(); // <-- IIFE invoked immediately
 
-    // Auto-detect mobile money accounts (Step 8)
-    const mmAccounts = await db.query.mobileMoneyAccounts.findMany({
-      where: and(
-        eq(mobileMoneyAccounts.entityId, entityId),
-        eq(mobileMoneyAccounts.isActive, true),
-      ),
-    });
-
-    const mmAccountIds = new Set(mmAccounts.map((a) => a.id));
-
-    // Step 8: Process each account independently (multi-account aggregation)
-    const results: BankReconciliationResult[] = [];
-    for (const account of targetAccounts) {
-      const reconAccount: AccountToReconcile = {
-        id: account.id,
-        name: account.name,
-        bankName: account.bankName,
-        currency: account.currency,
-        currentBalance: Number(account.currentBalance),
-        openingBalance: Number(account.openingBalance),
-        lastReconciledDate: null,
-        lastReconciliationId: null,
-        isMobileMoney: mmAccountIds.has(account.id),
-      };
-
-      const result = await reconcileAccount(entityId, reconAccount);
-      results.push(result);
-
-      const audit = createAuditEntry({
-        agentId: "reconciliation-pipeline",
-        action: `account_${result.status}`,
-        details: {
-          accountId: account.id,
-          accountName: account.name,
-          status: result.status,
-          matchedCount: result.matchedCount,
-          unmatchedCount: result.unmatchedCount,
-          matchRate: result.matchRate,
-          confidence: result.confidence,
-        },
-        confidence: result.confidence,
-      });
-      auditEntries.push(audit);
-    }
-
-    // Steps 8-12: Aggregate, apply hard rule, treasury review, report, audit
-    const pipelineResult = await aggregateResults(entityId, results, startTime);
-    pipelineResult.auditEntries = [
-      ...auditEntries,
-      ...pipelineResult.auditEntries,
-    ];
-
-    await trace.update({
-      output: {
-        status: pipelineResult.sessionClosed ? "clean" : "review_pending",
-        accountsProcessed: targetAccounts.length,
-        totalMatched: pipelineResult.totalMatched,
-        totalUnmatched: pipelineResult.totalUnmatched,
-        overallMatchRate: pipelineResult.overallMatchRate,
-        overallConfidence: pipelineResult.overallConfidence,
-        closedAccounts: pipelineResult.closedAccounts,
-        escalatedAccounts: pipelineResult.escalatedAccounts,
-        reviewPendingAccounts: pipelineResult.reviewPendingAccounts,
-        sessionId: pipelineResult.sessionId,
-      },
-    });
-
-    langfuse.event({
-      name: "reconciliation-pipeline-complete",
-      metadata: {
-        entityId,
-        accountsProcessed: targetAccounts.length,
-        sessionClosed: pipelineResult.sessionClosed,
-        needsTreasuryReview:
-          pipelineResult.reviewPendingAccounts > 0 ||
-          pipelineResult.escalatedAccounts > 0,
-      },
-    });
-
-    return pipelineResult;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    const errorAudit = createAuditEntry({
-      agentId: "reconciliation-pipeline",
-      action: "pipeline_failed",
-      details: { entityId, error: msg },
-      confidence: 0,
-    });
-    auditEntries.push(errorAudit);
-
-    await trace.update({ output: { status: "error", error: msg } });
-
-    return {
-      success: false,
-      results: [],
-      overallConfidence: 0,
-      overallMatchRate: 0,
-      totalMatched: 0,
-      totalUnmatched: 0,
-      totalPendingSettlement: 0,
-      totalTransactions: 0,
-      escalatedAccounts: 0,
-      closedAccounts: 0,
-      reviewPendingAccounts: 0,
-      sessionClosed: false,
-      auditEntries,
-      durationMs: Date.now() - startTime,
-    };
-  }
+  return withTimeout(
+    () => pipelinePromise,
+    pipelineTimeout.maxExecutionMs,
+    "reconciliation-pipeline",
+  );
 }
 
 // ─── Get Reconciliation Status ──────────────────────────────────────────

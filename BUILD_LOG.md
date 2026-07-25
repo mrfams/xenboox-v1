@@ -6,6 +6,38 @@
 
 ---
 
+### [2026-07-26] — Autonomous Bank Reconciliation Pipeline: Enterprise-Grade Production Hardening
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~25 min
+**Files Modified:** 1 (`packages/agents/core/reconciliation-pipeline.ts`)
+
+**What was built:**
+
+### Enterprise Patterns Integrated
+
+| Pattern                                    | Implementation                                                                                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Idempotency Check**                      | `generateIdempotencyKey()` + `checkIdempotency()` at pipeline entry — prevents double-reconciliation for the same entity/account set               |
+| **Pipeline-Level Timeout**                 | Wrapped entire pipeline in IIFE with `withTimeout()` — configurable `maxExecutionMs` via `PipelineTimeoutConfig` (defaults to 30s)                 |
+| **Concurrency-Limited Account Processing** | `withConcurrencyLimit(accountTasks, 3)` — max 3 accounts reconciled in parallel                                                                    |
+| **Retry + Circuit Breaker per Account**    | Each account reconciliation wrapped with `withRetry()` + `withTimeout()` for resilience against transient failures                                 |
+| **Graceful Degradation**                   | Each account task has internal `try/catch` — one failing account returns `null` (with warning audit entry) instead of crashing the entire pipeline |
+| **Per-Step Telemetry**                     | 4 phases tracked: Detect Accounts, Detect Mobile Money, Process Accounts (Concurrent), Aggregate & Audit                                           |
+| **Step Timeout Guards**                    | All DB queries and aggregation wrapped with `withTimeout(maxStepExecutionMs)`                                                                      |
+| **PII Redaction**                          | `redactPIIFromObject()` applied to all audit entry details before finalizing                                                                       |
+| **TimeoutError Detection**                 | Catch block differentiates timeouts from other errors with explicit `isTimeout` flag                                                               |
+
+### Verification
+
+| Check                         | Status                               |
+| ----------------------------- | ------------------------------------ |
+| Typecheck (`@xenboox/agents`) | ✅ No errors                         |
+| Typecheck (`@xenboox/web`)    | ✅ No errors                         |
+| Code review                   | ✅ Graceful degradation fix verified |
+
+---
+
 ### [2026-07-26] — Autonomous Close Pipeline: Enterprise-Grade Production Hardening
 
 **Agent:** Buffy (Autonomous Engineer)
