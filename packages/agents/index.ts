@@ -91,6 +91,8 @@ export {
   approveConsolidationRun,
   createEntityRelationship,
   listEntityRelationships,
+  runJurisdictionExpansionPipeline,
+  getExpansionStatus,
 } from "./core";
 export type {
   ModelTier,
@@ -215,6 +217,13 @@ export type {
   MinorityInterestItem,
   ConsolidatedTotals,
   ConsolidationPipelineResult,
+  ExpansionStep,
+  ExpansionStepId,
+  ExpansionStepStatus,
+  ExpansionPipelineResult,
+  VerifiedSource,
+  TaxRuleBand,
+  FilingFormatExport,
   ScannedAsset,
   DepreciationEntry,
   VerificationDueItem,

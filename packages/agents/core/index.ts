@@ -401,6 +401,24 @@ export type {
   ConsolidationPipelineResult,
 } from "./consolidation-pipeline";
 
+// ─── Jurisdiction Expansion Pipeline (Phase 3) ───────────────────
+export {
+  runJurisdictionExpansionPipeline,
+  getExpansionStatus,
+} from "./jurisdiction-expansion-pipeline";
+export type {
+  ExpansionStep,
+  ExpansionStepId,
+  ExpansionStepStatus,
+  ExpansionPipelineResult,
+  VerifiedSource,
+  TaxRuleBand,
+  PAYERuleData,
+  StatutoryDeductionData,
+  FilingFormatExport,
+  SandboxScenario,
+} from "./jurisdiction-expansion-pipeline";
+
 // ─── Inventory Pipeline (Phase 3) ────────────────────────────
 export {
   runInventoryPipeline,

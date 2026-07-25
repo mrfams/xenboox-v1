@@ -29,6 +29,7 @@ import {
   Zap,
   GitBranch,
   Building2,
+  Globe,
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
@@ -82,6 +83,12 @@ const moreModules: NavItem[] = [
     label: "Tax & Compliance",
     href: "/dashboard/tax-compliance/pipeline",
     icon: Shield,
+    badge: "AI",
+  },
+  {
+    label: "Jurisdictions",
+    href: "/dashboard/jurisdiction",
+    icon: Globe,
     badge: "AI",
   },
   {

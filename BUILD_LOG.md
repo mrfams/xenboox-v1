@@ -6,6 +6,107 @@
 
 ---
 
+### [2026-07-25] — Jurisdiction Expansion Pipeline (Phase 3) — Nigeria & Ghana
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Created:** 5
+**Files Modified:** 5
+
+**What was built:**
+
+### Phase 1 — Database Schema
+
+**File:** `packages/db/schema/jurisdiction.ts` — NEW
+
+Two tables:
+
+| Table                             | Purpose                                                                            | Key Columns                                                                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `jurisdiction_expansion_requests` | Tracks full expansion lifecycle (research → drafted → reviewed → sandboxed → live) | entity_id, country, status, researched_by, reviewed_by, sandbox_passed, activated_at, grace_period_ends_at, sources (jsonb) |
+| `statutory_deduction_rules`       | Per-country statutory deduction rates with versioning                              | country, category, code, employee_rate/employer_rate, effective_from, status (draft/active/superseded)                      |
+
+### Phase 2 — 9-Step Pipeline Orchestrator
+
+**File:** `packages/agents/core/jurisdiction-expansion-pipeline.ts` — NEW (~500 lines)
+
+Full 9-step pipeline with NG/GH-specific rule data:
+
+| Step | Name                       | Agent               | Description                                                                  |
+| ---- | -------------------------- | ------------------- | ---------------------------------------------------------------------------- |
+| 1    | Research Intake            | Compliance Agent    | Source verification — flags if no sources provided                           |
+| 2    | Rule Set Drafting          | Tax Agent           | Creates PAYE, VAT, WHT, CIT rules + statutory deductions as **draft**        |
+| 3    | Human Review Gate          | Compliance Agent    | **Non-negotiable** — no confidence override                                  |
+| 4    | Format Exporter Build      | Tax Agent           | FIRS (NG) or GRA-GH (GH) filing format definitions                           |
+| 5    | Sandbox Validation         | Audit Pipeline      | 3 test scenarios per jurisdiction (PAYE calc, band progression, deductions)  |
+| 6    | Onboarding Extension       | Onboarding Pipeline | Seeds COA templates for NG/GH                                                |
+| 7    | Go-Live Activation         | Compliance Agent    | Checks all prerequisites → flips draft→active, sets 90-day grace period      |
+| 8    | Elevated Review Monitoring | Compliance Agent    | Mandatory human review during grace period, confidence thresholds overridden |
+| 9    | Audit Trail                | System              | Logs full expansion to audit_log                                             |
+
+**Rule data (cited to official sources):**
+
+- Nigeria PAYE: 6 bands (7%–24%), CRA = NGN 200k + 20% of gross — Finance Act 2024
+- Nigeria Deductions: Pension 8%+10%, NSITF 1%+1%, NHF 2.5%+0% — NSA/NSITF/NHF Acts
+- Ghana PAYE: 7 bands (0%–35%), first GHS 5,880 tax-free — Income Tax Act 2015 Act 896
+- Ghana Deductions: SSNIT 5.5%+13% — SSNIT Act 2008 Act 766
+
+### Phase 3 — tRPC Router
+
+**File:** `apps/web/server/routers/jurisdiction.ts` — NEW
+
+6 endpoints:
+
+| Endpoint             | Method   | Auth        | Description                                                        |
+| -------------------- | -------- | ----------- | ------------------------------------------------------------------ |
+| `runExpansion`       | Mutation | Owner/Admin | Runs full 9-step pipeline for NG or GH                             |
+| `getStatus`          | Query    | Protected   | Expansion status by country                                        |
+| `listExpansions`     | Query    | Protected   | All expansion requests                                             |
+| `listTaxRules`       | Query    | Protected   | Tax rules by country + optional rule type filter                   |
+| `listDeductionRules` | Query    | Protected   | Deduction rules by country + optional category filter              |
+| `approveRules`       | Mutation | Owner/Admin | Human sign-off gate — validates status before updating to reviewed |
+
+### Phase 4 — Frontend Dashboard
+
+**File:** `apps/web/app/dashboard/jurisdiction/page.tsx` — NEW
+
+Dashboard with:
+
+- 4 summary stat cards (jurisdictions, tax rules, deductions, expansion requests)
+- 2 jurisdiction cards (NG + GH) showing flag, filing authority, VAT/CIT rates, tax rules list, deduction rules list, expansion history
+- New Expansion dialog with country selector, source URL input, notes
+- Pipeline step timeline visualization
+
+### Phase 5 — Integration
+
+**Files Modified:**
+
+- `packages/db/schema/index.ts` — Already had jurisdiction export from prior work
+- `apps/web/server/routers/_app.ts` — Registered `jurisdiction: jurisdictionRouter`
+- `packages/agents/core/index.ts` — Exported pipeline + types
+- `packages/agents/index.ts` — Re-exported pipeline + types
+- `apps/web/components/layout/sidebar.tsx` — Added "Jurisdictions" nav link with Globe icon
+
+### Rules Enforced
+
+| Rule                                 | Implementation                                                                      |
+| ------------------------------------ | ----------------------------------------------------------------------------------- |
+| No tax rate from general knowledge   | All figures traced to official sources (commented in code)                          |
+| Rules created as draft, never active | All `jurisdictionTaxRules` and `statutoryDeductionRules` start as `status: "draft"` |
+| Human sign-off is mandatory gate     | Step 3 always returns "flagged" — no confidence override                            |
+| Elevated review grace period         | Step 8 sets 90-day mandatory human review window                                    |
+| Entity scoping                       | All queries scoped to `ctx.entityId`                                                |
+
+### Verification
+
+| Check                      | Status                                                    |
+| -------------------------- | --------------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors (pre-existing firm pipeline errors only) |
+| Code review (round 1)      | ✅ 2 issues identified — both fixed                       |
+| Code review (round 2)      | ✅ All fixes verified correct                             |
+
+---
+
 ### [2026-07-25] — Accounting Firm Dashboard & Client Switcher Pipeline (Phase 3)
 
 **Agent:** Buffy (Autonomous Engineer)

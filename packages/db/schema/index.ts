@@ -33,3 +33,4 @@ export * from "./budget";
 export * from "./inventory-pipeline";
 export * from "./consolidation";
 export * from "./firm";
+export * from "./jurisdiction";
