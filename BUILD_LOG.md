@@ -6,6 +6,51 @@
 
 ---
 
+### [2026-07-26] — CFO Agent Orchestration Pipeline: Enterprise-Grade Production Hardening
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~45 min
+**Files Created:** 1
+**Files Modified:** 2
+
+**What was built:**
+
+### NEW: Enterprise Resilience Utilities (`packages/agents/core/retry.ts`)
+
+| Utility                    | Description                                          | Config                                                              |
+| -------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------- |
+| `withRetry()`              | Retry with configurable exponential backoff + jitter | maxAttempts=3, baseDelayMs=1000, maxDelayMs=30000, jitterFactor=0.2 |
+| Circuit Breaker            | Per-agent store tracking consecutive failures        | Opens after 5 failures, reset after 60s, half-open with 1 request   |
+| `withTimeout()`            | Promise race with TimeoutError + safe disposer       | Custom timeout per pipeline/step/agent                              |
+| `withConcurrencyLimit()`   | Dynamic pool management                              | Max N concurrent tasks at once                                      |
+| `redactPII()`              | Regex-based PII redaction                            | Email, phone, SSN, bank account, credit card, tax ID, passport, IP  |
+| Idempotency                | In-memory cache with TTL + periodic cleanup          | 5-minute TTL, cleaned every 10 minutes                              |
+| `DEFAULT_PIPELINE_TIMEOUT` | Config constants                                     | 30s total, 15s per step, 10s per agent                              |
+
+### Enhanced: Pipeline Orchestrator (`packages/agents/core/pipeline.ts`)
+
+| Enterprise Pattern               | Implementation                                                                                                   |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Idempotency Check**            | `generateIdempotencyKey(event)` + `checkIdempotency()` at pipeline entry — deduplicates before any processing    |
+| **Pipeline-Level Timeout**       | Configurable `maxExecutionMs`/`maxStepExecutionMs`/`maxAgentInvokeMs` via `PipelineTimeoutConfig`                |
+| **Per-Step Telemetry**           | 11-step timing tracking via `StepTelemetry[]` — records `stepStart`, `durationMs`, `status` per step             |
+| **Concurrency-Limited Dispatch** | `withConcurrencyLimit(taskFns, 3)` — max 3 agents executing in parallel                                          |
+| **Retry + Circuit Breaker**      | Each agent invocation wrapped with `withRetry()` + `withTimeout()`                                               |
+| **PII Redaction**                | `redactPII()` applied to `event.rawContent`, `intent.originalInput`, `intent.resolvedInput` before audit logging |
+| **Graceful Degradation**         | Failed agents produce fallback `DepartmentResult` with `confidence=0` instead of crashing the pipeline           |
+| **Structured Error Handling**    | Catch block creates typed error result with telemetry, trace, and audit entry                                    |
+
+### Verification
+
+| Check                         | Status                                                             |
+| ----------------------------- | ------------------------------------------------------------------ |
+| Typecheck (`@xenboox/agents`) | ✅ No errors                                                       |
+| Typecheck (`@xenboox/web`)    | ✅ No errors                                                       |
+| Code review (round 1)         | ✅ 2 structural issues (try/catch scope, variable renames) — fixed |
+| Code review (round 2)         | ✅ All fixes verified correct                                      |
+
+---
+
 ### [2026-07-26] — Tax & Compliance Pipeline Enhancement (Phase 2)
 
 **Agent:** Buffy (Autonomous Engineer)

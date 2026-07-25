@@ -36,6 +36,20 @@ import {
   updateSessionAfterTurn,
   resolveAmbiguousReference,
 } from "./session-state";
+import {
+  withRetry,
+  withTimeout,
+  withConcurrencyLimit,
+  redactPII,
+  redactPIIFromObject,
+  checkIdempotency,
+  setIdempotencyResult,
+  generateIdempotencyKey,
+  startCacheCleanup,
+  TimeoutError,
+  DEFAULT_PIPELINE_TIMEOUT,
+} from "./retry";
+import type { PipelineTimeoutConfig } from "./retry";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1000,251 +1014,507 @@ export async function logRoutingDecision(params: {
   return auditEntry;
 }
 
+// ─── Per-Step Telemetry ─────────────────────────────────────────────────────
+// Tracks timing of each pipeline step for observability / monitoring.
+
+export interface StepTelemetry {
+  step: string;
+  label: string;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  status: "completed" | "skipped" | "failed";
+  metadata?: Record<string, unknown>;
+}
+
+function recordStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+): StepTelemetry {
+  const durationMs = Date.now() - startedAt;
+  const entry: StepTelemetry = {
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs,
+    status: "completed",
+  };
+  telemetry.push(entry);
+  return entry;
+}
+
+function recordFailedStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+  error?: string,
+): void {
+  const entry: StepTelemetry = {
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    status: "failed",
+    metadata: error ? { error } : undefined,
+  };
+  telemetry.push(entry);
+}
+
 // ─── Full Pipeline Orchestrator ────────────────────────────────────────────
 
-export async function runCFOPipeline(event: InputEvent): Promise<{
+export async function runCFOPipeline(
+  event: InputEvent,
+  timeoutConfig?: Partial<PipelineTimeoutConfig>,
+): Promise<{
   response: string;
   decision: PipelineDecision;
   summaries: SummaryObject[];
   auditEntry: AuditEntry;
+  stepTelemetry: StepTelemetry[];
   durationMs: number;
 }> {
   const startTime = Date.now();
-  const trace = await langfuse.trace({
-    name: "cfo-agent-pipeline",
-    metadata: {
-      channel: event.channel,
-      entityId: event.entityId,
-      userId: event.userId,
-      sessionId: event.sessionId,
-    },
-  });
+  const pipelineTimeout: PipelineTimeoutConfig = {
+    ...DEFAULT_PIPELINE_TIMEOUT,
+    ...timeoutConfig,
+  };
+  const stepTelemetry: StepTelemetry[] = [];
+  const telemetryStart = Date.now();
 
-  try {
-    // ── Step 2: Intent & Context Resolution ───────────────────────────
-    let session: import("./session-state").ConversationMemory | undefined;
-    if (event.conversationId) {
-      session = await getOrCreateSession(
-        event.entityId,
-        event.conversationId,
-        event.userId,
-        event.entityName,
-        event.currency,
-      );
-    }
-    const intent = await resolveIntent(event, session);
-    await trace.update({
-      metadata: {
-        intent: intent.type,
-        targetAgentCount: intent.targetAgents.length,
-      },
-    });
-
-    // ── Step 3: Permission & Entity Scoping Check ──────────────────────
-    const permission = await checkPermission(
-      event.userId,
-      event.entityId,
-      event,
-    );
-    if (!permission.allowed) {
-      const result = {
-        response: `I'm sorry, I cannot process this request. ${permission.reason}`,
-        decision: { action: "rejected" as const, reason: permission.reason! },
-        summaries: [] as SummaryObject[],
-        auditEntry: createAuditEntry({
-          agentId: "cfo-agent",
-          action: "permission_denied",
-          details: { reason: permission.reason, userId: event.userId },
-          confidence: 1,
-        }),
-        durationMs: Date.now() - startTime,
-      };
-
-      await trace.update({
-        output: { status: "permission_denied", reason: permission.reason },
-      });
-      return result;
-    }
-
-    // ── Step 4-5: Route + Dispatch ────────────────────────────────────
-    const routes = await routeToAgents(intent, event);
-    const tasks = createScopedTasks(routes, event);
-
-    // Execute tasks in parallel (fan-out per spec Step 5)
-    const taskResults = await Promise.allSettled(
-      tasks.map(async (task) => {
-        const result = await orchestrate({
-          taskType: task.taskType,
-          entityId: task.entityId,
-          entityName: task.entityName,
-          currency: task.currency,
-          input: task.params,
-        });
-        return {
-          department: result.agentId as unknown as AgentDepartment,
-          agentId: result.agentId,
-          confidence: result.confidence,
-          reasoning: result.reasoning,
-          confirmed: result.confidence >= 0.8,
-          summary: result.humanResponse ?? result.reasoning,
-          errors: result.errors,
-        };
-      }),
-    );
-
-    const results: DepartmentResult[] = taskResults.map((settled, i) => {
-      if (settled.status === "fulfilled") {
-        return settled.value;
-      }
-      const task = tasks[i];
-      const msg =
-        settled.reason instanceof Error
-          ? settled.reason.message
-          : String(settled.reason);
-      return {
-        department: task.agentId as unknown as AgentDepartment,
-        agentId: task.agentId,
-        confidence: 0,
-        reasoning: `Task failed: ${msg}`,
-        confirmed: false,
-        summary: `Error: ${msg}`,
-        errors: [msg],
-      };
-    });
-
-    // ── Step 6: Summary Aggregation ────────────────────────────────────
-    let summaries = aggregateSummaries(results);
-
-    // ── Agent Disagreement Detection ─────────────────────────────────────
-    // Check for conflicting outputs between agents (spec Step 7 requirement)
-    const conflictCheck = detectConflictingOutputs(
-      results.map((r) => ({
-        agentId: r.agentId,
-        confidence: r.confidence,
-        result: { confirmed: r.confirmed, summary: r.summary || r.reasoning },
-      })),
-    );
-
-    if (conflictCheck.hasConflict) {
-      // Flag conflicting agents as escalated items for human review
-      // This pushes them through the escalation gate rather than auto-deciding
-      const conflictSummary: SummaryObject = {
-        agentId: "cfo-agent",
-        department: "orchestrator",
-        status: "flagged",
-        headline: `Conflicting outputs between: ${conflictCheck.conflictingAgents.join(", ")}`,
-        confidence: 0.5,
-        supportingDataRef: null,
-        escalations: [
-          {
-            severity: "warning",
-            description: conflictCheck.description,
-          },
-        ],
-      };
-      summaries = [...summaries, conflictSummary];
-    }
-
-    // ── Step 7: Escalation Gate ────────────────────────────────────────
-    const decision = await evaluateConfidenceGate(summaries, event);
-
-    const agentsInvolved = [...new Set(results.map((r) => r.agentId))];
-
-    // ── Step 8b: Push escalations to queue ──────────────────────────────
-    if (decision.action === "escalate_to_human") {
-      for (const item of decision.escalationItems) {
-        await pushToApprovalQueue(item, event);
-      }
-    }
-
-    // ── Step 9: Response Synthesis ──────────────────────────────────────
-    const response = synthesizeResponse(decision, summaries, event, intent);
-
-    // ── Step 10: Audit Trail Logging ────────────────────────────────────
-    const auditEntry = await logRoutingDecision({
-      event,
-      intent,
-      agentsInvolved,
-      confidence:
-        summaries.reduce((sum, s) => sum + s.confidence, 0) /
-        Math.max(summaries.length, 1),
-      thresholdUsed: 0.85,
-      decision:
-        decision.action === "proceed"
-          ? "auto"
-          : decision.action === "escalate_to_human"
-            ? "escalated"
-            : "rejected",
-      humanResponse: response,
-      escalationReason:
-        decision.action !== "proceed" ? decision.reason : undefined,
-      taskId: undefined,
-      durationMs: Date.now() - startTime,
-    });
-
-    // ── Step 11: Session/Context State ──────────────────────────────────
-    if (session) {
-      updateSessionAfterTurn(session, {
-        role: "user",
-        content: event.rawContent,
-      });
-      updateSessionAfterTurn(session, {
-        role: "assistant",
-        content: response,
-        agentId: "cfo-agent",
-        confidence:
-          summaries.reduce((sum, s) => sum + s.confidence, 0) /
-          Math.max(summaries.length, 1),
-        periodInFocus: intent.period,
-        lastTaskType: intent.type,
-      });
-    }
-
-    await trace.update({
-      output: {
-        status: decision.action,
-        agentsInvolved,
-        summaryCount: summaries.length,
-        overallConfidence:
-          summaries.reduce((sum, s) => sum + s.confidence, 0) /
-          Math.max(summaries.length, 1),
-        durationMs: Date.now() - startTime,
-      },
-    });
-
-    return {
-      response,
-      decision,
-      summaries,
-      auditEntry,
-      durationMs: Date.now() - startTime,
+  // ── Enterprise: Idempotency Check ─────────────────────────────────────
+  // Detect duplicate submissions before any processing
+  const idempotencyKey = generateIdempotencyKey(event);
+  const cachedResult = checkIdempotency(idempotencyKey);
+  if (cachedResult) {
+    const cached = cachedResult as {
+      response: string;
+      decision: PipelineDecision;
+      summaries: SummaryObject[];
+      auditEntry: AuditEntry;
+      stepTelemetry: StepTelemetry[];
+      durationMs: number;
     };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    const errorAudit = createAuditEntry({
-      agentId: "cfo-agent",
-      action: "pipeline_error",
-      details: { error: msg, channel: event.channel },
-      confidence: 0,
-    });
-
-    await trace.update({
-      output: { status: "error", error: msg },
-      metadata: { error: true },
-    });
-
     return {
-      response: `I encountered an error processing your request. Please try again or contact support.`,
-      decision: {
-        action: "escalate_to_human",
-        reason: msg,
-        escalationItems: [],
-      },
-      summaries: [],
-      auditEntry: errorAudit,
+      ...cached,
+      stepTelemetry: [
+        ...cached.stepTelemetry,
+        {
+          step: "idempotency_check",
+          label: "Request Deduplication",
+          startedAt: new Date(telemetryStart).toISOString(),
+          completedAt: new Date().toISOString(),
+          durationMs: Date.now() - telemetryStart,
+          status: "completed",
+          metadata: { cached: true, key: idempotencyKey.slice(0, 16) },
+        },
+      ],
       durationMs: Date.now() - startTime,
     };
   }
+
+  // Start cache cleanup on first pipeline run
+  startCacheCleanup();
+
+  // ── Enterprise: Pipeline-Level Timeout ───────────────────────────────
+  // The entire pipeline must complete within maxExecutionMs
+  const pipelinePromise = (async () => {
+    const trace = await langfuse.trace({
+      name: "cfo-agent-pipeline",
+      metadata: {
+        channel: event.channel,
+        entityId: event.entityId,
+        userId: event.userId,
+        sessionId: event.sessionId,
+        timeoutMs: pipelineTimeout.maxExecutionMs,
+        idempotencyKey: idempotencyKey.slice(0, 16),
+      },
+    });
+
+    try {
+      // ── Step 2: Intent & Context Resolution ───────────────────────────
+      let stepStart = Date.now();
+      let session: import("./session-state").ConversationMemory | undefined;
+      if (event.conversationId) {
+        session = await withTimeout(
+          () =>
+            getOrCreateSession(
+              event.entityId,
+              event.conversationId as string,
+              event.userId,
+              event.entityName,
+              event.currency,
+            ),
+          pipelineTimeout.maxStepExecutionMs,
+          "getOrCreateSession",
+        );
+      }
+      recordStep(
+        stepTelemetry,
+        "session_load",
+        "Session/Context Load",
+        stepStart,
+      );
+
+      stepStart = Date.now();
+      const intent = await withTimeout(
+        () => resolveIntent(event, session),
+        pipelineTimeout.maxStepExecutionMs,
+        "resolveIntent",
+      );
+      recordStep(
+        stepTelemetry,
+        "intent_resolution",
+        "Intent & Context Resolution",
+        stepStart,
+      );
+
+      await trace.update({
+        metadata: {
+          intent: intent.type,
+          targetAgentCount: intent.targetAgents.length,
+        },
+      });
+
+      // ── Step 3: Permission & Entity Scoping Check ──────────────────────
+      stepStart = Date.now();
+      const permission = await checkPermission(
+        event.userId,
+        event.entityId,
+        event,
+      );
+      recordStep(
+        stepTelemetry,
+        "permission_check",
+        "Permission & Entity Scoping",
+        stepStart,
+      );
+
+      if (!permission.allowed) {
+        const result = {
+          response: `I'm sorry, I cannot process this request. ${permission.reason}`,
+          decision: { action: "rejected" as const, reason: permission.reason! },
+          summaries: [] as SummaryObject[],
+          auditEntry: createAuditEntry({
+            agentId: "cfo-agent",
+            action: "permission_denied",
+            details: { reason: permission.reason, userId: event.userId },
+            confidence: 1,
+          }),
+          stepTelemetry,
+          durationMs: Date.now() - startTime,
+        };
+
+        await trace.update({
+          output: { status: "permission_denied", reason: permission.reason },
+        });
+        return result;
+      }
+
+      // ── Step 4-5: Route + Dispatch ────────────────────────────────────
+      stepStart = Date.now();
+      const routes = await routeToAgents(intent, event);
+      const tasks = createScopedTasks(routes, event);
+
+      // Enterprise: Execute tasks with concurrency limit + retry + timeout
+      // Limit parallel execution to prevent overwhelming agents
+      const CONCURRENCY_LIMIT = 3; // Max 3 agents running at once
+
+      const taskFns = tasks.map(
+        (task) => async () =>
+          withRetry(
+            () =>
+              withTimeout(
+                () =>
+                  orchestrate({
+                    taskType: task.taskType,
+                    entityId: task.entityId,
+                    entityName: task.entityName,
+                    currency: task.currency,
+                    input: task.params,
+                  }),
+                pipelineTimeout.maxAgentInvokeMs,
+                `orchestrate:${task.agentId}`,
+              ),
+            {
+              agentId: task.agentId,
+              operationName: `orchestrate-${task.taskType}`,
+              context: { entityId: task.entityId, sessionId: event.sessionId },
+            },
+          ),
+      );
+
+      const orchestrationResults = await withTimeout(
+        () => withConcurrencyLimit(taskFns, CONCURRENCY_LIMIT),
+        pipelineTimeout.maxStepExecutionMs,
+        "task_dispatch_fan_out",
+      );
+
+      recordStep(
+        stepTelemetry,
+        "task_dispatch",
+        "Route & Task Dispatch",
+        stepStart,
+      );
+
+      const results: DepartmentResult[] = tasks.map((task, i) => {
+        const orchestrationResult = orchestrationResults[i];
+        if (orchestrationResult) {
+          return {
+            department:
+              orchestrationResult.agentId as unknown as AgentDepartment,
+            agentId: orchestrationResult.agentId,
+            confidence: orchestrationResult.confidence,
+            reasoning: orchestrationResult.reasoning,
+            confirmed: orchestrationResult.confidence >= 0.8,
+            summary:
+              orchestrationResult.humanResponse ??
+              orchestrationResult.reasoning,
+            errors: orchestrationResult.errors,
+          };
+        }
+        // Graceful degradation: if an agent result is missing (shouldn't happen
+        // due to retry, but handles edge cases), provide a fallback
+        return {
+          department: task.agentId as unknown as AgentDepartment,
+          agentId: task.agentId,
+          confidence: 0,
+          reasoning: `Task failed — no result available (graceful degradation)`,
+          confirmed: false,
+          summary: `Error: Agent ${task.agentId} did not return a result`,
+          errors: [`Agent ${task.agentId} did not return a result`],
+        };
+      });
+
+      // ── Step 6: Summary Aggregation ────────────────────────────────────
+      stepStart = Date.now();
+      let summaries = aggregateSummaries(results);
+      recordStep(
+        stepTelemetry,
+        "summary_aggregation",
+        "Summary Aggregation",
+        stepStart,
+      );
+
+      // ── Agent Disagreement Detection ─────────────────────────────────────
+      // Enterprise: Check for conflicting outputs between agents
+      stepStart = Date.now();
+      const conflictCheck = detectConflictingOutputs(
+        results.map((r) => ({
+          agentId: r.agentId,
+          confidence: r.confidence,
+          result: { confirmed: r.confirmed, summary: r.summary || r.reasoning },
+        })),
+      );
+
+      if (conflictCheck.hasConflict) {
+        const conflictSummary: SummaryObject = {
+          agentId: "cfo-agent",
+          department: "orchestrator",
+          status: "flagged",
+          headline: `Conflicting outputs between: ${conflictCheck.conflictingAgents.join(", ")}`,
+          confidence: 0.5,
+          supportingDataRef: null,
+          escalations: [
+            {
+              severity: "warning",
+              description: conflictCheck.description,
+            },
+          ],
+        };
+        summaries = [...summaries, conflictSummary];
+      }
+      recordStep(
+        stepTelemetry,
+        "conflict_detection",
+        "Agent Disagreement Detection",
+        stepStart,
+      );
+
+      // ── Step 7: Escalation Gate ────────────────────────────────────────
+      stepStart = Date.now();
+      const gateDecision = await evaluateConfidenceGate(summaries, event);
+      recordStep(
+        stepTelemetry,
+        "confidence_gate",
+        "Escalation & Confidence Gate",
+        stepStart,
+      );
+
+      const agentsInvolved = [...new Set(results.map((r) => r.agentId))];
+
+      // ── Step 8b: Push escalations to queue ──────────────────────────────
+      stepStart = Date.now();
+      if (gateDecision.action === "escalate_to_human") {
+        for (const item of gateDecision.escalationItems) {
+          await pushToApprovalQueue(item, event);
+        }
+      }
+      recordStep(
+        stepTelemetry,
+        "escalation_push",
+        "Human-in-Loop Escalation",
+        stepStart,
+      );
+
+      // ── Step 9: Response Synthesis ──────────────────────────────────────
+      stepStart = Date.now();
+      const pipelineResponse = synthesizeResponse(
+        gateDecision,
+        summaries,
+        event,
+        intent,
+      );
+      recordStep(
+        stepTelemetry,
+        "response_synthesis",
+        "Response Synthesis",
+        stepStart,
+      );
+
+      // ── Step 10: Audit Trail Logging (with PII Redaction) ──────────────
+      stepStart = Date.now();
+      const auditEntry = await logRoutingDecision({
+        event: { ...event, rawContent: redactPII(event.rawContent) },
+        intent: {
+          ...intent,
+          originalInput: redactPII(intent.originalInput),
+          resolvedInput: redactPII(intent.resolvedInput),
+        },
+        agentsInvolved,
+        confidence:
+          summaries.reduce((sum, s) => sum + s.confidence, 0) /
+          Math.max(summaries.length, 1),
+        thresholdUsed: 0.85,
+        decision:
+          gateDecision.action === "proceed"
+            ? "auto"
+            : gateDecision.action === "escalate_to_human"
+              ? "escalated"
+              : "rejected",
+        humanResponse: pipelineResponse,
+        escalationReason:
+          gateDecision.action !== "proceed" ? gateDecision.reason : undefined,
+        taskId: undefined,
+        durationMs: Date.now() - startTime,
+      });
+      recordStep(
+        stepTelemetry,
+        "audit_logging",
+        "Audit Trail Logging (PII Redacted)",
+        stepStart,
+      );
+
+      // ── Step 11: Session/Context State ──────────────────────────────────
+      stepStart = Date.now();
+      if (session) {
+        updateSessionAfterTurn(session, {
+          role: "user",
+          content: event.rawContent,
+        });
+        updateSessionAfterTurn(session, {
+          role: "assistant",
+          content: pipelineResponse,
+          agentId: "cfo-agent",
+          confidence:
+            summaries.reduce((sum, s) => sum + s.confidence, 0) /
+            Math.max(summaries.length, 1),
+          periodInFocus: intent.period,
+          lastTaskType: intent.type,
+        });
+      }
+      recordStep(
+        stepTelemetry,
+        "session_update",
+        "Session/Context State Update",
+        stepStart,
+      );
+
+      const overallConfidence =
+        summaries.reduce((sum, s) => sum + s.confidence, 0) /
+        Math.max(summaries.length, 1);
+
+      await trace.update({
+        output: {
+          status: gateDecision.action,
+          agentsInvolved,
+          summaryCount: summaries.length,
+          overallConfidence,
+          stepCount: stepTelemetry.length,
+          totalStepDurationMs: stepTelemetry.reduce(
+            (sum, s) => sum + s.durationMs,
+            0,
+          ),
+          durationMs: Date.now() - startTime,
+        },
+      });
+
+      // ── Build final result ─────────────────────────────────────────────
+      const finalResult = {
+        response: pipelineResponse,
+        decision: gateDecision,
+        summaries,
+        auditEntry,
+        stepTelemetry,
+        durationMs: Date.now() - startTime,
+      };
+
+      // Cache result for idempotency
+      setIdempotencyResult(idempotencyKey, finalResult);
+
+      await trace.update({
+        output: { status: "completed" },
+      });
+
+      return finalResult;
+    } catch (error) {
+      // Enterprise: catch and wrap any error inside the pipeline timeout
+      const msg = error instanceof Error ? error.message : String(error);
+      recordFailedStep(
+        stepTelemetry,
+        "pipeline_timeout",
+        "Pipeline Execution",
+        telemetryStart,
+        msg,
+      );
+
+      await trace.update({
+        output: { status: "error", error: msg },
+        metadata: { error: true },
+      });
+
+      const errorAudit = createAuditEntry({
+        agentId: "cfo-agent",
+        action: "pipeline_error",
+        details: { error: msg, channel: event.channel },
+        confidence: 0,
+      });
+
+      return {
+        response: `I encountered an error processing your request: ${msg}`,
+        decision: {
+          action: "escalate_to_human" as const,
+          reason: msg,
+          escalationItems: [] as EscalationItem[],
+        },
+        summaries: [],
+        auditEntry: errorAudit,
+        stepTelemetry,
+        durationMs: Date.now() - startTime,
+      };
+    }
+  })(); // <-- IIFE invoked immediately
+
+  // Execute with pipeline-level timeout
+  return withTimeout(
+    () => pipelinePromise,
+    pipelineTimeout.maxExecutionMs,
+    "cfo-agent-pipeline",
+  );
 }
 
 /**
@@ -1297,7 +1567,7 @@ export async function processChatInput(params: {
       s.escalations.map((e) => e.description),
     ),
     durationMs: pipelineResult.durationMs,
-    decision: pipelineResult.decision.action,
+    decision: pipelineResult.decision.action as string,
     escalationItems,
   };
 }

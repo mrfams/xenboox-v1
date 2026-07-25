@@ -183,7 +183,34 @@ export type {
   PipelineDecision,
   PipelineResponse,
   EscalationItem as PipelineEscalationItem,
+  StepTelemetry,
 } from "./pipeline";
+
+// ─── Enterprise: Retry, Circuit Breaker, Timeout, PII Redaction ──
+export {
+  withRetry,
+  withTimeout,
+  withConcurrencyLimit,
+  redactPII,
+  redactPIIFromObject,
+  checkIdempotency,
+  setIdempotencyResult,
+  generateIdempotencyKey,
+  isCircuitOpen,
+  recordCircuitSuccess,
+  recordCircuitFailure,
+  getCircuitBreakerState,
+  startCacheCleanup,
+  stopCacheCleanup,
+  TimeoutError,
+  DEFAULT_RETRY_CONFIG,
+  DEFAULT_PIPELINE_TIMEOUT,
+} from "./retry";
+export type {
+  RetryConfig,
+  CircuitBreakerState,
+  PipelineTimeoutConfig,
+} from "./retry";
 
 // ─── Session State Management ──────────────────
 export {
