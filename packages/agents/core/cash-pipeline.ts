@@ -29,6 +29,18 @@ import { cashLocations, cashTransactions, discrepancyFlags } from "@xenboox/db";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
+import {
+  withRetry,
+  withTimeout,
+  redactPIIFromObject,
+  checkIdempotency,
+  setIdempotencyResult,
+  generateIdempotencyKey,
+  startCacheCleanup,
+  TimeoutError,
+  DEFAULT_PIPELINE_TIMEOUT,
+} from "./retry";
+import type { PipelineTimeoutConfig } from "./retry";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -780,216 +792,423 @@ function calculateHealthScore(params: {
   return Math.max(0, Math.min(1, score));
 }
 
+// ─── Per-Step Telemetry ─────────────────────────────────────────────────────
+
+export interface StepTelemetry {
+  step: string;
+  label: string;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  status: "completed" | "skipped" | "failed";
+  metadata?: Record<string, unknown>;
+}
+
+function recordStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+): StepTelemetry {
+  const durationMs = Date.now() - startedAt;
+  const entry: StepTelemetry = {
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs,
+    status: "completed",
+  };
+  telemetry.push(entry);
+  return entry;
+}
+
+function recordFailedStep(
+  telemetry: StepTelemetry[],
+  step: string,
+  label: string,
+  startedAt: number,
+  error?: string,
+): void {
+  telemetry.push({
+    step,
+    label,
+    startedAt: new Date(startedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    status: "failed",
+    metadata: error ? { error } : undefined,
+  });
+}
+
 // ─── Main Pipeline Entry Point ───────────────────────────────────────────
 
 export async function runCashPipeline(
   entityId: string,
+  timeoutConfig?: Partial<PipelineTimeoutConfig>,
 ): Promise<CashPipelineResult> {
   const startTime = Date.now();
-  const trace = await langfuse.trace({
-    name: "cash-pipeline",
-    metadata: { entityId },
+  const pipelineTimeout: PipelineTimeoutConfig = {
+    ...DEFAULT_PIPELINE_TIMEOUT,
+    ...timeoutConfig,
+  };
+  const stepTelemetry: StepTelemetry[] = [];
+  const telemetryStart = Date.now();
+
+  // ── Enterprise: Idempotency Check ─────────────────────────────────────
+  const idempotencyKey = generateIdempotencyKey({
+    channel: "cash-pipeline",
+    userId: "system",
+    entityId,
+    rawContent: `cash-pipeline:${entityId}`,
+    sessionId: `cash-${entityId}`,
   });
-
-  const auditEntries: AuditEntry[] = [];
-
-  try {
-    // Step 1: Get cash positions (existing)
-    const cashPositions = await getCashPositions(entityId);
-
-    // Step 1 (new): Get till positions
-    const tillData = await getTillPositions(entityId);
-
-    // Step 2: Scan imprests
-    const imprestScan = scanOverdueImprest(cashPositions.imprestFloats);
-
-    // Step 3: Check discrepancies (existing)
-    const discrepancyData = await checkDiscrepancies(entityId);
-
-    // Step 4: Get open discrepancy flags from DB
-    const openFlags = await db.query.discrepancyFlags.findMany({
-      where: and(
-        eq(discrepancyFlags.entityId, entityId),
-        eq(discrepancyFlags.status, "open"),
-      ),
-    });
-
-    // Step 7: Get verification schedule
-    const verificationSched = await getVerificationSchedule(entityId);
-
-    // Step 4 (original): Calculate health
-    const overallScore = calculateHealthScore({
-      totalBalance: cashPositions.totalBalance,
-      overdueImprestCount: imprestScan.count,
-      totalActiveFloats: cashPositions.activeImprestCount,
-      discrepancyCount: openFlags.length + discrepancyData.count,
-      criticalCount:
-        discrepancyData.criticalCount +
-        openFlags.filter(
-          (f) => f.severity === "critical" || f.severity === "material",
-        ).length,
-    });
-
-    const healthStatus: CashPipelineResult["healthStatus"] =
-      overallScore >= HEALTHY_THRESHOLD
-        ? "healthy"
-        : overallScore >= 0.6
-          ? "warning"
-          : "critical";
-
-    // Step 8: Generate daily report
-    const dailyReport: DailyReconReport = {
-      date: new Date().toISOString().split("T")[0]!,
-      entityId,
-      totalCashBalance: tillData.totalTillBalance,
-      totalPettyCashBalance: cashPositions.totalBalance,
-      tillCount: tillData.tills.length,
-      tills: tillData.tills,
-      activeImprestCount: cashPositions.activeImprestCount,
-      totalOutstandingImprest: cashPositions.totalOutstandingImprest,
-      openDiscrepancies: openFlags.length + discrepancyData.count,
-      overdueVerifications: verificationSched.overdueCount,
-      overallHealthScore: overallScore,
-      healthStatus,
-      needsTreasuryReview: healthStatus !== "healthy" || openFlags.length > 0,
-    };
-
-    // Step 5-6: Confidence gate
-    const escalated = healthStatus !== "healthy" || openFlags.length > 0;
-    const escalationReason = escalated
-      ? [
-          imprestScan.overdue.length > 0
-            ? `${imprestScan.overdue.length} overdue imprest float(s)`
-            : null,
-          imprestScan.expiringSoon.length > 0
-            ? `${imprestScan.expiringSoon.length} imprest(s) expiring soon`
-            : null,
-          openFlags.length > 0
-            ? `${openFlags.length} open cash discrepancy(ies)`
-            : null,
-          discrepancyData.criticalCount > 0
-            ? `${discrepancyData.criticalCount} critical accounting discrepancy(ies)`
-            : null,
-          verificationSched.overdueCount > 0
-            ? `${verificationSched.overdueCount} till(s) overdue for physical count`
-            : null,
-        ]
-          .filter(Boolean)
-          .join("; ")
-      : undefined;
-
-    // Step 11: Audit trail
-    const audit = createAuditEntry({
-      agentId: "cash-pipeline",
-      action: escalated ? "cash_pipeline_escalated" : "cash_pipeline_healthy",
-      details: {
-        totalBalance: cashPositions.totalBalance,
-        tillCount: tillData.tills.length,
-        activeImprestCount: cashPositions.activeImprestCount,
-        totalOutstandingImprest: cashPositions.totalOutstandingImprest,
-        overdueCount: imprestScan.count,
-        discrepancyCount: openFlags.length + discrepancyData.count,
-        criticalCount: discrepancyData.criticalCount,
-        overdueVerifications: verificationSched.overdueCount,
-        overallScore,
-        healthStatus,
-        escalated,
-      },
-      confidence: overallScore,
-    });
-    auditEntries.push(audit);
-
-    await trace.update({
-      output: {
-        totalBalance: cashPositions.totalBalance,
-        tillCount: tillData.tills.length,
-        overallScore,
-        healthStatus,
-        escalated,
-        overdueCount: imprestScan.count,
-        discrepancyCount: openFlags.length + discrepancyData.count,
-      },
-    });
-
-    langfuse.event({
-      name: "cash-pipeline-complete",
-      metadata: {
-        entityId,
-        overallScore,
-        healthStatus,
-        escalated,
-        overdueCount: imprestScan.count,
-        discrepancyCount: openFlags.length + discrepancyData.count,
-        overdueVerifications: verificationSched.overdueCount,
-      },
-    });
-
+  const cachedResult = checkIdempotency(idempotencyKey);
+  if (cachedResult) {
+    const cached = cachedResult as CashPipelineResult;
     return {
-      success: true,
-      accounts: cashPositions.accounts,
-      totalBalance: cashPositions.totalBalance,
-      activeImprestFloats: cashPositions.activeImprestCount,
-      totalOutstandingImprest: cashPositions.totalOutstandingImprest,
-      overdueImprestFloats: imprestScan.count,
-      discrepancyCount: openFlags.length + discrepancyData.count,
-      criticalDiscrepancies: discrepancyData.criticalCount,
-      overallScore,
-      healthStatus,
-      escalated,
-      escalationReason,
-      // New fields
-      tills: tillData.tills,
-      dailyReport,
-      needsReview: dailyReport.needsTreasuryReview,
-      sessionClosed: !escalated,
-      auditEntries,
-      durationMs: Date.now() - startTime,
-    };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    const errorAudit = createAuditEntry({
-      agentId: "cash-pipeline",
-      action: "pipeline_failed",
-      details: { entityId, error: msg },
-      confidence: 0,
-    });
-    auditEntries.push(errorAudit);
-
-    await trace.update({ output: { status: "error", error: msg } });
-
-    return {
-      success: false,
-      accounts: [],
-      totalBalance: 0,
-      activeImprestFloats: 0,
-      totalOutstandingImprest: 0,
-      overdueImprestFloats: 0,
-      discrepancyCount: 0,
-      criticalDiscrepancies: 0,
-      overallScore: 0,
-      healthStatus: "critical",
-      escalated: true,
-      escalationReason: msg,
-      tills: [],
-      dailyReport: {
-        date: "",
-        entityId,
-        totalCashBalance: 0,
-        totalPettyCashBalance: 0,
-        tillCount: 0,
-        tills: [],
-        activeImprestCount: 0,
-        totalOutstandingImprest: 0,
-        openDiscrepancies: 0,
-        overdueVerifications: 0,
-        overallHealthScore: 0,
-        healthStatus: "critical",
-        needsTreasuryReview: true,
-      },
-      needsReview: true,
-      sessionClosed: false,
-      auditEntries,
+      ...cached,
       durationMs: Date.now() - startTime,
     };
   }
+
+  startCacheCleanup();
+
+  // ── Enterprise: Pipeline-Level Timeout ───────────────────────────────
+  const pipelinePromise = (async () => {
+    const trace = await langfuse.trace({
+      name: "cash-pipeline",
+      metadata: {
+        entityId,
+        timeoutMs: pipelineTimeout.maxExecutionMs,
+        idempotencyKey: idempotencyKey.slice(0, 16),
+      },
+    });
+
+    const auditEntries: AuditEntry[] = [];
+
+    try {
+      // ── Step 1: Get Cash Positions ─────────────────────────────────────
+      let stepStart = Date.now();
+      const cashPositions = await withRetry(
+        () =>
+          withTimeout(
+            () => getCashPositions(entityId),
+            pipelineTimeout.maxStepExecutionMs,
+            "get-cash-positions",
+          ),
+        {
+          agentId: "cash-pipeline",
+          operationName: "get-cash-positions",
+          context: { entityId },
+        },
+      );
+      recordStep(
+        stepTelemetry,
+        "cash_positions",
+        "Get Cash Positions",
+        stepStart,
+      );
+
+      // ── Step 2: Get Till Positions ─────────────────────────────────────
+      stepStart = Date.now();
+      const tillData = await withRetry(
+        () =>
+          withTimeout(
+            () => getTillPositions(entityId),
+            pipelineTimeout.maxStepExecutionMs,
+            "get-till-positions",
+          ),
+        {
+          agentId: "cash-pipeline",
+          operationName: "get-till-positions",
+          context: { entityId },
+        },
+      );
+      recordStep(
+        stepTelemetry,
+        "till_positions",
+        "Get Till Positions",
+        stepStart,
+      );
+
+      // ── Step 3: Scan Imprests ──────────────────────────────────────────
+      stepStart = Date.now();
+      const imprestScan = scanOverdueImprest(cashPositions.imprestFloats);
+      recordStep(stepTelemetry, "imprest_scan", "Scan Imprests", stepStart);
+
+      // ── Step 4: Check Discrepancies ────────────────────────────────────
+      stepStart = Date.now();
+      const discrepancyData = await withTimeout(
+        () => checkDiscrepancies(entityId),
+        pipelineTimeout.maxStepExecutionMs,
+        "check-discrepancies",
+      );
+      recordStep(
+        stepTelemetry,
+        "discrepancy_check",
+        "Check Discrepancies",
+        stepStart,
+      );
+
+      // ── Step 5: Open Discrepancy Flags ─────────────────────────────────
+      stepStart = Date.now();
+      const openFlags = await withTimeout(
+        () =>
+          db.query.discrepancyFlags.findMany({
+            where: and(
+              eq(discrepancyFlags.entityId, entityId),
+              eq(discrepancyFlags.status, "open"),
+            ),
+          }),
+        pipelineTimeout.maxStepExecutionMs,
+        "open-flags",
+      );
+      recordStep(
+        stepTelemetry,
+        "open_flags",
+        "Open Discrepancy Flags",
+        stepStart,
+      );
+
+      // ── Step 6: Verification Schedule ──────────────────────────────────
+      stepStart = Date.now();
+      const verificationSched = await withTimeout(
+        () => getVerificationSchedule(entityId),
+        pipelineTimeout.maxStepExecutionMs,
+        "verification-schedule",
+      );
+      recordStep(
+        stepTelemetry,
+        "verification_schedule",
+        "Verification Schedule",
+        stepStart,
+      );
+
+      // ── Step 7: Health Score Calculation ───────────────────────────────
+      stepStart = Date.now();
+      const overallScore = calculateHealthScore({
+        totalBalance: cashPositions.totalBalance,
+        overdueImprestCount: imprestScan.count,
+        totalActiveFloats: cashPositions.activeImprestCount,
+        discrepancyCount: openFlags.length + discrepancyData.count,
+        criticalCount:
+          discrepancyData.criticalCount +
+          openFlags.filter(
+            (f) => f.severity === "critical" || f.severity === "material",
+          ).length,
+      });
+
+      const healthStatus: CashPipelineResult["healthStatus"] =
+        overallScore >= HEALTHY_THRESHOLD
+          ? "healthy"
+          : overallScore >= 0.6
+            ? "warning"
+            : "critical";
+
+      // ── Step 8: Daily Report ───────────────────────────────────────────
+      const dailyReport: DailyReconReport = {
+        date: new Date().toISOString().split("T")[0]!,
+        entityId,
+        totalCashBalance: tillData.totalTillBalance,
+        totalPettyCashBalance: cashPositions.totalBalance,
+        tillCount: tillData.tills.length,
+        tills: tillData.tills,
+        activeImprestCount: cashPositions.activeImprestCount,
+        totalOutstandingImprest: cashPositions.totalOutstandingImprest,
+        openDiscrepancies: openFlags.length + discrepancyData.count,
+        overdueVerifications: verificationSched.overdueCount,
+        overallHealthScore: overallScore,
+        healthStatus,
+        needsTreasuryReview: healthStatus !== "healthy" || openFlags.length > 0,
+      };
+      recordStep(
+        stepTelemetry,
+        "health_score",
+        "Health Score & Report",
+        stepStart,
+      );
+
+      // ── Step 9: Confidence Gate ────────────────────────────────────────
+      stepStart = Date.now();
+      const escalated = healthStatus !== "healthy" || openFlags.length > 0;
+      const escalationReason = escalated
+        ? [
+            imprestScan.overdue.length > 0
+              ? `${imprestScan.overdue.length} overdue imprest float(s)`
+              : null,
+            imprestScan.expiringSoon.length > 0
+              ? `${imprestScan.expiringSoon.length} imprest(s) expiring soon`
+              : null,
+            openFlags.length > 0
+              ? `${openFlags.length} open cash discrepancy(ies)`
+              : null,
+            discrepancyData.criticalCount > 0
+              ? `${discrepancyData.criticalCount} critical accounting discrepancy(ies)`
+              : null,
+            verificationSched.overdueCount > 0
+              ? `${verificationSched.overdueCount} till(s) overdue for physical count`
+              : null,
+          ]
+            .filter(Boolean)
+            .join("; ")
+        : undefined;
+      recordStep(
+        stepTelemetry,
+        "confidence_gate",
+        "Confidence Gate & Escalation",
+        stepStart,
+      );
+
+      // ── Step 10: Audit Trail (with PII Redaction) ──────────────────────
+      stepStart = Date.now();
+      const audit = createAuditEntry({
+        agentId: "cash-pipeline",
+        action: escalated ? "cash_pipeline_escalated" : "cash_pipeline_healthy",
+        details: redactPIIFromObject({
+          totalBalance: cashPositions.totalBalance,
+          tillCount: tillData.tills.length,
+          activeImprestCount: cashPositions.activeImprestCount,
+          totalOutstandingImprest: cashPositions.totalOutstandingImprest,
+          overdueCount: imprestScan.count,
+          discrepancyCount: openFlags.length + discrepancyData.count,
+          criticalCount: discrepancyData.criticalCount,
+          overdueVerifications: verificationSched.overdueCount,
+          overallScore,
+          healthStatus,
+          escalated,
+        }),
+        confidence: overallScore,
+      });
+      auditEntries.push(audit);
+      recordStep(
+        stepTelemetry,
+        "audit_trail",
+        "Audit Trail (PII Redacted)",
+        stepStart,
+      );
+
+      await trace.update({
+        output: {
+          totalBalance: cashPositions.totalBalance,
+          tillCount: tillData.tills.length,
+          overallScore,
+          healthStatus,
+          escalated,
+          overdueCount: imprestScan.count,
+          discrepancyCount: openFlags.length + discrepancyData.count,
+          stepCount: stepTelemetry.length,
+          totalStepDurationMs: stepTelemetry.reduce(
+            (s, t) => s + t.durationMs,
+            0,
+          ),
+        },
+      });
+
+      langfuse.event({
+        name: "cash-pipeline-complete",
+        metadata: {
+          entityId,
+          overallScore,
+          healthStatus,
+          escalated,
+          overdueCount: imprestScan.count,
+          discrepancyCount: openFlags.length + discrepancyData.count,
+          overdueVerifications: verificationSched.overdueCount,
+        },
+      });
+
+      const result: CashPipelineResult = {
+        success: true,
+        accounts: cashPositions.accounts,
+        totalBalance: cashPositions.totalBalance,
+        activeImprestFloats: cashPositions.activeImprestCount,
+        totalOutstandingImprest: cashPositions.totalOutstandingImprest,
+        overdueImprestFloats: imprestScan.count,
+        discrepancyCount: openFlags.length + discrepancyData.count,
+        criticalDiscrepancies: discrepancyData.criticalCount,
+        overallScore,
+        healthStatus,
+        escalated,
+        escalationReason,
+        tills: tillData.tills,
+        dailyReport,
+        needsReview: dailyReport.needsTreasuryReview,
+        sessionClosed: !escalated,
+        auditEntries,
+        durationMs: Date.now() - startTime,
+      };
+
+      setIdempotencyResult(idempotencyKey, result);
+      return result;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isTimeout = error instanceof TimeoutError;
+      const errorAudit = createAuditEntry({
+        agentId: "cash-pipeline",
+        action: "pipeline_failed",
+        details: {
+          entityId,
+          error: isTimeout ? `Pipeline timed out: ${msg}` : msg,
+          isTimeout,
+        },
+        confidence: 0,
+      });
+      auditEntries.push(errorAudit);
+
+      recordFailedStep(
+        stepTelemetry,
+        "pipeline_error",
+        "Pipeline Execution",
+        telemetryStart,
+        msg,
+      );
+
+      await trace.update({
+        output: { status: "error", error: msg, isTimeout },
+      });
+
+      const errorResult: CashPipelineResult = {
+        success: false,
+        accounts: [],
+        totalBalance: 0,
+        activeImprestFloats: 0,
+        totalOutstandingImprest: 0,
+        overdueImprestFloats: 0,
+        discrepancyCount: 0,
+        criticalDiscrepancies: 0,
+        overallScore: 0,
+        healthStatus: "critical",
+        escalated: true,
+        escalationReason: msg,
+        tills: [],
+        dailyReport: {
+          date: "",
+          entityId,
+          totalCashBalance: 0,
+          totalPettyCashBalance: 0,
+          tillCount: 0,
+          tills: [],
+          activeImprestCount: 0,
+          totalOutstandingImprest: 0,
+          openDiscrepancies: 0,
+          overdueVerifications: 0,
+          overallHealthScore: 0,
+          healthStatus: "critical",
+          needsTreasuryReview: true,
+        },
+        needsReview: true,
+        sessionClosed: false,
+        auditEntries,
+        durationMs: Date.now() - startTime,
+      };
+      return errorResult;
+    }
+  })(); // <-- IIFE invoked immediately
+
+  return withTimeout(
+    () => pipelinePromise,
+    pipelineTimeout.maxExecutionMs,
+    "cash-pipeline",
+  );
 }

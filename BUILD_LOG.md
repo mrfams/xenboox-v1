@@ -6,6 +6,37 @@
 
 ---
 
+### [2026-07-26] — Autonomous Cash & Imprest Pipeline: Enterprise-Grade Production Hardening
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~25 min
+**Files Modified:** 1 (`packages/agents/core/cash-pipeline.ts`)
+
+**What was built:**
+
+### Enterprise Patterns Integrated
+
+| Pattern                     | Implementation                                                                                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Idempotency Check**       | `generateIdempotencyKey()` + `checkIdempotency()` at pipeline entry — prevents duplicate cash pipeline runs for the same entity                                  |
+| **Pipeline-Level Timeout**  | Wrapped entire pipeline in IIFE with `withTimeout()` — configurable `maxExecutionMs` via `PipelineTimeoutConfig` (defaults to 30s)                               |
+| **Retry + Circuit Breaker** | Steps 1-2 (Cash Positions + Till Positions) wrapped with `withRetry()` + `withTimeout()` for resilience against transient DB failures                            |
+| **Step Timeout Guards**     | Steps 4-6 (Discrepancies, Open Flags, Verification Schedule) wrapped with `withTimeout(maxStepExecutionMs)`                                                      |
+| **Per-Step Telemetry**      | 8 phases tracked: Cash Positions, Till Positions, Imprest Scan, Discrepancy Check, Open Flags, Verification Schedule, Health Score, Confidence Gate, Audit Trail |
+| **PII Redaction**           | `redactPIIFromObject()` applied to audit entry details before logging                                                                                            |
+| **TimeoutError Detection**  | Catch block differentiates timeouts from other errors with explicit `isTimeout` flag                                                                             |
+| **Idempotency Cache**       | `setIdempotencyResult()` called on success path                                                                                                                  |
+
+### Verification
+
+| Check                         | Status                        |
+| ----------------------------- | ----------------------------- |
+| Typecheck (`@xenboox/agents`) | ✅ No errors                  |
+| Typecheck (`@xenboox/web`)    | ✅ No errors                  |
+| Code review                   | ✅ All fixes verified correct |
+
+---
+
 ### [2026-07-26] — Autonomous Bank Reconciliation Pipeline: Enterprise-Grade Production Hardening
 
 **Agent:** Buffy (Autonomous Engineer)
