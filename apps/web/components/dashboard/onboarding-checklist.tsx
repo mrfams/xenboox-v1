@@ -60,7 +60,7 @@ export function OnboardingChecklist({
       href: "/dashboard/integrations",
     },
     {
-      id: "receipt",
+      id: "documents",
       label: "Upload documents",
       description: "AI will classify and extract data",
       completed: false,
@@ -87,7 +87,7 @@ export function OnboardingChecklist({
             return { ...step, completed: (fiscalData.data?.length ?? 0) > 0 };
           case "bank":
             return { ...step, completed: (bankData.data?.length ?? 0) > 0 };
-          case "receipt":
+          case "documents":
             return {
               ...step,
               completed: (docData.data?.length ?? 0) > 0,

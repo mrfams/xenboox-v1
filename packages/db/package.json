@@ -10,6 +10,7 @@
     "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
     "seed": "tsx seed/index.ts",
+    "seed:demo": "tsx seed/4month-expansion.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts"
   },

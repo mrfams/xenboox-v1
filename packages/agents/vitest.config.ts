@@ -5,9 +5,15 @@ export default defineConfig({
     include: ["**/__tests__/**/*.test.ts"],
     globals: true,
     deps: {
-      // fallbackCJS enables CJS-compatible resolution for packages
-      // that have ESM incompatibilities (like directory imports)
       fallbackCJS: true,
+      // Inline workspace packages to avoid ESM directory import issues
+      // with the @xenboox/db package which uses `import * as schema from "./schema"` pattern
+      inline: [/@xenboox\/db/],
+    },
+    server: {
+      deps: {
+        fallbackCJS: true,
+      },
     },
   },
 });

@@ -70,6 +70,10 @@ import {
   modelAssignments,
   modelCostTracking,
 } from "../schema/models";
+import { seedFixedAssets } from "./fixed-assets";
+import { seedBudget } from "./budget";
+import { seedInventory } from "./inventory";
+import { seedConsolidation } from "./consolidation";
 
 const USER_ID = crypto.randomUUID();
 const ORG_ID = crypto.randomUUID();
@@ -2885,6 +2889,18 @@ export async function seed() {
   console.log(`  Exchange Rates: ${exchangeData.length}`);
   console.log(`  Model Registry: ${modelRegistryData.length} models`);
   console.log(`  Model Assignments: ${taskDefaults.length} assignments`);
+
+  // 39. Fixed Assets Pipeline Seed Data
+  await seedFixedAssets(ENTITY_ID);
+
+  // 40. Budget Pipeline Seed Data
+  await seedBudget(ENTITY_ID);
+
+  // 41. Inventory Pipeline Seed Data
+  await seedInventory(ENTITY_ID);
+
+  // 42. Consolidation Pipeline Seed Data
+  await seedConsolidation(ENTITY_ID);
 }
 
 seed()

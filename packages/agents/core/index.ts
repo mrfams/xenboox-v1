@@ -362,10 +362,77 @@ export type {
   ClaimLineItemInput,
   PolicyCheckResult,
   ApprovalRoutingResult,
-  BudgetImpactResult,
+  BudgetImpactResult as ExpenseBudgetImpactResult,
   ExpenseConfidenceResult,
   ExpenseResult,
 } from "./expense-pipeline";
+
+// ─── Asset Pipeline (Phase 3) ────────────────────────────
+export { runAssetPipeline, getAssetPipelineStatus } from "./asset-pipeline";
+export type {
+  AssetStep,
+  AssetStepId,
+  AssetStepStatus,
+  AssetPipelineResult,
+  ScannedAsset,
+  DepreciationEntry,
+  VerificationDueItem,
+  DisposalFlagItem,
+} from "./asset-pipeline";
+
+// ─── Consolidation Pipeline (Phase 3) ────────────────────────────
+export {
+  runConsolidationPipeline,
+  getConsolidationStatus,
+  approveConsolidationRun,
+  createEntityRelationship,
+  listEntityRelationships,
+} from "./consolidation-pipeline";
+export type {
+  ConsolidationStep,
+  ConsolidationStepId,
+  ConsolidationStepStatus,
+  EntitySubsidiary,
+  ICTransactionItem,
+  EliminationItem,
+  TranslationItem,
+  MinorityInterestItem,
+  ConsolidatedTotals,
+  ConsolidationPipelineResult,
+} from "./consolidation-pipeline";
+
+// ─── Inventory Pipeline (Phase 3) ────────────────────────────
+export {
+  runInventoryPipeline,
+  getInventoryPipelineStatus,
+} from "./inventory-pipeline";
+export type {
+  InventoryStep,
+  InventoryStepId,
+  InventoryStepStatus,
+  InventorySummary,
+  LowStockAlert,
+  StockDiscrepancy,
+  COGSResult,
+  InventoryPipelineResult,
+} from "./inventory-pipeline";
+
+// ─── Budget Pipeline (Phase 2) ────────────────────────────
+export {
+  runBudgetPipeline,
+  getBudgetStatus,
+  checkBudgetImpact,
+} from "./budget-pipeline";
+export type {
+  BudgetStep,
+  BudgetStepId,
+  BudgetStepStatus,
+  BudgetPipelineResult,
+  BudgetSummary,
+  VarLineItem,
+  BudgetAlert,
+  BudgetImpactResult,
+} from "./budget-pipeline";
 
 // ─── Payroll Pipeline (Phase 2, Pipeline 1 of 5) ─────
 export {

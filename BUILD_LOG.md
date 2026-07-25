@@ -6,6 +6,205 @@
 
 ---
 
+### [2026-07-25] — Consolidation Pipeline UI Integration: Dashboard Card, Landing Page, Controller Agent Tools
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Created:** 1 (`apps/web/app/dashboard/consolidation/page.tsx`)
+**Files Modified:** 2 (`apps/web/app/dashboard/page.tsx`, `packages/agents/tier2/controller-agent/tools.ts`)
+
+**What was built:**
+
+### 1. Consolidation Status Dashboard Card
+
+**File:** `apps/web/app/dashboard/page.tsx` — MODIFIED
+
+- Added `trpc.consolidation.getStatus` query to main dashboard (enabled: `!!entityId`, scoped inside the hasData JSX branch)
+- Changed Row 3 grid from `lg:grid-cols-3` to `lg:grid-cols-4` to accommodate both Close Status and Consolidation Status cards
+- New consolidation card shows:
+  - Subsidiaries count with GitBranch icon
+  - Last run period/status
+  - IC transactions count
+  - Eliminations count
+  - Integrity check failure warning banner (red)
+  - "Open Consolidation" button linking to pipeline page
+- Added imports: `GitBranch`, `Network`, `Building2`, `PlayCircle`
+
+### 2. Consolidation Landing Page
+
+**File:** `apps/web/app/dashboard/consolidation/page.tsx` — NEW
+
+- Simple server component that redirects via `redirect("/dashboard/consolidation/pipeline")`
+- Prevents 404 when users navigate directly to `/dashboard/consolidation/`
+
+### 3. Controller Agent Consolidation Tools
+
+**File:** `packages/agents/tier2/controller-agent/tools.ts` — MODIFIED
+
+- Added 4 consolidation functions using dynamic `import()` to avoid circular deps:
+  - `runControllerConsolidation` — triggers full 10-step pipeline
+  - `getControllerConsolidationStatus` — queries latest status
+  - `approveControllerConsolidation` — Controller sign-off
+  - `createControllerEntityRelationship` — links subsidiaries
+
+### Bug Fix
+
+- Fixed temporal dead zone bug: `trpc.consolidation.getStatus.useQuery({ enabled: !!entityId && !!hasData })` — `hasData` was a `const` declared via `useMemo` after the query. Changed to `enabled: !!entityId`. Safe because the card is inside the hasData branch.
+
+### Verification
+
+| Check                                  | Status                                                        |
+| -------------------------------------- | ------------------------------------------------------------- |
+| `pnpm typecheck --filter=@xenboox/web` | ✅ No new errors (pre-existing seed-demo/route.ts error only) |
+| Code Review                            | ✅ Temporal dead zone fix verified                            |
+
+---
+
+### [2026-07-25] — Demo Seed: 4-Month Data Expansion + Vercel Seed Endpoint
+
+**Agent:** Kilo
+**Duration:** ~30 min
+**Files Created:** 2 (`packages/db/seed/4month-expansion.ts`, `apps/web/app/api/seed-demo/route.ts`)
+**Files Modified:** 1 (`packages/db/package.json`)
+
+**What was built:**
+
+### 4-Month Demo Data Expansion
+
+**Purpose:** Make the demo@xenboox.com account feel realistic with 4 months of transaction history (Mar-Jun 2026).
+
+**Files:**
+
+- `packages/db/seed/4month-expansion.ts` — NEW standalone seed script
+- `packages/db/package.json` — added `seed:demo` script
+
+**Data Added (per month: Mar, Apr, May, Jun):**
+
+- 4 journal entries (sales, COGS, salaries, expenses)
+- 2 AR invoices (varying statuses: paid, partial, pending)
+- 2 AP invoices (linked to suppliers)
+- 4-5 bank transactions (deposits, withdrawals, interest, fees)
+- 4-5 inventory transactions (receipts, issues, adjustments)
+- 2 documents (invoices, bank statements)
+- 2-3 petty cash ledger entries
+- 1 reconciliation (closed month-end)
+
+**Totals added across 4 months:**
+
+- 16 journal entries + lines
+- 8 AR invoices + lines
+- 8 AP invoices + lines
+- 17 bank transactions
+- 17 inventory transactions
+- 8 documents
+- 10 petty cash entries
+- 4 payroll runs (Mar-Jun)
+- 1 reconciliation
+
+**Robustness:**
+
+- Uses `crypto.randomUUID()` for all IDs (no collisions)
+- AR/AP inserts use `onConflictDoNothing` + re-query for idempotent re-runs
+- Children reference fathers after parent insert/check
+
+### Vercel Seed Endpoint
+
+**File:** `apps/web/app/api/seed-demo/route.ts` — NEW
+
+- POST endpoint at `/api/seed-demo`
+- Protected by `SEED_DEMO_TOKEN` environment variable
+- Returns 401 if token missing/invalid
+- Runs the same 4-month expansion logic server-side
+- Can be triggered from Vercel without local CLI
+
+**Usage:**
+
+```bash
+# Local seed
+pnpm db:seed:demo
+
+# Vercel (once deployed)
+curl -X POST https://xenboox.vercel.app/api/seed-demo \
+  -H "Content-Type: application/json" \
+  -d '{"token":"<SEED_DEMO_TOKEN>"}'
+```
+
+**Verification:**
+
+- Seed ran successfully against production Neon DB
+- Demo account now shows 4 months of Mar-Jun 2026 data
+
+---
+
+### [2026-07-25] — Dashboard Onboarding Restructure: Multi-Step Setup Wizard
+
+**Agent:** Kilo
+**Duration:** ~30 min
+**Files Created:** 0
+**Files Modified:** 3 (`apps/web/app/dashboard/page.tsx`, `apps/web/components/dashboard/onboarding-modal.tsx`, `apps/web/components/dashboard/onboarding-checklist.tsx`)
+
+**What was built:**
+
+### Dashboard Empty State Restructure
+
+**Problem:** The first-time user experience was crammed into a single `OnboardingModal` dialog containing the welcome message, AI chat prompt, suggested prompts, setup checklist, and quick actions all at once. The dashboard welcome banner was minimal and offloaded real onboarding to that modal.
+
+**Fix:** Restructured the empty-state dashboard into a guided spatial layout:
+
+| Area                 | What it shows                                                                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Top of dashboard** | Welcome banner with Sparkles icon, `<h1>Welcome to Xenboox</h1>`, description text, inline AI chat input + send button, and suggested prompt chips |
+| **Below welcome**    | `<QuickActions />` grid (Upload Receipt, Upload Invoice, Connect Bank, Upload Statement, Email Forwarding)                                         |
+| **Bottom-right**     | Floating `<FloatingSetupProgress />` gear button that opens a multi-step setup wizard                                                              |
+
+### Multi-Step Setup Wizard (`SetupWizard`)
+
+**File:** `apps/web/components/dashboard/onboarding-modal.tsx` — MODIFIED
+
+Converted the single-page `OnboardingModal` into a step-by-step wizard:
+
+| Feature               | Detail                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| **Step navigation**   | Back / Next / Skip buttons with step progress bar                                       |
+| **5 steps**           | Organization, Chart of Accounts, Fiscal Year, Bank & Integrations, Documents (optional) |
+| **Per-step view**     | Focused title, description, status badge (Pending/Done), and primary CTA button         |
+| **Suggested prompts** | Same 4 prompt chips available at each step                                              |
+| **Chat input**        | Same AI chat input bar at each step                                                     |
+| **Completion screen** | Green checkmark + "Setup complete" message when all 5 steps are done                    |
+| **State**             | `useState(initialStep)` with `goTo()` clamped to `[1, steps.length]`                    |
+
+**Key UX changes:**
+
+- Removed the crammed two-column layout (setup checklist + quick actions) from inside the modal
+- Each step now gets a single focused task view with clear CTA
+- User can navigate freely between steps or skip non-critical ones
+- Footer navigation shows context-aware Back/Next/Skip
+
+### Onboarding Checklist Sync
+
+**File:** `apps/web/components/dashboard/onboarding-checklist.tsx` — MODIFIED
+
+- Fixed step ID inconsistency: changed `receipt` → `documents` to match the wizard
+- Updated switch case from `case "receipt"` to `case "documents"`
+
+### Verification
+
+| Check                                  | Status                                           |
+| -------------------------------------- | ------------------------------------------------ |
+| `pnpm typecheck --filter=@xenboox/web` | ✅ No new errors in modified files               |
+| `pnpm exec eslint` on modified files   | ✅ No new errors (20 pre-existing warnings only) |
+| Git diff review                        | ✅ Clean separation of concerns                  |
+
+### Rules Applied
+
+- Reused existing `OnboardingStep` type shape
+- Kept all tRPC queries unchanged
+- No new routes or API changes
+- Maintained accessibility: keyboard-focusable steps, semantic buttons/links
+- `use client` boundary preserved on all interactive components
+
+---
+
 ### [2026-07-23] — Pipelines 4-6: Cash & Imprest, Reporting, Onboarding
 
 **Agent:** Buffy (Autonomous Engineer)

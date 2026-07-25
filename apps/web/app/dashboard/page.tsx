@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/shared/loading";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { ConfidenceBadge } from "@/components/dashboard/confidence-badge";
 import { AgentActivityItem } from "@/components/dashboard/agent-activity-item";
-import { OnboardingModal } from "@/components/dashboard/onboarding-modal";
+import { SetupWizard } from "@/components/dashboard/onboarding-modal";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -41,13 +41,16 @@ import {
   TrendingDown,
   AlertCircle,
   CheckCircle2,
-  X,
   ChevronRight,
-  Settings,
   RefreshCw,
   Database,
   ChevronDown,
   ChevronUp,
+  Settings,
+  GitBranch,
+  Network,
+  Building2,
+  PlayCircle,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -155,26 +158,11 @@ function HealthScoreBadge({
   );
 }
 
-// ─── Onboarding Modal ──────────────────────────────────────────────────────────
-// When user has no data, show a centered onboarding dialog.
-// Dismissing it leaves a floating reopen button fixed at the bottom-right.
+// ─── Onboarding Wizard ─────────────────────────────────────────────────────────
+// When user has no data, show an inline welcome + quick actions,
+// plus a floating progress button that opens a multi-step setup wizard.
 
-type OnboardingWelcomeProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-};
-
-function OnboardingWelcome({ open, onOpenChange }: OnboardingWelcomeProps) {
-  return (
-    <OnboardingModal
-      open={open}
-      onOpenChange={onOpenChange}
-      onDismissed={() => onOpenChange(false)}
-    />
-  );
-}
-
-function FloatingSetupButton({ onClick }: { onClick: () => void }) {
+function FloatingSetupProgress({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
@@ -308,6 +296,13 @@ export default function DashboardPage() {
     },
   );
 
+  const { data: consolidationStatus } = trpc.consolidation.getStatus.useQuery(
+    undefined,
+    {
+      enabled: !!entityId,
+    },
+  );
+
   const isLoading =
     arLoading || apLoading || poLoading || bankLoading || cashLoading;
 
@@ -361,18 +356,54 @@ export default function DashboardPage() {
               <div className="flex-1">
                 <h1 className="text-xl font-bold">Welcome to Xenboox</h1>
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                  Your AI accounting team is ready. Open the setup guide to get
-                  started — or ask your agent anything below.
+                  Your AI accounting team is ready. Tell your agent what to do —
+                  connect your bank, upload documents, or ask anything about
+                  your finances.
                 </p>
-                <div className="mt-3 flex gap-2">
-                  <Button onClick={() => setShowOnboarding(true)}>
-                    <Settings className="mr-2 h-4 w-4" /> Open Setup Guide
+                <form
+                  onSubmit={(e) => {
+                    const input = e.currentTarget.querySelector("input");
+                    const value = input?.value?.trim();
+                    if (value) {
+                      router.push(
+                        `/dashboard/chat?initial=${encodeURIComponent(value)}`,
+                      );
+                    }
+                  }}
+                  className="relative mt-3"
+                >
+                  <input
+                    type="text"
+                    placeholder="Ask your AI anything — or start by describing your business..."
+                    className="w-full rounded-xl border bg-background px-4 py-3 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-shadow"
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
+                  >
+                    <Send className="h-4 w-4" />
                   </Button>
-                  <Link href="/dashboard/chat">
-                    <Button variant="outline">
-                      Ask CFO Agent <ChevronRight className="ml-1 h-3 w-3" />
-                    </Button>
-                  </Link>
+                </form>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    "Set up my chart of accounts for a trading business",
+                    "I want to connect my bank account",
+                    "I have invoices to upload",
+                    "What accounting software can you import from?",
+                  ].map((prompt) => (
+                    <Link
+                      key={prompt}
+                      href={`/dashboard/chat?initial=${encodeURIComponent(prompt)}`}
+                    >
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 rounded-lg border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+                      >
+                        {prompt}
+                      </button>
+                    </Link>
+                  ))}
                 </div>
               </div>
             </div>
@@ -388,11 +419,8 @@ export default function DashboardPage() {
           />
         </div>
 
-        <OnboardingWelcome
-          open={showOnboarding}
-          onOpenChange={setShowOnboarding}
-        />
-        <FloatingSetupButton onClick={() => setShowOnboarding(true)} />
+        <SetupWizard open={showOnboarding} onOpenChange={setShowOnboarding} />
+        <FloatingSetupProgress onClick={() => setShowOnboarding(true)} />
       </>
     );
   }
@@ -545,7 +573,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 3: Approval Queue Preview + Close Status */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-4">
         {/* Approval Queue Preview */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
@@ -645,6 +673,72 @@ export default function DashboardPage() {
             <Link href="/dashboard/close">
               <Button variant="outline" size="sm" className="w-full mt-4">
                 Open Close Center
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Consolidation Status Card */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Consolidation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500/10">
+                <GitBranch className="h-5 w-5 text-indigo-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {consolidationStatus?.subsidiaries?.length ?? 0} subsidiaries
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {consolidationStatus?.latestRun
+                    ? `Last run: ${consolidationStatus.latestRun.status} (${consolidationStatus.latestRun.period})`
+                    : "No consolidation runs yet"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="h-3 w-3" />
+                  <span>Subsidiaries</span>
+                </div>
+                <span className="font-medium">
+                  {consolidationStatus?.subsidiaries?.length ?? 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Network className="h-3 w-3" />
+                  <span>IC Transactions</span>
+                </div>
+                <span className="font-medium">
+                  {consolidationStatus?.icTransactionCount ?? 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <PlayCircle className="h-3 w-3" />
+                  <span>Eliminations</span>
+                </div>
+                <span className="font-medium">
+                  {consolidationStatus?.eliminationCount ?? 0}
+                </span>
+              </div>
+            </div>
+            {consolidationStatus?.integrityCheckPassed === false && (
+              <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-red-500/10 px-2 py-1.5 text-[11px] text-red-600">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                <span>Integrity check failed — review required</span>
+              </div>
+            )}
+            <Link href="/dashboard/consolidation/pipeline">
+              <Button variant="outline" size="sm" className="w-full mt-4">
+                Open Consolidation
               </Button>
             </Link>
           </CardContent>

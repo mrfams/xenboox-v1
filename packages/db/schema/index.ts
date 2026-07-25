@@ -28,3 +28,7 @@ export * from "./tax-compliance";
 export * from "./analytics";
 export * from "./expense";
 export * from "./audit-pipeline";
+export * from "./asset-pipeline";
+export * from "./budget";
+export * from "./inventory-pipeline";
+export * from "./consolidation";

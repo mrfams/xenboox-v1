@@ -6,7 +6,6 @@ import {
   Check,
   Circle,
   Loader2,
-  X,
   Sparkles,
   Send,
   BookOpen,
@@ -16,6 +15,9 @@ import {
   MessageSquare,
   Upload,
   ChevronRight,
+  ChevronLeft,
+  SkipForward,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
@@ -25,7 +27,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose,
 } from "@/components/ui";
 
 export type OnboardingStep = {
@@ -38,47 +39,52 @@ export type OnboardingStep = {
   optional?: boolean;
 };
 
-type OnboardingModalProps = {
+type SetupWizardProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDismissed?: () => void;
+  initialStep?: number;
 };
 
 const STEPS: Omit<OnboardingStep, "completed" | "inProgress">[] = [
   {
     id: "org",
-    label: "Create organization",
-    description: "Your workspace is ready",
-    href: "/dashboard/settings",
+    label: "Create your organization",
+    description:
+      "Set up your workspace so we can scope your books and team access correctly.",
+    href: "/welcome",
   },
   {
     id: "coa",
     label: "Set up chart of accounts",
-    description: "Import a template or create custom accounts",
+    description:
+      "Import a template or create your own account structure to match your business.",
     href: "/dashboard/coa",
   },
   {
     id: "fiscal",
     label: "Configure fiscal year",
-    description: "Set your financial year dates",
+    description:
+      "Confirm your financial year dates so periods, closes, and reports line up correctly.",
     href: "/dashboard/fiscal",
   },
   {
     id: "bank",
     label: "Connect bank or upload statement",
-    description: "Link via Mono API or upload monthly statements manually",
+    description:
+      "Link a bank account or import a statement so transactions can be reconciled.",
     href: "/dashboard/integrations",
   },
   {
     id: "documents",
     label: "Upload documents (optional)",
-    description: "AI will classify and extract data from invoices/receipts",
+    description:
+      "Upload invoices, receipts, or statements and the AI will extract the data.",
     href: "/dashboard/documents",
     optional: true,
   },
 ];
 
-const suggestedPrompts = [
+const SUGGESTED_PROMPTS = [
   {
     text: "Set up my chart of accounts for a trading business",
     icon: BookOpen,
@@ -91,46 +97,13 @@ const suggestedPrompts = [
   },
 ];
 
-type QuickActionItem = {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  href: string;
-};
-
-const quickActions: QuickActionItem[] = [
-  {
-    id: "coa",
-    label: "Chart of Accounts",
-    icon: BookOpen,
-    href: "/dashboard/coa",
-  },
-  {
-    id: "fiscal",
-    label: "Fiscal Year",
-    icon: Landmark,
-    href: "/dashboard/fiscal",
-  },
-  {
-    id: "bank",
-    label: "Connect Bank / Upload Statement",
-    icon: Building2,
-    href: "/dashboard/integrations",
-  },
-  {
-    id: "chat",
-    label: "Ask CFO Agent",
-    icon: MessageSquare,
-    href: "/dashboard/chat",
-  },
-];
-
-export function OnboardingModal({
+export function SetupWizard({
   open,
   onOpenChange,
-  onDismissed,
-}: OnboardingModalProps) {
+  initialStep = 1,
+}: SetupWizardProps) {
   const router = useRouter();
+  const [step, setStep] = useState(initialStep);
   const [chatMessage, setChatMessage] = useState("");
 
   const orgData = trpc.organization.listUserEntities.useQuery();
@@ -139,11 +112,11 @@ export function OnboardingModal({
   const bankData = trpc.integrations.getBankConnections.useQuery();
   const docData = trpc.document.listDocuments.useQuery();
 
-  const steps: OnboardingStep[] = STEPS.map((step) => {
+  const steps: OnboardingStep[] = STEPS.map((s) => {
     let completed = false;
-    switch (step.id) {
+    switch (s.id) {
       case "org":
-        completed = !!orgData.data;
+        completed = (orgData.data?.length ?? 0) > 0;
         break;
       case "coa":
         completed = (coaData.data?.length ?? 0) > 0;
@@ -158,11 +131,17 @@ export function OnboardingModal({
         completed = (docData.data?.length ?? 0) > 0;
         break;
     }
-    return { ...step, completed };
+    return { ...s, completed };
   });
 
   const completedCount = steps.filter((s) => s.completed).length;
-  const progress = steps.length > 0 ? (completedCount / steps.length) * 100 : 0;
+  const allComplete = completedCount === steps.length;
+  const currentStep = steps[Math.min(step, steps.length) - 1];
+  const isFirstStep = step === 1;
+
+  const goTo = (next: number) => {
+    setStep(Math.max(1, Math.min(steps.length, next)));
+  };
 
   const handlePrompt = (prompt: string) => {
     router.push(`/dashboard/chat?initial=${encodeURIComponent(prompt)}`);
@@ -174,9 +153,24 @@ export function OnboardingModal({
     if (chatMessage.trim()) handlePrompt(chatMessage.trim());
   };
 
-  const handleStepClick = (href: string) => {
-    router.push(href);
-    onOpenChange(false);
+  const handleStepAction = () => {
+    if (currentStep?.href) {
+      router.push(currentStep.href);
+      onOpenChange(false);
+    }
+  };
+
+  const handleSkip = () => {
+    goTo(step + 1);
+  };
+
+  const handleBack = () => {
+    goTo(step - 1);
+  };
+
+  const getStepLabel = (stepIndex: number) => {
+    if (stepIndex <= 0 || stepIndex > steps.length) return "";
+    return steps[stepIndex - 1]?.label ?? "";
   };
 
   return (
@@ -184,170 +178,153 @@ export function OnboardingModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg">Welcome to Xenboox</DialogTitle>
-            <DialogClose asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onDismissed?.()}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogClose>
+            <DialogTitle className="text-lg">
+              {allComplete
+                ? "You're all set!"
+                : `Setup Guide — Step ${step} of ${steps.length}`}
+            </DialogTitle>
           </div>
+          <div className="mt-3 flex items-center gap-2">
+            {steps.map((s, idx) => (
+              <div
+                key={s.id}
+                className={cn(
+                  "h-1.5 flex-1 rounded-full transition-colors",
+                  idx < step || s.completed ? "bg-primary" : "bg-muted",
+                )}
+              />
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {allComplete
+              ? "All setup steps are complete."
+              : `${completedCount}/${steps.length} completed — ${getStepLabel(step)}`}
+          </p>
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15">
-              <Sparkles className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Your AI accounting team is ready. Tell your agent what to do —
-                connect your bank, upload documents, or ask anything about your
-                finances.
-              </p>
-            </div>
-          </div>
-
-          <form onSubmit={handleChatSubmit} className="relative">
-            <input
-              type="text"
-              value={chatMessage}
-              onChange={(e) => setChatMessage(e.target.value)}
-              placeholder="Ask your AI anything — or start by describing your business..."
-              className="w-full rounded-xl border bg-background px-4 py-3 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-shadow"
-            />
-            <Button
-              type="submit"
-              size="icon"
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
-              disabled={!chatMessage.trim()}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </form>
-
-          <div className="flex flex-wrap gap-2">
-            {suggestedPrompts.map((prompt) => {
-              const Icon = prompt.icon;
-              return (
-                <button
-                  key={prompt.text}
-                  type="button"
-                  onClick={() => handlePrompt(prompt.text)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
-                >
-                  <Icon className="h-3 w-3" />
-                  {prompt.text}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border bg-card p-5">
-              <h3 className="text-sm font-semibold mb-3">Setup Progress</h3>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted mb-3">
-                <div
-                  className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-                  style={{ width: `${progress}%` }}
-                />
+          {allComplete ? (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
+                <Check className="h-7 w-7 text-emerald-500" />
               </div>
-              <div className="space-y-1">
-                {steps.map((step) => (
-                  <div
-                    key={step.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => step.href && handleStepClick(step.href!)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        step.href && handleStepClick(step.href);
-                      }
-                    }}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                      step.href && "cursor-pointer hover:bg-accent/50",
-                      step.completed && "text-muted-foreground",
-                    )}
-                  >
-                    <div className="mt-0.5 shrink-0">
-                      {step.completed ? (
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15">
-                          <Check className="h-3 w-3 text-primary" />
-                        </div>
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground/50" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={cn(
-                          "font-medium",
-                          step.completed && "line-through",
-                          step.optional &&
-                            !step.completed &&
-                            "text-muted-foreground",
-                        )}
-                      >
-                        {step.label}
-                        {step.optional && (
-                          <span className="ml-1 text-xs text-muted-foreground">
-                            (optional)
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {step.description}
-                      </p>
-                    </div>
-                    {!step.completed && step.href && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0 h-7 text-xs"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleStepClick(step.href!);
-                        }}
-                      >
-                        {step.id === "bank" ? "Connect / Upload" : "Setup"}
-                      </Button>
-                    )}
-                  </div>
-                ))}
+              <div>
+                <p className="text-sm font-semibold">Setup complete</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Your workspace is ready. You can still update any step later
+                  from the setup button.
+                </p>
               </div>
+              <Button className="mt-2" onClick={() => onOpenChange(false)}>
+                Go to dashboard
+              </Button>
             </div>
+          ) : (
+            <>
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+                  <Bot className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">{currentStep?.label}</p>
+                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                    {currentStep?.description}
+                  </p>
+                </div>
+              </div>
 
-            <div className="rounded-xl border bg-card p-5">
-              <h3 className="text-sm font-semibold mb-3">Quick Actions</h3>
-              <div className="grid grid-cols-1 gap-2">
-                {quickActions.map((action) => {
-                  const Icon = action.icon;
+              <div className="flex flex-wrap gap-2">
+                {SUGGESTED_PROMPTS.map((prompt) => {
+                  const Icon = prompt.icon;
                   return (
                     <button
-                      key={action.id}
+                      key={prompt.text}
                       type="button"
-                      onClick={() => handleStepClick(action.href)}
-                      className="flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:border-primary/40 hover:bg-accent/40"
+                      onClick={() => handlePrompt(prompt.text)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className="font-medium">{action.label}</span>
-                      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+                      <Icon className="h-3 w-3" />
+                      {prompt.text}
                     </button>
                   );
                 })}
               </div>
+
+              <form onSubmit={handleChatSubmit} className="relative">
+                <input
+                  type="text"
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  placeholder="Ask your AI anything — or start by describing your business..."
+                  className="w-full rounded-xl border bg-background px-4 py-3 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-shadow"
+                />
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
+                  disabled={!chatMessage.trim()}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </form>
+
+              <div className="rounded-xl border bg-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {currentStep?.label}
+                  </span>
+                  {currentStep?.completed ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                      <Check className="h-3 w-3" /> Done
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600">
+                      <Circle className="h-3 w-3" /> Pending
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {currentStep?.description}
+                </p>
+                <Button
+                  className="w-full"
+                  onClick={handleStepAction}
+                  disabled={!currentStep?.href}
+                >
+                  {currentStep?.id === "bank"
+                    ? "Connect / Upload"
+                    : currentStep?.completed
+                      ? "Open again"
+                      : "Start this step"}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {!allComplete && (
+          <div className="mt-6 flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              disabled={isFirstStep}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" /> Back
+            </Button>
+            <div className="flex items-center gap-2">
+              {!currentStep?.completed && !currentStep?.optional && (
+                <Button variant="outline" size="sm" onClick={handleSkip}>
+                  Skip <SkipForward className="ml-1 h-4 w-4" />
+                </Button>
+              )}
+              <Button size="sm" onClick={() => goTo(step + 1)}>
+                Next <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
             </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -29,6 +29,10 @@ import { taxComplianceRouter } from "./tax-compliance";
 import { auditPipelineRouter } from "./audit-pipeline";
 import { analyticsRouter } from "./analytics";
 import { expenseRouter } from "./expense";
+import { assetPipelineRouter } from "./asset-pipeline";
+import { budgetRouter } from "./budget";
+import { inventoryPipelineRouter } from "./inventory-pipeline";
+import { consolidationRouter } from "./consolidation";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -62,6 +66,10 @@ export const appRouter = router({
   auditPipeline: auditPipelineRouter,
   expense: expenseRouter,
   analytics: analyticsRouter,
+  assetPipeline: assetPipelineRouter,
+  budget: budgetRouter,
+  inventoryPipeline: inventoryPipelineRouter,
+  consolidation: consolidationRouter,
 });
 
 export type AppRouter = typeof appRouter;

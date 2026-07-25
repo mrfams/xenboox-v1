@@ -228,6 +228,55 @@ export async function reconcileSubLedgers(
   };
 }
 
+// ─── Consolidation Pipeline Tools ──────────────────────────────────────────
+
+export async function runControllerConsolidation(params: {
+  entityId: string;
+  organizationId: string;
+  period: string;
+  userId: string;
+}) {
+  const { runConsolidationPipeline } =
+    await import("../../core/consolidation-pipeline");
+  return runConsolidationPipeline({
+    entityId: params.entityId,
+    organizationId: params.organizationId,
+    period: params.period,
+    userId: params.userId,
+  });
+}
+
+export async function getControllerConsolidationStatus(params: {
+  entityId: string;
+  period?: string;
+}) {
+  const { getConsolidationStatus } =
+    await import("../../core/consolidation-pipeline");
+  return getConsolidationStatus(params);
+}
+
+export async function approveControllerConsolidation(params: {
+  runId: string;
+  entityId: string;
+  userId: string;
+}) {
+  const { approveConsolidationRun } =
+    await import("../../core/consolidation-pipeline");
+  return approveConsolidationRun(params);
+}
+
+export async function createControllerEntityRelationship(params: {
+  parentEntityId: string;
+  subsidiaryEntityId: string;
+  ownershipPct: number;
+  currency: string;
+  consolidationMethod: string;
+}) {
+  const { createEntityRelationship } =
+    await import("../../core/consolidation-pipeline");
+  return createEntityRelationship(params);
+}
+
 // ─── Trial Balance Query ───────────────────────────────────────────────────
 
 export async function queryTrialBalanceFromDB(
