@@ -148,6 +148,12 @@ const moreModules: NavItem[] = [
     icon: Palette,
     badge: "Firm",
   },
+  {
+    label: "Benchmarking",
+    href: "/dashboard/benchmarking",
+    icon: BarChart3,
+    badge: "Beta",
+  },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
   { label: "Employees", href: "/dashboard/payroll", icon: Users },
   { label: "Payroll Runs", href: "/dashboard/payroll/runs", icon: Receipt },

@@ -435,6 +435,25 @@ export type {
   InventoryPipelineResult,
 } from "./inventory-pipeline";
 
+// ─── Benchmarking & Consent Pipeline (Phase 3) ────────────────────
+export {
+  runBenchmarkingPipeline,
+  getBenchmarkingAvailability,
+  recordConsent,
+  MIN_COHORT_SIZE,
+  RECOMMENDED_COHORT_SIZE,
+} from "./benchmarking-pipeline";
+export type {
+  BenchmarkResult,
+  BenchmarkStep,
+  BenchmarkStepId,
+  BenchmarkStepStatus,
+  CohortDefinition,
+  AnonymizedMetric,
+  ConsentRecord,
+  BenchmarkPipelineParams,
+} from "./benchmarking-pipeline";
+
 // ─── Budget Pipeline (Phase 2) ────────────────────────────
 export {
   runBudgetPipeline,

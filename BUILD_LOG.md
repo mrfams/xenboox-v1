@@ -6,6 +6,121 @@
 
 ---
 
+### [2026-07-25] — Benchmarking & Consent Architecture Pipeline (Phase 3)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~45 min
+**Files Created:** 4
+**Files Modified:** 6
+
+**What was built:**
+
+### Phase 1 — Database Schema
+
+**File:** `packages/db/schema/benchmarking.ts` — NEW
+
+Three tables:
+
+| Table                       | Purpose                                                   | Key Columns                                                                                  |
+| --------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `benchmark_consent_records` | Explicit opt-IN consent grants/revocations per org        | org_id, entity_id, consented, consented_at, revoked_at, consented_by, ip_address, user_agent |
+| `benchmark_cohort_members`  | Internal org-to-cohort mapping (NEVER exposed downstream) | cohort_id → benchmark_cohorts.id, org_id, active, joined_at, removed_at, reason_removed      |
+| `benchmark_aggregates`      | Aggregate statistics only — median, quartile ranges       | cohort_id, metric, period, member_count, median, quartile_low, quartile_high, mean           |
+
+Correct FK references (fixed after review): cohort_members.cohort_id and aggregates.cohort_id reference benchmark_cohorts.id, not entities.id.
+
+### Phase 2 — 8-Step Benchmarking Pipeline
+
+**File:** `packages/agents/core/benchmarking-pipeline.ts` — NEW (~600 lines)
+
+| Step | Name                        | Description                                                                  |
+| ---- | --------------------------- | ---------------------------------------------------------------------------- |
+| 1    | Consent Capture             | Opt-IN only. Default excluded. Blocks pipeline if no consent.                |
+| 2    | Anonymization Engine        | Strips org name, exact figures. Converts to ratios/bands at point of entry.  |
+| 3    | Cohort Definition           | Grouped by market/segment/size band. Finds or creates cohort.                |
+| 4    | Min Cohort Size Enforcement | Hard minimum N=3, recommended N=15. Blocks computation below strict minimum. |
+| 5    | Benchmark Computation       | Median, quartile ranges only. No individual org data ever surfaced.          |
+| 6    | Consent Revocation Handling | Removes revoked orgs from future cohorts. Historical aggregates preserved.   |
+| 7    | Delivery to Analytics Agent | Cohort aggregates ONLY — updates benchmark_cohorts.aggregate_data.           |
+| 8    | Audit Trail Logging         | Consent grants/revocations, cohort inclusion/exclusion logged.               |
+
+Public API: `runBenchmarkingPipeline()`, `getBenchmarkingAvailability()`, `recordConsent()`
+
+### Phase 3 — tRPC Router
+
+**File:** `apps/web/server/routers/benchmarking.ts` — NEW
+
+7 endpoints:
+
+| Endpoint               | Method   | Auth        | Description                                                        |
+| ---------------------- | -------- | ----------- | ------------------------------------------------------------------ |
+| `getConsentStatus`     | Query    | Protected   | Current opt-in/out status                                          |
+| `grantConsent`         | Mutation | Owner/Admin | Explicit opt-IN (literal true required) with audit trail           |
+| `revokeConsent`        | Mutation | Owner/Admin | Revoke consent, confirmRevocation required, audit logged           |
+| `listAvailableCohorts` | Query    | Protected   | Cohorts with member counts, minimum size enforcement               |
+| `runBenchmarking`      | Mutation | Owner/Admin | Executes full 8-step pipeline                                      |
+| `getAvailability`      | Query    | Protected   | Returns benchmark availability status (used by Analytics Pipeline) |
+| `getCohortAggregates`  | Query    | Protected   | Median/quartile aggregate data — never individual org data         |
+
+All filtering uses ISO→market name mapping (GM→gambia, NG→nigeria, etc.)
+
+### Phase 4 — Analytics Pipeline Integration
+
+**File:** `packages/agents/core/analytics-pipeline.ts` — MODIFIED
+
+Step 7 (Benchmarking Engine) rewritten:
+
+- Was: always skipped with "requires anonymization and consent"
+- Now: calls `getBenchmarkingAvailability()` to check consent + cohorts
+- If eligible: runs `runBenchmarkingPipeline()` and marks benchmarkAvailable=true
+- If blocked: returns meaningful status (consent_required, no_cohorts)
+- Proper org lookup (entityId → organizationId) + country→market mapping
+
+### Phase 5 — Frontend Dashboard
+
+**File:** `apps/web/app/dashboard/benchmarking/page.tsx` — NEW
+
+Full benchmarking settings page:
+
+- Consent status banner with privacy explanation (default excluded, opt-in only, ratios only, min N)
+- 4 stat cards (consent status, cohorts, benchmark readiness, metrics tracked)
+- Opt-in and revoke consent dialogs with confirmation requirements
+- Cohort cards showing member count, minimum size status, aggregate availability
+- Run benchmark button + results grid (median, Q1, Q3 per metric)
+- Privacy compliance note
+
+### Phase 6 — Integration
+
+**Files Modified:**
+
+- `packages/db/schema/index.ts` — Added benchmarking barrel export
+- `packages/agents/core/index.ts` — Exported benchmarking pipeline + types
+- `packages/agents/index.ts` — Re-exported benchmarking pipeline + types
+- `apps/web/server/routers/_app.ts` — Registered benchmarkingRouter
+- `apps/web/components/layout/sidebar.tsx` — Added Benchmarking nav link with BarChart3 icon
+
+### Key Rules Enforced
+
+| Rule                                                | Implementation                                                               |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Default excluded — opt-in only                      | `consent_capture` step returns `blocked` if no consent record                |
+| Minimum cohort size enforced under ANY circumstance | `MIN_COHORT_SIZE=5`, `MIN_COHORT_SIZE_STRICT=3`, blocks below strict minimum |
+| No individual org's raw figures exposed             | Ratios/bands only, aggregate stats (median, quartiles), no identifiers       |
+| Revocable consent                                   | `recordConsent(consented=false)` creates revocation record                   |
+| Historical aggregates preserved on revocation       | Step 6 explicitly preserves them                                             |
+| Analytics Pipeline receives aggregate data only     | `deliverToAnalyticsEngine` updates `benchmarkCohorts.aggregateData` only     |
+
+### Verification
+
+| Check                         | Status                                                    |
+| ----------------------------- | --------------------------------------------------------- |
+| Typecheck (`@xenboox/agents`) | ✅ No new errors                                          |
+| Typecheck (`@xenboox/web`)    | ✅ No new errors (pre-existing firm pipeline errors only) |
+| Code review (round 1)         | ✅ 3 critical issues + 1 medium — all fixed               |
+| Code review (round 2)         | ✅ All fixes verified correct                             |
+
+---
+
 ### [2026-07-25] — White-Label Pipeline (Phase 3) — Firm-Tier Branding
 
 **Agent:** Buffy (Autonomous Engineer)

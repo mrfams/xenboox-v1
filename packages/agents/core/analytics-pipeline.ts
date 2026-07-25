@@ -23,7 +23,7 @@
 //   - Every proactive alert routes through the CFO Agent, never direct to a human
 
 import { db } from "@xenboox/db";
-import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, desc, gte, lte } from "drizzle-orm";
 import {
   analyticsSnapshots,
   detectedTrends,
@@ -32,9 +32,13 @@ import {
   benchmarkCohorts,
   forecastModels,
 } from "@xenboox/db/schema/analytics";
-import { auditLog } from "@xenboox/db/schema";
+import { auditLog, entities } from "@xenboox/db/schema";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
+import {
+  getBenchmarkingAvailability,
+  runBenchmarkingPipeline,
+} from "./benchmarking-pipeline";
 import type { AuditEntry } from "./state";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -552,24 +556,128 @@ export async function executeAnalyticsPipeline(
 
     // ── Step 7: Benchmarking Engine ─────────────────────────────────────
     //
-    // ⛔ NOT BUILT — requires verified anonymization and consent architecture.
-    // This step is always skipped until the anonymization and consent
-    // infrastructure exists and is verified.
+    // ✅ BUILT — Powered by the Benchmarking & Consent Architecture Pipeline.
+    // Checks consent status and cohort availability, then computes aggregate
+    // benchmarks if eligible. Cohort aggregates only — never raw org data.
 
     result.steps = updateStep(result.steps, "benchmarking", {
-      status: "skipped",
-      completedAt: new Date().toISOString(),
-      details: {
-        reason:
-          "Benchmarking requires verified anonymization and consent architecture — not yet available",
-        anonymizationArchitectureExists: false,
-        consentArchitectureExists: false,
-        blockedBy: "anonymization_and_consent",
-        note: "Do not build this milestone until the anonymization and consent architecture exists and is verified",
-      },
+      status: "in_progress",
+      startedAt: new Date().toISOString(),
     });
 
-    result.benchmarkAvailable = false;
+    // Get the organization ID from the entity for consent lookup
+    const entityCtx = await db.query.entities.findFirst({
+      where: eq(entities.id, params.entityId),
+      columns: { organizationId: true, country: true },
+    });
+    const orgId = entityCtx?.organizationId ?? params.entityId;
+
+    // Map ISO country code to market name for cohort matching
+    const marketMap: Record<string, string> = {
+      GM: "gambia",
+      NG: "nigeria",
+      GH: "ghana",
+      KE: "kenya",
+      SL: "sierra_leone",
+      LR: "liberia",
+      CI: "cote_divoire",
+    };
+    const market = marketMap[entityCtx?.country ?? ""] ?? "unknown";
+
+    try {
+      const benchAvailability = await getBenchmarkingAvailability({
+        entityId: params.entityId,
+        organizationId: orgId,
+        market,
+      });
+
+      if (
+        benchAvailability.benchmarkAvailable &&
+        benchAvailability.availableCohorts.length > 0
+      ) {
+        const benchResult = await runBenchmarkingPipeline({
+          entityId: params.entityId,
+          organizationId: orgId,
+          period: params.period,
+          userId: params.userId,
+          market: benchAvailability.availableCohorts[0]!.market,
+          segment: benchAvailability.availableCohorts[0]!.segment,
+          triggerSource: "analytics_pipeline",
+        });
+
+        if (benchResult.success && benchResult.computedAggregates.length > 0) {
+          result.steps = updateStep(result.steps, "benchmarking", {
+            status: "completed",
+            completedAt: new Date().toISOString(),
+            details: {
+              cohortSize: benchResult.memberCount,
+              minSizeVerified: benchResult.cohortSizeVerified,
+              metricsComputed: benchResult.computedAggregates.length,
+              consentVerified: true,
+              anonymizationArchitectureExists: true,
+              consentArchitectureExists: true,
+              aggregateOnly: true,
+              individualDataNeverExposed: true,
+              blockedBy: null,
+            },
+          });
+          result.benchmarkAvailable = true;
+        } else {
+          result.steps = updateStep(result.steps, "benchmarking", {
+            status: "completed",
+            completedAt: new Date().toISOString(),
+            details: {
+              note: "Benchmarking pipeline ran but no aggregates were computed",
+              consentArchitectureExists: true,
+              anonymizationArchitectureExists: true,
+              blockedBy: benchResult.errors[0] ?? "insufficient_cohort_data",
+            },
+          });
+          result.benchmarkAvailable = false;
+        }
+      } else {
+        const reason = !benchAvailability.consentStatus?.hasConsented
+          ? "Organization has not opted into benchmarking"
+          : benchAvailability.availableCohorts.length === 0
+            ? "No matching cohorts available yet"
+            : "Benchmarking not available at this time";
+
+        result.steps = updateStep(result.steps, "benchmarking", {
+          status: "skipped",
+          completedAt: new Date().toISOString(),
+          details: {
+            reason,
+            consentVerified:
+              benchAvailability.consentStatus?.hasConsented ?? false,
+            anonymizationArchitectureExists: true,
+            consentArchitectureExists: true,
+            availableCohorts: benchAvailability.availableCohorts.length,
+            blockedBy: !benchAvailability.consentStatus?.hasConsented
+              ? "consent_required"
+              : "no_cohorts",
+          },
+        });
+        result.benchmarkAvailable = false;
+      }
+    } catch (benchError) {
+      const benchMsg =
+        benchError instanceof Error ? benchError.message : String(benchError);
+
+      result.steps = updateStep(result.steps, "benchmarking", {
+        status: "failed",
+        completedAt: new Date().toISOString(),
+        details: {
+          error: benchMsg,
+          anonymizationArchitectureExists: true,
+          consentArchitectureExists: true,
+          blockedBy: "benchmarking_pipeline_error",
+        },
+      });
+      result.benchmarkAvailable = false;
+      result.warnings.push(
+        `Benchmarking engine encountered an error: ${benchMsg}`,
+      );
+    }
 
     // ── Step 8: Materiality Gate ────────────────────────────────────────
     //

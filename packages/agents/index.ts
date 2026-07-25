@@ -93,6 +93,11 @@ export {
   listEntityRelationships,
   runJurisdictionExpansionPipeline,
   getExpansionStatus,
+  runBenchmarkingPipeline,
+  getBenchmarkingAvailability,
+  recordConsent,
+  MIN_COHORT_SIZE,
+  RECOMMENDED_COHORT_SIZE,
 } from "./core";
 export type {
   ModelTier,
@@ -228,6 +233,14 @@ export type {
   DepreciationEntry,
   VerificationDueItem,
   DisposalFlagItem,
+  BenchmarkResult,
+  BenchmarkStep,
+  BenchmarkStepId,
+  BenchmarkStepStatus,
+  CohortDefinition,
+  AnonymizedMetric,
+  ConsentRecord,
+  BenchmarkPipelineParams,
 } from "./core";
 
 // ─── Eval Harness ────────────────────────────────────────────────────────────
