@@ -10,6 +10,9 @@ import {
   intercompanyTags,
 } from "@xenboox/db/schema";
 import { entities } from "@xenboox/db/schema/organization";
+import { salesInvoices, invoicesAp } from "@xenboox/db/schema/ap-ar";
+import { bankAccounts } from "@xenboox/db/schema/treasury";
+import { journalEntries } from "@xenboox/db/schema/accounting";
 import {
   runConsolidationPipeline,
   getConsolidationStatus,
@@ -298,5 +301,268 @@ export const consolidationRouter = router({
         limit: input?.limit ?? 20,
         with: { counterparty: { columns: { id: true, name: true } } },
       });
+    }),
+
+  // ── Consolidated View (side-by-side entity comparison) ───────────────
+  // Returns financial data for the parent entity and all subsidiaries side-by-side,
+  // plus elimination entries and consolidated totals.
+
+  getConsolidatedView: protectedProcedure
+    .input(
+      z
+        .object({
+          period: z
+            .string()
+            .regex(/^\d{4}-\d{2}$/)
+            .optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const period =
+        input?.period ??
+        `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+
+      // Get the current entity (parent)
+      const parentEntity = await db.query.entities.findFirst({
+        where: eq(entities.id, ctx.entityId!),
+      });
+      if (!parentEntity) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Entity not found" });
+      }
+
+      // Get entity relationships
+      const relationships = await db.query.entityRelationships.findMany({
+        where: and(
+          eq(entityRelationships.parentEntityId, ctx.entityId!),
+          eq(entityRelationships.status, "active"),
+        ),
+        with: { subsidiary: true },
+      });
+
+      // Build list of all entities to include (parent + subsidiaries)
+      const allEntityIds = [
+        ctx.entityId!,
+        ...relationships.map((r) => r.subsidiaryEntityId),
+      ];
+
+      // Fetch financial data for each entity
+      const entityFinancials = await Promise.all(
+        allEntityIds.map(async (eid) => {
+          const entity =
+            eid === ctx.entityId!
+              ? parentEntity
+              : relationships.find((r) => r.subsidiaryEntityId === eid)
+                  ?.subsidiary;
+
+          // Get bank accounts balance
+          const bankAccs = await db.query.bankAccounts.findMany({
+            where: and(
+              eq(bankAccounts.entityId, eid),
+              eq(bankAccounts.isActive, true),
+            ),
+          });
+          const cashBalance = bankAccs.reduce(
+            (s, a) => s + parseFloat(a.currentBalance || "0"),
+            0,
+          );
+
+          // Get AR revenue (paid invoices for period)
+          const arInvoices = await db.query.salesInvoices.findMany({
+            where: eq(salesInvoices.entityId, eid),
+          });
+          const totalRevenue = arInvoices
+            .filter((inv) => inv.status === "paid")
+            .reduce((s, inv) => s + parseFloat(inv.totalAmount || "0"), 0);
+          const outstandingAr = arInvoices
+            .filter(
+              (inv) => inv.status === "pending" || inv.status === "partial",
+            )
+            .reduce((s, inv) => s + parseFloat(inv.balance || "0"), 0);
+
+          // Get AP payables
+          const apInvoices = await db.query.invoicesAp.findMany({
+            where: eq(invoicesAp.entityId, eid),
+          });
+          const outstandingAp = apInvoices
+            .filter(
+              (inv) => inv.status === "pending" || inv.status === "partial",
+            )
+            .reduce((s, inv) => s + parseFloat(inv.balance || "0"), 0);
+
+          // Get journal entries for period — cast to access available fields
+          const entriesForEntity = await db.query.journalEntries.findMany({
+            where: and(
+              eq(journalEntries.entityId, eid),
+              eq(journalEntries.status, "posted"),
+            ),
+          });
+          const typedEntries = entriesForEntity as Array<{
+            type?: string | null;
+            totalAmount?: string | null;
+          }>;
+          const totalExpenses = typedEntries
+            .filter((je) => je.type === "expense" || je.type === "purchase")
+            .reduce((s, je) => s + parseFloat(je.totalAmount || "0"), 0);
+          const netIncome = totalRevenue - totalExpenses;
+
+          // Count transactions
+          const transactionCount =
+            arInvoices.length + apInvoices.length + entriesForEntity.length;
+
+          return {
+            entityId: eid,
+            entityName: entity?.name ?? "Unknown",
+            currency: entity?.currency ?? "GMD",
+            country: entity?.country ?? "",
+            isParent: eid === ctx.entityId!,
+            relationship: relationships.find(
+              (r) => r.subsidiaryEntityId === eid,
+            )
+              ? {
+                  ownershipPct: Number(
+                    relationships.find((r) => r.subsidiaryEntityId === eid)!
+                      .ownershipPct,
+                  ),
+                  consolidationMethod: relationships.find(
+                    (r) => r.subsidiaryEntityId === eid,
+                  )!.consolidationMethod,
+                }
+              : null,
+            financials: {
+              totalRevenue,
+              totalExpenses,
+              netIncome,
+              totalAssets: cashBalance + outstandingAr,
+              totalLiabilities: outstandingAp,
+              equity: cashBalance + outstandingAr - outstandingAp,
+              cashBalance,
+              outstandingAr,
+              outstandingAp,
+              transactionCount,
+            },
+          };
+        }),
+      );
+
+      // Get latest consolidation run
+      const latestRun = await db.query.consolidationRuns.findFirst({
+        where: and(
+          eq(consolidationRuns.parentEntityId, ctx.entityId!),
+          eq(consolidationRuns.period, period),
+        ),
+        orderBy: [desc(consolidationRuns.createdAt)],
+      });
+
+      // Get elimination entries for the latest run
+      const elims = latestRun
+        ? await db.query.eliminationEntries.findMany({
+            where: eq(eliminationEntries.consolidationRunId, latestRun.id),
+            orderBy: [desc(eliminationEntries.createdAt)],
+            limit: 20,
+            with: { entity: true, counterparty: true },
+          })
+        : [];
+
+      // Compute elimination totals by type
+      const eliminationsByType = elims.reduce<Record<string, number>>(
+        (acc, e) => {
+          const type = e.eliminationType;
+          acc[type] = (acc[type] ?? 0) + Number(e.amount);
+          return acc;
+        },
+        {},
+      );
+
+      // Compute minority interest breakdown
+      const minorityRecords = latestRun
+        ? await db.query.minorityInterestRecords.findMany({
+            where: eq(minorityInterestRecords.consolidationRunId, latestRun.id),
+            with: {
+              subsidiary: { columns: { id: true, name: true } },
+            },
+          })
+        : [];
+
+      // Compute consolidated totals (sum of all entities minus eliminations)
+      const totalRevenueSum = entityFinancials.reduce(
+        (s, e) => s + e.financials.totalRevenue,
+        0,
+      );
+      const totalExpensesSum = entityFinancials.reduce(
+        (s, e) => s + e.financials.totalExpenses,
+        0,
+      );
+      const totalEliminationAmount = Object.values(eliminationsByType).reduce(
+        (s, v) => s + v,
+        0,
+      );
+
+      return {
+        period,
+        parentEntity: {
+          id: parentEntity.id,
+          name: parentEntity.name,
+          currency: parentEntity.currency ?? "GMD",
+          country: parentEntity.country ?? "",
+        },
+        entities: entityFinancials,
+        eliminations: elims.map((e) => ({
+          id: e.id,
+          eliminationType: e.eliminationType,
+          description: e.description,
+          amount: Number(e.amount),
+          debitCredit: e.debitCredit,
+          entityName: e.entity?.name ?? "Unknown",
+          counterpartyName: e.counterparty?.name ?? "Unknown",
+        })),
+        eliminationsByType,
+        totalEliminationAmount,
+        minorityInterests: minorityRecords.map((m) => ({
+          subsidiaryName: m.subsidiary?.name ?? "Unknown",
+          ownershipPct: Number(m.ownershipPct),
+          minorityPct: Number(m.minorityPct),
+          minorityShareIncome: Number(m.minorityShareIncome),
+          minorityShareEquity: Number(m.minorityShareEquity),
+        })),
+        consolidatedTotals: {
+          totalRevenue:
+            totalRevenueSum - (eliminationsByType.ic_revenue_expense ?? 0),
+          totalExpenses:
+            totalExpensesSum - (eliminationsByType.ic_revenue_expense ?? 0),
+          totalAssets:
+            entityFinancials.reduce((s, e) => s + e.financials.totalAssets, 0) -
+            (eliminationsByType.ic_receivable_payable ?? 0),
+          totalLiabilities:
+            entityFinancials.reduce(
+              (s, e) => s + e.financials.totalLiabilities,
+              0,
+            ) - (eliminationsByType.ic_receivable_payable ?? 0),
+          cashBalance: entityFinancials.reduce(
+            (s, e) => s + e.financials.cashBalance,
+            0,
+          ),
+          netIncome: entityFinancials.reduce(
+            (s, e) => s + e.financials.netIncome,
+            0,
+          ),
+          entityCount: entityFinancials.length,
+          subsidiaryCount: relationships.length,
+        },
+        latestRun: latestRun
+          ? {
+              id: latestRun.id,
+              status: latestRun.status,
+              period: latestRun.period,
+              eliminationCount: latestRun.eliminationCount,
+              minorityInterestCount: latestRun.minorityInterestCount,
+              completedAt: latestRun.completedAt,
+              integrityCheckPassed: latestRun.integrityCheckPassed,
+              confidence: latestRun.confidence
+                ? Number(latestRun.confidence)
+                : null,
+            }
+          : null,
+      };
     }),
 });
