@@ -23,7 +23,7 @@ const paymentMethodLabels: Record<string, string> = {
 
 export default function BillDetailPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = (params?.id as string) ?? "";
 
   const { data: invoice, isLoading } = trpc.ap.getInvoiceById.useQuery({ id });
   const { data: suppliers } = trpc.ap.listSuppliers.useQuery();

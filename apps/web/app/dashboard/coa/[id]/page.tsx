@@ -33,7 +33,7 @@ const typeColors: Record<string, string> = {
 
 export default function AccountDetailPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = (params?.id as string) ?? "";
 
   const { data: account, isLoading } = trpc.coa.getById.useQuery({ id });
   const utils = trpc.useUtils();

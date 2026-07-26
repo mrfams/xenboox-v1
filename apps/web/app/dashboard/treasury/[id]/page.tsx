@@ -1,51 +1,63 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useParams } from "next/navigation"
-import { trpc } from "@/lib/trpc/client"
-import { DetailShell } from "@/components/dashboard/detail-shell"
-import { TableSkeleton } from "@/components/shared/loading"
-import { EditBankAccountDialog } from "./edit-dialog"
-import { CreateTransactionDialog } from "./create-transaction-dialog"
-import { Badge, Button } from "@/components/ui"
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui"
-import { Pencil, Plus, ArrowRightLeft } from "lucide-react"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import Link from "next/link"
-import { statusBadgeClass } from "@/lib/badge-variants"
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { DetailShell } from "@/components/dashboard/detail-shell";
+import { TableSkeleton } from "@/components/shared/loading";
+import { EditBankAccountDialog } from "./edit-dialog";
+import { CreateTransactionDialog } from "./create-transaction-dialog";
+import { Badge, Button } from "@/components/ui";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Pencil, Plus, ArrowRightLeft } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import Link from "next/link";
+import { statusBadgeClass } from "@/lib/badge-variants";
 
 const typeLabels: Record<string, string> = {
   checking: "Checking",
   savings: "Savings",
   fixed_deposit: "Fixed Deposit",
-}
+};
 
 export default function BankAccountDetailPage() {
-  const params = useParams()
-  const id = params.id as string
+  const params = useParams();
+  const id = (params?.id as string) ?? "";
 
-  const { data: account, isLoading: accountLoading } = trpc.treasury.getBankAccountById.useQuery({ id })
-  const { data: transactions, isLoading: txLoading } = trpc.treasury.listBankTransactions.useQuery({ bankAccountId: id })
-  const { data: reconciliations, isLoading: reconLoading } = trpc.treasury.listReconciliations.useQuery({ bankAccountId: id })
+  const { data: account, isLoading: accountLoading } =
+    trpc.treasury.getBankAccountById.useQuery({ id });
+  const { data: transactions, isLoading: txLoading } =
+    trpc.treasury.listBankTransactions.useQuery({ bankAccountId: id });
+  const { data: reconciliations, isLoading: reconLoading } =
+    trpc.treasury.listReconciliations.useQuery({ bankAccountId: id });
 
-  const [editOpen, setEditOpen] = useState(false)
-  const [createTxOpen, setCreateTxOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false);
+  const [createTxOpen, setCreateTxOpen] = useState(false);
 
   if (accountLoading) {
     return (
       <DetailShell title="Bank Account" backHref="/dashboard/treasury">
         <TableSkeleton rows={3} columns={3} />
       </DetailShell>
-    )
+    );
   }
 
   if (!account) {
     return (
       <DetailShell title="Account not found" backHref="/dashboard/treasury">
-        <p className="text-muted-foreground">The requested bank account does not exist.</p>
+        <p className="text-muted-foreground">
+          The requested bank account does not exist.
+        </p>
       </DetailShell>
-    )
+    );
   }
 
   const infoCard = (
@@ -65,7 +77,9 @@ export default function BankAccountDetailPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Current Balance</span>
-            <span className="font-mono font-medium">{formatCurrency(Number(account.currentBalance))}</span>
+            <span className="font-mono font-medium">
+              {formatCurrency(Number(account.currentBalance))}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Type</span>
@@ -83,13 +97,15 @@ export default function BankAccountDetailPage() {
           </div>
           {account.notes && (
             <div className="pt-2 border-t">
-              <span className="text-muted-foreground text-xs">{account.notes}</span>
+              <span className="text-muted-foreground text-xs">
+                {account.notes}
+              </span>
             </div>
           )}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 
   const transactionsTab = (
     <div className="space-y-4">
@@ -101,7 +117,9 @@ export default function BankAccountDetailPage() {
       {txLoading ? (
         <TableSkeleton rows={3} columns={5} />
       ) : !transactions || transactions.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">No transactions yet.</p>
+        <p className="text-sm text-muted-foreground text-center py-8">
+          No transactions yet.
+        </p>
       ) : (
         <div className="rounded-lg border bg-card">
           <Table>
@@ -117,14 +135,21 @@ export default function BankAccountDetailPage() {
             <TableBody>
               {transactions.map((tx) => (
                 <TableRow key={tx.id}>
-                  <TableCell className="text-sm">{formatDate(tx.transactionDate)}</TableCell>
+                  <TableCell className="text-sm">
+                    {formatDate(tx.transactionDate)}
+                  </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={statusBadgeClass(tx.type)}>
+                    <Badge
+                      variant="secondary"
+                      className={statusBadgeClass(tx.type)}
+                    >
                       {tx.type}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm">{tx.description}</TableCell>
-                  <TableCell className="text-sm font-mono">{tx.reference ?? "—"}</TableCell>
+                  <TableCell className="text-sm font-mono">
+                    {tx.reference ?? "—"}
+                  </TableCell>
                   <TableCell className="text-sm text-right font-mono">
                     {formatCurrency(Number(tx.amount))}
                   </TableCell>
@@ -135,7 +160,7 @@ export default function BankAccountDetailPage() {
         </div>
       )}
     </div>
-  )
+  );
 
   const reconciliationTab = (
     <div className="space-y-4">
@@ -149,7 +174,9 @@ export default function BankAccountDetailPage() {
       {reconLoading ? (
         <TableSkeleton rows={3} columns={5} />
       ) : !reconciliations || reconciliations.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">No reconciliations yet.</p>
+        <p className="text-sm text-muted-foreground text-center py-8">
+          No reconciliations yet.
+        </p>
       ) : (
         <div className="rounded-lg border bg-card">
           <Table>
@@ -165,7 +192,9 @@ export default function BankAccountDetailPage() {
             <TableBody>
               {reconciliations.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="text-sm">{formatDate(r.statementDate)}</TableCell>
+                  <TableCell className="text-sm">
+                    {formatDate(r.statementDate)}
+                  </TableCell>
                   <TableCell className="text-sm text-right font-mono">
                     {formatCurrency(Number(r.statementBalance))}
                   </TableCell>
@@ -173,13 +202,17 @@ export default function BankAccountDetailPage() {
                     {formatCurrency(Number(r.bookBalance))}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={r.status === "closed" ? "success" : "secondary"}>
+                    <Badge
+                      variant={r.status === "closed" ? "success" : "secondary"}
+                    >
                       {r.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/dashboard/treasury/${id}/reconciliation/${r.id}`}>
+                      <Link
+                        href={`/dashboard/treasury/${id}/reconciliation/${r.id}`}
+                      >
                         <ArrowRightLeft className="h-4 w-4" />
                       </Link>
                     </Button>
@@ -191,7 +224,7 @@ export default function BankAccountDetailPage() {
         </div>
       )}
     </div>
-  )
+  );
 
   return (
     <>
@@ -206,8 +239,16 @@ export default function BankAccountDetailPage() {
         }
         tabs={[
           { value: "info", label: "Overview", content: infoCard },
-          { value: "transactions", label: "Transactions", content: transactionsTab },
-          { value: "reconciliation", label: "Reconciliation", content: reconciliationTab },
+          {
+            value: "transactions",
+            label: "Transactions",
+            content: transactionsTab,
+          },
+          {
+            value: "reconciliation",
+            label: "Reconciliation",
+            content: reconciliationTab,
+          },
         ]}
       />
 
@@ -222,5 +263,5 @@ export default function BankAccountDetailPage() {
         bankAccountId={id}
       />
     </>
-  )
+  );
 }

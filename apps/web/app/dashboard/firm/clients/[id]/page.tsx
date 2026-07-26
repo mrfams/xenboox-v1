@@ -22,6 +22,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  TrendingUp,
   ArrowLeft,
   RefreshCw,
   Wallet,
@@ -34,7 +35,7 @@ import {
 export default function ClientDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const clientId = params.id as string;
+  const clientId = (params?.id as string) ?? "";
 
   const { data, isLoading, error, refetch } =
     trpc.firm.getClientHealth.useQuery(
@@ -121,7 +122,7 @@ export default function ClientDetailPage() {
     },
   };
 
-  const hc = healthConfig[healthStatus];
+  const hc = healthConfig[healthStatus as keyof typeof healthConfig];
   const HealthIcon = hc.icon;
 
   return (

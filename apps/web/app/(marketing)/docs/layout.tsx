@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import {
   BookOpen,
   Shield,
@@ -16,15 +16,15 @@ import {
   ChevronDown,
   ExternalLink,
   Search,
-} from "lucide-react"
-import { SearchDialog } from "./components/search-dialog"
-import { MobileNav } from "./components/mobile-nav"
+} from "lucide-react";
+import { SearchDialog } from "./components/search-dialog";
+import { MobileNav } from "./components/mobile-nav";
 
 interface NavGroup {
-  group: string
-  href: string
-  icon: React.ReactNode
-  items: { label: string; href: string }[]
+  group: string;
+  href: string;
+  icon: React.ReactNode;
+  items: { label: string; href: string }[];
 }
 
 const navGroups: NavGroup[] = [
@@ -97,35 +97,42 @@ const navGroups: NavGroup[] = [
       { label: "DevOps", href: "/docs/devsecops" },
     ],
   },
-]
+];
 
-export default function DocsLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Documentation"]))
+export default function DocsLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname() ?? "/";
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    new Set(["Documentation"]),
+  );
 
-  useEffect(() => setMounted(true), [])
+  useEffect(() => setMounted(true), []);
 
   // Auto-expand matching group on mount
   useEffect(() => {
-    const currentGroup = navGroups.find((g) =>
-      g.items.some((item) => pathname.startsWith(item.href)) ||
-      pathname === g.href
-    )
+    const currentGroup = navGroups.find(
+      (g) =>
+        g.items.some((item) => pathname.startsWith(item.href)) ||
+        pathname === g.href,
+    );
     if (currentGroup) {
-      setExpandedGroups((prev) => new Set([...prev, currentGroup.group]))
+      setExpandedGroups((prev) => new Set([...prev, currentGroup.group]));
     }
-  }, [pathname])
+  }, [pathname]);
 
   const toggleGroup = (group: string) => {
     setExpandedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(group)) next.delete(group)
-      else next.add(group)
-      return next
-    })
-  }
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -140,11 +147,16 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
                 X
               </div>
-              <span className="text-base font-bold tracking-tight hidden sm:inline">Xenboox</span>
+              <span className="text-base font-bold tracking-tight hidden sm:inline">
+                Xenboox
+              </span>
             </Link>
             <div className="hidden sm:flex items-center gap-1 ml-2">
               <span className="text-sm text-muted-foreground">/</span>
-              <Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <Link
+                href="/docs"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
                 Docs
               </Link>
             </div>
@@ -193,19 +205,20 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                 </div>
                 <nav className="space-y-1">
                   {navGroups.map((group, idx) => {
-                    const isActive = group.items.some((item) => pathname === item.href) ||
-                      pathname === group.href
-                    const isExpanded = expandedGroups.has(group.group)
+                    const isActive =
+                      group.items.some((item) => pathname === item.href) ||
+                      pathname === group.href;
+                    const isExpanded = expandedGroups.has(group.group);
 
                     return (
-                      <div key={group.group + '-' + idx}>
+                      <div key={group.group + "-" + idx}>
                         <button
                           onClick={() => toggleGroup(group.group)}
                           className={cn(
                             "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
                             isActive
                               ? "text-primary"
-                              : "text-muted-foreground hover:text-foreground"
+                              : "text-muted-foreground hover:text-foreground",
                           )}
                         >
                           <div className="flex items-center gap-1.5">
@@ -215,14 +228,14 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                           <ChevronDown
                             className={cn(
                               "h-3 w-3 transition-transform",
-                              isExpanded && "rotate-180"
+                              isExpanded && "rotate-180",
                             )}
                           />
                         </button>
                         {isExpanded && (
                           <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l pl-2">
                             {group.items.map((item) => {
-                              const isItemActive = pathname === item.href
+                              const isItemActive = pathname === item.href;
                               return (
                                 <Link
                                   key={item.href}
@@ -231,17 +244,17 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                                     "rounded-md px-2 py-1 text-xs transition-colors",
                                     isItemActive
                                       ? "bg-primary/10 text-primary font-medium"
-                                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
                                   )}
                                 >
                                   {item.label}
                                 </Link>
-                              )
+                              );
                             })}
                           </div>
                         )}
                       </div>
-                    )
+                    );
                   })}
                 </nav>
 
@@ -291,28 +304,104 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
               </p>
             </div>
             <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</h3>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Product
+              </h3>
               <ul className="space-y-1.5 text-sm">
-                <li><Link href="/features" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link></li>
-                <li><Link href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
-                <li><Link href="/download" className="text-muted-foreground hover:text-foreground transition-colors">Download</Link></li>
+                <li>
+                  <Link
+                    href="/features"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Features
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/pricing"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/download"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Download
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Documentation</h3>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Documentation
+              </h3>
               <ul className="space-y-1.5 text-sm">
-                <li><Link href="/docs/getting-started" className="text-muted-foreground hover:text-foreground transition-colors">Getting Started</Link></li>
-                <li><Link href="/docs/modules" className="text-muted-foreground hover:text-foreground transition-colors">All Modules</Link></li>
-                <li><Link href="/docs/agents" className="text-muted-foreground hover:text-foreground transition-colors">All Agents</Link></li>
-                <li><Link href="/docs/faq" className="text-muted-foreground hover:text-foreground transition-colors">FAQ</Link></li>
+                <li>
+                  <Link
+                    href="/docs/getting-started"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Getting Started
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/docs/modules"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    All Modules
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/docs/agents"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    All Agents
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/docs/faq"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    FAQ
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company</h3>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Company
+              </h3>
               <ul className="space-y-1.5 text-sm">
-                <li><Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">About</Link></li>
-                <li><Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link></li>
-                <li><Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">Privacy</Link></li>
+                <li>
+                  <Link
+                    href="/about"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    About
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Contact
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Privacy
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
@@ -322,5 +411,5 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         </div>
       </footer>
     </div>
-  )
+  );
 }

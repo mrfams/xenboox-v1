@@ -1,39 +1,41 @@
-"use client"
+"use client";
 
-import { Suspense } from "react"
-import { useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui"
-import { Button } from "@/components/ui"
-import { CheckCircle, XCircle, Loader2, Mail } from "lucide-react"
-import { trpc } from "@/lib/trpc/client"
-import { useEffect, useState } from "react"
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { CheckCircle, XCircle, Loader2, Mail } from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import { useEffect, useState } from "react";
 
 function VerifyEmailContent() {
-  const searchParams = useSearchParams()
-  const token = searchParams.get("token")
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
-  const [message, setMessage] = useState("")
+  const searchParams = useSearchParams();
+  const token = searchParams?.get("token") ?? null;
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading",
+  );
+  const [message, setMessage] = useState("");
 
   const verifyMutation = trpc.auth.verifyEmail.useMutation({
     onSuccess: (data) => {
-      setStatus("success")
-      setMessage(data.message)
+      setStatus("success");
+      setMessage(data.message);
     },
     onError: (error) => {
-      setStatus("error")
-      setMessage(error.message)
+      setStatus("error");
+      setMessage(error.message);
     },
-  })
+  });
 
   useEffect(() => {
     if (token) {
-      verifyMutation.mutate({ token })
+      verifyMutation.mutate({ token });
     } else {
-      setStatus("error")
-      setMessage("No verification token provided")
+      setStatus("error");
+      setMessage("No verification token provided");
     }
-  }, [token])
+  }, [token]);
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -76,9 +78,7 @@ function VerifyEmailContent() {
           )}
           {status === "error" && (
             <>
-              <p className="text-sm text-muted-foreground">
-                {message}
-              </p>
+              <p className="text-sm text-muted-foreground">{message}</p>
               <div className="flex flex-col gap-2">
                 <Link href="/dashboard/settings">
                   <Button variant="outline" className="w-full">
@@ -97,7 +97,7 @@ function VerifyEmailContent() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
 
 export default function VerifyEmailPage() {
@@ -116,5 +116,5 @@ export default function VerifyEmailPage() {
     >
       <VerifyEmailContent />
     </Suspense>
-  )
+  );
 }

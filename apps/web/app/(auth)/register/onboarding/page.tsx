@@ -154,15 +154,6 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { entityId, isLoaded } = useEntity();
   const [currentStep, setCurrentStep] = useState(0);
-
-  // Wait for entity context to load before rendering
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
-      </div>
-    );
-  }
   const [routingAnswer, setRoutingAnswer] = useState<string | null>(null);
   const [segment, setSegment] = useState("trading");
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
@@ -178,6 +169,22 @@ export default function OnboardingPage() {
   );
   const confirmCoaMutation = trpc.onboarding.confirmCoa.useMutation();
   const completeFlowMutation = trpc.onboarding.completeFlow.useMutation();
+
+  // Set CoA template ID when suggestions load
+  useEffect(() => {
+    if (coaSuggestions.data?.templateId) {
+      setCoaTemplateId(coaSuggestions.data.templateId);
+    }
+  }, [coaSuggestions.data]);
+
+  // Wait for entity context to load before rendering
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
+      </div>
+    );
+  }
 
   const handleRoutingSubmit = async (answer: string) => {
     setIsProcessing(true);
@@ -250,13 +257,6 @@ export default function OnboardingPage() {
       setIsProcessing(false);
     }
   };
-
-  // Set CoA template ID when suggestions load
-  useEffect(() => {
-    if (coaSuggestions.data?.templateId) {
-      setCoaTemplateId(coaSuggestions.data.templateId);
-    }
-  }, [coaSuggestions.data]);
 
   const steps = ALL_STEPS.map((step, i) => ({
     ...step,

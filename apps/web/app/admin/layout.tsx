@@ -46,7 +46,7 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/";
   const router = useRouter();
   const { data: isAdmin, isLoading: checkingAccess } =
     trpc.admin.checkAccess.useQuery();

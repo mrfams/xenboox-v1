@@ -1,4 +1,12 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["node", "C:\\Users\\asano\\Desktop\\xenboox\\.kilo\\node_modules\\chrome-devtools-mcp\\build\\src\\bin\\chrome-devtools-mcp.js"],
+      "enabled": true,
+      "timeout": 120000
+    }
+  },
   "snapshot": false
 }

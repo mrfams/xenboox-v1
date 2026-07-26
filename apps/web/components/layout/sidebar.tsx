@@ -312,7 +312,7 @@ function WhiteLabelLogo() {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/";
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     new Set(),
   );

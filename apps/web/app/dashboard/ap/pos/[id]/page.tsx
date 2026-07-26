@@ -1,35 +1,35 @@
-"use client"
+"use client";
 
-import { useParams, useRouter } from "next/navigation"
-import { trpc } from "@/lib/trpc/client"
-import { DetailShell } from "@/components/dashboard/detail-shell"
-import { EmptyState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading"
-import { Badge } from "@/components/ui"
-import { FileText } from "lucide-react"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import { statusBadgeClass } from "@/lib/badge-variants"
-import { toast } from "sonner"
+import { useParams, useRouter } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { DetailShell } from "@/components/dashboard/detail-shell";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
+import { Badge } from "@/components/ui";
+import { FileText } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { statusBadgeClass } from "@/lib/badge-variants";
+import { toast } from "sonner";
 
 export default function PODetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const id = params.id as string
+  const params = useParams();
+  const router = useRouter();
+  const id = (params?.id as string) ?? "";
 
-  const { data: po, isLoading } = trpc.ap.getPOById.useQuery({ id })
-  const { data: suppliers } = trpc.ap.listSuppliers.useQuery()
-  const utils = trpc.useUtils()
+  const { data: po, isLoading } = trpc.ap.getPOById.useQuery({ id });
+  const { data: suppliers } = trpc.ap.listSuppliers.useQuery();
+  const utils = trpc.useUtils();
 
   const updatePO = trpc.ap.updatePO.useMutation({
     onSuccess: () => {
-      toast.success("Purchase order updated")
-      utils.ap.getPOById.invalidate({ id })
-      utils.ap.listPOs.invalidate()
+      toast.success("Purchase order updated");
+      utils.ap.getPOById.invalidate({ id });
+      utils.ap.listPOs.invalidate();
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
-  if (isLoading) return <TableSkeleton rows={3} columns={4} />
+  if (isLoading) return <TableSkeleton rows={3} columns={4} />;
   if (!po) {
     return (
       <EmptyState
@@ -37,23 +37,25 @@ export default function PODetailPage() {
         title="Purchase order not found"
         description="The requested purchase order does not exist."
       />
-    )
+    );
   }
 
-  const supplier = suppliers?.find((s) => s.id === po.supplierId)
-  const lineItems = (po as Record<string, unknown>).lineItems as Array<{
-    id: string
-    description: string
-    quantity: string
-    unitPrice: string
-    totalAmount: string
-  }> | undefined
+  const supplier = suppliers?.find((s) => s.id === po.supplierId);
+  const lineItems = (po as Record<string, unknown>).lineItems as
+    | Array<{
+        id: string;
+        description: string;
+        quantity: string;
+        unitPrice: string;
+        totalAmount: string;
+      }>
+    | undefined;
 
   function handleStatusChange(newStatus: string) {
     updatePO.mutate({
       id,
       status: newStatus as "submitted" | "approved" | "received" | "cancelled",
-    })
+    });
   }
 
   return (
@@ -92,7 +94,9 @@ export default function PODetailPage() {
     >
       <div className="grid gap-6 sm:grid-cols-2">
         <div className="space-y-4 rounded-lg border bg-card p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">Order Info</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Order Info
+          </h3>
           <dl className="space-y-3">
             <div className="flex justify-between">
               <dt className="text-sm text-muted-foreground">PO Number</dt>
@@ -108,13 +112,17 @@ export default function PODetailPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-sm text-muted-foreground">Expected Date</dt>
-              <dd className="text-sm">{po.expectedDate ? formatDate(po.expectedDate) : "—"}</dd>
+              <dd className="text-sm">
+                {po.expectedDate ? formatDate(po.expectedDate) : "—"}
+              </dd>
             </div>
           </dl>
         </div>
 
         <div className="space-y-4 rounded-lg border bg-card p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">Financials</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Financials
+          </h3>
           <dl className="space-y-3">
             <div className="flex justify-between">
               <dt className="text-sm text-muted-foreground">Currency</dt>
@@ -122,12 +130,17 @@ export default function PODetailPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-sm text-muted-foreground">Total Amount</dt>
-              <dd className="text-sm font-mono font-medium">{formatCurrency(Number(po.totalAmount))}</dd>
+              <dd className="text-sm font-mono font-medium">
+                {formatCurrency(Number(po.totalAmount))}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-sm text-muted-foreground">Status</dt>
               <dd>
-                <Badge variant="secondary" className={statusBadgeClass(po.status)}>
+                <Badge
+                  variant="secondary"
+                  className={statusBadgeClass(po.status)}
+                >
                   {po.status}
                 </Badge>
               </dd>
@@ -138,7 +151,9 @@ export default function PODetailPage() {
 
       {po.notes && (
         <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-sm font-medium text-muted-foreground mb-2">Notes</h3>
+          <h3 className="text-sm font-medium text-muted-foreground mb-2">
+            Notes
+          </h3>
           <p className="text-sm">{po.notes}</p>
         </div>
       )}
@@ -152,21 +167,31 @@ export default function PODetailPage() {
             description="This purchase order has no line items."
           />
         ) : (
-            <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Description</th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Qty</th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Unit Price</th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Total</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Description
+                  </th>
+                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                    Qty
+                  </th>
+                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                    Unit Price
+                  </th>
+                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                    Total
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {lineItems.map((item) => (
                   <tr key={item.id} className="border-b hover:bg-muted/50">
                     <td className="py-3 px-4 text-sm">{item.description}</td>
-                    <td className="py-3 px-4 text-sm text-right font-mono">{item.quantity}</td>
+                    <td className="py-3 px-4 text-sm text-right font-mono">
+                      {item.quantity}
+                    </td>
                     <td className="py-3 px-4 text-sm text-right font-mono">
                       {formatCurrency(Number(item.unitPrice))}
                     </td>
@@ -181,5 +206,5 @@ export default function PODetailPage() {
         )}
       </div>
     </DetailShell>
-  )
+  );
 }

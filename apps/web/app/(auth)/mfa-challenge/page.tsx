@@ -31,7 +31,7 @@ function MfaChallengeInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [isBackupMode, setIsBackupMode] = useState(false);
 
-  const mfaToken = searchParams.get("token");
+  const mfaToken = searchParams?.get("token") ?? null;
 
   const completeMfaMutation = trpc.auth.completeMfaChallenge.useMutation();
 

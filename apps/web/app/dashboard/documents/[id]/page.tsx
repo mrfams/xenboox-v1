@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useParams } from "next/navigation"
-import { trpc } from "@/lib/trpc/client"
-import { DetailShell } from "@/components/dashboard/detail-shell"
-import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
-import { EmptyState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading"
-import { LinkEntityDialog } from "./link-dialog"
-import { Badge } from "@/components/ui"
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { DetailShell } from "@/components/dashboard/detail-shell";
+import { ConfirmDialog } from "@/components/dashboard/confirm-dialog";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
+import { LinkEntityDialog } from "./link-dialog";
+import { Badge } from "@/components/ui";
 import {
   FolderOpen,
   Download,
@@ -19,10 +19,10 @@ import {
   X,
   Plus,
   ExternalLink,
-} from "lucide-react"
-import { formatDateTime } from "@/lib/utils"
-import { toast } from "sonner"
-import { statusBadgeClass } from "@/lib/badge-variants"
+} from "lucide-react";
+import { formatDateTime } from "@/lib/utils";
+import { toast } from "sonner";
+import { statusBadgeClass } from "@/lib/badge-variants";
 
 const typeLabels: Record<string, string> = {
   invoice: "Invoice",
@@ -35,67 +35,75 @@ const typeLabels: Record<string, string> = {
   journal_entry: "Journal Entry",
   po: "Purchase Order",
   supporting: "Supporting Doc",
-}
+};
 
 const typeBadgeColors: Record<string, string> = {
   invoice: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  receipt: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  contract: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  voucher: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  bank_statement: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
+  receipt:
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  contract:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  voucher:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  bank_statement:
+    "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
   tax_return: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  payroll_report: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  journal_entry: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+  payroll_report:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  journal_entry:
+    "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
   po: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   supporting: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-}
+};
 
 function formatFileSize(bytes: number | null): string {
-  if (!bytes) return "—"
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (!bytes) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function DocumentDetailPage() {
-  const params = useParams()
-  const id = params.id as string
+  const params = useParams();
+  const id = (params?.id as string) ?? "";
 
-  const { data: doc, isLoading } = trpc.document.getDocumentById.useQuery({ id })
+  const { data: doc, isLoading } = trpc.document.getDocumentById.useQuery({
+    id,
+  });
 
-  const [linkOpen, setLinkOpen] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [tagInput, setTagInput] = useState("")
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [tagInput, setTagInput] = useState("");
 
-  const utils = trpc.useUtils()
-  const downloadMutation = trpc.document.download.useMutation()
+  const utils = trpc.useUtils();
+  const downloadMutation = trpc.document.download.useMutation();
   const updateDoc = trpc.document.updateDocument.useMutation({
     onSuccess: () => {
-      toast.success("Document updated")
-      utils.document.getDocumentById.invalidate({ id })
+      toast.success("Document updated");
+      utils.document.getDocumentById.invalidate({ id });
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
   const removeLink = trpc.document.removeDocumentLink.useMutation({
     onSuccess: () => {
-      toast.success("Link removed")
-      utils.document.getDocumentById.invalidate({ id })
+      toast.success("Link removed");
+      utils.document.getDocumentById.invalidate({ id });
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
   const handleDownload = async () => {
     try {
-      const { downloadUrl } = await downloadMutation.mutateAsync({ id })
-      window.open(downloadUrl, "_blank")
+      const { downloadUrl } = await downloadMutation.mutateAsync({ id });
+      window.open(downloadUrl, "_blank");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Download failed"
-      toast.error(message)
+      const message = err instanceof Error ? err.message : "Download failed";
+      toast.error(message);
     }
-  }
+  };
 
-  if (isLoading) return <TableSkeleton rows={3} columns={4} />
+  if (isLoading) return <TableSkeleton rows={3} columns={4} />;
   if (!doc) {
     return (
       <EmptyState
@@ -103,37 +111,37 @@ export default function DocumentDetailPage() {
         title="Document not found"
         description="The requested document does not exist."
       />
-    )
+    );
   }
 
-  const tags = (doc.tags as string[]) ?? []
+  const tags = (doc.tags as string[]) ?? [];
 
   function addTag() {
-    const tag = tagInput.trim()
-    if (!tag) return
+    const tag = tagInput.trim();
+    if (!tag) return;
     if (tags.includes(tag)) {
-      toast.error("Tag already exists")
-      return
+      toast.error("Tag already exists");
+      return;
     }
-    updateDoc.mutate({ id, tags: [...tags, tag] })
-    setTagInput("")
+    updateDoc.mutate({ id, tags: [...tags, tag] });
+    setTagInput("");
   }
 
   function removeTag(tag: string) {
-    updateDoc.mutate({ id, tags: tags.filter((t) => t !== tag) })
+    updateDoc.mutate({ id, tags: tags.filter((t) => t !== tag) });
   }
 
   function archiveDocument() {
-    updateDoc.mutate({ id, tags })
-    toast.success("Document archived")
-    setDeleteOpen(false)
+    updateDoc.mutate({ id, tags });
+    toast.success("Document archived");
+    setDeleteOpen(false);
   }
 
   const linkedEntities = (doc.links ?? []).map((link) => ({
     id: link.id,
     entityType: link.entityType,
     entityId: link.entityId,
-  }))
+  }));
 
   return (
     <DetailShell
@@ -169,16 +177,23 @@ export default function DocumentDetailPage() {
     >
       <div className="grid gap-6 sm:grid-cols-2">
         <div className="space-y-4 rounded-lg border bg-card p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">Document Info</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Document Info
+          </h3>
           <dl className="space-y-3">
             <div className="flex justify-between">
               <dt className="text-sm text-muted-foreground">Name</dt>
-              <dd className="text-sm font-medium text-right max-w-[200px] truncate">{doc.name}</dd>
+              <dd className="text-sm font-medium text-right max-w-[200px] truncate">
+                {doc.name}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-sm text-muted-foreground">Type</dt>
               <dd>
-                <Badge variant="secondary" className={typeBadgeColors[doc.type]}>
+                <Badge
+                  variant="secondary"
+                  className={typeBadgeColors[doc.type]}
+                >
                   {typeLabels[doc.type] ?? doc.type}
                 </Badge>
               </dd>
@@ -186,7 +201,10 @@ export default function DocumentDetailPage() {
             <div className="flex justify-between">
               <dt className="text-sm text-muted-foreground">Status</dt>
               <dd>
-                <Badge variant="secondary" className={statusBadgeClass(doc.status)}>
+                <Badge
+                  variant="secondary"
+                  className={statusBadgeClass(doc.status)}
+                >
                   {doc.status}
                 </Badge>
               </dd>
@@ -249,8 +267,8 @@ export default function DocumentDetailPage() {
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                e.preventDefault()
-                addTag()
+                e.preventDefault();
+                addTag();
               }
             }}
             placeholder="Add tag..."
@@ -287,13 +305,19 @@ export default function DocumentDetailPage() {
             description="This document is not linked to any invoices, journal entries, or other entities."
           />
         ) : (
-            <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Entity Type</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Entity ID</th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Action</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Entity Type
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Entity ID
+                  </th>
+                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -337,5 +361,5 @@ export default function DocumentDetailPage() {
         variant="destructive"
       />
     </DetailShell>
-  )
+  );
 }

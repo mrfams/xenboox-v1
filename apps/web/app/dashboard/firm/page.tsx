@@ -416,7 +416,10 @@ export default function FirmDashboardPage() {
                   {/* Health badge */}
                   <div className="hidden sm:block">
                     <HealthBadge
-                      status={client.snapshot?.healthStatus ?? "unknown"}
+                      status={
+                        (client.snapshot?.healthStatus ?? "unknown") as
+                          "healthy" | "needs_review" | "critical" | "unknown"
+                      }
                     />
                   </div>
 

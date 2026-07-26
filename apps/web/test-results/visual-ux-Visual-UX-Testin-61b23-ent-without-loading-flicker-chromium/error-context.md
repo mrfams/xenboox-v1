@@ -1,0 +1,251 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: visual-ux.spec.ts >> Visual & UX Testing >> Loading States >> marketing pages show content without loading flicker
+- Location: e2e\visual-ux.spec.ts:7:9
+
+# Error details
+
+```
+Tearing down "context" exceeded the test timeout of 60000ms.
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+    - generic [ref=e2]:
+        - banner [ref=e3]:
+            - generic [ref=e4]:
+                - link "X Xenboox" [ref=e5] [cursor=pointer]:
+                    - /url: /
+                    - generic [ref=e6]: X
+                    - generic [ref=e7]: Xenboox
+                - navigation [ref=e8]:
+                    - link "Features" [ref=e9] [cursor=pointer]:
+                        - /url: /features
+                    - link "Pricing" [ref=e10] [cursor=pointer]:
+                        - /url: /pricing
+                    - link "Documentation" [ref=e11] [cursor=pointer]:
+                        - /url: /docs
+                    - link "Download" [ref=e12] [cursor=pointer]:
+                        - /url: /download
+                    - link "Contact" [ref=e13] [cursor=pointer]:
+                        - /url: /contact
+                - generic [ref=e14]:
+                    - link "Log in" [ref=e15] [cursor=pointer]:
+                        - /url: /login
+                    - link "Sign Up Free" [ref=e16] [cursor=pointer]:
+                        - /url: /register
+        - main [ref=e17]:
+            - generic [ref=e25]:
+                - generic [ref=e26]: Trusted by finance teams across Africa
+                - heading "AI-native accounting for African enterprises" [level=1] [ref=e30]:
+                    - text: AI-native accounting
+                    - text: for African enterprises
+                - paragraph [ref=e31]: Close your books faster, reduce errors, and get real-time financial intelligence — powered by AI agents that handle the work so your team can focus on growth.
+                - generic [ref=e32]:
+                    - link "Start Free" [ref=e33] [cursor=pointer]:
+                        - /url: /register
+                        - generic [ref=e35]:
+                            - text: Start Free
+                            - img [ref=e36]
+                    - link "Talk to Sales" [ref=e38] [cursor=pointer]:
+                        - /url: /contact
+                - paragraph [ref=e39]: No credit card required · Free tier available · Enterprise plans include dedicated support
+            - generic [ref=e42]:
+                - paragraph [ref=e44]: Trusted by finance teams at
+                - generic [ref=e46]:
+                    - generic [ref=e47]: Standard Bank
+                    - generic [ref=e48]: MTN
+                    - generic [ref=e49]: Flutterwave
+                    - generic [ref=e50]: Yoco
+                    - generic [ref=e51]: PiggyVest
+                    - generic [ref=e52]: Chipper
+                    - generic [ref=e53]: Standard Bank
+                    - generic [ref=e54]: MTN
+                    - generic [ref=e55]: Flutterwave
+                    - generic [ref=e56]: Yoco
+                    - generic [ref=e57]: PiggyVest
+                    - generic [ref=e58]: Chipper
+            - generic [ref=e63]:
+                - generic [ref=e65]:
+                    - generic [ref=e66]:
+                        - img [ref=e67]
+                        - text: Purpose-built for modern finance teams
+                    - heading "Built for how Africa does business" [level=2] [ref=e69]:
+                        - text: Built for how
+                        - text: Africa does business
+                - generic [ref=e70]:
+                    - generic [ref=e72]:
+                        - img [ref=e75]
+                        - heading "AI-Powered Accounting" [level=3] [ref=e78]
+                        - paragraph [ref=e79]: Intelligent agents automate journal entries, reconciliations, and compliance checks — freeing your team to focus on strategy, not data entry.
+                    - generic [ref=e81]:
+                        - img [ref=e84]
+                        - heading "Multi-Entity, Multi-Currency" [level=3] [ref=e88]
+                        - paragraph [ref=e89]: Manage subsidiaries, branches, and currencies from a single platform. Consolidate financials across entities in real time with full intercompany accounting.
+                    - generic [ref=e91]:
+                        - img [ref=e94]
+                        - heading "Enterprise Security & Compliance" [level=3] [ref=e96]
+                        - paragraph [ref=e97]: AES-256 encryption, row-level data isolation, SOC 2-aligned controls, and comprehensive audit trails protecting your financial data.
+            - generic [ref=e100]:
+                - generic [ref=e102]:
+                    - heading "Everything you need to run your finance function" [level=2] [ref=e103]:
+                        - text: Everything you need to
+                        - text: run your finance function
+                    - paragraph [ref=e104]: From journal entries to consolidated reporting — a complete accounting platform with no gaps.
+                - generic [ref=e105]:
+                    - generic [ref=e107]:
+                        - img [ref=e109]
+                        - heading "Double-Entry Ledger" [level=3] [ref=e113]
+                        - paragraph [ref=e114]: Full IFRS-ready general ledger with chart of accounts, journals, and trial balance.
+                    - generic [ref=e116]:
+                        - img [ref=e118]
+                        - heading "Payables & Receivables" [level=3] [ref=e120]
+                        - paragraph [ref=e121]: Invoice processing, payment scheduling, aging reports, and supplier management.
+                    - generic [ref=e123]:
+                        - img [ref=e125]
+                        - heading "Financial Reporting" [level=3] [ref=e128]
+                        - paragraph [ref=e129]: P&L, balance sheet, cash flow, and custom reports generated in real time.
+                    - generic [ref=e131]:
+                        - img [ref=e133]
+                        - heading "Multi-Platform Access" [level=3] [ref=e136]
+                        - paragraph [ref=e137]: Web, mobile, and desktop — your financial data available wherever you work.
+                    - generic [ref=e139]:
+                        - img [ref=e141]
+                        - heading "Role-Based Access" [level=3] [ref=e146]
+                        - paragraph [ref=e147]: Granular permissions, approval workflows, and entity-level access control.
+                    - generic [ref=e149]:
+                        - img [ref=e151]
+                        - heading "Dedicated Support" [level=3] [ref=e153]
+                        - paragraph [ref=e154]: Onboarding specialists, account managers, and support engineers assigned to your team.
+            - generic [ref=e159]:
+                - generic [ref=e160]:
+                    - generic [ref=e161]:
+                        - img [ref=e162]
+                        - text: Enterprise Security
+                    - heading "Built for the most demanding requirements" [level=2] [ref=e164]:
+                        - text: Built for the most
+                        - text: demanding requirements
+                    - paragraph [ref=e165]: Your financial data is protected by industry-standard encryption, strict access controls, and comprehensive audit logging. Every action is recorded, every transaction is traceable, and every entity is fully isolated.
+                    - list [ref=e166]:
+                        - listitem [ref=e167]:
+                            - img [ref=e168]
+                            - generic [ref=e171]: AES-256 encryption for data at rest. TLS 1.3 for data in transit.
+                        - listitem [ref=e172]:
+                            - img [ref=e173]
+                            - generic [ref=e176]: Row-level security ensures complete entity data isolation.
+                        - listitem [ref=e177]:
+                            - img [ref=e178]
+                            - generic [ref=e181]: SOC 2-aligned controls with continuous monitoring and incident response.
+                        - listitem [ref=e182]:
+                            - img [ref=e183]
+                            - generic [ref=e186]: Comprehensive audit trail — every action logged with actor, timestamp, and context.
+                - generic [ref=e188]:
+                    - heading "Compliance & Certifications" [level=3] [ref=e189]
+                    - generic [ref=e190]:
+                        - generic [ref=e191]:
+                            - generic [ref=e192]: GDPR
+                            - generic [ref=e193]: Data protection compliant
+                        - generic [ref=e194]:
+                            - generic [ref=e195]: IFRS
+                            - generic [ref=e196]: Reporting standards
+                        - generic [ref=e197]:
+                            - generic [ref=e198]: SOC 2
+                            - generic [ref=e199]: Control framework aligned
+                        - generic [ref=e200]:
+                            - generic [ref=e201]: TLS 1.3
+                            - generic [ref=e202]: Encryption in transit
+                    - paragraph [ref=e203]: Third-party security audits conducted quarterly.
+            - generic [ref=e209]:
+                - generic [ref=e210]:
+                    - img [ref=e211]
+                    - text: Get started in minutes
+                - heading "Ready to transform your accounting?" [level=2] [ref=e213]:
+                    - text: Ready to transform
+                    - text: your accounting?
+                - paragraph [ref=e214]: Join businesses across Africa that trust Xenboox to automate their financial operations.
+                - generic [ref=e215]:
+                    - link "Create Free Account" [ref=e216] [cursor=pointer]:
+                        - /url: /register
+                        - generic [ref=e218]:
+                            - text: Create Free Account
+                            - img [ref=e219]
+                    - link "Book a Demo" [ref=e221] [cursor=pointer]:
+                        - /url: /contact
+                - paragraph [ref=e222]: Free tier available. No credit card required. Enterprise plans include dedicated support.
+        - contentinfo [ref=e223]:
+            - generic [ref=e224]:
+                - generic [ref=e225]:
+                    - generic [ref=e226]:
+                        - link "X Xenboox" [ref=e227] [cursor=pointer]:
+                            - /url: /
+                            - generic [ref=e228]: X
+                            - generic [ref=e229]: Xenboox
+                        - paragraph [ref=e230]: AI-native accounting platform built for African businesses. Automated journal entries, reconciliations, payroll, and financial reporting.
+                        - generic [ref=e231]:
+                            - link "Twitter/X" [ref=e232] [cursor=pointer]:
+                                - /url: "#"
+                            - link "LinkedIn" [ref=e233] [cursor=pointer]:
+                                - /url: "#"
+                            - link "GitHub" [ref=e234] [cursor=pointer]:
+                                - /url: "#"
+                    - generic [ref=e235]:
+                        - heading "Product" [level=3] [ref=e236]
+                        - list [ref=e237]:
+                            - listitem [ref=e238]:
+                                - link "Features" [ref=e239] [cursor=pointer]:
+                                    - /url: /features
+                            - listitem [ref=e240]:
+                                - link "Pricing" [ref=e241] [cursor=pointer]:
+                                    - /url: /pricing
+                            - listitem [ref=e242]:
+                                - link "Download" [ref=e243] [cursor=pointer]:
+                                    - /url: /download
+                            - listitem [ref=e244]:
+                                - link "Documentation" [ref=e245] [cursor=pointer]:
+                                    - /url: /docs
+                    - generic [ref=e246]:
+                        - heading "Company" [level=3] [ref=e247]
+                        - list [ref=e248]:
+                            - listitem [ref=e249]:
+                                - link "About" [ref=e250] [cursor=pointer]:
+                                    - /url: /about
+                            - listitem [ref=e251]:
+                                - link "Blog" [ref=e252] [cursor=pointer]:
+                                    - /url: /blog
+                            - listitem [ref=e253]:
+                                - link "Careers" [ref=e254] [cursor=pointer]:
+                                    - /url: /careers
+                            - listitem [ref=e255]:
+                                - link "Contact" [ref=e256] [cursor=pointer]:
+                                    - /url: /contact
+                    - generic [ref=e257]:
+                        - heading "Legal" [level=3] [ref=e258]
+                        - list [ref=e259]:
+                            - listitem [ref=e260]:
+                                - link "Privacy" [ref=e261] [cursor=pointer]:
+                                    - /url: /privacy
+                            - listitem [ref=e262]:
+                                - link "Terms" [ref=e263] [cursor=pointer]:
+                                    - /url: /terms
+                            - listitem [ref=e264]:
+                                - link "Cookies" [ref=e265] [cursor=pointer]:
+                                    - /url: /cookies
+                            - listitem [ref=e266]:
+                                - link "Refund Policy" [ref=e267] [cursor=pointer]:
+                                    - /url: /refund
+                            - listitem [ref=e268]:
+                                - link "SLA" [ref=e269] [cursor=pointer]:
+                                    - /url: /sla
+                - generic [ref=e270]:
+                    - paragraph [ref=e271]: © 2026 Xenboox. All rights reserved.
+                    - paragraph [ref=e272]: Built with care for African businesses.
+    - alert [ref=e273]
+```

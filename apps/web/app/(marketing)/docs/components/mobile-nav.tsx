@@ -1,21 +1,35 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { Button } from "@xenboox/ui"
-import { Menu, X, ChevronDown, FileText, Bot, BookOpen, Shield, Server, HelpCircle } from "lucide-react"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Button } from "@xenboox/ui";
+import {
+  Menu,
+  X,
+  ChevronDown,
+  FileText,
+  Bot,
+  BookOpen,
+  Shield,
+  Server,
+  HelpCircle,
+} from "lucide-react";
 
 interface NavItem {
-  label: string
-  href: string
-  icon?: React.ReactNode
-  children?: { label: string; href: string }[]
+  label: string;
+  href: string;
+  icon?: React.ReactNode;
+  children?: { label: string; href: string }[];
 }
 
 const navItems: NavItem[] = [
-  { label: "Getting Started", href: "/docs/getting-started", icon: <BookOpen className="h-4 w-4" /> },
+  {
+    label: "Getting Started",
+    href: "/docs/getting-started",
+    icon: <BookOpen className="h-4 w-4" />,
+  },
   { label: "FAQ", href: "/docs/faq", icon: <HelpCircle className="h-4 w-4" /> },
   {
     label: "Modules",
@@ -68,36 +82,46 @@ const navItems: NavItem[] = [
       { label: "Audit", href: "/docs/agents/audit" },
     ],
   },
-  { label: "Security", href: "/docs/security", icon: <Shield className="h-4 w-4" /> },
-  { label: "DevOps", href: "/docs/devsecops", icon: <Server className="h-4 w-4" /> },
-]
+  {
+    label: "Security",
+    href: "/docs/security",
+    icon: <Shield className="h-4 w-4" />,
+  },
+  {
+    label: "DevOps",
+    href: "/docs/devsecops",
+    icon: <Server className="h-4 w-4" />,
+  },
+];
 
 export function MobileNav() {
-  const [open, setOpen] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
-  const pathname = usePathname()
+  const [open, setOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const pathname = usePathname() ?? "/";
 
   useEffect(() => {
-    setOpen(false)
-  }, [pathname])
+    setOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = "hidden"
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = ""
+      document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = "" }
-  }, [open])
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   const toggleGroup = (label: string) => {
     setExpandedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(label)) next.delete(label)
-      else next.add(label)
-      return next
-    })
-  }
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
 
   return (
     <div className="md:hidden">
@@ -115,25 +139,25 @@ export function MobileNav() {
           <div className="overflow-y-auto h-full pb-8">
             <div className="flex flex-col gap-1 p-4">
               {navItems.map((item) => {
-                const isActive = pathname === item.href
-                const hasChildren = item.children && item.children.length > 0
-                const isExpanded = expandedGroups.has(item.label)
+                const isActive = pathname === item.href;
+                const hasChildren = item.children && item.children.length > 0;
+                const isExpanded = expandedGroups.has(item.label);
 
                 return (
                   <div key={item.label}>
                     <button
                       onClick={() => {
                         if (hasChildren) {
-                          toggleGroup(item.label)
+                          toggleGroup(item.label);
                         } else {
-                          window.location.href = item.href
+                          window.location.href = item.href;
                         }
                       }}
                       className={cn(
                         "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         isActive
                           ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
                     >
                       <div className="flex items-center gap-2">
@@ -144,7 +168,7 @@ export function MobileNav() {
                         <ChevronDown
                           className={cn(
                             "h-4 w-4 transition-transform",
-                            isExpanded && "rotate-180"
+                            isExpanded && "rotate-180",
                           )}
                         />
                       )}
@@ -152,7 +176,7 @@ export function MobileNav() {
                     {hasChildren && isExpanded && (
                       <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l pl-3">
                         {item.children!.map((child) => {
-                          const isChildActive = pathname === child.href
+                          const isChildActive = pathname === child.href;
                           return (
                             <Link
                               key={child.href}
@@ -161,22 +185,22 @@ export function MobileNav() {
                                 "rounded-md px-3 py-1.5 text-sm transition-colors",
                                 isChildActive
                                   ? "bg-primary/5 text-primary font-medium"
-                                  : "text-muted-foreground hover:text-foreground"
+                                  : "text-muted-foreground hover:text-foreground",
                               )}
                             >
                               {child.label}
                             </Link>
-                          )
+                          );
                         })}
                       </div>
                     )}
                   </div>
-                )
+                );
               })}
             </div>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

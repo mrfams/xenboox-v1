@@ -1,22 +1,30 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui"
-import { Input, Label, Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui"
-import { trpc } from "@/lib/trpc/client"
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui";
+import {
+  Input,
+  Label,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui";
+import { trpc } from "@/lib/trpc/client";
 
 export function ResetPasswordForm() {
-  const searchParams = useSearchParams()
-  const token = searchParams.get("token") ?? ""
+  const searchParams = useSearchParams();
+  const token = searchParams?.get("token") ?? "";
 
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const resetPassword = trpc.auth.resetPassword.useMutation()
+  const resetPassword = trpc.auth.resetPassword.useMutation();
 
   if (!token) {
     return (
@@ -28,33 +36,34 @@ export function ResetPasswordForm() {
           </CardDescription>
         </CardHeader>
       </Card>
-    )
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     if (newPassword !== confirmPassword) {
-      setError("Passwords do not match")
-      return
+      setError("Passwords do not match");
+      return;
     }
 
     if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters")
-      return
+      setError("Password must be at least 8 characters");
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
-      await resetPassword.mutateAsync({ token, newPassword })
-      setSuccess(true)
+      await resetPassword.mutateAsync({ token, newPassword });
+      setSuccess(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Something went wrong"
-      setError(message)
+      const message =
+        err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -64,7 +73,8 @@ export function ResetPasswordForm() {
         <CardHeader className="text-center">
           <CardTitle>Password reset successfully</CardTitle>
           <CardDescription>
-            Your password has been updated. You can now sign in with your new password.
+            Your password has been updated. You can now sign in with your new
+            password.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -73,7 +83,7 @@ export function ResetPasswordForm() {
           </a>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -125,5 +135,5 @@ export function ResetPasswordForm() {
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

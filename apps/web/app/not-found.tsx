@@ -1,12 +1,14 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { Button } from "@/components/ui"
-import { Home, Search, ArrowLeft } from "lucide-react"
-import { useRouter } from "next/navigation"
+export const dynamic = "force-dynamic";
+
+import Link from "next/link";
+import { Button } from "@/components/ui";
+import { Home, Search, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function NotFound() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
@@ -18,7 +20,8 @@ export default function NotFound() {
           Page not found
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          We couldn&apos;t find the page you&apos;re looking for. It might have been moved or deleted.
+          We couldn&apos;t find the page you&apos;re looking for. It might have
+          been moved or deleted.
         </p>
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Button asChild size="lg">
@@ -34,5 +37,5 @@ export default function NotFound() {
         </div>
       </div>
     </div>
-  )
+  );
 }
