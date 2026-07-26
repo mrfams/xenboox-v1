@@ -6,6 +6,44 @@
 
 ---
 
+### [2026-07-26] — Accounting Firm Dashboard & Client Switcher: Enterprise-Grade Hardening (Phase 3)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~20 min
+**Files Modified:** 2
+
+**What was built:**
+
+### Enterprise Patterns Integrated
+
+| Pattern                         | Implementation                                                                                                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Retry + Circuit Breaker**     | `refreshClientSnapshot()` wrapped with `withRetry()` for resilience against transient DB failures (agentId: "firm-dashboard", operationName: "refresh-client-snapshot")                                            |
+| **Step Timeout Guards**         | All 7 DB query groups wrapped with `withTimeout(5s)`: overdue AR invoices, unreconciled bank transactions, pending approvals (parallel JEs + AP), last close period, bank balances, snapshot find, snapshot upsert |
+| **Parallel Query Optimization** | Pending JEs + AP invoice queries run in parallel via `Promise.all` instead of sequentially                                                                                                                         |
+| **PII Redaction**               | `redactPIIFromObject()` applied to audit trail `newValues` in both `linkClient` and `unlinkClient` mutations                                                                                                       |
+
+### Package Export Fix
+
+**File:** `packages/agents/index.ts` — Added missing re-exports of enterprise utility functions (`withRetry`, `withTimeout`, `withConcurrencyLimit`, `redactPII`, `redactPIIFromObject`, `checkIdempotency`, `setIdempotencyResult`, `generateIdempotencyKey`, `isCircuitOpen`, `recordCircuitSuccess`, `recordCircuitFailure`, `getCircuitBreakerState`, `startCacheCleanup`, `stopCacheCleanup`, `TimeoutError`, `DEFAULT_RETRY_CONFIG`, `DEFAULT_PIPELINE_TIMEOUT`) and their types (`RetryConfig`, `CircuitBreakerState`, `PipelineTimeoutConfig`).
+
+### Key Constraints Maintained
+
+- Cross-client isolation: firmOrgId still derived from session, never from client input
+- Read-only aggregation layer: snapshot reads client entity data but writes only to the firm's own snapshot table
+- All procedure signatures and return types unchanged — fully backward compatible
+
+### Verification
+
+| Check                         | Status                                                               |
+| ----------------------------- | -------------------------------------------------------------------- |
+| Typecheck (`@xenboox/agents`) | ✅ No errors                                                         |
+| Typecheck (`@xenboox/web`)    | ✅ No new errors (pre-existing firm UI page TS2322 only)             |
+| Code review (round 1)         | ✅ 3 cleanup items (dead code, unused import, unused variable) fixed |
+| Code review (round 2)         | ✅ No remaining issues                                               |
+
+---
+
 ### [2026-07-26] — Multi-Entity & Consolidation Pipeline: Enterprise-Grade Production Hardening (Phase 3)
 
 **Agent:** Buffy (Autonomous Engineer)

@@ -36,8 +36,7 @@ import {
   mutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
-
-// ─── Helpers ──────────────────────────────────────────────────────────
+import { withRetry, withTimeout, redactPIIFromObject } from "@xenboox/agents"; // ─── Helpers ──────────────────────────────────────────────────────────
 
 /** Compute health status from dashboard snapshot fields */
 function computeHealthStatus(snapshot: {
@@ -64,143 +63,200 @@ async function refreshClientSnapshot(
   firmOrgId: string,
   clientEntityId: string,
 ): Promise<void> {
-  // Pull data from the client entity's own tables (read-only)
-  // Uses Drizzle ORM — same as every other query in the codebase
+  // Enterprise: retry + timeout guards on all heavy DB operations
+  await withRetry(
+    async () => {
+      // Count overdue AR invoices (past due) — 5s timeout
+      const invoicesAr = await withTimeout(
+        () =>
+          db.query.salesInvoices.findMany({
+            where: and(
+              eq(salesInvoices.entityId, clientEntityId),
+              eq(salesInvoices.status, "pending"),
+            ),
+          }),
+        5_000,
+        "firm-refresh-overdue-ar",
+      );
+      const overdueCount = invoicesAr.filter(
+        (inv) => new Date(inv.dueDate) < new Date(),
+      ).length;
 
-  // Count overdue AR invoices (past due)
-  const invoicesAr = await db.query.salesInvoices.findMany({
-    where: and(
-      eq(salesInvoices.entityId, clientEntityId),
-      eq(salesInvoices.status, "pending"),
-    ),
-  });
-  const overdueCount = invoicesAr.filter(
-    (inv) => new Date(inv.dueDate) < new Date(),
-  ).length;
+      // Count unreconciled bank transactions — 5s timeout
+      const unreconciledTxs = await withTimeout(
+        () =>
+          db.query.bankTransactions.findMany({
+            where: and(
+              eq(bankTransactions.entityId, clientEntityId),
+              eq(bankTransactions.isReconciled, false),
+            ),
+          }),
+        5_000,
+        "firm-refresh-unreconciled",
+      );
+      const unreconciledCount = unreconciledTxs.length;
 
-  // Count unreconciled bank transactions
-  const unreconciledTxs = await db.query.bankTransactions.findMany({
-    where: and(
-      eq(bankTransactions.entityId, clientEntityId),
-      eq(bankTransactions.isReconciled, false),
-    ),
-  });
-  const unreconciledCount = unreconciledTxs.length;
+      // Count pending approvals — 5s timeout (parallel queries)
+      const [pendingJournalEntries, pendingApInvoices] = await Promise.all([
+        withTimeout(
+          () =>
+            db.query.journalEntries.findMany({
+              where: and(
+                eq(journalEntries.entityId, clientEntityId),
+                eq(journalEntries.status, "draft"),
+              ),
+            }),
+          5_000,
+          "firm-refresh-pending-jes",
+        ),
+        withTimeout(
+          () =>
+            db.query.invoicesAp.findMany({
+              where: and(
+                eq(invoicesAp.entityId, clientEntityId),
+                eq(invoicesAp.status, "pending"),
+              ),
+            }),
+          5_000,
+          "firm-refresh-pending-ap",
+        ),
+      ]);
+      const totalPending =
+        pendingJournalEntries.length + pendingApInvoices.length;
 
-  // Count pending approvals (draft journal entries + pending AP invoices)
-  const pendingJournalEntries = await db.query.journalEntries.findMany({
-    where: and(
-      eq(journalEntries.entityId, clientEntityId),
-      eq(journalEntries.status, "draft"),
-    ),
-  });
-  const pendingApInvoices = await db.query.invoicesAp.findMany({
-    where: and(
-      eq(invoicesAp.entityId, clientEntityId),
-      eq(invoicesAp.status, "pending"),
-    ),
-  });
-  const totalPending = pendingJournalEntries.length + pendingApInvoices.length;
+      // Check last close period — 5s timeout
+      const lastCloseRun = await withTimeout(
+        () =>
+          db.query.consolidationRuns.findFirst({
+            where: and(
+              eq(consolidationRuns.parentEntityId, clientEntityId),
+              eq(consolidationRuns.status, "completed"),
+            ),
+            orderBy: [desc(consolidationRuns.period)],
+          }),
+        5_000,
+        "firm-refresh-last-close",
+      );
+      const lastClosePeriod = lastCloseRun?.period ?? null;
 
-  // Check last close period
-  const lastCloseRun = await db.query.consolidationRuns.findFirst({
-    where: and(
-      eq(consolidationRuns.parentEntityId, clientEntityId),
-      eq(consolidationRuns.status, "completed"),
-    ),
-    orderBy: [desc(consolidationRuns.period)],
-  });
-  const lastClosePeriod = lastCloseRun?.period ?? null;
+      // Get total cash balance from bank accounts — 5s timeout
+      const bankAccs = await withTimeout(
+        () =>
+          db.query.bankAccounts.findMany({
+            where: and(
+              eq(bankAccounts.entityId, clientEntityId),
+              eq(bankAccounts.isActive, true),
+            ),
+          }),
+        5_000,
+        "firm-refresh-bank-balance",
+      );
+      const cashBal = bankAccs.reduce(
+        (sum, a) => sum + parseFloat(a.currentBalance || "0"),
+        0,
+      );
 
-  // Get total cash balance from bank accounts
-  const bankAccs = await db.query.bankAccounts.findMany({
-    where: and(
-      eq(bankAccounts.entityId, clientEntityId),
-      eq(bankAccounts.isActive, true),
-    ),
-  });
-  const cashBal = bankAccs.reduce(
-    (sum, a) => sum + parseFloat(a.currentBalance || "0"),
-    0,
-  );
+      // Check if books are current (close was this month or last month)
+      const booksCurrent = lastClosePeriod
+        ? (() => {
+            const [year, month] = lastClosePeriod.split("-").map(Number);
+            const now = new Date();
+            const monthsDiff =
+              (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
+            return monthsDiff <= 2;
+          })()
+        : false;
 
-  // Check if books are current (close was this month or last month)
-  const booksCurrent = lastClosePeriod
-    ? (() => {
-        const [year, month] = lastClosePeriod.split("-").map(Number);
-        const now = new Date();
-        const monthsDiff =
-          (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
-        return monthsDiff <= 2;
-      })()
-    : false;
+      // Days until next close (estimate: 15th of next month)
+      const now = new Date();
+      const nextClose = new Date(now.getFullYear(), now.getMonth() + 1, 15);
+      const daysUntilClose = Math.max(
+        0,
+        Math.round(
+          (nextClose.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        ),
+      );
 
-  // Days until next close (estimate: 15th of next month)
-  const now = new Date();
-  const nextClose = new Date(now.getFullYear(), now.getMonth() + 1, 15);
-  const daysUntilClose = Math.max(
-    0,
-    Math.round((nextClose.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-  );
+      const snapshotData = {
+        unreconciledCount,
+        overdueCount,
+        totalPending,
+        cashBal,
+        booksCurrent,
+        lastClosePeriod,
+        daysUntilClose,
+        refreshedAt: new Date().toISOString(),
+      };
 
-  const snapshotData = {
-    unreconciledCount,
-    overdueCount,
-    totalPending,
-    cashBal,
-    booksCurrent,
-    lastClosePeriod,
-    daysUntilClose,
-    refreshedAt: new Date().toISOString(),
-  };
-
-  const healthStatus = computeHealthStatus({
-    booksCurrent,
-    unreconciledItems: String(unreconciledCount),
-    overdueInvoices: String(overdueCount),
-    pendingApprovals: String(totalPending),
-  });
-
-  // Upsert the snapshot
-  const existing = await db.query.firmDashboardSnapshots.findFirst({
-    where: and(
-      eq(firmDashboardSnapshots.firmOrgId, firmOrgId),
-      eq(firmDashboardSnapshots.clientEntityId, clientEntityId),
-    ),
-  });
-
-  if (existing) {
-    await db
-      .update(firmDashboardSnapshots)
-      .set({
-        healthStatus,
+      const healthStatus = computeHealthStatus({
         booksCurrent,
         unreconciledItems: String(unreconciledCount),
         overdueInvoices: String(overdueCount),
         pendingApprovals: String(totalPending),
-        daysUntilClose: String(daysUntilClose),
-        lastClosePeriod,
-        cashBalance: String(cashBal),
-        lastRefreshedAt: new Date(),
-        snapshotData,
-      })
-      .where(eq(firmDashboardSnapshots.id, existing.id));
-  } else {
-    await db.insert(firmDashboardSnapshots).values({
-      firmOrgId,
-      clientEntityId,
-      healthStatus,
-      booksCurrent,
-      unreconciledItems: String(unreconciledCount),
-      overdueInvoices: String(overdueCount),
-      pendingApprovals: String(totalPending),
-      daysUntilClose: String(daysUntilClose),
-      lastClosePeriod,
-      cashBalance: String(cashBal),
-      lastRefreshedAt: new Date(),
-      snapshotData,
-    });
-  }
+      });
+
+      // Upsert the snapshot — 5s timeout
+      const existing = await withTimeout(
+        () =>
+          db.query.firmDashboardSnapshots.findFirst({
+            where: and(
+              eq(firmDashboardSnapshots.firmOrgId, firmOrgId),
+              eq(firmDashboardSnapshots.clientEntityId, clientEntityId),
+            ),
+          }),
+        5_000,
+        "firm-refresh-find-snapshot",
+      );
+
+      if (existing) {
+        await withTimeout(
+          () =>
+            db
+              .update(firmDashboardSnapshots)
+              .set({
+                healthStatus,
+                booksCurrent,
+                unreconciledItems: String(unreconciledCount),
+                overdueInvoices: String(overdueCount),
+                pendingApprovals: String(totalPending),
+                daysUntilClose: String(daysUntilClose),
+                lastClosePeriod,
+                cashBalance: String(cashBal),
+                lastRefreshedAt: new Date(),
+                snapshotData,
+              })
+              .where(eq(firmDashboardSnapshots.id, existing.id)),
+          5_000,
+          "firm-refresh-update-snapshot",
+        );
+      } else {
+        await withTimeout(
+          () =>
+            db.insert(firmDashboardSnapshots).values({
+              firmOrgId,
+              clientEntityId,
+              healthStatus,
+              booksCurrent,
+              unreconciledItems: String(unreconciledCount),
+              overdueInvoices: String(overdueCount),
+              pendingApprovals: String(totalPending),
+              daysUntilClose: String(daysUntilClose),
+              lastClosePeriod,
+              cashBalance: String(cashBal),
+              lastRefreshedAt: new Date(),
+              snapshotData,
+            }),
+          5_000,
+          "firm-refresh-insert-snapshot",
+        );
+      }
+    },
+    {
+      agentId: "firm-dashboard",
+      operationName: "refresh-client-snapshot",
+      context: { firmOrgId, clientEntityId },
+    },
+  );
 }
 
 // ─── Router ────────────────────────────────────────────────────────────
@@ -464,18 +520,18 @@ export const firmRouter = router({
           grantedBy: ctx.session!.user!.id!,
         });
 
-        // Log audit trail
+        // Log audit trail (PII redacted)
         await db.insert(auditLog).values({
           entityId: input.clientEntityId,
           userId: ctx.session!.user!.id!,
           action: "firm.linkClient",
           entityType: "client_engagement",
           entityIdRef: engagement.id,
-          newValues: {
+          newValues: redactPIIFromObject({
             firmOrgId: firmOrg.id,
             engagementType: input.engagementType,
             clientConsented: input.clientConsented,
-          },
+          }),
         });
 
         return {
@@ -534,14 +590,14 @@ export const firmRouter = router({
             ),
           );
 
-        // Log audit trail
+        // Log audit trail (PII redacted)
         await db.insert(auditLog).values({
           entityId: engagement.clientEntityId,
           userId: ctx.session!.user!.id!,
           action: "firm.unlinkClient",
           entityType: "client_engagement",
           entityIdRef: engagement.id,
-          newValues: { status: "ended" },
+          newValues: redactPIIFromObject({ status: "ended" }),
         });
 
         return { success: true };
