@@ -53,6 +53,7 @@ type NavGroup = {
     icon: LucideIcon;
     badge?: string;
     countKey?: string;
+    attrs?: Record<string, string>;
   }>;
 };
 
@@ -61,6 +62,7 @@ type NavItem = {
   href: string;
   icon: LucideIcon;
   badge?: string;
+  attrs?: Record<string, string>;
 };
 
 type ApprovalCounts = {
@@ -88,6 +90,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/review-queue",
         icon: AlertCircle,
         countKey: "total",
+        attrs: { "data-tour": "approvals" },
       },
     ],
   },
@@ -361,6 +364,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     icon: LucideIcon;
     badge?: string;
     countKey?: string;
+    attrs?: Record<string, string>;
   }) {
     const count = getCount(item.countKey);
     return (
@@ -374,6 +378,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ? "bg-primary/10 text-primary"
             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         )}
+        {...(item.attrs ?? {})}
       >
         <item.icon className="h-4 w-4 shrink-0" />
         <span className="flex-1 truncate">{item.label}</span>
@@ -401,8 +406,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       <aside
+        data-tour="sidebar"
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-200 ease-in-out",
+          "fixed inset-y-0 left-0 z-[49] flex w-64 flex-col border-r bg-card transition-transform duration-200 ease-in-out",
           "lg:static lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
@@ -470,6 +476,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                     )}
+                    {...(item.attrs ?? {})}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1 truncate">{item.label}</span>
