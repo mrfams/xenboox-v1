@@ -38,6 +38,7 @@ import { jurisdictionRouter } from "./jurisdiction";
 import { apiPlatformRouter } from "./api-platform";
 import { brandingRouter } from "./branding";
 import { benchmarkingRouter } from "./benchmarking";
+import { permissionsAdminRouter } from "./permissions-admin";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -80,6 +81,7 @@ export const appRouter = router({
   apiPlatform: apiPlatformRouter,
   branding: brandingRouter,
   benchmarking: benchmarkingRouter,
+  permissionsAdmin: permissionsAdminRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -37,3 +37,4 @@ export * from "./jurisdiction";
 export * from "./api-platform";
 export * from "./branding";
 export * from "./benchmarking";
+export * from "./permissions";

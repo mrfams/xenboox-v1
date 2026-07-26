@@ -74,6 +74,7 @@ import { seedFixedAssets } from "./fixed-assets";
 import { seedBudget } from "./budget";
 import { seedInventory } from "./inventory";
 import { seedConsolidation } from "./consolidation";
+import { seedPermissions } from "./permissions";
 
 const USER_ID = crypto.randomUUID();
 const ORG_ID = crypto.randomUUID();
@@ -1879,6 +1880,9 @@ export async function seed() {
       })
       .onConflictDoNothing();
   }
+
+  // Seed RBAC permissions from the Matrix
+  await seedPermissions();
 
   // 30. Mobile Money Accounts
   console.log("  Creating mobile money accounts...");

@@ -7,6 +7,7 @@ import { sessions } from "@xenboox/db/schema/auth";
 import { idempotencyKeys } from "@xenboox/db/schema";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { rolePermissions } from "@xenboox/db/schema/permissions";
 
 export const paginationSchema = z.object({
   limit: z.number().int().min(1).max(100).default(25),
@@ -229,6 +230,175 @@ export const requireRole = (...roles: string[]) =>
       });
     }
     return next({ ctx });
+  });
+
+export type PermissionModule =
+  | "general_ledger"
+  | "chart_of_accounts"
+  | "bank_reconciliation"
+  | "mobile_money"
+  | "accounts_payable"
+  | "accounts_receivable"
+  | "cash_imprest"
+  | "payroll"
+  | "invoicing"
+  | "expense_management"
+  | "fixed_assets"
+  | "inventory"
+  | "budgeting"
+  | "financial_reporting"
+  | "tax_compliance"
+  | "audit_preparation"
+  | "donor_grant_reporting"
+  | "multi_entity"
+  | "multi_currency"
+  | "document_management"
+  | "analytics_insights"
+  | "settings_users"
+  | "settings_entities"
+  | "settings_billing";
+
+export type PermissionAction =
+  | "view"
+  | "create"
+  | "edit"
+  | "approve"
+  | "post"
+  | "delete"
+  | "export"
+  | "configure";
+
+/**
+ * requirePermission middleware — checks the RBAC Matrix for role × module × action.
+ *
+ * Uses the in-memory permission cache populated from the rolePermissions table.
+ * Falls back to requireRole if the permission check fails for backward compatibility.
+ *
+ * Usage:
+ *   .use(requirePermission("general_ledger", "post"))
+ *   .use(requirePermission("payroll", "view", "scoped")) // Allow scoped too
+ */
+const permissionCache = new Map<string, { scope: string } | null>();
+const CACHE_TTL = 60_000; // 1 minute
+let lastCacheRefresh = 0;
+
+async function refreshPermissionCache(): Promise<void> {
+  if (Date.now() - lastCacheRefresh < CACHE_TTL) return;
+  permissionCache.clear();
+  lastCacheRefresh = Date.now();
+  // Cache is populated lazily on first request
+}
+
+export async function checkPermission(
+  ctx: Context,
+  module: PermissionModule,
+  action: PermissionAction,
+): Promise<{ allowed: boolean; scope: string }> {
+  const role = ctx.entityRole;
+
+  if (!role) {
+    return { allowed: false, scope: "none" };
+  }
+
+  // Owner bypasses permission checks (full access)
+  if (role === "owner") {
+    return { allowed: true, scope: "full" };
+  }
+
+  const cacheKey = `${role}:${module}:${action}`;
+  const cached = permissionCache.get(cacheKey);
+
+  if (cached !== undefined) {
+    return {
+      allowed: cached !== null && cached.scope !== "none",
+      scope: cached?.scope ?? "none",
+    };
+  }
+
+  try {
+    const perm = await db.query.rolePermissions.findFirst({
+      where: and(
+        eq(rolePermissions.role, role as any),
+        eq(rolePermissions.module, module as any),
+        eq(rolePermissions.action, action as any),
+      ),
+      columns: { scope: true, scopeCondition: true },
+    });
+
+    if (!perm || perm.scope === "none") {
+      permissionCache.set(cacheKey, null);
+      return { allowed: false, scope: "none" };
+    }
+
+    const result = { scope: perm.scope };
+    permissionCache.set(cacheKey, result);
+    return {
+      allowed: perm.scope === "full" || perm.scope === "scoped",
+      scope: perm.scope,
+    };
+  } catch (error) {
+    logger.error({ error, role, module, action }, "Permission check failed");
+    return { allowed: false, scope: "none" };
+  }
+}
+
+/**
+ * Middleware that checks the role × module × action permission from the RBAC Matrix.
+ * Throws FORBIDDEN if the permission is "none" for the current role.
+ *
+ * @param minScope minimum required scope (default: "scoped"). Use "full" to require full access.
+ */
+export const requirePermission = (
+  module: PermissionModule,
+  action: PermissionAction,
+  minScope: "scoped" | "full" = "scoped",
+) =>
+  t.middleware(async ({ ctx, next }) => {
+    await refreshPermissionCache();
+    const { allowed, scope } = await checkPermission(
+      ctx as Context,
+      module,
+      action,
+    );
+
+    if (!allowed) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `Access denied: your role does not have "${action}" permission on ${module}`,
+      });
+    }
+
+    if (minScope === "full" && scope !== "full") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `Access denied: your role only has scoped access to ${module}:${action}, full access required`,
+      });
+    }
+
+    return next({ ctx: { ...ctx, permissionScope: scope } });
+  });
+
+/**
+ * Middleware that checks if the user has ANY of the specified action permissions on a module.
+ */
+export const requireAnyPermission = (
+  module: PermissionModule,
+  actions: PermissionAction[],
+) =>
+  t.middleware(async ({ ctx, next }) => {
+    await refreshPermissionCache();
+
+    for (const action of actions) {
+      const { allowed } = await checkPermission(ctx as Context, module, action);
+      if (allowed) {
+        return next({ ctx: { ...ctx, permissionScope: "scoped" } });
+      }
+    }
+
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Access denied: your role does not have any of the required permissions on ${module}`,
+    });
   });
 
 // RLS-aware procedure that sets session context before queries.
