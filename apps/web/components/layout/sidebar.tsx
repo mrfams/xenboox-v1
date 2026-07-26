@@ -170,9 +170,14 @@ const navGroups: NavGroup[] = [
       { label: "Month-End Close", href: "/dashboard/close", icon: Shield },
       {
         label: "Consolidation",
-        href: "/dashboard/consolidation/pipeline",
+        href: "/dashboard/consolidation",
         icon: GitBranch,
         badge: "AI",
+      },
+      {
+        label: "Consolidated View",
+        href: "/dashboard/consolidation/view",
+        icon: BarChart3,
       },
     ],
   },
