@@ -1,200 +1,220 @@
 import Link from "next/link";
+import { MarketingHero } from "@/components/marketing/hero";
 import {
-  ArrowRight,
   MapPin,
+  Briefcase,
   Clock,
-  Code,
-  Palette,
-  BarChart3,
-  Sparkles,
+  Users,
+  Rocket,
   Heart,
+  Coffee,
+  Globe,
+  ArrowRight,
 } from "lucide-react";
 
-const openings = [
+const positions = [
   {
-    title: "Senior Full-Stack Engineer",
-    team: "Engineering",
-    location: "Remote",
+    title: "Senior Frontend Engineer",
+    department: "Engineering",
+    location: "Accra, Ghana / Remote",
     type: "Full-time",
-    description:
-      "Build the core platform — Next.js 15, tRPC, Drizzle ORM, PostgreSQL. You'll work on the web app, API layer, and database schema.",
-    icon: Code,
-    gradient: "from-blue-500 to-indigo-500",
   },
   {
-    title: "Mobile Engineer",
-    team: "Engineering",
-    location: "Remote",
+    title: "AI/ML Engineer (Agent Systems)",
+    department: "Engineering",
+    location: "Lagos, Nigeria / Remote",
     type: "Full-time",
-    description:
-      "Own the React Native (Expo) mobile app. Build native features, optimize performance, and ensure offline-first reliability.",
-    icon: Code,
-    gradient: "from-emerald-500 to-teal-500",
-  },
-  {
-    title: "AI/ML Engineer",
-    team: "AI",
-    location: "Remote",
-    type: "Full-time",
-    description:
-      "Design and improve our LangGraph agent workflows. Fine-tune prompts, build evaluation suites, and optimize LLM costs.",
-    icon: BarChart3,
-    gradient: "from-violet-500 to-purple-500",
   },
   {
     title: "Product Designer",
-    team: "Design",
-    location: "Remote",
+    department: "Product",
+    location: "Remote (Africa-based)",
     type: "Full-time",
-    description:
-      "Design intuitive interfaces for complex accounting workflows. Balance power with simplicity across web, mobile, and desktop.",
-    icon: Palette,
-    gradient: "from-amber-500 to-orange-500",
+  },
+  {
+    title: "Customer Success Manager",
+    department: "Operations",
+    location: "Nairobi, Kenya",
+    type: "Full-time",
+  },
+  {
+    title: "Accountant / Implementation Specialist",
+    department: "Operations",
+    location: "Accra, Ghana",
+    type: "Full-time",
+  },
+  {
+    title: "Growth Marketing Lead",
+    department: "Marketing",
+    location: "Remote (Africa-based)",
+    type: "Full-time",
   },
 ];
 
-const benefits = [
-  "Remote-first — work from anywhere",
-  "Competitive salary + equity",
-  "Health insurance",
-  "Unlimited PTO",
-  "Learning & development budget",
-  "Annual team retreats",
+const values = [
+  {
+    icon: Rocket,
+    title: "Ship Fast, Ship Safely",
+    description:
+      "We move quickly but never at the expense of financial correctness. Every feature ships with audit trails and confidence scoring.",
+  },
+  {
+    icon: Users,
+    title: "User Obsession",
+    description:
+      "African SMEs and accountants aren't a market segment — they're the people we're building for. We talk to them every week.",
+  },
+  {
+    icon: Heart,
+    title: "Radical Transparency",
+    description:
+      "No black boxes. Our AI explains its reasoning, our code is open to inspection, and our roadmap is public by default.",
+  },
+  {
+    icon: Coffee,
+    title: "Sustainable Pace",
+    description:
+      "We're building a decade-long company, not a sprint. We protect deep work, respect boundaries, and invest in our team's growth.",
+  },
+  {
+    icon: Globe,
+    title: "Pan-African by Design",
+    description:
+      "We build for multi-jurisdiction, multi-currency, multi-language from day one. Our team reflects the continent we serve.",
+  },
+  {
+    icon: Briefcase,
+    title: "Ownership Mindset",
+    description:
+      "Every team member runs their domain like a CEO. We hire for judgment, not just execution.",
+  },
 ];
 
 export default function CareersPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
-        <div className="absolute inset-0 bg-grid-dark opacity-30" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 md:py-20">
-          <div className="max-w-3xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-              <Sparkles className="h-3 w-3 text-blue-400" />
-              Careers
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-[1.1]">
-              <span className="text-white">Help us build the</span>
-              <br />
-              <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
-                future of accounting
-              </span>
-            </h1>
-            <p className="mt-4 text-lg text-white/50 leading-relaxed max-w-2xl">
-              Help us build the accounting platform that African businesses
-              deserve. We're looking for people who care about craft, impact,
-              and doing things right.
-            </p>
-          </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      </section>
+      <MarketingHero
+        title="Join the Team"
+        subtitle="Careers"
+        description="We're building the AI-native accounting backbone for Africa. If you want to work on hard, meaningful problems at the intersection of fintech and AI, we'd love to hear from you."
+        cta={{ label: "View Open Positions", href: "#openings" }}
+        secondaryCta={{ label: "About Our Culture", href: "#culture" }}
+      />
 
-      <section className="py-10 md:py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">
-                Why Xenboox?
-              </h2>
-              <p className="mt-4 text-muted-foreground leading-relaxed">
-                We're a small, focused team tackling a massive problem.
-                Accounting software in Africa is stuck in the past — we're
-                building what comes next.
-              </p>
-              <p className="mt-4 text-muted-foreground leading-relaxed">
-                You'll work on hard problems: AI agent orchestration,
-                multi-currency accounting, offline-first sync, and enterprise
-                security. And you'll see your work used by real businesses.
-              </p>
-            </div>
-            <div className="rounded-2xl border bg-gradient-to-br from-slate-50 to-white p-8">
-              <div className="flex items-center gap-2 mb-6">
-                <Heart className="h-5 w-5 text-red-400" />
-                <h3 className="text-lg font-semibold">What We Offer</h3>
-              </div>
-              <ul className="space-y-4">
-                {benefits.map((benefit) => (
-                  <li
-                    key={benefit}
-                    className="flex items-center gap-3 text-sm text-muted-foreground"
-                  >
-                    <span className="flex h-2 w-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500" />
-                    {benefit}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-y bg-gradient-to-b from-slate-50 to-white py-10 md:py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold tracking-tight">
-              Open Positions
-            </h2>
-            <p className="mt-3 text-muted-foreground">
-              Join us in building the accounting platform Africa deserves.
-            </p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            {openings.map((opening) => (
-              <div
-                key={opening.title}
-                className="group relative rounded-2xl border bg-white p-6 md:p-8 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
-              >
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${opening.gradient} shadow-sm mb-4`}
-                >
-                  <opening.icon className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-lg font-semibold">{opening.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  {opening.description}
+      {/* Stats */}
+      <section className="border-b bg-white py-10">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
+            {[
+              { label: "Team Members", value: "25+" },
+              { label: "Nationalities", value: "8" },
+              { label: "Countries Served", value: "12" },
+              { label: "Open Roles", value: "6" },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <p className="text-2xl font-bold text-slate-900">
+                  {stat.value}
                 </p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
-                    <BarChart3 className="h-3 w-3" />
-                    {opening.team}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    {opening.location}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {opening.type}
-                  </span>
-                </div>
+                <p className="mt-1 text-sm text-slate-500">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-10 md:py-14">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-3xl font-bold tracking-tight">
-            Don't see your role?
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            We're always interested in meeting talented people. Send us your
-            resume.
-          </p>
-          <div className="mt-8">
-            <Link
-              href="mailto:careers@xenboox.com"
-              className="group relative inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
-            >
-              <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-indigo-400 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-40" />
-              <span className="relative flex items-center gap-2">
-                Get in Touch
-                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </span>
-            </Link>
+      {/* Culture */}
+      <section id="culture" className="py-16">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="mb-10 text-center">
+            <h2 className="text-2xl font-bold text-slate-900">Our Culture</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              How we work, what we value, and what you can expect.
+            </p>
           </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {values.map((value) => {
+              const Icon = value.icon;
+              return (
+                <div
+                  key={value.title}
+                  className="rounded-xl border bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-3 font-semibold text-slate-900">
+                    {value.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+                    {value.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Open Positions */}
+      <section id="openings" className="border-t bg-slate-50 py-16">
+        <div className="mx-auto max-w-4xl px-4">
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-bold text-slate-900">
+              Open Positions
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              We don't have quotas or application deadlines — if you see a role
+              that fits, apply.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {positions.map((position) => (
+              <Link
+                key={position.title}
+                href="#"
+                className="group flex flex-col gap-3 rounded-xl border bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+                    {position.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {position.department}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" /> {position.location}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" /> {position.type}
+                    </span>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 opacity-0 transition-all group-hover:opacity-100">
+                  Apply now <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16">
+        <div className="mx-auto max-w-xl px-4 text-center">
+          <h2 className="text-2xl font-bold text-slate-900">
+            Don't see a role that fits?
+          </h2>
+          <p className="mt-2 text-sm text-slate-500">
+            We're always looking for great people. Send us your CV and tell us
+            what you'd build.
+          </p>
+          <Link
+            href="mailto:careers@xenboox.com"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:bg-blue-500 active:scale-[0.98]"
+          >
+            careers@xenboox.com <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
     </>

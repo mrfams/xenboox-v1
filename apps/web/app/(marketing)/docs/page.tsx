@@ -1,241 +1,190 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
-import {
-  Shield,
-  Server,
-  BookOpen,
-  FileText,
-  Bot,
-  HelpCircle,
-  Sparkles,
-  ArrowRight,
-  BookMarked,
-  Users,
-} from "lucide-react";
 import Link from "next/link";
+import { MarketingHero } from "@/components/marketing/hero";
+import {
+  BookOpen,
+  Terminal,
+  Settings,
+  Users,
+  Shield,
+  CreditCard,
+  FileText,
+  MessageSquare,
+  Database,
+  ArrowRight,
+  Search,
+} from "lucide-react";
 
-const docCategories = [
+const categories = [
   {
+    icon: BookOpen,
     title: "Getting Started",
     description:
-      "Set up your account, create entities, record your first journal entry.",
+      "Set up your organization, connect your data, and run your first month-end close.",
     href: "/docs/getting-started",
-    icon: BookOpen,
-    gradient: "from-blue-500/10 via-blue-500/5 to-transparent",
+    articles: "8 articles",
   },
   {
-    title: "Modules",
-    description:
-      "Explore all 19 accounting modules — AP, AR, Payroll, Treasury, Cash, and more.",
-    href: "/docs/modules",
-    icon: FileText,
-    gradient: "from-emerald-500/10 via-emerald-500/5 to-transparent",
-  },
-  {
-    title: "AI Agents",
-    description:
-      "Learn about all 19 AI-powered assistants — from CFO to Audit Agent.",
-    href: "/docs/agents",
-    icon: Bot,
-    gradient: "from-purple-500/10 via-purple-500/5 to-transparent",
-  },
-  {
-    title: "Security",
-    description:
-      "CSP, authentication, encryption, rate limiting, and compliance.",
-    href: "/docs/security",
-    icon: Shield,
-    gradient: "from-red-500/10 via-red-500/5 to-transparent",
-  },
-  {
-    title: "DevOps & Infrastructure",
-    description:
-      "CI/CD pipeline, deployment, monitoring, backup, incident response.",
-    href: "/docs/devsecops",
-    icon: Server,
-    gradient: "from-amber-500/10 via-amber-500/5 to-transparent",
-  },
-  {
-    title: "FAQ",
-    description:
-      "Common questions about billing, security, AI agents, and platform usage.",
-    href: "/docs/faq",
-    icon: HelpCircle,
-    gradient: "from-cyan-500/10 via-cyan-500/5 to-transparent",
-  },
-];
-
-const quickLinks = [
-  {
-    title: "Journal Entries",
-    href: "/docs/modules/journal",
-    description: "Double-entry accounting",
-  },
-  {
+    icon: Database,
     title: "Chart of Accounts",
-    href: "/docs/modules/coa",
-    description: "Account structure",
+    description:
+      "Structure your accounts, import templates, and manage your COA hierarchy.",
+    href: "/docs/chart-of-accounts",
+    articles: "5 articles",
   },
   {
-    title: "Bank Reconciliation",
-    href: "/docs/modules/treasury",
-    description: "Match transactions",
+    icon: Users,
+    title: "Users & Roles",
+    description:
+      "Invite team members, assign roles, and manage entity-level access.",
+    href: "/docs/users-roles",
+    articles: "6 articles",
   },
   {
-    title: "Payroll Processing",
-    href: "/docs/modules/payroll",
-    description: "Run payroll",
+    icon: Settings,
+    title: "Integrations",
+    description:
+      "Connect bank feeds, mobile money, import from QuickBooks or Xero.",
+    href: "/docs/integrations",
+    articles: "7 articles",
   },
   {
-    title: "Mobile Money",
-    href: "/docs/modules/mobile-money",
-    description: "M-Pesa, Airtel",
+    icon: Shield,
+    title: "Security & Compliance",
+    description:
+      "Encryption, audit trails, entity isolation, and data retention policies.",
+    href: "/docs/security",
+    articles: "4 articles",
   },
   {
-    title: "Reports",
-    href: "/docs/modules/reports",
-    description: "Financial statements",
+    icon: MessageSquare,
+    title: "AI Agent Guide",
+    description:
+      "How to work with the CFO Agent, understand confidence scores, and review AI actions.",
+    href: "/docs/ai-agent-guide",
+    articles: "6 articles",
+  },
+  {
+    icon: FileText,
+    title: "Reports & Exports",
+    description:
+      "Generate financial statements, custom reports, and filing exports.",
+    href: "/docs/reports",
+    articles: "5 articles",
+  },
+  {
+    icon: Terminal,
+    title: "API Reference",
+    description:
+      "Build integrations with our REST API — webhooks, endpoints, rate limits.",
+    href: "/docs/api",
+    articles: "12 articles",
+  },
+  {
+    icon: CreditCard,
+    title: "Billing & Plans",
+    description: "Compare plans, manage your subscription, and view invoices.",
+    href: "/docs/billing",
+    articles: "3 articles",
   },
 ];
 
-export default function DocsLandingPage() {
+export default function DocsPage() {
   return (
     <>
-      {/* Hero Section */}
-      <div className="relative mb-6 overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background">
-        <div className="relative px-6 py-10 sm:px-10 sm:py-14">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
-              <Sparkles className="h-3 w-3 text-primary" />
-              Documentation
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-            Welcome to the
-            <br />
-            <span className="text-primary">Xenboox Docs</span>
-          </h1>
-          <p className="mt-3 max-w-xl text-sm sm:text-base text-muted-foreground leading-relaxed">
-            Everything you need to get started with AI-native accounting.
-            Explore 19 modules, 19 AI agents, and enterprise-grade security
-            features.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/docs/getting-started"
-              className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-            >
-              Get Started
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              Create Free Account
-            </Link>
+      <MarketingHero
+        title="Documentation"
+        subtitle="Docs"
+        description="Everything you need to get started with Xenboox — from setting up your organization to building on our API."
+        cta={{ label: "Get Started Guide", href: "/docs/getting-started" }}
+        secondaryCta={{ label: "API Reference", href: "/docs/api" }}
+      />
+
+      {/* Search */}
+      <section className="border-b bg-white py-8">
+        <div className="mx-auto max-w-2xl px-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search documentation..."
+              className="w-full rounded-xl border bg-slate-50 py-3.5 pl-12 pr-4 text-sm outline-none transition-all focus:border-blue-400 focus:bg-white focus:shadow-sm"
+            />
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Categories Grid */}
+      <section className="py-16">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <Link
+                  key={cat.title}
+                  href={cat.href}
+                  className="group rounded-xl border bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-3 font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+                    {cat.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+                    {cat.description}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-xs text-slate-400">
+                      {cat.articles}
+                    </span>
+                    <ArrowRight className="h-3.5 w-3.5 text-blue-600 opacity-0 transition-all group-hover:opacity-100" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       {/* Quick Links */}
-      <div className="mb-10">
-        <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-          <BookMarked className="h-4 w-4" />
-          QUICK LINKS
-        </h2>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {quickLinks.map((link) => (
-            <Link key={link.href} href={link.href}>
-              <div className="group flex items-center justify-between rounded-lg border px-4 py-3 transition-all hover:bg-muted/50 hover:border-primary/30">
-                <div>
-                  <p className="text-sm font-medium group-hover:text-primary transition-colors">
-                    {link.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {link.description}
-                  </p>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 ml-2" />
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Doc Categories */}
-      <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-        <BookOpen className="h-4 w-4" />
-        DOCUMENTATION SECTIONS
-      </h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {docCategories.map((category) => (
-          <Link key={category.title} href={category.href}>
-            <Card className="group relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5">
-              <div
-                className={`absolute inset-0 bg-gradient-to-br ${category.gradient} opacity-0 group-hover:opacity-100 transition-opacity`}
-              />
-              <CardHeader className="relative">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
-                    <category.icon className="h-4 w-4" />
-                  </div>
-                  {category.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="relative">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {category.description}
+      <section className="border-t bg-slate-50 py-14">
+        <div className="mx-auto max-w-4xl px-4">
+          <div className="mb-8 text-center">
+            <h2 className="text-xl font-bold text-slate-900">Quick Links</h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                title: "Getting Started Guide",
+                href: "/docs/getting-started",
+                desc: "15-minute setup",
+              },
+              {
+                title: "API Quickstart",
+                href: "/docs/api/quickstart",
+                desc: "First API call in 5 minutes",
+              },
+              {
+                title: "FAQ",
+                href: "/docs/faq",
+                desc: "Common questions answered",
+              },
+            ].map((link) => (
+              <Link
+                key={link.title}
+                href={link.href}
+                className="group rounded-xl border bg-white p-4 text-center shadow-sm transition-all duration-200 hover:shadow-md"
+              >
+                <p className="font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+                  {link.title}
                 </p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
-
-      {/* Legal */}
-      <div className="mt-12 border-t pt-8">
-        <h2 className="text-sm font-semibold text-muted-foreground mb-3">
-          LEGAL & POLICIES
-        </h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {[
-            {
-              label: "Privacy Policy",
-              href: "/privacy",
-              desc: "Data protection and user privacy",
-            },
-            {
-              label: "Terms of Service",
-              href: "/terms",
-              desc: "Terms governing platform use",
-            },
-            {
-              label: "Cookie Policy",
-              href: "/cookies",
-              desc: "Cookie and tracking details",
-            },
-            {
-              label: "Service Level Agreement",
-              href: "/sla",
-              desc: "Uptime guarantees and support",
-            },
-          ].map((item) => (
-            <Link key={item.href} href={item.href}>
-              <div className="group flex items-center justify-between rounded-lg border px-4 py-3 transition-all hover:bg-muted/50">
-                <div>
-                  <p className="text-sm font-medium group-hover:text-primary transition-colors">
-                    {item.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {item.desc}
-                  </p>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-              </div>
-            </Link>
-          ))}
+                <p className="mt-1 text-xs text-slate-400">{link.desc}</p>
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
     </>
   );
 }

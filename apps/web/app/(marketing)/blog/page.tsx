@@ -1,160 +1,217 @@
 import Link from "next/link";
-import { ArrowRight, Calendar, Sparkles, Bookmark } from "lucide-react";
+import { MarketingHero } from "@/components/marketing/hero";
+import { ArrowRight, Calendar, Clock, Search } from "lucide-react";
+
+const categories = [
+  "All",
+  "Product",
+  "Accounting",
+  "Engineering",
+  "Company",
+  "Tutorials",
+];
 
 const posts = [
   {
-    slug: "why-ai-native-accounting",
-    title: "Why AI-Native Accounting Matters for African Businesses",
+    title: "Introducing Autonomous Month-End Close for African Businesses",
     excerpt:
-      "Traditional accounting software wasn't designed for multi-currency, mobile money, and varying tax regimes. Here's why AI-native is the answer.",
-    date: "2026-01-15",
+      "How Xenboox's AI agents automate the full month-end close process, from reconciliation to journal posting to report delivery.",
     category: "Product",
-    readTime: "5 min read",
-    gradient: "from-blue-500 to-indigo-500",
+    date: "Jul 22, 2026",
+    readTime: "5 min",
+    href: "/blog/autonomous-month-end-close",
+    featured: true,
   },
   {
-    slug: "19-agents-explained",
-    title: "19 Agents, Explained: How Xenboox's AI Workforce Operates",
+    title: "Why Traditional Accounting Software Fails in Africa",
     excerpt:
-      "A deep dive into the three-tier agent hierarchy — from the CFO Agent down to individual worker agents.",
-    date: "2026-01-08",
-    category: "Engineering",
-    readTime: "8 min read",
-    gradient: "from-emerald-500 to-teal-500",
-  },
-  {
-    slug: "multi-currency-accounting",
-    title: "Multi-Currency Accounting: The Hidden Complexity",
-    excerpt:
-      "Handling GMD, USD, EUR, and GBP in a single ledger isn't just about exchange rates. It's about reporting, compliance, and reconciliation.",
-    date: "2025-12-20",
+      "The structural reasons QuickBooks and Sage don't work for African SMEs — and what we built instead.",
     category: "Accounting",
-    readTime: "6 min read",
-    gradient: "from-violet-500 to-purple-500",
+    date: "Jul 18, 2026",
+    readTime: "7 min",
+    href: "/blog/why-traditional-accounting-fails-africa",
+    featured: true,
   },
   {
-    slug: "offline-first-desktop",
-    title: "Building an Offline-First Desktop App with Tauri and Rust",
+    title: "Building Agentic Workflows with LangGraph",
     excerpt:
-      "Why we chose Tauri over Electron, how we handle local SQLite caching, and our sync strategy for unreliable connectivity.",
-    date: "2025-12-10",
+      "A deep dive into our multi-agent architecture: how 19 AI agents coordinate through typed state graphs to run an entire accounting department.",
     category: "Engineering",
-    readTime: "10 min read",
-    gradient: "from-amber-500 to-orange-500",
+    date: "Jul 14, 2026",
+    readTime: "10 min",
+    href: "/blog/building-agentic-workflows-langgraph",
+    featured: false,
   },
   {
-    slug: "payroll-gambia",
-    title: "Payroll in The Gambia: PAYE, SSNIT, and What You Need to Know",
+    title: "Wave to Xenboox: Import Your Mobile Money History",
     excerpt:
-      "A practical guide to Gambian payroll — tax bands, social security contributions, and how Xenboox automates it all.",
-    date: "2025-11-28",
-    category: "Accounting",
-    readTime: "7 min read",
-    gradient: "from-pink-500 to-rose-500",
+      "We've built the first automated Wave statement import for accounting — connect, match, reconcile in minutes.",
+    category: "Product",
+    date: "Jul 10, 2026",
+    readTime: "3 min",
+    href: "/blog/wave-to-xenboox",
+    featured: false,
   },
   {
-    slug: "security-architecture",
-    title: "Enterprise-Grade Security from Day One",
+    title: "The Accountant's Guide to AI-Powered Reconciliation",
     excerpt:
-      "Row-level security, AES-256 encryption, rate limiting, and audit logging — how we built security into Xenboox's foundation.",
-    date: "2025-11-15",
-    category: "Security",
-    readTime: "6 min read",
-    gradient: "from-cyan-500 to-blue-500",
+      "How AI changes bank rec from a manual drag to an exception-review workflow — and what that means for your firm.",
+    category: "Tutorials",
+    date: "Jul 5, 2026",
+    readTime: "6 min",
+    href: "/blog/ai-powered-reconciliation-guide",
+    featured: false,
+  },
+  {
+    title: "We Raised Our Seed Round — Here's What We're Building",
+    excerpt:
+      "Why we're building an AI-native accounting platform for Africa, and what the next 12 months look like.",
+    category: "Company",
+    date: "Jun 28, 2026",
+    readTime: "4 min",
+    href: "/blog/seed-round-announcement",
+    featured: false,
   },
 ];
-
-const categories = ["All", "Product", "Engineering", "Accounting", "Security"];
 
 export default function BlogPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
-        <div className="absolute inset-0 bg-grid-dark opacity-30" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 md:py-20">
-          <div className="max-w-3xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-              <Bookmark className="h-3 w-3 text-blue-400" />
-              Blog
+      <MarketingHero
+        title="Blog"
+        subtitle="Insights"
+        description="Product updates, engineering deep-dives, and accounting insights from the team building AI-native finance for Africa."
+        cta={{ label: "Subscribe to Newsletter", href: "#subscribe" }}
+      />
+
+      {/* Search & Filter Bar */}
+      <section className="border-b bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  className="rounded-full border px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-600 aria-selected:border-blue-600 aria-selected:bg-blue-50 aria-selected:text-blue-700"
+                  aria-selected={cat === "All"}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-[1.1]">
-              <span className="text-white">Insights on</span>
-              <br />
-              <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
-                AI-native accounting
-              </span>
-            </h1>
-            <p className="mt-4 text-lg text-white/50 leading-relaxed max-w-2xl">
-              Engineering, and building for Africa.
-            </p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search posts..."
+                className="w-full rounded-lg border bg-slate-50 py-2 pl-10 pr-4 text-sm outline-none transition-colors focus:border-blue-400 focus:bg-white sm:w-64"
+              />
+            </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </section>
 
-      <section className="py-10 md:py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <span
-                key={cat}
-                className="inline-flex h-8 items-center rounded-full border px-4 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground cursor-pointer"
-              >
-                {cat}
-              </span>
-            ))}
+      {/* Featured Posts */}
+      <section className="py-12">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="mb-8 grid gap-6 md:grid-cols-2">
+            {posts
+              .filter((p) => p.featured)
+              .map((post) => (
+                <Link
+                  key={post.title}
+                  href={post.href}
+                  className="group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-50 to-white p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 sm:p-8"
+                >
+                  <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 rounded-full bg-gradient-to-br from-blue-500/5 to-indigo-500/5 blur-2xl" />
+                  <div className="relative">
+                    <span className="inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                      {post.category}
+                    </span>
+                    <h2 className="mt-3 text-xl font-bold text-slate-900 transition-colors group-hover:text-blue-600 sm:text-2xl">
+                      {post.title}
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                      {post.excerpt}
+                    </p>
+                    <div className="mt-4 flex items-center gap-4 text-xs text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5" /> {post.date}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" /> {post.readTime}
+                      </span>
+                    </div>
+                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-blue-600 opacity-0 transition-all group-hover:opacity-100">
+                      Read more <ArrowRight className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                </Link>
+              ))}
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {posts.map((post) => (
-              <article
-                key={post.slug}
-                className="group relative rounded-2xl border bg-white p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
-              >
-                <div
-                  className={`h-1.5 rounded-t-2xl bg-gradient-to-r ${post.gradient} -mx-6 -mt-6 mb-5`}
-                />
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                  <span className="inline-flex h-5 items-center rounded-full bg-blue-50 px-2 font-medium text-blue-700 border border-blue-200">
+          {/* All Posts */}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {posts
+              .filter((p) => !p.featured)
+              .map((post) => (
+                <Link
+                  key={post.title}
+                  href={post.href}
+                  className="group rounded-xl border bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                >
+                  <span className="inline-block rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
                     {post.category}
                   </span>
-                  <span>·</span>
-                  <span>{post.readTime}</span>
-                </div>
-                <h2 className="text-base font-semibold leading-snug group-hover:text-blue-600 transition-colors">
-                  {post.title}
-                </h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {post.excerpt}
-                </p>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(post.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                  <h3 className="mt-2 font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+                    {post.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm text-slate-500 line-clamp-2">
+                    {post.excerpt}
+                  </p>
+                  <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5" /> {post.date}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" /> {post.readTime}
+                    </span>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Read more
-                    <ArrowRight className="h-3 w-3" />
-                  </span>
-                </div>
-              </article>
-            ))}
+                </Link>
+              ))}
           </div>
+        </div>
+      </section>
 
-          <div className="mt-12 text-center text-sm text-muted-foreground">
-            More articles coming soon.{" "}
-            <Link
-              href="/register"
-              className="text-blue-600 hover:underline font-medium"
+      {/* Newsletter CTA */}
+      <section
+        id="subscribe"
+        className="border-t bg-gradient-to-br from-slate-900 to-indigo-950 py-16"
+      >
+        <div className="mx-auto max-w-2xl px-4 text-center">
+          <h2 className="text-2xl font-bold text-white">Stay in the loop</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Get product updates, engineering deep-dives, and accounting insights
+            delivered to your inbox.
+          </p>
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            className="mx-auto mt-6 flex max-w-md gap-3"
+          >
+            <input
+              type="email"
+              placeholder="you@company.com"
+              required
+              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none backdrop-blur-sm transition-colors focus:border-blue-500/50"
+            />
+            <button
+              type="submit"
+              className="shrink-0 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:bg-blue-500 active:scale-[0.98]"
             >
-              Sign up
-            </Link>{" "}
-            to get notified.
-          </div>
+              Subscribe
+            </button>
+          </form>
         </div>
       </section>
     </>
