@@ -5,8 +5,9 @@ import {
   handleMutationError,
   router,
   protectedProcedure,
-  adminProcedure,
   requireRole,
+  paginationSchema,
+  clearPermissionCache,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -14,7 +15,6 @@ import {
   userPermissionOverrides,
   permissionAuditLog,
 } from "@xenboox/db/schema/permissions";
-import { entityRoleEnum } from "@xenboox/db/schema/organization";
 
 // ─── Admin Permissions Router ────────────────────────────────────────────────
 
@@ -31,17 +31,22 @@ export const permissionsAdminRouter = router({
       return perms;
     }),
 
-  // ── List all permissions (grouped by role) ──
+  // ── List all permissions (grouped by role, paginated) ──
   listAll: protectedProcedure
     .use(requireRole("owner", "admin"))
-    .query(async () => {
+    .input(paginationSchema.optional())
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 50;
+      const offset = input?.offset ?? 0;
       const perms = await db.query.rolePermissions.findMany({
         orderBy: (t: any) => [t.role, t.module, t.action],
+        limit,
+        offset,
       });
       return perms;
     }),
 
-  // ── Get permission for a specific role × module × action ──
+  // ── Get permission for a specific role x module x action ──
   getPermission: protectedProcedure
     .use(requireRole("owner", "admin"))
     .input(
@@ -97,7 +102,9 @@ export const permissionsAdminRouter = router({
             .where(eq(rolePermissions.id, existing.id))
             .returning();
 
-          // Audit log
+          // Invalidate permission cache so changes take effect immediately
+          clearPermissionCache();
+
           await db.insert(permissionAuditLog).values({
             userId: ctx.session!.user!.id!,
             action: "role_permission_updated",
@@ -123,6 +130,8 @@ export const permissionsAdminRouter = router({
             scopeCondition: input.scopeCondition,
           })
           .returning();
+
+        clearPermissionCache();
 
         await db.insert(permissionAuditLog).values({
           userId: ctx.session!.user!.id!,
@@ -158,12 +167,10 @@ export const permissionsAdminRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         await db.transaction(async (tx) => {
-          // Clear existing permissions for this role
           await tx
             .delete(rolePermissions)
             .where(eq(rolePermissions.role, input.role as any));
 
-          // Insert new permissions
           for (const perm of input.permissions) {
             await tx.insert(rolePermissions).values({
               role: input.role as any,
@@ -173,6 +180,8 @@ export const permissionsAdminRouter = router({
             });
           }
         });
+
+        clearPermissionCache();
 
         await db.insert(permissionAuditLog).values({
           userId: ctx.session!.user!.id!,
@@ -187,21 +196,22 @@ export const permissionsAdminRouter = router({
       }
     }),
 
-  // ── List user permission overrides ──
+  // ── List user permission overrides (entity-scoped) ──
   listOverrides: protectedProcedure
     .use(requireRole("owner", "admin"))
     .input(z.object({ userId: z.string().uuid() }).optional())
     .query(async ({ ctx, input }) => {
-      const where = input?.userId
-        ? eq(userPermissionOverrides.userId, input.userId)
-        : undefined;
+      const conditions = [eq(userPermissionOverrides.entityId, ctx.entityId!)];
+      if (input?.userId) {
+        conditions.push(eq(userPermissionOverrides.userId, input.userId));
+      }
       return db.query.userPermissionOverrides.findMany({
-        where,
+        where: and(...conditions),
         orderBy: (t: any) => [t.userId, t.module, t.action],
       });
     }),
 
-  // ── Grant/revoke a user permission override ──
+  // ── Grant/revoke a user permission override (entity-scoped) ──
   setUserOverride: protectedProcedure
     .use(requireRole("owner", "admin"))
     .input(
@@ -218,6 +228,7 @@ export const permissionsAdminRouter = router({
         const existing = await db.query.userPermissionOverrides.findFirst({
           where: and(
             eq(userPermissionOverrides.userId, input.userId),
+            eq(userPermissionOverrides.entityId, ctx.entityId!),
             eq(userPermissionOverrides.module, input.module as any),
             eq(userPermissionOverrides.action, input.action as any),
           ),
@@ -241,7 +252,7 @@ export const permissionsAdminRouter = router({
             targetUserId: input.userId,
             module: input.module as any,
             actionName: input.action as any,
-            details: `${input.grant ? "Granted" : "Revoked"} ${input.module}:${input.action} for user ${input.userId}${input.reason ? ` — ${input.reason}` : ""}`,
+            details: `${input.grant ? "Granted" : "Revoked"} ${input.module}:${input.action} for user ${input.userId} in entity ${ctx.entityId}${input.reason ? ` - ${input.reason}` : ""}`,
           });
 
           return updated;
@@ -251,6 +262,7 @@ export const permissionsAdminRouter = router({
           .insert(userPermissionOverrides)
           .values({
             userId: input.userId,
+            entityId: ctx.entityId!,
             module: input.module as any,
             action: input.action as any,
             grant: input.grant,
@@ -265,7 +277,7 @@ export const permissionsAdminRouter = router({
           targetUserId: input.userId,
           module: input.module as any,
           actionName: input.action as any,
-          details: `${input.grant ? "Granted" : "Revoked"} ${input.module}:${input.action} for user ${input.userId}`,
+          details: `${input.grant ? "Granted" : "Revoked"} ${input.module}:${input.action} for user ${input.userId} in entity ${ctx.entityId}`,
         });
 
         return created;
@@ -288,10 +300,11 @@ export const permissionsAdminRouter = router({
       },
     });
 
-    // Check for user-specific overrides
+    // Check for user-specific overrides scoped to current entity
     const overrides = await db.query.userPermissionOverrides.findMany({
       where: and(
         eq(userPermissionOverrides.userId, ctx.session!.user!.id!),
+        eq(userPermissionOverrides.entityId, ctx.entityId!),
         eq(userPermissionOverrides.grant, false),
       ),
       columns: {
@@ -310,7 +323,6 @@ export const permissionsAdminRouter = router({
       .filter((p) => {
         const key = `${p.module}:${p.action}`;
         const override = overrideMap.get(key);
-        // If there's a revocation override, exclude this permission
         return !override || override.grant !== false;
       })
       .map((p) => ({

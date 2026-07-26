@@ -7,11 +7,11 @@ import {
   timestamp,
   index,
   uniqueIndex,
-  primaryKey,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { uuidId, timestamps } from "./helpers";
-import { entityRoleEnum } from "./organization";
+import { uuidId, entityId, timestamps } from "./helpers";
+import { entityRoleEnum, entities } from "./organization";
+import { users } from "./auth";
 
 // ─── MODULE ENUM ────────────────────────────────
 // All 20+ modules in the Xenboox platform
@@ -101,24 +101,34 @@ export const rolePermissionsRelations = relations(
 
 // ─── USER PERMISSION OVERRIDES ──────────────────
 // Per-user exceptions to the role-based permissions
-// Allows granting or revoking specific permissions for specific users
+// Allows granting or revoking specific permissions for specific users.
+// Scoped to entity_id — an override for Entity A does not apply to Entity B.
 
 export const userPermissionOverrides = pgTable(
   "user_permission_overrides",
   {
     id: uuidId(),
-    userId: uuid("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    entityId: entityId.references(() => entities.id, { onDelete: "cascade" }),
     module: rbacModuleEnum("module").notNull(),
     action: rbacActionEnum("action").notNull(),
     grant: boolean("grant").notNull().default(true), // true = grant, false = revoke
-    grantedBy: uuid("granted_by"),
+    grantedBy: uuid("granted_by").references(() => users.id),
     reason: text("reason"),
     expiresAt: timestamp("expires_at"),
     ...timestamps,
   },
   (t) => [
     index("user_permission_overrides_user").on(t.userId),
-    uniqueIndex("user_perm_override_unique").on(t.userId, t.module, t.action),
+    index("user_permission_overrides_entity").on(t.entityId),
+    uniqueIndex("user_perm_override_unique").on(
+      t.userId,
+      t.entityId,
+      t.module,
+      t.action,
+    ),
   ],
 );
 

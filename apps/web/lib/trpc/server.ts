@@ -289,6 +289,15 @@ async function refreshPermissionCache(): Promise<void> {
   // Cache is populated lazily on first request
 }
 
+/**
+ * Clear the in-memory permission cache.
+ * Called by admin routers after permission mutations.
+ */
+export function clearPermissionCache(): void {
+  permissionCache.clear();
+  lastCacheRefresh = 0;
+}
+
 export async function checkPermission(
   ctx: Context,
   module: PermissionModule,
@@ -298,11 +307,6 @@ export async function checkPermission(
 
   if (!role) {
     return { allowed: false, scope: "none" };
-  }
-
-  // Owner bypasses permission checks (full access)
-  if (role === "owner") {
-    return { allowed: true, scope: "full" };
   }
 
   const cacheKey = `${role}:${module}:${action}`;

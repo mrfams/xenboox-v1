@@ -14,11 +14,64 @@ import { rolePermissions } from "../schema/permissions";
  *   "none"  = ⛔ — no access (default, not inserted)
  */
 
+// Enum union types derived from the Drizzle schema enums for type safety
+// These must match the values in rbacModuleEnum, rbacActionEnum, rbacScopeEnum, and entityRoleEnum
+type RbacRole =
+  | "owner"
+  | "admin"
+  | "finance_director"
+  | "accountant"
+  | "payroll_officer"
+  | "cashier"
+  | "department_manager"
+  | "employee"
+  | "external_auditor"
+  | "external_accountant"
+  | "donor";
+
+type RbacModule =
+  | "general_ledger"
+  | "chart_of_accounts"
+  | "bank_reconciliation"
+  | "mobile_money"
+  | "accounts_payable"
+  | "accounts_receivable"
+  | "cash_imprest"
+  | "payroll"
+  | "invoicing"
+  | "expense_management"
+  | "fixed_assets"
+  | "inventory"
+  | "budgeting"
+  | "financial_reporting"
+  | "tax_compliance"
+  | "audit_preparation"
+  | "donor_grant_reporting"
+  | "multi_entity"
+  | "multi_currency"
+  | "document_management"
+  | "analytics_insights"
+  | "settings_users"
+  | "settings_entities"
+  | "settings_billing";
+
+type RbacAction =
+  | "view"
+  | "create"
+  | "edit"
+  | "approve"
+  | "post"
+  | "delete"
+  | "export"
+  | "configure";
+
+type RbacScope = "full" | "scoped" | "none";
+
 type PermEntry = {
-  role: string;
-  module: string;
-  action: string;
-  scope: string;
+  role: RbacRole;
+  module: RbacModule;
+  action: RbacAction;
+  scope: RbacScope;
   description?: string;
   scopeCondition?: string;
 };
