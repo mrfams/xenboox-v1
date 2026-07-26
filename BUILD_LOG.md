@@ -6,6 +6,59 @@
 
 ---
 
+### [2026-07-26] — UI/UX Architecture Implementation: App Shell & Navigation Restructure
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Modified:** 2
+
+**What was built:**
+
+### Sidebar Navigation Restructured (Architecture Doc §2.2)
+
+**File:** `apps/web/components/layout/sidebar.tsx` — Complete rewrite
+
+| Feature                 | Implementation                                                                                                                                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Grouped Navigation**  | Replaced flat list + "More" toggle with 9 logical groups: Main, Money, Sales, Purchases, Payroll & People, Assets & Inventory, Accounting, Reports, Compliance — matching architecture doc §2.2 |
+| **Collapsible Groups**  | Each group has a chevron toggle that expands/collapses its items. State preserved in React `Set<string>` during the session                                                                     |
+| **Live Approval Badge** | Architecture doc §2.4 — Approval nav item shows live count from `trpc.ingestion.getStats` + `listAgentApprovals` (refetched every 60s)                                                          |
+| **Settings & Tools**    | Collapsible section for secondary nav: Documents, Integrations, Firm Dashboard, White Label, API Keys, Benchmarking, Ingestion, Admin, Settings                                                 |
+| **Help Footer**         | Persistent Help & Support link at the bottom of the sidebar                                                                                                                                     |
+
+All existing nav items preserved (Ingestion, Admin, etc.) — no modules removed, only reorganized.
+
+### Structured Inline Results in Chat Panel (Architecture Doc §4)
+
+**File:** `apps/web/components/layout/chat-panel.tsx` — Enhanced
+
+| Feature                           | Implementation                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **StructuredContent Type System** | Union type supporting 5 block types: `text`, `table`, `metric`, `actions`, `approval_request`                       |
+| **Table Renderer**                | Dense bordered table with currency/badge formatting, caption row, hover states                                      |
+| **Metric Cards**                  | Inline metric with trend arrows (up/down/neutral) and semantic colors                                               |
+| **Action Buttons**                | Link-based and click-based action buttons with arrow indicators                                                     |
+| **Approval Request Cards**        | Amber-bordered approval card with confidence badge, description, approve/reject buttons, and drill-down link        |
+| **Contextual Responses**          | `getDemoResponse()` matches query keywords (cash, approval, P&L, anomaly) to generate relevant structured responses |
+| **Agent Capacity Bar**            | Subtle status bar showing "CFO Agent ready · 3 agents available"                                                    |
+
+### Design Principles Applied
+
+- **Exception-first**: Approval queue badge visible from every screen (architecture doc §2.4)
+- **Every automated number is clickable**: All data tables link to relevant modules
+- **Confidence is visible**: Approval requests always show confidence badge with color coding
+- **Numbers-dense**: Tight padding, dense tables, minimal whitespace in data views
+
+### Verification
+
+| Check                      | Status                                                                  |
+| -------------------------- | ----------------------------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors (pre-existing firm UI page TS2322 only)                |
+| Code review (round 1)      | ✅ 2 issues fixed (content duplication bug, unused imports, Admin icon) |
+| Code review (round 2)      | ✅ No remaining issues                                                  |
+
+---
+
 ### [2026-07-26] — Accounting Firm Dashboard & Client Switcher: Enterprise-Grade Hardening (Phase 3)
 
 **Agent:** Buffy (Autonomous Engineer)
