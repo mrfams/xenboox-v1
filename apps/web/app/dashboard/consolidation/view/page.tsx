@@ -31,6 +31,8 @@ import {
   ChevronDown,
   ChevronUp,
   CalendarDays,
+  Download,
+  Printer,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -244,6 +246,283 @@ function EntityDot({ index, label }: { index: number; label: string }) {
   );
 }
 
+// ─── Print Styles ──────────────────────────────────────────────────────
+
+const printStyles = `
+@media print {
+  @page { margin: 0.5in; }
+  body { background: white !important; }
+  nav, header, footer, [role="navigation"], .sidebar, .top-nav,
+  .no-print, button:not(.print\:inline), .PageHeader-action {
+    display: none !important;
+  }
+  * {
+    background: white !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  .text-emerald-600, [class*="text-emerald"] { color: #059669 !important; }
+  .text-red-600, [class*="text-red"] { color: #dc2626 !important; }
+  .text-blue-600, [class*="text-blue"] { color: #2563eb !important; }
+  .text-slate-700, .text-slate-900 { color: #1e293b !important; }
+  .text-muted-foreground { color: #64748b !important; }
+  .bg-gradient-to-br, .bg-gradient-to-r, [class*="bg-gradient"] {
+    background: white !important;
+  }
+  .bg-muted\/30, .bg-muted { background: #f3f4f6 !important; }
+  .border, .border-b, .border-t, .border-l, [class*="border-"] {
+    border-color: #e2e8f0 !important;
+  }
+  a { text-decoration: none !important; }
+  .rounded-lg, .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
+}
+`;
+
+// ─── Export Helpers ────────────────────────────────────────────────────
+
+function escapeCSV(val: string | number): string {
+  const str = String(val);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function downloadBlob(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+type ConsolidationExportData = {
+  period: string;
+  parentEntity: { name: string };
+  entities: EntityFinancialData[];
+  eliminations: {
+    eliminationType: string;
+    description: string;
+    entityName: string;
+    counterpartyName: string;
+    amount: number;
+    debitCredit: string;
+  }[];
+  consolidatedTotals: {
+    totalRevenue: number;
+    totalExpenses: number;
+    netIncome: number;
+    totalAssets: number;
+    totalLiabilities: number;
+    cashBalance: number;
+  } | null;
+  eliminationsByType: Record<string, number>;
+};
+
+function exportConsolidatedCSV(data: ConsolidationExportData) {
+  const lines: string[] = [];
+
+  // ── Helper to add a section ──
+  const section = (title: string, rows: string[][]) => {
+    lines.push("");
+    lines.push(`"${title}"`);
+    rows.forEach((r) => lines.push(r.join(",")));
+  };
+
+  // ── Entity Column Headers ──
+  const entityHeaders = data.entities.map(
+    (e: { entityName: string; isParent: boolean }) =>
+      `${e.isParent ? "[Parent]" : "[Sub]"} ${e.entityName}`,
+  );
+  const metricHeaders = ["Metric", ...entityHeaders, "Consolidated"];
+
+  // ── Income Statement ──
+  section("Income Statement", [
+    metricHeaders,
+    [
+      "Total Revenue",
+      ...data.entities.map((e: EntityFinancialData) =>
+        escapeCSV(formatCurrency(e.financials.totalRevenue)),
+      ),
+      escapeCSV(formatCurrency(data.consolidatedTotals?.totalRevenue ?? 0)),
+    ],
+    [
+      "Total Expenses",
+      ...data.entities.map((e: EntityFinancialData) =>
+        escapeCSV(formatCurrency(e.financials.totalExpenses)),
+      ),
+      escapeCSV(formatCurrency(data.consolidatedTotals?.totalExpenses ?? 0)),
+    ],
+    [
+      "Net Income",
+      ...data.entities.map((e: EntityFinancialData) =>
+        escapeCSV(formatCurrency(e.financials.netIncome)),
+      ),
+      escapeCSV(formatCurrency(data.consolidatedTotals?.netIncome ?? 0)),
+    ],
+  ]);
+
+  // ── Balance Sheet ──
+  section("Balance Sheet", [
+    metricHeaders,
+    [
+      "Cash & Bank",
+      ...data.entities.map((e: EntityFinancialData) =>
+        escapeCSV(formatCurrency(e.financials.cashBalance)),
+      ),
+      escapeCSV(formatCurrency(data.consolidatedTotals?.cashBalance ?? 0)),
+    ],
+    [
+      "Accounts Receivable",
+      ...data.entities.map((e: EntityFinancialData) =>
+        escapeCSV(formatCurrency(e.financials.outstandingAr)),
+      ),
+      "",
+    ],
+    [
+      "Total Assets",
+      ...data.entities.map((e: EntityFinancialData) =>
+        escapeCSV(formatCurrency(e.financials.totalAssets)),
+      ),
+      escapeCSV(formatCurrency(data.consolidatedTotals?.totalAssets ?? 0)),
+    ],
+    [
+      "Accounts Payable",
+      ...data.entities.map((e: EntityFinancialData) =>
+        escapeCSV(formatCurrency(e.financials.outstandingAp)),
+      ),
+      escapeCSV(formatCurrency(data.consolidatedTotals?.totalLiabilities ?? 0)),
+    ],
+    [
+      "Equity",
+      ...data.entities.map((e: EntityFinancialData) =>
+        escapeCSV(
+          formatCurrency(
+            e.financials.totalAssets - e.financials.totalLiabilities,
+          ),
+        ),
+      ),
+      escapeCSV(
+        formatCurrency(
+          (data.consolidatedTotals?.totalAssets ?? 0) -
+            (data.consolidatedTotals?.totalLiabilities ?? 0),
+        ),
+      ),
+    ],
+  ]);
+
+  // ── Activity ──
+  section("Activity", [
+    metricHeaders,
+    [
+      "Transaction Count",
+      ...data.entities.map((e: EntityFinancialData) =>
+        String(e.financials.transactionCount),
+      ),
+      String(
+        data.entities.reduce(
+          (s: number, e: EntityFinancialData) =>
+            s + e.financials.transactionCount,
+          0,
+        ),
+      ),
+    ],
+  ]);
+
+  // ── Elimination Entries ──
+  if (data.eliminations.length > 0) {
+    const elimSection: string[][] = [
+      [
+        "Type",
+        "Description",
+        "Entity",
+        "Counterparty",
+        "Amount",
+        "Debit/Credit",
+      ],
+    ];
+    data.eliminations.forEach(
+      (elim: {
+        eliminationType: string;
+        description: string;
+        entityName: string;
+        counterpartyName: string;
+        amount: number;
+        debitCredit: string;
+      }) => {
+        elimSection.push([
+          escapeCSV(elim.eliminationType),
+          escapeCSV(elim.description),
+          escapeCSV(elim.entityName),
+          escapeCSV(elim.counterpartyName),
+          escapeCSV(formatCurrency(elim.amount)),
+          escapeCSV(elim.debitCredit),
+        ]);
+      },
+    );
+    section("Elimination Entries", elimSection);
+  }
+
+  lines.push("");
+  lines.push(`"Generated by Xenboox — ${new Date().toISOString()}"`);
+
+  downloadBlob(
+    lines.join("\n"),
+    `consolidated-view-${data.period}.csv`,
+    "text/csv;charset=utf-8;",
+  );
+}
+
+function ExportDropdown({ data }: { data: ConsolidationExportData }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5 text-xs"
+        onClick={() => setOpen(!open)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      >
+        <Download className="h-3.5 w-3.5" />
+        Export
+        <ChevronDown className="h-3 w-3" />
+      </Button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-48 rounded-lg border bg-card shadow-lg z-50 overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-accent"
+            onClick={() => {
+              setOpen(false);
+              exportConsolidatedCSV(data);
+            }}
+          >
+            <FileText className="h-4 w-4 text-emerald-500" />
+            <span>Download CSV</span>
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-accent"
+            onClick={() => {
+              setOpen(false);
+              window.print();
+            }}
+          >
+            <Printer className="h-4 w-4 text-blue-500" />
+            <span>Print / Save as PDF</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────
 
 export default function ConsolidatedViewPage() {
@@ -324,6 +603,9 @@ export default function ConsolidatedViewPage() {
         }}
       />
 
+      {/* Print styles injected inline */}
+      <style>{printStyles}</style>
+
       {/* Period Selector & Filters */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
         <div className="flex items-center gap-2">
@@ -347,28 +629,31 @@ export default function ConsolidatedViewPage() {
             ))}
           </select>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {latestRun && (
-            <>
-              <Badge
-                className={cn(
-                  "text-[9px]",
-                  latestRun.status === "completed"
-                    ? "bg-emerald-500/20 text-emerald-700"
-                    : latestRun.status === "reviewing"
-                      ? "bg-amber-500/20 text-amber-700"
-                      : "bg-muted/50 text-muted-foreground",
+        <div className="flex items-center gap-2">
+          <ExportDropdown data={data} />
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {latestRun && (
+              <>
+                <Badge
+                  className={cn(
+                    "text-[9px]",
+                    latestRun.status === "completed"
+                      ? "bg-emerald-500/20 text-emerald-700"
+                      : latestRun.status === "reviewing"
+                        ? "bg-amber-500/20 text-amber-700"
+                        : "bg-muted/50 text-muted-foreground",
+                  )}
+                >
+                  {latestRun.status}
+                </Badge>
+                {latestRun.confidence !== null && (
+                  <span>
+                    Confidence: {(latestRun.confidence * 100).toFixed(0)}%
+                  </span>
                 )}
-              >
-                {latestRun.status}
-              </Badge>
-              {latestRun.confidence !== null && (
-                <span>
-                  Confidence: {(latestRun.confidence * 100).toFixed(0)}%
-                </span>
-              )}
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
