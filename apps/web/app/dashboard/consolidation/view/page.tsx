@@ -30,6 +30,7 @@ import {
   BarChart3,
   ChevronDown,
   ChevronUp,
+  CalendarDays,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -185,6 +186,40 @@ function MetricRow({
   );
 }
 
+// ─── Period Options Generator ─────────────────────────────────────────
+
+function generatePeriodOptions(): string[] {
+  const options: string[] = [];
+  const now = new Date();
+  // Include current month + last 11 months = 12 periods
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    options.push(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+    );
+  }
+  return options;
+}
+
+function PeriodLabel(period: string): string {
+  const [year, month] = period.split("-").map(Number);
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return `${months[month - 1]} ${year}`;
+}
+
 // ─── Entity Color Dot ──────────────────────────────────────────────────
 
 function EntityDot({ index, label }: { index: number; label: string }) {
@@ -288,6 +323,54 @@ export default function ConsolidatedViewPage() {
           },
         }}
       />
+
+      {/* Period Selector & Filters */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <label
+            htmlFor="period-select"
+            className="text-sm text-muted-foreground"
+          >
+            Period:
+          </label>
+          <select
+            id="period-select"
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="rounded-lg border bg-background px-3 py-1.5 text-sm font-medium outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+          >
+            {generatePeriodOptions().map((p) => (
+              <option key={p} value={p}>
+                {PeriodLabel(p)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {latestRun && (
+            <>
+              <Badge
+                className={cn(
+                  "text-[9px]",
+                  latestRun.status === "completed"
+                    ? "bg-emerald-500/20 text-emerald-700"
+                    : latestRun.status === "reviewing"
+                      ? "bg-amber-500/20 text-amber-700"
+                      : "bg-muted/50 text-muted-foreground",
+                )}
+              >
+                {latestRun.status}
+              </Badge>
+              {latestRun.confidence !== null && (
+                <span>
+                  Confidence: {(latestRun.confidence * 100).toFixed(0)}%
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Quick Stats Row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
