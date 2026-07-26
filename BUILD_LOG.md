@@ -6,6 +6,102 @@
 
 ---
 
+### [2026-07-26] — Role-Based Home Screens: Account Owner & Finance Director Dashboards (Architecture Doc §5)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Created:** 3
+**Files Modified:** 4
+
+**What was built:**
+
+### Role-Based Dashboard Router
+
+**File:** `apps/web/components/dashboard/roles/role-dashboard.tsx` — NEW
+
+Routes users to appropriate dashboards based on their entity role (from `user_entity_access` via entity context):
+
+| Role               | Dashboard                  |
+| ------------------ | -------------------------- |
+| `owner` / `admin`  | `OwnerDashboard`           |
+| `finance_director` | `FinanceDirectorDashboard` |
+| other roles        | `RolePlaceholder` fallback |
+
+Loading state shows skeleton. Empty entity shows skeleton. Unimplemented roles show a contextual banner explaining what their dedicated dashboard will contain, with the owner dashboard as a fallback beneath.
+
+### Account Owner Dashboard (§5)
+
+**File:** `apps/web/components/dashboard/roles/owner-dashboard.tsx` — NEW
+
+Shows what an owner needs for a quick pulse check:
+
+- **Financial Health Score** (0–100) with color-coded trend (up/down/neutral) — computed from cash position, outstanding AR/AP, and approvals count
+- **Cash Position Bar** with stacked horizontal bar chart (bank/mobile/cash) and per-account breakdown
+- **Close Status Widget** with progress bar, agent confirmations, and close center link
+- **Quick Approvals Widget** with live count from `trpc.ingestion.getStats`, critical item alert, and review queue link
+- **CFO Agent Summary** with inline chat input and 3 suggested prompt chips
+- **4 KPI Stat Cards** (Revenue MTD, Outstanding AR, Outstanding AP, Total Cash & Bank)
+
+Data sources: `trpc.ar.listInvoices`, `trpc.ap.listInvoices`, `trpc.treasury.listBankAccounts`, `trpc.cash.listCashAccounts`
+
+### Finance Director Dashboard (§5)
+
+**File:** `apps/web/components/dashboard/roles/finance-director-dashboard.tsx` — NEW
+
+Full financial oversight:
+
+- **4-Column KPI Grid** with trend % changes vs last month
+- **Agent Activity Feed** with 6 agent timeline entries (AP, Ledger, Cash, Reconciliation, AR, Compliance) + view audit trail link
+- **All Approvals Queue** with three queues (Ingestion Reviews, Agent Proposals, Exceptions & Flags) with live `trpc.ingestion.getStats` counts + unified approval queue link
+- **Compliance Calendar** with PAYE, VAT, WHT deadlines and status badges
+- **Cash Position Deep Dive** per-account breakdown with sync status from `trpc.treasury.getLastSync`
+- **Consolidation Status Widget** showing group structure, IC transactions, eliminations
+- **Tabs** switching between Agent Activity and Cash Position views
+
+### Entity Context Enhancement
+
+**File:** `apps/web/lib/entity-context.tsx` — MODIFIED
+
+- Added `entityRole: string | null` to `EntityContextValue` type and context provider
+- `setEntityId` now accepts optional `(id: string, role?: string)` signature
+- Entity role persisted to/from `localStorage` alongside entity ID
+- Full backward compatibility (role parameter is optional)
+
+### Entity Switcher Role Display
+
+**File:** `apps/web/components/layout/entity-switcher.tsx` — MODIFIED
+
+- Now passes `entity.role` to `setEntityId` when switching entities
+- Shows role badge in dropdown next to entity type
+- Added `handleSelect` callback with `useCallback` optimization
+
+### Dashboard Page Cleanup
+
+**File:** `apps/web/app/dashboard/page.tsx` — MODIFIED
+
+- Replaced ~300 lines of old monolithic dashboard with `<RoleDashboard />`
+- Removed deprecated inline components: `computeMetrics`, `computeHealthScore`, `HealthScoreBadge`
+- Removed unused imports (~20 lucide icons, Card, Badge, StatCard, EmptyState, ConfidenceBadge, AgentActivityItem, formatCurrency, cn, useSearchParams)
+- Removed dead type declarations (SalesInvoice, ApInvoice, BankAccount, CashAccount)
+- Removed unused `Progress` imports from both dashboard components
+
+### Architecture Doc §5 Compliance
+
+| Role             | Required Content                                              | Implemented |
+| ---------------- | ------------------------------------------------------------- | ----------- |
+| Account Owner    | Cash position, close status, CFO Agent summary, approvals     | ✅ Full     |
+| Finance Director | Full KPIs, agent activity, all approvals, compliance calendar | ✅ Full     |
+
+### Verification
+
+| Check                      | Status                                             |
+| -------------------------- | -------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors (pre-existing firm/page.tsx only) |
+| Code review (round 1)      | ✅ 4 issues fixed (unused imports, type mismatch)  |
+| Code review (round 2)      | ✅ All clean                                       |
+
+---
+
 ### [2026-07-26] — UI/UX Architecture Implementation: App Shell & Navigation Restructure
 
 **Agent:** Buffy (Autonomous Engineer)

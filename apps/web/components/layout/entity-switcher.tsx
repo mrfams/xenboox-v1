@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ChevronDown, Check, Building2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
@@ -10,6 +10,7 @@ type Entity = {
   id: string;
   name: string;
   type: string;
+  role?: string;
 };
 
 export function EntitySwitcher() {
@@ -66,6 +67,14 @@ export function EntitySwitcher() {
     );
   }
 
+  const handleSelect = useCallback(
+    (entity: Entity) => {
+      setEntityId(entity.id, entity.role);
+      setIsOpen(false);
+    },
+    [setEntityId],
+  );
+
   return (
     <div className="relative">
       <Button
@@ -102,10 +111,7 @@ export function EntitySwitcher() {
                   "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent",
                   entityId === entity.id && "bg-accent",
                 )}
-                onClick={() => {
-                  setEntityId(entity.id);
-                  setIsOpen(false);
-                }}
+                onClick={() => handleSelect(entity)}
               >
                 <Check
                   className={cn(
@@ -115,7 +121,14 @@ export function EntitySwitcher() {
                 />
                 <div className="flex-1 text-left">
                   <p className="font-medium truncate">{entity.name}</p>
-                  <p className="text-xs text-muted-foreground">{entity.type}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    {entity.type}
+                    {entity.role && (
+                      <span className="capitalize">
+                        · {entity.role.replace(/_/g, " ")}
+                      </span>
+                    )}
+                  </p>
                 </div>
               </button>
             ))}
