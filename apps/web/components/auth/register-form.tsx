@@ -72,11 +72,11 @@ export function RegisterForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm border-white/10 shadow-xl">
       <CardHeader className="text-center">
         <CardTitle>Create your account</CardTitle>
         <CardDescription>
-          Start using Xenboox AI-powered accounting
+          Start your free trial — no credit card required
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

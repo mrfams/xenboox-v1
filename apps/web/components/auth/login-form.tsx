@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
@@ -75,9 +76,9 @@ export function LoginForm() {
   }
 
   return (
-    <Card>
+    <Card className="bg-white/95 backdrop-blur-sm border-white/10 shadow-xl">
       <CardHeader className="text-center">
-        <CardTitle>Sign in</CardTitle>
+        <CardTitle>Welcome back</CardTitle>
         <CardDescription>
           Enter your credentials to access your account
         </CardDescription>
@@ -100,12 +101,12 @@ export function LoginForm() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <a
+              <Link
                 href="/forgot-password"
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
                 Forgot password?
-              </a>
+              </Link>
             </div>
             <Input
               id="password"
