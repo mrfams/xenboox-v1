@@ -3,6 +3,7 @@
 import { useEntity } from "@/lib/entity-context";
 import { OwnerDashboard } from "./owner-dashboard";
 import { FinanceDirectorDashboard } from "./finance-director-dashboard";
+import { PayrollOfficerDashboard } from "./payroll-officer-dashboard";
 import { Skeleton } from "@/components/shared/loading";
 import { AlertCircle, Building2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -71,13 +72,7 @@ export function RoleDashboard() {
       );
 
     case "payroll_officer":
-      return (
-        <RolePlaceholder
-          role="Payroll Officer"
-          description="Payroll run status, exceptions, compliance calendar"
-          fallback={<OwnerDashboard />}
-        />
-      );
+      return <PayrollOfficerDashboard />;
 
     case "cashier":
       return (

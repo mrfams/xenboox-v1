@@ -6,6 +6,61 @@
 
 ---
 
+### [2026-07-26] — Payroll Officer Dashboard (Architecture Doc §5)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~15 min
+**Files Created:** 1
+**Files Modified:** 1
+
+**What was built:**
+
+### Payroll Officer Dashboard
+
+**File:** `apps/web/components/dashboard/roles/payroll-officer-dashboard.tsx` — NEW
+
+Per Architecture Doc §5: "Payroll run status, exceptions (new starters/leavers), compliance calendar (payroll only)"
+
+| Widget                        | Implementation                                                                                                                                                                                        | Data Source                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **PayrollRunTimeline**        | 5-step status progress indicator (draft→validated→approved→paid→closed) with step numbers, connecting lines, latest run details (gross pay, deductions, net pay), and "Process" button for draft runs | `trpc.payroll.listPayrollRuns`                            |
+| **ExceptionsWidget**          | New starters (hired ≤30d) in green, leavers (terminated ≤30d) in red, salary anomalies placeholder. Each exception links to payroll pipeline                                                          | `trpc.payroll.listEmployees` (client-side date filtering) |
+| **PayrollComplianceCalendar** | 4 deadlines (PAYE remittance, Pension fund, WHT, Annual returns) with dynamic status badges (Overdue red, ≤7d amber, ≤30d blue, Scheduled default)                                                    | Inline dynamic date computation                           |
+| **PayrollQuickActions**       | 2×2 grid: Run Payroll, Staff List, Add Employee, Payroll Reports                                                                                                                                      | Link navigation                                           |
+| **KPI Row**                   | Active Employees, Monthly Payroll Cost (gross), Net Payroll, Payroll Runs                                                                                                                             | `trpc.payroll.listPayrollRuns` + `listEmployees`          |
+
+### Role Router Updated
+
+**File:** `apps/web/components/dashboard/roles/role-dashboard.tsx` — MODIFIED
+
+- Changed `payroll_officer` from `RolePlaceholder` fallback to `<PayrollOfficerDashboard />`
+- Added import for `PayrollOfficerDashboard`
+
+### Fixes Applied During Code Review
+
+| Issue                                                                                         | Fix                                         |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `d.bg`/`d.color` accessed on wrong object level                                               | Changed to `d.status.bg` / `d.status.color` |
+| 7 unused imports (useState, useRouter, Progress, Wallet, TrendingUp, ArrowUpRight, RefreshCw) | Removed                                     |
+| Unused `pipelineStatus` query fetching data never rendered                                    | Removed query and `statusLoading`           |
+| Unused `entityId` from `useEntity()`                                                          | Removed import entirely                     |
+| `latestGrossPay` duplicate of `payrollCost`                                                   | Removed duplicate metric                    |
+
+### Architecture Doc §5 Compliance
+
+| Role            | Required Content                                                           | Implemented |
+| --------------- | -------------------------------------------------------------------------- | ----------- |
+| Payroll Officer | Payroll run status, exceptions (new starters/leavers), compliance calendar | ✅ Full     |
+
+### Verification
+
+| Check                      | Status                                             |
+| -------------------------- | -------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors (pre-existing firm/page.tsx only) |
+| Code review                | ✅ All fixes verified correct                      |
+
+---
+
 ### [2026-07-26] — Role-Based Home Screens: Account Owner & Finance Director Dashboards (Architecture Doc §5)
 
 **Agent:** Buffy (Autonomous Engineer)
