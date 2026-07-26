@@ -6,6 +6,115 @@
 
 ---
 
+### [2026-07-26] — External Auditor Dashboard (Architecture Doc §5)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~15 min
+**Files Created:** 1
+**Files Modified:** 1
+
+**What was built:**
+
+### External Auditor Dashboard
+
+**File:** `apps/web/components/dashboard/roles/external-auditor-dashboard.tsx` — NEW
+
+Per Architecture Doc §5: "Period-locked trial balance, schedules, query log"
+
+| Widget               | Implementation                                                                                                                                                                                              | Data Source                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **PeriodSelector**   | Fiscal period list sorted by date desc with month/year label, date range, and status badge (open=green, closed=blue, locked=violet). Clicking selects the period for all downstream widgets.                | `trpc.fiscal.list`                                      |
+| **TrialBalanceView** | Period-locked trial balance with period label, locked badge, balanced badge (if in balance), dense columnar table (Account, Code, Debit, Credit, Balance), total footer with deficit indicator, JE drill-in | `trpc.journal.getTrialBalance(periodId)`                |
+| **Schedules**        | Tabbed view: Journal Entries (10 most recent posted JEs with type, date, number, amount, source) + Vouchers (linked documents with name, type, date, size).                                                 | `trpc.journal.list` + `trpc.document.listDocuments`     |
+| **AuditQueryLog**    | Recent audit trail (15 entries) with action icon mapping, entity type label, timestamp, and status badge (success=green, error=red)                                                                         | `trpc.audit.list`                                       |
+| **KPI Row**          | Total Periods, Locked Periods, Posted Entries, Audit Records                                                                                                                                                | `trpc.fiscal.list` + `trpc.journal.list` + `trpc.audit` |
+
+### Role Router Updated
+
+**File:** `apps/web/components/dashboard/roles/role-dashboard.tsx` — MODIFIED
+
+- Changed `external_auditor` from `RolePlaceholder` fallback to `<ExternalAuditorDashboard />`
+- Added import for `ExternalAuditorDashboard`
+
+### Fixes Applied During Code Review
+
+| Issue                                                                    | Fix                                             |
+| ------------------------------------------------------------------------ | ----------------------------------------------- |
+| 3 unused imports (UserCheck, Landmark, ArrowUpRight)                     | Removed                                         |
+| Unused `openPeriods` computation                                         | Removed                                         |
+| `trpc.fiscal.list.useQuery(undefined)` doesn't match object input schema | Changed to `useQuery({})`                       |
+| `ArrowUpRight` still referenced in JSX after removal                     | Replaced with `ChevronRight` (already imported) |
+
+### Architecture Doc §5 Compliance
+
+| Role             | Required Content                                  | Implemented |
+| ---------------- | ------------------------------------------------- | ----------- |
+| External Auditor | Period-locked trial balance, schedules, query log | ✅ Full     |
+
+### Verification
+
+| Check                      | Status                                             |
+| -------------------------- | -------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors (pre-existing firm/page.tsx only) |
+| Code review                | ✅ All fixes verified correct                      |
+
+---
+
+### [2026-07-26] — Donor/Funder Dashboard (Architecture Doc §5)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~15 min
+**Files Created:** 1
+**Files Modified:** 1
+
+**What was built:**
+
+### Donor / Funder Dashboard
+
+**File:** `apps/web/components/dashboard/roles/donor-dashboard.tsx` — NEW
+
+Per Architecture Doc §5: "Donor portal: their project's budget vs actual, report downloads."
+
+| Widget                    | Implementation                                                                                                                                                                               | Data Source                                                       |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **ProjectOverviewWidget** | Budgets shown as "projects" grouped by status. Active budget count badge, total funded amount header, individual project cards with name, FY range, status badge, budgeted amount            | `trpc.budget.listBudgets`                                         |
+| **BudgetVsActualWidget**  | Budget vs actual tracking per project. Progress bars colored green/amber/red based on spend %. Variance indicators for over-budget and approaching-limit states. Budget chip selector filter | `trpc.budget.listBudgets` + `trpc.budget.listVariances`           |
+| **DonorReportsWidget**    | 6 available report types (P&L, Balance Sheet, Budget vs Actual, Cash Flow, Trial Balance, Donor Summary) as clickable link cards with hover download icon reveal                             | Static list linking to `/dashboard/reports`                       |
+| **PeriodSummaryWidget**   | Current fiscal period with start/end dates, status badge. Cash balance + outstanding payables summary metrics                                                                                | `trpc.reports.listPeriods` + `trpc.organization.getEntitySummary` |
+| **KPI Row**               | Active Projects, Total Committed, Open Periods, Available Reports                                                                                                                            | Various tRPC endpoints                                            |
+
+### Role Router Updated
+
+**File:** `apps/web/components/dashboard/roles/role-dashboard.tsx` — MODIFIED
+
+- Changed `donor` from `RolePlaceholder` fallback to `<DonorDashboard />`
+- Added import for `DonorDashboard`
+
+### Fixes Applied During Code Review
+
+| Issue                                                              | Fix                                          |
+| ------------------------------------------------------------------ | -------------------------------------------- |
+| 4 unused imports (TrendingDown, Minus, CheckCircle2, ChevronRight) | Removed                                      |
+| Unused `entityId` from `useEntity()`                               | Changed to `useEntity()` without destructure |
+| `displayBudgets` dead variable (computed but never used)           | Removed                                      |
+| `budgetMap` dead code (populated but never read)                   | Removed                                      |
+| `Button` unused import                                             | Removed                                      |
+
+### Architecture Doc §5 Compliance
+
+| Role  | Required Content                           | Implemented |
+| ----- | ------------------------------------------ | ----------- |
+| Donor | Project budget vs actual, report downloads | ✅ Full     |
+
+### Verification
+
+| Check                      | Status                                             |
+| -------------------------- | -------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors (pre-existing firm/page.tsx only) |
+| Code review                | ✅ All fixes verified correct                      |
+
+---
+
 ### [2026-07-26] — Accountant Dashboard (Architecture Doc §5)
 
 **Agent:** Buffy (Autonomous Engineer)

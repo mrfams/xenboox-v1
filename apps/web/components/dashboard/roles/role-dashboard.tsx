@@ -5,6 +5,8 @@ import { OwnerDashboard } from "./owner-dashboard";
 import { FinanceDirectorDashboard } from "./finance-director-dashboard";
 import { PayrollOfficerDashboard } from "./payroll-officer-dashboard";
 import { AccountantDashboard } from "./accountant-dashboard";
+import { ExternalAuditorDashboard } from "./external-auditor-dashboard";
+import { DonorDashboard } from "./donor-dashboard";
 import { Skeleton } from "@/components/shared/loading";
 import { AlertCircle, Building2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -68,6 +70,12 @@ export function RoleDashboard() {
 
     case "payroll_officer":
       return <PayrollOfficerDashboard />;
+
+    case "external_auditor":
+      return <ExternalAuditorDashboard />;
+
+    case "donor":
+      return <DonorDashboard />;
 
     case "cashier":
       return (
