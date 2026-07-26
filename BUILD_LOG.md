@@ -6,6 +6,56 @@
 
 ---
 
+### [2026-07-26] — Accountant Dashboard (Architecture Doc §5)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~15 min
+**Files Created:** 1
+**Files Modified:** 1
+
+**What was built:**
+
+### Accountant Dashboard
+
+**File:** `apps/web/components/dashboard/roles/accountant-dashboard.tsx` — NEW
+
+Per Architecture Doc §5: "Exception queue, document inbox, transaction feed"
+
+| Widget              | Implementation                                                                                                                                                                                                                                                  | Data Source                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **ExceptionQueue**  | Pending ingestion reviews card with document name preview, failed items card (red), agent escalations card (violet), all linking to review queue. Green empty state when all clear.                                                                             | `trpc.ingestion.getStats`, `trpc.ingestion.listPendingReviews`                                              |
+| **DocumentInbox**   | Status summary chips (color-coded badges per status: detected, processing, extracted, synced, agent_processing, done, failed). Recent documents list with type labels, dates, and status badges. Hover chevron reveals navigation. Empty state with upload CTA. | `trpc.document.listDocuments`                                                                               |
+| **TransactionFeed** | Merged feed from journal entries, AR invoices, and AP invoices — sorted by date descending. Each item shows type-specific icon, label, reference, date, amount, and status badge. Links to Journal Entries and Trial Balance.                                   | `trpc.journal.list`, `trpc.ar.listInvoices`, `trpc.ap.listInvoices`                                         |
+| **Quick Stats**     | 4 KPI cards: Total Documents, Pending Review, Posted Entries, Audit Trail records                                                                                                                                                                               | `trpc.document.listDocuments`, `trpc.ingestion.getStats`, `trpc.journal.list`, `trpc.document.listAuditLog` |
+
+### Role Router Updated
+
+**File:** `apps/web/components/dashboard/roles/role-dashboard.tsx` — MODIFIED
+
+- Changed `accountant` from `RolePlaceholder` fallback to `<AccountantDashboard />`
+- Added import for `AccountantDashboard`
+
+### Fixes Applied During Code Review
+
+| Issue                                         | Fix                                                                                                                   |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `pendingReviews` possibly undefined (TS18048) | Renamed to `pendingReviewsData`, extracted `pendingReviews = pendingReviewsData?.items ?? []` as non-null local array |
+
+### Architecture Doc §5 Compliance
+
+| Role       | Required Content                                  | Implemented |
+| ---------- | ------------------------------------------------- | ----------- |
+| Accountant | Exception queue, document inbox, transaction feed | ✅ Full     |
+
+### Verification
+
+| Check                      | Status                                             |
+| -------------------------- | -------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors (pre-existing firm/page.tsx only) |
+| Code review                | ✅ All fixes verified correct                      |
+
+---
+
 ### [2026-07-26] — Payroll Officer Dashboard (Architecture Doc §5)
 
 **Agent:** Buffy (Autonomous Engineer)

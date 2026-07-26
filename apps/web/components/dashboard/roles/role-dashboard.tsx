@@ -4,6 +4,7 @@ import { useEntity } from "@/lib/entity-context";
 import { OwnerDashboard } from "./owner-dashboard";
 import { FinanceDirectorDashboard } from "./finance-director-dashboard";
 import { PayrollOfficerDashboard } from "./payroll-officer-dashboard";
+import { AccountantDashboard } from "./accountant-dashboard";
 import { Skeleton } from "@/components/shared/loading";
 import { AlertCircle, Building2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -63,13 +64,7 @@ export function RoleDashboard() {
 
     // Role-specific dashboards for other roles (to be implemented)
     case "accountant":
-      return (
-        <RolePlaceholder
-          role="Accountant"
-          description="Exception queue, document inbox, transaction feed"
-          fallback={<OwnerDashboard />}
-        />
-      );
+      return <AccountantDashboard />;
 
     case "payroll_officer":
       return <PayrollOfficerDashboard />;
