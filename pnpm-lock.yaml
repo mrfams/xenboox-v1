@@ -20,6 +20,9 @@ importers:
       "@types/pino":
         specifier: ^7.0.5
         version: 7.0.5
+      chrome-devtools-mcp:
+        specifier: ^1.6.0
+        version: 1.6.0
       husky:
         specifier: ^9.0.0
         version: 9.1.7
@@ -3108,7 +3111,7 @@ packages:
       {
         integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==,
       }
-    engines: { "0": node >=0.10.0 }
+    engines: { node: ">=0.10.0" }
 
   "@expo/cli@0.22.28":
     resolution:
@@ -7478,6 +7481,22 @@ packages:
         integrity: sha512-bIomtDF5KGpdogkLd9VspvFzk9KfpyyGlS8YFVZl7TGPBHL5snIOnxeshwVgPteQ9b4Eydl+pVbIyE1DcvCWgQ==,
       }
     engines: { node: ">=10" }
+
+  chrome-devtools-mcp@1.6.0:
+    resolution:
+      {
+        integrity: sha512-VZX6f/OjQSYhy2BGGRs+y3LsrsAQAz/HwZCWKBLVyST/4r/3zjVEjjVW7gMCVbRDuspnVdcp5hQDPrQ5UFrdZw==,
+      }
+    engines: { node: ^20.19.0 || ^22.12.0 || >=23 }
+    hasBin: true
+    peerDependencies:
+      "@blackwell-systems/gcf": ^2.2.2
+      "@toon-format/toon": ^2.2.0
+    peerDependenciesMeta:
+      "@blackwell-systems/gcf":
+        optional: true
+      "@toon-format/toon":
+        optional: true
 
   chrome-launcher@0.15.2:
     resolution:
@@ -19837,6 +19856,8 @@ snapshots:
       fsevents: 2.3.3
 
   chownr@2.0.0: {}
+
+  chrome-devtools-mcp@1.6.0: {}
 
   chrome-launcher@0.15.2:
     dependencies:

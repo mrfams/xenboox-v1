@@ -5,7 +5,7 @@ import {
   router,
   protectedProcedure,
   mutateProcedure,
-  requireRole,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, asc, desc, sql, inArray } from "drizzle-orm";
@@ -64,6 +64,7 @@ export const journalRouter = router({
     }),
 
   create: mutateProcedure
+    .use(requirePermission("general_ledger", "create"))
     .input(
       z.object({
         description: z.string().min(1).max(500),
@@ -175,7 +176,7 @@ export const journalRouter = router({
     }),
 
   post: mutateProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("general_ledger", "post"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -238,7 +239,7 @@ export const journalRouter = router({
     }),
 
   reverse: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("general_ledger", "delete"))
     .input(
       z.object({
         id: z.string().uuid(),

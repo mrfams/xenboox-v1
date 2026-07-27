@@ -5,7 +5,7 @@ import {
   handleMutationError,
   router,
   protectedProcedure,
-  requireRole,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -30,6 +30,7 @@ export const inventoryRouter = router({
   }),
 
   createWarehouse: protectedProcedure
+    .use(requirePermission("inventory", "create"))
     .input(
       z.object({
         name: z.string().min(1),
@@ -82,6 +83,7 @@ export const inventoryRouter = router({
     }),
 
   updateWarehouse: protectedProcedure
+    .use(requirePermission("inventory", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -138,6 +140,7 @@ export const inventoryRouter = router({
     }),
 
   createItem: protectedProcedure
+    .use(requirePermission("inventory", "create"))
     .input(
       z.object({
         name: z.string().min(1),
@@ -197,6 +200,7 @@ export const inventoryRouter = router({
     }),
 
   updateItem: protectedProcedure
+    .use(requirePermission("inventory", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -246,7 +250,7 @@ export const inventoryRouter = router({
     }),
 
   createTransaction: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("inventory", "create"))
     .input(
       z.object({
         inventoryItemId: z.string().uuid(),
@@ -387,6 +391,7 @@ export const inventoryRouter = router({
     }),
 
   deleteWarehouse: protectedProcedure
+    .use(requirePermission("inventory", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -417,6 +422,7 @@ export const inventoryRouter = router({
     }),
 
   deleteItem: protectedProcedure
+    .use(requirePermission("inventory", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -447,7 +453,7 @@ export const inventoryRouter = router({
     }),
 
   updateTransaction: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("inventory", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -475,6 +481,7 @@ export const inventoryRouter = router({
     }),
 
   deleteTransaction: protectedProcedure
+    .use(requirePermission("inventory", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {

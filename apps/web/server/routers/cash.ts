@@ -4,8 +4,8 @@ import {
   handleMutationError,
   router,
   protectedProcedure,
-  requireRole,
   mutateProcedure,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -30,6 +30,7 @@ export const cashRouter = router({
   }),
 
   createCashAccount: protectedProcedure
+    .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
         name: z.string().min(1),
@@ -70,6 +71,7 @@ export const cashRouter = router({
     }),
 
   updateCashAccount: protectedProcedure
+    .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -116,7 +118,7 @@ export const cashRouter = router({
   }),
 
   createImprestFloat: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director", "cashier"))
+    .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
         cashAccountId: z.string().uuid(),
@@ -169,6 +171,7 @@ export const cashRouter = router({
     }),
 
   updateImprestFloat: protectedProcedure
+    .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -197,6 +200,7 @@ export const cashRouter = router({
     }),
 
   deleteImprestReceipt: protectedProcedure
+    .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -246,6 +250,7 @@ export const cashRouter = router({
     }),
 
   addImprestReceipt: protectedProcedure
+    .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
         imprestFloatId: z.string().uuid(),
@@ -305,7 +310,7 @@ export const cashRouter = router({
     }),
 
   settleImprestFloat: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("cash_imprest", "approve"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -347,6 +352,7 @@ export const cashRouter = router({
     }),
 
   updatePettyCashEntry: protectedProcedure
+    .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -386,6 +392,7 @@ export const cashRouter = router({
   }),
 
   createPettyCashEntry: protectedProcedure
+    .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
         cashAccountId: z.string().uuid(),
@@ -435,6 +442,7 @@ export const cashRouter = router({
     }),
 
   deleteCashAccount: protectedProcedure
+    .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -465,6 +473,7 @@ export const cashRouter = router({
     }),
 
   deleteImprestFloat: protectedProcedure
+    .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -500,6 +509,7 @@ export const cashRouter = router({
     }),
 
   deletePettyCashEntry: protectedProcedure
+    .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -538,7 +548,7 @@ export const cashRouter = router({
   // ─── Pipeline 4: Cash & Imprest ────────────────────────────────────────
 
   runCashPipeline: mutateProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("cash_imprest", "approve"))
     .mutation(async ({ ctx }) => {
       return runCashPipeline(ctx.entityId!);
     }),

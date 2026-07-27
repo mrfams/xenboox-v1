@@ -6,6 +6,63 @@
 
 ---
 
+### [2026-07-28] — RBAC Matrix Application Layer Enforcement
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Modified:** 10
+
+**What was built:**
+
+### Granular RBAC Permission Middleware Applied to 9 Core Routers
+
+Applied `requirePermission()` middleware — which checks the role × module × action RBAC Matrix — to all mutation procedures across 9 core financial routers. This is the application-layer enforcement required by the RBAC Matrix spec Section 4: "Every row above must be enforced twice: application layer AND database layer."
+
+| Router           | Module              | Permissions Applied                                                                                                                                                                                                                                                                       |
+| ---------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ap.ts`          | accounts_payable    | createSupplier, updateSupplier, createPO, updatePO, deleteSupplier, deletePO, deleteInvoice, deletePayment                                                                                                                                                                                |
+| `ar.ts`          | accounts_receivable | createCustomer, updateCustomer, createInvoice, updateInvoice, createPayment, deleteCustomer, deleteInvoice, deletePayment                                                                                                                                                                 |
+| `payroll.ts`     | payroll             | createEmployee, createPayrollRun, updateEmployee, updatePayrollRun, createDeductionType, updateDeductionType, deleteDeductionType, deleteEmployee, deletePayrollRun, runPayrollPipeline                                                                                                   |
+| `journal.ts`     | general_ledger      | create, post, reverse                                                                                                                                                                                                                                                                     |
+| `cash.ts`        | cash_imprest        | createCashAccount, updateCashAccount, createImprestFloat, updateImprestFloat, deleteImprestReceipt, addImprestReceipt, settleImprestFloat, updatePettyCashEntry, createPettyCashEntry, deleteCashAccount, deleteImprestFloat, deletePettyCashEntry, runCashPipeline                       |
+| `mobileMoney.ts` | mobile_money        | createAccount, updateAccount, createTransaction, updateTransactionStatus, deleteAccount, deleteTransaction                                                                                                                                                                                |
+| `fixedAssets.ts` | fixed_assets        | createAsset, updateAsset, disposeAsset, deleteAsset                                                                                                                                                                                                                                       |
+| `inventory.ts`   | inventory           | createWarehouse, updateWarehouse, createItem, updateItem, createTransaction, deleteWarehouse, deleteItem, updateTransaction, deleteTransaction                                                                                                                                            |
+| `treasury.ts`    | bank_reconciliation | createBankAccount, updateBankAccount, createBankTransaction, createReconciliation, matchReconciliationItem, closeReconciliation, updateBankTransaction, updateReconciliation, deleteReconciliationItem, deleteBankAccount, deleteBankTransaction, deleteReconciliation, runReconciliation |
+
+### Import Cleanup
+
+- Removed unused `requireRole` imports from: `payroll.ts`, `journal.ts`, `fixedAssets.ts`, `inventory.ts`, `treasury.ts`, `cash.ts`
+- All 9 routers now import `requirePermission` instead of (or in addition to) `requireRole`
+
+### Critical Bug Fixed During Development
+
+- **6 broken treasury.ts procedures** — initial str_replace removed `.input()` call instead of inserting `.use()` before it. Fixed by adding `.input()` back to form a proper `.use().input().mutation()` chain.
+
+### RBAC Seed Data Already Existed (not modified this session)
+
+- `packages/db/schema/permissions.ts` — `rolePermissions`, `userPermissionOverrides`, `permissionAuditLog` tables
+- `packages/db/seed/permissions.ts` — 200+ permission entries covering all 24 modules × 8 actions × 10 roles
+- `apps/web/lib/trpc/server.ts` — `requirePermission()`, `requireAnyPermission()`, `checkPermission()` middleware with in-memory cache
+
+### Verification
+
+| Check                  | Status                                                |
+| ---------------------- | ----------------------------------------------------- |
+| Build (`@xenboox/web`) | ✅ Successful (Compiled + Types valid)                |
+| Code review (round 1)  | ✅ 6 broken treasury.ts procedures identified — fixed |
+| Code review (round 2)  | ✅ All cleanups and fixes verified correct            |
+
+### Known Gaps
+
+| Gap                                                                                                                                                                | Reason                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| ~15 remaining routers (budget, document, expense, tax-compliance, coa, analytics, consolidation, fiscal, etc.) still use `requireRole()` not `requirePermission()` | Scope boundary — they already have coarse role protection; granular RBAC is incremental          |
+| Database-layer RLS enforcement not implemented                                                                                                                     | Requires Neon-specific SQL policy setup; app-layer enforcement is the higher-priority first step |
+| Audit trail logging for all permission checks not implemented                                                                                                      | `checkPermission()` logs errors but doesn't log successful checks                                |
+
+---
+
 ### [2026-07-28] — Identity, Organization & Invitation Flow (Foundation Pipeline)
 
 **Agent:** Buffy (Autonomous Engineer)

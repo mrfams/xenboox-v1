@@ -6,7 +6,7 @@ import {
   router,
   protectedProcedure,
   mutateProcedure,
-  requireRole,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -52,6 +52,7 @@ export const fixedAssetsRouter = router({
     }),
 
   createAsset: mutateProcedure
+    .use(requirePermission("fixed_assets", "create"))
     .input(
       z.object({
         name: z.string().min(1),
@@ -145,6 +146,7 @@ export const fixedAssetsRouter = router({
     }),
 
   updateAsset: protectedProcedure
+    .use(requirePermission("fixed_assets", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -183,7 +185,7 @@ export const fixedAssetsRouter = router({
     }),
 
   disposeAsset: mutateProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("fixed_assets", "delete"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -252,6 +254,7 @@ export const fixedAssetsRouter = router({
     }),
 
   deleteAsset: protectedProcedure
+    .use(requirePermission("fixed_assets", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {

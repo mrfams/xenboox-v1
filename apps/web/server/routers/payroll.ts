@@ -5,7 +5,7 @@ import {
   handleMutationError,
   router,
   protectedProcedure,
-  requireRole,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -64,6 +64,7 @@ export const payrollRouter = router({
     }),
 
   createEmployee: protectedProcedure
+    .use(requirePermission("payroll", "create"))
     .input(
       z.object({
         employeeNumber: z.string().min(1),
@@ -177,7 +178,7 @@ export const payrollRouter = router({
     }),
 
   createPayrollRun: protectedProcedure
-    .use(requireRole("owner", "admin", "payroll_officer"))
+    .use(requirePermission("payroll", "create"))
     .input(
       z.object({
         period: z.string().regex(/^\d{4}-\d{2}$/),
@@ -239,6 +240,7 @@ export const payrollRouter = router({
 
   // ── Update ──
   updateEmployee: protectedProcedure
+    .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -284,7 +286,7 @@ export const payrollRouter = router({
     }),
 
   updatePayrollRun: protectedProcedure
-    .use(requireRole("owner", "admin", "payroll_officer"))
+    .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -351,7 +353,7 @@ export const payrollRouter = router({
 
   // ── Deduction Types ──
   createDeductionType: protectedProcedure
-    .use(requireRole("owner", "admin", "payroll_officer"))
+    .use(requirePermission("payroll", "create"))
     .input(
       z.object({
         name: z.string().min(1),
@@ -388,7 +390,7 @@ export const payrollRouter = router({
     }),
 
   updateDeductionType: protectedProcedure
-    .use(requireRole("owner", "admin", "payroll_officer"))
+    .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -431,7 +433,7 @@ export const payrollRouter = router({
     }),
 
   deleteDeductionType: protectedProcedure
-    .use(requireRole("owner", "admin", "payroll_officer"))
+    .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -467,6 +469,7 @@ export const payrollRouter = router({
 
   // ── Delete ──
   deleteEmployee: protectedProcedure
+    .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -507,7 +510,7 @@ export const payrollRouter = router({
     }),
 
   deletePayrollRun: protectedProcedure
-    .use(requireRole("owner", "admin", "payroll_officer"))
+    .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -556,7 +559,7 @@ export const payrollRouter = router({
    * Payroll Worker Agent never posts to the ledger directly.
    */
   runPayrollPipeline: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director", "payroll_officer"))
+    .use(requirePermission("payroll", "approve"))
     .input(
       z.object({
         period: z.string().regex(/^\d{4}-\d{2}$/),

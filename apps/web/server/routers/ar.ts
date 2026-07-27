@@ -6,6 +6,7 @@ import {
   protectedProcedure,
   mutateProcedure,
   paginationSchema,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -35,6 +36,7 @@ export const arRouter = router({
     }),
 
   createCustomer: mutateProcedure
+    .use(requirePermission("accounts_receivable", "create"))
     .input(
       z.object({
         name: z.string().min(1),
@@ -76,6 +78,7 @@ export const arRouter = router({
     }),
 
   updateCustomer: protectedProcedure
+    .use(requirePermission("accounts_receivable", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -129,6 +132,7 @@ export const arRouter = router({
     }),
 
   createInvoice: mutateProcedure
+    .use(requirePermission("accounts_receivable", "create"))
     .input(
       z.object({
         customerId: z.string().uuid(),
@@ -211,6 +215,7 @@ export const arRouter = router({
     }),
 
   updateInvoice: protectedProcedure
+    .use(requirePermission("accounts_receivable", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -273,6 +278,7 @@ export const arRouter = router({
     }),
 
   createPayment: mutateProcedure
+    .use(requirePermission("accounts_receivable", "create"))
     .input(
       z.object({
         salesInvoiceId: z.string().uuid(),
@@ -397,6 +403,7 @@ export const arRouter = router({
   // ── Delete Procedures ──
 
   deleteCustomer: protectedProcedure
+    .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -436,6 +443,7 @@ export const arRouter = router({
     }),
 
   deleteInvoice: protectedProcedure
+    .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -486,6 +494,7 @@ export const arRouter = router({
     }),
 
   deletePayment: protectedProcedure
+    .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {

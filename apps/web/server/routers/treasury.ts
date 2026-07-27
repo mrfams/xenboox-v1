@@ -5,7 +5,7 @@ import {
   router,
   protectedProcedure,
   mutateProcedure,
-  requireRole,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -59,7 +59,7 @@ export const treasuryRouter = router({
   }),
 
   createBankAccount: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("bank_reconciliation", "create"))
     .input(
       z.object({
         name: z.string().min(1),
@@ -104,6 +104,7 @@ export const treasuryRouter = router({
     }),
 
   updateBankAccount: protectedProcedure
+    .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -173,7 +174,7 @@ export const treasuryRouter = router({
     }),
 
   createBankTransaction: mutateProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("bank_reconciliation", "create"))
     .input(
       z.object({
         bankAccountId: z.string().uuid(),
@@ -231,7 +232,7 @@ export const treasuryRouter = router({
     }),
 
   createReconciliation: mutateProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("bank_reconciliation", "create"))
     .input(
       z.object({
         bankAccountId: z.string().uuid(),
@@ -325,6 +326,7 @@ export const treasuryRouter = router({
     }),
 
   matchReconciliationItem: protectedProcedure
+    .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
         reconciliationId: z.string().uuid(),
@@ -404,7 +406,7 @@ export const treasuryRouter = router({
     }),
 
   closeReconciliation: mutateProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("bank_reconciliation", "approve"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -448,7 +450,7 @@ export const treasuryRouter = router({
   }),
 
   updateBankTransaction: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -478,7 +480,7 @@ export const treasuryRouter = router({
     }),
 
   updateReconciliation: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -507,6 +509,7 @@ export const treasuryRouter = router({
     }),
 
   deleteReconciliationItem: protectedProcedure
+    .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -555,6 +558,7 @@ export const treasuryRouter = router({
     }),
 
   deleteBankAccount: protectedProcedure
+    .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -605,6 +609,7 @@ export const treasuryRouter = router({
     }),
 
   deleteBankTransaction: protectedProcedure
+    .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -645,6 +650,7 @@ export const treasuryRouter = router({
     }),
 
   deleteReconciliation: protectedProcedure
+    .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -691,7 +697,7 @@ export const treasuryRouter = router({
    * Optionally specify which bank accounts to reconcile.
    */
   runReconciliation: mutateProcedure
-    .use(requireRole("owner", "admin", "finance_director"))
+    .use(requirePermission("bank_reconciliation", "approve"))
     .input(
       z
         .object({

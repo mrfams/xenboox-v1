@@ -6,6 +6,7 @@ import {
   protectedProcedure,
   mutateProcedure,
   requireRole,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -33,6 +34,7 @@ export const apRouter = router({
   }),
 
   createSupplier: mutateProcedure
+    .use(requirePermission("accounts_payable", "create"))
     .input(
       z.object({
         name: z.string().min(1),
@@ -72,6 +74,7 @@ export const apRouter = router({
     }),
 
   updateSupplier: protectedProcedure
+    .use(requirePermission("accounts_payable", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -120,6 +123,7 @@ export const apRouter = router({
   }),
 
   createPO: mutateProcedure
+    .use(requirePermission("accounts_payable", "create"))
     .input(
       z.object({
         supplierId: z.string().uuid(),
@@ -201,7 +205,7 @@ export const apRouter = router({
     }),
 
   updatePO: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director", "accountant"))
+    .use(requirePermission("accounts_payable", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -553,6 +557,7 @@ export const apRouter = router({
   // ── Delete Procedures ──
 
   deleteSupplier: protectedProcedure
+    .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -590,6 +595,7 @@ export const apRouter = router({
     }),
 
   deletePO: protectedProcedure
+    .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -642,6 +648,7 @@ export const apRouter = router({
     }),
 
   deleteInvoice: protectedProcedure
+    .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -694,6 +701,7 @@ export const apRouter = router({
     }),
 
   deletePayment: protectedProcedure
+    .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {

@@ -5,6 +5,7 @@ import {
   router,
   protectedProcedure,
   requireRole,
+  requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -26,6 +27,7 @@ export const mobileMoneyRouter = router({
   }),
 
   createAccount: protectedProcedure
+    .use(requirePermission("mobile_money", "create"))
     .input(
       z.object({
         provider: z.enum(["modempay", "afrimoney", "qmoney", "mpesa", "wave"]),
@@ -60,6 +62,7 @@ export const mobileMoneyRouter = router({
     }),
 
   updateAccount: protectedProcedure
+    .use(requirePermission("mobile_money", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -92,7 +95,7 @@ export const mobileMoneyRouter = router({
   }),
 
   createTransaction: protectedProcedure
-    .use(requireRole("owner", "admin", "finance_director", "cashier"))
+    .use(requirePermission("mobile_money", "create"))
     .input(
       z.object({
         mobileMoneyAccountId: z.string().uuid(),
@@ -125,6 +128,7 @@ export const mobileMoneyRouter = router({
     }),
 
   updateTransactionStatus: protectedProcedure
+    .use(requirePermission("mobile_money", "edit"))
     .input(
       z.object({
         id: z.string().uuid(),
@@ -176,6 +180,7 @@ export const mobileMoneyRouter = router({
     }),
 
   deleteAccount: protectedProcedure
+    .use(requirePermission("mobile_money", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -208,6 +213,7 @@ export const mobileMoneyRouter = router({
     }),
 
   deleteTransaction: protectedProcedure
+    .use(requirePermission("mobile_money", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
