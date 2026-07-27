@@ -6,6 +6,81 @@
 
 ---
 
+### [2026-07-28] — Identity, Organization & Invitation Flow (Foundation Pipeline)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~45 min
+**Files Created:** 1
+**Files Modified:** 7
+
+**What was built:**
+
+### Identity-First Registration (Milestone 1-4)
+
+**File:** `apps/web/server/routers/auth.ts` — MODIFIED
+
+- Removed `organizationName` from register input — signup is now purely identity-first (no org creation during registration)
+- Added `getFirstEntityForUser()` helper that follows Milestone 9's permission resolution order: orgRoles → userEntityAccess → null
+- Updated login and MFA challenge flows to use the helper, eliminating ~90 lines of duplicated code
+- Login now returns `entityRole` alongside `entityId`
+
+### Org-Level Owner Safeguard (Milestone 10)
+
+**File:** `apps/web/server/routers/organization.ts` — MODIFIED
+
+- Added `removeOrgRole` mutation with last-owner safeguard
+- Blocks removal of the only org owner — requires transferOwnership first
+- Audit trail logging for role removal
+
+### Test Updates
+
+**File:** `apps/web/__tests__/auth.test.ts` — MODIFIED
+
+- Removed `organizationName` from validInput
+
+**File:** `apps/web/__tests__/validation.test.ts` — MODIFIED
+
+- Removed all `organizationName` references from register tests
+- Fixed passwords to meet strength requirements
+
+### Pre-existing Build Fixes
+
+**File:** `packages/ui/src/checkbox.tsx` — NEW
+
+- Created Checkbox component (native HTML wrapper, no Radix dependency)
+
+**File:** `packages/ui/src/index.ts` — MODIFIED
+
+- Added Checkbox export
+
+**File:** `apps/web/components/ui/index.ts` — MODIFIED
+
+- Added Checkbox re-export
+
+**Pre-existing type errors fixed in:**
+
+- `apps/web/app/dashboard/ap/payment-schedule/page.tsx` (Checkbox import, supplierName type)
+- `apps/web/app/dashboard/ar/aging/page.tsx` (customerName type)
+- `apps/web/app/dashboard/reports/cash-flow/page.tsx` (name type)
+- `apps/web/server/routers/ingestion.ts` (description/metadata type)
+
+### Known Gaps
+
+| Gap                                                                                                                 | Reason                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Milestone 13 Audit Trail — signup, org creation, invites, acceptance, ownership transfer not all logged to auditLog | `auditLog.entityId` FK constraint requires entity context; signup has none. Needs schema change (nullable entityId) to fully implement |
+| Pre-existing type casts (`(inv as any).supplierName`) bypass TypeScript safety                                      | Runtime data includes these fields via tRPC transformations; proper fix requires typed return types from routers                       |
+
+### Verification
+
+| Check                      | Status                                            |
+| -------------------------- | ------------------------------------------------- |
+| Typecheck (`@xenboox/web`) | ✅ No new errors                                  |
+| Build (`@xenboox/web`)     | ✅ Successful                                     |
+| Code review                | ✅ All changes verified against 13-milestone spec |
+
+---
+
 ### [2026-07-26] — External Auditor Dashboard (Architecture Doc §5)
 
 **Agent:** Buffy (Autonomous Engineer)

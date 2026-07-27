@@ -1102,4 +1102,27 @@ export const ingestionRouter = router({
       };
     },
   ),
+
+  listRecentActivity: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(100).default(20) }))
+    .query(async ({ ctx, input }) => {
+      const activities = await db.query.agentActivity.findMany({
+        where: eq(agentActivity.entityId, ctx.entityId!),
+        orderBy: [desc(agentActivity.createdAt)],
+        limit: input.limit,
+      });
+      return activities.map((a) => ({
+        id: a.id,
+        agent: a.agentName,
+        action: a.action,
+        description:
+          ((a.output as Record<string, unknown> | null)
+            ?.description as string) ?? "",
+        status: a.status,
+        confidence: a.confidence ? parseFloat(a.confidence) : null,
+        entityId: a.entityId,
+        createdAt: a.createdAt,
+        metadata: (a.input as Record<string, unknown> | null) ?? null,
+      }));
+    }),
 });

@@ -14,11 +14,15 @@ import {
   userEntityAccess,
 } from "@xenboox/db/schema/organization";
 import { users } from "@xenboox/db/schema/auth";
+import { orgRoles } from "@xenboox/db/schema/org-roles";
+import { pendingInvites } from "@xenboox/db/schema/invitations";
 import { bankAccounts } from "@xenboox/db/schema/treasury";
 import { invoicesAp, salesInvoices } from "@xenboox/db/schema/ap-ar";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { TRPCError } from "@trpc/server";
 import { runOnboardingPipeline } from "@xenboox/agents";
+import { auditLog } from "@xenboox/db/schema/documents";
+import { logger } from "@/lib/logger";
 
 export const organizationRouter = router({
   // ─── CURRENT USER ──────────────────────────────
@@ -34,16 +38,39 @@ export const organizationRouter = router({
 
   listUserEntities: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.session?.user) return [];
+    const userId = ctx.session.user.id!;
+
+    // Collect entities from orgRoles (org-level owner/admin access)
+    const userOrgRoles = await db.query.orgRoles.findMany({
+      where: eq(orgRoles.userId, userId),
+      columns: { orgId: true, role: true },
+    });
+    const orgEntityPromises = userOrgRoles.map(async (r) => {
+      const orgEntities = await db.query.entities.findMany({
+        where: eq(entities.organizationId, r.orgId),
+        columns: { id: true, name: true },
+      });
+      return orgEntities.map((e) => ({
+        id: e.id,
+        name: e.name,
+        role: r.role,
+      }));
+    });
+    const orgEntities = (await Promise.all(orgEntityPromises)).flat();
+
+    // Collect entities from user_entity_access
     const access = await db.query.userEntityAccess.findMany({
-      where: eq(userEntityAccess.userId, ctx.session.user.id!),
+      where: eq(userEntityAccess.userId, userId),
     });
-    if (access.length === 0) return [];
-    const entityIds = access.map((a) => a.entityId);
-    const entityList = await db.query.entities.findMany({
-      where: inArray(entities.id, entityIds),
-    });
+    const accessEntityIds = access.map((a) => a.entityId);
+    const entityList =
+      accessEntityIds.length > 0
+        ? await db.query.entities.findMany({
+            where: inArray(entities.id, accessEntityIds),
+          })
+        : [];
     const entityMap = new Map(entityList.map((e) => [e.id, e]));
-    return entityIds
+    const accessEntities = accessEntityIds
       .filter((id) => entityMap.has(id))
       .map((id) => {
         const entity = entityMap.get(id)!;
@@ -54,6 +81,16 @@ export const organizationRouter = router({
           role: acc?.role ?? "member",
         };
       });
+
+    // Combine and deduplicate by entity id (prefer orgRoles for role display)
+    const seen = new Set<string>();
+    const combined = [...orgEntities, ...accessEntities].filter((e) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    });
+
+    return combined;
   }),
 
   getEntitySummary: protectedProcedure.query(async ({ ctx }) => {
@@ -119,8 +156,16 @@ export const organizationRouter = router({
 
   list: publicProcedure.query(async ({ ctx }) => {
     if (!ctx.session?.user) return [];
+    const userId = ctx.session.user.id!;
+    // Get orgs where user has an org_roles entry (owner/admin)
+    const userRoles = await db.query.orgRoles.findMany({
+      where: eq(orgRoles.userId, userId),
+      columns: { orgId: true },
+    });
+    if (userRoles.length === 0) return [];
+    const orgIds = userRoles.map((r) => r.orgId);
     return db.query.organizations.findMany({
-      where: eq(organizations.ownerId, ctx.session.user.id!),
+      where: inArray(organizations.id, orgIds),
     });
   }),
 
@@ -157,17 +202,29 @@ export const organizationRouter = router({
           });
         }
 
+        const userId = ctx.session.user.id!;
+
+        // Create org + org_roles (owner) + org-level admin bypass for creator
         const [org] = await db
           .insert(organizations)
           .values({
             name: input.name,
             slug: input.slug,
             type: input.type,
-            ownerId: ctx.session.user.id!,
+            ownerId: userId,
+            billingOwnerUserId: userId,
           })
           .returning();
 
-        // Auto-create a default entity and grant owner access
+        // Grant org-level owner role
+        await db.insert(orgRoles).values({
+          userId,
+          orgId: org.id,
+          role: "owner",
+          grantedBy: userId,
+        });
+
+        // Auto-create a default entity and grant entity-level owner access
         const [entity] = await db
           .insert(entities)
           .values({
@@ -178,10 +235,10 @@ export const organizationRouter = router({
           .returning();
 
         await db.insert(userEntityAccess).values({
-          userId: ctx.session.user.id!,
+          userId,
           entityId: entity.id,
           role: "owner",
-          grantedBy: ctx.session.user.id!,
+          grantedBy: userId,
         });
 
         return { organization: org, entity };
@@ -198,15 +255,14 @@ export const organizationRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const org = await db.query.organizations.findFirst({
-        where: eq(organizations.id, input.id),
+      const role = await db.query.orgRoles.findFirst({
+        where: and(
+          eq(orgRoles.userId, ctx.session!.user!.id!),
+          eq(orgRoles.orgId, input.id),
+          eq(orgRoles.role, "owner"),
+        ),
       });
-      if (!org)
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Organization not found",
-        });
-      if (org.ownerId !== ctx.session!.user!.id!) {
+      if (!role) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Only the organization owner can update it",
@@ -226,27 +282,79 @@ export const organizationRouter = router({
     .input(z.object({ organizationId: z.string().uuid().optional() }))
     .query(async ({ ctx, input }) => {
       if (input.organizationId) {
-        const org = await db.query.organizations.findFirst({
-          where: eq(organizations.id, input.organizationId),
+        // Check orgRoles for access to this org
+        const role = await db.query.orgRoles.findFirst({
+          where: and(
+            eq(orgRoles.userId, ctx.session!.user!.id!),
+            eq(orgRoles.orgId, input.organizationId),
+          ),
         });
-        if (!org || org.ownerId !== ctx.session!.user!.id!) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+        if (!role) {
+          // Fallback: check userEntityAccess for entities in this org
+          const orgEntities = await db.query.entities.findMany({
+            where: eq(entities.organizationId, input.organizationId),
+            columns: { id: true },
+          });
+          if (orgEntities.length === 0) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Access denied",
+            });
+          }
+          const access = await db.query.userEntityAccess.findFirst({
+            where: and(
+              eq(userEntityAccess.userId, ctx.session!.user!.id!),
+              inArray(
+                userEntityAccess.entityId,
+                orgEntities.map((e) => e.id),
+              ),
+            ),
+          });
+          if (!access) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Access denied",
+            });
+          }
         }
         return db.query.entities.findMany({
           where: eq(entities.organizationId, input.organizationId),
         });
       }
-      const orgs = await db.query.organizations.findMany({
-        where: eq(organizations.ownerId, ctx.session!.user!.id!),
+      // No org filter: return all entities the user can access via orgRoles or userEntityAccess
+      const userRoles = await db.query.orgRoles.findMany({
+        where: eq(orgRoles.userId, ctx.session!.user!.id!),
+        columns: { orgId: true },
       });
-      if (orgs.length === 0) return [];
-      const allEntities = await db.query.entities.findMany({
-        where: inArray(
-          entities.organizationId,
-          orgs.map((o) => o.id),
-        ),
+      const orgIds = userRoles.map((r) => r.orgId);
+      const access = await db.query.userEntityAccess.findMany({
+        where: eq(userEntityAccess.userId, ctx.session!.user!.id!),
+        columns: { entityId: true },
       });
-      return allEntities;
+      const accessEntityIds = access.map((a) => a.entityId);
+      const allOrgIds = [...new Set(orgIds)];
+      if (allOrgIds.length === 0 && accessEntityIds.length === 0) return [];
+      // Fetch entities from orgRoles
+      const orgEntities =
+        allOrgIds.length > 0
+          ? await db.query.entities.findMany({
+              where: inArray(entities.organizationId, allOrgIds),
+            })
+          : [];
+      // Fetch entities from direct access
+      const dirEntities =
+        accessEntityIds.length > 0
+          ? await db.query.entities.findMany({
+              where: inArray(entities.id, accessEntityIds),
+            })
+          : [];
+      // Deduplicate
+      const seen = new Set<string>();
+      return [...orgEntities, ...dirEntities].filter((e) => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        return true;
+      });
     }),
 
   createEntity: protectedProcedure
@@ -262,6 +370,20 @@ export const organizationRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Check orgRoles for permission to create entities under this org
+      const role = await db.query.orgRoles.findFirst({
+        where: and(
+          eq(orgRoles.userId, ctx.session!.user!.id!),
+          eq(orgRoles.orgId, input.organizationId),
+        ),
+      });
+      if (!role) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only org owners and admins can create entities",
+        });
+      }
+
       const [entity] = await db
         .insert(entities)
         .values({
@@ -318,7 +440,194 @@ export const organizationRouter = router({
       return updated;
     }),
 
+  // ─── ORG-LEVEL OWNER SAFEGUARD (Milestone 10) ───
+
+  /**
+   * Removes a user's org-level role (owner/admin).
+   * Blocks removal of the LAST owner — ownership must be transferred first.
+   */
+  removeOrgRole: protectedProcedure
+    .input(
+      z.object({
+        orgId: z.string().uuid(),
+        userId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Current user must be an owner
+        const currentRole = await db.query.orgRoles.findFirst({
+          where: and(
+            eq(orgRoles.userId, ctx.session!.user!.id!),
+            eq(orgRoles.orgId, input.orgId),
+            eq(orgRoles.role, "owner"),
+          ),
+        });
+        if (!currentRole) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only the organization owner can remove members",
+          });
+        }
+
+        // Can't remove yourself as last owner
+        if (input.userId === ctx.session!.user!.id!) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Cannot remove yourself as owner. Use transferOwnership first.",
+          });
+        }
+
+        // Check if the target is the last owner
+        const targetRole = await db.query.orgRoles.findFirst({
+          where: and(
+            eq(orgRoles.userId, input.userId),
+            eq(orgRoles.orgId, input.orgId),
+          ),
+        });
+        if (!targetRole) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User is not a member of this organization",
+          });
+        }
+
+        if (targetRole.role === "owner") {
+          // Count total owners
+          const owners = await db.query.orgRoles.findMany({
+            where: and(
+              eq(orgRoles.orgId, input.orgId),
+              eq(orgRoles.role, "owner"),
+            ),
+          });
+          if (owners.length <= 1) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Cannot remove the last owner. Transfer ownership first via transferOwnership.",
+            });
+          }
+        }
+
+        // Remove org role
+        await db
+          .delete(orgRoles)
+          .where(
+            and(
+              eq(orgRoles.userId, input.userId),
+              eq(orgRoles.orgId, input.orgId),
+            ),
+          );
+
+        // Audit trail
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "organization.removeOrgRole",
+          entityType: "org_roles",
+          newValues: { removedUserId: input.userId, orgId: input.orgId },
+        });
+
+        logger.info(
+          {
+            orgId: input.orgId,
+            removedUserId: input.userId,
+            byUserId: ctx.session!.user!.id!,
+          },
+          "Org role removed",
+        );
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to remove org role");
+      }
+    }),
+
   // ─── USER ENTITY ACCESS ────────────────────────
+
+  // ─── OWNERSHIP TRANSFER (Milestone 10) ──────────
+
+  transferOwnership: protectedProcedure
+    .input(
+      z.object({
+        orgId: z.string().uuid(),
+        newOwnerUserId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Check current user is an owner of this org
+        const currentRole = await db.query.orgRoles.findFirst({
+          where: and(
+            eq(orgRoles.userId, ctx.session!.user!.id!),
+            eq(orgRoles.orgId, input.orgId),
+            eq(orgRoles.role, "owner"),
+          ),
+        });
+        if (!currentRole) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only the organization owner can transfer ownership",
+          });
+        }
+
+        // Check the new owner is already an org member
+        const newOwnerRole = await db.query.orgRoles.findFirst({
+          where: and(
+            eq(orgRoles.userId, input.newOwnerUserId),
+            eq(orgRoles.orgId, input.orgId),
+          ),
+        });
+        if (!newOwnerRole) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "New owner must already be a member of this organization",
+          });
+        }
+
+        // Demote current owner to admin
+        await db
+          .update(orgRoles)
+          .set({ role: "admin" })
+          .where(
+            and(
+              eq(orgRoles.userId, ctx.session!.user!.id!),
+              eq(orgRoles.orgId, input.orgId),
+            ),
+          );
+
+        // Promote new owner
+        await db
+          .update(orgRoles)
+          .set({ role: "owner" })
+          .where(
+            and(
+              eq(orgRoles.userId, input.newOwnerUserId),
+              eq(orgRoles.orgId, input.orgId),
+            ),
+          );
+
+        // Update organization owner reference
+        await db
+          .update(organizations)
+          .set({ ownerId: input.newOwnerUserId })
+          .where(eq(organizations.id, input.orgId));
+
+        logger.info(
+          {
+            orgId: input.orgId,
+            fromUserId: ctx.session!.user!.id!,
+            toUserId: input.newOwnerUserId,
+          },
+          "Ownership transferred",
+        );
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to transfer ownership");
+      }
+    }),
 
   listAccess: protectedProcedure
     .input(z.object({ entityId: z.string().uuid() }))

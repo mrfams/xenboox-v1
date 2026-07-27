@@ -27,7 +27,10 @@ export default defineConfig({
     video: "retain-on-failure",
     actionTimeout: 15000,
     navigationTimeout: 30000,
-    headless: true,
+    headless: false, // Heaed mode so user can see the browser
+    launchOptions: {
+      headless: false, // Force headed mode
+    },
   },
   projects: [
     {

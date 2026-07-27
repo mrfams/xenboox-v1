@@ -19,6 +19,10 @@ export const users = pgTable("users", {
   emailVerified: timestamp("email_verified"),
   image: text("image"),
   passwordHash: text("password_hash"),
+  authProvider: text("auth_provider")
+    .notNull()
+    .$type<"credentials" | "google" | "github">()
+    .default("credentials"),
   // Password reset
   resetPasswordToken: text("reset_password_token"),
   resetPasswordExpires: timestamp("reset_password_expires"),

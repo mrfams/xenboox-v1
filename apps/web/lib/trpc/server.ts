@@ -2,8 +2,9 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { userEntityAccess } from "@xenboox/db/schema/organization";
-import { sessions } from "@xenboox/db/schema/auth";
+import { userEntityAccess, entities } from "@xenboox/db/schema/organization";
+import { orgRoles } from "@xenboox/db/schema/org-roles";
+import { sessions, users } from "@xenboox/db/schema/auth";
 import { idempotencyKeys } from "@xenboox/db/schema";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
@@ -203,9 +204,40 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
     });
   }
 
+  const userId = ctx.session!.user!.id!;
+
+  // Step 1: Check org_roles — is this user an org-level owner/admin?
+  // Find the entity to get its orgId, then check if user has org-level role
+  const entity = await db.query.entities.findFirst({
+    where: eq(entities.id, entityId),
+    columns: { id: true, organizationId: true },
+  });
+
+  if (entity?.organizationId) {
+    const orgRole = await db.query.orgRoles.findFirst({
+      where: and(
+        eq(orgRoles.userId, userId),
+        eq(orgRoles.orgId, entity.organizationId),
+      ),
+    });
+
+    if (orgRole) {
+      // Org-level owner/admin has full access to all entities under this org
+      return next({
+        ctx: {
+          ...ctx,
+          entityId,
+          entityRole: orgRole.role,
+          permissionScope: "full",
+        },
+      });
+    }
+  }
+
+  // Step 2: Check entity-level access via user_entity_access
   const access = await db.query.userEntityAccess.findFirst({
     where: and(
-      eq(userEntityAccess.userId, ctx.session!.user!.id!),
+      eq(userEntityAccess.userId, userId),
       eq(userEntityAccess.entityId, entityId),
     ),
   });
@@ -218,6 +250,33 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
   }
 
   return next({ ctx: { ...ctx, entityId, entityRole: access.role } });
+});
+
+/**
+ * Email Verification Gate (Milestone 11)
+ * Blocks write/approve/trigger actions for unverified users.
+ * View-only actions (queries) are allowed so users can see their onboarding screen.
+ */
+export const requireVerifiedEmail = t.middleware(async ({ ctx, next }) => {
+  const session = (ctx as { session?: Session }).session;
+  if (!session?.user?.id) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "You must be logged in",
+    });
+  }
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, session.user.id!),
+    columns: { emailVerified: true },
+  });
+  if (!user?.emailVerified) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "Please verify your email before performing this action. Check your inbox for the verification link or request a new one from Settings.",
+    });
+  }
+  return next({ ctx });
 });
 
 export const requireRole = (...roles: string[]) =>

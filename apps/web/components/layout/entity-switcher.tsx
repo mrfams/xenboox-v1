@@ -22,17 +22,20 @@ export function EntitySwitcher() {
   useEffect(() => {
     async function fetchEntities() {
       try {
-        const response = await fetch("/api/trpc/organization.listEntities", {
-          headers: {
-            "x-entity-id": entityId || "",
+        const response = await fetch(
+          "/api/trpc/organization.listUserEntities",
+          {
+            headers: {
+              "x-entity-id": entityId || "",
+            },
           },
-        });
+        );
         const data = await response.json();
         const result = data?.result?.data;
         if (Array.isArray(result)) {
           setEntities(result);
           if (!entityId && result.length > 0) {
-            setEntityId(result[0].id);
+            setEntityId(result[0].id, result[0].role);
           }
         }
       } catch {

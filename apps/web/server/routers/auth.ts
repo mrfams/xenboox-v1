@@ -9,11 +9,8 @@ import {
 import { db } from "@/lib/db";
 import { eq, desc } from "drizzle-orm";
 import { users, sessions, verificationTokens } from "@xenboox/db/schema/auth";
-import {
-  organizations,
-  entities,
-  userEntityAccess,
-} from "@xenboox/db/schema/organization";
+import { entities, userEntityAccess } from "@xenboox/db/schema/organization";
+import { orgRoles } from "@xenboox/db/schema/org-roles";
 import { auditLog } from "@xenboox/db/schema/documents";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
@@ -37,6 +34,42 @@ const MOBILE_TOKEN_EXPIRY = "30d";
 const MFA_TOKEN_EXPIRY = "5m";
 
 const JWT_SECRET = new TextEncoder().encode(process.env.AUTH_SECRET);
+
+/**
+ * Gets the first entity accessible to a user, following Milestone 9's
+ * permission resolution order:
+ *   1. org_roles (owner/admin) → first entity in the org
+ *   2. user_entity_access → first accessible entity
+ *   3. Neither → null
+ */
+async function getFirstEntityForUser(userId: string): Promise<{
+  entityId: string | null;
+  entityRole: string | null;
+}> {
+  // Step 1: Check orgRoles — find orgs user is owner/admin of
+  const userOrgRoles = await db.query.orgRoles.findMany({
+    where: eq(orgRoles.userId, userId),
+    columns: { orgId: true, role: true },
+  });
+  if (userOrgRoles.length > 0) {
+    const firstOrgEntity = await db.query.entities.findFirst({
+      where: eq(entities.organizationId, userOrgRoles[0].orgId),
+      columns: { id: true },
+    });
+    if (firstOrgEntity) {
+      return { entityId: firstOrgEntity.id, entityRole: userOrgRoles[0].role };
+    }
+  }
+
+  // Step 2: Fall back to userEntityAccess
+  const access = await db.query.userEntityAccess.findFirst({
+    where: eq(userEntityAccess.userId, userId),
+    columns: { entityId: true, role: true },
+  });
+  return access
+    ? { entityId: access.entityId, entityRole: access.role }
+    : { entityId: null, entityRole: null };
+}
 
 async function createMobileToken(payload: { sub: string; email: string }) {
   return new SignJWT({ ...payload, purpose: "direct_auth" })
@@ -191,14 +224,14 @@ export const authRouter = router({
           email: user.email!,
         });
 
-        const access = await db.query.userEntityAccess.findFirst({
-          where: eq(userEntityAccess.userId, user.id),
-        });
+        const { entityId: firstEntityId, entityRole: firstEntityRole } =
+          await getFirstEntityForUser(user.id);
 
         return {
           token,
           userId: user.id,
-          entityId: access?.entityId ?? null,
+          entityId: firstEntityId,
+          entityRole: firstEntityRole,
           name: user.name,
           email: user.email,
         };
@@ -220,10 +253,8 @@ export const authRouter = router({
             const { errors } = getPasswordStrength(pw);
             return errors.length === 0;
           }, "Password must contain uppercase, lowercase, number, and special character"),
-        organizationName: z
-          .string()
-          .min(2, "Organization name is required")
-          .max(200),
+        // Identity-first: no organization creation during signup.
+        // Org is created after signup via /register/onboarding or invite acceptance.
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -269,57 +300,6 @@ export const authRouter = router({
           });
         }
 
-        const [org] = await db
-          .insert(organizations)
-          .values({
-            name: input.organizationName,
-            slug:
-              input.organizationName
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-|-$/g, "") +
-              "-" +
-              Date.now().toString(36),
-            type: "business",
-            plan: "free",
-            ownerId: user.id,
-          })
-          .returning();
-
-        if (!org) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to create organization",
-          });
-        }
-
-        const [entity] = await db
-          .insert(entities)
-          .values({
-            organizationId: org.id,
-            name: input.organizationName,
-            type: "company",
-            currency: "GMD",
-            country: "GM",
-            fiscalYearEnd: "12",
-            isActive: true,
-          })
-          .returning();
-
-        if (!entity) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to create entity",
-          });
-        }
-
-        await db.insert(userEntityAccess).values({
-          userId: user.id,
-          entityId: entity.id,
-          role: "owner",
-          grantedBy: user.id,
-        });
-
         const token = await createMobileToken({
           sub: user.id,
           email: user.email!,
@@ -351,7 +331,7 @@ export const authRouter = router({
         return {
           token,
           userId: user.id,
-          entityId: entity.id,
+          entityId: null,
           name: user.name,
           email: user.email,
         };
@@ -945,14 +925,14 @@ export const authRouter = router({
             email: user.email!,
           });
 
-          const access = await db.query.userEntityAccess.findFirst({
-            where: eq(userEntityAccess.userId, user.id),
-          });
+          const { entityId: firstEntityId, entityRole: firstEntityRole } =
+            await getFirstEntityForUser(user.id);
 
           return {
             token,
             userId: user.id,
-            entityId: access?.entityId ?? null,
+            entityId: firstEntityId,
+            entityRole: firstEntityRole,
             name: user.name,
             email: user.email,
           };
@@ -978,17 +958,16 @@ export const authRouter = router({
                 email: user.email!,
               });
 
-              const access = await db.query.userEntityAccess.findFirst({
-                where: eq(userEntityAccess.userId, user.id),
-              });
-
+              const { entityId: firstEntityId, entityRole: firstEntityRole } =
+                await getFirstEntityForUser(user.id);
               const backupCodesRemaining = remaining.length;
               const warnLowCodes = backupCodesRemaining <= 2;
 
               return {
                 token,
                 userId: user.id,
-                entityId: access?.entityId ?? null,
+                entityId: firstEntityId,
+                entityRole: firstEntityRole,
                 name: user.name,
                 email: user.email,
                 backupCodeUsed: true,

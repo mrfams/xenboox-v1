@@ -78,3 +78,4 @@ export { Textarea } from "./textarea";
 export { Switch } from "./switch";
 export { Progress, type ProgressProps } from "./progress";
 export { Skeleton } from "./skeleton";
+export { Checkbox } from "./checkbox";

@@ -20,27 +20,21 @@ import {
   HardHat,
   Boxes,
   Shield,
-  Plug,
   PiggyBank,
-  ScrollText,
-  AlertCircle,
   Search,
   Receipt,
-  Zap,
-  GitBranch,
   Building2,
-  Globe,
-  KeyRound,
-  Palette,
   ChevronDown,
-  ChevronUp,
   DollarSign,
   ShoppingCart,
   TrendingUp,
+  CalendarDays,
+  Activity,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge, Button } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { trpc } from "@/lib/trpc/client";
@@ -72,8 +66,6 @@ type ApprovalCounts = {
   total: number;
 };
 
-// ─── Navigation Groups (per Architecture Doc §2.2) ───────────────────────
-
 const navGroups: NavGroup[] = [
   {
     label: "Main",
@@ -84,27 +76,25 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/chat",
         icon: MessageSquare,
         badge: "AI",
-      },
-      {
-        label: "Approvals",
-        href: "/dashboard/review-queue",
-        icon: AlertCircle,
-        countKey: "total",
-        attrs: { "data-tour": "approvals" },
+        attrs: { "data-tour": "cfo-agent" },
       },
     ],
   },
   {
     label: "Money",
     items: [
+      {
+        label: "Cash Overview",
+        href: "/dashboard/cash/overview",
+        icon: Wallet,
+      },
       { label: "Bank & Recon", href: "/dashboard/treasury", icon: Landmark },
-      { label: "Cash & Imprest", href: "/dashboard/cash", icon: Wallet },
       {
         label: "Mobile Money",
         href: "/dashboard/mobile-money",
         icon: Smartphone,
-        badge: "Wave",
       },
+      { label: "Cash & Imprest", href: "/dashboard/cash", icon: Wallet },
     ],
   },
   {
@@ -112,6 +102,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Invoices (AR)", href: "/dashboard/ar/invoices", icon: Receipt },
       { label: "Customers", href: "/dashboard/ar/customers", icon: Users },
+      { label: "AR Aging", href: "/dashboard/ar/aging", icon: TrendingUp },
     ],
   },
   {
@@ -123,6 +114,11 @@ const navGroups: NavGroup[] = [
         label: "Purchase Orders",
         href: "/dashboard/ap/pos",
         icon: ShoppingCart,
+      },
+      {
+        label: "Payment Schedule",
+        href: "/dashboard/ap/payment-schedule",
+        icon: CalendarDays,
       },
     ],
   },
@@ -174,13 +170,8 @@ const navGroups: NavGroup[] = [
       {
         label: "Consolidation",
         href: "/dashboard/consolidation",
-        icon: GitBranch,
-        badge: "AI",
-      },
-      {
-        label: "Consolidated View",
-        href: "/dashboard/consolidation/view",
         icon: BarChart3,
+        badge: "AI",
       },
     ],
   },
@@ -204,6 +195,12 @@ const navGroups: NavGroup[] = [
         icon: Search,
         badge: "AI",
       },
+      {
+        label: "Benchmarking",
+        href: "/dashboard/benchmarking",
+        icon: TrendingUp,
+        badge: "Beta",
+      },
     ],
   },
   {
@@ -216,46 +213,24 @@ const navGroups: NavGroup[] = [
         badge: "AI",
       },
       {
-        label: "Jurisdictions",
-        href: "/dashboard/jurisdiction",
-        icon: Globe,
-        badge: "AI",
-      },
-      {
         label: "Audit Preparation",
         href: "/dashboard/audit/pipeline",
         icon: Search,
         badge: "AI",
       },
-      { label: "Audit Log", href: "/dashboard/audit-log", icon: ScrollText },
+      { label: "Audit Log", href: "/dashboard/audit-log", icon: FileText },
     ],
   },
 ];
 
 const bottomNavItems: NavItem[] = [
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
-  { label: "Integrations", href: "/dashboard/settings", icon: Plug },
-  { label: "Firm Dashboard", href: "/dashboard/firm", icon: Building2 },
   {
-    label: "White Label",
-    href: "/dashboard/branding",
-    icon: Palette,
-    badge: "Firm",
+    label: "Approvals",
+    href: "/dashboard/review-queue",
+    icon: Activity,
+    attrs: { "data-tour": "approvals" },
   },
-  { label: "Ingestion", href: "/dashboard/ingestion", icon: Zap, badge: "AI" },
-  {
-    label: "API Keys",
-    href: "/dashboard/api-keys",
-    icon: KeyRound,
-    badge: "Dev",
-  },
-  {
-    label: "Benchmarking",
-    href: "/dashboard/benchmarking",
-    icon: BarChart3,
-    badge: "Beta",
-  },
-  { label: "Admin", href: "/admin", icon: Shield },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -306,7 +281,7 @@ function WhiteLabelLogo() {
 
   return (
     <Link href="/dashboard" className="flex items-center gap-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-primary-foreground font-bold text-sm">
         X
       </div>
       <span className="text-lg font-bold tracking-tight">Xenboox</span>
@@ -314,14 +289,69 @@ function WhiteLabelLogo() {
   );
 }
 
+// ─── AI Command Bar ─────────────────────────────────────────────────────
+
+function AiCommandBar() {
+  const [query, setQuery] = useState("");
+
+  return (
+    <div className="relative">
+      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+      </div>
+      <input
+        type="text"
+        placeholder="Ask AI anything..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="w-full rounded-lg border bg-muted/50 py-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/20 transition-all"
+      />
+    </div>
+  );
+}
+
+// ─── Agent Status Bar ───────────────────────────────────────────────────
+
+function AgentStatusBar() {
+  const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
+    refetchInterval: 60000,
+  });
+  const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
+    { limit: 50 },
+    { refetchInterval: 60000 },
+  );
+
+  const pendingReview = stats?.pendingReview ?? 0;
+  const processing = stats?.processing ?? 0;
+  const agentCount = agentApprovals?.items?.length ?? 0;
+  const totalPending = pendingReview + agentCount;
+
+  return (
+    <div className="space-y-1.5">
+      {(processing > 0 || totalPending > 0) && (
+        <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2">
+          <div className="flex gap-0.5">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 [animation-delay:150ms]" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 [animation-delay:300ms]" />
+          </div>
+          <span className="text-[11px] text-muted-foreground">
+            {processing > 0 && `${processing} processing`}
+            {processing > 0 && totalPending > 0 && " · "}
+            {totalPending > 0 && `${totalPending} pending`}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
-    new Set(),
+    new Set(["Compliance"]),
   );
-  const [showSettings, setShowSettings] = useState(false);
 
-  // Global approval counts (architecture doc §2.4)
   const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
     refetchInterval: 60000,
   });
@@ -417,6 +447,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex flex-col gap-3 border-b p-4">
           <WhiteLabelLogo />
           <EntitySwitcher />
+          <AiCommandBar />
         </div>
 
         {/* Grouped Navigation */}
@@ -447,56 +478,43 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               );
             })}
           </div>
-
-          {/* Settings & Bottom Nav */}
-          <div className="mt-4 px-3">
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              <Settings className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-left">Settings &amp; Tools</span>
-              {showSettings ? (
-                <ChevronUp className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5" />
-              )}
-            </button>
-
-            {showSettings && (
-              <div className="ml-2 mt-1 space-y-0.5 border-l pl-2">
-                {bottomNavItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive(item.href)
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                    )}
-                    {...(item.attrs ?? {})}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {item.badge && (
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] px-1.5 py-0"
-                      >
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
         </nav>
 
-        {/* Help Footer */}
-        <div className="border-t p-3">
+        {/* Agent Status + Bottom Nav */}
+        <div className="border-t p-3 space-y-2">
+          <AgentStatusBar />
+          <div className="space-y-0.5">
+            {bottomNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  isActive(item.href)
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+                {...(item.attrs ?? {})}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {item.label === "Approvals" && approvalCounts.total > 0 && (
+                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                    {approvalCounts.total > 99 ? "99+" : approvalCounts.total}
+                  </span>
+                )}
+                {item.badge && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] px-1.5 py-0"
+                  >
+                    {item.badge}
+                  </Badge>
+                )}
+              </Link>
+            ))}
+          </div>
           <Link
             href="/dashboard/help"
             onClick={onClose}

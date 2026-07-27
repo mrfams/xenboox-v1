@@ -26,9 +26,10 @@ Call log:
 ```
 
 ```yaml
-- heading "Xenboox" [level=1]
+- link "X Xenboox":
+    - /url: /
 - paragraph: AI-native accounting for Africa
-- heading "Sign in" [level=3]
+- heading "Welcome back" [level=3]
 - paragraph: Enter your credentials to access your account
 - text: Email
 - textbox "Email":

@@ -20,11 +20,17 @@ export function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [orgName, setOrgName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [inviteInfo, setInviteInfo] = useState<{
+    token: string;
+    role: string;
+  } | null>(null);
+  const [checkingInvites, setCheckingInvites] = useState(false);
 
   const registerMutation = trpc.auth.register.useMutation();
+  const utils = trpc.useUtils();
+  const acceptInvite = trpc.invitations.accept.useMutation();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,12 +48,7 @@ export function RegisterForm() {
         name,
         email,
         password,
-        organizationName: orgName || `${name}'s Organization`,
       });
-
-      if (result?.entityId) {
-        localStorage.setItem("currentEntityId", result.entityId);
-      }
 
       const { signIn } = await import("next-auth/react");
       const signInResult = await signIn("credentials", {
@@ -61,7 +62,35 @@ export function RegisterForm() {
         return;
       }
 
-      // Redirect to onboarding wizard instead of dashboard
+      // Post-signup invite check (Milestone 2)
+      setCheckingInvites(true);
+      try {
+        const invites = await utils.invitations.checkByEmail.fetch({ email });
+        if (invites && invites.length > 0) {
+          // Auto-accept the first invite (Milestone 3b)
+          const firstInvite = invites[0];
+          const acceptResult = await acceptInvite.mutateAsync({
+            token: firstInvite.token,
+          });
+          const acceptData = acceptResult as Record<string, unknown>;
+          if (acceptData.entityId) {
+            localStorage.setItem(
+              "currentEntityId",
+              acceptData.entityId as string,
+            );
+          }
+          setInviteInfo({ token: firstInvite.token, role: firstInvite.role });
+          setCheckingInvites(false);
+          router.push("/dashboard");
+          router.refresh();
+          return;
+        }
+      } catch {
+        // Invite check failed silently — route to org creation
+      }
+      setCheckingInvites(false);
+
+      // No invite found — route to org creation (Milestone 3a)
       router.push("/register/onboarding");
       router.refresh();
     } catch (err) {
@@ -120,18 +149,12 @@ export function RegisterForm() {
               disabled={isLoading}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="orgName">Organization Name</Label>
-            <Input
-              id="orgName"
-              placeholder="Your company or organization"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              required
-              autoComplete="organization"
-              disabled={isLoading}
-            />
-          </div>
+          {checkingInvites && (
+            <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+              Checking for pending invitations...
+            </div>
+          )}
 
           {error && (
             <p className="text-sm font-medium text-destructive">{error}</p>

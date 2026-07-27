@@ -74,3 +74,4 @@ export { Textarea } from "@xenboox/ui";
 export { Switch } from "@xenboox/ui";
 export { Progress, type ProgressProps } from "@xenboox/ui";
 export { Skeleton } from "@xenboox/ui";
+export { Checkbox } from "@xenboox/ui";

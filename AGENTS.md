@@ -92,6 +92,9 @@ xenboox/
 ## Commands
 
 ```bash
+# Setup (first time or new clone)
+pnpm setup                   # Interactive env provisioning wizard
+
 # Development
 pnpm dev                      # Start all apps in dev mode
 pnpm dev --filter=web          # Start only web app
@@ -116,10 +119,6 @@ pnpm test:eval                # Run agent evaluation suite
 # Linting & Types
 pnpm lint                     # ESLint all packages
 pnpm typecheck                # TypeScript check all packages
-
-# Agent-specific
-pnpm agents:eval              # Run golden dataset evaluation
-pnpm agents:trace             # Open LangFuse traces
 ```
 
 ---

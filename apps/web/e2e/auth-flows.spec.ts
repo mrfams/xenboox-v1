@@ -11,8 +11,10 @@ test.describe("Authentication Flows", () => {
     test("login page loads with correct elements", async ({ page }) => {
       await page.goto("/login", { waitUntil: "networkidle" });
 
-      // Should show the Xenboox branding
-      await expect(page.locator("text=Xenboox")).toBeVisible();
+      // Should show the Xenboox branding (visible span, not the title tag)
+      await expect(
+        page.locator("span:has-text('Xenboox')").first(),
+      ).toBeVisible();
 
       // Should have email and password fields
       await expect(page.locator('input[type="email"]')).toBeVisible();
@@ -105,13 +107,14 @@ test.describe("Authentication Flows", () => {
       await expect(page.locator('input[id="name"]')).toBeVisible();
       await expect(page.locator('input[id="email"]')).toBeVisible();
       await expect(page.locator('input[id="password"]')).toBeVisible();
-      await expect(page.locator('input[id="orgName"]')).toBeVisible();
-
       // Should have submit button
       await expect(page.locator('button[type="submit"]')).toBeVisible();
 
-      // Should have link to login
-      await expect(page.locator('a[href="/login"]')).toBeVisible();
+      // Should have link to login (use .first() because header + footer both have login links)
+      await expect(page.locator('a[href="/login"]').first()).toBeVisible();
+
+      // Should NOT have orgName field (registration no longer creates org)
+      await expect(page.locator('input[id="orgName"]')).toHaveCount(0);
     });
 
     test("register with empty fields shows validation", async ({ page }) => {
@@ -166,7 +169,6 @@ test.describe("Authentication Flows", () => {
       await page.locator('input[id="name"]').fill("Test User");
       await page.locator('input[id="email"]').fill("not-an-email");
       await page.locator('input[id="password"]').fill("password123");
-      await page.locator('input[id="orgName"]').fill("Test Org");
 
       // Submit
       await page.locator('button[type="submit"]').click();

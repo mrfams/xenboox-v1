@@ -60,6 +60,7 @@ export const organizations = pgTable("organizations", {
   ownerId: uuid("owner_id")
     .notNull()
     .references(() => users.id),
+  billingOwnerUserId: uuid("billing_owner_user_id").references(() => users.id),
   settings: jsonb("settings").default({}).$type<Record<string, unknown>>(),
   ...timestamps,
 });

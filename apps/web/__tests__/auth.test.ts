@@ -62,7 +62,6 @@ describe("Auth Router", () => {
       name: "Test User",
       email: "test@example.com",
       password: "Pass123!",
-      organizationName: "Test Org",
     };
 
     it("should reject duplicate email", async () => {
@@ -76,7 +75,7 @@ describe("Auth Router", () => {
       );
     });
 
-    it("should create user, org, entity, and access on success", async () => {
+    it("should create user with identity-first flow (no org/entity on signup)", async () => {
       vi.mocked(db.query.users.findFirst).mockResolvedValue(undefined as any);
 
       const mockUser = {
@@ -84,29 +83,23 @@ describe("Auth Router", () => {
         name: "Test User",
         email: "test@example.com",
       };
-      const mockOrg = { id: "org-1", name: "Test Org" };
-      const mockEntity = { id: "entity-1", name: "Test Org" };
 
-      let callCount = 0;
       vi.mocked(db.insert).mockImplementation(() => {
-        callCount++;
         const chain: any = {
           values: vi.fn().mockReturnThis(),
-          returning: vi.fn(),
+          returning: vi.fn().mockResolvedValue([mockUser]),
         };
-        if (callCount === 1) chain.returning.mockResolvedValue([mockUser]);
-        else if (callCount === 2) chain.returning.mockResolvedValue([mockOrg]);
-        else if (callCount === 3)
-          chain.returning.mockResolvedValue([mockEntity]);
-        else chain.returning.mockResolvedValue([]);
         return chain;
       });
 
       const result = await caller.auth.register(validInput);
 
       expect(result).toHaveProperty("userId", "user-1");
-      expect(result).toHaveProperty("entityId", "entity-1");
+      // Identity-first: entityId is null after signup (org is created separately)
+      expect(result).toHaveProperty("entityId", null);
       expect(result).toHaveProperty("email", "test@example.com");
+      // Should NOT create org during registration
+      expect(db.insert).toHaveBeenCalledTimes(2); // users + verification_tokens only
     });
 
     it("should reject short name", async () => {

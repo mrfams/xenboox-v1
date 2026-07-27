@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, notInArray } from "drizzle-orm";
 import {
   handleMutationError,
   router,
@@ -300,7 +300,28 @@ export const treasuryRouter = router({
         with: { bankTransaction: true },
       });
 
-      return { ...recon, items };
+      const matchedTxIds = items
+        .filter((i) => i.status === "matched")
+        .map((i) => i.bankTransactionId);
+
+      const unmatchedTxIds = items
+        .filter((i) => i.status !== "matched")
+        .map((i) => i.bankTransactionId);
+
+      const unmatchedBankTransactions =
+        await db.query.bankTransactions.findMany({
+          where: and(
+            eq(bankTransactions.entityId, ctx.entityId!),
+            eq(bankTransactions.isReconciled, false),
+            notInArray(bankTransactions.id, [
+              ...matchedTxIds,
+              ...unmatchedTxIds,
+            ]),
+          ),
+          limit: 50,
+        });
+
+      return { ...recon, items, unmatchedBankTransactions };
     }),
 
   matchReconciliationItem: protectedProcedure

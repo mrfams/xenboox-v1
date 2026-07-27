@@ -6,35 +6,22 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { Skeleton } from "@/components/shared/loading";
 import { QuickActions } from "@/components/dashboard/quick-actions";
-import { SetupWizard } from "@/components/dashboard/onboarding-modal";
+import {
+  GuidedTour,
+  DEFAULT_TOUR_STEPS,
+} from "@/components/dashboard/guided-tour";
 import { RoleDashboard } from "@/components/dashboard/roles/role-dashboard";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { toast } from "sonner";
-import { Send, Sparkles, Settings } from "lucide-react";
-
-// ─── Floating Setup Button ─────────────────────────────────────────────────────
-
-function FloatingSetupProgress({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-      title="Open setup guide"
-    >
-      <Settings className="h-6 w-6" />
-      <span className="sr-only">Setup guide</span>
-    </button>
-  );
-}
+import { Send, Sparkles } from "lucide-react";
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const { entityId } = useEntity();
   const router = useRouter();
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showTour, setShowTour] = useState(false);
 
   const {
     data: arInvoices,
@@ -131,6 +118,7 @@ export default function DashboardPage() {
                     }
                   }}
                   className="relative mt-3"
+                  data-tour="chat-input"
                 >
                   <input
                     type="text"
@@ -169,22 +157,65 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <QuickActions
-            onAction={(id: string) => {
-              if (id === "connect-bank" || id === "email-forwarding")
-                router.push("/dashboard/integrations");
-              else if (id === "document-uploaded")
-                router.push("/dashboard/documents");
-            }}
-          />
+          <div data-tour="quick-actions">
+            <QuickActions
+              onAction={(id: string) => {
+                if (id === "connect-bank" || id === "email-forwarding")
+                  router.push("/dashboard/integrations");
+                else if (id === "document-uploaded")
+                  router.push("/dashboard/documents");
+              }}
+            />
+          </div>
         </div>
 
-        <SetupWizard open={showOnboarding} onOpenChange={setShowOnboarding} />
-        <FloatingSetupProgress onClick={() => setShowOnboarding(true)} />
+        {/* Guided tour — accessible everywhere */}
+        <GuidedTour
+          steps={DEFAULT_TOUR_STEPS}
+          open={showTour}
+          onClose={() => setShowTour(false)}
+          onFinish={() => {
+            localStorage.setItem("xenboox_tour_completed", "true");
+          }}
+        />
+
+        <button
+          type="button"
+          onClick={() => setShowTour(true)}
+          className="fixed bottom-6 right-24 z-40 flex h-10 items-center gap-2 rounded-full border bg-background px-4 text-xs font-medium text-muted-foreground shadow-lg hover:bg-accent hover:text-foreground transition-all duration-200"
+          title="Take a guided tour"
+        >
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          Show me around
+        </button>
       </>
     );
   }
 
   // Role-based dashboard for users with data (Architecture Doc §5)
-  return <RoleDashboard />;
+  return (
+    <>
+      <RoleDashboard />
+
+      {/* Guided tour — accessible everywhere */}
+      <GuidedTour
+        steps={DEFAULT_TOUR_STEPS}
+        open={showTour}
+        onClose={() => setShowTour(false)}
+        onFinish={() => {
+          localStorage.setItem("xenboox_tour_completed", "true");
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={() => setShowTour(true)}
+        className="fixed bottom-6 right-24 z-40 flex h-10 items-center gap-2 rounded-full border bg-background px-4 text-xs font-medium text-muted-foreground shadow-lg hover:bg-accent hover:text-foreground transition-all duration-200"
+        title="Take a guided tour"
+      >
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+        Show me around
+      </button>
+    </>
+  );
 }

@@ -19,6 +19,7 @@
     "db:push": "pnpm --filter=@xenboox/db push",
     "db:seed": "pnpm --filter=@xenboox/db seed",
     "db:studio": "pnpm --filter=@xenboox/db studio",
+    "setup": "node scripts/setup.mjs",
     "agents:eval": "pnpm --filter=@xenboox/agents eval",
     "agents:trace": "open https://langfuse.xenboox.com",
     "prepare": "npx husky install"

@@ -252,6 +252,7 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
           variant={chatOpen ? "default" : "ghost"}
           size="sm"
           onClick={onChatToggle}
+          data-tour="chat-panel-toggle"
           aria-label="Toggle CFO Agent chat"
           className="hidden sm:inline-flex gap-2"
         >
