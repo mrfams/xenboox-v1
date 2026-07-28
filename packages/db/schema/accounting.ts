@@ -180,6 +180,7 @@ export const journalEntriesRelations = relations(
       references: [fiscalPeriods.id],
     }),
     lines: many(journalEntryLines),
+    sources: many(journalEntrySources),
   }),
 );
 
@@ -216,6 +217,42 @@ export const journalEntryLinesRelations = relations(
     account: one(chartOfAccounts, {
       fields: [journalEntryLines.accountId],
       references: [chartOfAccounts.id],
+    }),
+  }),
+);
+
+// ─── JOURNAL ENTRY SOURCES (join table for polymorphic sources) ──────────
+
+export const journalEntrySources = pgTable(
+  "journal_entry_sources",
+  {
+    id: uuidId(),
+    journalEntryId: uuid("journal_entry_id")
+      .notNull()
+      .references(() => journalEntries.id, { onDelete: "cascade" }),
+    sourceType: text("source_type").notNull(),
+    sourceId: uuid("source_id"),
+    sourceReference: text("source_reference"),
+    sourceDescription: text("source_description"),
+    ...timestamps,
+  },
+  (t) => [
+    index("jes_journal_entry").on(t.journalEntryId),
+    index("jes_source").on(t.sourceType, t.sourceId),
+    uniqueIndex("jes_unique_source").on(
+      t.journalEntryId,
+      t.sourceType,
+      t.sourceId,
+    ),
+  ],
+);
+
+export const journalEntrySourcesRelations = relations(
+  journalEntrySources,
+  ({ one }) => ({
+    journalEntry: one(journalEntries, {
+      fields: [journalEntrySources.journalEntryId],
+      references: [journalEntries.id],
     }),
   }),
 );

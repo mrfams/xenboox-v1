@@ -1,82 +1,103 @@
 #!/usr/bin/env node
 
-/**
- * Browser-based API key extractor.
- * Connects to your running Chrome (port 9222), navigates to each service
- * dashboard, and helps you export API keys into .env.local
- *
- * Usage:
- *   1. Make sure Chrome is running with --remote-debugging-port=9222
- *   2. Log into the services you use in that Chrome
- *   3. Run: node scripts/get-keys.mjs
- */
-
 import { readFileSync, appendFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { createInterface } from "readline";
-import { WebSocket } from "ws";
+import { execSync } from "child_process";
 
-const WS_URL = "ws://localhost:9222/devtools/browser/171f09c7-8573-4c63-ac6d-bb81349c1a23";
 const ROOT = resolve(import.meta.dirname, "..");
 const ENV = resolve(ROOT, ".env.local");
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
-function ask(q) { return new Promise((r) => rl.question(q, r)); }
+const ask = (q) => new Promise((r) => rl.question(q, r));
 
-async function getCDPSession() {
-  const res = await fetch("http://localhost:9222/json");
-  const tabs = await res.json();
-  if (tabs.length === 0) throw new Error("No tabs open in Chrome");
-  return tabs[0].webSocketDebuggerUrl;
-}
-
-async function cdpCall(wsUrl, method, params = {}) {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl);
-    const id = 1;
-    ws.on("open", () => {
-      ws.send(JSON.stringify({ id, method, params }));
-    });
-    ws.on("message", (data) => {
-      const msg = JSON.parse(data.toString());
-      if (msg.id === id) {
-        ws.close();
-        resolve(msg.result);
-      }
-    });
-    ws.on("error", reject);
-  });
-}
-
-function green(s) { return `\x1b[32m${s}\x1b[0m`; }
-function yellow(s) { return `\x1b[33m${s}\x1b[0m`; }
-function cyan(s) { return `\x1b[36m${s}\x1b[0m`; }
-function bold(s) { return `\x1b[1m${s}\x1b[0m`; }
+const green = (s) => `\x1b[32m${s}\x1b[0m`;
+const yellow = (s) => `\x1b[33m${s}\x1b[0m`;
+const cyan = (s) => `\x1b[36m${s}\x1b[0m`;
+const dim = (s) => `\x1b[2m${s}\x1b[0m`;
+const bold = (s) => `\x1b[1m${s}\x1b[0m`;
 
 const SERVICES = [
   {
     name: "Anthropic",
     url: "https://console.anthropic.com/settings/keys",
-    extract: "document.querySelector('[data-testid=api-key]')?.textContent",
-    envKey: "ANTHROPIC_API_KEY",
+    keys: [
+      { env: "ANTHROPIC_API_KEY", label: "API Key", hint: "starts with sk-ant-" },
+    ],
   },
   {
     name: "Resend",
     url: "https://resend.com/api-keys",
-    extract: "Array.from(document.querySelectorAll('code')).map(c=>c.textContent).join('\\n')",
-    envKey: "RESEND_API_KEY",
+    keys: [
+      { env: "RESEND_API_KEY", label: "API Key", hint: "starts with re_" },
+      { env: "RESEND_FROM_EMAIL", label: "Sender Email", hint: "e.g. hello@yourdomain.com" },
+    ],
+  },
+  {
+    name: "Cloudflare R2",
+    url: "https://dash.cloudflare.com/?to=/:account/r2/overview",
+    keys: [
+      { env: "R2_ACCOUNT_ID", label: "Account ID", hint: "36-char hex from R2 overview page" },
+    ],
+    note: "After getting Account ID, create an API token at https://dash.cloudflare.com/?to=/:account/r2/api-tokens",
+    subkeys: [
+      { env: "R2_ACCESS_KEY_ID", label: "Access Key ID", hint: "long alphanumeric" },
+      { env: "R2_SECRET_ACCESS_KEY", label: "Secret Access Key", hint: "long base64" },
+    ],
+    post: [
+      { env: "R2_BUCKET_NAME", label: "Bucket Name", hint: "e.g. xenboox-uploads" },
+      { env: "R2_PUBLIC_URL", label: "Public URL (optional)", hint: "e.g. https://pub-xxx.r2.dev", optional: true },
+    ],
   },
   {
     name: "LangFuse",
     url: "https://cloud.langfuse.com/project/api-keys",
-    extract: "document.body.innerText",
-    envKey: "LANGFUSE_SECRET_KEY",
+    keys: [
+      { env: "LANGFUSE_PUBLIC_KEY", label: "Public Key", hint: "starts with pk-lf-" },
+      { env: "LANGFUSE_SECRET_KEY", label: "Secret Key", hint: "starts with sk-lf-" },
+    ],
+    post: [
+      { env: "LANGFUSE_BASE_URL", label: "Base URL", hint: "https://cloud.langfuse.com", default: "https://cloud.langfuse.com" },
+    ],
   },
   {
-    name: "Cloudflare R2",
-    url: "https://dash.cloudflare.com/?to=/:account/r2/api-tokens",
-    extract: "document.body.innerText",
-    envKey: "R2_ACCESS_KEY_ID",
+    name: "OpenAI",
+    url: "https://platform.openai.com/api-keys",
+    keys: [
+      { env: "OPENAI_API_KEY", label: "API Key", hint: "starts with sk-", optional: true },
+    ],
+  },
+  {
+    name: "Google OAuth",
+    url: "https://console.cloud.google.com/apis/credentials",
+    keys: [
+      { env: "AUTH_GOOGLE_ID", label: "Client ID", hint: "ends with .apps.googleusercontent.com", optional: true },
+      { env: "AUTH_GOOGLE_SECRET", label: "Client Secret", hint: "starts with GOCSPX-", optional: true },
+    ],
+  },
+  {
+    name: "Trigger.dev",
+    url: "https://cloud.trigger.dev/keys",
+    keys: [
+      { env: "TRIGGER_SECRET_KEY", label: "Secret Key", hint: "starts with tr_", optional: true },
+      { env: "TRIGGER_API_KEY", label: "API Key (optional)", hint: "optional", optional: true },
+    ],
+  },
+  {
+    name: "Upstash Redis",
+    url: "https://console.upstash.com/redis",
+    keys: [
+      { env: "UPSTASH_REDIS_REST_URL", label: "REST URL", hint: "e.g. https://xxxx.upstash.io", optional: true },
+      { env: "UPSTASH_REDIS_REST_TOKEN", label: "REST Token", hint: "long base64", optional: true },
+    ],
+  },
+  {
+    name: "ModemPay",
+    url: "https://dashboard.modempay.com/settings",
+    keys: [
+      { env: "MODEMPAY_SECRET_KEY", label: "Secret Key", hint: "optional", optional: true },
+      { env: "MODEMPAY_PUBLIC_KEY", label: "Public Key", hint: "optional", optional: true },
+    ],
   },
 ];
 
@@ -89,88 +110,133 @@ function loadEnv() {
     if (!t || t.startsWith("#")) continue;
     const eq = t.indexOf("=");
     if (eq === -1) continue;
-    vars[t.slice(0, eq).trim()] = t.slice(eq + 1).trim().replace(/^"(.*)"$/, "$1");
+    let val = t.slice(eq + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    vars[t.slice(0, eq).trim()] = val;
   }
   return vars;
 }
 
 function saveKey(key, value) {
-  const env = loadEnv();
-  if (env[key] && env[key] !== "ROTATE_ME" && env[key] !== value) {
-    // already set, skip
-    return false;
-  }
   appendFileSync(ENV, `\n${key}="${value}"`);
+}
+
+function isSet(env, key) {
+  return env[key] && env[key] !== "ROTATE_ME";
+}
+
+function openBrowser(url) {
+  try {
+    execSync(`start "" "${url}"`, { shell: "cmd.exe", stdio: "ignore", timeout: 5000 });
+  } catch {
+    try {
+      execSync(`cmd /c start "" "${url}"`, { stdio: "ignore", timeout: 5000 });
+    } catch {}
+  }
+}
+
+async function promptKey(env, keyDef) {
+  const already = isSet(env, keyDef.env);
+  if (already && !keyDef.optional) {
+    console.log(`  ${green("✔")} ${keyDef.env} already set`);
+    return true;
+  }
+  if (already && keyDef.optional) {
+    console.log(`  ${dim("  ○")} ${keyDef.env} already set (optional, skipping)`);
+    return true;
+  }
+
+  const optLabel = keyDef.optional ? dim(" (optional — press Enter to skip)") : "";
+  const hint = keyDef.hint ? dim(` (${keyDef.hint})`) : "";
+  const defaultMsg = keyDef.default ? dim(` [${keyDef.default}]`) : "";
+
+  const answer = await ask(`    ${bold(keyDef.label)}${hint}${optLabel}${defaultMsg}: `);
+  const val = answer.trim() || keyDef.default || "";
+  if (!val) {
+    if (keyDef.optional) {
+      console.log(`  ${dim("  skipped")}`);
+      return false;
+    }
+    console.log(`  ${yellow("  required — try again or Ctrl+C to quit")}`);
+    return promptKey(env, keyDef);
+  }
+  saveKey(keyDef.env, val);
+  console.log(`  ${green("✔")} ${keyDef.env} saved`);
   return true;
 }
 
 async function main() {
-  console.log(`\n${bold("Xenboox API Key Extractor")}`);
+  console.log(`\n${bold("Xenboox API Key Collector")}`);
   console.log(`${bold("=========================")}\n`);
+  console.log(dim("I'll open your browser to each service's dashboard."));
+  console.log(dim("Sign in, find the key, copy it, then paste it here.\n"));
 
-  // Check Chrome connection
-  try {
-    const res = await fetch("http://localhost:9222/json/version");
-    const info = await res.json();
-    console.log(`  ${green("✔")} Chrome connected: ${info.Browser}`);
-  } catch {
-    console.log(`  ${yellow("✗")} Chrome not running on port 9222`);
-    console.log(`  ${yellow("→")} Restart Chrome with: chrome.exe --remote-debugging-port=9222\n`);
-    process.exit(1);
+  if (!existsSync(ENV)) {
+    appendFileSync(ENV, `# Xenboox Local Environment\n# ${new Date().toISOString()}\n`);
   }
 
   const env = loadEnv();
-  const wsUrl = await getCDPSession();
+  let collected = 0;
+  let skipped = 0;
 
   for (const svc of SERVICES) {
-    if (env[svc.envKey] && env[svc.envKey] !== "ROTATE_ME") {
-      console.log(`  ${green("✔")} ${svc.name} already configured`);
+    const allKeys = [...svc.keys, ...(svc.subkeys || []), ...(svc.post || [])];
+    const allSet = allKeys.every((k) => isSet(env, k));
+    if (allSet) {
+      console.log(`${green("✔")} ${svc.name} — all keys configured`);
       continue;
     }
 
-    console.log(`\n${bold(svc.name)}`);
-    console.log(`  ${cyan("→")} Opening ${svc.url}`);
+    console.log(`\n${bold("── " + svc.name + " ──")}\n`);
 
-    // Navigate to the dashboard
-    await cdpCall(wsUrl, "Page.navigate", { url: svc.url });
-    await new Promise((r) => setTimeout(r, 3000));
+    if (svc.note) {
+      console.log(`  ${dim(svc.note)}\n`);
+    }
 
-    // Try to extract the key
-    try {
-      const { result } = await cdpCall(wsUrl, "Runtime.evaluate", {
-        expression: svc.extract,
-        returnByValue: true,
-      });
-      const val = result?.value;
-      if (val && val.length > 5) {
-        console.log(`  ${green("✔")} Found key (first 10 chars): ${val.slice(0, 10)}...`);
-        const confirm = await ask(`    ${bold("Save this key?")} (Y/n): `);
-        if (confirm.toLowerCase() !== "n") {
-          saveKey(svc.envKey, val);
-          console.log(`  ${green("✔")} Saved to .env.local`);
+    openBrowser(svc.url);
+    console.log(`  ${cyan("→")} Browser opened to ${svc.url}`);
+    console.log(`  ${dim("  If not already logged in, sign in now.")}\n`);
+
+    // Wait a moment then prompt for each key
+    let ready = false;
+    for (const k of svc.keys) {
+      const done = await promptKey(env, k);
+      if (done) collected++; else skipped++;
+      ready = true;
+    }
+
+    // If there are subkeys (e.g. R2 API tokens that need separate page)
+    if (svc.subkeys && svc.subkeys.length > 0) {
+      const allSubSet = svc.subkeys.every((k) => isSet(env, k));
+      if (!allSubSet) {
+        console.log(`\n  ${yellow("→")} Now create an API token and paste the credentials.\n`);
+        for (const k of svc.subkeys) {
+          const done = await promptKey(env, k);
+          if (done) collected++; else skipped++;
         }
-        continue;
       }
-    } catch (e) {
-      // ignore eval errors
     }
 
-    // Couldn't auto-extract - ask user
-    console.log(`  ${yellow("→")} Couldn't auto-extract. Please copy the key from the page.`);
-    console.log(`  ${yellow("→")} If not logged in, log in now, then paste the key below.`);
-    const manual = await ask(`    ${bold("Paste key (or Enter to skip):")} `);
-    if (manual) {
-      saveKey(svc.envKey, manual);
-      console.log(`  ${green("✔")} Saved to .env.local`);
+    // Post keys (bucket name, URLs, etc.)
+    if (svc.post && svc.post.length > 0) {
+      for (const k of svc.post) {
+        const done = await promptKey(env, k);
+        if (done) collected++; else skipped++;
+      }
     }
+
+    console.log(`\n  ${green("✔")} ${svc.name} done`);
   }
 
-  console.log(`\n${green("Done!")} Keys written to ${ENV}`);
-  console.log(`  ${bold("Missing keys can be added manually or by re-running this script.")}\n`);
+  console.log(`\n${green("Done!")} Collected ${collected} keys, skipped ${skipped}.`);
+  console.log(`${dim("File:")} ${ENV}\n`);
+
   rl.close();
 }
 
 main().catch((e) => {
-  console.error("Error:", e.message);
+  console.error("\nError:", e.message);
   process.exit(1);
 });

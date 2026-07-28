@@ -41,4 +41,3 @@ export * from "./permissions";
 export * from "./org-roles";
 export * from "./invitations";
 export * from "./entity-settings";
-export * from "./journal-entry-sources";

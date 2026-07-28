@@ -6,6 +6,47 @@
 
 ---
 
+### [2026-07-28] — Interactive API Key Collection Script
+
+**Agent:** Opencode
+**Duration:** ~10 min
+**Files Modified:** 1
+
+**What was built:**
+
+Rewrote `scripts/get-keys.mjs` from a CDP-based auto-extract approach to a clean interactive CLI wizard.
+
+**Approach change:** Removed all Chrome DevTools Protocol / WebSocket / puppeteer dependencies. The script now simply `start`s your default browser to each service's dashboard URL, then prompts you to paste the key after you've signed in and copied it.
+
+**Services covered (9 total):**
+
+- Anthropic (API Key)
+- Resend (API Key + Sender Email)
+- Cloudflare R2 (Account ID, Access Key, Secret Key, Bucket Name, Public URL)
+- LangFuse (Public Key, Secret Key, Base URL)
+- OpenAI (API Key, optional)
+- Google OAuth (Client ID + Secret, optional)
+- Trigger.dev (Secret Key + API Key, optional)
+- Upstash Redis (REST URL + Token, optional)
+- ModemPay (Secret + Public Key, optional)
+
+**Key changes:**
+
+- No more `--remote-debugging-port=9222` requirement
+- No auto-extract JS that silently fails on different page layouts
+- Cloudflare R2 split into 3 steps: Account ID (overview page) → API Token (tokens page) → Bucket Name (buckets page)
+- Each prompt shows expected key format/hint (e.g. "starts with sk-ant-")
+- Optional keys can be skipped with Enter
+- Keys saved immediately to `.env.local` after each paste
+
+### Verification
+
+| Check  | Status          |
+| ------ | --------------- |
+| Syntax | ✅ Parses clean |
+
+---
+
 ### [2026-07-28] — RBAC Matrix Application Layer Enforcement
 
 **Agent:** Buffy (Autonomous Engineer)

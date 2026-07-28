@@ -316,6 +316,9 @@ export {
   cashAgent,
   mobileMoneyAgent,
   payrollWorkerAgent,
+  expenseAgent,
+  taxAgent,
+  auditAgent,
 } from "./tier3";
 export type {
   LedgerStateType,
@@ -338,6 +341,9 @@ export type {
   MobileMoneyStateType,
   PayrollWorkerStateType,
   PayslipData,
+  ExpenseStateType,
+  TaxStateType,
+  AuditStateType,
 } from "./tier3";
 
 // ─── Platform Agents ─────────────────────────────────────────────────────────
