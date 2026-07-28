@@ -4,78 +4,152 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* ── Design System v1.0 — Xenboox ── */
+    /* Six core colors — nothing more */
+
+    /* Ledger Ink #14213D — primary text & UI chrome */
+    --ledger-ink: 222 50% 16%;
+    --ledger-ink-2: 222 50% 26%;
+    --ledger-ink-3: 222 40% 36%;
+
+    /* Paper #FAFAF8 — base background, warm-neutral off-white */
+    --paper: 45 17% 97%;
+    --paper-2: 45 15% 93%;
+    --paper-3: 45 12% 87%;
+
+    /* Balanced Green #0F7159 — reconciled / balanced / agent-confirmed */
+    --balanced-green: 165 77% 25%;
+    --balanced-green-bg: 165 77% 95%;
+    --balanced-green-muted: 165 40% 85%;
+
+    /* Attention Amber #B8860B — flagged / needs review */
+    --attention-amber: 43 89% 38%;
+    --attention-amber-bg: 43 89% 94%;
+    --attention-amber-muted: 43 60% 82%;
+
+    /* Error Clay #A6403A — truly urgent / unbalanced */
+    --error-clay: 4 49% 44%;
+    --error-clay-bg: 4 49% 95%;
+    --error-clay-muted: 4 40% 85%;
+
+    /* Signal Indigo #3B4FE0 — the one saturated accent, interactive only */
+    --signal-indigo: 233 73% 55%;
+    --signal-indigo-hover: 233 73% 48%;
+    --signal-indigo-bg: 233 73% 95%;
+
+    /* ── Semantic CSS Variable Mappings ── */
+    --background: var(--paper);
+    --foreground: var(--ledger-ink);
+
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: var(--ledger-ink);
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 221 83% 53%; /* Blue-600 */
-    --primary-foreground: 0 0% 98%;
-    --primary-vivid: 221 83% 53%;
-    --primary-soft: 221 83% 95%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 56.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --accent-2: 221 83% 96%;
-    --accent-3: 142 76% 95%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 221 83% 53%;
-    --radius: 0.5rem;
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
-    --info: 221 83% 53%;
-    --info-foreground: 0 0% 98%;
-    --chart-1: 221 83% 53%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 30 80% 55%;
+    --popover-foreground: var(--ledger-ink);
+
+    --primary: var(--signal-indigo);
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: var(--signal-indigo-hover);
+
+    --secondary: var(--ledger-ink);
+    --secondary-foreground: 0 0% 100%;
+    --secondary-outline: var(--ledger-ink-3);
+
+    --muted: var(--paper-2);
+    --muted-foreground: var(--ledger-ink-3);
+
+    --accent: var(--signal-indigo-bg);
+    --accent-foreground: var(--signal-indigo);
+
+    --destructive: var(--error-clay);
+    --destructive-foreground: 0 0% 100%;
+
+    --success: var(--balanced-green);
+    --success-foreground: 0 0% 100%;
+    --success-bg: var(--balanced-green-bg);
+
+    --warning: var(--attention-amber);
+    --warning-foreground: 0 0% 100%;
+    --warning-bg: var(--attention-amber-bg);
+
+    --border: var(--paper-3);
+    --input: var(--paper-3);
+    --ring: var(--signal-indigo);
+
+    --radius: 0.375rem; /* 6px — consistent throughout */
+
+    /* Chart colors (for analytics views, muted versions of core palette) */
+    --chart-1: var(--signal-indigo);
+    --chart-2: var(--balanced-green);
+    --chart-3: var(--attention-amber);
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 98%;
-    --primary-vivid: 221 83% 60%;
-    --primary-soft: 221 83% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --accent-2: 221 83% 8%;
-    --accent-3: 142 76% 8%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 221 83% 53%;
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
-    --info: 221 83% 53%;
-    --info-foreground: 0 0% 98%;
-    --chart-1: 221 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Dark mode — deep navy base */
+    --ledger-ink: 222 50% 92%;
+    --ledger-ink-2: 222 30% 80%;
+    --ledger-ink-3: 222 20% 65%;
+
+    --paper: 222 25% 8%;
+    --paper-2: 222 20% 12%;
+    --paper-3: 222 15% 18%;
+
+    --balanced-green: 165 60% 45%;
+    --balanced-green-bg: 165 40% 12%;
+    --balanced-green-muted: 165 30% 25%;
+
+    --attention-amber: 43 80% 55%;
+    --attention-amber-bg: 43 50% 12%;
+    --attention-amber-muted: 43 40% 25%;
+
+    --error-clay: 4 50% 55%;
+    --error-clay-bg: 4 30% 12%;
+    --error-clay-muted: 4 30% 25%;
+
+    --signal-indigo: 233 70% 65%;
+    --signal-indigo-hover: 233 70% 75%;
+    --signal-indigo-bg: 233 50% 12%;
+
+    /* Semantic mappings for dark */
+    --background: var(--paper);
+    --foreground: var(--ledger-ink);
+
+    --card: var(--paper-2);
+    --card-foreground: var(--ledger-ink);
+    --popover: var(--paper-2);
+    --popover-foreground: var(--ledger-ink);
+
+    --primary: var(--signal-indigo);
+    --primary-foreground: var(--paper);
+    --primary-hover: var(--signal-indigo-hover);
+
+    --secondary: var(--ledger-ink);
+    --secondary-foreground: var(--paper);
+    --secondary-outline: var(--ledger-ink-2);
+
+    --muted: var(--paper-2);
+    --muted-foreground: var(--ledger-ink-3);
+
+    --accent: var(--signal-indigo-bg);
+    --accent-foreground: var(--signal-indigo);
+
+    --destructive: var(--error-clay);
+    --destructive-foreground: var(--paper);
+
+    --success: var(--balanced-green);
+    --success-foreground: var(--paper);
+    --success-bg: var(--balanced-green-bg);
+
+    --warning: var(--attention-amber);
+    --warning-foreground: var(--paper);
+    --warning-bg: var(--attention-amber-bg);
+
+    --border: var(--paper-3);
+    --input: var(--paper-3);
+    --ring: var(--signal-indigo);
+
+    --radius: 0.375rem;
   }
 }
 
@@ -86,17 +160,230 @@
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1,
+      "tnum" 1; /* tabular figures by default for body */
+  }
+
+  /* ── Typography Defaults ── */
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Monospace for all financial figures — IBM Plex Mono via tabular-nums utility */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Code",
+      "Consolas", monospace;
+  }
+
+  /* Tabular figures on all numeric data */
+  [data-type="tabular"] {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+    -moz-font-feature-settings: "tnum" 1;
+    -webkit-font-feature-settings: "tnum" 1;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* ── Focus Ring ── */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--signal-indigo));
+    outline-offset: 2px;
+  }
+
+  /* Keyboard shortcut: use .focus-ring when JavaScript focus management is used */
+  .focus-ring:focus-visible {
+    outline: 2px solid hsl(var(--signal-indigo));
+    outline-offset: 2px;
+    border-radius: var(--radius);
+  }
+}
+
+@layer components {
+  /* ── Balance Check — Signature Element (§5) ── */
+  .balance-check {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .balance-check__line {
+    width: 32px;
+    height: 2px;
+    background: hsl(var(--balanced-green));
+    border-radius: 1px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .balance-check__line::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    animation: balance-draw 400ms ease-out forwards;
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+
+  .balance-check--small .balance-check__line {
+    width: 20px;
+    height: 1.5px;
+  }
+
+  .balance-check--large .balance-check__line {
+    width: 48px;
+    height: 3px;
+  }
+
+  .balance-check__icon {
+    color: hsl(var(--balanced-green));
+    opacity: 0;
+    animation: balance-check-appear 300ms ease-out 400ms forwards;
+  }
+
+  .balance-check--animate .balance-check__line::after {
+    transform: scaleX(1);
+  }
+
+  .balance-check--animate .balance-check__icon {
+    opacity: 1;
+  }
+
+  /* ── Agent Attribution Tag ── */
+  .agent-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1;
+    color: hsl(var(--ledger-ink) / 0.65);
+    white-space: nowrap;
+  }
+
+  .agent-tag__dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: hsl(var(--balanced-green));
+  }
+
+  .agent-tag__dot--low {
+    background: hsl(var(--attention-amber));
+  }
+
+  .agent-tag__dot--critical {
+    background: hsl(var(--error-clay));
+  }
+
+  /* ── Confidence Bar ── */
+  .confidence-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .confidence-bar__track {
+    width: 48px;
+    height: 4px;
+    border-radius: 2px;
+    background: hsl(var(--paper-3));
+    overflow: hidden;
+  }
+
+  .confidence-bar__fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 400ms ease-out;
+  }
+
+  .confidence-bar__fill--high {
+    background: hsl(var(--balanced-green));
+  }
+
+  .confidence-bar__fill--medium {
+    background: hsl(var(--attention-amber));
+  }
+
+  .confidence-bar__fill--low {
+    background: hsl(var(--error-clay));
+  }
+
+  .confidence-bar__label {
+    font-size: 11px;
+    font-weight: 500;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Table Zebra Striping (applied via JS when row count > 15) ── */
+  .table-zebra tbody tr:nth-child(even) {
+    background-color: hsl(var(--ledger-ink) / 0.03);
+  }
+
+  .table-zebra tbody tr:hover {
+    background-color: hsl(var(--signal-indigo) / 0.04);
   }
 }
 
 @layer utilities {
+  /* ── Reduced Motion ── */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    .balance-check__line::after {
+      transform: scaleX(1) !important;
+    }
+
+    .balance-check__icon {
+      opacity: 1 !important;
+    }
+  }
+
+  /* ── Number Alignment for Tables ── */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    -moz-font-feature-settings: "tnum" 1;
+    -webkit-font-feature-settings: "tnum" 1;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .text-right-tabular {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono), ui-monospace, "SF Mono", "Consolas", monospace;
+  }
+
+  /* ── Additional type color helpers (fontSize from tailwind config handles sizing) ── */
+  .text-caption-subtle {
+    font-size: 12px;
+    line-height: 1.4;
+    color: hsl(var(--ledger-ink) / 0.65);
+  }
+
+  /* ── Scrollbar ── */
   .scrollbar-thin {
     scrollbar-width: thin;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -104,7 +391,7 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted-foreground) / 0.3);
+    background-color: hsl(var(--paper-3));
     border-radius: 3px;
   }
 
@@ -112,113 +399,79 @@
     background-color: hsl(var(--muted-foreground) / 0.5);
   }
 
-  /* Marketing page utilities */
-  .bg-grid {
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  }
-
-  .bg-grid-dark {
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23fff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  }
-
+  /* ── Text Balance ── */
   .text-balance {
     text-wrap: balance;
   }
 
+  /* ── Background Grid for Marketing Pages ── */
+  .bg-grid {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2314213D' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  .bg-grid-dark {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23FAFAF8' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* ── Prose Policy (for documentation pages) ── */
   .prose-policy h2 {
     @apply mt-8 mb-3 text-xl font-semibold tracking-tight;
   }
-
   .prose-policy h3 {
     @apply mt-6 mb-2 text-base font-semibold;
   }
-
   .prose-policy p {
     @apply mb-4 leading-relaxed;
   }
-
   .prose-policy ul {
     @apply mb-4 space-y-1.5 pl-5 list-disc;
   }
-
   .prose-policy ol {
     @apply mb-4 space-y-1.5 pl-5 list-decimal;
   }
-
   .prose-policy li {
     @apply leading-relaxed;
   }
-
   .prose-policy strong {
     @apply font-semibold;
   }
-
   .prose-policy a {
     @apply underline underline-offset-2 decoration-primary/30 hover:decoration-primary transition-all;
   }
-
   .prose-policy table {
     @apply w-full text-sm mb-6;
   }
-
   .prose-policy thead {
     @apply border-b;
   }
-
   .prose-policy th {
     @apply pb-2 pr-4 text-left font-semibold;
   }
-
   .prose-policy td {
     @apply py-2 pr-4;
   }
-
   .prose-policy tbody tr {
     @apply border-b last:border-0;
   }
 
-  .animate-in {
-    animation: fade-in-up 0.6s ease-out both;
+  /* ── Reduced motion aware animations ── */
+  @keyframes balance-draw {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
   }
 
-  .animate-in-delay-1 {
-    animation: fade-in-up 0.6s ease-out 0.1s both;
-  }
-
-  .animate-in-delay-2 {
-    animation: fade-in-up 0.6s ease-out 0.2s both;
-  }
-
-  .animate-in-delay-3 {
-    animation: fade-in-up 0.6s ease-out 0.3s both;
-  }
-
-  .animate-in-delay-4 {
-    animation: fade-in-up 0.6s ease-out 0.4s both;
-  }
-
-  @keyframes fade-in-up {
+  @keyframes balance-check-appear {
     from {
       opacity: 0;
-      transform: translateY(16px);
+      transform: scale(0.5);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: scale(1);
     }
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-  }
-
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
   }
 }

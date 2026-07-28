@@ -79,3 +79,12 @@ export { Switch } from "./switch";
 export { Progress, type ProgressProps } from "./progress";
 export { Skeleton } from "./skeleton";
 export { Checkbox } from "./checkbox";
+export { BalanceCheck, type BalanceCheckProps } from "./balance-check";
+export {
+  ConfidenceIndicator,
+  type ConfidenceIndicatorProps,
+} from "./confidence-indicator";
+export {
+  AgentAttribution,
+  type AgentAttributionProps,
+} from "./agent-attribution";

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { TRPCProvider } from "@/lib/trpc/provider";
 import "./globals.css";
@@ -10,6 +10,13 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mono",
+  weight: ["400", "500", "600"],
 });
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.com";
@@ -80,7 +87,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${ibmPlexMono.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen bg-background font-sans antialiased">
         <ThemeProvider>
           <TRPCProvider>{children}</TRPCProvider>

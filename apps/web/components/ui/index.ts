@@ -75,3 +75,9 @@ export { Switch } from "@xenboox/ui";
 export { Progress, type ProgressProps } from "@xenboox/ui";
 export { Skeleton } from "@xenboox/ui";
 export { Checkbox } from "@xenboox/ui";
+export { BalanceCheck, type BalanceCheckProps } from "@xenboox/ui";
+export {
+  ConfidenceIndicator,
+  type ConfidenceIndicatorProps,
+} from "@xenboox/ui";
+export { AgentAttribution, type AgentAttributionProps } from "@xenboox/ui";

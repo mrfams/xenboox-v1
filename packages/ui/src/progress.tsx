@@ -1,17 +1,28 @@
-import * as React from "react"
-import { cn } from "./lib"
+import * as React from "react";
+import { cn } from "./lib";
 
 interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
-  value: number
-  max?: number
-  variant?: "default" | "success" | "warning" | "danger"
-  size?: "sm" | "md" | "lg"
-  indicatorClassName?: string
+  value: number;
+  max?: number;
+  variant?: "default" | "success" | "warning" | "danger";
+  size?: "sm" | "md" | "lg";
+  indicatorClassName?: string;
 }
 
 const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
-  ({ className, value, max = 100, variant = "default", size = "md", indicatorClassName, ...props }, ref) => {
-    const percentage = Math.min(100, Math.max(0, (value / max) * 100))
+  (
+    {
+      className,
+      value,
+      max = 100,
+      variant = "default",
+      size = "md",
+      indicatorClassName,
+      ...props
+    },
+    ref,
+  ) => {
+    const percentage = Math.min(100, Math.max(0, (value / max) * 100));
 
     return (
       <div
@@ -25,25 +36,25 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
           size === "sm" && "h-1.5",
           size === "md" && "h-2.5",
           size === "lg" && "h-4",
-          className
+          className,
         )}
         {...props}
       >
         <div
           className={cn(
             "h-full rounded-full transition-all duration-300 ease-in-out",
-            variant === "default" && "bg-primary",
-            variant === "success" && "bg-green-500",
-            variant === "warning" && "bg-yellow-500",
-            variant === "danger" && "bg-red-500",
-            indicatorClassName
+            variant === "default" && "bg-signal-indigo",
+            variant === "success" && "bg-balanced-green",
+            variant === "warning" && "bg-attention-amber",
+            variant === "danger" && "bg-error-clay",
+            indicatorClassName,
           )}
           style={{ width: `${percentage}%` }}
         />
       </div>
-    )
-  }
-)
-Progress.displayName = "Progress"
+    );
+  },
+);
+Progress.displayName = "Progress";
 
-export { Progress, type ProgressProps }
+export { Progress, type ProgressProps };
