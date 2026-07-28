@@ -18,6 +18,8 @@ import {
   organizations,
 } from "@xenboox/db/schema/organization";
 import { users } from "@xenboox/db/schema/auth";
+import { auditLog } from "@xenboox/db/schema/documents";
+import { logger } from "@/lib/logger";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -116,6 +118,30 @@ export const invitationsRouter = router({
             expiresAt,
           })
           .returning();
+
+        // Audit trail: invite issued
+        try {
+          await db.insert(auditLog).values({
+            entityId: invite.entityId ?? ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "invitations.issue",
+            entityType: "pending_invites",
+            entityIdRef: invite.id,
+            newValues: {
+              email: input.email.toLowerCase(),
+              role: input.role,
+              entityId: input.entityId ?? null,
+              orgId: input.orgId ?? null,
+              expiresAt: invite.expiresAt.toISOString(),
+            },
+          });
+        } catch {
+          // Non-blocking
+          logger.error(
+            { inviteId: invite.id },
+            "Failed to log invite issuance",
+          );
+        }
 
         return { ...invite, token };
       } catch (error) {
@@ -224,6 +250,31 @@ export const invitationsRouter = router({
           .update(pendingInvites)
           .set({ status: "accepted", acceptedAt: new Date() })
           .where(eq(pendingInvites.id, invite.id));
+
+        // Audit trail: invite accepted (guard: accept is publicProcedure — no entity context guaranteed)
+        const auditEntityId = invite.entityId ?? (ctx as any).entityId;
+        if (auditEntityId) {
+          try {
+            await db.insert(auditLog).values({
+              entityId: auditEntityId,
+              userId,
+              action: "invitations.accept",
+              entityType: "pending_invites",
+              entityIdRef: invite.id,
+              newValues: {
+                role: invite.role,
+                entityId: invite.entityId ?? null,
+                orgId: invite.orgId ?? null,
+              },
+            });
+          } catch {
+            // Non-blocking
+            logger.error(
+              { inviteId: invite.id },
+              "Failed to log invite acceptance",
+            );
+          }
+        }
 
         return { success: true, entityId: invite.entityId ?? null };
       } catch (error) {

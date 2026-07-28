@@ -7,10 +7,11 @@ import {
   protectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { users, sessions, verificationTokens } from "@xenboox/db/schema/auth";
 import { entities, userEntityAccess } from "@xenboox/db/schema/organization";
 import { orgRoles } from "@xenboox/db/schema/org-roles";
+import { pendingInvites } from "@xenboox/db/schema/invitations";
 import { auditLog } from "@xenboox/db/schema/documents";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
@@ -174,14 +175,10 @@ export const authRouter = router({
           });
         }
 
-        // Require email verification
-        if (!user.emailVerified) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message:
-              "Please verify your email address before logging in. Check your inbox for the verification link.",
-          });
-        }
+        // Milestone 11: View-vs-act distinction. Unverified users CAN log in
+        // but write operations are blocked via requireVerifiedEmail middleware.
+        // No explicit check here — login is allowed regardless of email verification.
+        // The middleware on mutateProcedure enforces verification for write actions.
 
         const valid = await bcrypt.compare(input.password, user.passwordHash);
         if (!valid) {
@@ -234,6 +231,7 @@ export const authRouter = router({
           entityRole: firstEntityRole,
           name: user.name,
           email: user.email,
+          emailVerified: !!user.emailVerified,
         };
       } catch (error) {
         handleMutationError(error, "An unexpected error occurred");
@@ -328,10 +326,62 @@ export const authRouter = router({
           console.error("[auth] Failed to send verification email");
         }
 
+        // ─── Milestone 2: Auto-check for pending invites ────────────
+        let autoAcceptedEntityId: string | null = null;
+        try {
+          const pending = await db.query.pendingInvites.findFirst({
+            where: and(
+              eq(pendingInvites.email, input.email.toLowerCase()),
+              eq(pendingInvites.status, "pending"),
+            ),
+          });
+          if (pending) {
+            if (pending.entityId) {
+              await db
+                .insert(userEntityAccess)
+                .values({
+                  userId: user.id,
+                  entityId: pending.entityId,
+                  role: pending.role as any,
+                  grantedBy: pending.invitedBy,
+                })
+                .onConflictDoNothing();
+              autoAcceptedEntityId = pending.entityId;
+            } else if (pending.orgId) {
+              await db
+                .insert(orgRoles)
+                .values({
+                  userId: user.id,
+                  orgId: pending.orgId,
+                  role: pending.role as "owner" | "admin",
+                  grantedBy: pending.invitedBy,
+                })
+                .onConflictDoNothing();
+            }
+            await db
+              .update(pendingInvites)
+              .set({ status: "accepted", acceptedAt: new Date() })
+              .where(eq(pendingInvites.id, pending.id));
+            logger.info(
+              { userId: user.id, inviteId: pending.id },
+              "Pending invite auto-accepted after signup",
+            );
+          }
+        } catch {
+          // Non-blocking — invite check failure shouldn't prevent signup
+          console.error("[auth] Failed to check/accept pending invites");
+        }
+
+        // Audit trail: registration
+        logger.info(
+          { userId: user.id, email: user.email },
+          "User registered (identity-first)",
+        );
+
         return {
           token,
           userId: user.id,
-          entityId: null,
+          entityId: autoAcceptedEntityId,
           name: user.name,
           email: user.email,
         };
@@ -935,6 +985,7 @@ export const authRouter = router({
             entityRole: firstEntityRole,
             name: user.name,
             email: user.email,
+            emailVerified: !!user.emailVerified,
           };
         }
 
@@ -970,6 +1021,7 @@ export const authRouter = router({
                 entityRole: firstEntityRole,
                 name: user.name,
                 email: user.email,
+                emailVerified: !!user.emailVerified,
                 backupCodeUsed: true,
                 backupCodesRemaining,
                 warnLowCodes,

@@ -583,6 +583,7 @@ const idempotencyMiddleware = t.middleware(async ({ ctx, next, path }) => {
 export const mutateProcedure = t.procedure
   .use(loggingMiddleware)
   .use(authMiddleware)
+  .use(requireVerifiedEmail)
   .use(entityScopingMiddleware)
   .use(idempotencyMiddleware);
 
