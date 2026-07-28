@@ -314,6 +314,7 @@ export const customers = pgTable(
     taxId: text("tax_id"),
     paymentTerms: text("payment_terms").default("net30"),
     creditLimit: numeric("credit_limit", { precision: 15, scale: 2 }),
+    isDonor: boolean("is_donor").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
     metadata: jsonb("metadata").default({}).$type<Record<string, unknown>>(),
     ...timestamps,

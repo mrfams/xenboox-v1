@@ -29,7 +29,9 @@ export default function StyleGuidePage() {
           <p className="text-body-lg text-muted-foreground">
             v1.0 — Calm, dense, precise, and quietly confident.
           </p>
-          <p className="text-caption-subtle mt-2">Last updated: July 2026</p>
+          <p className="text-caption text-muted-foreground mt-2">
+            Last updated: July 2026
+          </p>
         </header>
 
         <hr className="border-border" />
@@ -82,39 +84,51 @@ export default function StyleGuidePage() {
           <h2 className="text-h3 mb-6">Typography</h2>
           <div className="space-y-4">
             <div>
-              <p className="text-caption mb-1">Heading 1 — 48px</p>
+              <p className="text-caption text-muted-foreground mb-1">
+                Heading 1 — 48px
+              </p>
               <p className="text-h1">The quick brown fox</p>
             </div>
             <div>
-              <p className="text-caption mb-1">Heading 2 — 32px</p>
+              <p className="text-caption text-muted-foreground mb-1">
+                Heading 2 — 32px
+              </p>
               <p className="text-h2">The quick brown fox</p>
             </div>
             <div>
-              <p className="text-caption mb-1">Heading 3 — 24px</p>
+              <p className="text-caption text-muted-foreground mb-1">
+                Heading 3 — 24px
+              </p>
               <p className="text-h3">The quick brown fox</p>
             </div>
             <div>
-              <p className="text-caption mb-1">Body Large — 16px</p>
+              <p className="text-caption text-muted-foreground mb-1">
+                Body Large — 16px
+              </p>
               <p className="text-body-lg">
                 The quick brown fox jumps over the lazy dog. Xenboox uses Inter
                 for UI and IBM Plex Mono for figures.
               </p>
             </div>
             <div>
-              <p className="text-caption mb-1">Body — 14px (default)</p>
+              <p className="text-caption text-muted-foreground mb-1">
+                Body — 14px (default)
+              </p>
               <p className="text-body">
                 The quick brown fox jumps over the lazy dog. Xenboox uses Inter
                 for UI and IBM Plex Mono for figures.
               </p>
             </div>
             <div>
-              <p className="text-caption mb-1">Caption — 12px</p>
+              <p className="text-caption text-muted-foreground mb-1">
+                Caption — 12px
+              </p>
               <p className="text-caption">
                 The quick brown fox jumps over the lazy dog.
               </p>
             </div>
             <div className="pt-4">
-              <p className="text-caption mb-2">
+              <p className="text-caption text-muted-foreground mb-2">
                 Tabular Figures (IBM Plex Mono)
               </p>
               <div className="flex gap-8">
@@ -173,7 +187,7 @@ export default function StyleGuidePage() {
         {/* ── Badges ── */}
         <section>
           <h2 className="text-h3 mb-6">Status Badges</h2>
-          <p className="text-caption mb-4">
+          <p className="text-caption text-muted-foreground mb-4">
             Three semantic colors only — never invent a fourth.
           </p>
           <div className="flex flex-wrap gap-3 items-center">
@@ -189,7 +203,7 @@ export default function StyleGuidePage() {
         {/* ── Confidence Indicator ── */}
         <section>
           <h2 className="text-h3 mb-6">Confidence Indicator</h2>
-          <p className="text-caption mb-4">
+          <p className="text-caption text-muted-foreground mb-4">
             Visual bar + percentage next to agent-produced figures below 90%
             confidence.
           </p>
@@ -216,12 +230,14 @@ export default function StyleGuidePage() {
         {/* ── Agent Attribution ── */}
         <section>
           <h2 className="text-h3 mb-6">Agent Attribution</h2>
-          <p className="text-caption mb-4">
+          <p className="text-caption text-muted-foreground mb-4">
             Every agent-touched record shows a consistent tag.
           </p>
           <div className="space-y-4">
             <div>
-              <p className="text-caption mb-2">Default variant</p>
+              <p className="text-caption text-muted-foreground mb-2">
+                Default variant
+              </p>
               <AgentAttribution
                 agentName="Ledger Agent"
                 timestamp="2h ago"
@@ -229,7 +245,9 @@ export default function StyleGuidePage() {
               />
             </div>
             <div>
-              <p className="text-caption mb-2">Medium confidence</p>
+              <p className="text-caption text-muted-foreground mb-2">
+                Medium confidence
+              </p>
               <AgentAttribution
                 agentName="AP Agent"
                 timestamp="1h ago"
@@ -237,7 +255,9 @@ export default function StyleGuidePage() {
               />
             </div>
             <div>
-              <p className="text-caption mb-2">Low confidence</p>
+              <p className="text-caption text-muted-foreground mb-2">
+                Low confidence
+              </p>
               <AgentAttribution
                 agentName="OCR Agent"
                 timestamp="5m ago"
@@ -245,7 +265,9 @@ export default function StyleGuidePage() {
               />
             </div>
             <div>
-              <p className="text-caption mb-2">Compact variant</p>
+              <p className="text-caption text-muted-foreground mb-2">
+                Compact variant
+              </p>
               <AgentAttribution
                 agentName="Reconciliation Agent"
                 timestamp="30m ago"
@@ -259,7 +281,7 @@ export default function StyleGuidePage() {
         {/* ── Balance Check ── */}
         <section>
           <h2 className="text-h3 mb-6">Balance Check (Signature Element)</h2>
-          <p className="text-caption mb-4">
+          <p className="text-caption text-muted-foreground mb-4">
             The double-entry balance indicator. Appears at three specific
             moments: journal entry post, reconciliation close, and month-end
             close. 400ms ease-out — relief, not celebration.
@@ -285,19 +307,27 @@ export default function StyleGuidePage() {
           <h2 className="text-h3 mb-6">Progress</h2>
           <div className="space-y-4 max-w-md">
             <div>
-              <p className="text-caption mb-2">Default (Signal Indigo)</p>
+              <p className="text-caption text-muted-foreground mb-2">
+                Default (Signal Indigo)
+              </p>
               <Progress value={65} />
             </div>
             <div>
-              <p className="text-caption mb-2">Success (Balanced Green)</p>
+              <p className="text-caption text-muted-foreground mb-2">
+                Success (Balanced Green)
+              </p>
               <Progress value={100} variant="success" />
             </div>
             <div>
-              <p className="text-caption mb-2">Warning (Attention Amber)</p>
+              <p className="text-caption text-muted-foreground mb-2">
+                Warning (Attention Amber)
+              </p>
               <Progress value={45} variant="warning" />
             </div>
             <div>
-              <p className="text-caption mb-2">Danger (Error Clay)</p>
+              <p className="text-caption text-muted-foreground mb-2">
+                Danger (Error Clay)
+              </p>
               <Progress value={20} variant="danger" />
             </div>
           </div>
@@ -306,7 +336,7 @@ export default function StyleGuidePage() {
         {/* ── Table ── */}
         <section>
           <h2 className="text-h3 mb-6">Data Table</h2>
-          <p className="text-caption mb-4">
+          <p className="text-caption text-muted-foreground mb-4">
             Sticky headers, tabular figures, zebra striping for long lists.
           </p>
           <Card>

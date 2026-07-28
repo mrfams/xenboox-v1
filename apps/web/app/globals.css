@@ -369,12 +369,7 @@
     font-family: var(--font-mono), ui-monospace, "SF Mono", "Consolas", monospace;
   }
 
-  /* ── Additional type color helpers (fontSize from tailwind config handles sizing) ── */
-  .text-caption-subtle {
-    font-size: 12px;
-    line-height: 1.4;
-    color: hsl(var(--ledger-ink) / 0.65);
-  }
+
 
   /* ── Scrollbar ── */
   .scrollbar-thin {
