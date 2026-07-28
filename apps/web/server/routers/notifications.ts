@@ -28,12 +28,12 @@ export const notificationsRouter = router({
       const whereClause = input.onlyUnread
         ? and(
             eq(notifications.userId, ctx.session!.user!.id!),
-            eq(notifications.entityId, ctx.entityId),
+            eq(notifications.entityId, ctx.entityId!),
             eq(notifications.read, false),
           )
         : and(
             eq(notifications.userId, ctx.session!.user!.id!),
-            eq(notifications.entityId, ctx.entityId),
+            eq(notifications.entityId, ctx.entityId!),
           );
 
       const results = await db.query.notifications.findMany({
@@ -50,7 +50,7 @@ export const notificationsRouter = router({
     const results = await db.query.notifications.findFirst({
       where: and(
         eq(notifications.userId, ctx.session!.user!.id!),
-        eq(notifications.entityId, ctx.entityId),
+        eq(notifications.entityId, ctx.entityId!),
         eq(notifications.read, false),
       ),
     });
@@ -68,7 +68,7 @@ export const notificationsRouter = router({
           and(
             eq(notifications.id, input.id),
             eq(notifications.userId, ctx.session!.user!.id!),
-            eq(notifications.entityId, ctx.entityId),
+            eq(notifications.entityId, ctx.entityId!),
           ),
         );
 
@@ -82,7 +82,7 @@ export const notificationsRouter = router({
       .where(
         and(
           eq(notifications.userId, ctx.session!.user!.id!),
-          eq(notifications.entityId, ctx.entityId),
+          eq(notifications.entityId, ctx.entityId!),
           eq(notifications.read, false),
         ),
       );
@@ -99,7 +99,7 @@ export const notificationsRouter = router({
           and(
             eq(notifications.id, input.id),
             eq(notifications.userId, ctx.session!.user!.id!),
-            eq(notifications.entityId, ctx.entityId),
+            eq(notifications.entityId, ctx.entityId!),
           ),
         );
 
