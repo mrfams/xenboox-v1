@@ -30,7 +30,6 @@ import {
   TrendingUp,
   CalendarDays,
   Activity,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -289,27 +288,6 @@ function WhiteLabelLogo() {
   );
 }
 
-// ─── AI Command Bar ─────────────────────────────────────────────────────
-
-function AiCommandBar() {
-  const [query, setQuery] = useState("");
-
-  return (
-    <div className="relative">
-      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-        <Sparkles className="h-3.5 w-3.5 text-primary" />
-      </div>
-      <input
-        type="text"
-        placeholder="Ask AI anything..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="w-full rounded-lg border bg-muted/50 py-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/20 transition-all"
-      />
-    </div>
-  );
-}
-
 // ─── Agent Status Bar ───────────────────────────────────────────────────
 
 function AgentStatusBar() {
@@ -447,7 +425,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex flex-col gap-3 border-b p-4">
           <WhiteLabelLogo />
           <EntitySwitcher />
-          <AiCommandBar />
         </div>
 
         {/* Grouped Navigation */}

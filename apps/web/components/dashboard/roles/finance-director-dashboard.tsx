@@ -15,7 +15,7 @@ import {
   TabsContent,
 } from "@/components/ui";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { AgentActivityItem } from "@/components/dashboard/agent-activity-item";
+import { AgentActivityFeed } from "@/components/dashboard/agent-activity-feed";
 import { Skeleton } from "@/components/shared/loading";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
@@ -132,77 +132,6 @@ function KeyMetricsGrid({
         href="/dashboard/treasury"
       />
     </div>
-  );
-}
-
-// ─── Agent Activity Feed ───────────────────────────────────────────────
-
-function AgentActivityFeed() {
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bot className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Agent Activity Feed
-            </CardTitle>
-          </div>
-          <Badge variant="secondary" className="text-[10px]">
-            Live
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <AgentActivityItem
-            agent="AP"
-            action="processed 3 supplier invoices from Basiq Trading"
-            timestamp="2 min ago"
-            entity="Acme Corp"
-            confidence="high"
-          />
-          <AgentActivityItem
-            agent="Ledger"
-            action="posted journal entry #1042 — Depreciation for June"
-            timestamp="15 min ago"
-            confidence="high"
-          />
-          <AgentActivityItem
-            agent="Cash"
-            action="flagged unreconciled transaction in MTN MoMo"
-            timestamp="1 hour ago"
-            confidence="medium"
-            source="MTN Mobile Money Statement"
-            reasoning="Transaction amount GHS 450.00 appears on mobile statement but no matching ledger entry found."
-          />
-          <AgentActivityItem
-            agent="Reconciliation"
-            action="matched 42 of 45 bank transactions for Main Operating account"
-            timestamp="2 hours ago"
-            confidence="high"
-          />
-          <AgentActivityItem
-            agent="AR"
-            action="sent payment reminders to 5 overdue customers"
-            timestamp="5 hours ago"
-            entity="Acme Corp"
-            confidence="high"
-          />
-          <AgentActivityItem
-            agent="Compliance"
-            action="verified PAYE filing for Q2 2026"
-            timestamp="3 hours ago"
-            confidence="high"
-          />
-        </div>
-        <Link href="/dashboard/audit-log">
-          <Button variant="ghost" size="sm" className="w-full mt-2 text-xs">
-            View full audit trail <ChevronRight className="ml-1 h-3 w-3" />
-          </Button>
-        </Link>
-      </CardContent>
-    </Card>
   );
 }
 

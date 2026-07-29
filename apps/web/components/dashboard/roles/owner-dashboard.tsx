@@ -14,11 +14,10 @@ import {
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Skeleton } from "@/components/shared/loading";
 import { EmptyState } from "@/components/shared/empty-state";
-import { AgentActivityItem } from "@/components/dashboard/agent-activity-item";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { formatCurrency, cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
+import { AgentActivityFeed } from "@/components/dashboard/agent-activity-feed";
 import {
   Wallet,
   TrendingUp,
@@ -33,7 +32,6 @@ import {
   CreditCard,
   MessageSquare,
   Send,
-  Activity,
 } from "lucide-react";
 
 /**
@@ -568,69 +566,5 @@ export function OwnerDashboard() {
       {/* Row 4: Agent Activity Feed */}
       <AgentActivityFeed />
     </div>
-  );
-}
-
-// ─── Agent Activity Feed ────────────────────────────────────────────────
-
-function AgentActivityFeed() {
-  const { data: activities, isLoading } =
-    trpc.ingestion.listRecentActivity.useQuery({ limit: 20 });
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Agent Activity Feed
-          </CardTitle>
-          <Badge variant="secondary" className="text-[10px]">
-            Live
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-lg" />
-            ))}
-          </div>
-        ) : !activities || activities.length === 0 ? (
-          <EmptyState
-            icon={<Activity className="h-8 w-8" />}
-            title="No agent activity yet"
-            description="Agent actions will appear here as your AI workforce processes documents and transactions."
-            className="py-4"
-          />
-        ) : (
-          <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin">
-            {activities.map((item) => (
-              <AgentActivityItem
-                key={item.id}
-                agent={item.agent}
-                action={item.description || item.action}
-                timestamp={formatDistanceToNow(new Date(item.createdAt), {
-                  addSuffix: true,
-                })}
-                entity={item.entityId?.slice(0, 8)}
-                confidence={
-                  item.confidence === null
-                    ? undefined
-                    : item.confidence >= 0.9
-                      ? "high"
-                      : item.confidence >= 0.7
-                        ? "medium"
-                        : "low"
-                }
-                source={(item.metadata?.sourceDocument as string) ?? undefined}
-                reasoning={(item.metadata?.reasoning as string) ?? undefined}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
