@@ -223,6 +223,7 @@ const navGroups: NavGroup[] = [
 ];
 
 const bottomNavItems: NavItem[] = [
+  { label: "AI Team", href: "/dashboard/agents", icon: Activity, badge: "AI" },
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
   {
     label: "Approvals",
@@ -449,6 +450,55 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {!isCollapsed && (
                     <div className="space-y-0.5 mt-0.5">
                       {group.items.map((item) => renderNavItem(item))}
+                      {group.label === "Reports" && (
+                        <div className="mt-1 pt-1 border-t">
+                          <div className="px-2 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+                            Consolidated Workspaces
+                          </div>
+                          {[
+                            {
+                              label: "Money Workspace",
+                              href: "/dashboard/money",
+                              icon: Wallet,
+                            },
+                            {
+                              label: "Revenue Workspace",
+                              href: "/dashboard/revenue",
+                              icon: TrendingUp,
+                            },
+                            {
+                              label: "Procurement Workspace",
+                              href: "/dashboard/procurement",
+                              icon: ShoppingCart,
+                            },
+                            {
+                              label: "Operations Workspace",
+                              href: "/dashboard/operations",
+                              icon: Activity,
+                            },
+                            {
+                              label: "Accounting Workspace",
+                              href: "/dashboard/accounting",
+                              icon: BookOpen as LucideIcon,
+                            },
+                            {
+                              label: "Intelligence Workspace",
+                              href: "/dashboard/intelligence",
+                              icon: BarChart3,
+                            },
+                            {
+                              label: "Compliance Workspace",
+                              href: "/dashboard/compliance",
+                              icon: Shield,
+                            },
+                            {
+                              label: "Knowledge Workspace",
+                              href: "/dashboard/knowledge",
+                              icon: Search,
+                            },
+                          ].map((ws) => renderNavItem(ws))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
