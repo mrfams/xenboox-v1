@@ -7,13 +7,13 @@ import {
   LogOut,
   User,
   Bell,
-  Search,
   MessageSquare,
   ChevronRight,
   FileText,
   Landmark,
   Receipt,
   Users,
+  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -28,6 +28,7 @@ import {
   CommandItem,
   CommandShortcut,
 } from "@/components/ui";
+import { AICommandBar } from "@/components/shared/ai-command-bar";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { getInitials } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
@@ -143,18 +144,13 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Search trigger */}
+      {/* Global AI Command Bar */}
       <div className="hidden sm:flex relative flex-1 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="w-full rounded-lg border bg-muted/50 pl-9 pr-4 py-2 text-left text-sm text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          Search anything...
-        </button>
+        <AICommandBar compact placeholder="Ask Xenboox AI..." />
       </div>
 
-      <div className="flex-1 sm:hidden" />
+      {/* Mobile AI trigger */}
+      <div className="flex sm:hidden flex-1" />
 
       {/* Notifications */}
       <div className="relative" ref={notifRef}>

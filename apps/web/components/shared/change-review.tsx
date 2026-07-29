@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Brain, CheckCircle2, XCircle, Edit3, ArrowRight } from "lucide-react";
@@ -19,7 +20,7 @@ interface ChangeReviewItem {
 }
 
 interface ChangeReviewProps {
-  items: ChangeReviewItem[];
+  items?: ChangeReviewItem[];
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onEdit?: (id: string) => void;
