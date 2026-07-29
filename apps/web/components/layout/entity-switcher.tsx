@@ -1,10 +1,36 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronDown, Check, Building2 } from "lucide-react";
+import {
+  ChevronDown,
+  Check,
+  Building2,
+  Plus,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@xenboox/ui";
 import { useEntity } from "@/lib/entity-context";
 import { cn } from "@/lib/utils";
+
+function slugify(text: string): string {
+  return (
+    text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "entity"
+  );
+}
 
 type Entity = {
   id: string;
@@ -18,6 +44,11 @@ export function EntitySwitcher() {
   const [entities, setEntities] = useState<Entity[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [currentEntity, setCurrentEntity] = useState<Entity | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [entityName, setEntityName] = useState("");
+  const [entityType, setEntityType] = useState("business");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function fetchEntities() {
@@ -52,6 +83,42 @@ export function EntitySwitcher() {
     }
   }, [entityId, entities]);
 
+  // Defined before early returns so it's available in all code paths
+  const handleCreateEntity = useCallback(async () => {
+    if (!entityName.trim()) return;
+    setCreating(true);
+    setError("");
+
+    try {
+      const slug = slugify(entityName) + "-" + Date.now().toString(36);
+      const response = await fetch("/api/trpc/organization.create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: { name: entityName.trim(), slug, type: entityType },
+        }),
+      });
+      const data = await response.json();
+      if (data?.error) {
+        setError(data.error.message || "Failed to create entity");
+        return;
+      }
+      const entity = data?.result?.data?.entity;
+      if (entity) {
+        setEntityId(entity.id, "owner");
+        setDialogOpen(false);
+        setEntityName("");
+        setEntityType("business");
+      } else {
+        setError("Unexpected response from server");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setCreating(false);
+    }
+  }, [entityName, entityType, setEntityId]);
+
   if (!isLoaded) {
     return (
       <Button variant="outline" size="sm" disabled className="min-w-[160px]">
@@ -63,10 +130,91 @@ export function EntitySwitcher() {
 
   if (entities.length === 0) {
     return (
-      <Button variant="outline" size="sm" disabled className="min-w-[160px]">
-        <Building2 className="mr-2 h-4 w-4" />
-        No entities
-      </Button>
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-w-[160px]"
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Create Entity
+        </Button>
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create your first entity</DialogTitle>
+              <DialogDescription>
+                An entity is your business, company, or organization in Xenboox.
+                All your financial data lives under an entity.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Entity name</label>
+                <input
+                  type="text"
+                  value={entityName}
+                  onChange={(e) => setEntityName(e.target.value)}
+                  placeholder="My Business"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-shadow"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Entity type</label>
+                <select
+                  value={entityType}
+                  onChange={(e) => setEntityType(e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-shadow"
+                >
+                  <option value="business">Business</option>
+                  <option value="nonprofit">Nonprofit</option>
+                  <option value="government">Government</option>
+                  <option value="accounting_firm">Accounting Firm</option>
+                </select>
+              </div>
+
+              {entityName.trim() && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Slug (auto-generated)
+                  </label>
+                  <p className="text-xs text-muted-foreground break-all">
+                    {slugify(entityName)}-{Date.now().toString(36)}
+                  </p>
+                </div>
+              )}
+
+              {error && (
+                <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+                disabled={creating}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateEntity}
+                disabled={!entityName.trim() || creating}
+              >
+                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {creating ? "Creating..." : "Create Entity"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
