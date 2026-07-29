@@ -79,7 +79,6 @@ export default function BlogPage() {
     <>
       <MarketingHero
         title="Blog"
-        subtitle="Insights"
         description="Product updates, engineering deep-dives, and accounting insights from the team building AI-native finance for Africa."
         cta={{ label: "Subscribe to Newsletter", href: "#subscribe" }}
       />

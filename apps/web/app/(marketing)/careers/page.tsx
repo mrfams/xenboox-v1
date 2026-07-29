@@ -95,7 +95,6 @@ export default function CareersPage() {
     <>
       <MarketingHero
         title="Join the Team"
-        subtitle="Careers"
         description="We're building the AI-native accounting backbone for Africa. If you want to work on hard, meaningful problems at the intersection of fintech and AI, we'd love to hear from you."
         cta={{ label: "View Open Positions", href: "#openings" }}
         secondaryCta={{ label: "About Our Culture", href: "#culture" }}

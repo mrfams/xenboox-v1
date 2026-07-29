@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ArrowRight, Sparkles } from "lucide-react";
+import { CheckCircle2, ArrowRight } from "lucide-react";
+import { MarketingHero } from "@/components/marketing/hero";
 
 const monthlyTiers = [
   {
@@ -111,54 +112,41 @@ export default function PricingPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
-        <div className="absolute inset-0 bg-grid-dark opacity-30" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60 mx-auto">
-            <Sparkles className="h-3 w-3 text-blue-400" />
-            Pricing
+      <MarketingHero
+        title="Simple, transparent pricing"
+        description="Start free. Scale as you grow. No hidden fees."
+      >
+        <div className="flex items-center justify-center gap-3">
+          <div className="relative flex rounded-full border border-white/10 bg-white/5 p-0.5">
+            <button
+              type="button"
+              onClick={() => setAnnual(false)}
+              className={`relative z-10 rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-200 ${
+                !annual ? "text-white" : "text-white/50 hover:text-white/80"
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnnual(true)}
+              className={`relative z-10 rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-200 ${
+                annual ? "text-white" : "text-white/50 hover:text-white/80"
+              }`}
+            >
+              Annual
+            </button>
+            <div
+              className={`absolute top-0.5 bottom-0.5 rounded-full bg-blue-600 transition-all duration-200 ${
+                annual ? "left-1/2 right-0.5" : "left-0.5 right-1/2"
+              }`}
+            />
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
-            Simple, transparent pricing
-          </h1>
-          <p className="mt-3 text-base text-white/50 max-w-xl mx-auto">
-            Start free. Scale as you grow. No hidden fees.
-          </p>
-
-          {/* Billing toggle */}
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <div className="relative flex rounded-full border border-white/10 bg-white/5 p-0.5">
-              <button
-                type="button"
-                onClick={() => setAnnual(false)}
-                className={`relative z-10 rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-200 ${
-                  !annual ? "text-white" : "text-white/50 hover:text-white/80"
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                onClick={() => setAnnual(true)}
-                className={`relative z-10 rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-200 ${
-                  annual ? "text-white" : "text-white/50 hover:text-white/80"
-                }`}
-              >
-                Annual
-              </button>
-              <div
-                className={`absolute top-0.5 bottom-0.5 rounded-full bg-blue-600 transition-all duration-200 ${
-                  annual ? "left-1/2 right-0.5" : "left-0.5 right-1/2"
-                }`}
-              />
-            </div>
-            <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
-              Save 17%
-            </span>
-          </div>
+          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
+            Save 17%
+          </span>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      </section>
+      </MarketingHero>
 
       <section className="py-8 md:py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

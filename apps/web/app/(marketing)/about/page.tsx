@@ -1,16 +1,6 @@
 import Link from "next/link";
-import {
-  Bot,
-  Globe,
-  Shield,
-  Users,
-  ArrowRight,
-  Sparkles,
-  Target,
-  Eye,
-  Heart,
-  Quote,
-} from "lucide-react";
+import { Bot, Globe, Shield, Users, ArrowRight, Quote } from "lucide-react";
+import { MarketingHero } from "@/components/marketing/hero";
 
 const values = [
   {
@@ -88,33 +78,21 @@ export default function AboutPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
-        <div className="absolute inset-0 bg-grid-dark opacity-30" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full blur-3xl" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-          <div className="max-w-3xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-              <Sparkles className="h-3 w-3 text-blue-400" />
-              About Xenboox
-            </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
-              <span className="text-white">We&apos;re building the</span>
-              <br />
-              <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
-                future of accounting
-              </span>
-              <br />
-              <span className="text-white/80">for African businesses</span>
-            </h1>
-            <p className="mt-4 text-base text-white/50 leading-relaxed max-w-2xl">
-              AI-native, multi-currency, multi-platform, and accessible to
-              everyone. We&apos;re a small team tackling a massive problem — and
-              we&apos;re just getting started.
-            </p>
-          </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      </section>
+      <MarketingHero
+        title={
+          <>
+            <span className="text-white">We&apos;re building the</span>
+            <br />
+            <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
+              future of accounting
+            </span>
+            <br />
+            <span className="text-white/80">for African businesses</span>
+          </>
+        }
+        description="AI-native, multi-currency, multi-platform, and accessible to everyone. We're a small team tackling a massive problem — and we're just getting started."
+        leftAlign
+      />
 
       {/* ── Mission + Values combined ── */}
       <section className="py-10 md:py-14">
@@ -122,10 +100,6 @@ export default function AboutPage() {
           {/* Mission + Stats */}
           <div className="grid gap-10 lg:grid-cols-2 lg:gap-14 items-center mb-12">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border bg-blue-50 px-4 py-1.5 text-xs font-medium text-blue-700">
-                <Target className="h-3 w-3" />
-                Our Mission
-              </div>
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">
                 Accounting software hasn&apos;t kept pace with how Africa does
                 business
@@ -169,10 +143,6 @@ export default function AboutPage() {
           {/* Values */}
           <div className="mb-8">
             <div className="text-center mb-6">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border bg-white px-4 py-1.5 text-xs font-medium text-muted-foreground">
-                <Heart className="h-3 w-3 text-red-400" />
-                What We Believe
-              </div>
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
                 Our core values
               </h2>
@@ -216,10 +186,6 @@ export default function AboutPage() {
           <div className="grid gap-10 md:grid-cols-2 md:gap-14 items-start">
             {/* Timeline */}
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border bg-blue-50 px-4 py-1.5 text-xs font-medium text-blue-700">
-                <Eye className="h-3 w-3" />
-                Our Journey
-              </div>
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-6">
                 From idea to platform
               </h2>

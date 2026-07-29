@@ -47,7 +47,6 @@ export default function ContactPage() {
     <>
       <MarketingHero
         title="Get in Touch"
-        subtitle="Contact"
         description="Have a question about Xenboox? Want a demo? Need help with your account? We're here for you."
         cta={{ label: "Start a Conversation", href: "#form" }}
       />

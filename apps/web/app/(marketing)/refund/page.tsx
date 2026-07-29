@@ -5,9 +5,7 @@ export default function RefundPage() {
     <>
       <MarketingHero
         title="Refund Policy"
-        subtitle="Legal"
         description="Last updated: July 1, 2026 · Our policy on refunds, cancellations, and billing disputes."
-        compact
       />
 
       <section className="py-16">

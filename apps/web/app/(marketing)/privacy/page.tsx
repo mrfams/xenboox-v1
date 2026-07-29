@@ -5,9 +5,7 @@ export default function PrivacyPage() {
     <>
       <MarketingHero
         title="Privacy Policy"
-        subtitle="Legal"
         description="Last updated: July 1, 2026 · How Xenboox collects, uses, and protects your personal data."
-        compact
       />
 
       <section className="py-16">

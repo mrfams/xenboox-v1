@@ -11,10 +11,10 @@ import {
   Users,
   Globe,
   Zap,
-  Sparkles,
   CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
+import { MarketingHero } from "@/components/marketing/hero";
 
 const features = [
   {
@@ -202,31 +202,12 @@ const features = [
 export default function FeaturesPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
-        <div className="absolute inset-0 bg-grid-dark opacity-30" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full blur-3xl" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 md:py-20">
-          <div className="max-w-3xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-              <Sparkles className="h-3 w-3 text-blue-400" />
-              Platform
-            </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
-              <span className="text-white">Everything you need to</span>
-              <br />
-              <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
-                run your finance function
-              </span>
-            </h1>
-            <p className="mt-6 text-lg text-white/50 leading-relaxed max-w-2xl">
-              Xenboox combines 19 specialized AI agents with a complete
-              double-entry accounting platform. From journal entries to
-              consolidated reporting - no gaps, no compromises.
-            </p>
-          </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      </section>
+      <MarketingHero
+        title="Everything you need to"
+        highlight="run your finance function"
+        description="Xenboox combines 19 specialized AI agents with a complete double-entry accounting platform. From journal entries to consolidated reporting — no gaps, no compromises."
+        leftAlign
+      />
 
       <section className="py-10 md:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

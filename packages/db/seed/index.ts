@@ -355,7 +355,7 @@ export async function seed() {
     .values({
       id: USER_ID,
       name: "Demo User",
-      email: "demo@xenboox.com",
+      email: "demo@xenbox",
       passwordHash:
         "$2a$12$QrxmI9v0MpLRsg6gWTH7F./KZOQl3fOoJDHGI4VzjOV0LHcpMED/2",
       emailVerified: new Date("2026-01-01"),
@@ -627,7 +627,7 @@ export async function seed() {
         date: entry.date,
         periodId: periodIds[entry.month],
         status: "posted",
-        postedBy: "demo@xenboox.com",
+        postedBy: "demo@xenbox",
         postedAt: new Date(entry.date),
         source: "seed",
       })
@@ -1299,7 +1299,7 @@ export async function seed() {
         currency: "GMD",
         approvedBy:
           p.status === "approved" || p.status === "received"
-            ? "demo@xenboox.com"
+            ? "demo@xenbox"
             : null,
       })
       .onConflictDoNothing();
@@ -1418,8 +1418,8 @@ export async function seed() {
         totalDeductions: run.deductions,
         totalEmployerContributions: "17300",
         netPay: run.net,
-        processedBy: "demo@xenboox.com",
-        approvedBy: run.status === "paid" ? "demo@xenboox.com" : null,
+        processedBy: "demo@xenbox",
+        approvedBy: run.status === "paid" ? "demo@xenbox" : null,
       })
       .onConflictDoNothing();
   }
@@ -1559,7 +1559,7 @@ export async function seed() {
         date: entry.date,
         periodId: periodIds[entry.month],
         status: "posted",
-        postedBy: "demo@xenboox.com",
+        postedBy: "demo@xenbox",
         postedAt: new Date(entry.date),
         source: "seed",
       })
@@ -2182,7 +2182,7 @@ export async function seed() {
         bookBalance: r.bookBalance,
         difference: r.difference,
         status: r.status,
-        closedBy: "demo@xenboox.com",
+        closedBy: "demo@xenbox",
         closedAt: new Date("2026-07-01"),
       })
       .onConflictDoNothing();
@@ -2871,7 +2871,7 @@ export async function seed() {
   }
 
   console.log("Seed complete!");
-  console.log(`  User: demo@xenboox.com`);
+  console.log(`  User: demo@xenbox`);
   console.log(`  Entity: ${ENTITY_ID}`);
   console.log(`  Chart of Accounts: ${coa.length} accounts`);
   console.log(`  Journal Entries: ${journalData.length + julyEntries.length}`);

@@ -5,9 +5,7 @@ export default function CookiesPage() {
     <>
       <MarketingHero
         title="Cookie Policy"
-        subtitle="Legal"
         description="Last updated: July 1, 2026 · How Xenboox uses cookies and similar tracking technologies."
-        compact
       />
 
       <section className="py-16">

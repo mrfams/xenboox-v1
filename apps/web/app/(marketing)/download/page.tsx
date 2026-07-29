@@ -73,7 +73,6 @@ export default function DownloadPage() {
     <>
       <MarketingHero
         title="Download Xenboox"
-        subtitle="Platforms"
         description="Access your AI accounting team from anywhere — web, desktop, or mobile. All surfaces share the same secure, real-time data."
         cta={{ label: "Launch Web App", href: "/login" }}
         secondaryCta={{ label: "Download Desktop", href: "#desktop" }}

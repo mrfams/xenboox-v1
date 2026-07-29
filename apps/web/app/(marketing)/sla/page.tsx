@@ -5,9 +5,7 @@ export default function SLAPage() {
     <>
       <MarketingHero
         title="Service Level Agreement"
-        subtitle="Legal"
         description="Last updated: July 1, 2026 · Our commitment to platform availability and performance."
-        compact
       />
 
       <section className="py-16">

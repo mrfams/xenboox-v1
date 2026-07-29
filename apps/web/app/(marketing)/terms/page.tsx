@@ -5,9 +5,7 @@ export default function TermsPage() {
     <>
       <MarketingHero
         title="Terms of Service"
-        subtitle="Legal"
         description="Last updated: July 1, 2026 · The terms governing your use of the Xenboox platform."
-        compact
       />
 
       <section className="py-16">
