@@ -68,29 +68,29 @@ const monthlyTiers = [
     gradient: "from-slate-100 to-slate-50",
     icon: "L",
   },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    description:
-      "For organizations that need dedicated infrastructure and support.",
-    features: [
-      "Unlimited entities",
-      "All 19 AI agents",
-      "Unlimited everything",
-      "SSO/SAML authentication",
-      "Custom AI agent training",
-      "On-premise option",
-      "Dedicated account manager",
-      "SLA guarantee",
-      "Custom reporting",
-    ],
-    cta: "Contact Sales",
-    ctaHref: "/contact",
-    highlighted: false,
-    gradient: "from-slate-100 to-slate-50",
-    icon: "E",
-  },
+  // {
+  //   name: "Enterprise",
+  //   price: "Custom",
+  //   period: "",
+  //   description:
+  //     "For organizations that need dedicated infrastructure and support.",
+  //   features: [
+  //     "Unlimited entities",
+  //     "All 19 AI agents",
+  //     "Unlimited everything",
+  //     "SSO/SAML authentication",
+  //     "Custom AI agent training",
+  //     "On-premise option",
+  //     "Dedicated account manager",
+  //     "SLA guarantee",
+  //     "Custom reporting",
+  //   ],
+  //   cta: "Contact Sales",
+  //   ctaHref: "/contact",
+  //   highlighted: false,
+  //   gradient: "from-slate-100 to-slate-50",
+  //   icon: "E",
+  // },
 ];
 
 const yearlyTiers = monthlyTiers.map((tier) => {
@@ -127,31 +127,31 @@ export default function PricingPage() {
 
           {/* Billing toggle */}
           <div className="mt-6 flex items-center justify-center gap-3">
-            <span
-              className={`text-sm ${!annual ? "text-white" : "text-white/40"}`}
-            >
-              Monthly
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={annual}
-              onClick={() => setAnnual(!annual)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
-                annual ? "bg-blue-600" : "bg-white/20"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                  annual ? "translate-x-6" : "translate-x-1"
+            <div className="relative flex rounded-full border border-white/10 bg-white/5 p-0.5">
+              <button
+                type="button"
+                onClick={() => setAnnual(false)}
+                className={`relative z-10 rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-200 ${
+                  !annual ? "text-white" : "text-white/50 hover:text-white/80"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setAnnual(true)}
+                className={`relative z-10 rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-200 ${
+                  annual ? "text-white" : "text-white/50 hover:text-white/80"
+                }`}
+              >
+                Annual
+              </button>
+              <div
+                className={`absolute top-0.5 bottom-0.5 rounded-full bg-blue-600 transition-all duration-200 ${
+                  annual ? "left-1/2 right-0.5" : "left-0.5 right-1/2"
                 }`}
               />
-            </button>
-            <span
-              className={`text-sm ${annual ? "text-white" : "text-white/40"}`}
-            >
-              Annual
-            </span>
+            </div>
             <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
               Save 17%
             </span>
@@ -162,7 +162,7 @@ export default function PricingPage() {
 
       <section className="py-8 md:py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid gap-4 lg:grid-cols-3">
             {tiers.map((tier) => (
               <div
                 key={tier.name}

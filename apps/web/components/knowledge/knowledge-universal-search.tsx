@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Search, FileText, ArrowRight, X } from "lucide-react";

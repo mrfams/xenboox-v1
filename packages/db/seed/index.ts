@@ -75,6 +75,9 @@ import { seedBudget } from "./budget";
 import { seedInventory } from "./inventory";
 import { seedConsolidation } from "./consolidation";
 import { seedPermissions } from "./permissions";
+import { seedAgents } from "./agents";
+import { seedApprovals } from "./approvals";
+import { seedGoldenEvals } from "./golden-evals";
 
 const USER_ID = crypto.randomUUID();
 const ORG_ID = crypto.randomUUID();
@@ -1880,6 +1883,15 @@ export async function seed() {
       })
       .onConflictDoNothing();
   }
+
+  // Seed agents reference table (§2.1)
+  await seedAgents();
+
+  // Seed golden dataset evaluations (§15 — platform-level, not entity-scoped)
+  await seedGoldenEvals();
+
+  // Seed approval requests for the Review Queue demo
+  await seedApprovals(ENTITY_ID, USER_ID);
 
   // Seed RBAC permissions from the Matrix
   await seedPermissions();

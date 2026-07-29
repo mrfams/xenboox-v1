@@ -15,7 +15,6 @@ import {
   Moon,
   ChevronDown,
   ExternalLink,
-  Search,
 } from "lucide-react";
 import { SearchDialog } from "./components/search-dialog";
 import { MobileNav } from "./components/mobile-nav";
@@ -135,40 +134,15 @@ export default function DocsLayout({
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4">
-            <div className="md:hidden">
-              <MobileNav />
-            </div>
-            <Link href="/" className="flex items-center gap-2 shrink-0">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
-                X
-              </div>
-              <span className="text-base font-bold tracking-tight hidden sm:inline">
-                Xenboox
-              </span>
-            </Link>
-            <div className="hidden sm:flex items-center gap-1 ml-2">
-              <span className="text-sm text-muted-foreground">/</span>
-              <Link
-                href="/docs"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Docs
-              </Link>
-            </div>
-          </div>
-
+    <>
+      {/* Mobile bar — docs nav, search, dark mode on small screens */}
+      <div className="md:hidden sticky top-14 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-12 items-center justify-between px-4">
+          <MobileNav />
           <div className="flex items-center gap-2">
-            {/* Search - visible on all screen sizes */}
-            <div className="w-32 sm:w-48 lg:w-64">
+            <div className="w-32 sm:w-48">
               <SearchDialog />
             </div>
-
-            {/* Dark mode toggle */}
             {mounted && (
               <button
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -182,234 +156,123 @@ export default function DocsLayout({
                 )}
               </button>
             )}
-
-            <Link
-              href="/register"
-              className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex-1">
-        <div className="mx-auto max-w-screen-2xl">
-          <div className="flex">
-            {/* Left Sidebar */}
-            <aside className="hidden md:flex w-56 lg:w-64 shrink-0 border-r">
-              <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto w-full p-3 scrollbar-thin">
-                {/* Search inside sidebar - only on md screens where sidebar is visible */}
-                <div className="mb-3">
-                  <SearchDialog />
-                </div>
-                <nav className="space-y-1">
-                  {navGroups.map((group, idx) => {
-                    const isActive =
-                      group.items.some((item) => pathname === item.href) ||
-                      pathname === group.href;
-                    const isExpanded = expandedGroups.has(group.group);
-
-                    return (
-                      <div key={group.group + "-" + idx}>
-                        <button
-                          onClick={() => toggleGroup(group.group)}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                            isActive
-                              ? "text-primary"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            {group.icon}
-                            {group.group}
-                          </div>
-                          <ChevronDown
-                            className={cn(
-                              "h-3 w-3 transition-transform",
-                              isExpanded && "rotate-180",
-                            )}
-                          />
-                        </button>
-                        {isExpanded && (
-                          <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l pl-2">
-                            {group.items.map((item) => {
-                              const isItemActive = pathname === item.href;
-                              return (
-                                <Link
-                                  key={item.href}
-                                  href={item.href}
-                                  className={cn(
-                                    "rounded-md px-2 py-1 text-xs transition-colors",
-                                    isItemActive
-                                      ? "bg-primary/10 text-primary font-medium"
-                                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                                  )}
-                                >
-                                  {item.label}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </nav>
-
-                {/* Bottom sidebar links */}
-                <div className="mt-6 border-t pt-4 space-y-2">
-                  <Link
-                    href="/"
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Home
-                  </Link>
-                  <Link
-                    href="/contact"
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Support
-                  </Link>
-                </div>
-              </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 min-w-0">
-              <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-                {children}
-              </div>
-            </main>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t bg-muted/30">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
-                  X
-                </div>
-                <span className="font-bold text-sm">Xenboox</span>
+      <div className="mx-auto max-w-screen-2xl">
+        <div className="flex">
+          {/* Left Sidebar */}
+          <aside className="hidden md:flex w-56 lg:w-64 shrink-0 border-r">
+            <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto w-full p-3 scrollbar-thin">
+              {/* Search inside sidebar - only on md screens where sidebar is visible */}
+              <div className="mb-3">
+                <SearchDialog />
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                AI-native accounting platform built for African businesses.
-              </p>
+              <nav className="space-y-1">
+                {navGroups.map((group, idx) => {
+                  const isActive =
+                    group.items.some((item) => pathname === item.href) ||
+                    pathname === group.href;
+                  const isExpanded = expandedGroups.has(group.group);
+
+                  return (
+                    <div key={group.group + "-" + idx}>
+                      <button
+                        onClick={() => toggleGroup(group.group)}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                          isActive
+                            ? "text-primary"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          {group.icon}
+                          {group.group}
+                        </div>
+                        <ChevronDown
+                          className={cn(
+                            "h-3 w-3 transition-transform",
+                            isExpanded && "rotate-180",
+                          )}
+                        />
+                      </button>
+                      {isExpanded && (
+                        <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l pl-2">
+                          {group.items.map((item) => {
+                            const isItemActive = pathname === item.href;
+                            return (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                className={cn(
+                                  "rounded-md px-2 py-1 text-xs transition-colors",
+                                  isItemActive
+                                    ? "bg-primary/10 text-primary font-medium"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                                )}
+                              >
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </nav>
+
+              {/* Bottom sidebar links */}
+              <div className="mt-6 border-t pt-4 space-y-2">
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Home
+                </Link>
+                <Link
+                  href="/contact"
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Support
+                </Link>
+                <div className="border-t pt-2 mt-2">
+                  <button
+                    onClick={() =>
+                      setTheme(theme === "dark" ? "light" : "dark")
+                    }
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Toggle dark mode"
+                  >
+                    {mounted &&
+                      (theme === "dark" ? (
+                        <Sun className="h-3 w-3" />
+                      ) : (
+                        <Moon className="h-3 w-3" />
+                      ))}
+                    {mounted
+                      ? theme === "dark"
+                        ? "Light mode"
+                        : "Dark mode"
+                      : ""}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Product
-              </h3>
-              <ul className="space-y-1.5 text-sm">
-                <li>
-                  <Link
-                    href="/features"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/pricing"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/download"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Download
-                  </Link>
-                </li>
-              </ul>
+          </aside>
+
+          {/* Main Content */}
+          <main className="flex-1 min-w-0">
+            <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+              {children}
             </div>
-            <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Documentation
-              </h3>
-              <ul className="space-y-1.5 text-sm">
-                <li>
-                  <Link
-                    href="/docs/getting-started"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Getting Started
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/docs/modules"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    All Modules
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/docs/agents"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    All Agents
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/docs/faq"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    FAQ
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Company
-              </h3>
-              <ul className="space-y-1.5 text-sm">
-                <li>
-                  <Link
-                    href="/about"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/contact"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/privacy"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Privacy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 border-t pt-6 text-center text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Xenboox. All rights reserved.
-          </div>
+          </main>
         </div>
-      </footer>
-    </div>
+      </div>
+    </>
   );
 }

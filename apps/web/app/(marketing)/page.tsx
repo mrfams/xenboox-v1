@@ -282,6 +282,52 @@ const howItWorks = [
   },
 ];
 
+function AnimatedText({ words }: { words: string[] }) {
+  const [index, setIndex] = useState(0);
+  const [display, setDisplay] = useState(words[0]);
+  const [phase, setPhase] = useState<"typing" | "pause" | "erasing">("pause");
+
+  useEffect(() => {
+    if (phase === "pause") {
+      const t = setTimeout(() => setPhase("erasing"), 2000);
+      return () => clearTimeout(t);
+    }
+    if (phase === "erasing") {
+      if (display === "") {
+        const t = setTimeout(() => {
+          setIndex((i) => (i + 1) % words.length);
+          setPhase("typing");
+        }, 300);
+        return () => clearTimeout(t);
+      }
+      const t = setTimeout(
+        () => setDisplay(display.slice(0, -1)),
+        40 + Math.random() * 30,
+      );
+      return () => clearTimeout(t);
+    }
+    if (phase === "typing") {
+      const target = words[index];
+      if (display === target) {
+        const t = setTimeout(() => setPhase("pause"), 800);
+        return () => clearTimeout(t);
+      }
+      const t = setTimeout(
+        () => setDisplay(target.slice(0, display.length + 1)),
+        50 + Math.random() * 40,
+      );
+      return () => clearTimeout(t);
+    }
+  }, [phase, display, index, words]);
+
+  return (
+    <span>
+      for {display}
+      <span className="animate-pulse">|</span>
+    </span>
+  );
+}
+
 export default function HomePage() {
   return (
     <>
@@ -306,19 +352,8 @@ export default function HomePage() {
           delay={4}
         />
 
-        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24 w-full">
+        <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 w-full">
           <div className="max-w-3xl">
-            <div
-              className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/70"
-              style={{ animation: "fade-in-up 0.5s ease-out 0.2s both" }}
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              Trusted by finance teams across Africa
-            </div>
-
             <h1
               className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]"
               style={{ animation: "fade-in-up 0.6s ease-out 0.4s both" }}
@@ -326,12 +361,20 @@ export default function HomePage() {
               <span className="text-white">AI-native accounting</span>
               <br />
               <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
-                for African enterprises
+                <AnimatedText
+                  words={[
+                    "SMEs",
+                    "businesses",
+                    "startups",
+                    "enterprises",
+                    "teams",
+                  ]}
+                />
               </span>
             </h1>
 
             <p
-              className="mt-4 max-w-xl text-base sm:text-lg text-white/60 leading-relaxed"
+              className="mt-2 max-w-xl text-base sm:text-lg text-white/60 leading-relaxed"
               style={{ animation: "fade-in-up 0.6s ease-out 0.6s both" }}
             >
               Close your books faster, reduce errors, and get real-time
@@ -340,7 +383,7 @@ export default function HomePage() {
             </p>
 
             <div
-              className="mt-6 flex flex-wrap gap-4"
+              className="mt-4 flex flex-wrap gap-4"
               style={{ animation: "fade-in-up 0.6s ease-out 0.8s both" }}
             >
               <Link
@@ -362,7 +405,7 @@ export default function HomePage() {
             </div>
 
             <p
-              className="mt-3 text-sm text-white/40"
+              className="mt-2 text-sm text-white/40"
               style={{ animation: "fade-in 0.6s ease-out 1s both" }}
             >
               No credit card required · Free tier available · Enterprise plans
@@ -397,12 +440,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* HOW IT WORKS — NEW */}
-      <section className="relative overflow-hidden bg-slate-950 py-20">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-blue-600/5 via-violet-600/5 to-transparent rounded-full blur-3xl" />
+      {/* HOW IT WORKS */}
+      <section className="relative overflow-hidden bg-slate-950 py-16">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[900px] bg-gradient-to-br from-blue-600/5 via-violet-600/5 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-64 h-64 bg-gradient-to-tl from-pink-500/5 to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-1/3 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-500/5 to-transparent rounded-full blur-3xl" />
+
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <FadeInUp>
-            <div className="mb-14 text-center">
+            <div className="mb-12 text-center">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
                 <Zap className="h-3 w-3 text-blue-400" />
                 How it works
@@ -419,40 +465,80 @@ export default function HomePage() {
               </p>
             </div>
           </FadeInUp>
-          <div className="grid gap-6 md:grid-cols-3 relative">
-            {/* Connector line */}
-            <div className="hidden md:block absolute top-16 left-[16%] right-[16%] h-px bg-gradient-to-r from-blue-500/20 via-violet-500/40 to-pink-500/20" />
+
+          <div className="grid gap-8 md:grid-cols-3 relative">
+            {/* Animated connector line */}
+            <div className="hidden md:block absolute top-20 left-[16.66%] right-[16.66%]">
+              <div className="h-px bg-gradient-to-r from-blue-500/10 via-violet-500/60 to-pink-500/10" />
+              <div className="absolute top-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-blue-400/30 to-transparent animate-pulse" />
+            </div>
+
             {howItWorks.map((item, i) => (
-              <FadeInUp key={item.step} delay={i * 0.12}>
-                <div className="group relative text-center">
-                  <div className="relative mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-white/[0.06] to-transparent border border-white/5 backdrop-blur-sm">
-                    <div
-                      className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-500`}
-                    />
-                    <div
-                      className={`relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${item.gradient} shadow-lg`}
-                    >
-                      <item.icon className="h-6 w-6 text-white" />
+              <FadeInUp key={item.step} delay={i * 0.15}>
+                <div className="group relative">
+                  {/* Glow behind card on hover */}
+                  <div
+                    className={`absolute -inset-4 rounded-3xl bg-gradient-to-br ${item.gradient} opacity-0 blur-2xl transition-opacity duration-700 group-hover:opacity-15`}
+                  />
+
+                  <div className="relative rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-transparent backdrop-blur-sm p-8 text-center transition-all duration-500 hover:border-white/[0.12] hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-500/5">
+                    {/* Step number */}
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 border border-white/10 text-[11px] font-bold text-white/60 backdrop-blur-sm shadow-lg">
+                        {item.step}
+                      </div>
                     </div>
+
+                    {/* Icon */}
+                    <div className="relative mx-auto mb-5 mt-2">
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.06] to-transparent blur-sm" />
+                      <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/80 border border-white/[0.06] backdrop-blur-sm transition-all duration-500 group-hover:scale-110 group-hover:border-white/[0.15] group-hover:shadow-lg mx-auto">
+                        <div
+                          className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-500`}
+                        />
+                        <div
+                          className={`relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${item.gradient} shadow-lg transition-transform duration-500 group-hover:scale-110`}
+                        >
+                          <item.icon className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="text-lg font-semibold text-white/90 transition-colors duration-300 group-hover:text-white">
+                      {item.title}
+                    </h3>
+
+                    {/* Description */}
+                    <p className="mt-2 text-sm text-white/40 leading-relaxed max-w-xs mx-auto transition-colors duration-300 group-hover:text-white/60">
+                      {item.description}
+                    </p>
                   </div>
-                  <div className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-white/5 text-xs font-semibold text-white/60 mb-3">
-                    {item.step}
-                  </div>
-                  <h3 className="text-lg font-semibold text-white">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-white/50 leading-relaxed max-w-xs mx-auto">
-                    {item.description}
-                  </p>
                 </div>
               </FadeInUp>
             ))}
           </div>
+
+          {/* Bottom CTA */}
+          <FadeInUp delay={0.4}>
+            <div className="mt-12 text-center">
+              <Link
+                href="/register"
+                className="group relative inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-8 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
+              >
+                <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-violet-400 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-40" />
+                <span className="relative flex items-center gap-2">
+                  Start Free
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </Link>
+            </div>
+          </FadeInUp>
         </div>
       </section>
 
       {/* STATS */}
-      <section className="relative overflow-hidden bg-slate-950 py-16">
+      <section className="relative overflow-hidden bg-slate-950 py-12">
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-transparent" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <StaggerChildren>
@@ -506,15 +592,11 @@ export default function HomePage() {
       </section>
 
       {/* THREE PILLARS */}
-      <section className="relative overflow-hidden bg-slate-950 py-20">
+      <section className="relative overflow-hidden bg-slate-950 py-16">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-blue-600/5 via-violet-600/5 to-transparent rounded-full blur-3xl" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <FadeInUp>
-            <div className="mb-12 text-center">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-                <Sparkles className="h-3 w-3 text-violet-400" />
-                Purpose-built for modern finance teams
-              </div>
+            <div className="mb-10 text-center">
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
                 <span className="text-white">Built for how</span>{" "}
                 <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
@@ -549,11 +631,11 @@ export default function HomePage() {
       </section>
 
       {/* CAPABILITIES */}
-      <section className="relative overflow-hidden border-t border-white/5 bg-slate-900 py-20">
+      <section className="relative overflow-hidden border-t border-white/5 bg-slate-900 py-16">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-600/5 via-transparent to-transparent" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <FadeInUp>
-            <div className="mb-12 text-center">
+            <div className="mb-10 text-center">
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
                 <span className="text-white">Everything you need to</span>{" "}
                 <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
@@ -585,15 +667,11 @@ export default function HomePage() {
       </section>
 
       {/* TESTIMONIALS — NEW */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 py-20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 py-16">
         <div className="absolute inset-0 bg-grid-dark opacity-20" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <FadeInUp>
-            <div className="mb-12 text-center">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-                <Star className="h-3 w-3 text-amber-400" />
-                Trusted by finance professionals
-              </div>
+            <div className="mb-10 text-center">
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
                 <span className="text-white">What our users</span>{" "}
                 <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
@@ -632,16 +710,12 @@ export default function HomePage() {
       </section>
 
       {/* SECURITY & COMPLIANCE */}
-      <section className="relative overflow-hidden bg-slate-950 py-20">
+      <section className="relative overflow-hidden bg-slate-950 py-16">
         <div className="absolute top-20 right-0 w-96 h-96 bg-gradient-to-bl from-blue-600/5 to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-20 left-0 w-96 h-96 bg-gradient-to-tr from-violet-600/5 to-transparent rounded-full blur-3xl" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid gap-12 md:grid-cols-2 md:gap-16 items-center">
             <FadeInUp>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-                <Shield className="h-3 w-3" />
-                Enterprise Security
-              </div>
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
                 <span className="text-white">Built for the most</span>{" "}
                 <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
@@ -703,7 +777,7 @@ export default function HomePage() {
       </section>
 
       {/* ALL-IN-ONE — NEW */}
-      <section className="relative overflow-hidden border-t border-white/5 bg-slate-900 py-20">
+      <section className="relative overflow-hidden border-t border-white/5 bg-slate-900 py-16">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-blue-600/5 via-transparent to-transparent" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid gap-10 md:grid-cols-2 items-center">
@@ -793,7 +867,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-indigo-950 to-slate-950 py-20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-indigo-950 to-slate-950 py-16">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
 
         <FloatingShape
@@ -809,10 +883,6 @@ export default function HomePage() {
 
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
           <FadeInUp>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-white/60">
-              <Zap className="h-3 w-3 text-blue-400" />
-              Get started in minutes
-            </div>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
               <span className="text-white">Ready to transform</span>{" "}
               <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">

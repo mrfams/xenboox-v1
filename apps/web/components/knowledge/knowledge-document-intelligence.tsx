@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { cn } from "@/lib/utils";
 import { FileText, Brain, CheckCircle2 } from "lucide-react";
 
@@ -63,6 +64,40 @@ export function KnowledgeDocumentIntelligence() {
               className="h-full rounded-full bg-balanced-green"
               style={{ width: "98%" }}
             />
+          </div>
+
+          {/* Action buttons */}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {[
+              {
+                label: "Explain",
+                color:
+                  "text-signal-indigo bg-signal-indigo/10 border-signal-indigo/20",
+              },
+              {
+                label: "Compare",
+                color: "text-violet-600 bg-violet-500/10 border-violet-500/20",
+              },
+              {
+                label: "Find Similar",
+                color:
+                  "text-emerald-600 bg-emerald-500/10 border-emerald-500/20",
+              },
+              {
+                label: "Create Journal",
+                color: "text-amber-600 bg-amber-500/10 border-amber-500/20",
+              },
+            ].map((action) => (
+              <button
+                key={action.label}
+                className={cn(
+                  "rounded-lg border px-2 py-1 text-[9px] font-medium transition-all duration-200 hover:scale-105",
+                  action.color,
+                )}
+              >
+                {action.label}
+              </button>
+            ))}
           </div>
         </div>
 

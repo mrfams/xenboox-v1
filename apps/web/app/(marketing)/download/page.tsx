@@ -41,8 +41,9 @@ const platforms = [
       "Auto-sync on reconnect",
     ],
     action: {
-      label: "Download for Windows",
+      label: "Coming soon",
       href: "#",
+      disabled: true,
     },
     popular: false,
   },
@@ -59,8 +60,9 @@ const platforms = [
       "Deep-link to web for full views",
     ],
     action: {
-      label: "Get on iOS",
+      label: "Coming soon",
       href: "#",
+      disabled: true,
     },
     popular: false,
   },
@@ -117,17 +119,30 @@ export default function DownloadPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link
-                    href={platform.action.href}
-                    className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-sm transition-all duration-200 active:scale-[0.98] ${
-                      platform.popular
-                        ? "bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-500"
-                        : "border bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    <Download className="h-4 w-4" />
-                    {platform.action.label}
-                  </Link>
+                  {platform.action.disabled ? (
+                    <span
+                      className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-sm transition-all duration-200 cursor-not-allowed ${
+                        platform.popular
+                          ? "bg-blue-400 text-white"
+                          : "border bg-slate-100 text-slate-400"
+                      }`}
+                    >
+                      <Download className="h-4 w-4" />
+                      {platform.action.label}
+                    </span>
+                  ) : (
+                    <Link
+                      href={platform.action.href}
+                      className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-sm transition-all duration-200 active:scale-[0.98] ${
+                        platform.popular
+                          ? "bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-500"
+                          : "border bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Download className="h-4 w-4" />
+                      {platform.action.label}
+                    </Link>
+                  )}
                 </div>
               );
             })}
