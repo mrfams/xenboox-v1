@@ -61,6 +61,56 @@
 
 ---
 
+### [2026-07-31] — Payroll Manager Agent Liveness (spec v1.0): Two Parallel Run Tracks & Never-Silently-Absorbed Exceptions
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min (landed 2026-07-31 — the session's BUILD_LOG/commit step was interrupted; this entry and the code were landed retroactively with the Compliance Agent turn)
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/payroll-manager-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): RUN_INITIATED → REVIEWING_STANDARD_CALCULATIONS → REVIEWING_EXCEPTIONS (active) → STATUTORY_CONFIRMATION → APPROVED_FOR_POSTING, `role="status"` live line ("Currently: REVIEWING_EXCEPTIONS — 2 exceptions requiring individual review") and **COMPLETE** badges on passed stages
+- **Critical rule (Spec §3): exceptions are never silently absorbed into the standard run — a new starter's pro-rated first paycheck is shown as its own explicit calculation with its own confirmation step, distinct from every other standard staff member in that run** — surfaced in constraint section + How It Works step 3 ("each its own confirmed sub-decision, never bundled") + each exception card carrying its own Confirmed badge
+- **Two parallel run tracks (Spec §4)** — Standard Track ("34 of 36 standard staff reviewed — ticking up live" + 94% progress bar) vs Exceptions Track (individual cards requiring explicit review, never blended): Awa Jallow (New Starter — "Joined June 15 — pro-rated for 15 of 30 days this period. Standard monthly salary GMD 600.00 → GMD 300.00 this period"), Lamin Touray (Salary Change — "GMD 500.00 → GMD 550.00 effective June 1, per HR update. New rate applied for full period")
+- **Zero confidence meters — SIXTH fully-deterministic component after Inventory/Tax/Reporting/Budget/Treasury (Spec §3 marks every step "no confidence score")**: run initiation, standard review, exception handling, statutory rule-table check, approval — main view AND all branch states 0 meters
+- **Statutory confirmation (Spec §2/§3)** — "Statutory deductions confirmed for Gambia (GRA/SSHFC)" + "Deterministic rule-table check — rule table v2.1 applied across the run. No confidence score."
+- **Branch states (Spec §6/§7)** — `showIncompleteException` ("Salary Change Missing Effective Date" — "Need confirmation on effective date for Lamin Touray", escalated to Human (HR/Finance), blocking for that individual, never guessed, 0 meters), `showJurisdictionGap` ("No statutory rule table found for Guinea-Bissau" — run held for that jurisdiction's staff, flagged to Compliance Agent, a guessed rate is never applied, blocking, 0 meters), `showApproved` (terminal — "Payroll approved — handed to Controller Agent for journal review, then Ledger Agent for posting. Approval timestamp 10:02:14. Summary reported to CFO Agent monthly", 0 meters), `showEmptyState`
+- Status grid (Payroll Manager Metadata region): Run Period June 2026 / Staff 36 / Reviewed 34 / Exceptions 2
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: exception details incomplete or ambiguous → Human (HR/Finance) ("Need confirmation on [detail] for [Name]'s [exception type]", blocking for that individual); jurisdiction rule gap found during statutory confirmation → Compliance Agent ("Run held for that jurisdiction's staff", blocking)
+- How It Works 5-step decomposition (Initiate Run / Review Standard Calculations / Handle Each Exception Individually — "each its own confirmed sub-decision, never bundled" / Confirm Statutory Correctness / Approve for Posting), constraint badges (Exceptions Never Bundled, Pro-Rate Shown Explicitly, Effective Date Named, Statutory Rule-Table Check, Approved With Reason), audit trail table (6 data rows: run started 36 staff, standard review 34/36, exception handled ×2 with basis cited, statutory confirmation, approval timestamp), cross-agent chain (Payroll Worker → Payroll Manager → Controller → Ledger → CFO — "Reports summary to CFO Agent monthly"), Layer 1 deterministic footer ("exceptions are handled deliberately, never silently absorbed"), 8 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/payroll-manager-liveness.test.tsx` — NEW, 37 tests (TDD RED → GREEN) locking spec rules: pipeline order, role=status live line, zero-meter invariant (main view AND all branches), never-silently-absorbed critical rule (pro-rated calc + own confirmation step + distinct from every standard staff member), two parallel tracks scoped within Standard/Exceptions Track regions, exception cards with pro-rate and old/new-rate basis + per-card Confirmed badge, statutory confirmation jurisdiction named + deterministic, incomplete-exception blocking for that individual, jurisdiction-gap run held flagged to Compliance, approved terminal with approval timestamp + journal handoff chain, audit trail (exception basis, statutory result, approval timestamp), cross-agent chain, escalation table, status-grid scoped within Payroll Manager Metadata region, entity scoping, Layer 1 footer
+
+**File:** `apps/web/app/dashboard/agents/payroll-manager/page.tsx` — NEW dashboard page: breadcrumb, hero, 3 key principles (Two Parallel Tracks / Exceptions Never Bundled / Statutory Rule-Table Check), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Payroll Manager Liveness" nav item to Payroll & People group (after Payroll Agent Liveness — Payroll Manager is the management-tier exception handler overseeing the Payroll Worker Agent)
+
+**Review findings fixed during build:**
+
+- 2 failing tests were case-insensitive "Found multiple elements" collisions plus 1 latent multi-match the reviewer predicted, all fixed in the test file: (1) `/Jurisdiction Rule Gap/i` in the `showJurisdictionGap` branch → `getAllByText` (h2 + BranchCard body "Jurisdiction rule gap found during statutory confirmation" both match), (2) `/Payroll Approved — Handed to Controller Agent/i` in the `showApproved` branch → `getAllByText` (h2 + BranchCard body "Payroll approved — handed to Controller Agent for journal review" both match), (3) latent `/Approval timestamp 10:02:14/i` → `getAllByText` (body paragraph + inner confirmation div both contain it — predicted to surface once #2 was fixed)
+
+### Verification
+
+| Check                          | Status                                                  |
+| ------------------------------ | ------------------------------------------------------- |
+| Payroll Manager liveness tests | ✅ 37/37 pass                                           |
+| Full component suite           | ✅ 870/870 pass (25 files)                              |
+| Typecheck (`@xenboox/web`)     | ✅ Clean                                                |
+| Build (`@xenboox/web`)         | ✅ Successful — /dashboard/agents/payroll-manager built |
+| Code review                    | ✅ Multiple passes, all findings addressed              |
+| Browser /qa                    | ✅ Route serves (307 auth-redirect to /login)           |
+
+### Next Steps
+
+- Liveness suite now **21 of 21 specs complete** (Payroll Manager was the 21st spec — files landed retroactively with the Compliance turn in commit `faed713`)
+- Payroll Manager spec §9 schema flags: `payroll_runs.exceptions[]` — each with type, detail, calculation_basis, confirmed_by — flagged for schema review
+- Payroll Manager spec §11 note: no open questions beyond those already flagged in the Payroll Worker Agent spec (bonus/overtime input source, threshold calibration)
+- Payroll Manager design note: **sixth fully-deterministic component (0 meters) after Inventory/Tax/Reporting/Budget/Treasury** — run coordination, standard review, exception handling, statutory rule-table check, and approval are all Layer 1 deterministic; the two-track layout makes the never-silently-absorbed exceptions rule visible rather than blended
+
+---
+
 ### [2026-07-31] — Treasury Agent Liveness (spec v1.0): Live Multi-Source Position Rollup & the Never-Close-With-Unresolved Hard Gate
 
 **Agent:** Buffy (Autonomous Engineer)
