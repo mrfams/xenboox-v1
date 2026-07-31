@@ -47,7 +47,7 @@
 - Liveness suite remains **21 of 21 specs complete** — this turn was a spec-coverage audit + upgrade of the already-listed CFO Agent spec (the CFO component was counted in the original 20 but was missing §6 sign-off, §6 escalation table, and the explicit §3 critical rule)
 - CFO spec §9 schema flags: `cfo_interactions.source_refs` — every response tagged with which department summaries fed it; `escalations.triggering_agent`, `escalations.triggering_data_ref` — flagged for schema review
 - CFO spec §11 open question: dollar threshold for mandatory human approval on CFO Agent-level decisions still explicitly undecided per PRD §21 — this spec is written threshold-agnostic and should be revisited once that's set
-- CFO design note: the component renders **department confidence scores (probabilistic layer)** — Controller 95% / Treasury 88% / Compliance 89% — as text percentages on response cards (consistent with the earlier suite convention), while the routing/awaiting/synthesis/response lifecycle is structural; the new Constraint Enforcement section makes the never-fabricates rule explicit at the exact layer humans trust most
+- CFO design note: the component renders **department confidence scores (probabilistic layer)** as text percentages on response cards (consistent with the earlier suite convention) — Controller 95% / Treasury 88% in the responding view, Controller 97% / Treasury 90% / Compliance 89% in the sign-off view — while the routing/awaiting/synthesis/response lifecycle is structural; the new Constraint Enforcement section makes the never-fabricates rule explicit at the exact layer humans trust most
 - `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
 
 ---
