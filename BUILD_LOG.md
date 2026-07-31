@@ -6,6 +6,59 @@
 
 ---
 
+### [2026-07-31] — Treasury Agent Liveness (spec v1.0): Live Multi-Source Position Rollup & the Never-Close-With-Unresolved Hard Gate
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/treasury-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): DATA_ARRIVING → ROLLUP_UPDATING → RECONCILIATION_REVIEW (active) → DAILY_POSITION_CONFIRMED, `role="status"` live line ("Currently: RECONCILIATION_REVIEW — 3 unresolved items — reconciliation cannot close") and **COMPLETE** badges on passed stages
+- **Critical rule (Spec §3/§4): never marks a reconciliation complete while any worker agent under it still reports unresolved items — a hard gate, not a judgment call, per PRD §6.4** — surfaced in constraint section + How It Works step 3 + the Reconciliation Review section ("3 unresolved items — reconciliation cannot close", Blocking for close badge)
+- **Live multi-source position dashboard (Spec §4)** — bank (GMD 8,200.00, reconciled, last updated 09:42), cash tills (GMD 2,100.00, reconciled, last updated 09:40), mobile money (GMD 2,100.00, 1 timing gap expected, last updated 09:38) — each source ticking independently with its own timestamp, total GMD 12,400.00 broken down by source, "arithmetic, never inferred"
+- **Zero confidence meters — FIFTH fully-deterministic component after Inventory/Tax/Reporting/Budget (Spec §3 marks every step "no confidence score")**: ingestion (structural aggregation), rollup (arithmetic), hard-gate review (a hard rule, not judgment), daily confirmation (deterministic) — main view AND all branch states 0 meters
+- **Unresolved items surfaced with which source agent flagged them and why (Spec §2/§4)** — Mobile Money Agent (MTN MoMo txn GMD 40.00 — no matching ledger entry), Reconciliation Agent (bank line GMD 200.00 — likely timing difference), Cash Agent (till variance GMD 20.00 — short, unresolved)
+- **Daily position report building from its component sources (Spec §4/§5)** — "Daily position: GMD 12,400.00 total — GMD 8,200.00 bank (reconciled), GMD 2,100.00 cash tills (reconciled), GMD 2,100.00 mobile money (1 timing gap, expected)" + "Builds from its component sources — never a single one-number snapshot" + Pending confirmation note (3 unresolved items block closure, hard gate)
+- **Branch states (Spec §6/§7)** — `showStaleSource` ("Source Not Reporting" — Wave API down, "shown explicitly as a stale/missing source — never silently excluded from the total", "Total incomplete — GMD 10,300.00 of GMD 12,400.00 expected", blocking for confirmation, 0 meters), `showUnresolved` ("Reconciliation Cannot Close" — unresolved past a reasonable window, "escalating urgency" to CFO Agent, blocking for close, 0 meters), `showPositionAlert` ("Position Needs Attention" — "large scheduled payment vs position", proactive alert, non-blocking but urgent, CFO Agent + human, 0 meters), `showConfirmed` ("Daily Position Confirmed" — "GMD 12,400.00 across 3 accounts/rails", produced from component sources, terminal, 0 meters), `showEmptyState`
+- Status grid (Treasury Metadata region): Position GMD 12,400.00 / Sources 3 / Unresolved Items 3 / Last Confirmed Pending
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: cash position needs strategic attention (low runway, large scheduled payment vs position) → CFO Agent/human ("'Proactive alert surfaced' — not buried in a report", non-blocking but urgent); reconciliation unresolved past a reasonable window → CFO Agent ("'Escalating urgency shown' — close stays blocked", blocking for close)
+- How It Works 4-step decomposition (Ingest from Each Source Agent / Recalculate Rollup / Review Unresolved Items / Confirm Daily Position) with "No confidence score" notes on every step + the never-close-with-unresolved hard rule, constraint badges (Never Close With Unresolved, Per-Source Timestamps, Stale Source Shown Never Excluded, Rollup Broken Down by Source, Arithmetic Not Inference), audit trail table (7 data rows: rollup with source timestamps, per-source ingests at 09:38/09:40/09:42, total recalculated, hard-gate blocking decision, daily confirmation), cross-agent chain (Cash → Mobile Money → Reconciliation → Expense → Treasury → CFO — "Aggregates Cash Agent, Mobile Money Agent, Reconciliation Agent, and Expense Agent. Reports to CFO Agent."), Layer 1 deterministic footer ("ingestion, rollup arithmetic, hard-gate review, daily confirmation — a position is never guessed"), 10 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/treasury-liveness.test.tsx` — NEW, 45 tests (TDD RED → GREEN) locking spec rules: pipeline order, role=status live line, zero-meter invariant (main view AND all branches), never-close-with-unresolved critical rule (hard gate, not a judgment call, PRD §6.4 cited), live multi-source dashboard (per-source independent timestamps, total broken down by source, timing gap labeled expected), unresolved items flagged by source agent + why + blocking for close, daily position report building from component sources + pending while blocked, stale-source never-silently-excluded + total incomplete, unresolved-past-window blocking + escalating urgency to CFO, position alert non-blocking but urgent + proactive, confirmed terminal across 3 accounts/rails, audit trail (rollup calcs, source timestamps, hard gate), cross-agent chain (Cash/Mobile Money/Reconciliation/Expense/CFO), escalation table, status-grid scoped within Treasury Metadata region, entity scoping, Layer 1 footer
+
+**File:** `apps/web/app/dashboard/agents/treasury/page.tsx` — NEW dashboard page (mirrors controller liveness page pattern): breadcrumb, hero, 3 key principles (live multi-source rollup / never close with unresolved / stale sources shown never excluded), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Treasury Agent Liveness" nav item to Money group (after Cash Agent Liveness — Treasury aggregates Cash/Mobile Money/Reconciliation)
+
+**Review findings fixed during build:**
+
+- 2 failing tests were case-insensitive "Found multiple elements" collisions, both fixed in the test file: (1) `/balance marked stale/i` in the `showStaleSource` branch → `getAllByText` (BranchCard title "Mobile money balance marked stale" + body paragraph both match), (2) `/Daily Position Confirmed/i` in the `showConfirmed` branch → `getAllByText` (h2 title + BranchCard title "Daily position confirmed: GMD 12,400.00 across 3 accounts/rails" both match case-insensitively)
+- Both conversions verified by reviewer: the retained `getByText(/Total incomplete/i)` (single match — BranchCard inner div only) and `getByText(/GMD 12,400.00 across 3 accounts\/rails/i)` (single match — BranchCard title only) remain safe
+
+### Verification
+
+| Check                      | Status                                           |
+| -------------------------- | ------------------------------------------------ |
+| Treasury liveness tests    | ✅ 45/45 pass                                    |
+| Full component suite       | ✅ 833/833 pass (24 files)                       |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                         |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/treasury built |
+| Code review                | ✅ Multiple passes, all findings addressed       |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)    |
+
+### Next Steps
+
+- **Liveness suite now 20 of 20 specs complete** — Ledger, CFO, Compliance, AP, Reconciliation, Payroll, AR, Cash, Mobile Money, Expense, Asset, Inventory, Tax, Audit, Document, Reporting, Budget, Analytics, Controller, Treasury — all built, tested, and pushed
+- Treasury spec §9 schema flags: `treasury_position.rollup` snapshot table capturing per-source contribution at time of calculation, not just a final number — flagged for schema review
+- Treasury spec §11 note: no open questions beyond those already flagged in the underlying worker-agent specs
+- Treasury design note: **fifth fully-deterministic component (0 meters) after Inventory/Tax/Reporting/Budget** — every step is structural aggregation, arithmetic, or a hard rule, never judgment; the audit-trail logs rollup calculations with per-source timestamps and the hard-gate blocking decision, and the stale-source branch renders the incomplete total explicitly
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Controller Agent Liveness (spec v1.0): Management-Tier Reviewer, Not a Rubber Stamp
 
 **Agent:** Buffy (Autonomous Engineer)

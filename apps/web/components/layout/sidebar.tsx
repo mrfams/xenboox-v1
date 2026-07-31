@@ -110,6 +110,11 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/agents/cash",
         icon: Activity,
       },
+      {
+        label: "Treasury Agent Liveness",
+        href: "/dashboard/agents/treasury",
+        icon: Activity,
+      },
     ],
   },
   {
