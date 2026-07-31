@@ -104,7 +104,7 @@
 
 ### Next Steps
 
-- Liveness suite now **21 of 21 specs complete** (Payroll Manager was the 21st spec — files landed retroactively with the Compliance turn in commit `faed713`)
+- Liveness suite now **21 of 21 specs complete** (Payroll Manager was the 21st spec under the original spec-count; files landed retroactively with the Compliance turn in commit `faed713` — see the Compliance entry above for the 21-suite-standard-page enumeration)
 - Payroll Manager spec §9 schema flags: `payroll_runs.exceptions[]` — each with type, detail, calculation_basis, confirmed_by — flagged for schema review
 - Payroll Manager spec §11 note: no open questions beyond those already flagged in the Payroll Worker Agent spec (bonus/overtime input source, threshold calibration)
 - Payroll Manager design note: **sixth fully-deterministic component (0 meters) after Inventory/Tax/Reporting/Budget/Treasury** — run coordination, standard review, exception handling, statutory rule-table check, and approval are all Layer 1 deterministic; the two-track layout makes the never-silently-absorbed exceptions rule visible rather than blended
