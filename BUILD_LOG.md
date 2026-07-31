@@ -6,6 +6,62 @@
 
 ---
 
+### [2026-07-31] — Audit Agent Liveness (spec v1.0): Visible 24/7 Continuous Audit
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~55 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/audit-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- **TWO parallel state machines (Spec §2)** rendered as semantic `<ol>`/`<li>`:
+  - **Continuous audit track:** SAMPLING → COMPARING_AGAINST_GOLDEN_DATASET → LOGGED (active COMPARING_AGAINST_GOLDEN_DATASET) + **CLEAN | DEVIATION_FLAGGED outcome badges**
+  - **On-demand package track:** PACKAGE_REQUESTED → ASSEMBLING → DELIVERED (active ASSEMBLING)
+- **Critical rule (Spec §3): a "clean" result must still be logged and attributable** — `data-step="clean"` card: "Clean result logged — attributed to sample AUD-2026-0182. Nothing wrong found is not nothing was checked — 15 cases actually checked against golden dataset v2.4."
+- **Golden-case citation (Spec §2/§5)** — `data-step="compare"` card: "1 deviation: AP Agent's decision on invoice #4471 categorized as 'Office Supplies' — golden dataset case #GD-0231 suggests 'IT Equipment' for similar vendor/amount pattern. Flagged to Compliance Agent. Compared against golden dataset v2.4."
+- **Meter discipline — a single fuzzy-comparison meter after the fully-deterministic (0-meter) Inventory/Tax components**: exactly **1 confidence meter** (fuzzy comparison 82%, labeled probabilistic Layer 2); deterministic sampling card (`data-step="sampling"`, "Audit Agent sampling AP postings — viewable on demand"), clean card, package checklist carry NO meter (note: AR also carried exactly 1 meter earlier — the 54% ambiguous-match meter; Audit's single meter is specifically the fuzzy-comparison one)
+- **Persistent low-key activity indicator (Spec §4)** — "Audit Agent sampling AP postings" subtle indicator, not intrusive, viewable on demand
+- **Package assembly as visible checklist (Spec §4)** — "Assembling audit package for Q2 2026..." with section-by-section pulls: Trial Balance (sourced · ledger v2.4), Vouchers (sourced · document store), Prior Period Comparisons (pulling...) — never a single "generating..." spinner
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table: material deviation → Compliance Agent/human (golden case cited, non-blocking to operations, blocking for that specific record's certainty), suspicious fraud pattern → immediate high-urgency flag (distinct visual treatment), auditor package request → assembly visible to requester
+- **Branch states** — `showDeviation` ("Deviation Found — Material", golden case #GD-0231 cited, blocking for that record, 0 meters), `showFraud` ("Suspicious Pattern — High Urgency", escalated immediately, distinct error-clay treatment, 0 meters), `showLowCoverage` ("Limited Golden Dataset Coverage" — "lower confidence in this comparison", surfaced honestly never hidden, dataset version cited, 0 meters), `showPackageDelivered` (terminal, "auditor portal updated", 0 meters), `showEmptyState`
+- How It Works 5-step decomposition (Select Sample / Compare Against Golden Dataset / Classify Deviation Severity / Log Result / Assemble Package), constraint badges (Clean Result Attributable, Golden Case Cited, Read-Only Agent, Honest Coverage), audit trail table (7 data rows: sample, deviation, outcome, clean result, package requested/assembled/delivered — Sample/Case, Result, Dataset Version columns), cross-agent chain (worker agents Ledger/AP/AR/Payroll read-only → this agent → Compliance Agent escalation, no write path to ledger under any circumstance), Layer 1 deterministic vs Layer 2 probabilistic footer, 11 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/audit-liveness.test.tsx` — NEW, 39 tests (TDD RED → GREEN) locking spec rules: dual state machines + order, clean-logged-attributable critical rule ("nothing wrong found ≠ nothing was checked"), golden-case citation + triggering agent, exactly-1-meter invariant (fuzzy 82% only, sampling card 0), honest low-coverage surfacing, package checklist sourced sections, fraud high-urgency distinct treatment, deviation blocking semantics, audit trail columns, read-only cross-agent chain, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/audit/page.tsx` — NEW dashboard page (mirrors tax liveness page pattern): breadcrumb, hero, 3 key principles (continuously visible / golden case cited / read-only & honest), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Audit Agent Liveness" nav item to Compliance group (after Audit Preparation)
+
+**Review findings fixed during build:**
+
+- Footer phrase "Nothing wrong found is not nothing was checked" collided with the clean-card honesty test regex (multi-match) → footer reworded to "A clean result means it was actually checked"; clean card is the canonical honesty location
+- Comparison card didn't name the triggering agent → added "AP Agent's decision on" (spec §2 DEVIATION_FLAGGED requires naming the agent), preserving the contiguous substring for the `getByText` assertion
+- Two `getByText` multi-match tests → `getAllByText`: `/Vouchers/` + `/Prior Period Comparisons/` (also appear in the ASSEMBLING pipeline description)
+- Removed unused lucide imports (FileWarning, Sparkles)
+
+### Verification
+
+| Check                      | Status                                        |
+| -------------------------- | --------------------------------------------- |
+| Audit liveness tests       | ✅ 39/39 pass                                 |
+| Full component suite       | ✅ 581/581 pass (18 files)                    |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                      |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/audit built |
+| Code review                | ✅ Multiple passes, all findings addressed    |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login) |
+
+### Next Steps
+
+- Remaining liveness specs: Document, Treasury, Controller, Reporting
+- Audit spec §9 schema flags: `audit_samples` table (sample_id, module, transaction_ref, golden_case_ref, result, severity, timestamp), `golden_dataset.version` tracked so every comparison cites which dataset version was used — flagged for schema review
+- Audit spec §11 open questions: sampling frequency/coverage target per module not yet set (needs calibration once golden dataset expansion progresses); UI honesty pattern for thin-coverage confidence agreed at build (low-coverage branch) but needs product sign-off
+- Audit design note: single fuzzy-comparison meter after the fully-deterministic (0-meter) Inventory/Tax components — sampling/logging/assembly deterministic (Layer 1), fuzzy comparison confidence probabilistic (Layer 2); AR earlier also carried exactly 1 meter (ambiguous-match 54%), so Audit's is the fuzzy-comparison instance of the 1-meter pattern
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Tax Agent Liveness (spec v1.0): Rule-Versioned Calculation Transparency
 
 **Agent:** Buffy (Autonomous Engineer)

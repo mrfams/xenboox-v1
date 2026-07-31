@@ -285,6 +285,11 @@ const navGroups: NavGroup[] = [
         icon: Search,
         badge: "AI",
       },
+      {
+        label: "Audit Agent Liveness",
+        href: "/dashboard/agents/audit",
+        icon: Activity,
+      },
       { label: "Audit Log", href: "/dashboard/audit-log", icon: FileText },
     ],
   },
