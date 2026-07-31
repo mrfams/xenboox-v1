@@ -6,6 +6,63 @@
 
 ---
 
+### [2026-07-31] — Mobile Money Agent Liveness (spec v1.0): Timing-Gap Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~55 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/mobile-money-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): STATEMENT_OR_API_PULLED → PARSING_BY_RAIL → MATCHING_TO_LEDGER → RECONCILED, with **match outcome branch** (MATCHED | TIMING_GAP_FLAGGED | UNMATCHED) rendered as three exact-text badges
+- **Critical rule (Spec §2/§3): timing gap is a THIRD explicit outcome** — a mobile money confirmation before bank settlement is computed and labeled, never treated as a match failure and never silently reconciled without being labeled a gap
+  - Timing-gap rows use `data-timing-gap="true"` + **Signal Indigo** treatment (distinct from green matched and amber/red unmatched)
+  - Explicit lag computation per gap: "Wave confirms GMD 120.00 June 14, bank settlement expected June 16 — normal 2-day lag for this rail, not an error. Never treated as a match failure." + typical-range basis ("Typical range for Orange Money: 1-2 days")
+- **Per-rail separation (Spec §4)** — Wave / Orange Money / MTN MoMo rendered as separate rail sections with rail icons and rail-specific references kept (WV-9928, OM-2210, MTN-3345); never blended into one undifferentiated feed
+- **Meter discipline** — exact match (deterministic, `data-match-kind="exact"`, no meter), **fuzzy match single 82% confidence meter** (probabilistic, labeled; exactly 1 meter total), timing gap (deterministic date-diff, no meter), unmatched (`data-match-kind="unmatched"`, no meter, **blocking for close**)
+- **Anomalous lag (Spec §6)** — `showAnomalousLag` branch: "5-day lag is unusual for this rail — investigate" → Escalated to Treasury Agent, non-blocking but surfaced
+- **Rail API failure (Spec §7)** — `showApiFailure` branch: "Wave connection needs reauthorization", "Couldn't pull Wave data since Jul 28 — last successful pull", blocking for that rail only, other rails continue; provider format change flagged for Document Agent review, never mis-parsed silently
+- **Terminal RECONCILED (Spec §2)** — `showReconciled`: "Mobile money reconciled for Q2 2026", Treasury Agent confirmed, 0 meters, Ledger Agent handoff
+- Escalation & human-in-the-loop triggers table, How It Works decomposition (5 steps: Pull Per-Rail Data / Parse Per-Rail Format / Match to Ledger / Detect Timing Gap / Bucket True Unmatched), constraint badges (Per-Rail Parsing, Timing Gaps Labeled, Exact Then Fuzzy, Rail Ref Kept), audit trail table (Rail / Match Type / Confidence / Lag Basis), cross-agent chain (Reconciliation Agent pattern, Treasury escalation, Document Agent), Layer 1 deterministic vs Layer 2 probabilistic footer, empty state
+- 9 `role="region"` + `aria-label` section containers (accessibility convention)
+
+**File:** `apps/web/__tests__/components/mobile-money-liveness.test.tsx` — NEW, 40 tests (TDD RED → GREEN) locking spec rules: pipeline order, three outcome badges, timing-gap third-outcome rule (explicit lag + never match failure + never silently reconciled), per-rail separation with refs kept, exactly-1-meter invariant, anomalous-lag escalation, API-failure copy, unmatched blocking for close, terminal RECONCILED (0 meters), audit trail columns, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/mobile-money/page.tsx` — NEW dashboard page (mirrors AP/AR/Cash liveness page pattern): breadcrumb, hero, 3 key principles (timing gaps third outcome / per-rail separation / never silently skipped), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Mobile Money Agent Liveness" nav item to Money group (after Mobile Money workspace)
+
+**Review findings fixed during build:**
+
+- Test file was missing `import React from "react"` — happy-dom classic JSX runtime → `ReferenceError: React is not defined` (40 failures); component + test now import React explicitly, matching ap/ar/cash pattern
+- Removed unused lucide imports (ListTree, Timer); dropped unused `index` param from MatchRow
+- One `getByText` multi-match (`/Treasury Agent/i` — 3 escalation rows + cross-agent span) → converted to `getAllByText`
+- All labeled section divs now carry explicit `role="region"` + `aria-label` (aria-label alone doesn't confer region role in happy-dom)
+- Removed dead `rail.short`/`rail.dot` fields from RAILS record
+
+### Verification
+
+| Check                       | Status                                               |
+| --------------------------- | ---------------------------------------------------- |
+| Mobile Money liveness tests | ✅ 40/40 pass                                        |
+| Full component suite        | ✅ 388/388 pass (13 files)                           |
+| Typecheck (`@xenboox/web`)  | ✅ Clean                                             |
+| Build (`@xenboox/web`)      | ✅ Successful — /dashboard/agents/mobile-money built |
+| Code review                 | ✅ Multiple passes, all findings addressed           |
+| Browser /qa                 | ✅ Route serves (307 auth-redirect to /login)        |
+
+### Next Steps
+
+- Remaining liveness specs: Document, Treasury, Controller, Reporting
+- Mobile Money spec §9 schema flags: `mobile_money_txns.rail` enum (`wave | orange_money | mtn_momo | mpesa | airtel_money`), `mobile_money_txns.match_status` enum (`matched | timing_gap | unmatched`), `settlement_lag_days`, `typical_lag_range_for_rail` — flagged for schema review
+- Mobile Money spec §11 open questions: unify Mobile Money + Reconciliation matching engines (this spec assumes separate per current agent specs), "typical lag range" per rail needs beta data to calibrate
+- `RailId` type currently covers 3 of 5 spec rails (M-Pesa/Airtel Money in empty-state copy only) — grow when schema lands
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Cash Agent Liveness (spec v1.0): Dual-Lifecycle Cash & Imprest Transparency
 
 **Agent:** Buffy (Autonomous Engineer)
@@ -55,7 +112,7 @@
 
 ### Next Steps
 
-- Remaining liveness specs: Mobile Money, Document, Treasury, Controller, Reporting
+- Remaining liveness specs: Document, Treasury, Controller, Reporting
 - Cash spec §9 schema flags: `cash_tills.running_balance` (live field), `imprest.status` enum (`issued | in_use | retirement_submitted | balanced | variance_flagged | retired`), `imprest_receipts.matched_amount`/`ocr_confidence`, `imprest.variance_amount`/`variance_resolution` — flagged for schema review
 - Cash spec §11 open questions: discrepancy materiality threshold (what counts as worth flagging vs rounding tolerance), multi-currency till handling — need product decisions
 - `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
@@ -110,7 +167,7 @@
 
 ### Next Steps
 
-- Remaining liveness specs: Mobile Money, Document, Treasury, Controller, Reporting
+- Remaining liveness specs: Document, Treasury, Controller, Reporting
 - AR spec §9 schema flags: `ar_invoices.status` (incl. `partial_paid`, `overpaid`), `ar_payments.match_confidence`/`match_basis`, `ar_invoices.amount_outstanding` — flagged for schema review
 - `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
 

@@ -99,6 +99,11 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/mobile-money",
         icon: Smartphone,
       },
+      {
+        label: "Mobile Money Agent Liveness",
+        href: "/dashboard/agents/mobile-money",
+        icon: Activity,
+      },
       { label: "Cash & Imprest", href: "/dashboard/cash", icon: Wallet },
       {
         label: "Cash Agent Liveness",
