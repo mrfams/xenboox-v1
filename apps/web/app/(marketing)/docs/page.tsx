@@ -93,7 +93,6 @@ export default function DocsPage() {
     <>
       <MarketingHero
         title="Documentation"
-        subtitle="Docs"
         description="Everything you need to get started with Xenboox — from setting up your organization to building on our API."
         cta={{ label: "Get Started Guide", href: "/docs/getting-started" }}
         secondaryCta={{ label: "API Reference", href: "/docs/api" }}
