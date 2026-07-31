@@ -212,6 +212,11 @@ const navGroups: NavGroup[] = [
         icon: Activity,
       },
       {
+        label: "Controller Agent Liveness",
+        href: "/dashboard/agents/controller",
+        icon: Activity,
+      },
+      {
         label: "Trial Balance",
         href: "/dashboard/trial-balance",
         icon: TrendingUp,

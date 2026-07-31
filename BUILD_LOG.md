@@ -6,6 +6,61 @@
 
 ---
 
+### [2026-07-31] — Controller Agent Liveness (spec v1.0): Management-Tier Reviewer, Not a Rubber Stamp
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/controller-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): POSTING_RECEIVED_FOR_REVIEW → REVIEWING (active) → CONFIRMED → AGGREGATED_INTO_CLOSE_CHECKLIST, with **KICKED_BACK rendered as a FORK branch** (parallel listitem, FORK badge, spec §2 `(CONFIRMED | KICKED_BACK) → AGGREGATED_INTO_CLOSE_CHECKLIST`), `role="status"` live line ("Currently: REVIEWING — reviewing posting from AP Agent: AP-2026-0412") and **COMPLETE** badges on passed stages
+- **Spec §1 (reviewer, not a doer)** — header copy: "its liveness shows what it's reviewing right now among postings from five worker agents, and what it approved vs. kicked back, so it never reads as a passive rubber stamp"
+- **Live Review Feed distinct from Ledger Agent's posting feed (Spec §4)** — "Live 'currently reviewing' feed — distinct from Ledger Agent's posting feed. Shows Controller Agent is an active second layer, not the same event repeated." + rows: reviewing AP-2026-0412 (REVIEWING badge), confirmed INV-COGS-2026-0312 (CONFIRMED badge), kicked back AP-2026-0411 with reason + "Routed back to AP Agent's queue"
+- **Exactly 1 confidence meter — judgment-based categorization check 82% (Layer 2)**: only judgment-based categorization carries confidence per spec §3 step 2, and it **must cite its basis** ("Miscategorization suspected — invoice #4471… vendor Cloudline Ltd historically categorized as 'IT Equipment' based on vendor history. Basis cited — 82%"); deterministic completeness checks carry no score ("Deterministic completeness checks — no confidence score. Only judgment-based categorization carries confidence, and it must always cite its basis.")
+- **Kickback with specific reason + visible routing (Spec §2/§4/§5)** — "Kicked back to AP Agent: invoice #4471 categorized as 'Marketing' but vendor 'Cloudline Ltd' historically categorized as 'IT Equipment' — please confirm or recategorize. Routed back to AP Agent's queue."
+- **Live close checklist (Spec §4/§10)** — Trial balance balanced (MET) / AP-AR reconciled (MET) / All postings reviewed (IN PROGRESS) + "Ticks live as conditions are met — not revealed only at month-end." + Layer 1 "ticks live" tag
+- **Critical rule (Spec §7): never silently confirmed to keep close on schedule** — surfaced in constraint section ("a posting reviewed but flagged as a material issue is never silently confirmed to keep the close on schedule — it must escalate. Judgment-based categorization must always cite its basis, never a bare assertion.") + `showMaterialIssue` branch ("Material Issue Escalated", "it must escalate to CFO Agent and human", "Must escalate — confirmation is blocked until the material issue is resolved.")
+- **Branch states (Spec §6/§7)** — `showKickbackLoop` ("Kickback Loop", "Same posting kicked back twice — Spec §6", escalated to CFO Agent + human "with the full review history shown, never a bare reference", blocking for that posting, 0 meters), `showCloseAtRisk` ("Close at Risk", "Trial balance not yet balanced — close at risk", flagged to CFO Agent, non-blocking but flagged, 0 meters), `showMaterialIssue` (Spec §7, 0 meters), `showKickedBack` (terminal KICKED_BACK view with routing, 0 meters), `showChecklistComplete` (terminal "Close Checklist Complete", "Ready for Month-End Close consumption by the close flow", 0 meters), `showEmptyState`
+- Status grid (Controller Metadata region): Status REVIEWING / Period Q2 2026 / Postings Reviewed 14 / Kicked Back 1
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: kickback loop (same posting kicked back twice) → CFO Agent/human ("Escalation with full history shown", blocking for that posting); close checklist item can't be satisfied by target date → CFO Agent ("'Trial balance not yet balanced — close at risk'", non-blocking but flagged)
+- How It Works 4-step decomposition (Receive Posting for Review / Check Categorization and Completeness / Confirm or Kick Back / Roll Up into Close Checklist) with "No confidence score" notes on deterministic steps + "must cite the basis" on judgment, constraint badges (Review Feed Distinct, Kickback Reason Named, Judgment Cites Basis, Never Silently Confirmed, Close Checklist Live), audit trail table (8 data rows: received AP-2026-0412, completeness check, categorization 82% basis cited, kicked back with reason, received INV-COGS-2026-0312, review confirmed, confirmed posting, close checklist roll-up), cross-agent chain (AP/AR/Asset/Inventory → Ledger → Controller → CFO — "all worker-agent postings flow through here"), Layer 1 deterministic vs Layer 2 probabilistic footer, 10 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/controller-liveness.test.tsx` — NEW, 43 tests (TDD RED → GREEN) locking spec rules: pipeline order (fork semantics: both CONFIRMED and KICKED_BACK precede the close checklist roll-up), role=status live line, exactly-1-meter invariant (categorization 82% only, close checklist region 0), judgment-cites-basis critical rule, review feed distinct from Ledger + transaction ref + confirmed/kicked-back rows, kickback reason named + routed back to originating queue, live close checklist ticking (not month-end only), kickback-loop blocking + full history + CFO escalation, close-at-risk non-blocking but flagged, material-issue never-silently-confirmed must-escalate, kicked-back terminal, checklist-complete terminal, audit trail with every review decision + reason, cross-agent chain (Ledger/AP/AR/CFO), escalation table, status-grid scoped within Controller Metadata region, entity scoping, Layer 1/2 footer
+
+**File:** `apps/web/app/dashboard/agents/controller/page.tsx` — NEW dashboard page (mirrors analytics liveness page pattern): breadcrumb, hero, 3 key principles (reviewer not a doer / kickbacks with reasons / live close checklist), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Controller Agent Liveness" nav item to Accounting group (after Ledger Agent Liveness — Controller is the management-tier review layer on top of Ledger postings)
+
+**Review findings fixed during build:**
+
+- 5 failing tests were all case-insensitive "Found multiple elements" collisions plus 1 latent regex mismatch, all fixed in the test file: (1) `/CONFIRMED/i` within the Review Feed region → `getAllByText` (row text "Confirmed: INV-COGS-2026-0312…" + CONFIRMED badge + footer "Confirmed postings…" all match), (2) `/Contributes to clean trial balance/i` corrected to `/contribute to clean trial balance/i` — component footer says "contribute" (no 's'), old regex would have thrown "Unable to find" once the multi-match above it was fixed, (3) `/Kickback Loop/i` → `getAllByText` (h2 + BranchCard inner div "until the kickback loop is resolved"), `/kicked back twice/i` → `getAllByText` (BranchCard title + subtitle), (4) `/Close at Risk/i` → `getAllByText` (h2 + BranchCard title "close at risk"), (5) `/must escalate/i` → `getAllByText` (BranchCard paragraph "it must escalate" + inner div "Must escalate"), (6) `/Kicked Back/i` → `getAllByText` (h2 + BranchCard title + body; the KICKED_BACK badge correctly does NOT match due to the underscore)
+- `/full history shown/i` correctly left as `getByText` — the paragraph says "full **review** history shown" (not contiguous), so only the BranchCard inner div "Escalated with full history shown." matches — single match confirmed by reviewer
+- Removed unused lucide imports (TrendingUp, Link2) preemptively before verification
+
+### Verification
+
+| Check                      | Status                                             |
+| -------------------------- | -------------------------------------------------- |
+| Controller liveness tests  | ✅ 43/43 pass                                      |
+| Full component suite       | ✅ 788/788 pass (23 files)                         |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                           |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/controller built |
+| Code review                | ✅ Multiple passes, all findings addressed         |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)      |
+
+### Next Steps
+
+- Liveness suite now **19 of 20 specs complete** — remaining: Treasury
+- Controller spec §9 schema flags: `postings.controller_review_status` enum (`pending | confirmed | kicked_back`), `close_checklist.item_status` per period per entity — flagged for schema review
+- Controller spec §11 note: no open questions beyond those already flagged in worker-agent specs this agent reviews
+- Controller design note: this is the **fifth exactly-1-meter component** after AR (ambiguous match 54%), Asset (auto-classification 88%), Audit (fuzzy comparison 82%), and Analytics (deviation detection 87%) — the single categorization-judgment confidence is the Layer 2 probabilistic input; intake, completeness checks, the confirm/kick-back decision, and the close-checklist roll-up are Layer 1 deterministic
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Analytics Agent Liveness (spec v1.0): Baseline-Cited Proactive Insights
 
 **Agent:** Buffy (Autonomous Engineer)
