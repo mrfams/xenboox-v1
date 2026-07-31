@@ -53,7 +53,7 @@
 
 ### Next Steps
 
-- Liveness suite now **21 of 21 specs complete** (suite extension: Payroll Manager + Compliance added after the original 20) — Ledger, CFO, Compliance, AP, Reconciliation, Payroll, AR, Cash, Mobile Money, Expense, Asset, Inventory, Tax, Audit, Document, Reporting, Budget, Analytics, Controller, Treasury, Payroll Manager, Compliance Agent
+- Liveness suite now **21 of 21 specs complete** — 21 suite-standard liveness pages: Ledger, CFO, AP, Reconciliation, Payroll, AR, Cash, Mobile Money, Expense, Asset, Inventory, Tax, Audit, Document, Reporting, Budget, Analytics, Controller, Treasury, Payroll Manager, Compliance Agent (the original 20 counted Compliance via its dashboard-workspace liveness widgets — `compliance-liveness-calendar` + `rule-change-proposals` on /dashboard/compliance; this turn adds the suite-standard Compliance Agent page to match the Payroll Manager suite extension)
 - Compliance spec §9 schema flags: `compliance_deadlines` table with live countdown fields; `tax_rules` versioning (shared with Tax Agent spec) — `source_citation`, `confirmed_by`, `confirmed_at` — flagged for schema review
 - Compliance spec §11 open question: rule-change monitoring source/mechanism not yet specified (manual founder input vs external feed) — flagged, not decided
 - Compliance design note: **sixth exactly-1-meter component** after AR (54%), Asset (88%), Audit (82%), Analytics (87%), Controller (82%) — the single rule-change detection confidence (82%) is the Layer 2 probabilistic input (inferred from an ambiguous press-release source); deadline monitoring, escalation, Tax Agent review, regulatory reporting, rule application, and all branch states are Layer 1 deterministic
