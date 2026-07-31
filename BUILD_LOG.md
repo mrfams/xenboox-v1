@@ -6,6 +6,61 @@
 
 ---
 
+### [2026-07-31] — Compliance Agent Liveness (spec v1.0): Live Graduated Calendar & Never-Auto-Applied Rule Updates
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/compliance-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): MONITORING → DEADLINE_APPROACHING → TAX_AGENT_REVIEW (active, signal-indigo ACTIVE badge) → REGULATORY_STATUS_REPORTED, `role="status"` live line ("Currently: TAX_AGENT_REVIEW — reviewing Gambia VAT Q2 2026 draft against rule table v2.1") and **COMPLETE** badges on passed stages
+- **Critical rule (Spec §3/§4): rule set changes are never auto-applied — every update requires explicit human confirmation with the source cited; this agent detects and proposes, it does not unilaterally rewrite the tax rules other agents depend on** — surfaced in constraint section + rule-track paragraph + How It Works step 6 ("Never auto-applies a detected rule change without human confirmation, per PRD §6.4")
+- **SEPARATE rule-update track (Spec §2)** rendered as div cards (NOT listitems — pipeline order test stays at exactly 4): RULE_UPDATE_DETECTED (Bell, with the **EXACTLY ONE confidence meter at 82%** — spec §3 step 5: confidence score if inferred from an ambiguous source, none if authoritative) → HUMAN_REVIEW_REQUESTED ("Awaiting confirmation — blocking until confirmed", old rule 15% (rule v2.1) vs proposed 16% (rule v2.2)) → RULE_SET_UPDATED (pending, not yet applied)
+- **Rule-change detection meter (Layer 2)** — "82% — inferred from ambiguous source (press release, not official register). Authoritative direct sources carry no score" + source citation ("Source: GRA public notice #2026-041 (press release, July 10, 2026)")
+- **Live compliance calendar (Spec §4) — color-graduated countdown**: "Every deadline ticks live — color-graduated at 30 / 14 / 7-day thresholds. Not a static list refreshed only on page load." + 4 rows (Gambia VAT Q2 2026 return — 7 days remaining — critical window / SSHFC monthly contributions (June) — 14 days / Gambia Corporate Income Tax — 30 days / SSHFC May contributions — Filed Jul 5, 2026)
+- **Tax Agent Review (Spec §2/§4) — deterministic, 0 meters** — "Reviewing VAT return for Gambia Q2 2026 — every line traceable to a valid rule citation before the submission package" + 3 return lines each citing its rule (Output VAT GMD 5,600.00 — VAT 15%, GRA Gambia standard rate, rule v2.1, effective Jan 1, 2026 / Input VAT credit GMD 1,875.00 — rule v2.1 / WHT GMD 240.00 — WHT 5% on GMD 4,800.00, rule v2.1) + "No confidence score — structured review against known rules"
+- **Regulatory Status Reported (Spec §2)** — "Compliance status: clean — 1 return in submission package, reported to CFO Agent at 11:04:02"
+- **Branch states (Spec §6/§7)** — `showRuleApplied` (terminal, "Rule Set Updated", "Confirmed by human (CFO) at 14:04:12 — never auto-applied", rule v2.2 now cited by Tax Agent and Payroll Worker Agent, 0 meters), `showDeadlineCritical` ("VAT return for Gambia Q2 due in 2 days — package not ready", high-urgency alert, non-blocking but urgent, 0 meters), `showRiskIdentified` ("Missed filing detected: SSHFC May 2026 contributions", immediate escalation not batched, blocking, 0 meters), `showKickedBack` ("VAT Q2 draft line 3 cites rule version 2.0 — current is 2.1", returned with specific reason, blocking for that return, 0 meters), `showLowConfidenceRule` (Spec §7 — "flagged low-confidence (48%)" as text badge NOT meter, "Never silently applied, never applied on a guessed rate", 0 meters), `showEmptyState`
+- Status grid (Compliance Metadata region): Deadline 7 days / Jurisdictions 2 / Returns Tracked 6 / Rule Changes Pending 1
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: deadline within critical window and package not ready → CFO Agent/human immediately ("High-urgency alert", non-blocking but urgent); rule change detected → Human, always ("Confirmation required before any downstream agent uses the new rule", blocking until confirmed); regulatory risk identified (e.g., missed filing) → CFO Agent/human immediately ("Immediate escalation, not batched", blocking)
+- How It Works 6-step decomposition (Monitor Deadlines / Escalate as Deadline Approaches / Review Tax Agent Output / Report Regulatory Status / Detect Rule Change — "Confidence score if inferred from an ambiguous source, none if from an authoritative direct source" / Request Human Review Before Applying), constraint badges (Never Auto-Applied, Source Cited, Human Confirmation Required, Graduated Deadline Escalation, Rule Version Cited), audit trail table (8 data rows: deadline sweep, countdown updated, VAT Q2 draft reviewed result pass, critical window escalation, status clean reported, rule change detected with source, human confirmation requested blocking, rule set applied confirmed_by Human (CFO) at 14:04:12), cross-agent chain (Tax → Compliance → Audit → CFO — "Provides the rule tables Tax Agent and Payroll Worker Agent depend on"), Layer 1 deterministic vs Layer 2 probabilistic footer ("82% confidence when inferred from an ambiguous source; authoritative sources carry no score"), 11 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/compliance-liveness.test.tsx` — NEW, 43 tests (TDD RED → GREEN) locking spec rules: pipeline order, role=status live line, exactly-1-meter invariant (rule-change detection 82% only, all sections + all 5 branch states 0 meters, low-confidence branch 48% as text not meter), never-auto-applied critical rule (main view + How It Works step 6 per PRD §6.4), live color-graduated calendar (7/14/30-day thresholds + critical window + filed row), rule update track (old vs new comparison, source citation, blocking until confirmed), Tax Agent review rule citations + deterministic, regulatory status reported, rule-set-updated terminal with human confirmation, deadline-critical non-blocking but urgent, regulatory-risk blocking not batched, kicked-back specific reason, low-confidence never silently applied, audit trail (rule change source + effective date + confirming human), cross-agent chain (Tax/Audit/CFO/Payroll Worker Agent + provides rule tables), escalation table, status-grid scoped within Compliance Metadata region, entity scoping, Layer 1/2 footer
+
+**File:** `apps/web/app/dashboard/agents/compliance/page.tsx` — NEW dashboard page (mirrors payroll-manager liveness page pattern): breadcrumb, hero, 3 key principles (Live Graduated Calendar / Never Auto-Applied / Versioned Rule Citations), AICommandBar, liveness controls (6 state chips: Tax Agent Review / Rule Applied / Deadline Critical / Regulatory Risk / Kicked Back / Low-Confidence Rule)
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Compliance Agent Liveness" nav item to Compliance group (after Tax Agent Liveness — Compliance oversees Tax and Audit Agents; note the Compliance group is collapsed by default, consistent with existing Tax/Audit liveness items in that group)
+
+**Review findings fixed during build:**
+
+- 1 failing test was a case-insensitive "Found multiple elements" collision, fixed in the test file: `/unverifiable/i` in the `showLowConfidenceRule` branch → `getAllByText` (the word appears in THREE places: the sub-title "ambiguous or unverifiable source", the BranchCard title "Rule change detected from unverifiable source", and the BranchCard body "Ambiguous or unverifiable rule-change source")
+- `/rule v2.1/i` in the Tax Agent Review region preemptively converted to `getAllByText` during build (all 3 return lines cite rule v2.1 — reviewer-confirmed the other review-region assertions are single-match)
+- All branch h2 + BranchCard body collisions preempted with `getAllByText` (Rule Set Updated / 15% → 16% / confirmed by human / Deadline Critical / Regulatory Risk Identified / Kicked Back to Tax Agent / Low-Confidence Rule Change / Rule change detected across track card + escalation row)
+
+### Verification
+
+| Check                      | Status                                             |
+| -------------------------- | -------------------------------------------------- |
+| Compliance liveness tests  | ✅ 43/43 pass                                      |
+| Full component suite       | ✅ 913/913 pass (26 files)                         |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                           |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/compliance built |
+| Code review                | ✅ Multiple passes, all findings addressed         |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)      |
+
+### Next Steps
+
+- Liveness suite now **21 of 21 specs complete** (suite extension: Payroll Manager + Compliance added after the original 20) — Ledger, CFO, Compliance, AP, Reconciliation, Payroll, AR, Cash, Mobile Money, Expense, Asset, Inventory, Tax, Audit, Document, Reporting, Budget, Analytics, Controller, Treasury, Payroll Manager, Compliance Agent
+- Compliance spec §9 schema flags: `compliance_deadlines` table with live countdown fields; `tax_rules` versioning (shared with Tax Agent spec) — `source_citation`, `confirmed_by`, `confirmed_at` — flagged for schema review
+- Compliance spec §11 open question: rule-change monitoring source/mechanism not yet specified (manual founder input vs external feed) — flagged, not decided
+- Compliance design note: **sixth exactly-1-meter component** after AR (54%), Asset (88%), Audit (82%), Analytics (87%), Controller (82%) — the single rule-change detection confidence (82%) is the Layer 2 probabilistic input (inferred from an ambiguous press-release source); deadline monitoring, escalation, Tax Agent review, regulatory reporting, rule application, and all branch states are Layer 1 deterministic
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Treasury Agent Liveness (spec v1.0): Live Multi-Source Position Rollup & the Never-Close-With-Unresolved Hard Gate
 
 **Agent:** Buffy (Autonomous Engineer)

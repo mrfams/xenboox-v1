@@ -167,6 +167,11 @@ const navGroups: NavGroup[] = [
         icon: Activity,
       },
       {
+        label: "Payroll Manager Liveness",
+        href: "/dashboard/agents/payroll-manager",
+        icon: Activity,
+      },
+      {
         label: "Expenses",
         href: "/dashboard/expense/pipeline",
         icon: DollarSign,
@@ -296,6 +301,11 @@ const navGroups: NavGroup[] = [
       {
         label: "Tax Agent Liveness",
         href: "/dashboard/agents/tax",
+        icon: Activity,
+      },
+      {
+        label: "Compliance Agent Liveness",
+        href: "/dashboard/agents/compliance",
         icon: Activity,
       },
       {
