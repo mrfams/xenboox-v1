@@ -6,6 +6,61 @@
 
 ---
 
+### [2026-07-31] — Analytics Agent Liveness (spec v1.0): Baseline-Cited Proactive Insights
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/analytics-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): SCANNING → PATTERN_DETECTED → CLASSIFYING_SIGNIFICANCE → SURFACED (active) → **LOGGED_ONLY rendered as a FORK branch** (parallel listitem, FORK badge, spec §2 `(SURFACED | LOGGED_ONLY)`), `role="status"` live line ("Currently: SURFACED — I noticed: supplier spend up 40% vs 6-month average") and **COMPLETE** badges on passed stages
+- **Critical rule (Spec §3/§5): every surfaced insight must cite its metric and baseline — never a vague "unusual activity detected"** — surfaced in constraint section + How It Works step 4 + supplier insight card ("up 40% vs your 6-month average (GMD 1,200 → GMD 1,680)") + runway card showing the actual trajectory data (burn by month + cash on hand GMD 24,600 → ~3 months), never just asserting the conclusion
+- **Exactly 1 confidence meter — deviation detection 87% (Layer 2 statistical judgment)**: only the deviation step is probabilistic per spec §3 step 2; deterministic scan/classify/surface steps carry 0 meters, runway insight region scoped at 0 meters, ALL branch states 0 meters
+- **Proactive insight cards (Spec §4)** — timestamped ("Surfaced 09:31 today — proactive, not batched"), expandable underlying trend data (Feb-Jul monthly spend rows + baseline ref BL-2026-07), never batched only into month-end
+- **Runway insight with trajectory data (Spec §3 critical rule)** — "avg burn GMD 8,200/month, cash on hand GMD 24,600 → approximately 3 months" + per-month burn rows + "runway = cash on hand ÷ avg burn — arithmetic, not inferred"
+- **Logged-only insight (Spec §2)** — muted card: "Travel spend up 9% — below the 25% materiality threshold — recorded for trend history, not pushed. Visible only when you explicitly browse analytics history"
+- **Branch states (Spec §6/§7)** — `showInsufficientData` (Spec §7 — "Not Enough History Yet", "not enough history yet to detect trends reliably", "never presented as certain", 0 meters), `showFraudFlag` (Spec §6 — "Fraud Pattern Flagged — High Urgency", error-clay distinct treatment, "routed simultaneously to Compliance Agent and human — immediately", "Non-blocking but urgent", 0 meters), `showRunwayAlert` (Spec §6 — "Cash Runway Alert", "below the configured threshold", "proactive alert — not buried in a report", CFO Agent + human, non-blocking but urgent, 0 meters), `showLoggedOnly` ("Analytics History", browsing-history view, 0 meters), `showEmptyState`
+- Status grid (Analytics Metadata region): Status SURFACED / Period Q2 2026 / Materiality Threshold 25% / Logged-Only 1
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: anomaly crosses fraud-pattern threshold → Compliance Agent/human immediately (high-urgency flag, distinct from routine insight, non-blocking but urgent); cash runway below configured threshold → CFO Agent/human (proactive alert, not buried in report, non-blocking but urgent)
+- How It Works 4-step decomposition (Scan Continuously / Detect Deviation / Classify Significance / Surface with Specific Citation) with "No confidence score" notes on deterministic steps + "statistical judgment" note on deviation detection, constraint badges (Insights Cite Baselines, Never Vague, Fraud Routed Immediately, Deterministic Classification, Read-Only Agent), audit trail table (7 data rows: continuous scan, supplier deviation 87%, classification, surfaced, logged-only, runway pattern, runway surfaced), cross-agent chain (all modules → Analytics Agent → CFO Agent / Compliance Agent / Reporting Agent — "read-only — no write path to ledger (PRD §6.7 Layer 2)"), Layer 1 deterministic vs Layer 2 probabilistic footer, 10 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/analytics-liveness.test.tsx` — NEW, 42 tests (TDD RED → GREEN) locking spec rules: pipeline order (fork semantics: classifying precedes both SURFACED and LOGGED_ONLY), role=status live line, exactly-1-meter invariant (deviation 87% only, runway region 0), never-vague critical rule (cite metric + baseline, always specific number), proactive timestamped insight cards, expandable trend data with baseline ref, runway trajectory data not just conclusion, logged-only not-pushed, insufficient-history never-certain, fraud high-urgency distinct treatment + simultaneous Compliance routing + non-blocking but urgent, runway alert proactive not buried, history browsing view, audit trail baseline+confidence, read-only cross-agent chain, escalation table, status-grid scoped within Analytics Metadata region, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/analytics/page.tsx` — NEW dashboard page (mirrors budget/reporting liveness page pattern): breadcrumb, hero, 3 key principles (continuous scanning / proactive insight cards / baseline-cited never vague), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Analytics Agent Liveness" nav item to Reports group (after Analytics)
+
+**Review findings fixed during build:**
+
+- Runway Insight card div needed explicit `role="region"` (happy-dom: aria-label alone doesn't confer region role) → `getByRole("region", { name: /Runway Insight/i })` now resolves
+- Constraint paragraph reworded to "every surfaced insight must cite its metric and baseline — never a vague 'unusual activity detected.' Always the specific number/pattern named, with its baseline cited." so `/cite its metric and baseline/i` and `/always the specific number/i` match contiguously (prior copy inserted "comparison" and "names" between the regex tokens)
+- Meter aria-label assertion changed from `toHaveAttribute("aria-label", /regex/)` to `meters[0].getAttribute("aria-label")` + `toMatch` — jest-dom in this repo compares getAttribute() literally so regex in toHaveAttribute never matched
+- 5 case-insensitive multi-match conversions → `getAllByText`: /GMD 24,600/ (runway summary + cash row), /statistical judgment/ (meter note + How It Works step 2), /Not Enough History Yet/ (branch header + BranchCard body), /High Urgency/ (subtitle + HIGH URGENCY badge), /Analytics History/ + /visible only when you explicitly browse/ (header + BranchCard body)
+
+### Verification
+
+| Check                      | Status                                            |
+| -------------------------- | ------------------------------------------------- |
+| Analytics liveness tests   | ✅ 42/42 pass                                     |
+| Full component suite       | ✅ 745/745 pass (22 files)                        |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                          |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/analytics built |
+| Code review                | ✅ Multiple passes, all findings addressed        |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)     |
+
+### Next Steps
+
+- Remaining liveness specs: Treasury, Controller (Analytics, Budget, Reporting, and Document now complete)
+- Analytics spec §9 schema flags: `analytics_insights.surfaced` boolean, `analytics_insights.baseline_ref`, `analytics_insights.confidence` — flagged for schema review
+- Analytics spec §11 open questions: materiality/significance thresholds for surfacing vs log-only not yet calibrated (needs real usage data); benchmarking against "similar organizations in the same market" — data sourcing and privacy handling not yet specified
+- Analytics design note: third exactly-1-meter component after AR (ambiguous match) and Audit (fuzzy comparison) — the single deviation-detection confidence is the Layer 2 statistical judgment; scanning, classification, surface routing, and all branch states are Layer 1 deterministic
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Budget Agent Liveness (spec v1.0): Variance-Explanations-Grounded-in-Transactions
 
 **Agent:** Buffy (Autonomous Engineer)
