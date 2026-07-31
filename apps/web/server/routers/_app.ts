@@ -39,6 +39,8 @@ import { apiPlatformRouter } from "./api-platform";
 import { brandingRouter } from "./branding";
 import { benchmarkingRouter } from "./benchmarking";
 import { permissionsAdminRouter } from "./permissions-admin";
+import { complianceLivenessRouter } from "./compliance-liveness";
+import { cfoLivenessRouter } from "./cfo-liveness";
 import { invitationsRouter } from "./invitations";
 
 export const appRouter = router({
@@ -70,6 +72,8 @@ export const appRouter = router({
   approvals: approvalsRouter,
   onboarding: onboardingRouter,
   taxCompliance: taxComplianceRouter,
+  complianceLiveness: complianceLivenessRouter,
+  cfoLiveness: cfoLivenessRouter,
   auditPipeline: auditPipelineRouter,
   expense: expenseRouter,
   analytics: analyticsRouter,

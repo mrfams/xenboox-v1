@@ -6,6 +6,65 @@
 
 ---
 
+### [2026-07-31] — Agent Liveness Suite: AP, Reconciliation, Payroll, CFO + Compliance Liveness & Build Blocker Fix
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~4h across turns (ledger previously committed)
+**Files Created:** 15+ **Files Modified:** 25+
+
+**What was built (web only, per scope):**
+
+### AP Agent Liveness (this turn — spec v1.0)
+
+**File:** `apps/web/components/agents/ap-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline: DOC_RECEIVED → EXTRACTING → VENDOR_MATCHING → PO_MATCHING → DUPLICATE_CHECK → PAYMENT_SCHEDULED → HANDED_TO_CASH_OR_MOBILE_MONEY, with **FLAGGED_NEEDS_INPUT** exception branch (all 3 spec §2 triggers: unreadable field, ambiguous vendor, likely duplicate)
+- **Split view** — source document alongside extracted fields; per-field confidence shown as text chips **inherited from Document Agent, never regenerated** (no meters on deterministic extraction)
+- **Vendor matching** — exact (basis "matched on tax ID" + `100% · by definition` chip, no meter), fuzzy (82% confidence meter + "Is this Westlink Group or a new vendor?" + **never auto-merge** critical rule), new (confirm-to-add prompt, blocking)
+- **PO matching** — deterministic lookup, no meters; "No PO found — proceeding as non-PO invoice" as a fact not failure; **Spec §7 amount mismatch flagged with explicit delta** (GMD 400.00)
+- **Duplicate check** — always shown even when clean ("checked against 340 records"); fuzzy near-duplicate flagged with 91% meter + prior record #4470 shown
+- **Payment queue** — live list with blocked items awaiting confirmation
+- Escalation & human-in-the-loop triggers table, How It Works step decomposition, constraint badges, audit trail with human confirmations preserved (never overwritten)
+- Prop modes: `showEmptyState`, `showNeedsInput`, `showHandedOff`
+- **Mixed confidence layers**: exactly 2 meters total (fuzzy vendor + fuzzy duplicate) — deterministic steps carry none
+
+**File:** `apps/web/__tests__/components/ap-liveness.test.tsx` — NEW, 47 tests (TDD RED → GREEN) locking spec rules: pipeline order, exact≠fuzzy visual weight, exactly-2-meters invariant, never-auto-merge, duplicate always shown, escalation blocking semantics, audit-trail human confirmations, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/ap/page.tsx` — NEW dashboard page (mirrors reconciliation liveness page pattern)
+
+### Reconciliation / Payroll / CFO / Compliance Liveness (accumulated, uncommitted from prior turns)
+
+- `apps/web/components/agents/reconciliation-liveness.tsx` + 40 tests — exact (solid connector, no badge) vs fuzzy (dashed + 82% meter) visual weight, unmatched grouped by reason bucket, never-auto-close structural rule, audit trail preserving human overrides, `role="list"` ARIA fix applied
+- `apps/web/components/agents/payroll-worker-liveness.tsx` + tests — per-deduction decomposition (PAYE/SSHFC/loan separate), exception-flagged staff separated, inherited per-field confidence
+- `apps/web/components/agents/cfo-liveness.tsx` + `apps/web/lib/cfo-liveness.ts` + `apps/web/server/routers/cfo-liveness.ts` + tests
+- `apps/web/components/compliance/compliance-liveness-calendar.tsx` + `rule-change-proposals.tsx` + `server/routers/compliance-liveness.ts`
+- Pages: `/dashboard/agents/{ap,cfo,payroll,reconciliation}/` + sidebar nav items (Recon, Payroll, AP Agent Liveness)
+
+### Build Blocker Fixed (pre-existing, environmental)
+
+**File:** `apps/web/app/layout.tsx` — added `resolveBaseUrl()` defensive URL validation.
+
+`next build` was crashing on `/_not-found` page-data collection with `ERR_INVALID_URL` — the harness shell injects `NODE_ENV`/URL env vars as literal `[SENSITIVE]` placeholders (overriding `.env`), which Next.js inlines into the bundle, so `metadataBase: new URL("[SENSITIVE]")` threw. The fix try/catches `new URL()` and falls back to `https://xenboox.com` (validated protocol + `parsed.origin`). Also commented the non-standard `NODE_ENV=development` out of `.env` (local-only, gitignored).
+
+### Verification
+
+| Check                      | Status                                        |
+| -------------------------- | --------------------------------------------- |
+| AP liveness tests          | ✅ 47/47 pass                                 |
+| Full component suite       | ✅ 256/256 pass (10 files)                    |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                      |
+| Build (`@xenboox/web`)     | ✅ Successful — all liveness routes built     |
+| Code review                | ✅ Multiple passes, all findings addressed    |
+| Browser /qa                | ✅ Routes serve (307 auth-redirect to /login) |
+
+### Next Steps
+
+- Remaining liveness specs: Cash, Mobile Money, AR, Document, Treasury, Controller, Reporting
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+- Spec §4 hover-highlight linkage on split views (optional enhancement)
+
+---
+
 ### [2026-07-28] — Interactive API Key Collection Script
 
 **Agent:** Opencode
@@ -2098,7 +2157,7 @@ A standalone, zero-dependency smoke test that can run with a single command — 
 **Duration:** ~180 min
 
 **Files Created:** 8 (apps/web/server/routers/approvals.ts, load-test/k6-script.js, deploy/pgbouncer.ini, apps/web/app/dashboard/ar/page.tsx, apps/web/app/dashboard/ap/page.tsx, apps/web/components/shared/error-boundary.tsx, apps/web/lib/optimizations.ts)
-**Files Modified:** 17 (apps/web/components/layout/chat-panel.tsx, apps/web/app/dashboard/close/page.tsx, apps/web/app/dashboard/approvals/page.tsx, apps/web/app/dashboard/reports/page.tsx, apps/web/app/dashboard/layout.tsx, apps/web/server/routers/fiscal.ts, apps/web/server/routers/_app.ts, BUILD_LOG.md + 10 pages wrapped with ErrorBoundary via sed)
+**Files Modified:** 17 (apps/web/components/layout/chat-panel.tsx, apps/web/app/dashboard/close/page.tsx, apps/web/app/dashboard/approvals/page.tsx, apps/web/app/dashboard/reports/page.tsx, apps/web/app/dashboard/layout.tsx, apps/web/server/routers/fiscal.ts, apps/web/server/routers/\_app.ts, BUILD_LOG.md + 10 pages wrapped with ErrorBoundary via sed)
 
 ---
 
@@ -2437,12 +2496,13 @@ Comprehensive performance module for production scaling:
 **Agent:** opencode
 **Duration:** ~60 min
 **Files Created:** 6 (sessions-section.tsx, audit.ts, audit-log/page.tsx, 0013_financial_check_constraints.sql)
-**Files Modified:** 7 (auth/index.ts, auth.ts, server.ts, settings/page.tsx, _app.ts, sidebar.tsx, treasury.ts)
+**Files Modified:** 7 (auth/index.ts, auth.ts, server.ts, settings/page.tsx, \_app.ts, sidebar.tsx, treasury.ts)
 **Status:** ✅ TYPE CHECK CLEAN (web — zero errors)
 
 **What was built:**
 
 1. **Session Management UI** — Full active sessions page with revoke functionality:
+
    - `apps/web/lib/auth/index.ts` — `authorize` callback now generates `sid` (UUID), stores session record in `sessions` table (IP, user agent, 30-day expiry), enforces max 10 sessions per user. `sid` carried to JWT token via user object.
    - `apps/web/server/routers/auth.ts` — `listSessions` (returns all sessions for user with `isCurrent` flag), `revokeSession` (prevents self-revoke, validates ownership).
    - `apps/web/lib/trpc/server.ts` — `authMiddleware` checks `sid` still exists in DB; revoked sessions are rejected with "Session has been revoked" error.
@@ -2450,15 +2510,18 @@ Comprehensive performance module for production scaling:
    - `apps/web/app/dashboard/settings/page.tsx` — Wired `SessionsSection` after MFA card.
 
 2. **Audit Log Viewer** — Read-only query interface for compliance:
+
    - `apps/web/server/routers/audit.ts` — NEW: `list` procedure with pagination (limit/offset), filters (action search, entityType, date range), total count.
    - `apps/web/app/dashboard/audit-log/page.tsx` — NEW: Search/filter UI, action color-coded badges, detail expansion (JSON), pagination controls.
    - `apps/web/components/layout/sidebar.tsx` — Added "Audit Log" nav item with ScrollText icon.
    - `apps/web/server/routers/_app.ts` — Registered `audit: auditRouter`.
 
 3. **Database CHECK Constraints migration** — Financial data integrity at DB level:
+
    - `packages/db/migrations/0013_financial_check_constraints.sql` — 28 CHECK constraints: invoices (positive amounts, balance ≤ total), payments (positive), journal lines (non-zero), fixed assets (cost>0, salvage≥0, useful life>0), inventory (qty≥0, reorder>0), bank/MM tx (non-zero), cash accounts (balance≥0), imprest/petty cash (positive), budget (positive), POs/PO lines (positive).
 
 4. **Idempotency on payment/posting endpoints**:
+
    - `apps/web/server/routers/treasury.ts` — `createBankTransaction`, `createReconciliation`, `closeReconciliation` switched to `mutateProcedure` with role checks.
 
 5. **Structured logging middleware**:
@@ -2685,12 +2748,14 @@ Comprehensive performance module for production scaling:
 - **Purchase Orders Page:** Fixed D-H4 - "New PO" button was disabled. Added Create PO dialog with form validation (supplierId, totalAmount), mutation hook (trpc.ap.createPO), and proper error handling.
 
 - **Documentation Pages:** Created comprehensive documentation in `apps/desktop/src/pages/docs/`:
+
   - `getting-started/page.tsx` - Core setup guide
   - `faq/page.tsx` - 4 categories of questions (Account, Data, Accounting, Reports)
   - `modules/page.tsx` - Index of all 12 modules with descriptions
   - `agents/page.tsx` - Index of all 15 AI agents with tiers
 
 - **Route Updates:** Added documentation routes to `apps/desktop/src/App.tsx`:
+
   - `/docs` - Modules index
   - `/docs/getting-started` - Getting started guide
   - `/docs/faq` - FAQ page
@@ -2767,6 +2832,7 @@ Comprehensive performance module for production scaling:
 **What was built:**
 
 - **Model Updates:** Added frontier open source models to admin AI comparison dashboard:
+
   - **DeepSeek V4 Pro** ($0.008/M tokens API, $1,500/mo self-host)
   - **DeepSeek V4 Coder** ($0.008/M tokens API, $1,500/mo self-host)
   - **DeepSeek M3** ($0.006/M tokens API, $1,500/mo self-host)
@@ -2787,6 +2853,7 @@ Comprehensive performance module for production scaling:
 - **Graph Visualization:** Added toggle between Cards View and Graph View with bar chart showing API vs Self-host costs
 
 - **Performance Metrics:** Added Xenboox AI Performance Summary card showing:
+
   - Total Tokens consumed
   - Total Spend
   - Average Latency
@@ -2824,7 +2891,7 @@ Comprehensive performance module for production scaling:
 **Agent:** opencode
 **Duration:** ~90 min
 **Files Created:** 10 (auth.test.ts, entity-scoping.test.ts, validation.test.ts, caller.ts, forgot-password/page.tsx, reset-password/page.tsx, forgot-password-form.tsx, reset-password-form.tsx, password-reset.tsx, ci.yml)
-**Files Modified:** 20+ (headers.ts, middleware.ts, next.config.ts, auth/index.ts, trpc/client.ts, server.ts, ap.ts, ar.ts, fixedAssets.ts, auth.ts, email.ts, db/index.ts, db/package.json, _journal.json, .gitignore, chat/page.tsx, dashboard/page.tsx, settings/page.tsx, not-found.tsx, login-form.tsx, package.json)
+**Files Modified:** 20+ (headers.ts, middleware.ts, next.config.ts, auth/index.ts, trpc/client.ts, server.ts, ap.ts, ar.ts, fixedAssets.ts, auth.ts, email.ts, db/index.ts, db/package.json, \_journal.json, .gitignore, chat/page.tsx, dashboard/page.tsx, settings/page.tsx, not-found.tsx, login-form.tsx, package.json)
 
 **What was built:**
 
@@ -2845,7 +2912,7 @@ Comprehensive performance module for production scaling:
 
 **Decisions made:**
 
-- Moved `createCaller` to `lib/trpc/caller.ts` to break circular dependency (server.ts → _app.ts → server.ts)
+- Moved `createCaller` to `lib/trpc/caller.ts` to break circular dependency (server.ts → \_app.ts → server.ts)
 - CSP: kept `'unsafe-inline'` in `style-src` (required by Next.js CSS-in-JS), nonce covers `script-src`
 - CSRF: origin validation + Content-Type check is sufficient for same-origin tRPC app; no double-submit cookie needed
 - Idempotency: client sends key on every request (harmless for queries), server only uses it for `mutateProcedure` endpoints
@@ -2860,7 +2927,7 @@ Comprehensive performance module for production scaling:
 **Agent:** opencode
 **Duration:** ~60 min
 **Files Created:** 1 (docs/seed-credentials.md)
-**Files Modified:** 12 (fixedAssets.ts, inventory.ts, logger.ts, middleware.ts, server.ts, treasury/bank-accounts.tsx, documents.tsx, reports.tsx, add-*-dialog.tsx x5, seed/index.ts, ENTERPRISE_GAP.md)
+**Files Modified:** 12 (fixedAssets.ts, inventory.ts, logger.ts, middleware.ts, server.ts, treasury/bank-accounts.tsx, documents.tsx, reports.tsx, add-\*-dialog.tsx x5, seed/index.ts, ENTERPRISE_GAP.md)
 
 **What was built:**
 
@@ -3001,7 +3068,7 @@ Comprehensive performance module for production scaling:
 **Agent:** opencode
 **Duration:** ~20 min
 **Files Created:** 10 (desktop theme-provider, error-boundary, offline-indicator, use-network-status hook; mobile theme-provider, error-boundary, offline-indicator; idempotency schema, idempotency migration)
-**Files Modified:** 12 (desktop main.tsx, tailwind.config.js, globals.css, header.tsx, settings.tsx; mobile _layout.tsx, settings.tsx, package.json; web server.ts, API route, schema/index.ts; db seed/index.ts)
+**Files Modified:** 12 (desktop main.tsx, tailwind.config.js, globals.css, header.tsx, settings.tsx; mobile \_layout.tsx, settings.tsx, package.json; web server.ts, API route, schema/index.ts; db seed/index.ts)
 **What was built:**
 
 - **Desktop dark mode:** ThemeProvider with localStorage persistence + system preference detection, theme toggle dropdown in Header (Sun/Moon/Monitor icons), Settings page with Light/Dark/System buttons, `darkMode: "class"` in tailwind.config.js, dark CSS variables in globals.css
@@ -4321,7 +4388,7 @@ xenboox/
 **Agent:** opencode (general)
 **Duration:** ~15 min
 **Files Created:** 9 (schema, router, SSE route, 4 components, page, barrel)
-**Files Modified:** 2 (schema/index.ts, _app.ts, sidebar.tsx)
+**Files Modified:** 2 (schema/index.ts, \_app.ts, sidebar.tsx)
 
 **What was built:** Complete frontend chat UI — chat schema (3 tables), tRPC chat router, SSE streaming endpoint, chat components (message bubble, input, activity indicator), full chat page with conversation list and message area, sidebar link.
 
@@ -5029,7 +5096,7 @@ Skills:
 
 ### Phase 2 - API Layer (Core) ✅ DONE
 
-1. ~~Create tRPC router structure (apps/web/server/routers/_app.ts)~~
+1. ~~Create tRPC router structure (apps/web/server/routers/\_app.ts)~~
 2. ~~Create organization router~~
 3. ~~Create entity router~~
 4. ~~Create chart of accounts router~~
@@ -5278,8 +5345,7 @@ Each entity includes: user + org + entity + owner access, 25 COA accounts, 3 fis
 
 ---
 
-_Last updated: 2026-07-22 (Multi-Entity Seed Data + RBAC/Entity Welcome)_
----
+## _Last updated: 2026-07-22 (Multi-Entity Seed Data + RBAC/Entity Welcome)_
 
 ### [2026-07-23] � Document Ingestion Engine + Unified Approval Queue
 

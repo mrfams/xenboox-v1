@@ -13,12 +13,18 @@ import {
   Clock,
   BarChart3,
   Unlock,
+  Lock,
   Sparkles,
   ScrollText,
   Eye,
   Hash,
   CalendarDays,
   Building2,
+  ArrowRight,
+  ListChecks,
+  Layers,
+  Route,
+  FileSearch,
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────────
@@ -30,113 +36,176 @@ export interface JournalEntryLine {
   credit: number;
 }
 
-export interface PipelineStage {
-  id: string;
-  label: string;
-  description: string;
-  status: "passed" | "running" | "pending" | "rejected" | "blocked";
-  confidence: number;
+export type PostingState =
+  | "RECEIVED"
+  | "VALIDATING_ACCOUNTS"
+  | "VALIDATING_BALANCE"
+  | "CHECKING_PERIOD"
+  | "POSTING"
+  | "POSTED"
+  | "REJECTED_UNBALANCED"
+  | "REJECTED_INVALID_ACCOUNT"
+  | "REJECTED_PERIOD_CLOSED";
+
+export interface StateTransition {
+  state: PostingState;
+  timestamp: string;
   detail: string;
-  icon: React.ElementType;
 }
 
 export interface LedgerLivenessProps {
   className?: string;
   showEmptyState?: boolean;
-  showRejection?: boolean;
+  showRejection?: PostingState | false;
 }
 
 // ─── Demo Data ─────────────────────────────────────────────────────────
 
 const DEFAULT_ENTRY: JournalEntryLine[] = [
-  { account: "Office Supplies", accountCode: "5010", debit: 1250.0, credit: 0 },
+  { account: "Office Supplies", accountCode: "5010", debit: 1240.0, credit: 0 },
   {
     account: "Accounts Payable",
     accountCode: "2010",
     debit: 0,
-    credit: 1250.0,
+    credit: 1240.0,
   },
 ];
 
-const DEFAULT_PIPELINE: PipelineStage[] = [
+const PIPELINE_STATES: Array<{
+  id: PostingState;
+  label: string;
+  description: string;
+  icon: React.ElementType;
+}> = [
   {
-    id: "double-entry",
-    label: "Double-Entry Check",
-    description: "Validates that total debits equal total credits",
-    status: "passed",
-    confidence: 1.0,
-    detail: "Debits: GMD 1,250.00 = Credits: GMD 1,250.00 ✓",
-    icon: BarChart3,
+    id: "RECEIVED",
+    label: "RECEIVED",
+    description: "Entry queued from source agent",
+    icon: Route,
   },
   {
-    id: "period-validation",
-    label: "Period Validation",
-    description: "Verifies the target fiscal period is open for posting",
-    status: "passed",
-    confidence: 0.98,
-    detail: "Period Q2 2026 is open. Lock date: Jul 31, 2026.",
-    icon: CalendarDays,
-  },
-  {
-    id: "account-validation",
-    label: "Account Validation",
-    description: "Confirms all referenced accounts exist and are active",
-    status: "passed",
-    confidence: 0.96,
-    detail: "2/2 accounts found. Active in Chart of Accounts.",
+    id: "VALIDATING_ACCOUNTS",
+    label: "VALIDATING_ACCOUNTS",
+    description: "Confirming every account code exists in chart of accounts",
     icon: Hash,
   },
   {
-    id: "entity-scope",
-    label: "Entity Scoping",
-    description: "Ensures the entry is scoped to the correct entity",
-    status: "passed",
-    confidence: 0.99,
-    detail: "Entity: Xenboox HQ (ID: ent_2f8a1c). Scope verified.",
-    icon: Building2,
+    id: "VALIDATING_BALANCE",
+    label: "VALIDATING_BALANCE",
+    description: "Summing debits, summing credits, comparing equality",
+    icon: BarChart3,
   },
   {
-    id: "posting-execution",
-    label: "Posting Execution",
-    description: "Executes the posting and updates account balances",
-    status: "running",
-    confidence: 0.92,
-    detail: "Inserting journal entry #JE-2026-0842...",
+    id: "CHECKING_PERIOD",
+    label: "CHECKING_PERIOD",
+    description: "Confirming the accounting period is open (not closed/locked)",
+    icon: CalendarDays,
+  },
+  {
+    id: "POSTING",
+    label: "POSTING",
+    description: "Writing to ledger table, updating running trial balance",
     icon: ScrollText,
+  },
+];
+
+const STATE_TRANSITIONS: StateTransition[] = [
+  {
+    state: "RECEIVED",
+    timestamp: "09:42:01",
+    detail: "Entry received from AP Agent for txn AP-2026-0412",
+  },
+  {
+    state: "VALIDATING_ACCOUNTS",
+    timestamp: "09:42:01",
+    detail: "Account codes: [5010, 2010] — both found in COA",
+  },
+  {
+    state: "VALIDATING_BALANCE",
+    timestamp: "09:42:02",
+    detail: "Debits: GMD 1,240.00 = Credits: GMD 1,240.00 ✓",
+  },
+  {
+    state: "CHECKING_PERIOD",
+    timestamp: "09:42:02",
+    detail: "Period Q2 2026 is open. Lock date: Jul 31, 2026.",
+  },
+  {
+    state: "POSTING",
+    timestamp: "09:42:03",
+    detail: "Writing 2 lines to journal entry #JE-2026-0842...",
+  },
+];
+
+const AUDIT_TRAIL: StateTransition[] = [
+  {
+    state: "RECEIVED",
+    timestamp: "09:42:01.042",
+    detail:
+      "posting_id: pst_b8f3, entity: Xenboox HQ, source: AP Agent, txn: AP-2026-0412",
+  },
+  {
+    state: "VALIDATING_ACCOUNTS",
+    timestamp: "09:42:01.187",
+    detail: "accounts: [5010✓, 2010✓], result: pass",
+  },
+  {
+    state: "VALIDATING_BALANCE",
+    timestamp: "09:42:02.031",
+    detail: "debits: 1240.00, credits: 1240.00, delta: 0.00, result: pass",
+  },
+  {
+    state: "CHECKING_PERIOD",
+    timestamp: "09:42:02.512",
+    detail: "period: Q2_2026, status: open, result: pass",
+  },
+  {
+    state: "POSTING",
+    timestamp: "09:42:03.104",
+    detail: "writing lines: 2, atomic: true",
   },
 ];
 
 const STEPS = [
   {
-    step: "Step 1",
     title: "Receive Entry",
     detail:
-      "Approved journal entry arrives from Controller Agent via state channel",
+      "Input: proposed journal entry (array of {account_code, debit/credit, amount, memo, source_agent, source_txn_id}). Output: queued request with unique posting_id. No confidence score — this is a structural intake step, not a judgment.",
   },
   {
-    step: "Step 2",
-    title: "Validate Constraints",
+    title: "Validate Each Account Code Exists",
     detail:
-      "5 deterministic checks run in parallel: double-entry balance, period open, account exists, entity scope, no duplicates",
+      "Input: account_code list. Output: pass/fail per code, with the specific unknown code named if fail. No confidence score — deterministic check, not probabilistic.",
   },
   {
-    step: "Step 3",
-    title: "Score Confidence",
+    title: "Sum and Compare Debits vs Credits",
     detail:
-      "Each gate assigns a confidence score. Below 0.7 escalates to Controller. Below 0.4 escalates to human.",
+      "Input: full line array. Output: exact delta if unbalanced (e.g., 'short by $12.40 on credit side'). No confidence score — deterministic math, never estimated.",
   },
   {
-    step: "Step 4",
-    title: "Record in Ledger",
+    title: "Check Period Status",
     detail:
-      "Entry written to journal_entries + journal_entry_lines tables. Account balances updated atomically.",
+      "Input: entity_id + transaction date. Output: open/closed. No confidence score — database lookup.",
   },
   {
-    step: "Step 5",
-    title: "Confirm & Audit",
+    title: "Write Posting",
     detail:
-      "Posting confirmation returned to Controller. Full audit trail written (who, what, when, confidence).",
+      "Input: validated entry. Output: ledger row(s) + updated running balance. No confidence score — straight write, atomic (all lines or none).",
   },
+  {
+    title: "Update Trial Balance",
+    detail:
+      "Input: new posting. Output: refreshed trial balance snapshot. No confidence score — deterministic recalculation.",
+  },
+];
+
+const CONSTRAINTS = [
+  { label: "Accounts Exist", icon: Hash },
+  { label: "Debits = Credits (Balanced)", icon: BarChart3 },
+  { label: "Period Open", icon: CalendarDays },
+  { label: "Entity Scoped", icon: Building2 },
+  { label: "No Duplicates", icon: FileSearch },
+  { label: "Atomic Write", icon: Layers },
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -145,142 +214,144 @@ function formatCurrency(amount: number): string {
   return `GMD ${amount.toLocaleString("en-GM", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function getStageStatusIcon(status: PipelineStage["status"]) {
-  switch (status) {
-    case "passed":
+function getStateIcon(state: PostingState): React.ElementType {
+  switch (state) {
+    case "RECEIVED":
+      return Route;
+    case "VALIDATING_ACCOUNTS":
+      return Hash;
+    case "VALIDATING_BALANCE":
+      return BarChart3;
+    case "CHECKING_PERIOD":
+      return CalendarDays;
+    case "POSTING":
+      return ScrollText;
+    case "POSTED":
       return CheckCircle2;
-    case "running":
-      return Activity;
-    case "pending":
-      return Clock;
-    case "rejected":
+    case "REJECTED_UNBALANCED":
       return XCircle;
-    case "blocked":
-      return AlertTriangle;
+    case "REJECTED_INVALID_ACCOUNT":
+      return XCircle;
+    case "REJECTED_PERIOD_CLOSED":
+      return Lock;
   }
 }
 
-function getStageStatusColor(status: PipelineStage["status"]): string {
-  switch (status) {
-    case "passed":
-      return "text-balanced-green";
-    case "running":
+function getStateColor(state: PostingState): string {
+  switch (state) {
+    case "RECEIVED":
+    case "VALIDATING_ACCOUNTS":
+    case "VALIDATING_BALANCE":
+    case "CHECKING_PERIOD":
       return "text-signal-indigo";
-    case "pending":
-      return "text-muted-foreground/40";
-    case "rejected":
-      return "text-error-clay";
-    case "blocked":
+    case "POSTING":
       return "text-attention-amber";
+    case "POSTED":
+      return "text-balanced-green";
+    case "REJECTED_UNBALANCED":
+    case "REJECTED_INVALID_ACCOUNT":
+    case "REJECTED_PERIOD_CLOSED":
+      return "text-error-clay";
   }
 }
 
-function getStageBgColor(status: PipelineStage["status"]): string {
-  switch (status) {
-    case "passed":
-      return "bg-balanced-green/5 border-balanced-green/20";
-    case "running":
-      return "bg-signal-indigo/5 border-signal-indigo/20";
-    case "pending":
-      return "bg-muted/30 border-border/50";
-    case "rejected":
-      return "bg-error-clay/5 border-error-clay/20";
-    case "blocked":
-      return "bg-attention-amber/5 border-attention-amber/20";
-  }
-}
-
-function getConfidenceBarColor(confidence: number): string {
-  if (confidence >= 0.9) return "bg-balanced-green";
-  if (confidence >= 0.7) return "bg-attention-amber";
-  return "bg-error-clay";
-}
+const REJECTION_DETAILS: Record<
+  PostingState,
+  { title: string; explanation: string; route: string }
+> = {
+  REJECTED_UNBALANCED: {
+    title: "Unbalanced Entry",
+    explanation:
+      "Rejected: debits ($1,240.00) ≠ credits ($1,227.60). Short $12.40 on credit side. Returned to AP Agent for correction.",
+    route: "Returned to AP Agent",
+  },
+  REJECTED_INVALID_ACCOUNT: {
+    title: "Invalid Account Code",
+    explanation:
+      "Rejected: account code 9999 ('Misc Expenses') does not exist in Chart of Accounts for entity Xenboox HQ. Flagged for Controller Agent review — new account or typo?",
+    route: "Flagged to Controller Agent",
+  },
+  REJECTED_PERIOD_CLOSED: {
+    title: "Period Closed",
+    explanation:
+      "Rejected: Period Q1 2026 is closed (locked: Apr 15, 2026). Entry cannot be posted to a closed period. Routes into Error Recovery Flow — CFO Agent notified for reopen decision.",
+    route: "Escalated to CFO Agent",
+  },
+  // Placeholder — not used for non-rejection states
+  RECEIVED: { title: "", explanation: "", route: "" },
+  VALIDATING_ACCOUNTS: { title: "", explanation: "", route: "" },
+  VALIDATING_BALANCE: { title: "", explanation: "", route: "" },
+  CHECKING_PERIOD: { title: "", explanation: "", route: "" },
+  POSTING: { title: "", explanation: "", route: "" },
+  POSTED: { title: "", explanation: "", route: "" },
+};
 
 // ─── Sub-components ────────────────────────────────────────────────────
 
-function ConfidenceBar({
-  confidence,
-  label,
+function StageIndicator({
+  state,
+  isActive,
+  isCompleted,
 }: {
-  confidence: number;
-  label?: string;
+  state: (typeof PIPELINE_STATES)[number];
+  isActive: boolean;
+  isCompleted: boolean;
 }) {
-  const pct = Math.min(Math.max(Math.round(confidence * 100), 0), 100);
+  const Icon = state.icon;
   return (
     <div
-      className="flex items-center gap-2"
-      role="meter"
-      aria-valuenow={pct}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-label={label || `Confidence: ${pct}%`}
-    >
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all duration-700 ease-out",
-            getConfidenceBarColor(confidence),
-          )}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span
-        className={cn(
-          "text-[10px] font-medium tabular-nums min-w-[2.5rem] text-right",
-          getConfidenceBarColor(confidence).replace("bg-", "text-"),
-        )}
-      >
-        {pct}%
-      </span>
-    </div>
-  );
-}
-
-function StageCard({ stage }: { stage: PipelineStage }) {
-  const StatusIcon = getStageStatusIcon(stage.status);
-  const StageIcon = stage.icon;
-
-  return (
-    <div
+      role="listitem"
       className={cn(
-        "rounded-lg border p-3 transition-all duration-300",
-        getStageBgColor(stage.status),
+        "flex items-center gap-3 rounded-lg border p-3 transition-all duration-300",
+        isActive && "bg-signal-indigo/5 border-signal-indigo/30 shadow-sm",
+        isCompleted && "bg-balanced-green/5 border-balanced-green/20",
+        !isActive && !isCompleted && "bg-muted/30 border-border/50 opacity-60",
       )}
     >
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <div
+      <div
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded-md shrink-0",
+          isActive && "text-signal-indigo",
+          isCompleted && "text-balanced-green",
+          !isActive && !isCompleted && "text-muted-foreground/40",
+        )}
+      >
+        {isActive ? (
+          <Activity className="h-4 w-4 animate-pulse" />
+        ) : isCompleted ? (
+          <CheckCircle2 className="h-4 w-4" />
+        ) : (
+          <Icon className="h-4 w-4" />
+        )}
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-md",
-              getStageStatusColor(stage.status),
+              "text-[10px] font-mono font-semibold tracking-tight",
+              isActive && "text-signal-indigo",
+              isCompleted && "text-balanced-green",
+              !isActive && !isCompleted && "text-muted-foreground/40",
             )}
           >
-            {stage.status === "running" ? (
-              <StageIcon className="h-4 w-4 animate-pulse" />
-            ) : (
-              <StageIcon className="h-4 w-4" />
-            )}
-          </div>
-          <div>
-            <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              {stage.label}
-              <StatusIcon
-                className={cn("h-3 w-3", getStageStatusColor(stage.status))}
-              />
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              {stage.description}
-            </p>
-          </div>
+            {state.label}
+          </span>
+          {isCompleted && (
+            <CheckCircle2 className="h-2.5 w-2.5 text-balanced-green shrink-0" />
+          )}
+          {isActive && (
+            <span className="h-1.5 w-1.5 rounded-full bg-signal-indigo animate-pulse shrink-0" />
+          )}
         </div>
-      </div>
-
-      <div className="space-y-1.5 pl-9">
-        <p className="text-[10px] text-muted-foreground/80">{stage.detail}</p>
-        <ConfidenceBar
-          confidence={stage.confidence}
-          label={`${stage.label} confidence: ${Math.round(stage.confidence * 100)}%`}
-        />
+        <p
+          className={cn(
+            "text-[9px] truncate",
+            (isActive || isCompleted) && "text-muted-foreground/80",
+            !isActive && !isCompleted && "text-muted-foreground/40",
+          )}
+        >
+          {state.description}
+        </p>
       </div>
     </div>
   );
@@ -294,6 +365,7 @@ export function LedgerLiveness({
   showRejection = false,
 }: LedgerLivenessProps) {
   const [showSteps, setShowSteps] = useState(false);
+  const [showAudit, setShowAudit] = useState(false);
 
   // ── Empty State ───────────────────────────────────────────────────
   if (showEmptyState) {
@@ -319,49 +391,28 @@ export function LedgerLiveness({
           <p className="text-sm font-medium text-muted-foreground">
             No entry being processed
           </p>
-          <p className="text-[10px] text-muted-foreground/60 mt-1">
-            The Ledger Agent is idle, waiting for approved journal entries from
-            the Controller Agent.
+          <p className="text-[10px] text-muted-foreground/60 mt-1 max-w-md mx-auto">
+            The Ledger Agent is idle, waiting for entries from worker agents
+            (AP, AR, Asset, Payroll, etc.). The Ledger Agent never initiates
+            work — it only receives.
           </p>
         </div>
       </div>
     );
   }
 
-  // ── Rejection State ──────────────────────────────────────────────
+  // ── Rejection States ─────────────────────────────────────────────
   if (showRejection) {
-    const rejectedPipeline: PipelineStage[] = DEFAULT_PIPELINE.map((stage) =>
-      stage.id === "double-entry"
-        ? {
-            ...stage,
-            status: "rejected" as const,
-            confidence: 0.0,
-            detail:
-              "Debits: GMD 1,250.00 ≠ Credits: GMD 1,000.00. Difference: GMD 250.00",
-          }
-        : stage.id === "period-validation" || stage.id === "account-validation"
-          ? {
-              ...stage,
-              status: "blocked" as const,
-              confidence: 0.0,
-              detail: "Blocked — prior stage failed",
-            }
-          : stage.id === "entity-scope"
-            ? {
-                ...stage,
-                status: "blocked" as const,
-                confidence: 0.0,
-                detail: "Blocked — prior stage failed",
-              }
-            : { ...stage, status: "pending" as const, confidence: 0 },
-    );
+    const rejectionType = showRejection;
+    const rejection = REJECTION_DETAILS[rejectionType];
 
     return (
       <div className={cn("rounded-xl border bg-card", className)}>
-        <div className="border-b bg-gradient-to-r from-error-clay/5 to-transparent px-4 py-3">
+        {/* Header */}
+        <div className="border-b bg-gradient-to-r from-accent/50 to-transparent px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-error-clay to-red-600">
-              <XCircle className="h-4 w-4 text-white" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600">
+              <BookOpen className="h-4 w-4 text-white" />
             </div>
             <div>
               <h2 className="text-sm font-semibold">Ledger Agent</h2>
@@ -369,42 +420,116 @@ export function LedgerLiveness({
                 General Ledger — Posting Authority
               </p>
             </div>
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-error-clay/20 bg-error-clay/10 px-2 py-0.5 text-[9px] font-medium text-error-clay">
-              <AlertTriangle className="h-2.5 w-2.5" />
-              Rejected
-            </span>
           </div>
         </div>
 
-        <div className="p-4 space-y-4">
-          {/* Rejection Banner */}
-          <div className="rounded-lg border border-error-clay/20 bg-error-clay/5 p-3">
-            <div className="flex items-start gap-2">
-              <XCircle className="h-4 w-4 text-error-clay mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs font-semibold text-error-clay">
-                  Rejection Reason
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Double-entry constraint violation: total debits (GMD 1,250.00)
-                  do not equal total credits (GMD 1,000.00). Difference of GMD
-                  250.00. Entry #JE-2026-0842 has been rejected and returned to
-                  Controller Agent.
-                </p>
+        {/* Needs Attention Strip */}
+        <div className="border-b-2 border-error-clay/30 bg-error-clay/5 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-error-clay/10 shrink-0">
+              <AlertTriangle className="h-4 w-4 text-error-clay" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-error-clay uppercase tracking-wider">
+                  Needs Attention
+                </span>
+                <span className="rounded-full border border-error-clay/20 bg-error-clay/10 px-1.5 py-0.5 text-[8px] font-medium text-error-clay">
+                  {rejectionType.replace("REJECTED_", "")}
+                </span>
+              </div>
+              <p className="text-[10px] text-foreground mt-1">
+                {rejection.explanation}
+              </p>
+              <div className="flex items-center gap-1 mt-1.5">
+                <ArrowRight className="h-2.5 w-2.5 text-error-clay/60" />
+                <span className="text-[9px] text-error-clay/80 font-medium">
+                  {rejection.route}
+                </span>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Validation Pipeline */}
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        {/* State feed */}
+        <div className="p-4 space-y-3">
+          <div role="region" aria-label="Validation Pipeline">
+            <h3 className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Validation Pipeline
-            </p>
-            <div className="space-y-2">
-              {" "}
-              {rejectedPipeline.map((stage) => (
-                <StageCard key={stage.id} stage={stage} />
-              ))}
+            </h3>
+            <div className="space-y-1.5">
+              {PIPELINE_STATES.map((state) => {
+                const hasFailed =
+                  (rejectionType === "REJECTED_UNBALANCED" &&
+                    state.id === "VALIDATING_BALANCE") ||
+                  (rejectionType === "REJECTED_INVALID_ACCOUNT" &&
+                    state.id === "VALIDATING_ACCOUNTS") ||
+                  (rejectionType === "REJECTED_PERIOD_CLOSED" &&
+                    state.id === "CHECKING_PERIOD");
+                const isBlocked = !hasFailed && state.id !== "RECEIVED";
+                const isCompleted =
+                  state.id === "RECEIVED" &&
+                  rejectionType === "REJECTED_UNBALANCED";
+
+                return (
+                  <div
+                    key={state.id}
+                    role="listitem"
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg border p-3",
+                      hasFailed && "bg-error-clay/5 border-error-clay/20",
+                      isBlocked && "bg-muted/30 border-border/50 opacity-50",
+                      isCompleted &&
+                        "bg-balanced-green/5 border-balanced-green/20",
+                      !hasFailed &&
+                        !isBlocked &&
+                        !isCompleted &&
+                        "bg-muted/30 border-border/50",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-md shrink-0",
+                        hasFailed && "text-error-clay",
+                        isBlocked && "text-muted-foreground/40",
+                        isCompleted && "text-balanced-green",
+                      )}
+                    >
+                      {hasFailed ? (
+                        <XCircle className="h-4 w-4" />
+                      ) : isCompleted ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : isBlocked ? (
+                        <Lock className="h-3.5 w-3.5" />
+                      ) : (
+                        <Route className="h-4 w-4 text-signal-indigo" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <span
+                        className={cn(
+                          "text-[10px] font-mono font-semibold",
+                          hasFailed && "text-error-clay",
+                          isBlocked && "text-muted-foreground/40 line-through",
+                          isCompleted && "text-balanced-green",
+                        )}
+                      >
+                        {state.label}
+                      </span>
+                      {hasFailed && (
+                        <p className="text-[9px] text-error-clay/80 mt-0.5">
+                          Failed — see reason above
+                        </p>
+                      )}
+                      {isBlocked && (
+                        <p className="text-[9px] text-muted-foreground/40 mt-0.5">
+                          Blocked — prior stage failed
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -416,9 +541,7 @@ export function LedgerLiveness({
   const totalDebit = DEFAULT_ENTRY.reduce((sum, line) => sum + line.debit, 0);
   const totalCredit = DEFAULT_ENTRY.reduce((sum, line) => sum + line.credit, 0);
   const balanced = totalDebit === totalCredit;
-  const avgConfidence =
-    DEFAULT_PIPELINE.reduce((sum, s) => sum + s.confidence, 0) /
-    DEFAULT_PIPELINE.length;
+  const activeStateIdx = 4; // POSTING
 
   return (
     <div className={cn("rounded-xl border bg-card", className)}>
@@ -434,7 +557,7 @@ export function LedgerLiveness({
                 <h2 className="text-sm font-semibold">Ledger Agent</h2>
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-medium text-emerald-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Active
+                  Layer 1 — Deterministic
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground">
@@ -443,32 +566,26 @@ export function LedgerLiveness({
             </div>
           </div>
 
-          {/* Agent Confidence Summary */}
+          {/* Source Agent Attribution */}
           <div className="hidden sm:block text-right">
             <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
-              Agent Confidence
+              Source Judgment
             </p>
-            <p
-              className={cn(
-                "text-lg font-bold tabular-nums",
-                avgConfidence >= 0.9
-                  ? "text-balanced-green"
-                  : avgConfidence >= 0.7
-                    ? "text-attention-amber"
-                    : "text-error-clay",
-              )}
-            >
-              {Math.round(avgConfidence * 100)}%
-            </p>
+            <div className="flex items-center justify-end gap-1 mt-0.5">
+              <span className="text-xs font-medium">from AP Agent</span>
+              <span className="text-[9px] text-muted-foreground/60 border-l pl-1.5 ml-1.5">
+                confidence: 96%
+              </span>
+            </div>
             <p className="text-[9px] text-muted-foreground/60">
-              across {DEFAULT_PIPELINE.length} gates
+              Ledger Agent&apos;s own actions: 0% probabilistic
             </p>
           </div>
         </div>
       </div>
 
       <div className="p-4 space-y-4" role="region" aria-label="Agent Status">
-        {/* Status + Period Info */}
+        {/* Status Info Grid */}
         <div
           className="grid grid-cols-2 sm:grid-cols-4 gap-2"
           role="region"
@@ -479,9 +596,9 @@ export function LedgerLiveness({
               Status
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-balanced-green animate-pulse" />
-              <span className="text-xs font-medium text-balanced-green">
-                Processing
+              <span className="h-1.5 w-1.5 rounded-full bg-signal-indigo animate-pulse" />
+              <span className="text-xs font-medium text-signal-indigo">
+                POSTING
               </span>
             </div>
           </div>
@@ -515,6 +632,21 @@ export function LedgerLiveness({
             </div>
           </div>
         </div>
+
+        {/* Source Agent Attribution (mobile) */}
+        <div className="sm:hidden rounded-lg border bg-accent/20 p-2.5">
+          <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+            Source
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <ArrowRight className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs font-medium">AP Agent</span>
+            <span className="text-[9px] text-muted-foreground/60">
+              confidence: 96%
+            </span>
+          </div>
+        </div>
+
         {/* Journal Entry Display */}
         <div role="region" aria-label="Journal Entry Details">
           <div className="flex items-center justify-between mb-2">
@@ -524,23 +656,8 @@ export function LedgerLiveness({
                 #JE-2026-0842
               </span>
             </h3>
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-medium border",
-                balanced
-                  ? "bg-balanced-green/10 text-balanced-green border-balanced-green/20"
-                  : "bg-error-clay/10 text-error-clay border-error-clay/20",
-              )}
-            >
-              {balanced ? (
-                <>
-                  <CheckCircle2 className="h-2.5 w-2.5" /> Balanced
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-2.5 w-2.5" /> Unbalanced
-                </>
-              )}
+            <span className="inline-flex items-center gap-1 rounded-full bg-balanced-green/10 text-balanced-green border border-balanced-green/20 px-2 py-0.5 text-[9px] font-medium">
+              <CheckCircle2 className="h-2.5 w-2.5" /> Balanced
             </span>
           </div>
 
@@ -566,7 +683,10 @@ export function LedgerLiveness({
                 {DEFAULT_ENTRY.map((line, idx) => (
                   <tr
                     key={idx}
-                    className="border-b last:border-b-0 hover:bg-accent/30 transition-colors"
+                    className={cn(
+                      "border-b last:border-b-0 hover:bg-accent/30 transition-colors",
+                      "animate-[highlight_2.5s_ease-out]",
+                    )}
                     role="row"
                   >
                     <td className="px-3 py-2 font-medium">{line.account}</td>
@@ -598,18 +718,87 @@ export function LedgerLiveness({
             </table>
           </div>
         </div>
+
+        {/* "Why" Explanation */}
+        <div
+          className="rounded-lg border border-balanced-green/20 bg-balanced-green/5 p-3"
+          role="region"
+          aria-label="Posting Explanation"
+        >
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="h-4 w-4 text-balanced-green mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-balanced-green">
+                Posted because:
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                2 lines, debits (GMD 1,240.00) = credits (GMD 1,240.00), period
+                Q2 2026 is open, all account codes valid.
+              </p>
+              <p className="text-[9px] text-muted-foreground/60 mt-1">
+                Deterministic check — no AI judgment involved in the posting
+                decision. All checks are mathematical or database lookups.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Validation Pipeline */}
         <div role="region" aria-label="Validation Pipeline">
           <h3 className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
             Validation Pipeline
           </h3>
-          <div className="space-y-2">
-            {" "}
-            {DEFAULT_PIPELINE.map((stage) => (
-              <StageCard key={stage.id} stage={stage} />
+          <div className="space-y-1.5">
+            {PIPELINE_STATES.map((state, idx) => (
+              <StageIndicator
+                key={state.id}
+                state={state}
+                isActive={idx === activeStateIdx}
+                isCompleted={idx < activeStateIdx}
+              />
             ))}
           </div>
         </div>
+
+        {/* State Transition Feed */}
+        <div
+          className="rounded-lg border bg-accent/20 overflow-hidden"
+          role="region"
+          aria-label="State Transitions Feed"
+        >
+          <div className="flex items-center justify-between px-3 py-2 border-b bg-accent/30">
+            <div className="flex items-center gap-1.5">
+              <Activity className="h-3 w-3 text-signal-indigo" />
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                State Transitions
+              </span>
+            </div>
+            <span className="text-[8px] text-muted-foreground/60">
+              Live feed
+            </span>
+          </div>
+          <div className="px-3 py-2 space-y-1">
+            {STATE_TRANSITIONS.map((t, idx) => (
+              <div key={idx} className="flex items-start gap-2 text-[9px]">
+                <span className="text-muted-foreground/50 font-mono tabular-nums shrink-0 w-14 text-right">
+                  {t.timestamp}
+                </span>
+                <span
+                  className={cn(
+                    "font-mono font-semibold shrink-0",
+                    getStateColor(t.state),
+                  )}
+                >
+                  {t.state}
+                </span>
+                <span className="text-muted-foreground/70 truncate">
+                  {t.detail}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* How It Works Toggle */}
         <div className="rounded-lg border bg-accent/20 overflow-hidden">
           <button
@@ -631,7 +820,7 @@ export function LedgerLiveness({
           </button>
 
           {showSteps && (
-            <div className="border-t px-3 py-3 space-y-2.5 animate-in slide-in-from-top-1 duration-200">
+            <div className="border-t px-3 py-3 space-y-2.5">
               {STEPS.map((step, idx) => (
                 <div key={idx} className="flex gap-3">
                   <div className="flex flex-col items-center">
@@ -646,7 +835,7 @@ export function LedgerLiveness({
                     <p className="text-[10px] font-medium text-foreground">
                       {step.title}
                     </p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">
+                    <p className="text-[9px] text-muted-foreground mt-0.5 leading-relaxed">
                       {step.detail}
                     </p>
                   </div>
@@ -655,63 +844,100 @@ export function LedgerLiveness({
             </div>
           )}
         </div>
+
         {/* Constraint Enforcement Badges */}
         <div role="region" aria-label="Constraint Enforcement">
           <h3 className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-            Constraint Enforcement
+            Deterministic Constraints Enforced
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            {[
-              {
-                label: "Double-Entry",
-                status: "Passed",
-                color:
-                  "bg-balanced-green/10 text-balanced-green border-balanced-green/20",
-              },
-              {
-                label: "Period Lock",
-                status: "Passed",
-                color:
-                  "bg-balanced-green/10 text-balanced-green border-balanced-green/20",
-              },
-              {
-                label: "Account Valid",
-                status: "Passed",
-                color:
-                  "bg-balanced-green/10 text-balanced-green border-balanced-green/20",
-              },
-              {
-                label: "Entity Scope",
-                status: "Passed",
-                color:
-                  "bg-balanced-green/10 text-balanced-green border-balanced-green/20",
-              },
-              {
-                label: "No Duplicates",
-                status: "Passed",
-                color:
-                  "bg-balanced-green/10 text-balanced-green border-balanced-green/20",
-              },
-              {
-                label: "Controller Approval",
-                status: "Passed",
-                color:
-                  "bg-balanced-green/10 text-balanced-green border-balanced-green/20",
-              },
-            ].map((badge) => (
-              <span
-                key={badge.label}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-medium",
-                  badge.color,
-                )}
-              >
-                <CheckCircle2 className="h-2.5 w-2.5" />
-                {badge.label}
-              </span>
-            ))}
+            {CONSTRAINTS.map((c) => {
+              const Icon = c.icon;
+              return (
+                <span
+                  key={c.label}
+                  className="inline-flex items-center gap-1 rounded-full border bg-balanced-green/10 text-balanced-green border-balanced-green/20 px-2 py-0.5 text-[9px] font-medium"
+                >
+                  <CheckCircle2 className="h-2.5 w-2.5" />
+                  {c.label}
+                </span>
+              );
+            })}
           </div>
-        </div>{" "}
+        </div>
+
+        {/* Audit Trail Toggle */}
+        <div className="rounded-lg border bg-accent/20 overflow-hidden">
+          <button
+            onClick={() => setShowAudit(!showAudit)}
+            className="flex w-full items-center justify-between px-3 py-2.5 text-left transition-colors hover:bg-accent/50"
+          >
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-3.5 w-3.5 text-signal-indigo" />
+              <span className="text-xs font-medium">
+                Audit Trail — Every State Transition Logged
+              </span>
+            </div>
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
+                showAudit && "rotate-180",
+              )}
+            />
+          </button>
+
+          {showAudit && (
+            <div className="border-t">
+              <div className="overflow-x-auto">
+                <table className="w-full text-[9px]" role="table">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">
+                        State
+                      </th>
+                      <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">
+                        Timestamp
+                      </th>
+                      <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">
+                        Detail
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {AUDIT_TRAIL.map((entry, idx) => (
+                      <tr
+                        key={idx}
+                        className="border-b last:border-b-0 hover:bg-accent/30 transition-colors"
+                        role="row"
+                      >
+                        <td className="px-3 py-1.5">
+                          <span
+                            className={cn(
+                              "font-mono font-semibold",
+                              getStateColor(entry.state),
+                            )}
+                          >
+                            {entry.state}
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5 font-mono text-muted-foreground/60 tabular-nums">
+                          {entry.timestamp}
+                        </td>
+                        <td className="px-3 py-1.5 text-muted-foreground/80">
+                          {entry.detail}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-3 py-1.5 border-t bg-muted/20 text-[8px] text-muted-foreground/60">
+                posting_id: pst_b8f3 · entity: ent_2f8a1c · actor: Ledger Agent
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Liveness Footer */}
         <div
           className="rounded-lg border border-dashed bg-muted/20 p-2.5"
@@ -719,11 +945,23 @@ export function LedgerLiveness({
           aria-label="Liveness Transparency"
         >
           <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
-            <Sparkles className="h-3 w-3 text-signal-indigo" />
+            <Sparkles className="h-3 w-3 text-signal-indigo shrink-0" />
             <span>
-              Liveness transparency: All decisions shown with confidence scores.
-              No black boxes. Below 0.7 confidence escalates to Controller
-              Agent. Below 0.4 confidence escalates to human.
+              <strong className="text-muted-foreground/80">
+                Layer 1 — Deterministic:
+              </strong>{" "}
+              The Ledger Agent carries{" "}
+              <strong className="text-muted-foreground/80">
+                zero confidence scores of its own
+              </strong>
+              . All checks are mathematical or database lookups, not AI
+              judgments. Any confidence shown on posted entries belongs to the{" "}
+              <strong className="text-muted-foreground/80">
+                originating agent
+              </strong>{" "}
+              (e.g., AP Agent&apos;s vendor classification). The Ledger Agent
+              never initiates work — it only receives. Rejected entries are
+              permanent audit records, never deleted.
             </span>
           </div>
         </div>

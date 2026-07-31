@@ -282,6 +282,10 @@ export type {
 export { cfoAgent } from "./tier1";
 export type {
   CfoStateType,
+  LivenessState,
+  SourceRef,
+  DepartmentResponse,
+  EscalationFrame,
   DepartmentConfirmation,
   EscalationItem,
   InstructionType,
@@ -294,6 +298,11 @@ export {
   treasuryAgent,
   payrollManagerAgent,
   complianceAgent,
+  monitorDeadlines,
+  reviewTaxAgentOutput,
+  detectRuleChanges,
+  confirmRuleUpdate,
+  reportRegulatoryStatus,
 } from "./tier2";
 export type {
   ControllerStateType,

@@ -8,6 +8,7 @@ import {
   jsonb,
   pgEnum,
   index,
+  integer,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { uuidId, entityId, timestamps } from "./helpers";
@@ -260,5 +261,105 @@ export const taxPackagesRelations = relations(taxPackages, ({ one }) => ({
   }),
 }));
 
-// Need to import integer
-import { integer } from "drizzle-orm/pg-core";
+// ─── COMPLIANCE DEADLINES (Live Countdown) ──────────────────────────
+//
+// Tracks filing deadlines with live-countdown-aware fields.
+// The daysUntilDue field is computed at query time for liveness display.
+// Color thresholds: 30d=blue, 14d=amber, 7d=red
+
+export const complianceDeadlines = pgTable(
+  "compliance_deadlines",
+  {
+    id: uuidId(),
+    entityId: entityId.references(() => entities.id, { onDelete: "cascade" }),
+    jurisdiction: text("jurisdiction").notNull(),
+    filingType: text("filing_type").notNull(),
+    name: text("name").notNull(),
+    dueDate: timestamp("due_date").notNull(),
+    period: text("period"),
+    estimatedAmount: numeric("estimated_amount", { precision: 15, scale: 2 }),
+    status: filingStatusEnum("status").notNull().default("pending"),
+    urgencyLevel: text("urgency_level")
+      .$type<"normal" | "approaching" | "critical" | "overdue">()
+      .default("normal"),
+    lastCheckedAt: timestamp("last_checked_at"),
+    taxAgentReviewStatus: text("tax_agent_review_status")
+      .$type<"pending" | "reviewing" | "passed" | "kicked_back">()
+      .default("pending"),
+    taxAgentReviewNotes: text("tax_agent_review_notes"),
+    packageReady: boolean("package_ready").notNull().default(false),
+    filedAt: timestamp("filed_at"),
+    filingReference: text("filing_reference"),
+    regulatoryStatus: text("regulatory_status")
+      .$type<"clean" | "items_pending" | "risk_detected">()
+      .default("clean"),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (t) => [
+    index("cd_entity").on(t.entityId),
+    index("cd_due_date").on(t.entityId, t.dueDate),
+    index("cd_status").on(t.entityId, t.status),
+    index("cd_urgency").on(t.entityId, t.urgencyLevel),
+  ],
+);
+
+export const complianceDeadlinesRelations = relations(
+  complianceDeadlines,
+  ({ one }) => ({
+    entity: one(entities, {
+      fields: [complianceDeadlines.entityId],
+      references: [entities.id],
+    }),
+  }),
+);
+
+// ─── RULE CHANGE PROPOSALS ─────────────────────────────────────────
+//
+// Tracks detected tax law changes before they are applied.
+// Every proposal requires explicit human confirmation (confirmedBy must be
+// populated before rule set is updated). Never auto-applied.
+
+export const ruleChangeProposals = pgTable(
+  "rule_change_proposals",
+  {
+    id: uuidId(),
+    entityId: entityId.references(() => entities.id, { onDelete: "cascade" }),
+    jurisdiction: text("jurisdiction").notNull(),
+    ruleType: taxRuleTypeEnum("rule_type").notNull(),
+    ruleName: text("rule_name").notNull(),
+    detectedAt: timestamp("detected_at").notNull().defaultNow(),
+    detectedBy: text("detected_by"),
+    sourceCitation: text("source_citation"),
+    sourceUrl: text("source_url"),
+    sourceConfidence: numeric("source_confidence", { precision: 3, scale: 2 }),
+    oldValue: jsonb("old_value").$type<Record<string, unknown>>(),
+    newValue: jsonb("new_value").$type<Record<string, unknown>>(),
+    effectiveDate: timestamp("effective_date"),
+    status: text("status")
+      .$type<"pending" | "confirmed" | "applied" | "rejected">()
+      .notNull()
+      .default("pending"),
+    confirmedBy: text("confirmed_by"),
+    confirmedAt: timestamp("confirmed_at"),
+    appliedAt: timestamp("applied_at"),
+    rejectionReason: text("rejection_reason"),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (t) => [
+    index("rcp_entity").on(t.entityId),
+    index("rcp_status").on(t.entityId, t.status),
+    index("rcp_jurisdiction").on(t.entityId, t.jurisdiction),
+  ],
+);
+
+export const ruleChangeProposalsRelations = relations(
+  ruleChangeProposals,
+  ({ one }) => ({
+    entity: one(entities, {
+      fields: [ruleChangeProposals.entityId],
+      references: [entities.id],
+    }),
+  }),
+);

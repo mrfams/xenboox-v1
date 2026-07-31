@@ -1,19 +1,25 @@
 import { langfuse } from "../../core/langfuse";
 import { createAuditEntry } from "../../core/state";
-import { getAgentGraph } from "../../core/orchestrator";
-import { fanOutToDepartments } from "../../core/orchestrator";
+import { getAgentGraph, fanOutToDepartments } from "../../core/orchestrator";
 import { DEPARTMENT_AGENTS, ALL_DEPARTMENTS } from "../../core/registry";
 import type { AgentDepartment } from "../../core/registry";
 import { callLLM } from "../../core/llm/agent-llm";
 import { CFO_SYSTEM_PROMPT, fillPrompt } from "../../core/prompts";
 import {
+  routeToDepartments,
   routeToDepartment,
   evaluateCloseReadiness,
   getEntityFinancialSummary,
+  getDepartmentDisplayName,
+  createSourceRef,
+  synthesizeResponse,
+  frameEscalation,
+  isWaitingOnDepartments,
+  extractSourceRefsFromResponses,
 } from "./tools";
-import type { CfoStateType } from "./state";
+import type { CfoStateType, DepartmentResponse } from "./state";
 
-// ─── Node: Classify Input ──────────────────────────────────────────────────
+// ─── Node: Classify Input (Liveness: INSTRUCTION_RECEIVED) ─────────────────
 
 export async function nodeClassifyInput(state: CfoStateType) {
   const trace = await langfuse.trace({
@@ -52,6 +58,7 @@ export async function nodeClassifyInput(state: CfoStateType) {
     await trace.update({ output: { classified: parsed.type, source: "llm" } });
 
     return {
+      livenessState: "INSTRUCTION_RECEIVED" as const,
       confidence: parsed.confidence ?? 0.85,
       reasoning: parsed.reasoning ?? `LLM classified as ${parsed.type}`,
     };
@@ -62,120 +69,356 @@ export async function nodeClassifyInput(state: CfoStateType) {
     });
 
     return {
+      livenessState: "INSTRUCTION_RECEIVED" as const,
       confidence: 0,
       reasoning: `Classified as ${fallbackType} (deterministic fallback)`,
     };
   }
 }
 
-// ─── Node: Route Instruction ───────────────────────────────────────────────
+// ─── Node: Route to Departments (Liveness: ROUTING_TO_DEPARTMENT_HEAD) ─────
 
-export async function nodeRouteInstruction(state: CfoStateType) {
+export async function nodeRouteToDepartments(state: CfoStateType) {
   const trace = await langfuse.span({
-    name: "cfo-route-instruction",
+    name: "cfo-route-to-departments",
     input: { description: state.currentTask?.description },
   });
 
   const description = state.currentTask?.description ?? "";
-  const department = routeToDepartment(description);
+  const departments = routeToDepartments(description);
 
-  // Invoke the actual department head agent
-  const agentId = DEPARTMENT_AGENTS[department as AgentDepartment];
-  let deptResult: Record<string, unknown> = {};
+  // Create initial department response entries (all pending)
+  const initialResponses: DepartmentResponse[] = departments.map((dept) => ({
+    department: dept,
+    status: "pending" as const,
+    summary: null,
+    confidence: null,
+    receivedAt: null,
+    sourceRefs: [],
+  }));
 
-  try {
-    const graph = await getAgentGraph(agentId);
-    deptResult = (await graph.invoke({
-      entityId: state.entityId,
-      entityName: state.entityName,
-      currency: state.currency,
-      currentOperation: {
-        type: "instruction",
-        status: "processing",
-        input: { description },
-        output: null,
-        error: null,
-      },
-    })) as Record<string, unknown>;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    deptResult = {
-      confidence: 0,
-      reasoning: `Department agent failed: ${msg}`,
-      errors: [msg],
+  // Dispatch to departments in parallel using fanOutToDepartments
+  const deptResults = await fanOutToDepartments({
+    entityId: state.entityId,
+    entityName: state.entityName,
+    currency: state.currency,
+    departments: departments.map((dept) => ({
+      department: dept as AgentDepartment,
+      taskType: "question" as any,
+      input: { description },
+    })),
+  });
+
+  // Merge results into department responses
+  const updatedResponses: DepartmentResponse[] = departments.map((dept) => {
+    const result = deptResults.find((r) => r.department === dept);
+    if (!result) {
+      return {
+        department: dept,
+        status: "timed_out" as const,
+        summary: null,
+        confidence: null,
+        receivedAt: null,
+        sourceRefs: [],
+      };
+    }
+
+    const sourceRefs =
+      result.confidence > 0
+        ? [
+            createSourceRef({
+              claim: `Response from ${getDepartmentDisplayName(dept as any)}`,
+              sourceDepartment: dept,
+              sourceSummaryExcerpt: result.summary.slice(0, 200),
+              confidence: result.confidence,
+            }),
+          ]
+        : [];
+
+    return {
+      department: dept,
+      status:
+        result.errors.length > 0 ? ("error" as const) : ("received" as const),
+      summary: result.summary || null,
+      confidence: result.confidence,
+      receivedAt: result.confidence > 0 ? new Date().toISOString() : null,
+      sourceRefs,
     };
-  }
-
-  const deptConfidence = (deptResult.confidence as number) ?? 0;
-  const deptReasoning = (deptResult.reasoning as string) ?? "";
-  const deptResponse = (deptResult.humanResponse as string) ?? "";
-  const deptErrors = (deptResult.errors as string[]) ?? [];
-
-  // Check escalation
-  const needsEscalation = deptConfidence < 0.6;
-  const escalationWarning = deptConfidence >= 0.6 && deptConfidence < 0.8;
+  });
 
   const audit = createAuditEntry({
     agentId: "cfo-agent",
-    action: "instruction_routed_and_dispatched",
+    action: "routed_to_departments",
     details: {
       description: description.slice(0, 200),
-      routedTo: department,
-      departmentAgentId: agentId,
-      departmentConfidence: deptConfidence,
-      escalated: needsEscalation,
+      departments: departments.map((d) => ({ department: d })),
+      responseCount: updatedResponses.filter((r) => r.status === "received")
+        .length,
+      totalCount: departments.length,
     },
-    confidence: Math.min(0.92, deptConfidence + 0.1),
+    confidence: 0.95,
   });
 
   await trace.update({
     output: {
-      routedTo: department,
-      departmentAgentId: agentId,
-      departmentConfidence: deptConfidence,
-      escalated: needsEscalation,
+      departments,
+      received: updatedResponses.filter((r) => r.status === "received").length,
+      total: departments.length,
     },
   });
 
-  // Build human-readable response
-  let humanResponse: string;
-  if (needsEscalation) {
-    humanResponse = `I routed your request to the ${department.replace("_", " ")} team, but they flagged uncertainty (confidence: ${deptConfidence.toFixed(2)}). Reasoning: ${deptReasoning}. This needs your review.`;
-  } else if (escalationWarning) {
-    humanResponse = `I've routed your request to the ${department.replace("_", " ")} team. They processed it with moderate confidence (${deptConfidence.toFixed(2)}). ${deptResponse}`;
-  } else {
-    humanResponse =
-      deptResponse ||
-      `Your request has been processed by the ${department.replace("_", " ")} team.`;
-  }
+  // Check for escalations triggered by department responses
+  const receivedDepts = updatedResponses.filter((r) => r.status === "received");
+  const needsEscalation = receivedDepts.some((r) => (r.confidence ?? 1) < 0.6);
+  const escalationDept = updatedResponses.find(
+    (r) => (r.confidence ?? 1) < 0.6,
+  );
 
   return {
-    result: {
-      type: needsEscalation ? "instruction_escalated" : "instruction_routed",
-      department,
-      departmentAgentId: agentId,
-      departmentConfidence: deptConfidence,
-      departmentResult: deptResult.result,
-      description,
-    },
-    confidence: needsEscalation
-      ? deptConfidence
-      : Math.min(0.92, deptConfidence + 0.1),
+    livenessState: needsEscalation
+      ? ("ESCALATION_RECEIVED_FROM_DEPT_HEAD" as const)
+      : ("AWAITING_DEPARTMENT_SUMMARIES" as const),
+    routedDepartments: departments,
+    departmentResponses: updatedResponses,
+    confidence: needsEscalation ? 0.5 : 0.85,
     reasoning: needsEscalation
-      ? `Routed to ${department}, but department agent confidence (${deptConfidence.toFixed(2)}) is below 0.6 — escalating to human`
-      : `Routed to ${department} and dispatched to ${agentId} (confidence: ${deptConfidence.toFixed(2)})`,
-    humanResponse,
+      ? `${getDepartmentDisplayName(escalationDept?.department as any)} flagged low confidence — routing to escalation`
+      : `Routed to ${departments.length} department(s): ${departments.map((d) => getDepartmentDisplayName(d as any)).join(", ")}`,
+    humanResponse: needsEscalation
+      ? `I checked with ${departments.map((d) => getDepartmentDisplayName(d as any)).join(" and ")}, but ${getDepartmentDisplayName(escalationDept?.department as any)} flagged something that needs your input.`
+      : departments.length > 1
+        ? `Got it — checking with ${departments.map((d) => getDepartmentDisplayName(d as any)).join(" and ")}...`
+        : `Got it — checking with ${getDepartmentDisplayName(departments[0] as any)}...`,
     auditTrail: [audit],
     errors: needsEscalation
       ? [
-          ...deptErrors,
-          `Escalated: confidence ${deptConfidence.toFixed(2)} < 0.6`,
+          `Escalation: ${escalationDept?.department} confidence ${(escalationDept?.confidence ?? 0).toFixed(2)} below 0.6`,
         ]
-      : deptErrors,
+      : [],
   };
 }
 
-// ─── Node: Answer Question ─────────────────────────────────────────────────
+// ─── Node: Await Department Summaries (Liveness: AWAITING_DEPARTMENT_SUMMARIES) ─
+
+export async function nodeAwaitDepartmentSummaries(state: CfoStateType) {
+  const trace = await langfuse.span({
+    name: "cfo-await-department-summaries",
+    input: { routedDepartments: state.routedDepartments },
+  });
+
+  if (!state.departmentResponses || state.departmentResponses.length === 0) {
+    return {
+      errors: ["No department responses to await"],
+      confidence: 0,
+    };
+  }
+
+  const status = isWaitingOnDepartments(state.departmentResponses);
+  const timedOut = status.timedOut.length > 0;
+
+  await trace.update({
+    output: {
+      waiting: status.waiting,
+      waitingOn: status.waitingOn,
+      received: status.received,
+      timedOut: status.timedOut,
+    },
+  });
+
+  const waitingMsg = status.waiting
+    ? `Still waiting on ${status.waitingOn.join(", ")}.`
+    : null;
+
+  // Build human-readable status
+  let humanResponse: string;
+  if (status.waiting) {
+    humanResponse = `I've heard from ${status.received.join(", ")} so far. Still waiting on ${status.waitingOn.join(", ")}.`;
+  } else if (timedOut) {
+    humanResponse = `${status.timedOut.join(", ")} ${status.timedOut.length === 1 ? "hasn't" : "haven't"} responded yet. I'll proceed with what I have.`;
+  } else {
+    humanResponse = `All departments have responded. Putting together your answer...`;
+  }
+
+  return {
+    livenessState: timedOut
+      ? ("SYNTHESIZING" as const)
+      : status.waiting
+        ? ("AWAITING_DEPARTMENT_SUMMARIES" as const)
+        : ("SYNTHESIZING" as const),
+    humanResponse: waitingMsg || humanResponse,
+    confidence: status.waiting ? 0.7 : timedOut ? 0.6 : 0.9,
+    reasoning: status.waiting
+      ? `Awaiting: ${status.waitingOn.join(", ")}`
+      : timedOut
+        ? `Proceeding with partial responses: no response from ${status.timedOut.join(", ")}`
+        : "All department summaries received, proceeding to synthesis",
+  };
+}
+
+// ─── Node: Synthesize Answer (Liveness: SYNTHESIZING) ──────────────────────
+
+export async function nodeSynthesizeAnswer(state: CfoStateType) {
+  const trace = await langfuse.span({
+    name: "cfo-synthesize-answer",
+    input: {
+      departmentCount: state.departmentResponses.length,
+    },
+  });
+
+  const description = state.currentTask?.description ?? "";
+
+  // Synthesize — composition only, no new facts (§3 step 4)
+  const { answer, sourceRefs } = synthesizeResponse({
+    departmentResponses: state.departmentResponses,
+    originalInstruction: description,
+  });
+
+  const audit = createAuditEntry({
+    agentId: "cfo-agent",
+    action: "synthesized_answer_from_departments",
+    details: {
+      input: description.slice(0, 200),
+      sourceDepartments: state.departmentResponses
+        .filter((r) => r.status === "received")
+        .map((r) => r.department),
+      sourceRefCount: sourceRefs.length,
+    },
+    confidence: 0.9,
+  });
+
+  await trace.update({
+    output: {
+      sourceCount: state.departmentResponses.filter(
+        (r) => r.status === "received",
+      ).length,
+      sourceRefCount: sourceRefs.length,
+    },
+  });
+
+  return {
+    livenessState: "RESPONDING" as const,
+    synthesizedAnswer: answer,
+    sourceRefs,
+    confidence: 0.9,
+    reasoning: `Synthesized answer from ${state.departmentResponses.filter((r) => r.status === "received").length} department(s)`,
+    humanResponse: answer,
+    auditTrail: [audit],
+  };
+}
+
+// ─── Node: Respond to Human (Liveness: RESPONDING) ─────────────────────────
+
+export async function nodeRespondToHuman(state: CfoStateType) {
+  const trace = await langfuse.span({
+    name: "cfo-respond-to-human",
+    input: { hasSynthesizedAnswer: !!state.synthesizedAnswer },
+  });
+
+  const answer =
+    state.synthesizedAnswer ?? state.humanResponse ?? "Processing complete.";
+  const sourceRefs = state.sourceRefs;
+
+  // Build citation appendix
+  let responseWithCitations = answer;
+  if (sourceRefs.length > 0) {
+    const citationBlock = sourceRefs
+      .map(
+        (ref, i) =>
+          `[${i + 1}] Source: ${ref.sourceDepartment} — ${ref.sourceSummaryExcerpt.slice(0, 100)}`,
+      )
+      .join("\n");
+    responseWithCitations = `${answer}\n\n---\n${citationBlock}`;
+  }
+
+  const audit = createAuditEntry({
+    agentId: "cfo-agent",
+    action: "responded_to_human_with_citations",
+    details: {
+      sourceRefCount: sourceRefs.length,
+      departments: [...new Set(sourceRefs.map((r) => r.sourceDepartment))],
+    },
+    confidence: 0.95,
+  });
+
+  await trace.update({
+    output: { sourceRefCount: sourceRefs.length },
+  });
+
+  return {
+    livenessState: "RESPONDING" as const,
+    humanResponse: responseWithCitations,
+    confidence: 0.95,
+    reasoning: `Response delivered with ${sourceRefs.length} source citation(s)`,
+    result: {
+      type: "response_delivered",
+      sourceRefs,
+    },
+    auditTrail: [audit],
+  };
+}
+
+// ─── Node: Frame Escalation (Liveness: FRAMING_FOR_HUMAN) ──────────────────
+
+export async function nodeFrameEscalation(state: CfoStateType) {
+  const trace = await langfuse.span({
+    name: "cfo-frame-escalation",
+    input: { escalationCount: state.escalations.length },
+  });
+
+  const unresolved = state.escalations.filter((e) => !e.resolvedAt);
+  const deptResponses = state.departmentResponses;
+  const lowConfDept = deptResponses.find((r) => (r.confidence ?? 1) < 0.6);
+
+  // Frame the escalation with specific triggering data (§5, §6)
+  const escalationFrame = frameEscalation({
+    triggeringAgent:
+      lowConfDept?.department ?? state.escalations[0]?.fromAgent ?? "unknown",
+    triggeringDataRef:
+      lowConfDept?.summary?.slice(0, 200) ?? unresolved[0]?.context ?? "",
+    originalInput: state.currentTask?.description ?? "",
+    departmentAssessment:
+      lowConfDept?.summary ??
+      unresolved[0]?.description ??
+      "No assessment available",
+    recommendation:
+      "Review the flagged issue and provide guidance on how to proceed.",
+    timeSensitivity: unresolved.some((e) => e.severity === "critical")
+      ? "critical"
+      : null,
+  });
+
+  // Build framed escalation message (§5.2)
+  const framedMessage = `[${getDepartmentDisplayName(escalationFrame.triggeringAgent as any)}] flagged the following:\n"${escalationFrame.departmentAssessment.slice(0, 300)}"\n\nHere's why I'm asking you: ${escalationFrame.recommendation}`;
+
+  const audit = createAuditEntry({
+    agentId: "cfo-agent",
+    action: "escalation_framed_for_human",
+    details: {
+      triggeringAgent: escalationFrame.triggeringAgent,
+      originalInput: escalationFrame.originalInput.slice(0, 200),
+      recommendation: escalationFrame.recommendation,
+    },
+    confidence: 0.85,
+  });
+
+  await trace.update({
+    output: {
+      triggeringAgent: escalationFrame.triggeringAgent,
+      timeSensitivity: escalationFrame.timeSensitivity,
+    },
+  });
+
+  return {
+    livenessState: "PRESENTED_TO_HUMAN" as const,
+    escalationFrame,
+    humanResponse: framedMessage,
+    confidence: 0.85,
+    reasoning: `Escalation framed from ${escalationFrame.triggeringAgent} for human review`,
+    auditTrail: [audit],
+  };
+}
+
+// ─── Node: Answer Question (unchanged, adapted for liveness) ───────────────
 
 export async function nodeAnswerQuestion(state: CfoStateType) {
   const trace = await langfuse.span({
@@ -217,6 +460,7 @@ export async function nodeAnswerQuestion(state: CfoStateType) {
     await trace.update({ output: { source: "llm" } });
 
     return {
+      livenessState: "RESPONDING" as const,
       result: { type: "question_answered", summary },
       confidence: 0.9,
       reasoning: "LLM-generated answer from financial summary",
@@ -230,6 +474,7 @@ export async function nodeAnswerQuestion(state: CfoStateType) {
     await trace.update({ output: { source: "deterministic" } });
 
     return {
+      livenessState: "RESPONDING" as const,
       result: { type: "question_answered", summary },
       confidence: 0.9,
       reasoning: "Retrieved entity financial summary (deterministic fallback)",
@@ -250,7 +495,6 @@ export async function nodeInitiateClose(state: CfoStateType) {
   const periodMatch = description.match(/(\d{4}-\d{2})/);
   const period = periodMatch?.[1] ?? "current period";
 
-  // Fan-out to all 4 department heads in parallel
   const deptResults = await fanOutToDepartments({
     entityId: state.entityId,
     entityName: state.entityName,
@@ -275,7 +519,6 @@ export async function nodeInitiateClose(state: CfoStateType) {
     ],
   });
 
-  // Map DepartmentResult[] to the existing departmentStatus shape
   const departmentStatus = {
     controller: {
       confirmed:
@@ -367,6 +610,7 @@ export async function nodeInitiateClose(state: CfoStateType) {
   });
 
   return {
+    livenessState: "AWAITING_DEPARTMENT_SUMMARIES" as const,
     closeState: {
       period,
       status:
@@ -432,7 +676,7 @@ export async function nodeCollectDepartmentStatus(state: CfoStateType) {
   };
 }
 
-// ─── Node: Process Escalation ──────────────────────────────────────────────
+// ─── Node: Process Escalation (legacy) ─────────────────────────────────────
 
 export async function nodeProcessEscalation(state: CfoStateType) {
   const trace = await langfuse.span({
@@ -456,6 +700,7 @@ export async function nodeProcessEscalation(state: CfoStateType) {
   });
 
   return {
+    livenessState: "ESCALATION_RECEIVED_FROM_DEPT_HEAD" as const,
     confidence: critical.length > 0 ? 0.4 : 0.7,
     reasoning: `${unresolved.length} unresolved escalations (${critical.length} critical)`,
     humanResponse: `Escalations requiring your attention:\n\n${responseLines.join("\n")}`,
@@ -503,6 +748,7 @@ export async function nodeGenerateSummary(state: CfoStateType) {
     await trace.update({ output: { source: "llm", summary } });
 
     return {
+      livenessState: "RESPONDING" as const,
       result: { type: "summary_generated", summary },
       confidence: 0.9,
       humanResponse: result.content,
@@ -515,6 +761,7 @@ export async function nodeGenerateSummary(state: CfoStateType) {
     await trace.update({ output: { source: "deterministic", summary } });
 
     return {
+      livenessState: "RESPONDING" as const,
       result: { type: "summary_generated", summary },
       confidence: 0.9,
       humanResponse: fallback,
@@ -533,16 +780,20 @@ export async function nodeEscalateToHuman(state: CfoStateType) {
       errors: state.errors,
       reasoning: state.reasoning,
       escalated: true,
+      livenessState: state.livenessState,
     },
   });
 
   return {
+    livenessState: "PRESENTED_TO_HUMAN" as const,
     result: {
       type: "escalation_to_human",
       agentId: "cfo-agent",
       confidence: state.confidence,
       reasoning: state.reasoning,
       errors: state.errors,
+      livenessState: state.livenessState,
+      escalationFrame: state.escalationFrame,
     },
   };
 }

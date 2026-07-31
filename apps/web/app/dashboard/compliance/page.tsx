@@ -12,6 +12,8 @@ import { ComplianceAuditPackage } from "@/components/compliance/compliance-audit
 import { ComplianceAuditTrail } from "@/components/compliance/compliance-audit-trail";
 import { ComplianceAIPanel } from "@/components/compliance/compliance-ai-panel";
 import { ComplianceQuickActions } from "@/components/compliance/compliance-quick-actions";
+import { ComplianceLivenessCalendar } from "@/components/compliance/compliance-liveness-calendar";
+import { RuleChangeProposals } from "@/components/compliance/rule-change-proposals";
 
 export default function CompliancePage() {
   const router = useRouter();
@@ -19,8 +21,15 @@ export default function CompliancePage() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        {/* Hero Section */}
         <ComplianceSummary />
+
+        {/* Liveness Row: Live Calendar + Rule Changes */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ComplianceLivenessCalendar />
+          </div>
+          <RuleChangeProposals />
+        </div>
 
         {/* Top row: Briefing + Health + Tax Center */}
         <div className="grid gap-6 lg:grid-cols-3">
@@ -43,7 +52,6 @@ export default function CompliancePage() {
         </div>
       </div>
 
-      {/* AI Panel (right sidebar fixed) */}
       <div className="fixed bottom-24 right-6 z-40 hidden xl:block">
         <ComplianceAIPanel
           onAction={(action) =>
@@ -52,7 +60,6 @@ export default function CompliancePage() {
         />
       </div>
 
-      {/* Quick Actions FAB */}
       <ComplianceQuickActions />
     </div>
   );

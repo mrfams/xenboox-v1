@@ -32,6 +32,7 @@ import {
   Activity,
   type LucideIcon,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui";
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
@@ -89,6 +90,11 @@ const navGroups: NavGroup[] = [
       },
       { label: "Bank & Recon", href: "/dashboard/treasury", icon: Landmark },
       {
+        label: "Recon Agent Liveness",
+        href: "/dashboard/agents/reconciliation",
+        icon: Activity,
+      },
+      {
         label: "Mobile Money",
         href: "/dashboard/mobile-money",
         icon: Smartphone,
@@ -119,6 +125,11 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/ap/payment-schedule",
         icon: CalendarDays,
       },
+      {
+        label: "AP Agent Liveness",
+        href: "/dashboard/agents/ap",
+        icon: Activity,
+      },
     ],
   },
   {
@@ -129,6 +140,11 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/payroll/pipeline",
         icon: Users,
         badge: "AI",
+      },
+      {
+        label: "Payroll Agent Liveness",
+        href: "/dashboard/agents/payroll",
+        icon: Activity,
       },
       {
         label: "Expenses",
@@ -161,11 +177,22 @@ const navGroups: NavGroup[] = [
       { label: "Chart of Accounts", href: "/dashboard/coa", icon: BookOpen },
       { label: "Journal Entries", href: "/dashboard/journal", icon: FileText },
       {
+        label: "Ledger Agent Liveness",
+        href: "/dashboard/agents/ledger",
+        icon: Activity,
+      },
+      {
         label: "Trial Balance",
         href: "/dashboard/trial-balance",
         icon: TrendingUp,
       },
       { label: "Month-End Close", href: "/dashboard/close", icon: Shield },
+      {
+        label: "CFO Agent Liveness",
+        href: "/dashboard/agents/cfo",
+        icon: Activity,
+        badge: "AI",
+      },
       {
         label: "Consolidation",
         href: "/dashboard/consolidation",
@@ -210,6 +237,12 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/tax-compliance/pipeline",
         icon: Shield,
         badge: "AI",
+      },
+      {
+        label: "Compliance Calendar",
+        href: "/dashboard/compliance",
+        icon: CalendarDays,
+        attrs: { "data-live": "true" },
       },
       {
         label: "Audit Preparation",

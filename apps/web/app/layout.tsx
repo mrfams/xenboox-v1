@@ -19,7 +19,31 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.com";
+/**
+ * Resolve the canonical app URL defensively.
+ *
+ * At build time Next.js may inline a redacted value (e.g. "[SENSITIVE]") for
+ * NEXT_PUBLIC_* env vars, which would throw `ERR_INVALID_URL` inside
+ * `new URL()` during page-data collection. Validate the candidate and fall
+ * back to the canonical domain so a bad/redacted value can never crash
+ * `next build` or produce broken metadata templates.
+ */
+function resolveBaseUrl(): string {
+  const candidate = process.env.NEXT_PUBLIC_APP_URL;
+  if (candidate) {
+    try {
+      const parsed = new URL(candidate);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.origin;
+      }
+    } catch {
+      // fall through to the canonical default below
+    }
+  }
+  return "https://xenboox.com";
+}
+
+const baseUrl = resolveBaseUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
