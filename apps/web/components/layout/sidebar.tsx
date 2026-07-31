@@ -167,6 +167,11 @@ const navGroups: NavGroup[] = [
         icon: DollarSign,
         badge: "AI",
       },
+      {
+        label: "Expense Agent Liveness",
+        href: "/dashboard/agents/expense",
+        icon: Activity,
+      },
     ],
   },
   {

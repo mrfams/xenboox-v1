@@ -6,6 +6,56 @@
 
 ---
 
+### [2026-07-31] — Expense Agent Liveness (spec v1.0): Itemized Policy-Check Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/expense-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): RECEIPT_SUBMITTED → EXTRACTING → POLICY_CHECKING → ROUTING → REIMBURSEMENT_SCHEDULED → PAID, with **approval outcome branch** (APPROVED | REJECTED | ESCALATED) as three exact-text badges
+- **Critical rule (Spec §2/§3/§4): policy checks are ITEMIZED** — each rule checked and shown individually (`data-policy-checklist="true"` container, `data-policy-result="pass"` per row), never collapsed into a single "policy ok" badge
+  - "Receipt required above GMD 20 — receipt attached ✓", "Meal limit GMD 30 — claimed GMD 28 — within limit ✓", "Duplicate submission — no prior match found ✓"
+- **OCR extraction (probabilistic Layer 2)** — per-field confidence meters: Vendor (Kairaba Restaurant) 94%, Amount (GMD 28.00) 96%, Date (June 12, 2026) 89%; exactly 3 meters in main view
+- **Meter discipline** — policy-check rows, duplicate check (`data-step="duplicate"`, "Checked against 340 prior expense claims — No duplicate found", deterministic) and routing (`data-step="routing"`, "Routed to Awa Sillah (Field Ops Manager)", deterministic) carry NO meter
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table: any policy rule fails → Department Manager / Finance (itemized failure + explicit override, blocking), possible duplicate → side-by-side (blocking), receipt unreadable → resubmit/manual (blocking)
+- **Branch states** — `showEscalated` ("claimed GMD 45 for Meals — exceeds GMD 30 category limit by GMD 15", "exception approval, not auto-approved", itemized failure shown, blocking, 0 meters), `showOcrFailure` ("Couldn't read this receipt — please resubmit or enter manually", "never guesses an amount", blocking), `showRejected` ("Missing receipt above the GMD 20 threshold — hard policy fail, not silently waived", 0 meters), `showPaid` (terminal "Reimbursed", EXP-2026-0142, Ledger Agent handoff, 0 meters), `showEmptyState`
+- How It Works 6-step decomposition (Receive Claim / OCR Extraction / Policy Check / Duplicate Check / Route to Approver / Schedule Reimbursement), constraint badges (Itemized Policy Checks, OCR Never Guesses, Receipt Threshold Enforced, Duplicate Flagged), audit trail table (9 data rows: OCR confidence per field + every policy rule pass/fail + routing + approver action + reimbursement date), cross-agent chain (Document Agent → this agent → Controller Agent → Ledger Agent; Cash Agent for reimbursement), Layer 1 deterministic vs Layer 2 probabilistic footer, 11 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/expense-liveness.test.tsx` — NEW, 41 tests (TDD RED → GREEN) locking spec rules: pipeline order, three outcome badges, itemized policy checks (each rule individually, never a single badge), per-field OCR meters (exactly-3 invariant), no-meter duplicate/routing rows, blocking escalations, OCR-never-guesses, hard policy fail, terminal PAID (0 meters), audit trail columns, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/expense/page.tsx` — NEW dashboard page (mirrors prior liveness page pattern): breadcrumb, hero, 3 key principles (itemized policy checks / OCR never guesses / blocking escalations), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Expense Agent Liveness" nav item to Payroll & People group (after Expenses)
+
+**Review findings fixed during build:**
+
+- Three `getByText` multi-match test failures → converted to `getAllByText`: `/Duplicate submission/i` (policy rule name + escalation row "Possible duplicate submission"), `/Reimbursed/i` (title + "reimbursed via Cash Agent" body), How It Works step phrases `/OCR Extraction/`, `/Policy Check/`, `/Duplicate Check/` (collide with always-rendered section headers)
+
+### Verification
+
+| Check                      | Status                                          |
+| -------------------------- | ----------------------------------------------- |
+| Expense liveness tests     | ✅ 41/41 pass                                   |
+| Full component suite       | ✅ 429/429 pass (14 files)                      |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                        |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/expense built |
+| Code review                | ✅ Multiple passes, all findings addressed      |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)   |
+
+### Next Steps
+
+- Remaining liveness specs: Document, Treasury, Controller, Reporting
+- Expense spec §9 schema flags: `expense_claims.policy_checks` as an array of `{rule_name, limit, claimed_value, result}` (explicitly NOT a single boolean), `expense_claims.status` enum matching the state machine, `expense_claims.duplicate_check_result` — flagged for schema review
+- Expense spec §11 open question: auto-approval threshold for routine expense claims (PRD's general $500 may not be the right band) — needs product decision
+- Expense spec §3 note: duplicate-check confidence "if fuzzy" is currently copy-only (Layer 2 footer + step detail) to preserve the exactly-3-meters invariant — the demo renders an exact duplicate; fuzzy meter can be added when schema lands
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Mobile Money Agent Liveness (spec v1.0): Timing-Gap Transparency
 
 **Agent:** Buffy (Autonomous Engineer)
