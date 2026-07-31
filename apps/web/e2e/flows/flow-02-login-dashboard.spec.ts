@@ -115,15 +115,23 @@ test.describe("W.F02 Login → Dashboard → Navigation", () => {
     await expect(page.locator("body")).toBeVisible();
   });
 
-  test("02.09 navigate to Journal page via sidebar", async ({ page }) => {
-    await page.locator('aside a[href*="/dashboard/journal"]').first().click();
+  test("02.09 navigate to Journal page via Accounting hub", async ({
+    page,
+  }) => {
+    // Accounting (Chart of Accounts) is the sidebar entry; Journal is a tab on it
+    await page.locator('aside a[href*="/dashboard/coa"]').first().click();
+    await page.waitForURL("**/dashboard/coa**", { timeout: 15000 });
+    await page.locator('a[href="/dashboard/journal"]').first().click();
     await page.waitForURL("**/dashboard/journal**", { timeout: 15000 });
     expect(page.url()).toContain("/dashboard/journal");
     await expect(page.locator("body")).toBeVisible();
   });
 
-  test("02.10 navigate to Treasury page via sidebar", async ({ page }) => {
-    await page.locator('aside a[href*="/dashboard/treasury"]').first().click();
+  test("02.10 navigate to Treasury page via Money hub", async ({ page }) => {
+    // Money (Cash) is the sidebar entry; Bank & Recon (Treasury) is a tab on it
+    await page.locator('aside a[href*="/dashboard/cash"]').first().click();
+    await page.waitForURL("**/dashboard/cash**", { timeout: 15000 });
+    await page.locator('a[href="/dashboard/treasury"]').first().click();
     await page.waitForURL("**/dashboard/treasury**", { timeout: 15000 });
     expect(page.url()).toContain("/dashboard/treasury");
     await expect(page.locator("body")).toBeVisible();

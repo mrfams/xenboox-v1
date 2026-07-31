@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
 import { PayrollManagerLiveness } from "@/components/agents/payroll-manager-liveness";
 import { PayrollWorkerLiveness } from "@/components/agents/payroll-worker-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -372,6 +373,13 @@ export default function PayrollPipelinePage() {
           icon: <PlayCircle className="mr-2 h-4 w-4" />,
           onClick: () => setRunDialogOpen(true),
         }}
+      />
+
+      <SubPageTabs
+        tabs={[
+          { label: "Payroll", href: "/dashboard/payroll/pipeline" },
+          { label: "Expenses", href: "/dashboard/expense/pipeline" },
+        ]}
       />
 
       <PayrollManagerLiveness />

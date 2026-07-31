@@ -6,6 +6,57 @@
 
 ---
 
+### [2026-07-31] — Professional Flat Sidebar (QuickBooks/Xero-style): 10 primary destinations, secondary modules move to in-page tabs
+
+**Agent:** opencode (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 0 **Files Modified:** 8
+
+**What was built (web only, per scope):**
+
+**Context:** The grouped, collapsible sidebar still had too many entries to scan quickly (9 groups / ~25 items). Professional accounting products (QuickBooks, Xero, Basis, Digits, Zeni) use a short, flat primary nav where each entry is a single destination and sub-pages live inside the module. This turn flattens the sidebar to 10 primary destinations + 4 utility items and moves every removed sub-page onto its module page as tabs.
+
+**File:** `apps/web/components/layout/sidebar.tsx` — REWRITTEN to a flat nav:
+
+- Removed the `NavGroup`/group-header/collapse-toggle machinery (`collapsedGroups`, `toggleGroup`, `ChevronDown`) entirely — no more nested groups
+- **Primary nav (10):** Home · Ask CFO Agent [AI] · Money (→ `/dashboard/cash`) · Sales (→ `/dashboard/ar/invoices`) · Purchases (→ `/dashboard/ap/invoices`) · Payroll & People (→ `/dashboard/payroll/pipeline`) · Assets & Inventory (→ `/dashboard/inventory/pipeline`) · Reports (→ `/dashboard/reports`) · Accounting (→ `/dashboard/coa`) · Compliance (→ `/dashboard/compliance`)
+- **Bottom nav (4):** Documents · Approvals (count badge) · Settings · Help & Support
+- Each primary item carries a `match` prefix list so the section highlights across all its routes (e.g. Accounting is active on `/dashboard/coa`, `/dashboard/journal`, `/dashboard/trial-balance`, `/dashboard/close`, `/dashboard/consolidation`; Sales active on any `/dashboard/ar/*`)
+- Collapse-to-icon-rail + hover-expand behavior preserved unchanged
+- Dropped 9 now-unused lucide icons (Landmark, Smartphone, FileText, TrendingUp, PiggyBank, Search, HardHat, CalendarDays, DollarSign)
+
+**Sub-pages moved into module-page tabs (`SubPageTabs`):**
+
+| Sidebar entry removed                                          | Now a tab on                                                                                   |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Bank & Recon, Mobile Money                                     | Money (`/dashboard/cash`) → Cash · Bank & Recon · Mobile Money                                 |
+| Customers, AR Aging                                            | Sales (already tabled: Invoices · Customers · AR Aging)                                        |
+| Suppliers, Purchase Orders, Payment Schedule                   | Purchases (already tabled: Bills · Suppliers · POs · Payment Schedule)                         |
+| Expenses                                                       | Payroll & People (`/dashboard/payroll/pipeline`) → Payroll · Expenses                          |
+| Fixed Assets                                                   | Assets & Inventory (`/dashboard/inventory/pipeline`) → Inventory · Fixed Assets                |
+| Budget vs Actual, Analytics, Benchmarking                      | Reports (`/dashboard/reports`) → Reports · Budget vs Actual · Analytics · Benchmarking         |
+| Journal Entries, Trial Balance, Month-End Close, Consolidation | Accounting (`/dashboard/coa`) → COA · Journal · Trial Balance · Close · Consolidation          |
+| Tax & Filings, Audit Preparation                               | Compliance (`/dashboard/compliance`) → Compliance Calendar · Tax & Filings · Audit Preparation |
+
+**Files modified for tabs:** `app/dashboard/cash/page.tsx`, `app/dashboard/payroll/pipeline/page.tsx`, `app/dashboard/inventory/pipeline/page.tsx`, `app/dashboard/reports/page.tsx`, `app/dashboard/coa/page.tsx`, `app/dashboard/compliance/page.tsx` (tabs at top of its `max-w-7xl` container — no PageHeader on that page).
+
+**e2e:** `e2e/flows/flow-02-login-dashboard.spec.ts` — tests 02.09/02.10 updated: Journal is reached via the Accounting (COA) tab and Treasury via the Money (Cash) tab, since neither is a direct sidebar link anymore. flow-03/04/07/comprehensive-suite navigate by URL or `aside a[href*="/dashboard/coa"]` and remain compatible.
+
+### Verification
+
+| Check                      | Status                                                                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Full component suite       | ✅ 1220/1220 pass (39 files)                                                                                   |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                                                                                       |
+| Lint (`@xenboox/web`)      | ✅ No errors on changed files (only pre-existing import-order/unused-var warnings in the large pipeline pages) |
+
+### Next Steps
+
+- Sidebar is now a flat professional rail; every secondary module is one click deep on its parent page
+- All routes preserved — nothing was deleted in this pass
+
+---
+
 ### [2026-07-31] — Sidebar Declutter: AI Team Removal, Nav Consolidation & Auto-Collapsing Icon Rail
 
 **Agent:** opencode (Autonomous Engineer)

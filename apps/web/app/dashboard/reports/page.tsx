@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
 import { ReportingLiveness } from "@/components/agents/reporting-liveness";
 import {
   Card,
@@ -165,6 +166,15 @@ export default function ReportsPage() {
       <PageHeader
         title="Financial Reports"
         description="Generate, export, and schedule financial statements"
+      />
+
+      <SubPageTabs
+        tabs={[
+          { label: "Reports", href: "/dashboard/reports" },
+          { label: "Budget vs Actual", href: "/dashboard/budget/pipeline" },
+          { label: "Analytics", href: "/dashboard/analytics/pipeline" },
+          { label: "Benchmarking", href: "/dashboard/benchmarking" },
+        ]}
       />
 
       <ReportingLiveness />
