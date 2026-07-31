@@ -6,6 +6,60 @@
 
 ---
 
+### [2026-07-31] — AR Agent Liveness (spec v1.0): Invoice-to-Cash Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/ar-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline: INVOICE_CREATED → SENT → AWAITING_PAYMENT → PAYMENT_MATCHING → RECEIPT_GENERATED → AGING_UPDATED, with **match outcome branch** (FULL_MATCH | PARTIAL_MATCH | OVERPAYMENT)
+- **Critical rule (Spec §2/§3): partial payment is never silently treated as closing the invoice** — exact received amount + exact remaining balance always shown ("Partial payment: GMD 300.00 of GMD 500.00 received — GMD 200.00 remains outstanding"), no rounding, no "close enough"; partial row distinguished from full via `data-active="true"` highlight
+- **Payment matching with confidence + basis** — full (basis "amount + reference exactly match" + `100% · by definition`, no meter), partial (deterministic, no meter), overpayment (credit balance flagged, no meter), **ambiguous (54% confidence meter — never auto-picks between same-amount open invoices, flagged for human confirmation, blocking)**, unmatched (routed to Reconciliation Agent buckets, non-blocking), donor tranche (donor schedule basis, deterministic)
+- **Exactly 1 confidence meter total** (ambiguous only) — deterministic steps carry none
+- **Overpayment handling** — GMD 50.00 credit balance pending instruction (apply to next invoice or refund?), blocking on that credit only, escalated to Controller Agent / human
+- **Delivery failure** (Spec §7) — flagged with retry/alternate contact, never silently marked "sent"
+- **Invoice timeline** — created → sent → viewed → payment → due (days-until-due badge), delivery confirmed not assumed
+- **Aging report updates live** — recalculated on receipt (GMD 500.00 → GMD 200.00 outstanding), buckets current/30/60/90+
+- Escalation & human-in-the-loop triggers table, How It Works step decomposition (confidence required for matching across multiple open invoices), constraint badges, audit trail (creation / delivery / every match attempt matched+unmatched / receipt / aging / human confirmations preserved)
+- Cross-agent chain: Reconciliation Agent | Mobile Money Agent → AR Agent → Ledger Agent; donor payments additionally → Reporting Agent for donor-format reports
+- Prop modes: `showEmptyState`, `showDeliveryFailure`, `showOverpayment`, `showAmbiguousMatch`, `showAgingUpdated` (terminal)
+- Layer 1 deterministic vs Layer 2 probabilistic liveness footer
+
+**File:** `apps/web/__tests__/components/ar-liveness.test.tsx` — NEW, 45 tests (TDD RED → GREEN) locking spec rules: pipeline order, partial-never-rounds, exactly-1-meter invariant, ambiguous never auto-picks, overpayment credit semantics, delivery-failure copy, aging live update, audit-trail human confirmations, terminal state, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/ar/page.tsx` — NEW dashboard page (mirrors AP liveness page pattern)
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "AR Agent Liveness" nav item to Sales group (next to Invoices (AR), Customers, AR Aging)
+
+**Review findings fixed during build:**
+
+- Ambiguous-match meter was gated on `row.badge` (undefined for that row) → meter never rendered; fixed ternary so meter renders on kind + confidence only
+- Removed unused lucide imports (Timer, Link2, Landmark)
+- Two `getByText` multi-match test ambiguities (title + body copy) → converted to `getAllByText`
+
+### Verification
+
+| Check                      | Status                                        |
+| -------------------------- | --------------------------------------------- |
+| AR liveness tests          | ✅ 45/45 pass                                 |
+| Full component suite       | ✅ 301/301 pass (11 files)                    |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                      |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/ar built    |
+| Code review                | ✅ Multiple passes, all findings addressed    |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login) |
+
+### Next Steps
+
+- Remaining liveness specs: Cash, Mobile Money, Document, Treasury, Controller, Reporting
+- AR spec §9 schema flags: `ar_invoices.status` (incl. `partial_paid`, `overpaid`), `ar_payments.match_confidence`/`match_basis`, `ar_invoices.amount_outstanding` — flagged for schema review
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Agent Liveness Suite: AP, Reconciliation, Payroll, CFO + Compliance Liveness & Build Blocker Fix
 
 **Agent:** Buffy (Autonomous Engineer)

@@ -108,6 +108,11 @@ const navGroups: NavGroup[] = [
       { label: "Invoices (AR)", href: "/dashboard/ar/invoices", icon: Receipt },
       { label: "Customers", href: "/dashboard/ar/customers", icon: Users },
       { label: "AR Aging", href: "/dashboard/ar/aging", icon: TrendingUp },
+      {
+        label: "AR Agent Liveness",
+        href: "/dashboard/agents/ar",
+        icon: Activity,
+      },
     ],
   },
   {
