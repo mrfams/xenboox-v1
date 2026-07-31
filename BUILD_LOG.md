@@ -6,6 +6,56 @@
 
 ---
 
+### [2026-07-31] — Sidebar Declutter: AI Team Removal, Nav Consolidation & Auto-Collapsing Icon Rail
+
+**Agent:** opencode (Autonomous Engineer)
+**Duration:** ~60 min
+**Files Created:** 1 **Files Modified:** 4 **Files Deleted:** 1
+
+**What was built (web only, per scope):**
+
+**Context:** The sidebar had ~39 nav entries (including the "Consolidated Workspaces" block of 8 redundant workspace pages and the now-orphaned "AI Team" hub), and no way to reclaim screen real estate. This turn removes the AI Team hub, trims redundant/secondary entries, moves Sales/Purchases sub-pages into in-page tab navigation, and makes the sidebar collapse to an icon rail on desktop that auto-expands on hover.
+
+**File:** `apps/web/app/dashboard/agents/page.tsx` — DELETED (AI Team hub). Its only in-repo reference was the sidebar; all agent sub-pages under `/dashboard/agents/*` were already deleted in the prior liveness conversion.
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED (main work):
+
+- Removed "AI Team" from bottom nav (the `Activity` icon stays — still used by Approvals)
+- Removed the entire "Consolidated Workspaces" block under Reports (8 items: Money/Revenue/Procurement/Operations/Accounting/Intelligence/Compliance/Knowledge) — those routes still exist, just no longer linked in the sidebar
+- Money group: removed "Cash Overview" (`/dashboard/cash/overview` still reachable); renamed "Cash & Imprest" → "Cash"
+- Sales group: now just "Invoices (AR)" — Customers + AR Aging moved into tabs on the AR page
+- Purchases group: now just "Bills (AP)" — Suppliers + Purchase Orders + Payment Schedule moved into tabs on the AP page
+- Reports group: removed "Benchmarking" (route still exists, linked from analytics/role dashboards)
+- Compliance group: removed "Audit Log" (route still exists, linked from chat-panel + role dashboards)
+- **Auto-collapse**: the aside is now `group` with `lg:w-[var(--sidebar-width)]`; React `isHovered` state (onMouseEnter/onMouseLeave) drives `--sidebar-width` (16rem expanded / 4.25rem collapsed) on `<html>`. Labels, badges, group headers, logo text, entity switcher, agent status, and bottom-nav text are hidden at `lg` and revealed via `lg:group-hover:`. Icons center when collapsed (`lg:justify-center lg:group-hover:justify-start`). Mobile drawer behavior unchanged (`w-64` + translate-x, not width-driven)
+- Nav count after: 25 items across 9 groups + 3 bottom items (was ~39)
+
+**File:** `apps/web/components/shared/sub-page-tabs.tsx` — NEW: small Link-based tab bar (`SubPageTabs`) using `usePathname` for active state; handles detail routes (`/dashboard/ar/invoices/[id]` → Invoices tab) via `startsWith(href + "/")`.
+
+**File:** `apps/web/app/dashboard/ar/invoices/page.tsx` — MODIFIED: added `SubPageTabs` (Invoices | Customers | AR Aging) under the PageHeader.
+**File:** `apps/web/app/dashboard/ap/invoices/page.tsx` — MODIFIED: added `SubPageTabs` (Bills | Suppliers | Purchase Orders | Payment Schedule) under the PageHeader.
+**File:** `apps/web/app/globals.css` — MODIFIED: added `--sidebar-width: 4.25rem` to `:root` (collapsed default; expanded to 16rem on hover). The chat page's floating toggle already reads `var(--sidebar-width,16rem)`, so it now tracks the collapsed rail with no chat-page changes.
+
+**Routes preserved:** `/dashboard/ar/customers`, `/dashboard/ar/aging`, `/dashboard/ap/suppliers`, `/dashboard/ap/pos`, `/dashboard/ap/payment-schedule`, `/dashboard/benchmarking`, `/dashboard/audit-log`, `/dashboard/cash/overview`, all `/dashboard/{money,revenue,procurement,operations,accounting,intelligence,compliance,knowledge}` workspaces — all still resolve; only sidebar links were removed. e2e specs verified compatible (flow-02 clicks sidebar anchors by href — all still present; flow-03/flow-07/comprehensive-suite navigate by direct URL; flow-04's entity-text assertion is `.catch()`-wrapped).
+
+**Also this session:** installed `@composio/client` (v0.1.0-alpha.76) into `packages/agents` per user request (Composio CLI has no published npm package; the unscoped `composio` npm package is a squatted unrelated package — uninstalled).
+
+### Verification
+
+| Check                      | Status                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| Full component suite       | ✅ 1220/1220 pass (39 files)                                                                |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                                                                    |
+| Lint (`@xenboox/web`)      | ✅ No errors on changed files (pre-existing import-order warnings on AR/AP pages untouched) |
+
+### Next Steps
+
+- Sidebar is now a decluttered icon rail on desktop; AR/AP sub-pages live under tabs on their parent module pages
+- `/dashboard/benchmarking` and `/dashboard/audit-log` have no sidebar entry — if they should be reachable without direct URL, surface them via tabs on their parent pages (Reports / Audit Preparation)
+- `packages/db/seed/reset.ts` (untracked, hardcoded DB credential) still not committed — confirm intent before merging
+
+---
+
 ### [2026-07-31] — AI-Native Conversion: Embed All 24 Liveness Surfaces into Their Module Pages
 
 **Agent:** opencode (Autonomous Engineer)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -23,10 +23,8 @@ import {
   PiggyBank,
   Search,
   Receipt,
-  Building2,
   ChevronDown,
   DollarSign,
-  ShoppingCart,
   TrendingUp,
   CalendarDays,
   Activity,
@@ -83,43 +81,25 @@ const navGroups: NavGroup[] = [
   {
     label: "Money",
     items: [
-      {
-        label: "Cash Overview",
-        href: "/dashboard/cash/overview",
-        icon: Wallet,
-      },
       { label: "Bank & Recon", href: "/dashboard/treasury", icon: Landmark },
       {
         label: "Mobile Money",
         href: "/dashboard/mobile-money",
         icon: Smartphone,
       },
-      { label: "Cash & Imprest", href: "/dashboard/cash", icon: Wallet },
+      { label: "Cash", href: "/dashboard/cash", icon: Wallet },
     ],
   },
   {
     label: "Sales",
     items: [
       { label: "Invoices (AR)", href: "/dashboard/ar/invoices", icon: Receipt },
-      { label: "Customers", href: "/dashboard/ar/customers", icon: Users },
-      { label: "AR Aging", href: "/dashboard/ar/aging", icon: TrendingUp },
     ],
   },
   {
     label: "Purchases",
     items: [
       { label: "Bills (AP)", href: "/dashboard/ap/invoices", icon: CreditCard },
-      { label: "Suppliers", href: "/dashboard/ap/suppliers", icon: Building2 },
-      {
-        label: "Purchase Orders",
-        href: "/dashboard/ap/pos",
-        icon: ShoppingCart,
-      },
-      {
-        label: "Payment Schedule",
-        href: "/dashboard/ap/payment-schedule",
-        icon: CalendarDays,
-      },
     ],
   },
   {
@@ -195,12 +175,6 @@ const navGroups: NavGroup[] = [
         icon: Search,
         badge: "AI",
       },
-      {
-        label: "Benchmarking",
-        href: "/dashboard/benchmarking",
-        icon: TrendingUp,
-        badge: "Beta",
-      },
     ],
   },
   {
@@ -224,13 +198,11 @@ const navGroups: NavGroup[] = [
         icon: Search,
         badge: "AI",
       },
-      { label: "Audit Log", href: "/dashboard/audit-log", icon: FileText },
     ],
   },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: "AI Team", href: "/dashboard/agents", icon: Activity, badge: "AI" },
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
   {
     label: "Approvals",
@@ -251,7 +223,10 @@ function WhiteLabelLogo() {
 
   if (branding?.isActive && branding.displayName) {
     return (
-      <Link href="/dashboard" className="flex items-center gap-2 group">
+      <Link
+        href="/dashboard"
+        className="flex items-center gap-2 lg:justify-center lg:group-hover:justify-start"
+      >
         {branding.logoUrl ? (
           <img
             src={branding.logoUrl}
@@ -273,7 +248,7 @@ function WhiteLabelLogo() {
           </div>
         )}
         <span
-          className="text-lg font-bold tracking-tight"
+          className="text-lg font-bold tracking-tight lg:hidden lg:group-hover:inline"
           style={
             branding.colorScheme?.primary
               ? { color: branding.colorScheme.primary }
@@ -287,11 +262,16 @@ function WhiteLabelLogo() {
   }
 
   return (
-    <Link href="/dashboard" className="flex items-center gap-2">
+    <Link
+      href="/dashboard"
+      className="flex items-center gap-2 lg:justify-center lg:group-hover:justify-start"
+    >
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-primary-foreground font-bold text-sm">
         X
       </div>
-      <span className="text-lg font-bold tracking-tight">Xenboox</span>
+      <span className="text-lg font-bold tracking-tight lg:hidden lg:group-hover:inline">
+        Xenboox
+      </span>
     </Link>
   );
 }
@@ -313,7 +293,7 @@ function AgentStatusBar() {
   const totalPending = pendingReview + agentCount;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 lg:hidden lg:group-hover:block">
       {(processing > 0 || totalPending > 0) && (
         <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2">
           <div className="flex gap-0.5">
@@ -337,6 +317,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     new Set(["Compliance"]),
   );
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--sidebar-width",
+      isHovered ? "16rem" : "4.25rem",
+    );
+  }, [isHovered]);
 
   const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
     refetchInterval: 60000,
@@ -390,6 +378,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         onClick={onClose}
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          "lg:justify-center lg:group-hover:justify-start",
           isActive(item.href)
             ? "bg-primary/10 text-primary"
             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -397,14 +386,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {...(item.attrs ?? {})}
       >
         <item.icon className="h-4 w-4 shrink-0" />
-        <span className="flex-1 truncate">{item.label}</span>
+        <span className="flex-1 truncate lg:hidden lg:group-hover:inline">
+          {item.label}
+        </span>
         {count !== undefined && count > 0 && (
-          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground lg:hidden lg:group-hover:inline-flex">
             {count > 99 ? "99+" : count}
           </span>
         )}
         {item.badge && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 lg:hidden lg:group-hover:inline-flex"
+          >
             {item.badge}
           </Badge>
         )}
@@ -423,16 +417,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <aside
         data-tour="sidebar"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         className={cn(
-          "fixed inset-y-0 left-0 z-[49] flex w-64 flex-col border-r bg-card transition-transform duration-200 ease-in-out",
-          "lg:static lg:translate-x-0",
+          "group fixed inset-y-0 left-0 z-[49] flex w-64 flex-col border-r bg-card transition-all duration-200 ease-in-out",
+          "lg:static lg:translate-x-0 lg:w-[var(--sidebar-width)]",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Logo + Entity Switcher */}
         <div className="flex flex-col gap-3 border-b p-4">
           <WhiteLabelLogo />
-          <EntitySwitcher />
+          <div className="lg:hidden lg:group-hover:block">
+            <EntitySwitcher />
+          </div>
         </div>
 
         {/* Grouped Navigation */}
@@ -444,7 +442,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <div key={group.label}>
                   <button
                     onClick={() => toggleGroup(group.label)}
-                    className="flex w-full items-center gap-1.5 px-1 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                    className="flex w-full items-center gap-1.5 px-1 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hover:text-muted-foreground transition-colors lg:hidden lg:group-hover:flex"
                   >
                     <ChevronDown
                       className={cn(
@@ -457,55 +455,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {!isCollapsed && (
                     <div className="space-y-0.5 mt-0.5">
                       {group.items.map((item) => renderNavItem(item))}
-                      {group.label === "Reports" && (
-                        <div className="mt-1 pt-1 border-t">
-                          <div className="px-2 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50">
-                            Consolidated Workspaces
-                          </div>
-                          {[
-                            {
-                              label: "Money Workspace",
-                              href: "/dashboard/money",
-                              icon: Wallet,
-                            },
-                            {
-                              label: "Revenue Workspace",
-                              href: "/dashboard/revenue",
-                              icon: TrendingUp,
-                            },
-                            {
-                              label: "Procurement Workspace",
-                              href: "/dashboard/procurement",
-                              icon: ShoppingCart,
-                            },
-                            {
-                              label: "Operations Workspace",
-                              href: "/dashboard/operations",
-                              icon: Activity,
-                            },
-                            {
-                              label: "Accounting Workspace",
-                              href: "/dashboard/accounting",
-                              icon: BookOpen as LucideIcon,
-                            },
-                            {
-                              label: "Intelligence Workspace",
-                              href: "/dashboard/intelligence",
-                              icon: BarChart3,
-                            },
-                            {
-                              label: "Compliance Workspace",
-                              href: "/dashboard/compliance",
-                              icon: Shield,
-                            },
-                            {
-                              label: "Knowledge Workspace",
-                              href: "/dashboard/knowledge",
-                              icon: Search,
-                            },
-                          ].map((ws) => renderNavItem(ws))}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -525,6 +474,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 onClick={onClose}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "lg:justify-center lg:group-hover:justify-start",
                   isActive(item.href)
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -532,16 +482,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {...(item.attrs ?? {})}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1 lg:hidden lg:group-hover:inline">
+                  {item.label}
+                </span>
                 {item.label === "Approvals" && approvalCounts.total > 0 && (
-                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground lg:hidden lg:group-hover:inline-flex">
                     {approvalCounts.total > 99 ? "99+" : approvalCounts.total}
                   </span>
                 )}
                 {item.badge && (
                   <Badge
                     variant="secondary"
-                    className="text-[10px] px-1.5 py-0"
+                    className="text-[10px] px-1.5 py-0 lg:hidden lg:group-hover:inline-flex"
                   >
                     {item.badge}
                   </Badge>
@@ -554,13 +506,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             onClick={onClose}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              "lg:justify-center lg:group-hover:justify-start",
               isActive("/dashboard/help")
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
             )}
           >
             <HelpCircle className="h-4 w-4 shrink-0" />
-            <span className="flex-1">Help &amp; Support</span>
+            <span className="flex-1 lg:hidden lg:group-hover:inline">
+              Help &amp; Support
+            </span>
           </Link>
         </div>
       </aside>

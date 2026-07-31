@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { ApLiveness } from "@/components/agents/ap-liveness";
@@ -65,6 +66,15 @@ export default function APInvoicesPage() {
           onClick: () => setCreateOpen(true),
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
+      />
+
+      <SubPageTabs
+        tabs={[
+          { label: "Bills", href: "/dashboard/ap/invoices" },
+          { label: "Suppliers", href: "/dashboard/ap/suppliers" },
+          { label: "Purchase Orders", href: "/dashboard/ap/pos" },
+          { label: "Payment Schedule", href: "/dashboard/ap/payment-schedule" },
+        ]}
       />
 
       <ApLiveness />

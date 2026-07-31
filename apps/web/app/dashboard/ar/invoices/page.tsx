@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { ArLiveness } from "@/components/agents/ar-liveness";
@@ -65,6 +66,14 @@ export default function ARInvoicesPage() {
           onClick: () => setCreateOpen(true),
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
+      />
+
+      <SubPageTabs
+        tabs={[
+          { label: "Invoices", href: "/dashboard/ar/invoices" },
+          { label: "Customers", href: "/dashboard/ar/customers" },
+          { label: "AR Aging", href: "/dashboard/ar/aging" },
+        ]}
       />
 
       <ArLiveness />

@@ -83,6 +83,9 @@
     --chart-3: var(--attention-amber);
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    /* Sidebar — collapsed icon rail by default (expands to 16rem on hover) */
+    --sidebar-width: 4.25rem;
   }
 
   .dark {

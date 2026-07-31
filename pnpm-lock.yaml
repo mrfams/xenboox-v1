@@ -401,6 +401,9 @@ importers:
       "@aws-sdk/client-bedrock-runtime":
         specifier: ^3.600.0
         version: 3.1090.0
+      "@composio/client":
+        specifier: 0.1.0-alpha.76
+        version: 0.1.0-alpha.76
       "@google/generative-ai":
         specifier: ^0.21.0
         version: 0.21.0
@@ -2124,6 +2127,12 @@ packages:
         integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==,
       }
 
+  "@composio/client@0.1.0-alpha.76":
+    resolution:
+      {
+        integrity: sha512-MXC5JGRVdiQ4EgLricy9o/mqBa1+1T7wHFZ6Q4ZJkrjzZqOMvxTgy21Zlb5J/1oGkB2bg9UDzpH8PkXCp/D4zA==,
+      }
+
   "@cspotcode/source-map-support@0.8.1":
     resolution:
       {
@@ -3131,7 +3140,7 @@ packages:
       {
         integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==,
       }
-    engines: { "0": node >=0.10.0 }
+    engines: { node: ">=0.10.0" }
 
   "@expo/cli@0.22.28":
     resolution:
@@ -16459,6 +16468,8 @@ snapshots:
   "@bugsnag/cuid@3.2.2": {}
 
   "@cfworker/json-schema@4.1.1": {}
+
+  "@composio/client@0.1.0-alpha.76": {}
 
   "@cspotcode/source-map-support@0.8.1":
     dependencies:
