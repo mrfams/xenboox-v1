@@ -30,6 +30,7 @@ import {
   TrendingUp,
   CalendarDays,
   Activity,
+  Rocket,
   type LucideIcon,
 } from "lucide-react";
 
@@ -77,6 +78,11 @@ const navGroups: NavGroup[] = [
         icon: MessageSquare,
         badge: "AI",
         attrs: { "data-tour": "cfo-agent" },
+      },
+      {
+        label: "Onboarding Liveness",
+        href: "/dashboard/onboarding/liveness",
+        icon: Rocket,
       },
     ],
   },

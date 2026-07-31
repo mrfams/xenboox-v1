@@ -6,6 +6,62 @@
 
 ---
 
+### [2026-07-31] — Onboarding / Historical Data Pull Liveness (spec v1.0): Cross-Cutting First-Value Flow — Real Per-Period Progress, Never Simulated
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~55 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**Context:** The onboarding backend already exists (`packages/agents/core/onboarding-pipeline.ts`, `packages/db/schema/onboarding.ts` — `onboarding_sessions`/`data_connections`/`historical_pull_jobs`/`coa_templates`, the `onboardingRouter` tRPC procedures, and the wizard at `(auth)/register/onboarding`) — but there was **no onboarding liveness surface**. This turn adds the suite-standard liveness component for the flow PRD §13 calls the most important liveness moment in the product ("first meaningful value within 12 minutes" — watching transactions appear, categorized, in real time). This is the **22nd suite-standard liveness component** and the first _cross-cutting flow_ liveness (not an agent page).
+
+**File:** `apps/web/components/onboarding/onboarding-liveness.tsx` — NEW (spec-compliant liveness card, placed in a new `components/onboarding/` dir since it is a cross-cutting flow, not an agent)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): SIGNUP → ENTITY_SETUP → DATA_SOURCE_CONNECTING → HISTORICAL_PULL_RUNNING (active, attention-amber ACTIVE badge) → CHART_OF_ACCOUNTS_PROPOSED → FIRST_LOOK_DELIVERED, `role="status"` live line ("Currently: HISTORICAL_PULL_RUNNING — Processing April 2026... 847 transactions found") and **COMPLETE** badges on passed stages
+- **Critical rule (Spec §3/§4): the per-period progress ("Processing April 2026...") must be real, driven by actual per-period processing state — never a simulated progress animation timed to feel realistic while a batch job runs invisibly underneath** — surfaced in the pull section note + How It Works step 2 ("never a single aggregate spinner covering the whole history at once") + constraint section
+- **Real per-period historical pull (Spec §2/§3/§4)** — 12-month window (Aug 2025 → Jul 2026) rendered as 12 per-period rows each with real per-period state: 8 DONE months (with per-period found/categorized/flagged counts), the active April 2026 row expanded with the spec's exact reasoning ("847 transactions found, 812 categorized automatically (confidence above threshold), 35 flagged for your review" + PROCESSING badge), and 3 pending rows labeled "Not yet processed"; running totals line ("Processed so far: 8 periods · 5,963 transactions found · 5,626 categorized automatically · 337 flagged for your review") + "within the ordinary ≤12-month path, no permission gate required"
+- **Connection cards (Spec §4)** — each card shows live status the moment it's actioned: Bank account (CONNECTED — 5,963 transactions pulled), Mobile money (CONNECTED — 214 transactions pulled), Bank statement upload (PROCESSING — "Bank statement uploaded. Processing 847 transactions...")
+- **Chart of Accounts Proposal (Spec §2/§3/§4) — exactly-one confidence meter at 87%**: basis shown ("standard chart for Trading/Retail in Gambia (GM) — 28 accounts proposed"), account preview list (1000 Cash at Bank … 5010 Office Supplies with type tags), "Proposed for your review — never silently applied. You can edit accounts before confirming", and the single Layer 2 meter (`aria-label="COA proposal confidence"`, aria-valuenow 87 — spec §3 step 4: confidence score if judgment-based on business description)
+- **First Look Preview (Spec §2 terminal)** — "Once the pull completes, the CFO Agent reviews everything processed so far: 5,963 transactions categorized, 337 flagged for your review, 2 vendors matched, cash position established. The first message cites these specifics — never a generic welcome."
+- **Branch states (Spec §2/§6/§7), ALL 0 meters** — `showPermissionRequested` ("History Beyond 12 Months Detected" — permission requested before beginning (per PRD §13), routes to Historical Data Reconstruction spec, blocking until permission is given, never silently truncated to 12 months), `showFallbackOffered` ("Bank Statement Format Not Recognized" — manual entry offered immediately (per PRD §13), never a dead end, non-blocking alternative path always available), `showLowConfidenceBatch` ("Low Categorization Confidence Batch" — flagged batch for review, not silently accepted, non-blocking surfaced clearly), `showCoaEdits` ("Chart of Accounts — Edited Before Confirming" — 4 accounts edited before confirming, proposed → edited deltas shown), `showFirstLookDelivered` (terminal — "I've reviewed your records. Here's what I found: 5,963 transactions categorized across 12 months, 337 flagged for your review, 2 vendors matched, cash position established" — specific, never generic), `showEmptyState`
+- Status grid (Onboarding Metadata region): Periods Processed 8 / Transactions Found 5,963 / Categorized Automatically 5,626 / Flagged for Review 337
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: bank upload format not recognized → Human ("Manual entry path offered immediately", non-blocking — alternative path always available); history beyond 12 months detected → Human ("Permission requested before beginning — routes to Historical Data Reconstruction spec", blocking until permission given); low categorization confidence on many transactions → Human ("Flagged batch for review, not silently accepted", non-blocking — surfaced clearly)
+- How It Works 5-step decomposition (Detect Connection Type & Pull Data / Process Each Historical Period Sequentially — "never a single aggregate spinner" / Categorize Each Transaction — "Inherits Document Agent/AP Agent/Expense Agent per-transaction confidence. Onboarding does not re-derive this — it surfaces it live" / Propose Chart of Accounts — "Confidence score if judgment-based on business description" / Draft CFO Agent's First Message — "never a generic welcome message"), constraint badges (Per-Period Progress Is Real, Categorization Inherited Never Re-Derived, COA Proposed Never Silently Applied, No Dead Ends — Alternative Path Shown, Permission Gate for >12 Months), audit trail table (8 data rows: 3 connection attempts, per-period processing results, COA proposal with basis, first-message basis), cross-agent chain (Document → AP/AR/Expense Agents → Ledger → CFO — "Categorization confidence is inherited, never re-derived"), Layer 1 structural vs Layer 2 probabilistic footer ("87% confidence on the COA proposal (judgment-based on business description); per-transaction categorization confidence is inherited from Document Agent/AP Agent/Expense Agent, never re-derived"), 12 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/onboarding-liveness.test.tsx` — NEW, 47 tests (TDD RED → GREEN) locking spec rules: pipeline order (SIGNUP → FIRST_LOOK_DELIVERED), role=status live line, zero-meter-on-pipeline invariant + exactly-1-meter total (COA proposal 87% only), per-period real state (active April 2026 expanded + running 5,963/5,626/337 + pending not-yet-processed + ≤12-month window), never-simulated critical rule, connection cards with live status, COA basis + account list + never-silently-applied + editable, first-look preview citing specifics, all 3 escalation triggers with blocking/non-blocking treatment + What-user-sees notes + reconstruction route, Why §5 reasoning, How-It-Works decomposition (never-single-spinner + inherited-confidence + COA confidence condition), constraint badges, audit trail (8+ rows), cross-agent chain, all 6 branch states at 0 meters, status grid scoped within Onboarding Metadata, entity scoping, Layer 1/2 footer
+
+**File:** `apps/web/app/dashboard/onboarding/liveness/page.tsx` — NEW dashboard page (mirrors compliance liveness page pattern): breadcrumb (Back to Dashboard — not an agent route), hero with Rocket icon, 3 key principles (Real Per-Period Progress / Inherited Confidence / Never Silently Applied), AICommandBar, liveness controls (6 state chips: Historical Pull Running / Permission Requested / Fallback Offered / Low-Confidence Batch / COA Edited / First Look Delivered)
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Onboarding Liveness" nav item to Main group (after Ask CFO Agent — the first-value flow belongs in the primary nav)
+
+**Review findings fixed during build:**
+
+- Removed unused lucide import (`FileWarning`) and the dead `getStateIcon` helper (the pipeline renders `stage.icon` directly; audit-trail chips render the raw state string) flagged by the first review pass
+- COA account-list test aligned to the component's row structure (code and name rendered as separate spans — assertions target codes and names individually)
+- Reviewer confirmed the exactly-one-meter guarantee (the only `role="meter"` is the COA proposal) and the per-period "35 flagged" (active row) vs "337 flagged" (running total) distinction is safe for `within(pull)` scoping
+
+### Verification
+
+| Check                      | Status                                               |
+| -------------------------- | ---------------------------------------------------- |
+| Onboarding liveness tests  | ✅ 47/47 pass                                        |
+| Full component suite       | ✅ 967/967 pass (27 files)                           |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                             |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/onboarding/liveness built |
+| Code review                | ✅ Multiple passes, all findings addressed           |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)        |
+
+### Next Steps
+
+- Liveness suite now **21 of 21 agent specs + 1 cross-cutting flow liveness = 22 suite-standard liveness components** — this turn added the Onboarding / Historical Data Pull cross-cutting surface (the first non-agent liveness component; the onboarding backend itself — pipeline, schema, tRPC router, wizard — already existed)
+- Onboarding spec §9 schema flag — **genuine gap, NOT implemented**: `onboarding_sessions.periods_processed[]` (per-period status/count, not an aggregate-only record). The current `packages/db/schema/onboarding.ts` has `completedSteps` (text array) + `metadata` (jsonb) but no per-period structure — flagged for schema review; the component is demo-data only
+- Onboarding spec §11 open question: exact per-period processing speed/UX pacing (real-time vs. slightly paced for perceptibility) not yet decided — should be real underlying progress either way, per the critical rule
+- Onboarding design note: **seventh exactly-1-meter component after AR (54%), Asset (88%), Audit (82%), Analytics (87%), Controller (82%), Compliance (82%)** — the single COA-proposal confidence (87%, judgment-based on business description) is the Layer 2 probabilistic input; connections, per-period processing, the COA basis, and all branch states are Layer 1 structural/deterministic, and per-transaction categorization confidence is inherited from Document/AP/Expense Agents (never re-derived)
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — CFO Agent Liveness (spec v1.0): Spec-Coverage Upgrade — Sign-Off Passive Approval, Escalation Table, Never-Fabricates Critical Rule
 
 **Agent:** Buffy (Autonomous Engineer)
