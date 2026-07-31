@@ -100,6 +100,11 @@ const navGroups: NavGroup[] = [
         icon: Smartphone,
       },
       { label: "Cash & Imprest", href: "/dashboard/cash", icon: Wallet },
+      {
+        label: "Cash Agent Liveness",
+        href: "/dashboard/agents/cash",
+        icon: Activity,
+      },
     ],
   },
   {

@@ -6,6 +6,62 @@
 
 ---
 
+### [2026-07-31] — Cash Agent Liveness (spec v1.0): Dual-Lifecycle Cash & Imprest Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~45 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/cash-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- **Two parallel state machines** (Spec §2) rendered as `role=list`/`role=listitem`:
+  - **Till/Cash Position:** TRANSACTION_RECORDED → TILL_BALANCE_UPDATED → MATCHES_EXPECTED | DISCREPANCY_FLAGGED — live cash position ticker + transaction feed ("GMD 150.00 recorded at Front Desk till"), **not a static end-of-day number**
+  - **Imprest:** ISSUED → IN_USE → RETIREMENT_SUBMITTED → RECEIPT_MATCHING → BALANCED | VARIANCE_FLAGGED → RETIRED — **card-based lifecycle tracker** (Issued / In Use / Retirement Pending / Retired), not a flat table row
+- **Anti-hallucination decomposition (Spec §3)** — cash movement recording + till balance arithmetic carry **no confidence** (deterministic); physical count is a **direct comparison** with exact discrepancy shown ("counted GMD 480 vs system balance GMD 500 — GMD 20 short, unresolved"), same-day flag, blocking for that till's close, non-blocking to other tills
+- **Per-receipt OCR confidence meters** (92% / 87% / 96%) on receipt matching — probabilistic OCR layer labeled as such; **matched-sum arithmetic carries NO meter** (deterministic sum). Exactly **3 meters total** in main view, 0 in all branch states
+- **Variance never absorbed** (Spec §3/§5) — "GMD 5.00 unaccounted" shown on its own line in Attention Amber (`data-variance-amount`), never folded into "misc expense"
+- **Unreadable receipt (Spec §7)** — RCP-4 flagged for manual entry, never silently excluded from the retirement sum
+- **Negative till balance hard stop (Spec §7)** — `showNegativeBalance` branch: "not allowed to post silently — flagged immediately and parked until resolved" (`data-negative-balance`)
+- **Imprest overdue auto-reminder (Spec §6)** — Cash Agent auto-reminder → Treasury Agent, surfaced proactively, non-blocking
+- **Audit trail (Spec §8)** — every cash movement, every count/discrepancy event, full imprest lifecycle with timestamps, and **variance resolution method** (repaid / written off with reason + approver, never overwritten)
+- Cross-agent chain: Cash Agent → Ledger Agent (cash movements, imprest issuance/retirement postings); Treasury Agent pulls live position for daily roll-up
+- Prop modes: `showEmptyState`, `showDiscrepancy`, `showVariance`, `showNegativeBalance`, `showRetired` (terminal — variance resolution shown)
+- Layer 1 deterministic vs Layer 2 probabilistic liveness footer
+
+**File:** `apps/web/__tests__/components/cash-liveness.test.tsx` — NEW, 47 tests (TDD RED → GREEN) locking spec rules: both state machines + order (till then imprest), deterministic arithmetic no meter, exact discrepancy amounts, per-receipt OCR meters + matched-sum no meter (exactly-3 invariant), variance-never-absorbed, unreadable receipt flagged, negative-balance hard stop, overdue reminder, terminal RETIRED state, audit trail, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/cash/page.tsx` — NEW dashboard page (mirrors AP/AR liveness page pattern): breadcrumb, hero, 3 key principles (two parallel lifecycles / exact discrepancies never absorbed / same-day flags + hard stops), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Cash Agent Liveness" nav item to Money group (after Cash & Imprest)
+
+**Review findings fixed during build:**
+
+- One `getByText` multi-match test ambiguity (`/Discrepancy Flagged/i` matched strip title + body copy) → converted to `getAllByText`
+- Removed unused lucide imports (CalendarDays, BadgeDollarSign)
+- Reviewer verification points confirmed in component: negative-balance "posting blocked / parked until resolved" text, RCP-4 flagged-never-excluded, RETIRED terminal with resolution + approver, 0 meters in all branch states
+
+### Verification
+
+| Check                      | Status                                        |
+| -------------------------- | --------------------------------------------- |
+| Cash liveness tests        | ✅ 47/47 pass                                 |
+| Full component suite       | ✅ 348/348 pass (12 files)                    |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                      |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/cash built  |
+| Code review                | ✅ Multiple passes, all findings addressed    |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login) |
+
+### Next Steps
+
+- Remaining liveness specs: Mobile Money, Document, Treasury, Controller, Reporting
+- Cash spec §9 schema flags: `cash_tills.running_balance` (live field), `imprest.status` enum (`issued | in_use | retirement_submitted | balanced | variance_flagged | retired`), `imprest_receipts.matched_amount`/`ocr_confidence`, `imprest.variance_amount`/`variance_resolution` — flagged for schema review
+- Cash spec §11 open questions: discrepancy materiality threshold (what counts as worth flagging vs rounding tolerance), multi-currency till handling — need product decisions
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — AR Agent Liveness (spec v1.0): Invoice-to-Cash Transparency
 
 **Agent:** Buffy (Autonomous Engineer)
@@ -54,7 +110,7 @@
 
 ### Next Steps
 
-- Remaining liveness specs: Cash, Mobile Money, Document, Treasury, Controller, Reporting
+- Remaining liveness specs: Mobile Money, Document, Treasury, Controller, Reporting
 - AR spec §9 schema flags: `ar_invoices.status` (incl. `partial_paid`, `overpaid`), `ar_payments.match_confidence`/`match_basis`, `ar_invoices.amount_outstanding` — flagged for schema review
 - `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
 
