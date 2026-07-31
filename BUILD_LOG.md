@@ -6,6 +6,63 @@
 
 ---
 
+### [2026-07-31] — Document Agent Liveness (spec v1.0): Universal Inbox & No-Silent-Default Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~55 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/document-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): DETECTED → CLASSIFYING (active) → EXTRACTING → LINKING → ROUTING → DONE, with `role="status"` live line ("Currently: CLASSIFYING — processing invoice-1042.pdf") and **COMPLETE** badges on passed intermediate stages (renamed from DONE to avoid colliding with the terminal label)
+- **Critical rule (Spec §3/§5): classification below threshold must never silently default to the most common type** — surfaced in the classification card ("Below-threshold classifications are flagged for human confirmation rather than guessed") + constraint section + `showLowConfidence` branch: "What type of document is this?" / "Low confidence (52%) — could be invoice or receipt, please confirm" / blocking for that document, 0 meters
+- **Classification confidence (Layer 2 probabilistic)** — "Classified as invoice — 94% confidence, based on layout pattern and presence of 'Invoice #' field" + 94% meter
+- **Per-field extraction confidence (Spec §3/§4)** — 4 fields each with independent meter: Vendor (Acme Supplies) 96%, Amount (GMD 1,240.00) 91%, Date (Jun 14, 2026) 88%, Invoice # (INV-4471) 97%
+- **Meter discipline** — exactly **5 meters total** in main view (1 classification + 4 per-field extraction); deterministic detection, linking, routing cards carry **0 meters**; ALL branch states 0 meters
+- **Bidirectional linking (Spec §4)** — "Link pending — bidirectional link established once the downstream agent confirms processing"; `showDone` branch confirms "Linked to transaction AP-2026-0412" + "Status updates to Done in the document inbox"
+- **Routing (Spec §2)** — "Routed to AP Agent for invoice processing" (deterministic, no meter)
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: classification below threshold → Human ("What type of document is this?", blocking for that document), extraction fails on critical field → Human + downstream agent ("Couldn't read [field] — please confirm or enter manually", blocking), unrecognized format → Human ("Can't process this file type — try alternatives", blocking)
+- **Branch states (Spec §6/§7)** — `showExtractionFailure` ("Couldn't read amount — please confirm or enter manually", never guesses a figure, blocking, 0 meters), `showUnrecognized` ("Can't process this file type — try PDF, PNG, JPG, or CSV export", 0 meters), `showCorrupt` ("never silently dropped" — shown as a failed item in the inbox, 0 meters), `showDuplicate` ("uploaded twice — flagged, not processed twice", identical hash suspended, 0 meters), `showDone` (terminal, linked to AP-2026-0412, 0 meters), `showEmptyState`
+- Universal inbox + surfaces (web, mobile, desktop, email), status grid (Source: Web upload / Type: Invoice / Retention: 7 years GRA statutory / Linked Transaction: Pending), How It Works 6-step decomposition (Detect / Classify Type / Extract Fields / Link to Transaction / Route / Confirm Done) with "No confidence score" notes on deterministic steps, constraint badges (Classify With Confidence, No Silent Default, Bidirectional Link, Never Silently Dropped, Duplicate Detection, Per-Field Extraction Confidence), audit trail table (7 data rows: detected with source + entity, classification 0.94 with basis, per-field confidence, link pending, routed to AP, downstream confirm AP-2026-0412, retention policy), cross-agent chain (this agent → AP / Expense / Reconciliation / Payroll Worker / Tax — the universal upstream agent), Layer 1 deterministic vs Layer 2 probabilistic footer, 11 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/document-liveness.test.tsx` — NEW, 45 tests (TDD RED → GREEN) locking spec rules: pipeline order, role=status live line, classification 94% meter + 4 per-field meters (exactly-5 invariant), no-meter detection/link/routing cards, no-silent-default critical rule (main view + low-confidence branch, 0 meters), extraction-failure/unrecognized/corrupt/duplicate/done branches all 0 meters, audit trail (0.94 logged, web upload source, routing, retention 7 years), cross-agent chain, escalation table, empty state, entity scoping, meter aria attributes
+
+**File:** `apps/web/app/dashboard/agents/documents/page.tsx` — NEW dashboard page (mirrors audit liveness page pattern): breadcrumb, hero, 3 key principles (universal inbox / no silent default / per-field transparency), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Document Agent Liveness" nav item to bottomNavItems (after Documents — no Documents nav group exists, and Document Agent is the universal upstream agent)
+
+**Review findings fixed during build:**
+
+- Component AND test file both needed `import React from "react"` — vitest's happy-dom classic JSX runtime threw `ReferenceError: React is not defined` on all 45 tests (component scope + test file scope); matches the ap/ar/cash/mobile-money pattern
+- Removed unused lucide imports (Clock, Building2); removed dead `formatCurrency` helper (amounts render as strings)
+- Escalation table `note` field was dead data → rendered as a proper **"What user sees" column** (4th header + 4th td per row); replaced `&quot;` HTML entities with real single-quote characters (JSX doesn't decode entities in expression-rendered strings)
+- Completed pipeline stages rendered a "DONE" badge that collided with the terminal DONE label — the pipeline order test's `doneIdx` was resolving to the DETECTED badge (index 0); renamed the badge to **COMPLETE**
+- 7 multi-match `getByText` collisions → `getAllByText` or role-scoped queries: "Document Agent" (h2 + cross-agent chip → `getByRole("heading")`), "/downstream agent/" (link card + footer note), "Bidirectional Link" (constraint badge + link-card heading), "/Corrupt or Unreadable/" (branch h2 + BranchCard body), "/uploaded twice/" (subtitle + BranchCard title), "/AP-2026-0412/" (BranchCard title + link note), "/below threshold/" (escalation row + constraint section)
+- Page had an unused `Link2` import → removed
+
+### Verification
+
+| Check                      | Status                                            |
+| -------------------------- | ------------------------------------------------- |
+| Document liveness tests    | ✅ 45/45 pass                                     |
+| Full component suite       | ✅ 626/626 pass (19 files)                        |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                          |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/documents built |
+| Code review                | ✅ Multiple passes, all findings addressed        |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)     |
+
+### Next Steps
+
+- Remaining liveness specs: Treasury, Controller, Reporting (Document now complete)
+- Document spec §9 schema flags: `documents.status` enum matching the state machine, `documents.classification_confidence`, `documents.extraction_confidence` (per field — JSON or child table), `documents.linked_transaction_id`/`linked_transaction_type` — flagged for schema review
+- Document spec §11 open questions: classification confidence threshold (below which human confirmation is required) not yet calibrated — needs golden dataset coverage across document types first; retention policy periods by jurisdiction/document type not yet specified (PRD §7.3 flags Document Agent responsibility but periods unset)
+- Document design note: this component carries the most meters in the suite (5 = 1 classification + 4 per-field extraction) — spec-driven, since classification and per-field extraction are genuinely probabilistic (Layer 2) while detection/linking/routing/done are deterministic (Layer 1); the low-confidence, extraction-failure, unrecognized, corrupt, duplicate, and done branches all render 0 meters
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Audit Agent Liveness (spec v1.0): Visible 24/7 Continuous Audit
 
 **Agent:** Buffy (Autonomous Engineer)

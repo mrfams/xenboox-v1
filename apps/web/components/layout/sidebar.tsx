@@ -299,6 +299,11 @@ const bottomNavItems: NavItem[] = [
   { label: "AI Team", href: "/dashboard/agents", icon: Activity, badge: "AI" },
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
   {
+    label: "Document Agent Liveness",
+    href: "/dashboard/agents/documents",
+    icon: Activity,
+  },
+  {
     label: "Approvals",
     href: "/dashboard/review-queue",
     icon: Activity,
