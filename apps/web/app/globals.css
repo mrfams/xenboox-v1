@@ -397,6 +397,15 @@
     background-color: hsl(var(--muted-foreground) / 0.5);
   }
 
+  /* Hide scrollbars but keep scrolling (for slideable rows) */
+  .scrollbar-hide {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* ── Text Balance ── */
   .text-balance {
     text-wrap: balance;

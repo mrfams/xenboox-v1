@@ -6,6 +6,41 @@
 
 ---
 
+### [2026-07-31] — Dashboard: AI Chat Input Moved to Bottom + Slideable Suggestion Row
+
+**Agent:** opencode (Autonomous Engineer)
+**Duration:** ~20 min
+**Files Created:** 0 **Files Modified:** 3
+
+**What was built (web only, per scope):**
+
+**Context:** The dashboard's "Ask your AI accountant anything..." input sat at the top of the page with its suggestion chips wrapping to multiple rows. Professional AI dashboards pin the ask-the-AI surface at the bottom where the user lands after scanning content.
+
+**File:** `apps/web/app/dashboard/page.tsx` — MODIFIED: moved `<AIChatInput />` from Row 1 (top, under the greeting) to the bottom of the page in both branches:
+
+- Has-data dashboard: now the last content block after Upcoming Events / Quick AI Actions
+- Onboarding (empty) state: same — now after Quick AI Actions
+- `AIGreeting` stays at the top as the page greeting
+
+**File:** `apps/web/components/dashboard/ai-chat-input.tsx` — MODIFIED: the "Suggested Prompts" row changed from `flex flex-wrap gap-2` to a **slideable single row**: `scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5`, with `shrink-0` on each suggestion chip so they stay intact while horizontal swiping/scroll reveals the rest. No scrollbar is visible.
+
+**File:** `apps/web/app/globals.css` — MODIFIED: added `scrollbar-hide` utility (and `::-webkit-scrollbar { display:none }`) alongside the existing `scrollbar-thin` — hides scrollbars while keeping scroll/overscroll behavior.
+
+### Verification
+
+| Check                      | Status                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Full component suite       | ✅ 1220/1220 pass (39 files)                                                                            |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                                                                                |
+| Lint (`@xenboox/web`)      | ✅ No errors on changed files (pre-existing warnings only: unused `Bot` import, `any` types in metrics) |
+
+### Next Steps
+
+- Suggestion chips now swipe/scroll horizontally on narrow screens; no visible scrollbar per the request
+- `scrollbar-hide` utility is reusable for any future slideable row
+
+---
+
 ### [2026-07-31] — Professional Flat Sidebar (QuickBooks/Xero-style): 10 primary destinations, secondary modules move to in-page tabs
 
 **Agent:** opencode (Autonomous Engineer)

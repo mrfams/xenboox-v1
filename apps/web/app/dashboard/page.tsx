@@ -136,9 +136,6 @@ export default function DashboardPage() {
         {/* AI Greeting */}
         <AIGreeting />
 
-        {/* AI Chat Input */}
-        <AIChatInput />
-
         {/* Onboarding: Financial Health Preview */}
         <FinancialHealthCard metrics={metrics ?? createDefaultMetrics()} />
 
@@ -154,6 +151,9 @@ export default function DashboardPage() {
 
         {/* Quick AI Actions */}
         <QuickAIActions />
+
+        {/* AI Chat + suggestions — bottom of page */}
+        <AIChatInput />
 
         {/* Guided tour */}
         <GuidedTour
@@ -193,11 +193,8 @@ export default function DashboardPage() {
   // ─── AI-Native Dashboard (has data) ─────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Row 1: Greeting + AI Chat */}
-      <div className="space-y-4">
-        <AIGreeting />
-        <AIChatInput />
-      </div>
+      {/* Row 1: Greeting */}
+      <AIGreeting />
 
       {/* Row 2: Financial Health + AI Insights + AI Activity (3-col grid) */}
       <div className="grid gap-6 lg:grid-cols-12">
@@ -230,6 +227,9 @@ export default function DashboardPage() {
           <QuickAIActions />
         </div>
       </div>
+
+      {/* AI Chat + suggestions — bottom of page */}
+      <AIChatInput />
 
       {/* Guided tour */}
       <GuidedTour

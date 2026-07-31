@@ -135,8 +135,8 @@ export function AIChatInput({ className }: AIChatInputProps) {
         </div>
       </div>
 
-      {/* Suggested Prompts */}
-      <div className="flex flex-wrap gap-2">
+      {/* Suggested Prompts — slideable single row, no scrollbar */}
+      <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
         {SUGGESTIONS.map((suggestion) => {
           const Icon = suggestion.icon;
           return (
@@ -145,7 +145,7 @@ export function AIChatInput({ className }: AIChatInputProps) {
               type="button"
               onClick={() => handleSubmit(suggestion.prompt)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-xl border bg-card/80 px-3 py-1.5",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border bg-card/80 px-3 py-1.5",
                 "text-xs text-muted-foreground transition-all duration-200",
                 "hover:border-signal-indigo/30 hover:text-signal-indigo hover:bg-signal-indigo/5 hover:shadow-sm",
                 "active:scale-95",
