@@ -251,6 +251,92 @@ describe("CfoLiveness v1.0 — Liveness Spec §1-§8", () => {
     expect(mentions.length).toBeGreaterThanOrEqual(1);
   });
 
+  // ── §6: Month-End Close Sign-Off — passive approval (silence = approval) ─
+
+  it("shows the month-end close ready for sign-off with the passive-approval pattern", () => {
+    render(<CfoLiveness scenario="signoff" />);
+    expect(
+      screen.getAllByText(/ready for sign-off|sign-off/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(
+        /silence = approval|silence means approval|unless you object/i,
+      ).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows the close summary contents sourced from department heads", () => {
+    render(<CfoLiveness scenario="signoff" />);
+    expect(
+      screen.getAllByText(/trial balance balanced/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(/cash position confirmed/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(/regulatory status clean/i).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("labels the sign-off as non-blocking", () => {
+    render(<CfoLiveness scenario="signoff" />);
+    expect(screen.getAllByText(/non-blocking/i).length).toBeGreaterThanOrEqual(
+      1,
+    );
+  });
+
+  // ── §6: Escalation & Human-in-the-Loop triggers table ─────────────
+
+  it("shows the escalation & human-in-the-loop triggers table", () => {
+    render(<CfoLiveness scenario="responding" />);
+    expect(
+      screen.getAllByText(/Escalation & Human-in-the-Loop/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByText(/Department head escalation received/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Month-end close ready for sign-off/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Conflicting information between department heads/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the What-user-sees notes and blocking status in the escalation table", () => {
+    render(<CfoLiveness scenario="responding" />);
+    expect(
+      screen.getAllByText(/Framed escalation with source cited/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(/Both inputs shown side by side/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Blocking/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── §3 Critical Rule: synthesis is composition, never new-fact generation ─
+
+  it("shows the critical rule that synthesis never introduces new claims", () => {
+    render(<CfoLiveness scenario="responding" />);
+    expect(
+      screen.getAllByText(/composition step, not a new-fact-generation step/i)
+        .length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(/never introduces claims not present/i).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows the never-fabricates critical rule — every claim traceable to its source", () => {
+    render(<CfoLiveness scenario="responding" />);
+    expect(
+      screen.getAllByText(/never fabricates/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(/traceable, on request/i).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
   // ── Accessibility ─────────────────────────────────────────────────
 
   it("renders with accessible region roles", () => {

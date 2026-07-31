@@ -6,6 +6,52 @@
 
 ---
 
+### [2026-07-31] — CFO Agent Liveness (spec v1.0): Spec-Coverage Upgrade — Sign-Off Passive Approval, Escalation Table, Never-Fabricates Critical Rule
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~45 min (upgrade to an existing component built in an earlier session)
+**Files Created:** 0 **Files Modified:** 2
+
+**What was built (web only, per scope):**
+
+**Context:** The CFO Agent liveness card (`apps/web/components/agents/cfo-liveness.tsx`) already existed from an earlier session and its state machine matched this spec exactly (INSTRUCTION_RECEIVED → ROUTING_TO_DEPARTMENT_HEAD → AWAITING_DEPARTMENT_SUMMARIES → SYNTHESIZING → RESPONDING + ESCALATION_RECEIVED_FROM_DEPT_HEAD → FRAMING_FOR_HUMAN → PRESENTED_TO_HUMAN, with routing/awaiting moments, source refs, why explanations, conflicts side by side, audit trail, and idle state). This turn audited the existing implementation section-by-section against the pasted spec v1.0 and closed three genuine coverage gaps (TDD red → green):
+
+**File:** `apps/web/components/agents/cfo-liveness.tsx` — MODIFIED (spec-coverage upgrade)
+
+- **Spec §6 gap closed: Month-end close sign-off with the passive-approval pattern** — new `signoff` `CfoScenario` + signoff payload in `SCENARIO_PAYLOADS` (livenessState RESPONDING so the escalation card never leaks in; 3 department responses — Controller "Trial balance balanced" / Treasury "Cash position confirmed" / Compliance "Regulatory status clean"; audit action `close_signoff_requested`) + dedicated **"Month-End Close Sign-Off" region** (`aria-label`) showing title "Month-end close ready for sign-off", badge "Non-blocking — silence = approval", body "Proceeding with the close unless you object by Friday 18:00 — the passive-approval pattern per PRD §8", close-summary chips, and footer "Silence is consent — object by Friday 18:00 to hold the close." (spec §6 row 2: non-blocking, silence = approval)
+- **Spec §6 gap closed: Escalation & Human-in-the-Loop triggers table** — rendered when `!isIdle && !isEscalationState` with **What user sees** column and 3 rows (Department head escalation received → Human → "Framed escalation with source cited" → Blocking for that decision; Month-end close ready for sign-off → Human → "Close summary presented, passive-approval pattern (per PRD §8)" → Non-blocking (silence = approval); Conflicting information between department heads → Human → "Both inputs shown side by side, never resolved by the CFO Agent's own guess" → Blocking) with red/amber blocking badges
+- **Spec §3 critical rule gap closed: Constraint Enforcement region** (rendered `!isIdle`) — 4 badges (Never Fabricates / Claims Traceable to Source / Synthesis = Composition / No Silent Drops) + critical-rule paragraph: "the CFO Agent never fabricates a plain-English explanation disconnected from what department heads actually reported. Synthesis is a composition step, not a new-fact-generation step — it never introduces claims not present in the underlying department summaries, and every claim in its response is traceable, on request, to the specific agent or data behind it."
+- HOW_IT_WORKS "Synthesize" step detail strengthened to state composition-not-generation explicitly; Synthesized Response region gated on `!isSignoffState` so the sign-off view doesn't render the close summary twice; signoff payload `response` left empty (dead-data cleanup — the region is gated off)
+- **Already covered by the existing component (verified against spec):** §1 why (face of the platform / summaries must not "just appear" — routing moment before multi-department answers), §2 both state machines, §4 routing/awaiting moments + source refs + escalations showing triggering input, §5 why explanations citing source agents, §7 "still waiting on [department]" never silently dropped, §8 audit trail, §10 cross-agent (sits above Controller/Treasury/Payroll Manager/Compliance, never posts journal entries)
+
+**File:** `apps/web/__tests__/components/cfo-liveness.test.tsx` — MODIFIED, 29 tests (22 existing + 7 new, TDD RED → GREEN) locking the new spec rules: sign-off passive-approval pattern (region title + "silence = approval" badge + "unless you object" body + close-summary chips + non-blocking label), escalation & human-in-the-loop table (3 condition rows + What-user-sees notes + blocking badges), never-fabricates critical rule (composition-step-not-new-fact-generation + never introduces claims not present + traceable-on-request). Multi-match preemption verified by reviewer: "Month-end close ready for sign-off" appears in the signoff region title + escalation table row (getAllByText), "Cash position confirmed"/"Regulatory status clean"/"Trial balance balanced" in chips + department-response headlines, "Blocking" matches badges + the "Non-blocking" substring; retained `getByText(/Month-end close ready for sign-off/i)` in the responding scenario is single-match (signoff region not rendered there)
+
+**Review findings fixed during build:**
+
+- Reviewer confirmed the signoff scenario isolation (livenessState RESPONDING keeps the escalation-framing card from rendering), the `!isSignoffState` gate on the Synthesized Response region, and the dead-data cleanup (signoff payload response → empty string, no test depends on it — the live-payload test uses `LIVE_PAYLOAD`)
+- Existing 22 tests verified unaffected: the 8-state order test uses `getAllByRole("listitem")` (new regions use divs/tables — no listitem pollution), the audit-trail `getAllByRole("row") >= 1` now also counts escalation-table rows but still passes, `getByText(/Why/i)` remains single-match
+
+### Verification
+
+| Check                      | Status                                        |
+| -------------------------- | --------------------------------------------- |
+| CFO liveness tests         | ✅ 29/29 pass                                 |
+| Full component suite       | ✅ 920/920 pass (26 files)                    |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                      |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/cfo built   |
+| Code review                | ✅ Multiple passes, all findings addressed    |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login) |
+
+### Next Steps
+
+- Liveness suite remains **21 of 21 specs complete** — this turn was a spec-coverage audit + upgrade of the already-listed CFO Agent spec (the CFO component was counted in the original 20 but was missing §6 sign-off, §6 escalation table, and the explicit §3 critical rule)
+- CFO spec §9 schema flags: `cfo_interactions.source_refs` — every response tagged with which department summaries fed it; `escalations.triggering_agent`, `escalations.triggering_data_ref` — flagged for schema review
+- CFO spec §11 open question: dollar threshold for mandatory human approval on CFO Agent-level decisions still explicitly undecided per PRD §21 — this spec is written threshold-agnostic and should be revisited once that's set
+- CFO design note: the component renders **department confidence scores (probabilistic layer)** — Controller 95% / Treasury 88% / Compliance 89% — as text percentages on response cards (consistent with the earlier suite convention), while the routing/awaiting/synthesis/response lifecycle is structural; the new Constraint Enforcement section makes the never-fabricates rule explicit at the exact layer humans trust most
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Compliance Agent Liveness (spec v1.0): Live Graduated Calendar & Never-Auto-Applied Rule Updates
 
 **Agent:** Buffy (Autonomous Engineer)

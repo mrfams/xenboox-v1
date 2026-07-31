@@ -35,7 +35,8 @@ export type CfoScenario =
   | "awaiting"
   | "responding"
   | "escalation"
-  | "conflict";
+  | "conflict"
+  | "signoff";
 
 export interface CfoLivenessProps {
   scenario?: CfoScenario;
@@ -115,7 +116,7 @@ const HOW_IT_WORKS = [
   {
     title: "Synthesize",
     detail:
-      "CFO Agent combines every summary into one response. Every claim keeps a source reference back to the department that produced it.",
+      "CFO Agent combines every summary into one response — a composition step, not a new-fact-generation step. It never introduces claims not present in the underlying department summaries, and every claim keeps a source reference back to the department that produced it.",
   },
 ];
 
@@ -339,6 +340,71 @@ const SCENARIO_PAYLOADS: Record<
     overallConfidence: 0.835,
     durationMs: 300,
   },
+  signoff: {
+    livenessState: "RESPONDING",
+    routedDepartments: ["controller", "treasury", "compliance"],
+    departmentResponses: [
+      {
+        department: "controller",
+        displayName: "Controller",
+        status: "received",
+        headline: "Trial balance balanced",
+        confidence: 0.97,
+        escalations: [],
+      },
+      {
+        department: "treasury",
+        displayName: "Treasury",
+        status: "received",
+        headline: "Cash position confirmed",
+        confidence: 0.9,
+        escalations: [],
+      },
+      {
+        department: "compliance",
+        displayName: "Compliance",
+        status: "received",
+        headline: "Regulatory status clean",
+        confidence: 0.89,
+        escalations: [],
+      },
+    ],
+    sourceRefs: [],
+    // Sign-off is presented in its dedicated region (Synthesized Response is
+    // gated off in this scenario) — response stays empty to avoid dead data.
+    response: "",
+    decision: "proceed",
+    escalations: [],
+    conflicts: [],
+    audit: {
+      agentId: "cfo-agent",
+      action: "close_signoff_requested",
+      timestamp: "2026-07-31T09:15:00.000Z",
+      confidence: 0.92,
+    },
+    steps: [
+      {
+        step: "intent_resolution",
+        label: "Intent & Context Resolution",
+        status: "completed",
+        durationMs: 12,
+      },
+      {
+        step: "routing",
+        label: "Routing to Department Heads",
+        status: "completed",
+        durationMs: 30,
+      },
+      {
+        step: "response_synthesis",
+        label: "Response Synthesis",
+        status: "completed",
+        durationMs: 4,
+      },
+    ],
+    overallConfidence: 0.92,
+    durationMs: 260,
+  },
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -555,6 +621,8 @@ export function CfoLiveness({
 
   const isConflictState = conflicts.length > 0 || scenario === "conflict";
 
+  const isSignoffState = scenario === "signoff" && !livePayload;
+
   return (
     <div className={cn("rounded-xl border bg-card", className)}>
       {/* Header */}
@@ -770,6 +838,58 @@ export function CfoLiveness({
             </div>
           )}
 
+        {/* Month-end close sign-off — passive approval (§6) */}
+        {isSignoffState && (
+          <div
+            className="rounded-lg border border-signal-indigo/30 bg-signal-indigo/5 p-3"
+            role="region"
+            aria-label="Month-End Close Sign-Off"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-signal-indigo/10 shrink-0">
+                <Landmark className="h-4 w-4 text-signal-indigo" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-signal-indigo uppercase tracking-wider">
+                    Month-end close ready for sign-off
+                  </span>
+                  <span className="rounded-full border border-balanced-green/20 bg-balanced-green/10 px-1.5 py-0.5 text-[8px] font-medium text-balanced-green">
+                    Non-blocking — silence = approval
+                  </span>
+                </div>
+                <p className="text-[10px] text-foreground mt-1">
+                  Proceeding with the close unless you object by Friday 18:00 —
+                  the passive-approval pattern per PRD §8.
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {[
+                    "Trial balance balanced (Controller)",
+                    "AP-AR reconciled (Controller)",
+                    "Cash position confirmed (Treasury)",
+                    "Regulatory status clean (Compliance)",
+                  ].map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-[9px] font-medium"
+                    >
+                      <CheckCircle2 className="h-2.5 w-2.5 text-balanced-green" />
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 mt-2">
+                  <ArrowRight className="h-2.5 w-2.5 text-balanced-green/60" />
+                  <span className="text-[9px] text-balanced-green/80 font-medium">
+                    Silence is consent — object by Friday 18:00 to hold the
+                    close.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Escalation framing */}
         {isEscalationState && !livePayload && (
           <div
@@ -875,25 +995,28 @@ export function CfoLiveness({
         )}
 
         {/* Synthesized response */}
-        {(response || livePayload) && !isIdle && !isEscalationState && (
-          <div
-            className="rounded-lg border border-balanced-green/20 bg-balanced-green/5 p-3"
-            role="region"
-            aria-label="Synthesized Response"
-          >
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-balanced-green mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs font-semibold text-balanced-green">
-                  Response:
-                </p>
-                <p className="text-[10px] text-foreground mt-0.5">
-                  {response || payload.response}
-                </p>
+        {(response || livePayload) &&
+          !isIdle &&
+          !isEscalationState &&
+          !isSignoffState && (
+            <div
+              className="rounded-lg border border-balanced-green/20 bg-balanced-green/5 p-3"
+              role="region"
+              aria-label="Synthesized Response"
+            >
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-balanced-green mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-balanced-green">
+                    Response:
+                  </p>
+                  <p className="text-[10px] text-foreground mt-0.5">
+                    {response || payload.response}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Source references */}
         {effectiveSourceRefs.length > 0 && (
@@ -956,6 +1079,123 @@ export function CfoLiveness({
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Escalation & Human-in-the-Loop (§6) */}
+        {!isIdle && !isEscalationState && (
+          <div
+            className="rounded-lg border bg-accent/20 p-3"
+            role="region"
+            aria-label="Escalation & Human-in-the-Loop"
+          >
+            <h3 className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Escalation &amp; Human-in-the-Loop
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px]" role="table">
+                <thead>
+                  <tr className="border-b text-muted-foreground/60">
+                    <th className="text-left py-1.5 pr-2 font-medium">
+                      Condition
+                    </th>
+                    <th className="text-left py-1.5 pr-2 font-medium">
+                      Escalates to
+                    </th>
+                    <th className="text-left py-1.5 pr-2 font-medium">
+                      What user sees
+                    </th>
+                    <th className="text-left py-1.5 font-medium">Blocking?</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    {
+                      condition: "Department head escalation received",
+                      esc: "Human",
+                      note: "Framed escalation with source cited",
+                      blocking: "Blocking for that decision",
+                    },
+                    {
+                      condition: "Month-end close ready for sign-off",
+                      esc: "Human",
+                      note: "Close summary presented, passive-approval pattern (per PRD §8)",
+                      blocking: "Non-blocking (silence = approval)",
+                    },
+                    {
+                      condition:
+                        "Conflicting information between department heads",
+                      esc: "Human",
+                      note: "Both inputs shown side by side, never resolved by the CFO Agent's own guess",
+                      blocking: "Blocking",
+                    },
+                  ].map((row) => (
+                    <tr key={row.condition} className="border-b last:border-0">
+                      <td className="py-1.5 pr-2 text-muted-foreground">
+                        {row.condition}
+                      </td>
+                      <td className="py-1.5 pr-2 text-muted-foreground">
+                        {row.esc}
+                      </td>
+                      <td className="py-1.5 pr-2 text-muted-foreground">
+                        {row.note}
+                      </td>
+                      <td className="py-1.5">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium",
+                            row.blocking.startsWith("Blocking")
+                              ? "bg-error-clay/10 text-error-clay"
+                              : "bg-attention-amber/10 text-attention-amber",
+                          )}
+                        >
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          {row.blocking}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Constraint Enforcement — critical rule (§3) */}
+        {!isIdle && (
+          <div
+            className="rounded-lg border bg-accent/20 p-3"
+            role="region"
+            aria-label="Constraint Enforcement"
+          >
+            <h3 className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Constraint Enforcement
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                "Never Fabricates",
+                "Claims Traceable to Source",
+                "Synthesis = Composition",
+                "No Silent Drops",
+              ].map((badge) => (
+                <span
+                  key={badge}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/30 px-2 py-0.5 text-[9px] font-medium"
+                >
+                  <CheckCircle2 className="h-2.5 w-2.5 text-balanced-green" />
+                  {badge}
+                </span>
+              ))}
+            </div>
+            <p className="mt-2 text-[9px] text-muted-foreground/70 leading-relaxed">
+              Critical rule: the CFO Agent never fabricates a plain-English
+              explanation disconnected from what department heads actually
+              reported. Synthesis is a composition step, not a
+              new-fact-generation step — it never introduces claims not present
+              in the underlying department summaries, and every claim in its
+              response is traceable, on request, to the specific agent or data
+              behind it.
+            </p>
           </div>
         )}
 
