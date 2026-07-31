@@ -6,6 +6,64 @@
 
 ---
 
+### [2026-07-31] — Reporting Agent Liveness (spec v1.0): Aggregator-Never-a-Source-of-Truth Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~55 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/reporting-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): REQUESTED → GATHERING_INPUTS → WAITING_ON_DEPENDENCIES → ASSEMBLING (active) → NARRATIVE_GENERATED → DELIVERED, with `role="status"` live line ("Currently: ASSEMBLING — building P&L for Q2 2026") and **COMPLETE** badges on passed stages
+- **Critical rule (Spec §3/§10): Reporting Agent is an aggregator, never a source of truth** — never independently calculates a figure another agent owns; gaps shown explicitly, never estimated (surfaced in input-gathering card + constraint section: "it must never independently calculate a figure that another agent owns")
+- **Zero confidence meters — third fully-deterministic component after Inventory/Tax**: entire lifecycle (scope, pull inputs, wait, assemble, narrative, deliver) is Layer 1 deterministic; main view AND all branch states carry 0 meters
+- **Progressive assembly (Spec §4)** — "The report assembles section by section — headers populate in sequence, not all at once" + per-section rows ("Revenue — assembled", "Cost of Sales — assembled", "Operating Expenses — assembling…", "Net Income — pending")
+- **Sourced figures (Spec §4/§5)** — report body rows each link back to source agent + snapshot: "Revenue GMD 12,400.00 — Ledger Agent · TB-2026-Q2-v3", "Operating Expenses GMD 3,100.00 — Budget Agent · BUD-2026-Q2"
+- **Narrative adjacent to numbers, cites specific figures (Spec §5)** — "Narrative (sourced from the numbers above): Revenue was GMD 12,400.00, up 8% from May, driven mainly by Service Income (GMD 8,200.00). Gross margin held at 61.3%." + "No unsourced claims"
+- **Inputs pulled from owning agents with snapshot refs (Spec §3/§8/§10)** — "Pulling trial balance from Ledger Agent (TB-2026-Q2-v3)", Budget Agent (BUD-2026-Q2), Analytics Agent (FX-2026-06) + "All inputs received — no dependencies pending"
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: required input unavailable (trial balance not yet closed) → CFO Agent/human, blocking for full delivery, partial may be shown; dependency agent hasn't responded → CFO Agent, "Still waiting on [Agent]" with elapsed time, non-blocking but visible
+- **Branch states (Spec §6/§7)** — `showMissingInput` ("Report Incomplete", "trial balance for Q2 2026 not yet closed", "partial report may still be shown", "never silently filled with a placeholder or estimate", escalated to CFO Agent + human, 0 meters), `showDependencyWait` ("Still waiting on Analytics Agent", "Elapsed: 42s", non-blocking but visible, "never hidden behind a generic spinner", 0 meters), `showDelivered` ("Report Delivered", "P&L for Q2 2026 delivered to dashboard", terminal, 0 meters), `showEmptyState`
+- How It Works 5-step decomposition (Identify Report Scope / Pull Inputs from Owning Agents / Wait on Dependencies / Assemble Report Body / Generate Narrative) with "No confidence score" notes, constraint badges (Never Re-Derives, Sources Cited, Gaps Shown Never Estimated, Sections Populate in Order, Narrative Cites Numbers), audit trail table (7 data rows: request, 3 source pulls with snapshot refs, assembly, narrative basis, delivery), cross-agent chain (Ledger/Budget/Analytics/Tax → Reporting Agent, "Pulls from owning agents — never a source of truth itself"), Layer 1 deterministic footer, 12 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/reporting-liveness.test.tsx` — NEW, 40 tests (TDD RED → GREEN) locking spec rules: pipeline order, role=status live line, zero-meter invariant (main view AND all branches), never-re-derives critical rule, progressive assembly (em-dash section rows), sourced figures with snapshot refs, narrative citing specific numbers + no unsourced claims, missing-input blocking semantics (partial may be shown, never placeholder), dependency-wait visible elapsed time non-blocking, delivered terminal, audit trail source pulls, cross-agent chain, entity scoping, status-grid assertions scoped within the Report Metadata region
+
+**File:** `apps/web/app/dashboard/agents/reporting/page.tsx` — NEW dashboard page (mirrors document liveness page pattern): breadcrumb, hero, 3 key principles (progressive assembly / never a source of truth / sourced narrative), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Reporting Agent Liveness" nav item to Reports group (after Financial Statements)
+
+**Review findings fixed during build:**
+
+- Assembly-section rows rendered name/status in separate spans → single-span "Revenue — assembled" format (fixed em-dash test assertions AND the "Revenue" exact-match collision with the report-body row)
+- `getByText(/Report Type/i)` collided with pipeline REQUESTED description "identifying report type and scope" → reworded description to "identifying scope, date range, and format"
+- `getByText(/Period/i)` collided with the escalation note "trial balance for [period] not yet closed" (spec §6 verbatim) → scoped the 5 status-grid assertions within `getByRole("region", { name: /Report Metadata/i })`
+- `getByText(/Channel/i)` collided with pipeline DELIVERED description "delivered per channel" → reworded to "sent via dashboard or email"
+- `getByText(/sourced from the numbers above/i)` collided with pipeline NARRATIVE_GENERATED description → reworded to "Writing a plain-English summary of the assembled numbers"
+- Three branch multi-matches → `getAllByText`: /elapsed/ (badge + body), /Non-blocking/ (subtitle + body), /delivered per channel/ (subtitle + body)
+- Page had an unused `AlertTriangle` import → removed
+
+### Verification
+
+| Check                      | Status                                            |
+| -------------------------- | ------------------------------------------------- |
+| Reporting liveness tests   | ✅ 40/40 pass                                     |
+| Full component suite       | ✅ 666/666 pass (20 files)                        |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                          |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/reporting built |
+| Code review                | ✅ Multiple passes, all findings addressed        |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)     |
+
+### Next Steps
+
+- Remaining liveness specs: Treasury, Controller (Reporting and Document now complete)
+- Reporting spec §9 schema flags: `reports.status` enum matching the state machine, `reports.source_refs` as a list of `{agent, data_snapshot_id}` for full traceability — flagged for schema review
+- Reporting spec §11 open question: real-time vs on-demand assembly for dashboard "reports" (some are live views, others point-in-time snapshots) — needs a data-model distinction
+- Reporting design note: third fully-deterministic component (0 meters) after Inventory/Tax — the narrative step cites numbers rather than generating probabilistic prose ("No unsourced claims" + "No confidence score" notes in How It Works), preserving the zero-meter invariant; note: the "confidence only on pattern-based explanations" rule belongs to the upcoming Budget spec §3, not this component
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Document Agent Liveness (spec v1.0): Universal Inbox & No-Silent-Default Transparency
 
 **Agent:** Buffy (Autonomous Engineer)

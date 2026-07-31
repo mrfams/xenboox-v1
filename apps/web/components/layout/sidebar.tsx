@@ -240,6 +240,11 @@ const navGroups: NavGroup[] = [
         icon: BarChart3,
       },
       {
+        label: "Reporting Agent Liveness",
+        href: "/dashboard/agents/reporting",
+        icon: Activity,
+      },
+      {
         label: "Budget vs Actual",
         href: "/dashboard/budget/pipeline",
         icon: PiggyBank,
