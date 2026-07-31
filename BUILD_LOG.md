@@ -56,7 +56,7 @@
 - Remaining liveness specs: Treasury, Controller (Analytics, Budget, Reporting, and Document now complete)
 - Analytics spec §9 schema flags: `analytics_insights.surfaced` boolean, `analytics_insights.baseline_ref`, `analytics_insights.confidence` — flagged for schema review
 - Analytics spec §11 open questions: materiality/significance thresholds for surfacing vs log-only not yet calibrated (needs real usage data); benchmarking against "similar organizations in the same market" — data sourcing and privacy handling not yet specified
-- Analytics design note: third exactly-1-meter component after AR (ambiguous match) and Audit (fuzzy comparison) — the single deviation-detection confidence is the Layer 2 statistical judgment; scanning, classification, surface routing, and all branch states are Layer 1 deterministic
+- Analytics design note: fourth exactly-1-meter component after AR (ambiguous match 54%), Asset (auto-classification 88%), and Audit (fuzzy comparison 82%) — the single deviation-detection confidence is the Layer 2 statistical judgment; scanning, classification, surface routing, and all branch states are Layer 1 deterministic
 - `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
 
 ---
