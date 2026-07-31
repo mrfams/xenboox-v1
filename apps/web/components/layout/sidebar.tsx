@@ -251,6 +251,11 @@ const navGroups: NavGroup[] = [
         badge: "AI",
       },
       {
+        label: "Budget Agent Liveness",
+        href: "/dashboard/agents/budget",
+        icon: Activity,
+      },
+      {
         label: "Analytics",
         href: "/dashboard/analytics/pipeline",
         icon: Search,

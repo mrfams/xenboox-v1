@@ -6,6 +6,59 @@
 
 ---
 
+### [2026-07-31] — Budget Agent Liveness (spec v1.0): Variance-Explanations-Grounded-in-Transactions
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/budget-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): BUDGET_LINE_TRACKED → ACTUAL_UPDATED → VARIANCE_CALCULATED → EXPLAINABLE (active) → ALERT_CHECK, with **UNEXPLAINED rendered as a FORK branch** (parallel listitem, FORK badge, spec §2 `(EXPLAINABLE | UNEXPLAINED) → ALERT_CHECK`), `role="status"` live line ("Currently: EXPLAINABLE — Marketing is GMD 450 over budget (12%), traced to 1 invoice") and **COMPLETE** badges on passed stages
+- **Critical rule (Spec §1/§3/§5): variance explanations must be grounded in actually-identified transactions** — if the agent can't point to specific transactions causing the variance, it says so — labeling it "not yet explainable" — rather than produce a plausible-sounding but unverified narrative (surfaced in constraint section + How It Works step 3 + both branch states)
+- **Zero confidence meters — fourth fully-deterministic component after Inventory/Tax/Reporting**: every step (pull actual, calculate variance, explain, alert check) is Layer 1 deterministic arithmetic or an honest label; the spec's "confidence only on pattern-based explanations" rule is preserved as copy in How It Works step 3 ("Pattern-based explanations carry a confidence score but are never presented as fact without the underlying transactions cited") — no pattern-based explanation is ever rendered, so 0 meters; main view AND all branch states carry 0 meters
+- **Live budget vs actual bars (Spec §4)** — per-category rows (Marketing GMD 450 over (12%), Travel GMD 200 over (10%), Office Supplies GMD 100 under (7%), Salaries on budget) with Budget/Actual labels + visual fill; "Budget vs actual bars updating live per category as transactions post"
+- **Explained variance cites the specific driver (Spec §3/§5)** — "Marketing is GMD 450 over budget (12%). GMD 300 traces to one invoice (Cloudline Ltd, June 14) not in original budget assumptions. Remaining GMD 150 spread across normal recurring spend." + expandable **"Show cited transactions (2)"** (INV #4471 Cloudline Ltd June 14 GMD 300.00 / Recurring spend OfficeWorld GMD 150.00)
+- **Honest 'not yet explainable' label (Spec §3 critical rule)** — Travel card: "No single driver identified across this period's transactions; likely multiple small overages. Labeled honestly — never guessed."
+- **Branch states (Spec §6/§7)** — `showUnexplained` ("Variance Not Yet Explainable", "no single driver identified", "never guessed", non-blocking escalated to Department Manager + CFO Agent, 0 meters), `showUnbudgeted` (Spec §7 — "Unbudgeted Spend Flagged", "GMD 350 actual spend on 'Software Subscriptions' with no budget line", "never silently ignored and never forced into the nearest category", 0 meters), `showAlert` ("Alert Surfaced", "exceeds the 10% alert threshold", "surfaced proactively — not just when the budget screen is opened", non-blocking, 0 meters), `showEmptyState`
+- Status grid (Budget Metadata region): Period Q2 2026 / Alert Threshold 10% / Tracked Lines 4 / Explained Variances 1
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: variance exceeds alert threshold → Department Manager/CFO Agent ("'Alert surfaced' — proactively"), budget line approaching full-year exhaustion early → CFO Agent/human (forecast-based warning), both non-blocking
+- How It Works 5-step decomposition (Pull Actual / Calculate Variance / Attempt to Explain Variance / Check Alert Threshold / Surface Alerts) with "No confidence score" notes, constraint badges (Explanations Cite Transactions, Unexplained Labeled Never Guessed, Unbudgeted Spend Flagged, Variance Shown Live, Arithmetic Not Inference), audit trail table (7 data rows: lines tracked, actual pulled, variance calculated, driver cited, no single driver identified, alert threshold check, recurring pull), cross-agent chain (Ledger Agent → Budget Agent → Reporting Agent → CFO Agent — "Pulls actuals from Ledger Agent for every tracked line — never guesses a figure. Feeds Reporting Agent for close reports and CFO Agent for strategic flags."), Layer 1 deterministic footer, 9 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/budget-liveness.test.tsx` — NEW, 37 tests (TDD RED → GREEN) locking spec rules: pipeline order (fork semantics: EXPLAINABLE and UNEXPLAINED both precede ALERT_CHECK), role=status live line, zero-meter invariant (main view AND all branches), never-guess critical rule (plausible-sounding-but-unverified narrative + grounded-in-transactions), live bars with $+% variance, expandable cited transactions, honest not-yet-explainable label, unbudgeted-spend flagged-not-forced, alert surfaced proactively non-blocking, audit trail explanation basis, cross-agent chain, escalation table, status-grid scoped within Budget Metadata region, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/budget/page.tsx` — NEW dashboard page (mirrors reporting liveness page pattern): breadcrumb, hero, 3 key principles (variance shown live / explanations cite transactions / honest not-yet-explainable), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Budget Agent Liveness" nav item to Reports group (after Budget vs Actual)
+
+**Review findings fixed during build:**
+
+- Component text said "Budget vs actual bars update live per category" but the test asserted the spec's exact "updating live per category as transactions post" — the regex `/updating live as transactions post/i` never matched → component copy aligned to spec wording "updating live per category as transactions post"
+- Removed unused lucide imports (Fingerprint, Link2, Search) — header uses PiggyBank gradient tile, cross-agent chain uses ArrowRight
+
+### Verification
+
+| Check                      | Status                                         |
+| -------------------------- | ---------------------------------------------- |
+| Budget liveness tests      | ✅ 37/37 pass                                  |
+| Full component suite       | ✅ 703/703 pass (21 files)                     |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                       |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/budget built |
+| Code review                | ✅ Multiple passes, all findings addressed     |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)  |
+
+### Next Steps
+
+- Remaining liveness specs: Treasury, Controller (Budget, Reporting, and Document now complete)
+- Budget spec §9 schema flags: `budget_variances.explained` boolean + `budget_variances.driver_transactions[]` (explicit list, not a text blurb alone) — flagged for schema review
+- Budget spec §11 open question: variance alert threshold (% or $ band) not yet set — likely needs to be configurable per entity, consistent with the confidence_thresholds pattern used elsewhere
+- Budget design note: fourth fully-deterministic component (0 meters) after Inventory/Tax/Reporting — variance arithmetic is never probabilistic, and the pattern-based confidence rule from spec §3 is deliberately copy-only (no meter ever rendered) because the critical rule forbids presenting pattern explanations as fact
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Reporting Agent Liveness (spec v1.0): Aggregator-Never-a-Source-of-Truth Transparency
 
 **Agent:** Buffy (Autonomous Engineer)
