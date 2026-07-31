@@ -239,6 +239,11 @@ const navGroups: NavGroup[] = [
       },
       { label: "Month-End Close", href: "/dashboard/close", icon: Shield },
       {
+        label: "Month-End Close Liveness",
+        href: "/dashboard/close/liveness",
+        icon: Activity,
+      },
+      {
         label: "CFO Agent Liveness",
         href: "/dashboard/agents/cfo",
         icon: Activity,

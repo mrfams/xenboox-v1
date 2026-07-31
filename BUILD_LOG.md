@@ -6,6 +6,62 @@
 
 ---
 
+### [2026-07-31] — Month-End Close Liveness (spec v1.0): Cross-Cutting Close Flow — Live Checklist, Readiness Gate & the Never-Silently-Proceeds Critical Rule
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~55 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**Context:** The close backend already exists (`packages/agents/core/close-pipeline.ts` — close sessions, department confirmations, readiness gate, passive approval, reopen-with-recovery; `packages/db/schema/agents.ts` — `close_periods` + `confidence_thresholds` tables; `packages/db/schema/close.ts` — `close_sessions`/`close_confirmations`/`close_versions`/`reopen_requests`) — but there was **no close liveness surface**. This turn adds the suite-standard liveness component for the flow PRD §8 calls largely passive from the human's side — which is exactly why the process itself must be visible while it happens. This is the **23rd suite-standard liveness component** and the **second cross-cutting flow** (after Onboarding/Historical Data Pull).
+
+**File:** `apps/web/components/close/close-liveness.tsx` — NEW (spec-compliant liveness card, placed in a new `components/close/` dir since it is a cross-cutting flow, not an agent)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): CLOSE_TRIGGERED → CONTROLLER_CONFIRMING → TREASURY_CONFIRMING → COMPLIANCE_CONFIRMING → ALL_CONFIRMED (active, balanced-green ACTIVE badge) → CLOSING → PACKAGE_GENERATED → OWNER_NOTIFIED → **(PASSIVE_APPROVAL | FLAGGED_FOR_REOPEN rendered as a FORK — parallel listitems, FORK badges, spec §2 `(PASSIVE_APPROVAL | FLAGGED_FOR_REOPEN)`), `role="status"` live line ("Currently: ALL_CONFIRMED — All departments confirmed — closing") and **COMPLETE\*\* badges on passed stages
+- **Critical rule (Spec §3/§4): the close must never silently proceed past a department head's unconfirmed item — if Controller Agent hasn't confirmed the trial balance is balanced, close does not advance to Treasury Agent's stage, and this blocking state must be visibly shown, not hidden behind a spinner labeled 'closing'** — surfaced in the constraint section + How It Works step 2 + the controller-blocked/treasury-blocked branches
+- **Live close checklist (Spec §4)** — ticking department by department in real time, not revealed only once fully complete: Controller Agent ("Trial balance balanced ($0 variance) — all postings reviewed, AP/AR reconciled"), Treasury Agent ("All reconciliations clean — bank, cash, mobile money"), Compliance Agent ("Tax obligations current — VAT calculated, no missed deadlines") with CONFIRMED badges
+- **Close Readiness Gate (Spec §3 step 3 / §7) — exactly-one confidence meter at 94%**: platform-wide confidence check per the `confidence_thresholds` table, "All 3 departments confirmed — overall close confidence 94%, meets the 90% threshold", "Close blocked by: none", the single Layer 2 meter (`aria-label="Overall close confidence"`, aria-valuenow 94 — aggregate of department-head judgment inputs Controller 96% · Treasury 92% · Compliance 94%)
+- **Close Package preview (Spec §2 PACKAGE_GENERATED)** — P&L, Balance Sheet, Cash Flow, Plain-English Narrative assembling per the Reporting Agent liveness spec (section by section, never appearing whole)
+- **Owner Notification (Spec §2/§4/§3 step 6) — distinct deliberate legal-acknowledgment moment per PRD §14** — "not folded into a generic notification badge", delivery logged with timestamp, owner's response (silence or flag) recorded
+- **Branch states (Spec §2/§6/§7), ALL 0 meters** — `showControllerBlocked` ("Controller Agent Cannot Confirm" — trial balance not balanced: GMD 1,240.00 variance, close halts at CONTROLLER_CONFIRMING, does not advance, never hidden behind a spinner labeled 'closing', blocking), `showTreasuryBlocked` ("Treasury Agent Cannot Confirm" — bank line #BT-88213 (GMD 450.00, June 18) unreconciled, links to the actual open item, blocking), `showConfidenceHeld` (Spec §7 / Layer 3 — "Material item confidence 68% is below the 90% threshold", held, human notified, never a guessed close — shown as text badge, NOT a meter), `showPackageGenerated` (package sections assembled, awaiting owner notification), `showOwnerNotified` (distinct deliberate event at 18:02:42, legal acknowledgment record, delivery logged), `showPassiveApproval` (terminal — "Silence is consent — June 2026 books are locked", explicit UI acknowledgment of the passive-approval pattern — not ambiguous), `showFlaggedForReopen` ("Owner flagged the close — routed to the Error Recovery / Reopen flow", classification: simple_correction / missing_data / cascading_error), `showEmptyState`
+- Status grid (Close Metadata region): Close Period June 2026 / Departments Confirmed 3 / Confidence Gate 94% / Threshold 90%
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table with **What user sees column**: any department head cannot confirm → CFO Agent, human if unresolved past reasonable time ("Close held at that stage, cause shown", blocking); owner flags the close after notification → CFO Agent ("Routes to Error Recovery / Reopen flow", N/A — separate flow)
+- How It Works 6-step decomposition (Trigger Close / Each Department Head Confirms Independently — "never silently proceeds past an unconfirmed item" / Check Confidence Thresholds Platform-Wide — "per the confidence_thresholds table" / Lock Period / Generate Package — "Per Reporting Agent liveness spec" / Notify Owner — "legal acknowledgment moment per PRD §14"), constraint badges (Never Silently Proceeds Past Unconfirmed, Blocked Cause Shown Explicitly, Checklist Ticks Live, Confidence Gate (confidence_thresholds), Notification = Legal Acknowledgment (PRD §14)), audit trail table (8 data rows: trigger time, 3 department confirmations with basis, gate evaluation, period locked, package generated, owner notification delivery + timestamp), cross-agent chain (CFO → Controller → Treasury → Compliance → Ledger → Reporting → Owner — "Orchestrated by CFO Agent, gated by Controller/Treasury/Compliance Agent confirmations, delivered by Reporting Agent. Ledger Agent locks the period."), Layer 1 structural vs Layer 2 probabilistic footer ("94% confidence on the close gate (aggregate of department-head judgment inputs, checked against the confidence_thresholds table)"), 12 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/close-liveness.test.tsx` — NEW, 39 tests (TDD RED → GREEN) locking spec rules: pipeline order with the passive-approval fork last + FORK badges, role=status live line, zero-meter-on-pipeline invariant + exactly-1-meter total (gate 94% only), critical rule (never silently proceed past an unconfirmed item / never hidden behind a spinner labeled 'closing'), live checklist ticking department by department with per-department basis, readiness gate (confidence_thresholds single-occurrence within region, blocked-by-none, 90% threshold, aggregate of dept-head judgment inputs), package preview (P&L/balance sheet/cash flow/narrative per Reporting Agent liveness spec), owner notification distinct legal acknowledgment per PRD §14 (not folded into a generic badge, delivery logged), escalation table (2 triggers, blocking treatment, What-user-sees notes, Error Recovery route), How-It-Works 6-step decomposition (never-silently-proceeds + confidence_thresholds table + per PRD §14), constraint badges, audit trail (8+ rows, owner notification timestamp 18:02:42), cross-agent chain + orchestration note, all 8 branch states at 0 meters, status grid scoped within Close Metadata, entity scoping, Layer 1/2 footer
+
+**File:** `apps/web/app/dashboard/close/liveness/page.tsx` — NEW dashboard page (mirrors onboarding liveness page pattern): breadcrumb (Back to Month-End Close), hero with Lock icon, 3 key principles (Live Close Checklist / Never Silently Proceeds / Legal Acknowledgment PRD §14), AICommandBar, liveness controls (7 state chips: All Confirmed / Controller Blocked / Treasury Blocked / Confidence Held / Owner Notified / Passive Approval / Flagged for Reopen)
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Month-End Close Liveness" nav item to Accounting group (after Month-End Close — the close flow is CFO-orchestrated and gates on Controller/Treasury/Compliance)
+
+**Review findings fixed during build:**
+
+- 1 failing test: `within(gate).getByText(/confidence_thresholds/i)` threw "Found multiple elements" because the word appeared twice inside the Close Readiness Gate region (body paragraph + meter note) — the meter note was simplified to "Aggregate of department-head judgment inputs (Controller 96% · Treasury 92% · Compliance 94%) — Layer 2 probabilistic." so `confidence_thresholds` is single-occurrence within the region
+- Removed unused lucide imports (`Sparkles`, `Eye`) flagged by the first review pass
+- Reviewer verified the "labeled 'closing'" apostrophe/period matches the test regexes (period placed after the closing quote) and the exactly-one-meter guarantee holds across the main view
+
+### Verification
+
+| Check                      | Status                                          |
+| -------------------------- | ----------------------------------------------- |
+| Close liveness tests       | ✅ 39/39 pass                                   |
+| Full component suite       | ✅ 1006/1006 pass (28 files)                    |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                        |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/close/liveness built |
+| Code review                | ✅ Multiple passes, all findings addressed      |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)   |
+
+### Next Steps
+
+- Liveness suite now **21 of 21 agent specs + 2 cross-cutting flows = 23 suite-standard liveness components** (Onboarding/Historical Data Pull and Month-End Close)
+- Close spec §9 schema flag — **partial gap, flagged for schema review**: `close_periods.owner_notified_at` and `owner_response` (for the legal acknowledgment record per PRD §14) are NOT modeled on the current `close_periods` table (which has `status` open/pending_close/closed/reopened + `closed_by`/`closed_at`/`reopened_at`), and there are no per-department confirmation timestamps on it. The `close_sessions`/`close_confirmations` tables (used by `close-pipeline.ts`) do cover session status (in_progress/ready/blocked/notified/locked/reopened) and per-agent confirmation rows — so the flag is: `close_periods.owner_notified_at` / `owner_response` / per-department confirmation timestamps still flagged for schema review
+- Close spec §11 note: no open questions beyond the dollar-threshold-for-approval already flagged elsewhere as generally undecided
+- Close design note: **eighth exactly-1-meter component after AR (54%), Asset (88%), Audit (82%), Analytics (87%), Controller (82%), Compliance (82%), Onboarding (87%)** — the single overall-close-confidence (94%) at the readiness gate is the Layer 2 probabilistic input (aggregate of department-head judgment inputs, checked against the `confidence_thresholds` table); trigger, checklist confirmations, period lock, package, notification, and all branch states are Layer 1 deterministic — and the confidence-held branch shows its 68% as a text badge, never a meter
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Onboarding / Historical Data Pull Liveness (spec v1.0): Cross-Cutting First-Value Flow — Real Per-Period Progress, Never Simulated
 
 **Agent:** Buffy (Autonomous Engineer)
