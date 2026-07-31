@@ -6,6 +6,57 @@
 
 ---
 
+### [2026-07-31] — Inventory Agent Liveness (spec v1.0): COGS Layer-by-Layer Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~50 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/inventory-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): GOODS_RECEIVED → PO_MATCHED → STOCK_UPDATED → COGS_CALCULATED → VALUATION_UPDATED → LOW_STOCK_CHECK, active = COGS_CALCULATED
+- **Critical rule (Spec §2/§3/§5): COGS shown layer-by-layer, never a blended number** — `data-step="cogs"` card: "COGS for sale of 50 units: FIFO — 30 units from batch received June 1 @ GMD 12.00 (GMD 360.00) + 20 units from batch received June 15 @ GMD 13.00 (GMD 260.00) = GMD 620.00 total COGS" + per-layer rows (units / batch / cost / amount) — every number traceable to a batch, no single blended figure
+- **Zero confidence meters total — the entire inventory lifecycle is deterministic (Spec §3 marks every step "no confidence score")**: GRN recording, PO match ("Matched to PO #205", deterministic comparison), stock level updates, COGS layers, valuation, low-stock check — first component in the suite with a 0-meter invariant everywhere (audit-trail Confidence column shows "—" for all rows, deliberate)
+- **Goods receipt + PO match** — "Received: 50 units @ GMD 12" (GRN-2026-0318), deterministic
+- **Stock table with live quantities** — Cement Bags 50kg (1,200 @ GMD 12.00 = 14,400) + Rebar 12mm (80 @ GMD 10.50 = 840), Total Valuation GMD 15,240.00
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table: PO quantity/price mismatch → Controller Agent (explicit delta, blocking for that GRN), stock breach (attempted sale exceeds on-hand) → Controller Agent / human (hard stop, never oversells silently), low stock breached → auto-alert (proactive, non-blocking)
+- **Branch states** — `showPoMismatch` ("GRN received 50 units @ GMD 14.00 vs PO #205 @ GMD 9.20 — delta GMD 240.00", blocking for that GRN, 0 meters), `showStockBreach` ("Stock Breach — Hard Stop", "never oversells silently", 0 meters), `showNegativeStock` ("Negative Stock — Investigation Required", "never allowed to post silently", 0 meters), `showLowStock` ("Low Stock Alert", "below reorder point of 200", proactive + non-blocking, 0 meters), `showEmptyState`
+- How It Works 6-step decomposition (Record Goods Received / Match to PO / Update Stock Levels / Calculate COGS on Sale / Update Valuation / Check Low-Stock Threshold), constraint badges (COGS Layer Basis, Deterministic Valuation, Never Oversells, Proactive Alerts), audit trail table (8 data rows: goods received, PO match result, stock updated, COGS with full layer detail, valuation updated, low-stock check, posted to Ledger JE-2026-0312, valuation snapshot), cross-agent chain (this agent → Controller Agent review → Ledger Agent COGS/valuation postings), Layer 1 deterministic footer ("COGS shown layer-by-layer — never a single blended number"), 10 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/inventory-liveness.test.tsx` — NEW, 37 tests (TDD RED → GREEN) locking spec rules: pipeline order, COGS layer-by-layer basis (full breakdown + FIFO named + per-batch trace + no bare blended number), zero-meter invariant (main view AND all branches), deterministic goods receipt/PO match, live stock table + valuation, low-stock proactive non-blocking, PO-mismatch explicit delta blocking, stock-breach hard stop, negative-stock hard stop, audit trail columns, cross-agent chain, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/inventory/page.tsx` — NEW dashboard page (mirrors asset liveness page pattern): breadcrumb, hero, 3 key principles (COGS layer basis / deterministic valuation / never oversells), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Inventory Agent Liveness" nav item to Assets & Inventory group (after Asset Agent Liveness)
+
+**Review findings fixed during build:**
+
+- Two `getByText` multi-match test failures → converted to `getAllByText`: `/Inventory Agent/i` (header h2 + escalation row "Inventory Agent auto-alert"), `/Cement Bags 50kg/i` (status-grid Item cell + stock table row)
+- Reviewer verified: remaining `getByText` calls safe (`/Match to PO/` can't collide with "Matched to PO #205"; `/Low Stock Check/` vs "LOW_STOCK_CHECK" underscore label; `/Calculate COGS on Sale/` vs "COGS on Sale" header)
+
+### Verification
+
+| Check                      | Status                                            |
+| -------------------------- | ------------------------------------------------- |
+| Inventory liveness tests   | ✅ 37/37 pass                                     |
+| Full component suite       | ✅ 505/505 pass (16 files)                        |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                          |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/inventory built |
+| Code review                | ✅ Multiple passes, all findings addressed        |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)     |
+
+### Next Steps
+
+- Remaining liveness specs: Document, Treasury, Controller, Reporting
+- Inventory spec §9 schema flags: `inventory_cost_layers` table (batch-level, NOT aggregated, to support layer-by-layer COGS display), `inventory_items.on_hand_qty` (live field) — flagged for schema review
+- Inventory spec §11 note: valuation method (FIFO/LIFO/weighted-average) per-entity selection mechanism not yet specified in schema — needs schema decision
+- Inventory design note: this is the first liveness component with a **zero confidence meter across the entire lifecycle** (all-deterministic spec) — the audit-trail "Confidence" column showing "—" for all rows is deliberate, not a bug
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Asset Agent Liveness (spec v1.0): Depreciation Formula Transparency
 
 **Agent:** Buffy (Autonomous Engineer)

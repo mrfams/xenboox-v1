@@ -194,6 +194,11 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/agents/assets",
         icon: Activity,
       },
+      {
+        label: "Inventory Agent Liveness",
+        href: "/dashboard/agents/inventory",
+        icon: Activity,
+      },
     ],
   },
   {
