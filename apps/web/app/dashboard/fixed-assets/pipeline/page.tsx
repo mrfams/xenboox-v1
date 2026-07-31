@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { AssetLiveness } from "@/components/agents/asset-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
@@ -137,6 +139,7 @@ export default function AssetPipelinePage() {
           title="Fixed Assets Pipeline"
           description="Depreciation engine, lifecycle management, and verification tracking"
         />
+        <SubPageTabs tabs={MODULE_TABS.assets} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card
@@ -170,6 +173,8 @@ export default function AssetPipelinePage() {
             }),
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.assets} />
 
       <AssetLiveness />
 

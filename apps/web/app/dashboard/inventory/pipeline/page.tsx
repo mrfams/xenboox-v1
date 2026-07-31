@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
 import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { InventoryLiveness } from "@/components/agents/inventory-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
@@ -150,12 +151,7 @@ export default function InventoryPipelinePage() {
         }}
       />
 
-      <SubPageTabs
-        tabs={[
-          { label: "Inventory", href: "/dashboard/inventory/pipeline" },
-          { label: "Fixed Assets", href: "/dashboard/fixed-assets/pipeline" },
-        ]}
-      />
+      <SubPageTabs tabs={MODULE_TABS.assets} />
 
       <InventoryLiveness />
 

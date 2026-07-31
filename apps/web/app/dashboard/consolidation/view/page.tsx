@@ -5,6 +5,8 @@ import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/shared/loading";
 import {
@@ -557,6 +559,7 @@ export default function ConsolidatedViewPage() {
           title="Consolidated View"
           description="Side-by-side entity comparison with elimination entries"
         />
+        <SubPageTabs tabs={MODULE_TABS.accounting} />
         <Skeleton className="h-8 w-96" />
         <Skeleton className="h-64 rounded-xl" />
         <Skeleton className="h-48 rounded-xl" />
@@ -571,6 +574,7 @@ export default function ConsolidatedViewPage() {
           title="Consolidated View"
           description="Side-by-side entity comparison with elimination entries"
         />
+        <SubPageTabs tabs={MODULE_TABS.accounting} />
         <EmptyState
           icon={<Network className="h-12 w-12" />}
           title="Entity data not available"
@@ -602,6 +606,8 @@ export default function ConsolidatedViewPage() {
           },
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.accounting} />
 
       {/* Print styles injected inline */}
       <style>{printStyles}</style>

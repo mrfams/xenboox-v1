@@ -4,6 +4,8 @@ import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { AuditLiveness } from "@/components/agents/audit-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
@@ -292,6 +294,7 @@ export default function AuditDashboardPage() {
           title="Audit Center"
           description="Continuous independent audit — 24/7"
         />
+        <SubPageTabs tabs={MODULE_TABS.compliance} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card
@@ -321,6 +324,8 @@ export default function AuditDashboardPage() {
           onClick: () => setRunDialogOpen(true),
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.compliance} />
 
       <AuditLiveness />
 

@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { TreasuryLiveness } from "@/components/agents/treasury-liveness";
@@ -86,6 +88,8 @@ export default function TreasuryPage() {
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.money} />
 
       <TreasuryLiveness />
       <ReconciliationLiveness />

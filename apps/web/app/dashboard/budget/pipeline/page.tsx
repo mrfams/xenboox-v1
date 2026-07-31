@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { BudgetLiveness } from "@/components/agents/budget-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
@@ -152,6 +154,7 @@ export default function BudgetPipelinePage() {
           title="Budget Pipeline"
           description="Budget vs actual, variance analysis, and forecasting"
         />
+        <SubPageTabs tabs={MODULE_TABS.reports} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
@@ -176,6 +179,7 @@ export default function BudgetPipelinePage() {
           title="Budget Pipeline"
           description="Budget vs actual, variance analysis, and forecasting"
         />
+        <SubPageTabs tabs={MODULE_TABS.reports} />
         <EmptyState
           icon={<PiggyBank className="h-12 w-12" />}
           title="No active budget"
@@ -216,6 +220,8 @@ export default function BudgetPipelinePage() {
             }),
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.reports} />
 
       <BudgetLiveness />
 

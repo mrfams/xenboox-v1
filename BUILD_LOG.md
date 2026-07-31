@@ -6,6 +6,52 @@
 
 ---
 
+### [2026-07-31] — Cross-Section Page Navigation: Tabs on Every Page Within Each Sidebar Section
+
+**Agent:** opencode (Autonomous Engineer)
+**Duration:** ~2.5 hrs
+**Files Created:** 1 **Files Modified:** 27 **Files Moved:** 1
+
+**Problem:** After the flat sidebar (10 primary destinations), each section's tab bar only appeared on the hub page. From e.g. Bank & Recon you could not reach Cash or Mobile Money — the sidebar item was the only entry point.
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/shared/module-tabs.ts` — CREATED: single source of truth for every section's tab set (`MODULE_TABS`: money, sales, purchases, payroll, assets, reports, accounting, compliance). All 8 previously-inline tab arrays refactored to import from here; all 18 non-hub pages now render the section tabs.
+
+**Tabs added to all non-hub module pages** (each page can now reach every other page in its section):
+
+- Money: `/dashboard/treasury`, `/dashboard/mobile-money`
+- Sales: `/dashboard/ar/customers`, `/dashboard/ar/aging`
+- Purchases: `/dashboard/ap/suppliers`, `/dashboard/ap/pos`, `/dashboard/ap/payment-schedule`
+- Payroll & People: `/dashboard/expense/pipeline`
+- Assets & Inventory: `/dashboard/fixed-assets/pipeline`
+- Reports: `/dashboard/budget/pipeline`, `/dashboard/analytics/pipeline`, `/dashboard/benchmarking`
+- Accounting: `/dashboard/journal`, `/dashboard/close`, `/dashboard/consolidation` (+ pipeline + view sub-pages)
+- Compliance: `/dashboard/tax-compliance/pipeline`, `/dashboard/audit/pipeline`
+
+Tabs added to **every** render branch of pipeline pages (loading, empty, and loaded states) so navigation never disappears mid-load.
+
+**File:** `apps/web/app/dashboard/reports/trial-balance/page.tsx` — MOVED to `apps/web/app/dashboard/trial-balance/page.tsx`. The old sidebar always linked `/dashboard/trial-balance` but the page lived under `/dashboard/reports/` → the Accounting "Trial Balance" tab 404'd, and the page collided with the reports-layout tab bar. Now Trial Balance is a top-level Accounting route with correct sidebar highlight.
+
+**Files updated for the move:** `module-tabs.ts` (href), `app/dashboard/reports/page.tsx` (report card), `app/dashboard/reports/layout.tsx` (removed Trial Balance from statement tabs; now P&L / Balance Sheet / Cash Flow), e2e specs (flow-03, flow-05, comprehensive-suite).
+
+**File:** `apps/web/components/shared/sub-page-tabs.tsx` — prop widened to `readonly SubPageTab[]` to accept the `as const` config.
+
+### Verification
+
+| Check                      | Status                               |
+| -------------------------- | ------------------------------------ |
+| Full component suite       | ✅ 1220/1220 pass (39 files)         |
+| Typecheck (`@xenboox/web`) | ✅ Clean                             |
+| Lint (`@xenboox/web`)      | ✅ No errors on all 22 changed files |
+
+### Next Steps
+
+- Every section's pages are mutually navigable via tabs; sidebar highlights the correct section everywhere (incl. Trial Balance → Accounting)
+- Detail/create pages (`[id]`, `/new`) intentionally left without tabs — they remain reachable via the parent page's row actions
+
+---
+
 ### [2026-07-31] — Dashboard: AI Chat Input Moved to Bottom + Slideable Suggestion Row
 
 **Agent:** opencode (Autonomous Engineer)

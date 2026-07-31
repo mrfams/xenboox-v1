@@ -4,6 +4,8 @@ import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { AnalyticsLiveness } from "@/components/agents/analytics-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
@@ -169,6 +171,7 @@ export default function AnalyticsDashboardPage() {
           title="Analytics Center"
           description="Trends, insights, and financial health — surfaced without being asked"
         />
+        <SubPageTabs tabs={MODULE_TABS.reports} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card
@@ -198,6 +201,8 @@ export default function AnalyticsDashboardPage() {
           onClick: () => router.refresh(),
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.reports} />
 
       <AnalyticsLiveness />
 

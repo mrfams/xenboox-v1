@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import {
@@ -132,6 +134,7 @@ export default function ConsolidationPipelinePage() {
           title="Consolidation Pipeline"
           description="Multi-entity consolidation and inter-company elimination"
         />
+        <SubPageTabs tabs={MODULE_TABS.accounting} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
@@ -158,6 +161,8 @@ export default function ConsolidationPipelinePage() {
           onClick: () => runPipeline.mutate({ period: currentPeriod }),
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.accounting} />
 
       {/* ── Summary Stat Cards ──────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

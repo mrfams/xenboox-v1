@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { ReportingLiveness } from "@/components/agents/reporting-liveness";
 import {
   Card,
@@ -62,7 +63,7 @@ const reportTypes = [
     title: "Trial Balance",
     description:
       "Summary of all account balances to verify debits equal credits",
-    href: "/dashboard/reports/trial-balance",
+    href: "/dashboard/trial-balance",
     icon: Scale,
     lastGenerated: new Date(Date.now() - 1000 * 60 * 30),
   },
@@ -168,14 +169,7 @@ export default function ReportsPage() {
         description="Generate, export, and schedule financial statements"
       />
 
-      <SubPageTabs
-        tabs={[
-          { label: "Reports", href: "/dashboard/reports" },
-          { label: "Budget vs Actual", href: "/dashboard/budget/pipeline" },
-          { label: "Analytics", href: "/dashboard/analytics/pipeline" },
-          { label: "Benchmarking", href: "/dashboard/benchmarking" },
-        ]}
-      />
+      <SubPageTabs tabs={MODULE_TABS.reports} />
 
       <ReportingLiveness />
 

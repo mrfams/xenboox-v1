@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
 import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { FilterBar } from "@/components/dashboard/filter-bar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
@@ -167,15 +168,7 @@ export default function COAPage() {
         }}
       />
 
-      <SubPageTabs
-        tabs={[
-          { label: "Chart of Accounts", href: "/dashboard/coa" },
-          { label: "Journal Entries", href: "/dashboard/journal" },
-          { label: "Trial Balance", href: "/dashboard/trial-balance" },
-          { label: "Month-End Close", href: "/dashboard/close" },
-          { label: "Consolidation", href: "/dashboard/consolidation" },
-        ]}
-      />
+      <SubPageTabs tabs={MODULE_TABS.accounting} />
 
       <FilterBar
         onFilterChange={(filters) => setActiveType(filters.status)}

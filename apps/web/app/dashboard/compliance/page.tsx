@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { ComplianceSummary } from "@/components/compliance/compliance-summary";
 import { ComplianceBriefing } from "@/components/compliance/compliance-briefing";
 import { ComplianceHealth } from "@/components/compliance/compliance-health";
@@ -24,16 +25,7 @@ export default function CompliancePage() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        <SubPageTabs
-          tabs={[
-            { label: "Compliance Calendar", href: "/dashboard/compliance" },
-            {
-              label: "Tax & Filings",
-              href: "/dashboard/tax-compliance/pipeline",
-            },
-            { label: "Audit Preparation", href: "/dashboard/audit/pipeline" },
-          ]}
-        />
+        <SubPageTabs tabs={MODULE_TABS.compliance} />
 
         <ComplianceSummary />
 

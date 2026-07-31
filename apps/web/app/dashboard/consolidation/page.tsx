@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { PlayCircle, BarChart3, ArrowRight } from "lucide-react";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 
 export default function ConsolidationPage() {
   return (
     <div className="mx-auto max-w-3xl py-12 space-y-6">
+      <SubPageTabs tabs={MODULE_TABS.accounting} />
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">Consolidation</h1>
         <p className="mt-2 text-sm text-muted-foreground">

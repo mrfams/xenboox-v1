@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { label: "Trial Balance", href: "/dashboard/reports/trial-balance" },
   { label: "Profit & Loss", href: "/dashboard/reports/profit-and-loss" },
   { label: "Balance Sheet", href: "/dashboard/reports/balance-sheet" },
+  { label: "Cash Flow", href: "/dashboard/reports/cash-flow" },
 ];
 
 export default function ReportsLayout({

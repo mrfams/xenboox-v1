@@ -45,7 +45,7 @@ test.describe("W.F05 Reports & Export", () => {
   });
 
   test("05.04 trial balance loads", async ({ page }) => {
-    await page.goto("/dashboard/reports/trial-balance", {
+    await page.goto("/dashboard/trial-balance", {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });

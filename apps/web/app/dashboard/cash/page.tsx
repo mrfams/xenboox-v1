@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
 import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { CashLiveness } from "@/components/agents/cash-liveness";
@@ -115,13 +116,7 @@ export default function CashPage() {
         description="Manage imprest advances, petty cash, and receipts"
       />
 
-      <SubPageTabs
-        tabs={[
-          { label: "Cash", href: "/dashboard/cash" },
-          { label: "Bank & Recon", href: "/dashboard/treasury" },
-          { label: "Mobile Money", href: "/dashboard/mobile-money" },
-        ]}
-      />
+      <SubPageTabs tabs={MODULE_TABS.money} />
 
       <CashLiveness />
 

@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { Badge, Button, Card, CardContent, Checkbox } from "@/components/ui";
@@ -92,6 +94,7 @@ export default function PaymentSchedulePage() {
           title="Payment Schedule"
           description="Upcoming payment due dates"
         />
+        <SubPageTabs tabs={MODULE_TABS.purchases} />
         <TableSkeleton rows={6} columns={5} />
       </div>
     );
@@ -113,6 +116,8 @@ export default function PaymentSchedulePage() {
           {viewMode === "list" ? "Calendar" : "List"}
         </Button>
       </PageHeader>
+
+      <SubPageTabs tabs={MODULE_TABS.purchases} />
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

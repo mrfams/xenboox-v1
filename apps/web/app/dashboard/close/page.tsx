@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { CloseLiveness } from "@/components/close/close-liveness";
 import { ErrorRecoveryLiveness } from "@/components/error-recovery/error-recovery-liveness";
 import {
@@ -116,6 +118,8 @@ export default function CloseCenterPage() {
           Reopen June
         </Button>
       </PageHeader>
+
+      <SubPageTabs tabs={MODULE_TABS.accounting} />
 
       {/* Progress */}
       <Card className="bg-gradient-to-br from-primary/5 via-primary/[0.02] to-background">

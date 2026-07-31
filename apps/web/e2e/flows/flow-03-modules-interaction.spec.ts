@@ -29,7 +29,7 @@ const modulePages = [
   { path: "/dashboard/reports", label: "Reports Hub" },
   { path: "/dashboard/reports/profit-and-loss", label: "P&L Report" },
   { path: "/dashboard/reports/balance-sheet", label: "Balance Sheet" },
-  { path: "/dashboard/reports/trial-balance", label: "Trial Balance" },
+  { path: "/dashboard/trial-balance", label: "Trial Balance" },
   { path: "/dashboard/documents", label: "Documents" },
   { path: "/dashboard/close", label: "Month-End Close" },
   { path: "/dashboard/consolidation", label: "Consolidation" },

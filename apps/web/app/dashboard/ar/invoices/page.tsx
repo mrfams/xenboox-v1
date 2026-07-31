@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
 import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { ArLiveness } from "@/components/agents/ar-liveness";
@@ -68,13 +69,7 @@ export default function ARInvoicesPage() {
         }}
       />
 
-      <SubPageTabs
-        tabs={[
-          { label: "Invoices", href: "/dashboard/ar/invoices" },
-          { label: "Customers", href: "/dashboard/ar/customers" },
-          { label: "AR Aging", href: "/dashboard/ar/aging" },
-        ]}
-      />
+      <SubPageTabs tabs={MODULE_TABS.sales} />
 
       <ArLiveness />
 

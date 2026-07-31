@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { FilterBar } from "@/components/dashboard/filter-bar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
@@ -40,6 +42,8 @@ export default function JournalPage() {
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.accounting} />
 
       <LedgerLiveness />
 

@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import {
   Card,
   CardContent,
@@ -190,6 +192,8 @@ export default function BenchmarkingPage() {
           </Button>
         )}
       </div>
+
+      <SubPageTabs tabs={MODULE_TABS.reports} />
 
       {/* Consent Status Banner */}
       <Card

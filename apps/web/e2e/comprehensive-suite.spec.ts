@@ -191,7 +191,7 @@ test.describe("W.04 Dashboard Module Routes — Redirect to Login", () => {
     "/dashboard/reports",
     "/dashboard/reports/profit-and-loss",
     "/dashboard/reports/balance-sheet",
-    "/dashboard/reports/trial-balance",
+    "/dashboard/trial-balance",
     "/dashboard/tax-compliance/pipeline",
     "/dashboard/audit/pipeline",
     "/dashboard/analytics/pipeline",

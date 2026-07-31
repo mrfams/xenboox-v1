@@ -4,6 +4,8 @@ import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { SubPageTabs } from "@/components/shared/sub-page-tabs";
+import { MODULE_TABS } from "@/components/shared/module-tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import {
@@ -168,6 +170,7 @@ export default function ARAgingPage() {
           title="AR Aging"
           description="Accounts receivable aging report"
         />
+        <SubPageTabs tabs={MODULE_TABS.sales} />
         <TableSkeleton rows={6} columns={5} />
       </div>
     );
@@ -184,6 +187,8 @@ export default function ARAgingPage() {
           icon: <Download className="mr-2 h-4 w-4" />,
         }}
       />
+
+      <SubPageTabs tabs={MODULE_TABS.sales} />
 
       {criticalCount > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 px-4 py-3 text-sm text-red-700 dark:text-red-400">

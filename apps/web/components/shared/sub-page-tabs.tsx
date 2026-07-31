@@ -11,7 +11,7 @@ type SubPageTab = {
 };
 
 interface SubPageTabsProps {
-  tabs: SubPageTab[];
+  tabs: readonly SubPageTab[];
 }
 
 export function SubPageTabs({ tabs }: SubPageTabsProps) {
