@@ -1,82 +1,111 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { trpc } from "@/lib/trpc/client"
-import { PageHeader } from "@/components/shared/page-header"
-import { EmptyState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading"
-import { FilterBar } from "@/components/dashboard/filter-bar"
-import { CreateImprestFloatDialog } from "./create-float-dialog"
-import { CreatePettyCashDialog } from "./create-entry-dialog"
-import { Badge } from "@/components/ui"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui"
-import { Wallet, Plus } from "lucide-react"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import { statusBadgeClass } from "@/lib/badge-variants"
-import type { FilterState } from "@/components/dashboard/filter-bar"
+import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
+import { CashLiveness } from "@/components/agents/cash-liveness";
+import { FilterBar } from "@/components/dashboard/filter-bar";
+import { CreateImprestFloatDialog } from "./create-float-dialog";
+import { CreatePettyCashDialog } from "./create-entry-dialog";
+import { Badge } from "@/components/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import { Wallet, Plus } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { statusBadgeClass } from "@/lib/badge-variants";
+import type { FilterState } from "@/components/dashboard/filter-bar";
 
 export default function CashPage() {
-  const router = useRouter()
-  const { data: floats, isLoading: floatsLoading } = trpc.cash.listImprestFloats.useQuery()
-  const { data: pettyCash, isLoading: pettyLoading } = trpc.cash.listPettyCash.useQuery()
-  const [floatOpen, setFloatOpen] = useState(false)
-  const [entryOpen, setEntryOpen] = useState(false)
+  const router = useRouter();
+  const { data: floats, isLoading: floatsLoading } =
+    trpc.cash.listImprestFloats.useQuery();
+  const { data: pettyCash, isLoading: pettyLoading } =
+    trpc.cash.listPettyCash.useQuery();
+  const [floatOpen, setFloatOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
   const [floatFilters, setFloatFilters] = useState<FilterState>({
-    search: "", dateFrom: "", dateTo: "", status: "", sort: "date-desc",
-  })
+    search: "",
+    dateFrom: "",
+    dateTo: "",
+    status: "",
+    sort: "date-desc",
+  });
   const [pettyFilters, setPettyFilters] = useState<FilterState>({
-    search: "", dateFrom: "", dateTo: "", status: "", sort: "date-desc",
-  })
+    search: "",
+    dateFrom: "",
+    dateTo: "",
+    status: "",
+    sort: "date-desc",
+  });
 
   const filteredFloats = useMemo(() => {
-    if (!floats) return []
-    let result = [...floats]
+    if (!floats) return [];
+    let result = [...floats];
     if (floatFilters.search) {
-      const q = floatFilters.search.toLowerCase()
+      const q = floatFilters.search.toLowerCase();
       result = result.filter(
         (f) =>
           f.assigneeName.toLowerCase().includes(q) ||
-          (f.purpose ?? "").toLowerCase().includes(q)
-      )
+          (f.purpose ?? "").toLowerCase().includes(q),
+      );
     }
     if (floatFilters.status) {
-      result = result.filter((f) => f.status === floatFilters.status)
+      result = result.filter((f) => f.status === floatFilters.status);
     }
     if (floatFilters.sort === "amount-desc") {
-      result.sort((a, b) => Number(b.amount) - Number(a.amount))
+      result.sort((a, b) => Number(b.amount) - Number(a.amount));
     } else if (floatFilters.sort === "amount-asc") {
-      result.sort((a, b) => Number(a.amount) - Number(b.amount))
+      result.sort((a, b) => Number(a.amount) - Number(b.amount));
     } else if (floatFilters.sort === "name-asc") {
-      result.sort((a, b) => a.assigneeName.localeCompare(b.assigneeName))
+      result.sort((a, b) => a.assigneeName.localeCompare(b.assigneeName));
     } else if (floatFilters.sort === "name-desc") {
-      result.sort((a, b) => b.assigneeName.localeCompare(a.assigneeName))
+      result.sort((a, b) => b.assigneeName.localeCompare(a.assigneeName));
     } else if (floatFilters.sort === "date-asc") {
-      result.sort((a, b) => new Date(a.issuedDate ?? 0).getTime() - new Date(b.issuedDate ?? 0).getTime())
+      result.sort(
+        (a, b) =>
+          new Date(a.issuedDate ?? 0).getTime() -
+          new Date(b.issuedDate ?? 0).getTime(),
+      );
     } else {
-      result.sort((a, b) => new Date(b.issuedDate ?? 0).getTime() - new Date(a.issuedDate ?? 0).getTime())
+      result.sort(
+        (a, b) =>
+          new Date(b.issuedDate ?? 0).getTime() -
+          new Date(a.issuedDate ?? 0).getTime(),
+      );
     }
-    return result
-  }, [floats, floatFilters])
+    return result;
+  }, [floats, floatFilters]);
 
   const filteredPetty = useMemo(() => {
-    if (!pettyCash) return []
-    let result = [...pettyCash]
+    if (!pettyCash) return [];
+    let result = [...pettyCash];
     if (pettyFilters.search) {
-      const q = pettyFilters.search.toLowerCase()
-      result = result.filter((e) => (e.description ?? "").toLowerCase().includes(q))
+      const q = pettyFilters.search.toLowerCase();
+      result = result.filter((e) =>
+        (e.description ?? "").toLowerCase().includes(q),
+      );
     }
     if (pettyFilters.sort === "amount-desc") {
-      result.sort((a, b) => Number(b.balance) - Number(a.balance))
+      result.sort((a, b) => Number(b.balance) - Number(a.balance));
     } else if (pettyFilters.sort === "amount-asc") {
-      result.sort((a, b) => Number(a.balance) - Number(b.balance))
+      result.sort((a, b) => Number(a.balance) - Number(b.balance));
     } else if (pettyFilters.sort === "date-asc") {
-      result.sort((a, b) => new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime())
+      result.sort(
+        (a, b) =>
+          new Date(a.transactionDate).getTime() -
+          new Date(b.transactionDate).getTime(),
+      );
     } else {
-      result.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
+      result.sort(
+        (a, b) =>
+          new Date(b.transactionDate).getTime() -
+          new Date(a.transactionDate).getTime(),
+      );
     }
-    return result
-  }, [pettyCash, pettyFilters])
+    return result;
+  }, [pettyCash, pettyFilters]);
 
   return (
     <div className="space-y-6">
@@ -84,6 +113,8 @@ export default function CashPage() {
         title="Cash & Imprest"
         description="Manage imprest advances, petty cash, and receipts"
       />
+
+      <CashLiveness />
 
       <Tabs defaultValue="floats">
         <TabsList>
@@ -120,16 +151,28 @@ export default function CashPage() {
               description="Create your first imprest float to advance funds."
             />
           ) : (
-              <div className="overflow-x-auto rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Assignee</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Purpose</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Issued</th>
-                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Amount</th>
-                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Remaining</th>
-                    <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">Status</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Assignee
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Purpose
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Issued
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                      Amount
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                      Remaining
+                    </th>
+                    <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -137,11 +180,19 @@ export default function CashPage() {
                     <tr
                       key={float.id}
                       className="border-b hover:bg-muted/50 cursor-pointer"
-                      onClick={() => router.push(`/dashboard/cash/floats/${float.id}`)}
+                      onClick={() =>
+                        router.push(`/dashboard/cash/floats/${float.id}`)
+                      }
                     >
-                      <td className="py-3 px-4 text-sm font-medium">{float.assigneeName}</td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">{float.purpose ?? "—"}</td>
-                      <td className="py-3 px-4 text-sm">{formatDate(float.issuedDate!)}</td>
+                      <td className="py-3 px-4 text-sm font-medium">
+                        {float.assigneeName}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">
+                        {float.purpose ?? "—"}
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        {formatDate(float.issuedDate!)}
+                      </td>
                       <td className="py-3 px-4 text-sm text-right font-mono">
                         {formatCurrency(Number(float.amount))}
                       </td>
@@ -149,7 +200,10 @@ export default function CashPage() {
                         {formatCurrency(Number(float.remainingBalance))}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <Badge variant="secondary" className={statusBadgeClass(float.status)}>
+                        <Badge
+                          variant="secondary"
+                          className={statusBadgeClass(float.status)}
+                        >
                           {float.status}
                         </Badge>
                       </td>
@@ -192,29 +246,51 @@ export default function CashPage() {
               description="Record your first petty cash transaction."
             />
           ) : (
-              <div className="overflow-x-auto rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Date</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Description</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Category</th>
-                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Debit</th>
-                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Credit</th>
-                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Balance</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Date
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Description
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Category
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                      Debit
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                      Credit
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                      Balance
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPetty.map((entry) => (
                     <tr key={entry.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4 text-sm">{formatDate(entry.transactionDate)}</td>
-                      <td className="py-3 px-4 text-sm">{entry.description ?? "—"}</td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">{entry.category ?? "—"}</td>
-                      <td className="py-3 px-4 text-sm text-right font-mono">
-                        {Number(entry.debit ?? 0) > 0 ? formatCurrency(Number(entry.debit)) : "—"}
+                      <td className="py-3 px-4 text-sm">
+                        {formatDate(entry.transactionDate)}
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        {entry.description ?? "—"}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">
+                        {entry.category ?? "—"}
                       </td>
                       <td className="py-3 px-4 text-sm text-right font-mono">
-                        {Number(entry.credit ?? 0) > 0 ? formatCurrency(Number(entry.credit)) : "—"}
+                        {Number(entry.debit ?? 0) > 0
+                          ? formatCurrency(Number(entry.debit))
+                          : "—"}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-right font-mono">
+                        {Number(entry.credit ?? 0) > 0
+                          ? formatCurrency(Number(entry.credit))
+                          : "—"}
                       </td>
                       <td className="py-3 px-4 text-sm text-right font-mono">
                         {formatCurrency(Number(entry.balance))}
@@ -241,5 +317,5 @@ export default function CashPage() {
       <CreateImprestFloatDialog open={floatOpen} onOpenChange={setFloatOpen} />
       <CreatePettyCashDialog open={entryOpen} onOpenChange={setEntryOpen} />
     </div>
-  )
+  );
 }

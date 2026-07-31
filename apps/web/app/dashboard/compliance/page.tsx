@@ -13,6 +13,7 @@ import { ComplianceAuditTrail } from "@/components/compliance/compliance-audit-t
 import { ComplianceAIPanel } from "@/components/compliance/compliance-ai-panel";
 import { ComplianceQuickActions } from "@/components/compliance/compliance-quick-actions";
 import { ComplianceLivenessCalendar } from "@/components/compliance/compliance-liveness-calendar";
+import { ComplianceLiveness } from "@/components/agents/compliance-liveness";
 import { RuleChangeProposals } from "@/components/compliance/rule-change-proposals";
 
 export default function CompliancePage() {
@@ -30,6 +31,8 @@ export default function CompliancePage() {
           </div>
           <RuleChangeProposals />
         </div>
+
+        <ComplianceLiveness />
 
         {/* Top row: Briefing + Health + Tax Center */}
         <div className="grid gap-6 lg:grid-cols-3">

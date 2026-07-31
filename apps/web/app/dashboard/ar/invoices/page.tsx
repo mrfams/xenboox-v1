@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
+import { ArLiveness } from "@/components/agents/ar-liveness";
 import { FilterBar } from "@/components/dashboard/filter-bar";
 import { CreateInvoiceDialog } from "./create-dialog";
 import { Badge } from "@/components/ui";
@@ -65,6 +66,8 @@ export default function ARInvoicesPage() {
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
       />
+
+      <ArLiveness />
 
       <FilterBar
         onFilterChange={setFilters}

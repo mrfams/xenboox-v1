@@ -1,14 +1,15 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { trpc } from "@/lib/trpc/client"
-import { PageHeader } from "@/components/shared/page-header"
-import { EmptyState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading"
-import { Badge } from "@/components/ui"
-import { Smartphone, Plus } from "lucide-react"
-import { formatDate, formatCurrency } from "@/lib/utils"
-import { CreateAccountDialog } from "./create-account-dialog"
+import { useState } from "react";
+import { trpc } from "@/lib/trpc/client";
+import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
+import { MobileMoneyLiveness } from "@/components/agents/mobile-money-liveness";
+import { Badge } from "@/components/ui";
+import { Smartphone, Plus } from "lucide-react";
+import { formatDate, formatCurrency } from "@/lib/utils";
+import { CreateAccountDialog } from "./create-account-dialog";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -16,7 +17,7 @@ const statusColors: Record<string, string> = {
   failed: "bg-red-100 text-red-800",
   reversed: "bg-orange-100 text-orange-800",
   timeout: "bg-gray-100 text-gray-800",
-}
+};
 
 const providerLabels: Record<string, string> = {
   modempay: "ModemPay",
@@ -24,12 +25,13 @@ const providerLabels: Record<string, string> = {
   qmoney: "QMoney",
   mpesa: "M-Pesa",
   wave: "Wave",
-}
+};
 
 export default function MobileMoneyPage() {
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const { data: transactions, isLoading } = trpc.mobileMoney.listTransactions.useQuery()
-  const { data: accounts } = trpc.mobileMoney.listAccounts.useQuery()
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const { data: transactions, isLoading } =
+    trpc.mobileMoney.listTransactions.useQuery();
+  const { data: accounts } = trpc.mobileMoney.listAccounts.useQuery();
 
   return (
     <div className="space-y-8">
@@ -38,8 +40,14 @@ export default function MobileMoneyPage() {
         <PageHeader
           title="Mobile Money Accounts"
           description="Manage mobile money provider accounts"
-          action={{ label: "New Account", icon: <Plus className="mr-2 h-4 w-4" />, onClick: () => setShowCreateDialog(true) }}
+          action={{
+            label: "New Account",
+            icon: <Plus className="mr-2 h-4 w-4" />,
+            onClick: () => setShowCreateDialog(true),
+          }}
         />
+
+        <MobileMoneyLiveness />
 
         {!accounts || accounts.length === 0 ? (
           <EmptyState
@@ -58,18 +66,25 @@ export default function MobileMoneyPage() {
                   </Badge>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {providerLabels[account.provider] || account.provider} · {account.phoneNumber}
+                  {providerLabels[account.provider] || account.provider} ·{" "}
+                  {account.phoneNumber}
                 </p>
                 <p className="mt-2 text-lg font-bold font-mono">
-                  {parseFloat(account.currentBalance || "0").toLocaleString("en-GM", { minimumFractionDigits: 2 })}
+                  {parseFloat(account.currentBalance || "0").toLocaleString(
+                    "en-GM",
+                    { minimumFractionDigits: 2 },
+                  )}
                 </p>
               </div>
-            )            )}
+            ))}
           </div>
         )}
       </div>
 
-      <CreateAccountDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+      <CreateAccountDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+      />
 
       {/* Transactions */}
       <div className="space-y-6">
@@ -91,28 +106,53 @@ export default function MobileMoneyPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Date</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Type</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Description</th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Amount</th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">Fee</th>
-                  <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">Status</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Date
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Type
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Description
+                  </th>
+                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                    Amount
+                  </th>
+                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                    Fee
+                  </th>
+                  <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {transactions.map((tx) => (
                   <tr key={tx.id} className="border-b hover:bg-muted/50">
-                    <td className="py-3 px-4 text-sm">{formatDate(tx.initiatedAt)}</td>
-                    <td className="py-3 px-4 text-sm capitalize">{tx.type.replace(/_/g, " ")}</td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground">{tx.description || "—"}</td>
+                    <td className="py-3 px-4 text-sm">
+                      {formatDate(tx.initiatedAt)}
+                    </td>
+                    <td className="py-3 px-4 text-sm capitalize">
+                      {tx.type.replace(/_/g, " ")}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">
+                      {tx.description || "—"}
+                    </td>
                     <td className="py-3 px-4 text-sm text-right font-mono">
-                      {parseFloat(tx.amount).toLocaleString("en-GM", { minimumFractionDigits: 2 })}
+                      {parseFloat(tx.amount).toLocaleString("en-GM", {
+                        minimumFractionDigits: 2,
+                      })}
                     </td>
                     <td className="py-3 px-4 text-sm text-right font-mono text-muted-foreground">
-                      {parseFloat(tx.fee || "0").toLocaleString("en-GM", { minimumFractionDigits: 2 })}
+                      {parseFloat(tx.fee || "0").toLocaleString("en-GM", {
+                        minimumFractionDigits: 2,
+                      })}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <Badge variant="secondary" className={statusColors[tx.status]}>
+                      <Badge
+                        variant="secondary"
+                        className={statusColors[tx.status]}
+                      >
                         {tx.status}
                       </Badge>
                     </td>
@@ -124,5 +164,5 @@ export default function MobileMoneyPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -30,7 +30,6 @@ import {
   TrendingUp,
   CalendarDays,
   Activity,
-  Rocket,
   type LucideIcon,
 } from "lucide-react";
 
@@ -79,11 +78,6 @@ const navGroups: NavGroup[] = [
         badge: "AI",
         attrs: { "data-tour": "cfo-agent" },
       },
-      {
-        label: "Onboarding Liveness",
-        href: "/dashboard/onboarding/liveness",
-        icon: Rocket,
-      },
     ],
   },
   {
@@ -96,31 +90,11 @@ const navGroups: NavGroup[] = [
       },
       { label: "Bank & Recon", href: "/dashboard/treasury", icon: Landmark },
       {
-        label: "Recon Agent Liveness",
-        href: "/dashboard/agents/reconciliation",
-        icon: Activity,
-      },
-      {
         label: "Mobile Money",
         href: "/dashboard/mobile-money",
         icon: Smartphone,
       },
-      {
-        label: "Mobile Money Agent Liveness",
-        href: "/dashboard/agents/mobile-money",
-        icon: Activity,
-      },
       { label: "Cash & Imprest", href: "/dashboard/cash", icon: Wallet },
-      {
-        label: "Cash Agent Liveness",
-        href: "/dashboard/agents/cash",
-        icon: Activity,
-      },
-      {
-        label: "Treasury Agent Liveness",
-        href: "/dashboard/agents/treasury",
-        icon: Activity,
-      },
     ],
   },
   {
@@ -129,11 +103,6 @@ const navGroups: NavGroup[] = [
       { label: "Invoices (AR)", href: "/dashboard/ar/invoices", icon: Receipt },
       { label: "Customers", href: "/dashboard/ar/customers", icon: Users },
       { label: "AR Aging", href: "/dashboard/ar/aging", icon: TrendingUp },
-      {
-        label: "AR Agent Liveness",
-        href: "/dashboard/agents/ar",
-        icon: Activity,
-      },
     ],
   },
   {
@@ -151,11 +120,6 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/ap/payment-schedule",
         icon: CalendarDays,
       },
-      {
-        label: "AP Agent Liveness",
-        href: "/dashboard/agents/ap",
-        icon: Activity,
-      },
     ],
   },
   {
@@ -168,25 +132,10 @@ const navGroups: NavGroup[] = [
         badge: "AI",
       },
       {
-        label: "Payroll Agent Liveness",
-        href: "/dashboard/agents/payroll",
-        icon: Activity,
-      },
-      {
-        label: "Payroll Manager Liveness",
-        href: "/dashboard/agents/payroll-manager",
-        icon: Activity,
-      },
-      {
         label: "Expenses",
         href: "/dashboard/expense/pipeline",
         icon: DollarSign,
         badge: "AI",
-      },
-      {
-        label: "Expense Agent Liveness",
-        href: "/dashboard/agents/expense",
-        icon: Activity,
       },
     ],
   },
@@ -205,16 +154,6 @@ const navGroups: NavGroup[] = [
         icon: Boxes,
         badge: "AI",
       },
-      {
-        label: "Asset Agent Liveness",
-        href: "/dashboard/agents/assets",
-        icon: Activity,
-      },
-      {
-        label: "Inventory Agent Liveness",
-        href: "/dashboard/agents/inventory",
-        icon: Activity,
-      },
     ],
   },
   {
@@ -223,32 +162,11 @@ const navGroups: NavGroup[] = [
       { label: "Chart of Accounts", href: "/dashboard/coa", icon: BookOpen },
       { label: "Journal Entries", href: "/dashboard/journal", icon: FileText },
       {
-        label: "Ledger Agent Liveness",
-        href: "/dashboard/agents/ledger",
-        icon: Activity,
-      },
-      {
-        label: "Controller Agent Liveness",
-        href: "/dashboard/agents/controller",
-        icon: Activity,
-      },
-      {
         label: "Trial Balance",
         href: "/dashboard/trial-balance",
         icon: TrendingUp,
       },
       { label: "Month-End Close", href: "/dashboard/close", icon: Shield },
-      {
-        label: "Month-End Close Liveness",
-        href: "/dashboard/close/liveness",
-        icon: Activity,
-      },
-      {
-        label: "CFO Agent Liveness",
-        href: "/dashboard/agents/cfo",
-        icon: Activity,
-        badge: "AI",
-      },
       {
         label: "Consolidation",
         href: "/dashboard/consolidation",
@@ -266,31 +184,16 @@ const navGroups: NavGroup[] = [
         icon: BarChart3,
       },
       {
-        label: "Reporting Agent Liveness",
-        href: "/dashboard/agents/reporting",
-        icon: Activity,
-      },
-      {
         label: "Budget vs Actual",
         href: "/dashboard/budget/pipeline",
         icon: PiggyBank,
         badge: "AI",
       },
       {
-        label: "Budget Agent Liveness",
-        href: "/dashboard/agents/budget",
-        icon: Activity,
-      },
-      {
         label: "Analytics",
         href: "/dashboard/analytics/pipeline",
         icon: Search,
         badge: "AI",
-      },
-      {
-        label: "Analytics Agent Liveness",
-        href: "/dashboard/agents/analytics",
-        icon: Activity,
       },
       {
         label: "Benchmarking",
@@ -310,16 +213,6 @@ const navGroups: NavGroup[] = [
         badge: "AI",
       },
       {
-        label: "Tax Agent Liveness",
-        href: "/dashboard/agents/tax",
-        icon: Activity,
-      },
-      {
-        label: "Compliance Agent Liveness",
-        href: "/dashboard/agents/compliance",
-        icon: Activity,
-      },
-      {
         label: "Compliance Calendar",
         href: "/dashboard/compliance",
         icon: CalendarDays,
@@ -331,11 +224,6 @@ const navGroups: NavGroup[] = [
         icon: Search,
         badge: "AI",
       },
-      {
-        label: "Audit Agent Liveness",
-        href: "/dashboard/agents/audit",
-        icon: Activity,
-      },
       { label: "Audit Log", href: "/dashboard/audit-log", icon: FileText },
     ],
   },
@@ -344,11 +232,6 @@ const navGroups: NavGroup[] = [
 const bottomNavItems: NavItem[] = [
   { label: "AI Team", href: "/dashboard/agents", icon: Activity, badge: "AI" },
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
-  {
-    label: "Document Agent Liveness",
-    href: "/dashboard/agents/documents",
-    icon: Activity,
-  },
   {
     label: "Approvals",
     href: "/dashboard/review-queue",

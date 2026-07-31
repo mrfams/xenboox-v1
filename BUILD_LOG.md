@@ -6,6 +6,67 @@
 
 ---
 
+### [2026-07-31] — AI-Native Conversion: Embed All 24 Liveness Surfaces into Their Module Pages
+
+**Agent:** opencode (Autonomous Engineer)
+**Duration:** ~90 min
+**Files Created:** 0 **Files Modified:** 22 **Files Deleted:** 24 routes
+
+**What was built (web only, per scope):**
+
+**Context:** 24 standalone liveness pages (21 agent specs under `/dashboard/agents/*`, plus close/onboarding/error-recovery flow liveness pages) existed as separate routes. Liveness is transparency into an agent while it works — it should live **on the module page it describes**, making that page AI-Native, not on a dead-end page. This conversion removes all 24 standalone routes and embeds the liveness components into their respective module pages.
+
+**Module pages that became AI-Native (21 files, each now renders its agent's liveness component after the PageHeader):**
+
+| Module page                               | Liveness embedded                                      |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `/dashboard/chat` (Ask CFO Agent)         | `CfoLiveness`                                          |
+| `/dashboard/cash` (Cash & Imprest)        | `CashLiveness`                                         |
+| `/dashboard/treasury` (Bank & Recon)      | `TreasuryLiveness` + `ReconciliationLiveness`          |
+| `/dashboard/ap/invoices` (Bills)          | `ApLiveness`                                           |
+| `/dashboard/ar/invoices` (Sales Invoices) | `ArLiveness`                                           |
+| `/dashboard/journal`                      | `LedgerLiveness`                                       |
+| `/dashboard/inventory/pipeline`           | `InventoryLiveness`                                    |
+| `/dashboard/expense/pipeline`             | `ExpenseLiveness`                                      |
+| `/dashboard/documents`                    | `DocumentLiveness`                                     |
+| `/dashboard/review-queue`                 | `ControllerLiveness`                                   |
+| `/dashboard/compliance`                   | `ComplianceLiveness` (alongside existing Liveness Row) |
+| `/dashboard/audit/pipeline`               | `AuditLiveness`                                        |
+| `/dashboard/fixed-assets/pipeline`        | `AssetLiveness`                                        |
+| `/dashboard/tax-compliance/pipeline`      | `TaxLiveness`                                          |
+| `/dashboard/reports`                      | `ReportingLiveness`                                    |
+| `/dashboard/budget/pipeline`              | `BudgetLiveness`                                       |
+| `/dashboard/analytics/pipeline`           | `AnalyticsLiveness`                                    |
+| `/dashboard/mobile-money`                 | `MobileMoneyLiveness`                                  |
+| `/dashboard/payroll/pipeline`             | `PayrollManagerLiveness` + `PayrollWorkerLiveness`     |
+| `/dashboard/close`                        | `CloseLiveness` + `ErrorRecoveryLiveness`              |
+| `(auth)/register/onboarding` wizard       | `OnboardingLiveness`                                   |
+
+**Routes deleted (24):** all `apps/web/app/dashboard/agents/*/page.tsx` (21 sub-pages; the `/dashboard/agents` AI Team hub is kept), plus `/dashboard/close/liveness`, `/dashboard/onboarding/liveness`, `/dashboard/error-recovery/liveness` (folders removed; now-empty agent dirs cleaned).
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — removed all 24 "Agent Liveness"/"Liveness" nav items (Onboarding, Recon, Mobile Money, Cash, Treasury, AR, AP, Payroll, Payroll Manager, Expense, Asset, Inventory, Ledger, Controller, Month-End Close, Error Recovery, CFO, Reporting, Budget, Analytics, Tax, Compliance, Audit, Document). Module-page nav items already present, so nothing else re-pointed. Removed now-unused `Rocket`/`RefreshCw` imports.
+
+**Design notes:**
+
+- The `chat` page's full-height workspace kept intact; `CfoLiveness` renders below the workspace with restored main padding (`-mt/-mx` instead of full `-m`).
+- All other pages embed inside their existing `space-y-6` container right after `PageHeader` (mirrors the compliance-page Liveness Row precedent). Pipeline pages embed in the main data branch only (loading/empty branches untouched).
+- Liveness components themselves were NOT modified — placement only.
+
+### Verification
+
+| Check                      | Status                                                                                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Full component suite       | ✅ 1220/1220 pass (39 files)                                                                                                                     |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                                                                                                                         |
+| Lint (`@xenboox/web`)      | ✅ No new errors (6 pre-existing errors in untouched files: admin/layout, consolidation/view, agent-activity-feed, guided-tour, entity-switcher) |
+
+### Next Steps
+
+- Liveness now lives on 21 module pages + the close center + onboarding wizard — the platform is AI-Native by construction; no separate liveness routes remain
+- Schema flags from prior close/onboarding sessions unchanged
+
+---
+
 ### [2026-07-31] — Month-End Close Liveness (spec v1.0): Cross-Cutting Close Flow — Live Checklist, Readiness Gate & the Never-Silently-Proceeds Critical Rule
 
 **Agent:** Buffy (Autonomous Engineer)

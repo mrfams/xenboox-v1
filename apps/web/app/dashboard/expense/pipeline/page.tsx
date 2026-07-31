@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { ExpenseLiveness } from "@/components/agents/expense-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import {
@@ -170,6 +171,8 @@ export default function ExpenseDashboardPage() {
           onClick: () => setSubmitDialogOpen(true),
         }}
       />
+
+      <ExpenseLiveness />
 
       {/* ── Summary Stat Cards ────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

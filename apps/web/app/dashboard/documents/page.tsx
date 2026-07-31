@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
+import { DocumentLiveness } from "@/components/agents/document-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { FilterBar } from "@/components/dashboard/filter-bar";
@@ -348,6 +349,8 @@ export default function DocumentsPage() {
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
       />
+
+      <DocumentLiveness />
 
       {/* Email address banner */}
       <Card className="bg-gradient-to-r from-primary/5 to-primary/[0.02] border-primary/10">

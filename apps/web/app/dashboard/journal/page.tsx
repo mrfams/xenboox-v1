@@ -1,30 +1,33 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { trpc } from "@/lib/trpc/client"
-import { PageHeader } from "@/components/shared/page-header"
-import { FilterBar } from "@/components/dashboard/filter-bar"
-import { EmptyState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading"
-import { Badge } from "@/components/ui"
-import { FileText, Plus } from "lucide-react"
-import { formatDate } from "@/lib/utils"
-import { statusBadgeClass } from "@/lib/badge-variants"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
+import { PageHeader } from "@/components/shared/page-header";
+import { FilterBar } from "@/components/dashboard/filter-bar";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
+import { LedgerLiveness } from "@/components/agents/ledger-liveness";
+import { Badge } from "@/components/ui";
+import { FileText, Plus } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+import { statusBadgeClass } from "@/lib/badge-variants";
 
 const statusOptions = [
   { value: "draft", label: "Draft" },
   { value: "posted", label: "Posted" },
   { value: "reversed", label: "Reversed" },
-]
+];
 
 export default function JournalPage() {
-  const router = useRouter()
-  const [statusFilter, setStatusFilter] = useState("")
+  const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState("");
 
   const { data: entries, isLoading } = trpc.journal.list.useQuery({
-    ...(statusFilter ? { status: statusFilter as "draft" | "posted" | "reversed" } : {}),
-  })
+    ...(statusFilter
+      ? { status: statusFilter as "draft" | "posted" | "reversed" }
+      : {}),
+  });
 
   return (
     <div className="space-y-6">
@@ -37,6 +40,8 @@ export default function JournalPage() {
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
       />
+
+      <LedgerLiveness />
 
       <FilterBar
         onFilterChange={(filters) => setStatusFilter(filters.status)}
@@ -85,13 +90,18 @@ export default function JournalPage() {
                   className="border-b hover:bg-muted/50 cursor-pointer"
                   onClick={() => router.push(`/dashboard/journal/${entry.id}`)}
                 >
-                  <td className="py-3 px-4 text-sm">{formatDate(entry.date)}</td>
+                  <td className="py-3 px-4 text-sm">
+                    {formatDate(entry.date)}
+                  </td>
                   <td className="py-3 px-4 text-sm font-mono">
                     {entry.reference || `#${entry.entryNumber}`}
                   </td>
                   <td className="py-3 px-4 text-sm">{entry.description}</td>
                   <td className="py-3 px-4 text-center">
-                    <Badge variant="secondary" className={statusBadgeClass(entry.status)}>
+                    <Badge
+                      variant="secondary"
+                      className={statusBadgeClass(entry.status)}
+                    >
                       {entry.status}
                     </Badge>
                   </td>
@@ -102,5 +112,5 @@ export default function JournalPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

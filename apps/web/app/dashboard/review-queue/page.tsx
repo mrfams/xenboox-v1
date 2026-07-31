@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { ControllerLiveness } from "@/components/agents/controller-liveness";
 import { Button, Badge, Card } from "@/components/ui";
 import { Skeleton } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
@@ -116,6 +117,8 @@ export default function ReviewQueuePage() {
         title="Ingestion Review Queue"
         description="Review and approve transactions that require human verification before posting"
       />
+
+      <ControllerLiveness />
 
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

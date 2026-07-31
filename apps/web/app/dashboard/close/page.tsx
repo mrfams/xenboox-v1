@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { CloseLiveness } from "@/components/close/close-liveness";
+import { ErrorRecoveryLiveness } from "@/components/error-recovery/error-recovery-liveness";
 import {
   Button,
   Card,
@@ -144,6 +146,10 @@ export default function CloseCenterPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Agent Liveness */}
+      <CloseLiveness />
+      <ErrorRecoveryLiveness />
 
       {/* Steps checklist */}
       <div className="space-y-2">

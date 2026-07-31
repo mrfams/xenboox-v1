@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { ReportingLiveness } from "@/components/agents/reporting-liveness";
 import {
   Card,
   CardContent,
@@ -165,6 +166,8 @@ export default function ReportsPage() {
         title="Financial Reports"
         description="Generate, export, and schedule financial statements"
       />
+
+      <ReportingLiveness />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {reportTypes.map((report) => (

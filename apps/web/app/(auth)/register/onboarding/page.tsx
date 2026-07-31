@@ -12,6 +12,7 @@ import {
   CardDescription,
 } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
+import { OnboardingLiveness } from "@/components/onboarding/onboarding-liveness";
 import {
   Check,
   Circle,
@@ -583,6 +584,11 @@ export default function OnboardingPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Agent Liveness */}
+        <div className="mt-8">
+          <OnboardingLiveness />
+        </div>
       </div>
     </div>
   );
