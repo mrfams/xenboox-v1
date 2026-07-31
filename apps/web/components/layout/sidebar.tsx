@@ -189,6 +189,11 @@ const navGroups: NavGroup[] = [
         icon: Boxes,
         badge: "AI",
       },
+      {
+        label: "Asset Agent Liveness",
+        href: "/dashboard/agents/assets",
+        icon: Activity,
+      },
     ],
   },
   {

@@ -6,6 +6,60 @@
 
 ---
 
+### [2026-07-31] — Asset Agent Liveness (spec v1.0): Depreciation Formula Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~45 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/asset-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): ASSET_REGISTERED → CLASSIFIED → DEPRECIATION_SCHEDULE_SET → DEPRECIATION_CALCULATED → POSTED → VERIFICATION_DUE_CHECK, with **DISPOSAL_FLAGGED** rendered as a separate outcome badge (never a listitem)
+- **Critical rule (Spec §2/§3/§5): the depreciation formula is always shown, never a bare number** — `data-step="formula"` card: "Depreciation this period: (GMD 12,000 cost − GMD 1,200 salvage) ÷ 5 years = GMD 2,160/year → GMD 180 this month. Straight-line method, per Motor Vehicles policy." + "Deterministic arithmetic — no confidence score. The formula is the answer."
+- **Per-period depreciation schedule (Spec §9)** — table with 8 rows (Q1 2026 → Q4 2027, GMD 540/period, running balance), current period Q2 2026 highlighted (`bg-signal-indigo/10` + bold), **one row per period, not a single computed field**
+- **Auto-classification (Spec §3 step 2)** — confidence only when auto-classified from description: single **88% meter**; copy states user-selected classifications carry no score
+- **Meter discipline** — exactly **1 meter total** in main view (auto-classification only); formula card, schedule, verification, and all branch states carry **0 meters**
+- **Verification due check (Spec §2/§4)** — upcoming task list ("Physical verification due July 15, 2026 — responsible person: Awa Sillah"), not buried in asset detail
+- **Disposal flag — never auto-disposed (Spec §3/§6/§7)** — `showDisposal` branch: "Fully depreciated — review for disposal?", "Never auto-disposed — requires an explicit review decision", non-blocking, escalated to Controller Agent
+- **Blocking escalation (Spec §6)** — `showAmbiguousClass`: "Which asset class — confirm", blocking for that asset
+- **Error/failure (Spec §7)** — `showIncomplete`: missing salvage value or useful life → cannot proceed to schedule-set, flagged as incomplete record
+- **Terminal posted state** — `showPosted`: Q2 2026 depreciation (GMD 540.00) handed to Ledger Agent, Controller review before month-end close, 0 meters
+- Asset register as a live table (Delivery Van FG-14, GMD 12,000.00, GMD 180/month, Active), escalation & human-in-the-loop triggers table (3: ambiguous class blocking / fully-depreciated-in-use non-blocking / verification overdue non-blocking), How It Works 7-step decomposition (Register / Classify / Build Schedule / Calculate with formula / Post / Check Verification / Flag Disposal), constraint badges (Formula Always Shown, Schedule Per-Period, Never Auto-Disposed, Verification Tracked), audit trail table (7 data rows: registration, classification 88% auto, schedule set, depreciation with formula, posted JE-2026-0341, verification, disposal not triggered), cross-agent chain (this agent → Ledger Agent posting → Controller Agent review before close), Layer 1 deterministic vs Layer 2 probabilistic footer, 9 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/asset-liveness.test.tsx` — NEW, 39 tests (TDD RED → GREEN) locking spec rules: pipeline order, DISPOSAL_FLAGGED badge, formula shown explicitly (never bare number), per-period schedule rows + current period highlight, exactly-1-meter invariant, no-meter formula card, disposal never-auto-disposed non-blocking, ambiguous-class blocking, incomplete-record hard stop, posted terminal (0 meters), verification task list, audit trail columns, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/assets/page.tsx` — NEW dashboard page (mirrors expense liveness page pattern): breadcrumb, hero, 3 key principles (formula always shown / schedule per-period / never auto-disposed), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Asset Agent Liveness" nav item to Assets & Inventory group (after Inventory)
+
+**Review findings fixed during build:**
+
+- One `getByText` multi-match test failure → converted to `getAllByText`: `/Asset Register/i` (section header + status-grid source cell "Asset register")
+- Reviewer verified: all remaining `getByText` calls have no multi-match risk (`/Depreciation Schedule/` safe because How It Works step is "Build Depreciation Schedule" and section header lacks "Build"; audit "Posted to Ledger" event collapsed by default so `getByText(/Posted to Ledger Agent/i)` unambiguous in showPosted branch)
+
+### Verification
+
+| Check                      | Status                                         |
+| -------------------------- | ---------------------------------------------- |
+| Asset liveness tests       | ✅ 39/39 pass                                  |
+| Full component suite       | ✅ 468/468 pass (15 files)                     |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                       |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/assets built |
+| Code review                | ✅ Multiple passes, all findings addressed     |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login)  |
+
+### Next Steps
+
+- Remaining liveness specs: Document, Treasury, Controller, Reporting
+- Asset spec §9 schema flags: `assets.status` enum (`registered | classified | active | disposal_flagged | disposed`), `asset_depreciation_schedule` table (one row per period, NOT a single computed field) — flagged for schema review
+- Asset spec §11 open question: auto-classification confidence threshold for asset class from description text not yet calibrated — needs golden dataset calibration
+- Asset spec §3 note: classification confidence applies only when auto-classified; the demo renders exactly one 88% meter with copy noting user-selected classifications carry no score — preserves exactly-1-meter invariant
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Expense Agent Liveness (spec v1.0): Itemized Policy-Check Transparency
 
 **Agent:** Buffy (Autonomous Engineer)
