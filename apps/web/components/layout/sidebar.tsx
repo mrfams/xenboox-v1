@@ -269,6 +269,11 @@ const navGroups: NavGroup[] = [
         badge: "AI",
       },
       {
+        label: "Tax Agent Liveness",
+        href: "/dashboard/agents/tax",
+        icon: Activity,
+      },
+      {
         label: "Compliance Calendar",
         href: "/dashboard/compliance",
         icon: CalendarDays,

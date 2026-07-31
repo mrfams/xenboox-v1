@@ -6,6 +6,59 @@
 
 ---
 
+### [2026-07-31] — Tax Agent Liveness (spec v1.0): Rule-Versioned Calculation Transparency
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~55 min
+**Files Created:** 3 **Files Modified:** 1
+
+**What was built (web only, per scope):**
+
+**File:** `apps/web/components/agents/tax-liveness.tsx` — NEW (spec-compliant liveness card)
+
+- State machine pipeline (semantic `<ol>`/`<li>`): TRANSACTIONS_SCANNED → RATE_RULE_APPLIED → RETURN_LINE_ASSEMBLED → DEADLINE_CHECKED → HANDED_TO_COMPLIANCE_REVIEW, active = RATE_RULE_APPLIED
+- **Critical rule (Spec §3/§6): never apply the "closest" rule as a silent guess** — no-rule gap flagged as an attention-amber card: "No rule found for transaction type cross-border digital service fee — flagged for Compliance Agent, not calculated" + "excluded from the return until resolved" + "Blocking for that line only"
+- **Per-line rule citation (Spec §3/§4/§5)** — `data-step="rule"` card shows rate %, rule name, jurisdiction, effective date, and **rule version badge** (rule v2.1): "VAT on Sale #1042: GMD 500.00 × 15% = GMD 75.00 — GRA Gambia standard VAT rate, effective since Jan 1 2026" + per-row sub-line (rule name · jurisdiction · effective · version)
+- **Zero confidence meters total — the entire tax lifecycle is deterministic (Spec §3 marks every step "no confidence score")**: scan (rule-based filtering), rule lookup, assembly, deadline check, handoff
+- **Deadline countdown persistent (Spec §4/§6)** — "VAT return due Aug 15 2026 — 12 days remaining. Countdown shown persistently."
+- **Escalation & human-in-the-loop (Spec §6)** — triggers table: no matching tax rule → Compliance Agent/human (explicit gap, excluded until resolved, blocking for that line only), deadline within threshold + incomplete return → escalating urgency (non-blocking but urgent), stale rule set → "Rate table last confirmed [date] — verify current" (informational)
+- **Branch states** — `showNoRule` ("Tax Rule Gap Flagged", cross-border digital service fee, blocking for that line only, 0 meters), `showDeadlineUrgent` ("Filing Deadline — Urgent", 3 days remaining, escalating urgency), `showStaleRules` ("Rule Set Stale — Verify Current", rate table last confirmed Jul 1 2026, informational), `showMissingData` ("Missing Transaction Data", flagged, not estimated), `showHandedOff` ("Handed to Compliance Agent for review", terminal for Tax Agent scope) — all 0 meters
+- How It Works 5-step decomposition (Scan Transactions for Tax Relevance / Apply Rate-Rule per Transaction / Assemble Return Line by Line / Check Deadline / Hand to Compliance Agent), constraint badges (Rule Cited Per Line, Never Guess a Rule, Rule Versioned, Deadline Tracked), return lines table with source/basis/tax/rule-version columns + Net VAT GMD 120.00, audit trail table (7 data rows: transaction scan, rule applied ×2 with version, rule gap flagged, return assembled, deadline checked, handed to Compliance), cross-agent chain (Ledger Agent transaction data → this agent → Compliance Agent rule sets + review), Layer 1 deterministic footer ("Rule cited per line — a guessed rate is never applied"), 10 `role="region"` containers
+
+**File:** `apps/web/__tests__/components/tax-liveness.test.tsx` — NEW, 37 tests (TDD RED → GREEN) locking spec rules: pipeline order, rule citation per line (rate/rule/jurisdiction/effective date/version), never-guess-a-rule critical rule (no closest-rule silent guess, excluded until resolved, blocking for that line only), zero-meter invariant (main view AND all branches), persistent deadline countdown, deterministic scan, no-rule blocking branch, deadline-urgent non-blocking branch, stale-rules informational branch, missing-data flagged-not-estimated, handoff terminal, audit trail columns (Rule/Version/Detail), cross-agent chain, entity scoping
+
+**File:** `apps/web/app/dashboard/agents/tax/page.tsx` — NEW dashboard page (mirrors inventory liveness page pattern): breadcrumb, hero, 3 key principles (rule cited per line / never guess a rule / deadline tracked), AICommandBar, liveness controls
+
+**File:** `apps/web/components/layout/sidebar.tsx` — MODIFIED — added "Tax Agent Liveness" nav item to Compliance group (after Tax & Filings)
+
+**Review findings fixed during build:**
+
+- Rule-citation test regex needed `.00` decimals to match rendered basis "GMD 500.00 × 15%" (spec example "$500" was rendered as GMD 500.00)
+- `getByText(/Deadline/i)` multi-match (section header + DEADLINE_CHECKED pipeline description "Filing deadline confirmed") → converted to `getAllByText`
+- Removed unused lucide import `Sparkles`
+- Removed dead `ReturnLine.rate`/`.amount` fields (precomputed into `basis` string, never rendered) — interface + demo data now honest
+
+### Verification
+
+| Check                      | Status                                        |
+| -------------------------- | --------------------------------------------- |
+| Tax liveness tests         | ✅ 37/37 pass                                 |
+| Full component suite       | ✅ 542/542 pass (17 files)                    |
+| Typecheck (`@xenboox/web`) | ✅ Clean                                      |
+| Build (`@xenboox/web`)     | ✅ Successful — /dashboard/agents/tax built   |
+| Code review                | ✅ Multiple passes, all findings addressed    |
+| Browser /qa                | ✅ Route serves (307 auth-redirect to /login) |
+
+### Next Steps
+
+- Remaining liveness specs: Document, Treasury, Controller, Reporting
+- Tax spec §9 schema flags: `tax_rules` table with versioning (`effective_date`, `superseded_date`) so every calculation cites an exact rule version, `tax_return_lines.rule_id`/`rule_version_cited` — flagged for schema review
+- Tax spec §11 open questions: OHADA (Senegal/Francophone West Africa) rule tables pending per PRD §21; Nigeria (FIRS) and Ghana (GRA-GH) Phase 3 per PRD §20 — spec written jurisdiction-agnostic so rule-versioning pattern extends without rework
+- Tax design note: second component in the suite with **zero confidence meters across the entire lifecycle** (after Inventory) — all-deterministic spec, audit-trail confidence column showing "—" is deliberate
+- `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
+
+---
+
 ### [2026-07-31] — Inventory Agent Liveness (spec v1.0): COGS Layer-by-Layer Transparency
 
 **Agent:** Buffy (Autonomous Engineer)
