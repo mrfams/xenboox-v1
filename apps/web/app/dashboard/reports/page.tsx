@@ -43,6 +43,7 @@ import {
   Receipt,
   Plus,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
 function handleExport(report: string) {
@@ -172,6 +173,61 @@ export default function ReportsPage() {
       <SubPageTabs tabs={MODULE_TABS.reports} />
 
       <ReportingLiveness />
+
+      {/* Summary Metrics — mockup pattern */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            label: "Reports Generated",
+            value: "24",
+            icon: BarChart3,
+            color: "bg-gradient-to-br from-[#6366F1] to-blue-500",
+          },
+          {
+            label: "This Month",
+            value: "8",
+            icon: Calendar,
+            color: "bg-gradient-to-br from-emerald-500 to-teal-500",
+          },
+          {
+            label: "Scheduled",
+            value: "3",
+            icon: Clock,
+            color: "bg-gradient-to-br from-amber-500 to-orange-500",
+          },
+          {
+            label: "Custom Reports",
+            value: "5",
+            icon: MessageSquare,
+            color: "bg-gradient-to-br from-purple-500 to-indigo-500",
+          },
+        ].map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <div
+              key={kpi.label}
+              className="rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:shadow-md"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl text-white",
+                    kpi.color,
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                {kpi.label}
+              </p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums">
+                {kpi.value}
+              </p>
+            </div>
+          );
+        })}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {reportTypes.map((report) => (

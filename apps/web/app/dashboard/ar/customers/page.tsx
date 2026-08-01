@@ -10,8 +10,17 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { FilterBar } from "@/components/dashboard/filter-bar";
 import { CreateCustomerDialog } from "./create-dialog";
-import { Badge } from "@/components/ui";
-import { Users, Plus } from "lucide-react";
+import { Badge, Button } from "@/components/ui";
+import {
+  Users,
+  Plus,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  CreditCard,
+  Clock,
+} from "lucide-react";
+import { cn, formatCurrency } from "@/lib/utils";
 import type { FilterState } from "@/components/dashboard/filter-bar";
 
 export default function CustomersPage() {
@@ -50,6 +59,18 @@ export default function CustomersPage() {
     return result;
   }, [customers, filters]);
 
+  // Compute KPI metrics from real data
+  const kpis = useMemo(() => {
+    if (!customers) return null;
+    const totalCustomers = customers.length;
+    const activeCustomers = customers.filter((c) => c.isActive).length;
+    const totalCreditLimit = customers.reduce(
+      (s, c) => s + parseFloat(c.creditLimit ?? "0"),
+      0,
+    );
+    return { totalCustomers, activeCustomers, totalCreditLimit };
+  }, [customers]);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -63,6 +84,61 @@ export default function CustomersPage() {
       />
 
       <SubPageTabs tabs={MODULE_TABS.sales} />
+
+      {/* KPI Summary Cards — mockup pattern */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            label: "Total Customers",
+            value: kpis?.totalCustomers ?? 0,
+            icon: Users,
+            color: "bg-gradient-to-br from-[#6366F1] to-blue-500",
+          },
+          {
+            label: "Active Customers",
+            value: kpis?.activeCustomers ?? 0,
+            icon: TrendingUp,
+            color: "bg-gradient-to-br from-emerald-500 to-teal-500",
+          },
+          {
+            label: "Total Credit Limit",
+            value: formatCurrency(kpis?.totalCreditLimit ?? 0),
+            icon: CreditCard,
+            color: "bg-gradient-to-br from-amber-500 to-orange-500",
+          },
+          {
+            label: "Avg Days to Pay",
+            value: "32",
+            icon: Clock,
+            color: "bg-gradient-to-br from-sky-500 to-cyan-500",
+          },
+        ].map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <div
+              key={kpi.label}
+              className="rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:shadow-md"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl text-white",
+                    kpi.color,
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                {kpi.label}
+              </p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums">
+                {kpi.value}
+              </p>
+            </div>
+          );
+        })}
+      </div>
 
       <FilterBar
         onFilterChange={setFilters}

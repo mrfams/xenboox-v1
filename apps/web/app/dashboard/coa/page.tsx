@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
@@ -19,7 +19,15 @@ import {
   SelectValue,
 } from "@/components/ui";
 import { CreateAccountDialog } from "./create-dialog";
-import { BookOpen, Plus, ChevronRight, ChevronDown } from "lucide-react";
+import {
+  BookOpen,
+  Plus,
+  ChevronRight,
+  ChevronDown,
+  BarChart3,
+  TrendingUp,
+  DollarSign,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -156,6 +164,17 @@ export default function COAPage() {
 
   const filtered = filterByType((accounts ?? []) as Account[], activeType);
 
+  const kpis = useMemo(() => {
+    if (!accounts) return null;
+    const allAccounts = (accounts ?? []) as Account[];
+    const totalAccounts = allAccounts.length;
+    const assetAccounts = allAccounts.filter((a) => a.type === "asset").length;
+    const expenseAccounts = allAccounts.filter(
+      (a) => a.type === "expense",
+    ).length;
+    return { totalAccounts, assetAccounts, expenseAccounts };
+  }, [accounts]);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -169,6 +188,61 @@ export default function COAPage() {
       />
 
       <SubPageTabs tabs={MODULE_TABS.accounting} />
+
+      {/* KPI Summary Cards — mockup pattern */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            label: "Total Accounts",
+            value: kpis?.totalAccounts ?? 0,
+            icon: BookOpen,
+            color: "bg-gradient-to-br from-[#6366F1] to-blue-500",
+          },
+          {
+            label: "Asset Accounts",
+            value: kpis?.assetAccounts ?? 0,
+            icon: DollarSign,
+            color: "bg-gradient-to-br from-emerald-500 to-teal-500",
+          },
+          {
+            label: "Expense Accounts",
+            value: kpis?.expenseAccounts ?? 0,
+            icon: TrendingUp,
+            color: "bg-gradient-to-br from-amber-500 to-orange-500",
+          },
+          {
+            label: "Account Types",
+            value: "5",
+            icon: BarChart3,
+            color: "bg-gradient-to-br from-sky-500 to-cyan-500",
+          },
+        ].map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <div
+              key={kpi.label}
+              className="rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:shadow-md"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl text-white",
+                    kpi.color,
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                {kpi.label}
+              </p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums">
+                {kpi.value}
+              </p>
+            </div>
+          );
+        })}
+      </div>
 
       <FilterBar
         onFilterChange={(filters) => setActiveType(filters.status)}
