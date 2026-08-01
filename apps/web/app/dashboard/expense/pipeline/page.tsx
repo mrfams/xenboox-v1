@@ -1,639 +1,817 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
-import { PageHeader } from "@/components/shared/page-header";
-import { SubPageTabs } from "@/components/shared/sub-page-tabs";
-import { MODULE_TABS } from "@/components/shared/module-tabs";
-import { ExpenseLiveness } from "@/components/agents/expense-liveness";
-import { EmptyState } from "@/components/shared/empty-state";
-import { TableSkeleton } from "@/components/shared/loading";
+
+import { AICopilotSidebar } from "@/components/dashboard/ai-copilot-sidebar";
+import { SubmitClaimDialog } from "./submit-claim-dialog";
+import { PolicyRulesEditor } from "./policy-rules-editor";
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Badge,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
+  Button,
   Input,
   Select,
-  SelectValue,
   SelectTrigger,
+  SelectValue,
   SelectContent,
   SelectItem,
 } from "@/components/ui";
 import {
   Receipt,
-  Clock,
-  PlusCircle,
-  Users,
-  DollarSign,
-  TrendingUp,
-  Activity,
-  Shield,
+  Plus,
+  Download,
+  MoreHorizontal,
   Search,
   Filter,
+  DollarSign,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  TrendingUp,
+  ArrowRight,
+  Eye,
+  FileText,
+  Upload,
   CreditCard,
   Wallet,
+  Users,
+  BarChart3,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { SubmitClaimDialog } from "./submit-claim-dialog";
-import { PolicyRulesEditor } from "./policy-rules-editor";
+import { cn, formatCurrency } from "@/lib/utils";
 
-// ─── Status helpers ─────────────────────────────────────────────────────────
+const mockExpenses = [
+  {
+    id: "1",
+    date: "May 19, 2025",
+    description: "Office Lunch Meeting",
+    subtext: "Team meeting with client",
+    category: "Meals & Entertainment",
+    vendor: "Dominos Pizza",
+    amount: 850,
+    paymentMethod: "Visa •••• 4242",
+    status: "Pending Approval",
+    receipt: true,
+  },
+  {
+    id: "2",
+    date: "May 18, 2025",
+    description: "Internet Subscription",
+    subtext: "Monthly internet bill",
+    category: "Utilities",
+    vendor: "Africell Gambia",
+    amount: 1200,
+    paymentMethod: "Bank Transfer",
+    status: "Approved",
+    receipt: true,
+  },
+  {
+    id: "3",
+    date: "May 17, 2025",
+    description: "Fuel Expense",
+    subtext: "Generator fuel purchase",
+    category: "Transport",
+    vendor: "Gambia Oil Company",
+    amount: 2450,
+    paymentMethod: "Cash",
+    status: "Approved",
+    receipt: true,
+  },
+  {
+    id: "4",
+    date: "May 16, 2025",
+    description: "Office Supplies",
+    subtext: "Stationery and printing",
+    category: "Office Supplies",
+    vendor: "ASK Trading",
+    amount: 1875,
+    paymentMethod: "Visa •••• 4242",
+    status: "Approved",
+    receipt: false,
+  },
+  {
+    id: "5",
+    date: "May 15, 2025",
+    description: "Travel to Banjul",
+    subtext: "Client visit and meeting",
+    category: "Travel",
+    vendor: "GPRT Bus Service",
+    amount: 600,
+    paymentMethod: "Cash",
+    status: "Paid",
+    receipt: true,
+  },
+  {
+    id: "6",
+    date: "May 14, 2025",
+    description: "Software Subscription",
+    subtext: "Xenboox Pro Plan",
+    category: "Software",
+    vendor: "Xenboox",
+    amount: 3500,
+    paymentMethod: "Visa •••• 4242",
+    status: "Paid",
+    receipt: false,
+  },
+  {
+    id: "7",
+    date: "May 13, 2025",
+    description: "Marketing Material",
+    subtext: "Brochure printing",
+    category: "Marketing",
+    vendor: "PrintGambia",
+    amount: 2200,
+    paymentMethod: "Bank Transfer",
+    status: "Pending Approval",
+    receipt: true,
+  },
+  {
+    id: "8",
+    date: "May 12, 2025",
+    description: "Staff Lunch",
+    subtext: "Monthly team lunch",
+    category: "Meals & Entertainment",
+    vendor: "Yassa Restaurant",
+    amount: 1650,
+    paymentMethod: "Cash",
+    status: "Approved",
+    receipt: true,
+  },
+  {
+    id: "9",
+    date: "May 11, 2025",
+    description: "Domain Renewal",
+    subtext: "xenboox.com",
+    category: "Software",
+    vendor: "Namecheap",
+    amount: 1350,
+    paymentMethod: "Visa •••• 4242",
+    status: "Paid",
+    receipt: false,
+  },
+  {
+    id: "10",
+    date: "May 10, 2025",
+    description: "Generator Maintenance",
+    subtext: "Routine maintenance",
+    category: "Maintenance",
+    vendor: "Power Solutions",
+    amount: 2800,
+    paymentMethod: "Bank Transfer",
+    status: "Approved",
+    receipt: true,
+  },
+];
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  submitted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  flagged:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  approved:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  reimbursed:
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  voided: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+const categoryColors: Record<string, string> = {
+  "Meals & Entertainment": "bg-orange-100 text-orange-700",
+  Utilities: "bg-blue-100 text-blue-700",
+  Transport: "bg-emerald-100 text-emerald-700",
+  "Office Supplies": "bg-purple-100 text-purple-700",
+  Travel: "bg-amber-100 text-amber-700",
+  Software: "bg-indigo-100 text-indigo-700",
+  Marketing: "bg-pink-100 text-pink-700",
+  Maintenance: "bg-gray-100 text-gray-700",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  submitted: "Submitted",
-  flagged: "Flagged",
-  approved: "Approved",
-  rejected: "Rejected",
-  reimbursed: "Reimbursed",
-  voided: "Voided",
+const statusColors: Record<string, string> = {
+  "Pending Approval": "bg-amber-100 text-amber-700",
+  Approved: "bg-emerald-100 text-emerald-700",
+  Paid: "bg-blue-100 text-blue-700",
+  Rejected: "bg-red-100 text-red-700",
 };
-
-// ─── ExpenseDashboardPage ───────────────────────────────────────────────────
 
 export default function ExpenseDashboardPage() {
   const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [copilotOpen, setCopilotOpen] = useState(true);
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("claims");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [showPolicy, setShowPolicy] = useState(false);
 
-  // Data fetching
-  const { data: status, isLoading: statusLoading } =
-    trpc.expense.getStatus.useQuery();
-  const { data: claims, isLoading: claimsLoading } =
-    trpc.expense.listClaims.useQuery({
-      status: statusFilter !== "all" ? (statusFilter as any) : undefined,
-      limit: 50,
-    });
-  const { data: reimbursements } = trpc.expense.listReimbursements.useQuery({
-    limit: 20,
-  });
-  const { data: policyRules, refetch: refetchPolicyRules } =
-    trpc.expense.listPolicyRules.useQuery();
-
-  // ── Derived state ────────────────────────────────────────────────────
-
-  const currentPeriod = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  }, []);
-
-  const totalPendingApproval = status?.totalPendingApproval ?? 0;
-  const totalPendingReimbursement = status?.totalPendingReimbursement ?? 0;
-  const activeClaimsCount = claims?.length ?? 0;
-
-  const thisMonthAmount = useMemo(() => {
-    return (claims ?? [])
-      .filter((c) => {
-        const d = c.submittedAt ? new Date(c.submittedAt) : null;
-        if (!d) return false;
-        const now = new Date();
-        return (
-          d.getMonth() === now.getMonth() &&
-          d.getFullYear() === now.getFullYear()
-        );
-      })
-      .reduce((s, c) => s + Number(c.totalAmount), 0);
-  }, [claims]);
-
-  const filteredClaims = useMemo(() => {
-    if (!claims) return [];
-    if (!searchQuery) return claims;
-    const q = searchQuery.toLowerCase();
-    return claims.filter(
-      (c) =>
-        c.claimNumber.toLowerCase().includes(q) ||
-        c.category.toLowerCase().includes(q),
-    );
-  }, [claims, searchQuery]);
-
-  const handleSubmitComplete = useCallback(() => {
-    setSubmitDialogOpen(false);
-    router.refresh();
-  }, [router]);
-
-  // ── Loading state ────────────────────────────────────────────────────
-
-  if (statusLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Expense Center"
-          description="Employee expense claims — mobile-first"
-        />
-        <SubPageTabs tabs={MODULE_TABS.payroll} />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card
-              key={i}
-              className="bg-gradient-to-br from-primary/5 to-background"
-            >
-              <CardContent className="p-5">
-                <div className="h-5 w-24 animate-pulse rounded bg-muted mb-2" />
-                <div className="h-8 w-20 animate-pulse rounded bg-muted" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <TableSkeleton rows={5} columns={6} />
-      </div>
-    );
-  }
+  const tabs = [
+    { id: "all", label: "All Expenses", count: 156 },
+    { id: "draft", label: "Draft", count: 18 },
+    { id: "pending", label: "Pending Approval", count: 24 },
+    { id: "approved", label: "Approved", count: 156 },
+    { id: "reimbursed", label: "Reimbursed", count: 89 },
+  ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Expense Center"
-        description={`${activeClaimsCount} claims · ${totalPendingApproval} pending approval · ${totalPendingReimbursement} pending reimbursement`}
-        action={{
-          label: "Submit Claim",
-          icon: <PlusCircle className="mr-2 h-4 w-4" />,
-          onClick: () => setSubmitDialogOpen(true),
-        }}
-      />
-
-      <SubPageTabs tabs={MODULE_TABS.payroll} />
-
-      <ExpenseLiveness />
-
-      {/* ── Summary Stat Cards ────────────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Active Claims */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Active Claims
-                </p>
-                <p className="text-2xl font-bold">{activeClaimsCount}</p>
-              </div>
-              <div className="rounded-lg bg-blue-100 p-2.5 dark:bg-blue-900/30">
-                <Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
+    <div className="flex h-[calc(100vh-4rem)]">
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="space-y-6 p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Receipt className="h-6 w-6 text-primary" />
+                Expenses
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Track, categorize and manage business expenses with AI.
+              </p>
             </div>
-            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-              <Activity className="h-3 w-3" />
-              <span>{status?.claims?.length ?? 0} total tracked</span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm">
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </Button>
+              <Button variant="outline" size="sm">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+              <Button size="sm" onClick={() => setSubmitDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Expense
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Pending Approval */}
-        <Card className="bg-gradient-to-br from-amber-50 to-background dark:from-amber-950/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Pending Approval
-                </p>
-                <p
-                  className={cn(
-                    "text-2xl font-bold",
-                    totalPendingApproval > 0
-                      ? "text-amber-600"
-                      : "text-emerald-600",
-                  )}
+          {/* Tabs */}
+          <div className="flex items-center gap-1 border-b overflow-x-auto">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap",
+                  activeTab === tab.id
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab.label}
+                <span className="ml-1.5 text-xs">({tab.count})</span>
+              </button>
+            ))}
+          </div>
+
+          {/* KPI Cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              {
+                label: "Total Expenses (MTD)",
+                value: formatCurrency(78450),
+                change: "+8.7%",
+                changeLabel: "vs last month",
+                icon: DollarSign,
+                color: "text-primary",
+                bgColor: "bg-primary/10",
+              },
+              {
+                label: "Total Reimbursed (MTD)",
+                value: formatCurrency(42300),
+                change: "+12.1%",
+                changeLabel: "vs last month",
+                icon: Wallet,
+                color: "text-emerald-600",
+                bgColor: "bg-emerald-50",
+              },
+              {
+                label: "Pending Approval",
+                value: formatCurrency(26150),
+                subtext: "24 expenses",
+                icon: Clock,
+                color: "text-amber-600",
+                bgColor: "bg-amber-50",
+              },
+              {
+                label: "Average Expense",
+                value: formatCurrency(1142.75),
+                subtext: "Per expense",
+                icon: BarChart3,
+                color: "text-blue-600",
+                bgColor: "bg-blue-50",
+              },
+              {
+                label: "Budget vs Actual",
+                value: "82%",
+                subtext: formatCurrency(18550) + " left",
+                icon: TrendingUp,
+                color: "text-emerald-600",
+                bgColor: "bg-emerald-50",
+              },
+            ].map((kpi) => {
+              const Icon = kpi.icon;
+              return (
+                <div
+                  key={kpi.label}
+                  className="rounded-xl border bg-card p-4 transition-all duration-200 hover:shadow-md"
                 >
-                  {totalPendingApproval}
-                </p>
-              </div>
-              <div className="rounded-lg bg-amber-100 p-2.5 dark:bg-amber-900/30">
-                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-              <Users className="h-3 w-3" />
-              <span>
-                {totalPendingApproval > 0
-                  ? "Awaiting manager decision"
-                  : "All up to date"}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {kpi.label}
+                    </p>
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-lg",
+                        kpi.bgColor,
+                      )}
+                    >
+                      <Icon className={cn("h-4 w-4", kpi.color)} />
+                    </div>
+                  </div>
+                  <p className="text-xl font-bold tracking-tight tabular-nums">
+                    {kpi.value}
+                  </p>
+                  {kpi.change && (
+                    <p className={cn("text-xs mt-1", kpi.color)}>
+                      {kpi.change}{" "}
+                      <span className="text-muted-foreground">
+                        {kpi.changeLabel}
+                      </span>
+                    </p>
+                  )}
+                  {kpi.subtext && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {kpi.subtext}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-        {/* Pending Reimbursement */}
-        <Card className="bg-gradient-to-br from-purple-50 to-background dark:from-purple-950/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Pending Reimbursement
-                </p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {totalPendingReimbursement}
-                </p>
-              </div>
-              <div className="rounded-lg bg-purple-100 p-2.5 dark:bg-purple-900/30">
-                <Wallet className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+          {/* Filter Bar */}
+          <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search expenses..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
               </div>
             </div>
-            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-              <DollarSign className="h-3 w-3" />
-              <span>Scheduled for next payment batch</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* This Month */}
-        <Card className="bg-gradient-to-br from-emerald-50 to-background dark:from-emerald-950/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  This Month
-                </p>
-                <p className="text-2xl font-bold text-emerald-600">
-                  {formatCurrency(thisMonthAmount)}
-                </p>
-              </div>
-              <div className="rounded-lg bg-emerald-100 p-2.5 dark:bg-emerald-900/30">
-                <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-              <Receipt className="h-3 w-3" />
-              <span>{currentPeriod} total claimed</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Main Content Tabs ─────────────────────────────────────────── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full justify-start border-b rounded-none h-auto pb-0 bg-transparent gap-0">
-          <TabsTrigger
-            value="claims"
-            className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3"
-          >
-            <Receipt className="h-4 w-4" />
-            Claims
-          </TabsTrigger>
-          <TabsTrigger
-            value="policy"
-            className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3"
-          >
-            <Shield className="h-4 w-4" />
-            Policy Rules
-          </TabsTrigger>
-          <TabsTrigger
-            value="reimbursements"
-            className="gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3"
-          >
-            <CreditCard className="h-4 w-4" />
-            Reimbursements
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ── Tab: Claims ──────────────────────────────────────────── */}
-        <TabsContent value="claims" className="space-y-4 pt-4">
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search claims..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-9 text-sm"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px] h-9 text-sm">
-                <Filter className="h-3.5 w-3.5 mr-1" />
-                <SelectValue placeholder="Status" />
+            <Select defaultValue="all">
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="submitted">Submitted</SelectItem>
-                <SelectItem value="flagged">Flagged</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="reimbursed">Reimbursed</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="meals">Meals & Entertainment</SelectItem>
+                <SelectItem value="utilities">Utilities</SelectItem>
+                <SelectItem value="transport">Transport</SelectItem>
+                <SelectItem value="software">Software</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setActiveTab("policy")}
-              className="gap-1.5"
-            >
-              <Shield className="h-3.5 w-3.5" />
-              Manage Policies
+            <Select defaultValue="all">
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All Payment Methods" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Payment Methods</SelectItem>
+                <SelectItem value="visa">Visa</SelectItem>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="bank">Bank Transfer</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select defaultValue="all">
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm">
+              <Filter className="mr-2 h-4 w-4" />
+              Filters
             </Button>
           </div>
 
-          {/* Claims Table */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">
-                Expense Claims
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {filteredClaims.length} claim(s) — click to view details
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {claimsLoading ? (
-                <TableSkeleton rows={5} columns={6} />
-              ) : filteredClaims.length === 0 ? (
-                <EmptyState
-                  icon={<Receipt className="h-12 w-12" />}
-                  title="No claims yet"
-                  description="Submit your first expense claim to get started."
-                  action={
-                    <Button
-                      size="sm"
-                      onClick={() => setSubmitDialogOpen(true)}
-                      className="gap-2"
+          {/* Data Table */}
+          <div className="overflow-x-auto rounded-lg border bg-card">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-10">
+                    <input type="checkbox" className="rounded" />
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Date
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Expense
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Category
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Vendor / Merchant
+                  </th>
+                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                    Amount (GMD)
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                    Payment Method
+                  </th>
+                  <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                    Status
+                  </th>
+                  <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                    Receipt
+                  </th>
+                  <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {mockExpenses.map((expense) => (
+                  <tr
+                    key={expense.id}
+                    className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
+                  >
+                    <td
+                      className="py-3 px-4"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <PlusCircle className="h-4 w-4" />
-                      Submit Claim
-                    </Button>
-                  }
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                          Claim #
-                        </th>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                          Category
-                        </th>
-                        <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                          Amount
-                        </th>
-                        <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                          Status
-                        </th>
-                        <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                          Source
-                        </th>
-                        <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                          Date
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredClaims.map((claim) => (
-                        <tr
-                          key={claim.id}
-                          className="border-b hover:bg-muted/50 transition-colors cursor-pointer"
-                        >
-                          <td className="py-3 px-4">
-                            <span className="text-sm font-mono font-medium">
-                              {claim.claimNumber}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] font-medium"
-                            >
-                              {claim.category}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-right text-sm font-mono font-semibold">
-                            {formatCurrency(Number(claim.totalAmount))}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Badge
-                              className={cn(
-                                "text-[10px] font-medium border-0",
-                                STATUS_STYLES[claim.status] ??
-                                  STATUS_STYLES.draft,
-                              )}
-                            >
-                              {STATUS_LABELS[claim.status] ?? claim.status}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-center text-xs text-muted-foreground capitalize">
-                            {claim.claimantId === "system-auto"
-                              ? "Auto"
-                              : claim.claimantId.slice(0, 8)}
-                          </td>
-                          <td className="py-3 px-4 text-right text-xs text-muted-foreground">
-                            {claim.submittedAt
-                              ? formatDate(claim.submittedAt)
-                              : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick submit CTA */}
-          {filteredClaims.length > 0 && (
-            <div className="flex justify-center pt-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSubmitDialogOpen(true)}
-                className="gap-2"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Submit Another Claim
-              </Button>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ── Tab: Policy Rules ──────────────────────────────────────── */}
-        <TabsContent value="policy" className="space-y-4 pt-4">
-          <PolicyRulesEditor
-            rules={policyRules ?? []}
-            onRulesChanged={refetchPolicyRules}
-          />
-        </TabsContent>
-
-        {/* ── Tab: Reimbursements ───────────────────────────────────── */}
-        <TabsContent value="reimbursements" className="space-y-4 pt-4">
-          {/* Summary */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground mb-1">Scheduled</p>
-              <p className="text-xl font-bold">
-                {
-                  (reimbursements ?? []).filter((r) => r.status === "scheduled")
-                    .length
-                }
+                      <input type="checkbox" className="rounded" />
+                    </td>
+                    <td className="py-3 px-4 text-sm">{expense.date}</td>
+                    <td className="py-3 px-4">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {expense.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {expense.subtext}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px]",
+                          categoryColors[expense.category],
+                        )}
+                      >
+                        {expense.category}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">
+                      {expense.vendor}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right font-mono font-medium">
+                      {formatCurrency(expense.amount)}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">
+                      {expense.paymentMethod}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px]",
+                          statusColors[expense.status],
+                        )}
+                      >
+                        {expense.status}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      {expense.receipt ? (
+                        <CheckCircle className="h-4 w-4 text-emerald-500 mx-auto" />
+                      ) : (
+                        <div className="h-4 w-4 rounded border-2 border-dashed border-muted-foreground/30 mx-auto" />
+                      )}
+                    </td>
+                    <td
+                      className="py-3 px-4 text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex items-center justify-between border-t px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Showing 1 to 10 of 156 expenses
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Awaiting payment batch
-              </p>
-            </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground mb-1">Processing</p>
-              <p className="text-xl font-bold">
-                {
-                  (reimbursements ?? []).filter(
-                    (r) => r.status === "processing",
-                  ).length
-                }
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                In payment queue
-              </p>
-            </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground mb-1">Total Paid</p>
-              <p className="text-xl font-bold text-emerald-600">
-                {
-                  (reimbursements ?? []).filter((r) => r.status === "paid")
-                    .length
-                }
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Completed reimbursements
-              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled>
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-primary text-primary-foreground"
+                >
+                  1
+                </Button>
+                <Button variant="outline" size="sm">
+                  2
+                </Button>
+                <Button variant="outline" size="sm">
+                  3
+                </Button>
+                <Button variant="outline" size="sm">
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Reimbursements Table */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">
-                Reimbursement Records
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Track payment status for approved claims
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!reimbursements || reimbursements.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-6 text-center">
-                  <CreditCard className="h-8 w-8 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">
-                    No reimbursement records yet
-                  </p>
-                  <p className="text-xs text-muted-foreground/70">
-                    Approved claims will appear here once reimbursement is
-                    scheduled
-                  </p>
+          {/* Bottom Section */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Expenses by Category */}
+            <div className="rounded-lg border bg-card p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold">
+                  Expenses by Category (MTD)
+                </h3>
+                <button className="text-xs text-primary hover:underline flex items-center gap-1">
+                  View full report <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="relative h-28 w-28">
+                  <svg viewBox="0 0 36 36" className="h-full w-full">
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.915"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="text-orange-500"
+                      strokeDasharray="24 76"
+                      strokeDashoffset="25"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.915"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="text-blue-500"
+                      strokeDasharray="16 84"
+                      strokeDashoffset="1"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.915"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="text-emerald-500"
+                      strokeDasharray="14 86"
+                      strokeDashoffset="85"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.915"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="text-indigo-500"
+                      strokeDasharray="14 86"
+                      strokeDashoffset="71"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.915"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="text-purple-500"
+                      strokeDasharray="11 89"
+                      strokeDashoffset="57"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.915"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="text-gray-300"
+                      strokeDasharray="21 79"
+                      strokeDashoffset="46"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-[10px] text-muted-foreground">
+                      GMD
+                    </span>
+                    <span className="text-sm font-bold">78,450</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Total
+                    </span>
+                  </div>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                          Amount
-                        </th>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                          Method
-                        </th>
-                        <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                          Status
-                        </th>
-                        <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                          Scheduled
-                        </th>
-                        <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                          Paid
-                        </th>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                          Ref
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reimbursements.map((r) => (
-                        <tr
-                          key={r.id}
-                          className="border-b hover:bg-muted/50 transition-colors"
-                        >
-                          <td className="py-3 px-4 text-sm font-mono font-semibold">
-                            {formatCurrency(Number(r.amount))}
-                          </td>
-                          <td className="py-3 px-4 text-xs text-muted-foreground">
-                            <Badge variant="secondary" className="text-[9px]">
-                              {r.paymentMethod?.replace("_", " ")}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Badge
-                              className={cn(
-                                "text-[10px] font-medium border-0",
-                                r.status === "paid" &&
-                                  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-                                r.status === "scheduled" &&
-                                  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-                                r.status === "processing" &&
-                                  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-                                r.status === "failed" &&
-                                  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-                                r.status === "cancelled" &&
-                                  "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
-                              )}
-                            >
-                              {r.status.charAt(0).toUpperCase() +
-                                r.status.slice(1)}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-right text-xs text-muted-foreground">
-                            {r.scheduledDate
-                              ? formatDate(
-                                  new Date(r.scheduledDate).toISOString(),
-                                )
-                              : "—"}
-                          </td>
-                          <td className="py-3 px-4 text-right text-xs text-muted-foreground">
-                            {r.paidDate
-                              ? formatDate(new Date(r.paidDate).toISOString())
-                              : "—"}
-                          </td>
-                          <td className="py-3 px-4 text-xs font-mono text-muted-foreground">
-                            {r.paymentRef
-                              ? r.paymentRef.slice(0, 10) + "..."
-                              : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex-1 space-y-1.5">
+                  {[
+                    {
+                      label: "Meals & Entertainment",
+                      amount: "18,450.00",
+                      pct: "23.5%",
+                      color: "bg-orange-500",
+                    },
+                    {
+                      label: "Utilities",
+                      amount: "12,600.00",
+                      pct: "16.1%",
+                      color: "bg-blue-500",
+                    },
+                    {
+                      label: "Transport",
+                      amount: "11,050.00",
+                      pct: "14.1%",
+                      color: "bg-emerald-500",
+                    },
+                    {
+                      label: "Software",
+                      amount: "10,850.00",
+                      pct: "13.8%",
+                      color: "bg-indigo-500",
+                    },
+                    {
+                      label: "Office Supplies",
+                      amount: "8,900.00",
+                      pct: "11.3%",
+                      color: "bg-purple-500",
+                    },
+                    {
+                      label: "Others",
+                      amount: "16,600.00",
+                      pct: "21.2%",
+                      color: "bg-gray-300",
+                    },
+                  ].map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={cn("h-2 w-2 rounded-full", item.color)}
+                        />
+                        <span className="text-muted-foreground">
+                          {item.label}
+                        </span>
+                      </div>
+                      <span className="font-mono">
+                        {item.amount} ({item.pct})
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </div>
+            </div>
 
-      {/* ── Dialogs ──────────────────────────────────────────────────── */}
+            {/* Monthly Trend */}
+            <div className="rounded-lg border bg-card p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold">Monthly Trend</h3>
+                <Select defaultValue="6months">
+                  <SelectTrigger className="w-[120px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="6months">Last 6 months</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="h-32 flex items-end gap-1">
+                {[40, 55, 45, 70, 60, 85].map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 flex flex-col items-center gap-1"
+                  >
+                    <div
+                      className="w-full bg-primary/20 rounded-t"
+                      style={{ height: `${h}%` }}
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      {["Dec", "Jan", "Feb", "Mar", "Apr", "May"][i]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Top Vendors */}
+            <div className="rounded-lg border bg-card p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold">Top Vendors (MTD)</h3>
+                <button className="text-xs text-primary hover:underline flex items-center gap-1">
+                  View all <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {[
+                  {
+                    name: "Africell Gambia",
+                    amount: 6600,
+                    color: "bg-primary",
+                  },
+                  {
+                    name: "Gambia Oil Company",
+                    amount: 5900,
+                    color: "bg-emerald-500",
+                  },
+                  { name: "Xenboox", amount: 3500, color: "bg-amber-500" },
+                  {
+                    name: "Power Solutions",
+                    amount: 2800,
+                    color: "bg-orange-500",
+                  },
+                  { name: "PrintGambia", amount: 2200, color: "bg-red-500" },
+                ].map((vendor, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <span className="text-sm">{vendor.name}</span>
+                    <span className="text-sm font-mono font-medium">
+                      {formatCurrency(vendor.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Copilot Sidebar */}
+      {copilotOpen && (
+        <div className="w-80 border-l bg-card hidden lg:block">
+          <AICopilotSidebar
+            title="Xenboox AI Copilot"
+            subtitle="I've analyzed your expenses and found a few insights."
+            insights={[
+              {
+                id: "1",
+                type: "warning",
+                title: "3 duplicate expenses detected",
+                description: "You could save GMD 1,250.00",
+                action: { label: "Review duplicates", onClick: () => {} },
+              },
+              {
+                id: "2",
+                type: "info",
+                title: "Missing receipts",
+                description: "7 expenses are missing receipts",
+                action: { label: "Upload receipts", onClick: () => {} },
+              },
+              {
+                id: "3",
+                type: "success",
+                title: "Category suggestion",
+                description: "2 expenses could be recategorized",
+                action: { label: "Review suggestions", onClick: () => {} },
+              },
+            ]}
+            suggestedActions={[
+              {
+                id: "1",
+                icon: <Plus className="h-4 w-4" />,
+                label: "New Expense",
+                description: "Create expense entry",
+              },
+              {
+                id: "2",
+                icon: <Upload className="h-4 w-4" />,
+                label: "Upload Receipt",
+                description: "Add receipt image",
+              },
+              {
+                id: "3",
+                icon: <Download className="h-4 w-4" />,
+                label: "Bulk Import",
+                description: "Import from CSV",
+              },
+              {
+                id: "4",
+                icon: <FileText className="h-4 w-4" />,
+                label: "Expense Report",
+                description: "Create expense report",
+              },
+            ]}
+            onClose={() => setCopilotOpen(false)}
+          />
+        </div>
+      )}
+
       <SubmitClaimDialog
         open={submitDialogOpen}
         onOpenChange={setSubmitDialogOpen}
-        onComplete={handleSubmitComplete}
+        onComplete={() => setSubmitDialogOpen(false)}
       />
     </div>
   );
