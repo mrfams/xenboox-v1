@@ -5,10 +5,17 @@ import { eq, and } from "drizzle-orm";
 import { userEntityAccess, entities } from "@xenboox/db/schema/organization";
 import { orgRoles } from "@xenboox/db/schema/org-roles";
 import { sessions, users } from "@xenboox/db/schema/auth";
+import { adminUsers, adminSessions } from "@xenboox/db/schema";
 import { idempotencyKeys } from "@xenboox/db/schema";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { rolePermissions } from "@xenboox/db/schema/permissions";
+import { isSessionActive } from "@/lib/admin/session";
+import {
+  hasAdminPermission,
+  type AdminEpic,
+  type AdminRole,
+} from "@/lib/admin/roles";
 
 export const paginationSchema = z.object({
   limit: z.number().int().min(1).max(100).default(25),
@@ -486,6 +493,108 @@ export const adminProcedure = t.procedure
   .use(authMiddleware)
   .use(entityScopingMiddleware)
   .use(requireRole("owner", "admin", "finance_director"));
+
+// ─────────────────────────────────────────────
+// Admin control-plane procedures
+//
+// The admin control plane uses its OWN identity system (admin_users /
+// admin_sessions), completely separate from customer auth. Every admin
+// procedure verifies the admin JWT, then re-checks the DB session row so
+// revocation, inactivity timeouts, and the 12h hard cap are enforced on
+// every single call.
+// ─────────────────────────────────────────────
+
+type AdminContext = {
+  adminUser: typeof adminUsers.$inferSelect;
+  adminRole: AdminRole;
+  adminSid: string;
+};
+
+export type { AdminContext };
+
+const adminSessionMiddleware = t.middleware(async ({ ctx, next }) => {
+  // Lazy-import so the shared trpc server module never pulls the admin
+  // next-auth instance (and its next/server dependency) into module graphs
+  // that never touch admin procedures (e.g. unit tests).
+  const { adminAuth } = await import("@/lib/auth/admin");
+  const raw = await adminAuth();
+  const session = raw as unknown as {
+    admin?: { id?: string; role?: AdminRole };
+    adminSid?: string;
+  } | null;
+
+  const adminUserId = session?.admin?.id;
+  const adminSid = session?.adminSid;
+
+  if (!adminUserId || !adminSid) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Admin sign-in required",
+    });
+  }
+
+  const [adminUser, dbSession] = await Promise.all([
+    db.query.adminUsers.findFirst({
+      where: eq(adminUsers.id, adminUserId),
+    }),
+    db.query.adminSessions.findFirst({
+      where: eq(adminSessions.id, adminSid),
+    }),
+  ]);
+
+  if (!adminUser || !adminUser.isActive) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Admin account is disabled or missing",
+    });
+  }
+
+  if (!dbSession || !isSessionActive(dbSession, new Date())) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Admin session has expired or been revoked. Sign in again.",
+    });
+  }
+
+  // Best-effort inactivity touch — never block the request on it.
+  try {
+    await db
+      .update(adminSessions)
+      .set({ lastActiveAt: new Date() })
+      .where(eq(adminSessions.id, adminSid));
+  } catch {
+    /* best effort */
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      adminUser,
+      adminRole: adminUser.role,
+      adminSid,
+    } as Context & AdminContext,
+  });
+});
+
+export const adminProtectedProcedure = t.procedure
+  .use(loggingMiddleware)
+  .use(adminSessionMiddleware);
+
+/** Require an admin role × epic permission. Write implies read. */
+export const adminPermissionProcedure = (
+  epic: AdminEpic,
+  mode: "read" | "write" = "read",
+) =>
+  adminProtectedProcedure.use(async ({ ctx, next }) => {
+    const role = (ctx as Context & AdminContext).adminRole;
+    if (!role || !hasAdminPermission(role, epic, mode)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `Your admin role does not have "${mode}" access to ${epic}`,
+      });
+    }
+    return next({ ctx });
+  });
 
 const IDEMPOTENCY_HEADER = "x-idempotency-key";
 const LOCK_TIMEOUT_SECONDS = 30;

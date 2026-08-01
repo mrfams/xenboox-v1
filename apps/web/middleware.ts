@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { edgeAuth as auth } from "@/lib/auth/edge";
+import { edgeAdminAuth } from "@/lib/auth/admin-edge";
 import { applySecurityHeaders, generateNonce } from "@/lib/security/headers";
 
 const PUBLIC_ROUTES = [
@@ -24,6 +25,7 @@ const PUBLIC_ROUTES = [
   "/forgot-password",
   "/reset-password",
   "/verify-email",
+  "/admin-login",
 ];
 
 function isPublicRoute(pathname: string): boolean {
@@ -172,6 +174,27 @@ export default auth(async (req) => {
 
   // Pass through all /api/* routes — Auth.js and tRPC handle auth themselves
   if (isOnApi) {
+    return response;
+  }
+
+  // Admin control-plane gating — separate session from customer auth.
+  // Any admin route requires an active admin JWT; unauthenticated admins
+  // are sent to /admin-login, never the customer login.
+  if (pathname.startsWith("/admin")) {
+    const adminSession = await edgeAdminAuth();
+    const admin = adminSession as unknown as { admin?: { id?: string } };
+    const isAdminLoggedIn = !!admin?.admin?.id;
+
+    if (pathname === "/admin-login") {
+      if (isAdminLoggedIn) {
+        return NextResponse.redirect(new URL("/admin", req.nextUrl));
+      }
+      return response;
+    }
+
+    if (!isAdminLoggedIn) {
+      return NextResponse.redirect(new URL("/admin-login", req.nextUrl));
+    }
     return response;
   }
 

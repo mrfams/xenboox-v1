@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc/client";
 import { PageHeader } from "@/components/shared/page-header";
 import { SubPageTabs } from "@/components/shared/sub-page-tabs";
 import { MODULE_TABS } from "@/components/shared/module-tabs";
+import { ConsolidationLiveness } from "@/components/consolidation/consolidation-liveness";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import {
@@ -163,6 +164,9 @@ export default function ConsolidationPipelinePage() {
       />
 
       <SubPageTabs tabs={MODULE_TABS.accounting} />
+
+      {/* ── Agent Liveness ──────────────────────────────────────────── */}
+      <ConsolidationLiveness />
 
       {/* ── Summary Stat Cards ──────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

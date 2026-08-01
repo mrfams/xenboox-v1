@@ -1,5 +1,6 @@
 // Schema barrel export
 export * from "./helpers";
+export * from "./admin";
 export * from "./auth";
 export * from "./organization";
 export * from "./accounting";

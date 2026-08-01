@@ -134,6 +134,13 @@
       "when": 1785328780000,
       "tag": "0018_foamy_harrier",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785616417500,
+      "tag": "0019_wild_lilith",
+      "breakpoints": true
     }
   ]
 }

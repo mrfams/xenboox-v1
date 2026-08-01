@@ -18,6 +18,7 @@ import { payrollRouter } from "./payroll";
 import { fixedAssetsRouter } from "./fixedAssets";
 import { inventoryRouter } from "./inventory";
 import { adminRouter } from "./admin";
+import { adminAccessRouter } from "./admin-access";
 import { notificationsRouter } from "./notifications";
 import { integrationsRouter } from "./integrations";
 import { modelOpsRouter } from "./model-ops";
@@ -48,6 +49,7 @@ export const appRouter = router({
 
   auth: authRouter,
   admin: adminRouter,
+  adminAccess: adminAccessRouter,
   organization: organizationRouter,
   coa: coaRouter,
   fiscal: fiscalRouter,
