@@ -10,24 +10,12 @@ import {
 } from "@/components/dashboard/guided-tour";
 import { AIGreeting } from "@/components/dashboard/ai-greeting";
 import { AIChatInput } from "@/components/dashboard/ai-chat-input";
-import {
-  FinancialHealthCard,
-  createDefaultMetrics,
-} from "@/components/dashboard/financial-health-card";
-import {
-  AIInsightsFeed,
-  createDefaultInsights,
-} from "@/components/dashboard/ai-insights-feed";
+import { ExecutiveBriefing } from "@/components/dashboard/executive-briefing";
+import { BusinessHealth } from "@/components/dashboard/business-health";
 import { AgentActivityFeed } from "@/components/dashboard/agent-activity-feed";
-import {
-  ActiveWorkflows,
-  createDefaultWorkflows,
-} from "@/components/dashboard/active-workflows";
-import {
-  UpcomingEvents,
-  createDefaultEvents,
-} from "@/components/dashboard/upcoming-events";
-import { QuickAIActions } from "@/components/dashboard/quick-ai-actions";
+import { PendingApprovals } from "@/components/dashboard/pending-approvals";
+import { ActiveAgents } from "@/components/dashboard/active-agents";
+import { DashboardRightSidebar } from "@/components/dashboard/dashboard-right-sidebar";
 import { trpc } from "@/lib/trpc/client";
 import { Sparkles } from "lucide-react";
 
@@ -75,49 +63,6 @@ export default function DashboardPage() {
     if (cashError) toast.error("Failed to load cash accounts");
   }, [cashError]);
 
-  // Compute metrics from real data
-  const metrics = useMemo(() => {
-    if (isLoading || !entityId) return null;
-
-    const bankBalance = (bankAccounts ?? [])
-      .filter((b: any) => b.isActive)
-      .reduce(
-        (s: number, b: any) => s + parseFloat(b.currentBalance || "0"),
-        0,
-      );
-    const cashBalance = (cashAccounts ?? [])
-      .filter((c: any) => c.isActive)
-      .reduce(
-        (s: number, c: any) => s + parseFloat(c.currentBalance || "0"),
-        0,
-      );
-    const revenue = (arInvoices ?? [])
-      .filter((inv: any) => inv.status === "paid")
-      .reduce(
-        (s: number, inv: any) => s + parseFloat(inv.totalAmount || "0"),
-        0,
-      );
-    const receivables = (arInvoices ?? [])
-      .filter(
-        (inv: any) =>
-          inv.status === "pending" ||
-          inv.status === "partial" ||
-          inv.status === "overdue",
-      )
-      .reduce((s: number, inv: any) => s + parseFloat(inv.balance || "0"), 0);
-    const payables = (apInvoices ?? [])
-      .filter(
-        (inv: any) => inv.status === "pending" || inv.status === "partial",
-      )
-      .reduce((s: number, inv: any) => s + parseFloat(inv.balance || "0"), 0);
-
-    return createDefaultMetrics({
-      cashAvailable: bankBalance + cashBalance,
-      revenue,
-      receivables,
-    });
-  }, [arInvoices, apInvoices, bankAccounts, cashAccounts, isLoading, entityId]);
-
   // Check if user has data or is in onboarding state
   const hasData = useMemo(() => {
     if (!entityId || isLoading) return null;
@@ -132,30 +77,11 @@ export default function DashboardPage() {
   // ─── Onboarding state (no data yet) ─────────────────────────────────────
   if (hasData === false) {
     return (
-      <div className="min-h-[calc(100vh-5rem)] space-y-6">
-        {/* AI Greeting */}
+      <div className="space-y-6">
         <AIGreeting />
-
-        {/* Onboarding: Financial Health Preview */}
-        <FinancialHealthCard metrics={metrics ?? createDefaultMetrics()} />
-
-        {/* Suggestions Grid */}
-        <div className="grid gap-6 lg:grid-cols-4">
-          <div className="lg:col-span-3">
-            <AgentActivityFeed limit={10} showHeader compact />
-          </div>
-          <div className="lg:col-span-1">
-            <UpcomingEvents events={createDefaultEvents()} />
-          </div>
-        </div>
-
-        {/* Quick AI Actions */}
-        <QuickAIActions />
-
-        {/* AI Chat + suggestions — bottom of page */}
         <AIChatInput />
-
-        {/* Guided tour */}
+        <ExecutiveBriefing />
+        <BusinessHealth />
         <GuidedTour
           steps={DEFAULT_TOUR_STEPS}
           open={showTour}
@@ -180,56 +106,44 @@ export default function DashboardPage() {
   if (hasData === null) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-20 w-full rounded-xl" />
+        <Skeleton className="h-16 w-96 rounded-xl" />
         <Skeleton className="h-16 w-full rounded-xl" />
+        <Skeleton className="h-20 w-full rounded-xl" />
+        <div className="grid gap-4 lg:grid-cols-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
         <div className="grid gap-4 lg:grid-cols-3">
-          <Skeleton className="h-40 rounded-xl lg:col-span-2" />
-          <Skeleton className="h-40 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
         </div>
       </div>
     );
   }
 
-  // ─── AI-Native Dashboard (has data) ─────────────────────────────────────
+  // ─── Main Dashboard (3-column layout) ─────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Row 1: Greeting */}
       <AIGreeting />
 
-      {/* Row 2: Financial Health + AI Insights + AI Activity (3-col grid) */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Financial Health - spans 5 cols */}
-        <div className="lg:col-span-5">
-          <FinancialHealthCard metrics={metrics ?? createDefaultMetrics()} />
-        </div>
-
-        {/* AI Insights - spans 4 cols */}
-        <div className="lg:col-span-4">
-          <AIInsightsFeed insights={createDefaultInsights()} />
-        </div>
-
-        {/* AI Activity - spans 3 cols */}
-        <div className="lg:col-span-3">
-          {/* Mobile: render upstream after desktop */}
-          <AgentActivityFeed limit={10} showHeader compact />
-        </div>
-      </div>
-
-      {/* Row 3: Active Workflows */}
-      <ActiveWorkflows workflows={createDefaultWorkflows()} />
-
-      {/* Row 4: Upcoming Events + Quick AI Actions */}
-      <div className="grid gap-6 lg:grid-cols-4">
-        <div className="lg:col-span-1">
-          <UpcomingEvents events={createDefaultEvents()} />
-        </div>
-        <div className="lg:col-span-3">
-          <QuickAIActions />
-        </div>
-      </div>
-
-      {/* AI Chat + suggestions — bottom of page */}
+      {/* Row 2: AI Command Box */}
       <AIChatInput />
+
+      {/* Row 3: Executive Briefing */}
+      <ExecutiveBriefing />
+
+      {/* Row 4: Business Health KPI Cards */}
+      <BusinessHealth />
+
+      {/* Row 5: 3-column — Activity Feed | Pending Approvals | Active Agents */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <AgentActivityFeed limit={10} showHeader compact />
+        <PendingApprovals />
+        <ActiveAgents />
+      </div>
 
       {/* Guided tour */}
       <GuidedTour

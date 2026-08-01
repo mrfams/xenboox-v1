@@ -6,14 +6,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import {
   ArrowRight,
-  Sparkles,
-  TrendingUp,
+  BookOpen,
+  Wallet,
   FileText,
-  AlertTriangle,
+  Search,
   BarChart3,
-  DollarSign,
-  Users,
-  Bot,
+  RefreshCw,
+  Calendar,
 } from "lucide-react";
 
 type AIChatInputProps = {
@@ -23,39 +22,39 @@ type AIChatInputProps = {
 type Suggestion = {
   label: string;
   prompt: string;
-  icon: typeof Sparkles;
+  icon: typeof BookOpen;
 };
 
 const SUGGESTIONS: Suggestion[] = [
   {
-    label: "Forecast cash",
-    prompt: "Forecast my cash flow for the next 3 months",
-    icon: TrendingUp,
+    label: "Close July books",
+    prompt: "Close the books for July 2025",
+    icon: BookOpen,
   },
   {
-    label: "Explain profit",
-    prompt: "Why is my profit lower this month compared to last?",
-    icon: BarChart3,
+    label: "Explain cash position",
+    prompt: "Explain my current cash position",
+    icon: Wallet,
   },
   {
-    label: "Prepare VAT",
-    prompt: "Prepare my VAT return for this quarter",
+    label: "Create payroll",
+    prompt: "Create a new payroll run",
     icon: FileText,
   },
   {
-    label: "Review expenses",
-    prompt: "Review my expenses and find cost savings opportunities",
-    icon: DollarSign,
+    label: "Find duplicate expenses",
+    prompt: "Scan for duplicate expenses this month",
+    icon: Search,
   },
   {
-    label: "Anomaly check",
-    prompt: "Check for anomalies in recent transactions",
-    icon: AlertTriangle,
+    label: "Forecast next month",
+    prompt: "Forecast cash flow for next month",
+    icon: BarChart3,
   },
   {
-    label: "Hire analysis",
-    prompt: "Can I afford to hire two more engineers next month?",
-    icon: Users,
+    label: "Show unpaid invoices",
+    prompt: "Show all unpaid invoices",
+    icon: Calendar,
   },
 ];
 
@@ -82,28 +81,21 @@ export function AIChatInput({ className }: AIChatInputProps) {
 
   return (
     <div className={cn("space-y-3", className)}>
+      {/* Prompt Header */}
+      <p className="text-sm font-medium text-foreground">
+        What would you like Xenboox to do today?
+      </p>
+
       {/* Chat Input */}
       <div
         className={cn(
           "relative group rounded-2xl border-2 bg-card transition-all duration-300",
           isFocused
-            ? "border-signal-indigo/50 shadow-lg shadow-signal-indigo/5"
-            : "border-muted/40 hover:border-muted/60 hover:shadow-md",
+            ? "border-[#6366F1]/50 shadow-lg shadow-[#6366F1]/5"
+            : "border-border/50 hover:border-border/80 hover:shadow-md",
         )}
       >
-        {/* Gradient glow on focus */}
-        <div
-          className={cn(
-            "absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-signal-indigo/20 via-purple-500/20 to-signal-indigo/20 opacity-0 blur-sm transition-opacity duration-500",
-            isFocused && "opacity-100",
-          )}
-        />
-
         <div className="relative flex items-center gap-3 px-4 py-3.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-signal-indigo/10">
-            <Sparkles className="h-4 w-4 text-signal-indigo" />
-          </div>
-
           <input
             ref={inputRef}
             type="text"
@@ -112,30 +104,28 @@ export function AIChatInput({ className }: AIChatInputProps) {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask your AI accountant anything..."
+            placeholder="Ask anything about your accounting..."
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
           />
 
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => handleSubmit(inputValue)}
-              disabled={!inputValue.trim()}
-              className={cn(
-                "h-8 w-8 rounded-lg p-0 transition-all",
-                inputValue.trim()
-                  ? "bg-signal-indigo hover:bg-signal-indigo-hover text-white shadow-sm"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            type="button"
+            size="icon"
+            onClick={() => handleSubmit(inputValue)}
+            disabled={!inputValue.trim()}
+            className={cn(
+              "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
+              inputValue.trim()
+                ? "bg-[#6366F1] hover:bg-[#6366F1]/90 text-white shadow-sm"
+                : "bg-[#6366F1] text-white",
+            )}
+          >
+            <ArrowRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      {/* Suggested Prompts — slideable single row, no scrollbar */}
+      {/* Quick Action Pills */}
       <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
         {SUGGESTIONS.map((suggestion) => {
           const Icon = suggestion.icon;
@@ -145,9 +135,9 @@ export function AIChatInput({ className }: AIChatInputProps) {
               type="button"
               onClick={() => handleSubmit(suggestion.prompt)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border bg-card/80 px-3 py-1.5",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
                 "text-xs text-muted-foreground transition-all duration-200",
-                "hover:border-signal-indigo/30 hover:text-signal-indigo hover:bg-signal-indigo/5 hover:shadow-sm",
+                "hover:border-[#6366F1]/30 hover:text-[#6366F1] hover:bg-[#6366F1]/5 hover:shadow-sm",
                 "active:scale-95",
               )}
             >
@@ -156,6 +146,13 @@ export function AIChatInput({ className }: AIChatInputProps) {
             </button>
           );
         })}
+        <button
+          type="button"
+          className="inline-flex shrink-0 items-center justify-center h-7 w-7 rounded-xl border border-border/50 bg-card/80 text-muted-foreground transition-all hover:bg-accent"
+          title="Refresh suggestions"
+        >
+          <RefreshCw className="h-3 w-3" />
+        </button>
       </div>
     </div>
   );
