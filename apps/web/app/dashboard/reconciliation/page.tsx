@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { AICopilotSidebar } from "@/components/dashboard/ai-copilot-sidebar";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
 import {
   Badge,
   Button,
@@ -16,154 +19,185 @@ import {
 import {
   RefreshCw,
   Plus,
-  Download,
   MoreHorizontal,
   Search,
   Filter,
   DollarSign,
   AlertTriangle,
   CheckCircle,
-  TrendingUp,
-  ArrowRight,
   Eye,
   FileText,
-  Bot,
   Settings,
   Upload,
-  Play,
-  Pause,
   Target,
-  Check,
-  X,
-  ChevronDown,
-  ChevronRight,
   BookOpen,
   Zap,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
-const matchedTransactions = [
-  {
-    id: "1",
-    date: "May 19, 2025",
-    description: "Transfer from Access Bank",
-    statement: 15000,
-    book: 15000,
-    status: "Matched",
-    confidence: 100,
-  },
-  {
-    id: "2",
-    date: "May 19, 2025",
-    description: "INV-1052 Payment from Alpha Ltd",
-    statement: 47500,
-    book: 47500,
-    status: "Matched",
-    confidence: 99,
-  },
-  {
-    id: "3",
-    date: "May 18, 2025",
-    description: "POS Purchase – Office Supplies",
-    statement: -2350,
-    book: -2350,
-    status: "Matched",
-    confidence: 98,
-  },
-  {
-    id: "4",
-    date: "May 17, 2025",
-    description: "Internet Banking Transfer Fee",
-    statement: -50,
-    book: -50,
-    status: "Matched",
-    confidence: 100,
-  },
-  {
-    id: "5",
-    date: "May 17, 2025",
-    description: "Cash Deposit",
-    statement: 20000,
-    book: 20000,
-    status: "Matched",
-    confidence: 100,
-  },
-];
+type BankAccount = {
+  id: string;
+  name: string;
+  bankName: string;
+  accountNumber: string;
+  currentBalance: string;
+  isActive: boolean;
+  type: string;
+};
 
-const unmatchedTransactions = [
-  {
-    id: "6",
-    date: "May 19, 2025",
-    description: "Cheque 002583",
-    statement: -5000,
-    book: null,
-    status: "Unmatched",
-    confidence: null,
-  },
-  {
-    id: "7",
-    date: "May 18, 2025",
-    description: "Bank Charge",
-    statement: -120,
-    book: null,
-    status: "Unmatched",
-    confidence: null,
-  },
-  {
-    id: "8",
-    date: "May 18, 2025",
-    description: "Unknown Deposit",
-    statement: 3200,
-    book: null,
-    status: "Unmatched",
-    confidence: null,
-  },
-  {
-    id: "9",
-    date: "May 16, 2025",
-    description: "Mobile Money Deposit",
-    statement: 1500,
-    book: null,
-    status: "Unmatched",
-    confidence: null,
-  },
-];
-
-const aiSuggestions = [
-  {
-    id: "1",
-    source: "Cheque 002583",
-    date: "May 19, 2025",
-    amount: -5000,
-    match: "Payment to Supplier – ABC Ltd",
-    matchDate: "May 18, 2025",
-    matchAmount: -5000,
-    confidence: 97,
-  },
-  {
-    id: "2",
-    source: "Mobile Money Deposit",
-    date: "May 16, 2025",
-    amount: 1500,
-    match: "Sales – May to Deposith",
-    matchDate: "May 18, 2025",
-    matchAmount: -1300,
-    confidence: 94,
-  },
-];
+type Reconciliation = {
+  id: string;
+  bankAccountId: string;
+  entityId: string;
+  statementDate: string;
+  statementBalance: string;
+  bookBalance: string;
+  difference: string;
+  status: string;
+  notes?: string | null;
+  closedAt?: Date | null;
+  closedBy?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export default function ReconciliationCenterPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [copilotOpen, setCopilotOpen] = useState(true);
+  const [selectedBankAccount, setSelectedBankAccount] = useState<
+    string | undefined
+  >(undefined);
+
+  // Fetch real bank accounts from the database with entity scoping
+  const { data: bankAccounts, isLoading: loadingAccounts } =
+    trpc.treasury.listBankAccounts.useQuery();
+
+  // Fetch real reconciliations from the database with entity scoping
+  const { data: reconciliations, isLoading: loadingReconciliations } =
+    trpc.treasury.listReconciliations.useQuery(
+      selectedBankAccount ? { bankAccountId: selectedBankAccount } : undefined,
+    );
+
+  // Fetch bank transactions for the selected account
+  const { data: bankTransactions, isLoading: loadingTransactions } =
+    trpc.treasury.listBankTransactions.useQuery(
+      selectedBankAccount ? { bankAccountId: selectedBankAccount } : undefined,
+    );
+
+  // Compute KPI metrics from real data
+  const kpis = useMemo(() => {
+    if (!reconciliations) return null;
+    const totalReconciliations = reconciliations.length;
+    const openReconciliations = reconciliations.filter(
+      (r) => r.status === "unmatched",
+    ).length;
+    const closedReconciliations = reconciliations.filter(
+      (r) => r.status === "closed",
+    ).length;
+    const totalStatementBalance = reconciliations.reduce(
+      (sum, r) => sum + parseFloat(r.statementBalance),
+      0,
+    );
+    const totalBookBalance = reconciliations.reduce(
+      (sum, r) => sum + parseFloat(r.bookBalance),
+      0,
+    );
+    const totalDifference = totalStatementBalance - totalBookBalance;
+    return {
+      totalReconciliations,
+      openReconciliations,
+      closedReconciliations,
+      totalStatementBalance,
+      totalBookBalance,
+      totalDifference,
+    };
+  }, [reconciliations]);
+
+  // Compute transaction metrics
+  const txMetrics = useMemo(() => {
+    if (!bankTransactions) return null;
+    const totalTransactions = bankTransactions.length;
+    const reconciledTransactions = bankTransactions.filter(
+      (tx) => tx.isReconciled,
+    ).length;
+    const unreconciledTransactions = totalTransactions - reconciledTransactions;
+    const matchRate =
+      totalTransactions > 0
+        ? Math.round((reconciledTransactions / totalTransactions) * 100)
+        : 0;
+    return {
+      totalTransactions,
+      reconciledTransactions,
+      unreconciledTransactions,
+      matchRate,
+    };
+  }, [bankTransactions]);
+
+  // AI Copilot insights based on real data
+  const insights = useMemo(() => {
+    if (!kpis) return [];
+    return [
+      {
+        id: "1",
+        type:
+          kpis.totalDifference !== 0
+            ? ("warning" as const)
+            : ("success" as const),
+        title:
+          kpis.totalDifference !== 0
+            ? `Difference of ${formatCurrency(Math.abs(kpis.totalDifference))} detected`
+            : "All reconciliations are balanced",
+        description:
+          kpis.totalDifference !== 0
+            ? "Review unmatched transactions to resolve the difference"
+            : "Your books match your bank statements",
+        action: { label: "View details", onClick: () => {} },
+      },
+      {
+        id: "2",
+        type: "info" as const,
+        title: `${kpis.openReconciliations} reconciliations in progress`,
+        description: `${kpis.closedReconciliations} reconciliations completed this month`,
+        action: { label: "View all", onClick: () => {} },
+      },
+    ];
+  }, [kpis]);
 
   const tabs = [
-    { id: "all", label: "All Transactions", count: 164 },
-    { id: "matched", label: "Matched", count: 156 },
-    { id: "unmatched", label: "Unmatched", count: 8 },
-    { id: "auto", label: "Auto-Matched", count: 142 },
-    { id: "ignored", label: "Ignored", count: 0 },
+    {
+      id: "all",
+      label: "All Reconciliations",
+      count: kpis?.totalReconciliations ?? 0,
+    },
+    { id: "open", label: "In Progress", count: kpis?.openReconciliations ?? 0 },
+    {
+      id: "closed",
+      label: "Completed",
+      count: kpis?.closedReconciliations ?? 0,
+    },
   ];
+
+  // Filter reconciliations by search and tab
+  const filteredReconciliations = useMemo(() => {
+    if (!reconciliations) return [];
+    let result = [...reconciliations];
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.statementDate.toLowerCase().includes(q) ||
+          r.notes?.toLowerCase().includes(q),
+      );
+    }
+    if (activeTab === "open") {
+      result = result.filter((r) => r.status === "unmatched");
+    } else if (activeTab === "closed") {
+      result = result.filter((r) => r.status === "closed");
+    }
+    return result;
+  }, [reconciliations, search, activeTab]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
@@ -198,25 +232,44 @@ export default function ReconciliationCenterPage() {
 
           {/* Bank Account Selector */}
           <div className="flex items-center gap-4">
-            <Select defaultValue="gtbank">
+            <Select
+              value={selectedBankAccount}
+              onValueChange={setSelectedBankAccount}
+            >
               <SelectTrigger className="w-[300px]">
-                <SelectValue />
+                <SelectValue placeholder="Select a bank account" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gtbank">
-                  GTBank Gambia Ltd – 1546 •••• 7890
-                </SelectItem>
+                {loadingAccounts ? (
+                  <SelectItem value="loading" disabled>
+                    Loading accounts...
+                  </SelectItem>
+                ) : bankAccounts && bankAccounts.length > 0 ? (
+                  (bankAccounts as BankAccount[]).map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.bankName} –{" "}
+                      {account.accountNumber
+                        .slice(-4)
+                        .padStart(account.accountNumber.length, "•")}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No bank accounts found
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>May 1 – May 19, 2025</span>
-              <Badge
-                variant="secondary"
-                className="bg-emerald-100 text-emerald-700 text-[10px]"
+            {!selectedBankAccount && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/dashboard/treasury")}
               >
-                ● In Progress
-              </Badge>
-            </div>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Bank Account
+              </Button>
+            )}
           </div>
 
           {/* KPI Cards */}
@@ -224,38 +277,48 @@ export default function ReconciliationCenterPage() {
             {[
               {
                 label: "Statement Balance",
-                value: formatCurrency(525600),
+                value: formatCurrency(kpis?.totalStatementBalance ?? 0),
                 icon: DollarSign,
                 color: "text-primary",
                 bgColor: "bg-primary/10",
               },
               {
                 label: "Book Balance",
-                value: formatCurrency(534050),
+                value: formatCurrency(kpis?.totalBookBalance ?? 0),
                 icon: BookOpen,
                 color: "text-blue-600",
                 bgColor: "bg-blue-50",
               },
               {
                 label: "Difference",
-                value: "-" + formatCurrency(8450),
-                subtext: "1.61% of statement",
+                value:
+                  (kpis?.totalDifference ?? 0) >= 0
+                    ? formatCurrency(kpis?.totalDifference ?? 0)
+                    : "-" +
+                      formatCurrency(Math.abs(kpis?.totalDifference ?? 0)),
                 icon: AlertTriangle,
-                color: "text-red-600",
-                bgColor: "bg-red-50",
+                color:
+                  (kpis?.totalDifference ?? 0) !== 0
+                    ? "text-red-600"
+                    : "text-emerald-600",
+                bgColor:
+                  (kpis?.totalDifference ?? 0) !== 0
+                    ? "bg-red-50"
+                    : "bg-emerald-50",
               },
               {
                 label: "Matched",
-                value: "156",
-                subtext: formatCurrency(517150) + " (98.4%)",
+                value: (txMetrics?.reconciledTransactions ?? 0).toString(),
+                subtext: txMetrics
+                  ? `${txMetrics.matchRate}% match rate`
+                  : undefined,
                 icon: CheckCircle,
                 color: "text-emerald-600",
                 bgColor: "bg-emerald-50",
               },
               {
                 label: "Unmatched",
-                value: "8",
-                subtext: formatCurrency(8450) + " (1.61%)",
+                value: (txMetrics?.unreconciledTransactions ?? 0).toString(),
                 icon: AlertTriangle,
                 color: "text-amber-600",
                 bgColor: "bg-amber-50",
@@ -315,7 +378,7 @@ export default function ReconciliationCenterPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search transactions..."
+                  placeholder="Search reconciliations..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9 w-[200px]"
@@ -328,38 +391,34 @@ export default function ReconciliationCenterPage() {
             </div>
           </div>
 
-          {/* Matched Transactions */}
-          <div className="rounded-lg border bg-card">
-            <div className="p-4 border-b bg-emerald-50/50">
-              <h3 className="text-sm font-semibold text-emerald-700">
-                Matched Transactions (156)
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
+          {/* Reconciliations Table */}
+          {loadingReconciliations ? (
+            <TableSkeleton rows={6} columns={7} />
+          ) : !reconciliations || reconciliations.length === 0 ? (
+            <EmptyState
+              icon={<RefreshCw className="h-12 w-12" />}
+              title="No reconciliations"
+              description="Start a new reconciliation to match your bank transactions with your books."
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/30">
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-10">
-                      <input type="checkbox" className="rounded" />
-                    </th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground"></th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                      Date
-                    </th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                      Description
+                      Statement Date
                     </th>
                     <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                      Statement (GMD)
+                      Statement Balance
                     </th>
                     <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                      Book (GMD)
+                      Book Balance
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
+                      Difference
                     </th>
                     <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                      Match Status
-                    </th>
-                    <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                      Confidence
+                      Status
                     </th>
                     <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
                       Actions
@@ -367,216 +426,110 @@ export default function ReconciliationCenterPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {matchedTransactions.map((tx) => (
+                  {filteredReconciliations.map((recon) => (
                     <tr
-                      key={tx.id}
+                      key={recon.id}
                       className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/treasury/${recon.bankAccountId}/reconciliation/${recon.id}`,
+                        )
+                      }
                     >
-                      <td
-                        className="py-3 px-4"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input type="checkbox" className="rounded" />
+                      <td className="py-3 px-4 text-sm">
+                        {recon.statementDate}
                       </td>
-                      <td className="py-3 px-4">
-                        <Check className="h-4 w-4 text-emerald-500" />
-                      </td>
-                      <td className="py-3 px-4 text-sm">{tx.date}</td>
-                      <td className="py-3 px-4 text-sm font-medium">
-                        {tx.description}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-right font-mono text-emerald-600">
-                        {tx.statement > 0 ? "+" : ""}
-                        {formatCurrency(tx.statement)}
+                      <td className="py-3 px-4 text-sm text-right font-mono font-medium">
+                        {formatCurrency(parseFloat(recon.statementBalance))}
                       </td>
                       <td className="py-3 px-4 text-sm text-right font-mono">
-                        {tx.book !== null ? formatCurrency(tx.book) : "—"}
+                        {formatCurrency(parseFloat(recon.bookBalance))}
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <Badge
-                          variant="secondary"
-                          className="bg-emerald-100 text-emerald-700 text-[10px]"
+                      <td className="py-3 px-4 text-sm text-right font-mono">
+                        <span
+                          className={cn(
+                            parseFloat(recon.difference) !== 0
+                              ? "text-red-600"
+                              : "text-emerald-600",
+                          )}
                         >
-                          ● Matched
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="text-xs font-mono">
-                          {tx.confidence}%
+                          {parseFloat(recon.difference) >= 0
+                            ? formatCurrency(parseFloat(recon.difference))
+                            : "-" +
+                              formatCurrency(
+                                Math.abs(parseFloat(recon.difference)),
+                              )}
                         </span>
                       </td>
-                      <td
-                        className="py-3 px-4 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Unmatched Transactions */}
-          <div className="rounded-lg border bg-card">
-            <div className="p-4 border-b bg-amber-50/50">
-              <h3 className="text-sm font-semibold text-amber-700">
-                Unmatched Transactions (8)
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-10">
-                      <input type="checkbox" className="rounded" />
-                    </th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground"></th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                      Date
-                    </th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                      Description
-                    </th>
-                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                      Statement (GMD)
-                    </th>
-                    <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                      Book (GMD)
-                    </th>
-                    <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                      Match Status
-                    </th>
-                    <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                      Confidence
-                    </th>
-                    <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unmatchedTransactions.map((tx) => (
-                    <tr
-                      key={tx.id}
-                      className="border-b hover:bg-muted/30 cursor-pointer transition-colors bg-amber-50/20"
-                    >
-                      <td
-                        className="py-3 px-4"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input type="checkbox" className="rounded" />
-                      </td>
-                      <td className="py-3 px-4">
-                        <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      </td>
-                      <td className="py-3 px-4 text-sm">{tx.date}</td>
-                      <td className="py-3 px-4 text-sm font-medium">
-                        {tx.description}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-right font-mono text-amber-600">
-                        {tx.statement > 0 ? "+" : ""}
-                        {formatCurrency(tx.statement)}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-right font-mono text-muted-foreground">
-                        —
-                      </td>
                       <td className="py-3 px-4 text-center">
                         <Badge
                           variant="secondary"
-                          className="bg-amber-100 text-amber-700 text-[10px]"
+                          className={cn(
+                            "text-[10px]",
+                            recon.status === "closed"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700",
+                          )}
                         >
-                          ● Unmatched
+                          {recon.status === "closed"
+                            ? "● Completed"
+                            : "● In Progress"}
                         </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="text-xs text-muted-foreground">—</span>
                       </td>
                       <td
                         className="py-3 px-4 text-center"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Button variant="outline" size="sm" className="text-xs">
-                          Match <ChevronDown className="ml-1 h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-            <div className="p-4 border-t flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Showing 1 to 10 of 8 unmatched
-              </p>
-              <button className="text-sm text-primary hover:underline">
-                Show more →
-              </button>
-            </div>
-          </div>
-
-          {/* AI Match Suggestions */}
-          <div className="rounded-lg border bg-card">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                AI Match Suggestions (3)
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] bg-emerald-100 text-emerald-700"
-                >
-                  High Confidence
-                </Badge>
-              </h3>
-              <Button variant="outline" size="sm">
-                Accept All
-              </Button>
-            </div>
-            <div className="p-4 space-y-3">
-              {aiSuggestions.map((suggestion) => (
-                <div
-                  key={suggestion.id}
-                  className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/30 transition-colors"
-                >
-                  <input type="checkbox" className="rounded" defaultChecked />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{suggestion.source}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {suggestion.date} • {formatCurrency(suggestion.amount)}
-                    </p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{suggestion.match}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {suggestion.matchDate} •{" "}
-                      {formatCurrency(suggestion.matchAmount)}
-                    </p>
-                  </div>
-                  <Badge
-                    variant="secondary"
-                    className="text-[10px] bg-emerald-100 text-emerald-700"
+              <div className="flex items-center justify-between border-t px-4 py-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing {reconciliations.length} reconciliations
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled>
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-primary text-primary-foreground"
                   >
-                    {suggestion.confidence}%
-                  </Badge>
+                    1
+                  </Button>
+                  <Button variant="outline" size="sm" disabled>
+                    Next
+                  </Button>
                 </div>
-              ))}
+              </div>
             </div>
-            <div className="p-4 border-t">
-              <button className="text-sm text-primary hover:underline">
-                View all suggestions →
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between">
             <Button variant="outline">Finish Later</Button>
             <Button>
               <CheckCircle className="mr-2 h-4 w-4" />
-              Finalize Reconciliation
+              New Reconciliation
             </Button>
           </div>
         </div>
@@ -587,48 +540,31 @@ export default function ReconciliationCenterPage() {
         <div className="w-80 border-l bg-card hidden lg:block">
           <AICopilotSidebar
             title="Xenboox AI Copilot"
-            subtitle="I found 3 potential matches and 2 issues that need your attention."
-            insights={[
-              {
-                id: "1",
-                type: "warning",
-                title: "Unmatched deposit detected",
-                description:
-                  "There is a deposit of GMD 3,200.00 on May 18, 2025 that doesn't exist in your books.",
-                action: { label: "Review transaction", onClick: () => {} },
-              },
-              {
-                id: "2",
-                type: "info",
-                title: "Reconciliation Progress: 98.4%",
-                description:
-                  "Matched 156 (GMD 517,150.00) • Unmatched 8 (GMD 8,450.00)",
-                action: { label: "View details", onClick: () => {} },
-              },
-            ]}
+            subtitle="I found potential matches and issues that need your attention."
+            insights={insights}
             suggestedActions={[
               {
                 id: "1",
                 icon: <RefreshCw className="h-4 w-4" />,
-                label: "Why is this amount unmatched?",
-                description: "Get explanation",
+                label: "Auto-reconcile transactions",
+                description: "Match bank feed",
               },
               {
                 id: "2",
                 icon: <Target className="h-4 w-4" />,
-                label: "Show me possible matches for this",
+                label: "Find unmatched transactions",
                 description: "AI suggestions",
               },
               {
                 id: "3",
                 icon: <DollarSign className="h-4 w-4" />,
-                label: "What bank charges can I expect?",
+                label: "Review bank charges",
                 description: "View charges",
               },
               {
                 id: "4",
                 icon: <FileText className="h-4 w-4" />,
-                label: "Explain this reconciliation",
+                label: "Export reconciliation report",
                 description: "Get summary",
               },
             ]}

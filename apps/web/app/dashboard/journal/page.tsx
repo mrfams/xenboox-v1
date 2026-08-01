@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 
 import { AICopilotSidebar } from "@/components/dashboard/ai-copilot-sidebar";
+import { EmptyState } from "@/components/shared/empty-state";
+import { TableSkeleton } from "@/components/shared/loading";
 import {
   Badge,
   Button,
@@ -18,179 +20,147 @@ import {
 import {
   FileText,
   Plus,
-  Download,
   MoreHorizontal,
   Search,
   Filter,
-  DollarSign,
   AlertTriangle,
   CheckCircle,
   Clock,
-  TrendingUp,
-  ArrowRight,
   Eye,
   Bot,
   Upload,
   RefreshCw,
-  Zap,
-  Users,
-  BarChart3,
-  BookOpen,
-  CheckCircle2,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
-const mockEntries = [
-  {
-    id: "1",
-    entryNumber: "JE-2025-0132",
-    date: "May 19, 2025",
-    description: "Bank charges",
-    source: "Manual",
-    reference: "CHG-0519",
-    debit: 150,
-    credit: 150,
-    status: "Approved",
-    createdBy: "Famara T.",
-  },
-  {
-    id: "2",
-    entryNumber: "JE-2025-0131",
-    date: "May 18, 2025",
-    description: "Office supplies adjustment",
-    source: "Manual",
-    reference: "ADJ-0518",
-    debit: 1250,
-    credit: 1250,
-    status: "Pending Approval",
-    createdBy: "Mariama C.",
-  },
-  {
-    id: "3",
-    entryNumber: "JE-2025-0130",
-    date: "May 18, 2025",
-    description: "Loan repayment entry",
-    source: "Bank Import",
-    reference: "LN-8890",
-    debit: 12300,
-    credit: 12300,
-    status: "Approved",
-    createdBy: "System (AI)",
-  },
-  {
-    id: "4",
-    entryNumber: "JE-2025-0129",
-    date: "May 17, 2025",
-    description: "Salary expense – May 2025",
-    source: "Payroll",
-    reference: "PAY-MAY-25",
-    debit: 25460,
-    credit: 25460,
-    status: "Posted",
-    createdBy: "System (AI)",
-  },
-  {
-    id: "5",
-    entryNumber: "JE-2025-0128",
-    date: "May 16, 2025",
-    description: "Inventory stock adjustment",
-    source: "Inventory",
-    reference: "INV-ADJ-016",
-    debit: 8750,
-    credit: 8750,
-    status: "Approved",
-    createdBy: "Yusupha S.",
-  },
-  {
-    id: "6",
-    entryNumber: "JE-2025-0127",
-    date: "May 15, 2025",
-    description: "Depreciation – Office Equip.",
-    source: "Automation",
-    reference: "DEP-MAY-25",
-    debit: 3600,
-    credit: 3600,
-    status: "Posted",
-    createdBy: "System (AI)",
-  },
-  {
-    id: "7",
-    entryNumber: "JE-2025-0126",
-    date: "May 14, 2025",
-    description: "Sales return adjustment",
-    source: "Manual",
-    reference: "SR-0514",
-    debit: 2450,
-    credit: 2450,
-    status: "Approved",
-    createdBy: "Fatou C.",
-  },
-  {
-    id: "8",
-    entryNumber: "JE-2025-0125",
-    date: "May 13, 2025",
-    description: "Interest income – May",
-    source: "Bank Import",
-    reference: "INT-0513",
-    debit: 950,
-    credit: 950,
-    status: "Posted",
-    createdBy: "System (AI)",
-  },
-  {
-    id: "9",
-    entryNumber: "JE-2025-0124",
-    date: "May 12, 2025",
-    description: "Cash in transit",
-    source: "Manual",
-    reference: "CIT-0512",
-    debit: 5000,
-    credit: 5000,
-    status: "Pending Approval",
-    createdBy: "Lamin B.",
-  },
-  {
-    id: "10",
-    entryNumber: "JE-2025-0123",
-    date: "May 11, 2025",
-    description: "Bank fees reversal",
-    source: "Manual",
-    reference: "REV-0511",
-    debit: 75,
-    credit: 75,
-    status: "Approved",
-    createdBy: "Famara T.",
-  },
-];
-
 const sourceColors: Record<string, string> = {
-  Manual: "bg-blue-100 text-blue-700",
-  "Bank Import": "bg-emerald-100 text-emerald-700",
-  Payroll: "bg-purple-100 text-purple-700",
-  Inventory: "bg-amber-100 text-amber-700",
-  Automation: "bg-indigo-100 text-indigo-700",
+  manual: "bg-blue-100 text-blue-700",
+  bank_import: "bg-emerald-100 text-emerald-700",
+  payroll: "bg-purple-100 text-purple-700",
+  inventory: "bg-amber-100 text-amber-700",
+  automation: "bg-indigo-100 text-indigo-700",
+  ingestion: "bg-cyan-100 text-cyan-700",
 };
 
 const statusColors: Record<string, string> = {
-  Approved: "bg-emerald-100 text-emerald-700",
-  "Pending Approval": "bg-amber-100 text-amber-700",
-  Posted: "bg-blue-100 text-blue-700",
-  Voided: "bg-red-100 text-red-700",
+  draft: "bg-gray-100 text-gray-700",
+  pending_review: "bg-amber-100 text-amber-700",
+  posted: "bg-emerald-100 text-emerald-700",
+  reversed: "bg-red-100 text-red-700",
+  voided: "bg-red-100 text-red-700",
+};
+
+type JournalEntry = {
+  id: string;
+  entityId: string;
+  entryNumber: number;
+  description: string;
+  reference?: string | null;
+  date: string;
+  periodId: string;
+  status: string;
+  source?: string | null;
+  confidence?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export default function JournalPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(
+    undefined,
+  );
   const [copilotOpen, setCopilotOpen] = useState(true);
 
+  // Fetch real journal entries from the database with entity scoping
+  const { data: entriesData, isLoading } = trpc.journal.list.useQuery({
+    limit: 50,
+    offset: 0,
+    status: statusFilter as
+      | "draft"
+      | "pending_review"
+      | "posted"
+      | "reversed"
+      | "voided"
+      | undefined,
+  });
+
+  const entries = useMemo(() => {
+    if (!entriesData) return [];
+    let result = [...entriesData];
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (e) =>
+          e.description.toLowerCase().includes(q) ||
+          String(e.entryNumber).includes(q) ||
+          (e.reference ?? "").toLowerCase().includes(q),
+      );
+    }
+    return result;
+  }, [entriesData, search]);
+
+  // Compute KPI metrics from real data
+  const kpis = useMemo(() => {
+    if (!entriesData) return null;
+    const totalEntries = entriesData.length;
+    const draftCount = entriesData.filter((e) => e.status === "draft").length;
+    const pendingCount = entriesData.filter(
+      (e) => e.status === "pending_review",
+    ).length;
+    const postedCount = entriesData.filter((e) => e.status === "posted").length;
+    const voidedCount = entriesData.filter(
+      (e) => e.status === "voided" || e.status === "reversed",
+    ).length;
+    const aiGenerated = entriesData.filter(
+      (e) => e.source === "automation" || e.source === "ingestion",
+    ).length;
+    const aiPct =
+      totalEntries > 0 ? Math.round((aiGenerated / totalEntries) * 100) : 0;
+    return {
+      totalEntries,
+      draftCount,
+      pendingCount,
+      postedCount,
+      voidedCount,
+      aiGenerated,
+      aiPct,
+    };
+  }, [entriesData]);
+
+  // AI Copilot insights based on real data
+  const insights = useMemo(() => {
+    if (!kpis) return [];
+    return [
+      {
+        id: "1",
+        type: "warning" as const,
+        title: `${kpis.pendingCount} entries need your review`,
+        description: "These entries are awaiting approval",
+        action: { label: "Review pending entries", onClick: () => {} },
+      },
+      {
+        id: "2",
+        type: "info" as const,
+        title: `${kpis.aiPct}% of entries are AI-generated`,
+        description: `${kpis.aiGenerated} of ${kpis.totalEntries} entries created by AI`,
+        action: { label: "View automation log", onClick: () => {} },
+      },
+    ];
+  }, [kpis]);
+
   const tabs = [
-    { id: "all", label: "All Entries", count: 132 },
-    { id: "draft", label: "Draft", count: 12 },
-    { id: "pending", label: "Pending Approval", count: 6 },
-    { id: "approved", label: "Approved", count: 124 },
-    { id: "posted", label: "Posted", count: 320 },
-    { id: "voided", label: "Voided", count: 4 },
+    { id: "all", label: "All Entries", count: kpis?.totalEntries ?? 0 },
+    { id: "draft", label: "Draft", count: kpis?.draftCount ?? 0 },
+    {
+      id: "pending_review",
+      label: "Pending Approval",
+      count: kpis?.pendingCount ?? 0,
+    },
+    { id: "posted", label: "Posted", count: kpis?.postedCount ?? 0 },
+    { id: "voided", label: "Voided", count: kpis?.voidedCount ?? 0 },
   ];
 
   return (
@@ -216,7 +186,10 @@ export default function JournalPage() {
               <Button variant="outline" size="sm">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
-              <Button size="sm">
+              <Button
+                size="sm"
+                onClick={() => router.push("/dashboard/journal/new")}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 New Journal Entry
               </Button>
@@ -228,7 +201,14 @@ export default function JournalPage() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === "all") {
+                    setStatusFilter(undefined);
+                  } else {
+                    setStatusFilter(tab.id);
+                  }
+                }}
                 className={cn(
                   "px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap",
                   activeTab === tab.id
@@ -247,43 +227,36 @@ export default function JournalPage() {
             {[
               {
                 label: "Total Entries (MTD)",
-                value: "132",
-                change: "+18.6%",
-                changeLabel: "vs last month",
+                value: (kpis?.totalEntries ?? 0).toString(),
                 icon: FileText,
                 color: "text-primary",
                 bgColor: "bg-primary/10",
               },
               {
-                label: "Total Debit (MTD)",
-                value: formatCurrency(284750),
-                change: "+12.3%",
-                changeLabel: "vs last month",
-                icon: DollarSign,
-                color: "text-emerald-600",
-                bgColor: "bg-emerald-50",
-              },
-              {
-                label: "Total Credit (MTD)",
-                value: formatCurrency(284750),
-                change: "+12.3%",
-                changeLabel: "vs last month",
-                icon: DollarSign,
-                color: "text-blue-600",
-                bgColor: "bg-blue-50",
+                label: "Draft",
+                value: (kpis?.draftCount ?? 0).toString(),
+                icon: Clock,
+                color: "text-gray-600",
+                bgColor: "bg-gray-50",
               },
               {
                 label: "Pending Approval",
-                value: formatCurrency(45200),
-                subtext: "6 entries",
-                icon: Clock,
+                value: (kpis?.pendingCount ?? 0).toString(),
+                icon: AlertTriangle,
                 color: "text-amber-600",
                 bgColor: "bg-amber-50",
               },
               {
+                label: "Posted",
+                value: (kpis?.postedCount ?? 0).toString(),
+                icon: CheckCircle,
+                color: "text-emerald-600",
+                bgColor: "bg-emerald-50",
+              },
+              {
                 label: "Auto-Generated (MTD)",
-                value: "78%",
-                subtext: "103 of 132 entries",
+                value: `${kpis?.aiPct ?? 0}%`,
+                subtext: `${kpis?.aiGenerated ?? 0} of ${kpis?.totalEntries ?? 0} entries`,
                 icon: Bot,
                 color: "text-emerald-600",
                 bgColor: "bg-emerald-50",
@@ -311,14 +284,6 @@ export default function JournalPage() {
                   <p className="text-xl font-bold tracking-tight tabular-nums">
                     {kpi.value}
                   </p>
-                  {kpi.change && (
-                    <p className={cn("text-xs mt-1", kpi.color)}>
-                      {kpi.change}{" "}
-                      <span className="text-muted-foreground">
-                        {kpi.changeLabel}
-                      </span>
-                    </p>
-                  )}
                   {kpi.subtext && (
                     <p className="text-xs text-muted-foreground mt-1">
                       {kpi.subtext}
@@ -342,41 +307,6 @@ export default function JournalPage() {
                 />
               </div>
             </div>
-            <Select defaultValue="all">
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="All Dates" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Dates</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select defaultValue="all">
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="All Sources" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sources</SelectItem>
-                <SelectItem value="manual">Manual</SelectItem>
-                <SelectItem value="bank">Bank Import</SelectItem>
-                <SelectItem value="payroll">Payroll</SelectItem>
-                <SelectItem value="automation">Automation</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select defaultValue="all">
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="posted">Posted</SelectItem>
-              </SelectContent>
-            </Select>
             <Button variant="outline" size="sm">
               <Filter className="mr-2 h-4 w-4" />
               Filters
@@ -384,274 +314,144 @@ export default function JournalPage() {
           </div>
 
           {/* Data Table */}
-          <div className="overflow-x-auto rounded-lg border bg-card">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/30">
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-10">
-                    <input type="checkbox" className="rounded" />
-                  </th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                    Entry #
-                  </th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                    Date
-                  </th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                    Description
-                  </th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                    Source
-                  </th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                    Reference
-                  </th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                    Debit (GMD)
-                  </th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-muted-foreground">
-                    Credit (GMD)
-                  </th>
-                  <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                    Status
-                  </th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
-                    Created By
-                  </th>
-                  <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockEntries.map((entry) => (
-                  <tr
-                    key={entry.id}
-                    className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                  >
-                    <td
-                      className="py-3 px-4"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+          {isLoading ? (
+            <TableSkeleton rows={6} columns={7} />
+          ) : entries.length === 0 ? (
+            <EmptyState
+              icon={<FileText className="h-12 w-12" />}
+              title="No journal entries"
+              description="Create your first journal entry to start recording transactions."
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border bg-card">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-10">
                       <input type="checkbox" className="rounded" />
-                    </td>
-                    <td className="py-3 px-4 text-sm font-mono font-medium text-primary">
-                      {entry.entryNumber}
-                    </td>
-                    <td className="py-3 px-4 text-sm">{entry.date}</td>
-                    <td className="py-3 px-4 text-sm font-medium">
-                      {entry.description}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          "text-[10px]",
-                          sourceColors[entry.source],
-                        )}
-                      >
-                        {entry.source}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm font-mono text-muted-foreground">
-                      {entry.reference}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right font-mono">
-                      {formatCurrency(entry.debit)}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right font-mono">
-                      {formatCurrency(entry.credit)}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          "text-[10px]",
-                          statusColors[entry.status],
-                        )}
-                      >
-                        {entry.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        {entry.createdBy.includes("System") && (
-                          <Bot className="h-3 w-3 text-emerald-500" />
-                        )}
-                        {entry.createdBy}
-                      </div>
-                    </td>
-                    <td
-                      className="py-3 px-4 text-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </td>
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Entry #
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Date
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Description
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Source
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">
+                      Reference
+                    </th>
+                    <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                      Status
+                    </th>
+                    <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex items-center justify-between border-t px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                Showing 1 to 10 of 132 entries
-              </p>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled>
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-primary text-primary-foreground"
-                >
-                  1
-                </Button>
-                <Button variant="outline" size="sm">
-                  2
-                </Button>
-                <Button variant="outline" size="sm">
-                  3
-                </Button>
-                <Button variant="outline" size="sm">
-                  Next
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Section */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Journal Entry Trend */}
-            <div className="rounded-lg border bg-card p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold">Journal Entry Trend</h3>
-                <Select defaultValue="6months">
-                  <SelectTrigger className="w-[120px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="6months">Last 6 months</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="h-32 flex items-end gap-1">
-                {[40, 55, 45, 70, 60, 85].map((h, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 flex flex-col items-center gap-1"
+                </thead>
+                <tbody>
+                  {entries.map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
+                      onClick={() =>
+                        router.push(`/dashboard/journal/${entry.id}`)
+                      }
+                    >
+                      <td
+                        className="py-3 px-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input type="checkbox" className="rounded" />
+                      </td>
+                      <td className="py-3 px-4 text-sm font-mono font-medium text-primary">
+                        JE-{String(entry.entryNumber).padStart(4, "0")}
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        {formatDate(entry.date)}
+                      </td>
+                      <td className="py-3 px-4 text-sm font-medium">
+                        {entry.description}
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "text-[10px]",
+                            sourceColors[entry.source ?? "manual"] ??
+                              "bg-gray-100 text-gray-700",
+                          )}
+                        >
+                          {(entry.source ?? "manual").replace(/_/g, " ")}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-sm font-mono text-muted-foreground">
+                        {entry.reference ?? "—"}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "text-[10px]",
+                            statusColors[entry.status] ??
+                              "bg-gray-100 text-gray-700",
+                          )}
+                        >
+                          {entry.status.replace(/_/g, " ")}
+                        </Badge>
+                      </td>
+                      <td
+                        className="py-3 px-4 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex items-center justify-between border-t px-4 py-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing 1 to {Math.min(entries.length, 50)} of{" "}
+                  {entries.length} entries
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled>
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-primary text-primary-foreground"
                   >
-                    <div
-                      className="w-full bg-primary/20 rounded-t"
-                      style={{ height: `${h}%` }}
-                    />
-                    <span className="text-[10px] text-muted-foreground">
-                      {["Dec", "Jan", "Feb", "Mar", "Apr", "May"][i]}
-                    </span>
-                  </div>
-                ))}
+                    1
+                  </Button>
+                  <Button variant="outline" size="sm" disabled>
+                    Next
+                  </Button>
+                </div>
               </div>
             </div>
-
-            {/* Top Account Impact */}
-            <div className="rounded-lg border bg-card p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold">
-                  Top Account Impact (MTD)
-                </h3>
-                <button className="text-xs text-primary hover:underline flex items-center gap-1">
-                  View full report <ArrowRight className="h-3 w-3" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { name: "Cash at Bank", debit: 156300, credit: 156150 },
-                  { name: "Salary Expense", debit: 25460, credit: 25460 },
-                  { name: "Office Supplies", debit: 9750, credit: 9750 },
-                  { name: "Interest Income", debit: 950, credit: 950 },
-                  { name: "Accounts Payable", debit: 8650, credit: 8650 },
-                ].map((account, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <span className="text-muted-foreground">
-                      {account.name}
-                    </span>
-                    <div className="flex gap-4">
-                      <span className="font-mono text-right w-24">
-                        {formatCurrency(account.debit)}
-                      </span>
-                      <span className="font-mono text-right w-24">
-                        {formatCurrency(account.credit)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="rounded-lg border bg-card p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold">Recent Activity</h3>
-                <button className="text-xs text-primary hover:underline flex items-center gap-1">
-                  View all activity <ArrowRight className="h-3 w-3" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                {[
-                  {
-                    text: "JE-2025-0130 was approved",
-                    by: "Mariama C.",
-                    time: "2 min ago",
-                    icon: CheckCircle2,
-                    color: "text-emerald-500",
-                  },
-                  {
-                    text: "JE-2025-0129 was posted",
-                    by: "System (AI)",
-                    time: "15 min ago",
-                    icon: Bot,
-                    color: "text-primary",
-                  },
-                  {
-                    text: "JE-2025-0131 submitted for approval",
-                    by: "Fatou C.",
-                    time: "1 hour ago",
-                    icon: Clock,
-                    color: "text-amber-500",
-                  },
-                  {
-                    text: "12 recurring entries created",
-                    by: "System (AI)",
-                    time: "2 hours ago",
-                    icon: RefreshCw,
-                    color: "text-blue-500",
-                  },
-                ].map((activity, i) => {
-                  const Icon = activity.icon;
-                  return (
-                    <div key={i} className="flex items-start gap-3">
-                      <Icon
-                        className={cn(
-                          "h-4 w-4 mt-0.5 shrink-0",
-                          activity.color,
-                        )}
-                      />
-                      <div>
-                        <p className="text-sm">{activity.text}</p>
-                        <p className="text-xs text-muted-foreground">
-                          by {activity.by} · {activity.time}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -661,29 +461,7 @@ export default function JournalPage() {
           <AICopilotSidebar
             title="Xenboox AI Copilot"
             subtitle="I analyzed your journal entries and found a few insights."
-            insights={[
-              {
-                id: "1",
-                type: "warning",
-                title: "6 entries need your review",
-                description: "Total amount: GMD 45,200.00",
-                action: { label: "Review pending entries", onClick: () => {} },
-              },
-              {
-                id: "2",
-                type: "info",
-                title: "Bank charges detected",
-                description: "GMD 150.00 in bank charges recorded.",
-                action: { label: "View details", onClick: () => {} },
-              },
-              {
-                id: "3",
-                type: "success",
-                title: "All automated entries are accurate",
-                description: "103 AI-generated entries with 98.7% accuracy.",
-                action: { label: "View automation log", onClick: () => {} },
-              },
-            ]}
+            insights={insights}
             suggestedActions={[
               {
                 id: "1",
