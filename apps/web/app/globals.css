@@ -37,7 +37,7 @@
     --signal-indigo-hover: 233 73% 48%;
     --signal-indigo-bg: 233 73% 95%;
 
-    /* ── Sidebar (dark, always) ── */
+    /* ── Sidebar — dark in both modes, tuned per mode ── */
     --sidebar-bg: 225 15% 8%;
     --sidebar-text: 0 0% 100%;
     --sidebar-text-dim: 0 0% 50%;
@@ -123,6 +123,13 @@
     --signal-indigo: 233 70% 65%;
     --signal-indigo-hover: 233 70% 75%;
     --signal-indigo-bg: 233 50% 12%;
+
+    /* Sidebar — stays dark but deepens slightly for dark mode contrast */
+    --sidebar-bg: 225 20% 5%;
+    --sidebar-text: 0 0% 95%;
+    --sidebar-text-dim: 0 0% 45%;
+    --sidebar-active: 233 70% 65%;
+    --sidebar-hover: 0 0% 95%;
 
     /* Semantic mappings for dark */
     --background: var(--paper);
