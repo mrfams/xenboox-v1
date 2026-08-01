@@ -1,245 +1,499 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { CfoLiveness } from "@/components/agents/cfo-liveness";
-import { CFOConversationPanel } from "@/components/cfo/cfo-conversation-panel";
-import { CFOContextPanel } from "@/components/cfo/cfo-context-panel";
-import { CFOdeliverablesPanel } from "@/components/cfo/cfo-deliverables-panel";
-import { CFOSkillsLibrary } from "@/components/cfo/cfo-skills-library";
+import { useState } from "react";
+import { trpc } from "@/lib/trpc/client";
 import {
-  CFOAIModeSwitcher,
-  type AIMode,
-} from "@/components/cfo/cfo-mode-switcher";
-import { CFOTimeline } from "@/components/cfo/cfo-timeline";
-import { CFOmemory } from "@/components/cfo/cfo-memory";
-import { CFORunningTasks } from "@/components/cfo/cfo-running-tasks";
+  Badge,
+  Button,
+  Input,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui";
 import {
-  X,
-  PanelRight,
-  PanelRightOpen,
-  ChevronLeft,
+  Bot,
+  Plus,
+  MoreHorizontal,
+  Search,
+  ArrowRight,
+  FileText,
+  BarChart3,
+  Receipt,
+  CreditCard,
+  Users,
+  DollarSign,
+  Send,
+  Mic,
+  Paperclip,
+  RefreshCw,
+  Download,
+  Settings,
+  Link2,
+  CheckCircle,
   ChevronRight,
+  TrendingUp,
+  Upload,
 } from "lucide-react";
-
-type Message = {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  confidence?: number;
-  timestamp?: Date;
-};
+import { cn, formatCurrency } from "@/lib/utils";
 
 export default function ChatPage() {
-  const searchParams = useSearchParams();
-  const [mode, setMode] = useState<AIMode>("cfo");
-  const [messages, setMessages] = useState<Message[]>(() => {
-    const initial = searchParams?.get("initial");
-    if (initial) {
-      return [
-        {
-          id: "init-user",
-          role: "user",
-          content: initial,
-          timestamp: new Date(),
-        },
-        {
-          id: "init-ai",
-          role: "assistant",
-          content: "",
-          timestamp: new Date(),
-        },
-      ];
-    }
-    return [];
-  });
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [suggestedFollowups, setSuggestedFollowups] = useState<string[]>([]);
-  const [showContext, setShowContext] = useState(true);
-  const [showDeliverables, setShowDeliverables] = useState(true);
-
-  const handleSend = useCallback((text: string) => {
-    const userMsg: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: text,
-      timestamp: new Date(),
-    };
-
-    const assistantMsg: Message = {
-      id: `assistant-${Date.now()}`,
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<
+    Array<{ role: "user" | "assistant"; content: string }>
+  >([
+    {
       role: "assistant",
-      content:
-        "I analyzed your financial data:\n\n✓ Cash Flow\n✓ Payroll\n✓ Revenue Trend\n✓ Budget\n✓ Outstanding Receivables\n\n" +
-        (text.toLowerCase().includes("hire") ||
-        text.toLowerCase().includes("engineer")
-          ? "**Yes.** Hiring another engineer at approximately $6,000/month would leave your runway at 13.4 months.\n\nThe biggest risk is delayed customer payments rather than payroll.\n\n**Recommendations:**\n• Hire now\n• Improve collections\n• Delay office expansion" +
-            "\n\n[Generate Hiring Scenario]"
-          : text.toLowerCase().includes("cash") ||
-              text.toLowerCase().includes("forecast")
-            ? "Your current cash position is **GMD 184,300** across all accounts. Based on projected inflows and outflows, you have **13 months of runway** at the current burn rate.\n\n**Key drivers:**\n• Receivables: GMD 78,500 outstanding (4 invoices overdue)\n• Payroll: GMD 147,050 fully funded\n• Next VAT payment: GMD 106,902 due in 18 days\n\nWould you like me to:\n• Build a detailed cash flow projection\n• Simulate a revenue decrease scenario\n• Suggest working capital improvements"
-            : "I'll analyze that for you. Let me run the numbers.\n\n**Summary:**\n• Revenue: Trending positive this quarter\n• Expenses: Within budget across all categories\n• Cash position: Stable with healthy runway\n\nWould you like me to drill deeper into any specific area?"),
-      timestamp: new Date(),
-      confidence: 0.96,
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setIsStreaming(true);
-
-    // Simulate streaming
-    setTimeout(() => {
-      setMessages((prev) => [...prev, assistantMsg]);
-      setIsStreaming(false);
-      setSuggestedFollowups([
-        "Build an action plan",
-        "Simulate recovery scenario",
-        "Compare against budget",
-        "Generate a board-ready summary",
-      ]);
-    }, 1500);
-  }, []);
-
-  const handleStop = useCallback(() => {
-    setIsStreaming(false);
-  }, []);
-
-  const handleSelectSkill = useCallback(
-    (prompt: string) => {
-      handleSend(prompt);
+      content: "Hi Famara! 👋\n\nHow can I help you today?",
     },
-    [handleSend],
-  );
+  ]);
+
+  const quickActions = [
+    { icon: BarChart3, label: "Financial summary" },
+    { icon: DollarSign, label: "Cash flow status" },
+    { icon: Receipt, label: "Unpaid invoices" },
+    { icon: TrendingUp, label: "Profitability analysis" },
+  ];
+
+  const contextActions = [
+    { icon: FileText, label: "Create invoice" },
+    { icon: Receipt, label: "Record expense" },
+    { icon: Upload, label: "Upload document" },
+    { icon: RefreshCw, label: "Reconcile account" },
+    { icon: BarChart3, label: "Run report" },
+    { icon: Plus, label: "Add journal entry" },
+  ];
+
+  const recentReports = [
+    {
+      name: "Profit & Loss Statement",
+      time: "Generated 2h ago",
+      icon: BarChart3,
+      color: "text-emerald-500",
+    },
+    {
+      name: "Cash Flow Statement",
+      time: "Generated yesterday",
+      icon: DollarSign,
+      color: "text-blue-500",
+    },
+    {
+      name: "Aged Receivables",
+      time: "Generated 2 days ago",
+      icon: Receipt,
+      color: "text-amber-500",
+    },
+  ];
+
+  const connectedAccounts = [
+    {
+      name: "GTBank – 1234",
+      time: "Last sync: 5 min ago",
+      icon: "bg-emerald-500",
+      status: true,
+    },
+    {
+      name: "Paystack",
+      time: "Last sync: 15 min ago",
+      icon: "bg-blue-500",
+      status: true,
+    },
+    {
+      name: "Stripe",
+      time: "Last sync: 1 day ago",
+      icon: "bg-indigo-500",
+      status: true,
+    },
+  ];
 
   return (
-    <>
-      <div className="flex h-[calc(100vh-4rem)] gap-0 -mt-4 -mx-4 lg:-mt-6 lg:-mx-6">
-        {/* ─── Left Panel: Conversation ─────────────────────────────── */}
-        <div className="flex flex-1 flex-col min-w-0">
-          {/* Skills + Mode bar */}
-          <div className="shrink-0 border-b bg-card/50 backdrop-blur-sm">
-            <div className="flex items-center justify-between px-4 py-2 lg:px-6">
-              <CFOAIModeSwitcher currentMode={mode} onModeChange={setMode} />
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setShowContext(!showContext)}
-                  className={cn(
-                    "flex h-7 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-all",
-                    showContext
-                      ? "bg-signal-indigo/10 text-signal-indigo"
-                      : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50",
-                  )}
-                >
-                  <PanelRight className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Context</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDeliverables(!showDeliverables)}
-                  className={cn(
-                    "flex h-7 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-all",
-                    showDeliverables
-                      ? "bg-signal-indigo/10 text-signal-indigo"
-                      : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50",
-                  )}
-                >
-                  <PanelRightOpen className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Files</span>
-                </button>
-              </div>
-            </div>
+    <div className="flex h-[calc(100vh-4rem)]">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <Bot className="h-6 w-6 text-primary" />
+              AI Chat
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Your AI accounting assistant. Ask anything about your business.
+            </p>
           </div>
-
-          {/* Conversation */}
-          <CFOConversationPanel
-            mode={mode}
-            messages={messages}
-            isStreaming={isStreaming}
-            onSend={handleSend}
-            onStop={handleStop}
-            suggestedFollowups={suggestedFollowups}
-            className="flex-1"
-          />
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+            <Button size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              New Chat
+            </Button>
+          </div>
         </div>
 
-        {/* ─── Middle Panel: Context + Skills ───────────────────────── */}
-        {showContext && (
-          <div className="hidden lg:flex lg:w-72 shrink-0 flex-col border-l bg-card/30 overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Workspace
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowContext(false)}
-                className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/30 hover:text-foreground hover:bg-muted transition-all"
-              >
-                <X className="h-3 w-3" />
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Welcome */}
+          <div className="text-center py-8">
+            <h2 className="text-3xl font-bold mb-2">Hi Famara! 👋</h2>
+            <p className="text-lg text-muted-foreground mb-6">
+              How can I help you today?
+            </p>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.label}
+                    className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm hover:bg-muted transition-colors"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {action.label}
+                  </button>
+                );
+              })}
+              <button className="flex items-center gap-1 rounded-full border px-4 py-2 text-sm hover:bg-muted transition-colors">
+                More <ChevronRight className="h-3 w-3" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-5">
-              <CFOContextPanel />
-              <CFOSkillsLibrary onSelectSkill={handleSelectSkill} />
-              <div className="border-t pt-4 space-y-5">
-                <CFORunningTasks />
-                <CFOmemory />
+          </div>
+
+          {/* User Message */}
+          <div className="flex justify-end">
+            <div className="max-w-[70%] rounded-2xl bg-primary text-primary-foreground px-4 py-3">
+              <p className="text-sm">
+                What's our cash position right now and how does it compare to
+                last month? Also show me our top 5 expense categories.
+              </p>
+              <p className="text-xs opacity-70 mt-1">10:42 AM</p>
+            </div>
+          </div>
+
+          {/* AI Response */}
+          <div className="flex gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div className="max-w-[80%] space-y-4">
+              <p className="text-sm">
+                Here's your cash position summary and top expense breakdown.
+              </p>
+
+              {/* Cash Position Card */}
+              <div className="rounded-xl border bg-card p-4">
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3">
+                      Cash Position
+                    </h4>
+                    <p className="text-2xl font-bold tabular-nums">
+                      {formatCurrency(1234567)}
+                    </p>
+                    <p className="text-xs text-emerald-600 mt-1">
+                      ↑ 24.9% vs last month (GMD 987,654)
+                    </p>
+                    <div className="h-24 flex items-end gap-1 mt-4">
+                      {[30, 45, 35, 60, 50, 75, 55, 65, 80, 70].map((h, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 bg-primary/20 rounded-t"
+                          style={{ height: `${h}%` }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[8px] text-muted-foreground">
+                        Apr 27
+                      </span>
+                      <span className="text-[8px] text-muted-foreground">
+                        May 25
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3">
+                      Top 5 Expense Categories (This Month)
+                    </h4>
+                    <div className="space-y-2">
+                      {[
+                        {
+                          name: "Operations",
+                          amount: 120450,
+                          pct: 39,
+                          color: "bg-primary",
+                        },
+                        {
+                          name: "Salaries & Wages",
+                          amount: 85300,
+                          pct: 28,
+                          color: "bg-blue-500",
+                        },
+                        {
+                          name: "Marketing",
+                          amount: 32150,
+                          pct: 10,
+                          color: "bg-emerald-500",
+                        },
+                        {
+                          name: "Rent & Utilities",
+                          amount: 28920,
+                          pct: 9,
+                          color: "bg-amber-500",
+                        },
+                        {
+                          name: "Professional Fees",
+                          amount: 18240,
+                          pct: 6,
+                          color: "bg-purple-500",
+                        },
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div
+                            className={cn("h-2 w-2 rounded-full", item.color)}
+                          />
+                          <span className="text-sm flex-1">{item.name}</span>
+                          <span className="text-sm font-mono">
+                            {formatCurrency(item.amount)}
+                          </span>
+                          <span className="text-xs text-muted-foreground w-10 text-right">
+                            {item.pct}%
+                          </span>
+                          <div className="w-16">
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full",
+                                  item.color,
+                                )}
+                                style={{ width: `${item.pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-3">
+                  Sources: Bank accounts, transactions, and bills
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">10:43 AM</p>
+              </div>
+
+              {/* Suggested Actions */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button className="flex items-center gap-1 rounded-full border px-3 py-1 text-xs hover:bg-muted transition-colors">
+                  <FileText className="h-3 w-3" />
+                  Show cash flow statement
+                </button>
+                <button className="flex items-center gap-1 rounded-full border px-3 py-1 text-xs hover:bg-muted transition-colors">
+                  <BarChart3 className="h-3 w-3" />
+                  Breakdown by account
+                </button>
+                <button className="flex items-center gap-1 rounded-full border px-3 py-1 text-xs hover:bg-muted transition-colors">
+                  <RefreshCw className="h-3 w-3" />
+                  Compare more periods
+                </button>
+                <button className="flex items-center gap-1 rounded-full border px-3 py-1 text-xs hover:bg-muted transition-colors">
+                  <MoreHorizontal className="h-3 w-3" />
+                </button>
               </div>
             </div>
           </div>
-        )}
 
-        {/* ─── Right Panel: Deliverables + Timeline ────────────────── */}
-        {showDeliverables && (
-          <div className="hidden lg:flex lg:w-72 shrink-0 flex-col border-l bg-card/30 overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Output
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowDeliverables(false)}
-                className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/30 hover:text-foreground hover:bg-muted transition-all"
-              >
-                <X className="h-3 w-3" />
-              </button>
+          {/* User Message 2 */}
+          <div className="flex justify-end">
+            <div className="max-w-[70%] rounded-2xl bg-primary text-primary-foreground px-4 py-3">
+              <p className="text-sm">
+                Show me all unpaid invoices over GMD 5,000 and the ones overdue
+                more than 30 days. Also draft a polite reminder email for them.
+              </p>
+              <p className="text-xs opacity-70 mt-1">10:45 AM</p>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-5">
-              <CFOdeliverablesPanel />
-              <div className="border-t pt-4">
-                <CFOTimeline />
+          </div>
+
+          {/* AI Processing */}
+          <div className="flex gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex gap-0.5">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary [animation-delay:300ms]" />
+              </div>
+              Searching invoices and preparing reminder emails...
+            </div>
+          </div>
+        </div>
+
+        {/* Chat Input */}
+        <div className="border-t p-4">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Input
+              placeholder="Ask anything about your accounting..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              className="flex-1"
+            />
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Mic className="h-4 w-4" />
+            </Button>
+            <Button size="icon" className="h-9 w-9">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
+            {[
+              "What did we spend on marketing?",
+              "Reconcile GTBank – May transactions",
+              "Show me our profit this year",
+            ].map((suggestion) => (
+              <button
+                key={suggestion}
+                className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
+              >
+                {suggestion}
+              </button>
+            ))}
+            <button className="rounded-full border px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors">
+              <RefreshCw className="h-3 w-3" />
+            </button>
+          </div>
+          <p className="text-center text-[10px] text-muted-foreground mt-2">
+            AI responses can make mistakes. Please verify important information.
+          </p>
+        </div>
+      </div>
+
+      {/* Right Sidebar */}
+      <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto">
+        <div className="p-4 space-y-6">
+          {/* Current Context */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">Current Context</h3>
+              <Badge
+                variant="secondary"
+                className="text-[10px] bg-emerald-100 text-emerald-700"
+              >
+                <span className="mr-1">●</span>Live
+              </Badge>
+            </div>
+            <div className="rounded-lg border p-3">
+              <Select defaultValue="acme">
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="acme">Acme Solutions Ltd.</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Financial Year</span>
+                  <p className="font-medium">Jan 1 – Dec 31, 2025</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Local Currency</span>
+                  <p className="font-medium">GMD</p>
+                </div>
               </div>
             </div>
           </div>
-        )}
 
-        {/* ─── Toggle buttons when panels are hidden ────────────────── */}
-        {!showContext && (
-          <button
-            type="button"
-            onClick={() => setShowContext(true)}
-            className="hidden lg:flex fixed left-[var(--sidebar-width,16rem)] top-1/2 z-10 h-8 w-5 items-center justify-center rounded-r-md border border-l-0 bg-card text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-all shadow-sm"
-            title="Show workspace panel"
-          >
-            <ChevronLeft className="h-3 w-3" />
-          </button>
-        )}
-        {!showDeliverables && (
-          <button
-            type="button"
-            onClick={() => setShowDeliverables(true)}
-            className="hidden lg:flex fixed right-4 top-1/2 z-10 h-8 w-5 items-center justify-center rounded-l-md border border-r-0 bg-card text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-all shadow-sm"
-            title="Show deliverables panel"
-          >
-            <ChevronRight className="h-3 w-3" />
-          </button>
-        )}
-      </div>
+          {/* Quick Actions */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Quick Actions</h3>
+            <div className="space-y-1">
+              {contextActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.label}
+                    className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm">{action.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* ─── CFO Agent Liveness (AI-Native section) ────────────────── */}
-      <div className="pt-4 lg:pt-6">
-        <CfoLiveness />
+          {/* Recent Reports */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Recent Reports</h3>
+            <div className="space-y-2">
+              {recentReports.map((report, i) => {
+                const Icon = report.icon;
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  >
+                    <Icon className={cn("h-4 w-4", report.color)} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {report.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {report.time}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button className="text-xs text-primary hover:underline mt-2">
+              View all reports →
+            </button>
+          </div>
+
+          {/* Connected Accounts */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">Connected Accounts</h3>
+              <button className="text-xs text-primary hover:underline">
+                View all
+              </button>
+            </div>
+            <div className="space-y-2">
+              {connectedAccounts.map((account, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div
+                    className={cn(
+                      "h-8 w-8 rounded-lg flex items-center justify-center text-white text-xs font-bold",
+                      account.icon,
+                    )}
+                  >
+                    {account.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{account.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {account.time}
+                    </p>
+                  </div>
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
