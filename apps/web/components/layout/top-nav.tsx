@@ -132,7 +132,7 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
   const initials = user?.name ? getInitials(user.name) : "??";
 
   return (
-    <header className="flex h-16 items-center gap-3 border-b bg-card px-4 lg:px-6">
+    <header className="flex h-16 items-center gap-3 border-b border-border/50 bg-background px-4 lg:px-6 backdrop-blur-sm bg-background/80">
       {/* Mobile menu button */}
       <Button
         variant="ghost"

@@ -185,12 +185,12 @@ function WhiteLabelLogo() {
   return (
     <Link
       href="/dashboard"
-      className="flex items-center gap-2 lg:justify-center lg:group-hover:justify-start"
+      className="flex items-center gap-2.5 lg:justify-center lg:group-hover:justify-start"
     >
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-primary-foreground font-bold text-sm">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20">
         X
       </div>
-      <span className="text-lg font-bold tracking-tight lg:hidden lg:group-hover:inline">
+      <span className="text-lg font-bold tracking-tight text-[hsl(var(--sidebar-text))] lg:hidden lg:group-hover:inline">
         Xenboox
       </span>
     </Link>
@@ -280,11 +280,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         href={item.href}
         onClick={onClose}
         className={cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
           "lg:justify-center lg:group-hover:justify-start",
           isActive(item)
-            ? "bg-primary/10 text-primary"
-            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+            ? "bg-primary/15 text-primary"
+            : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
         )}
         {...(item.attrs ?? {})}
       >
@@ -328,13 +328,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={cn(
-          "group fixed inset-y-0 left-0 z-[49] flex w-64 flex-col border-r bg-card transition-all duration-200 ease-in-out",
+          "group fixed inset-y-0 left-0 z-[49] flex w-64 flex-col border-r border-white/[0.06] transition-all duration-200 ease-in-out",
+          "bg-[hsl(var(--sidebar-bg))]",
           "lg:static lg:translate-x-0 lg:w-[var(--sidebar-width)]",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Logo + Entity Switcher */}
-        <div className="flex flex-col gap-3 border-b p-4">
+        <div className="flex flex-col gap-3 border-b border-white/[0.06] p-4">
           <WhiteLabelLogo />
           <div className="lg:hidden lg:group-hover:block">
             <EntitySwitcher />
@@ -343,13 +344,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Primary Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 scrollbar-thin">
-          <div className="space-y-0.5 px-3">
+          <div className="space-y-0.5 px-2">
             {primaryNavItems.map((item) => renderNavItem(item))}
           </div>
         </nav>
 
         {/* Agent Status + Bottom Nav */}
-        <div className="border-t p-3 space-y-2">
+        <div className="border-t border-white/[0.06] p-3 space-y-2">
           <AgentStatusBar />
           <div className="space-y-0.5">
             {bottomNavItems.map((item) =>

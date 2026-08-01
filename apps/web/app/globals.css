@@ -37,6 +37,13 @@
     --signal-indigo-hover: 233 73% 48%;
     --signal-indigo-bg: 233 73% 95%;
 
+    /* ── Sidebar (dark, always) ── */
+    --sidebar-bg: 225 15% 8%;
+    --sidebar-text: 0 0% 100%;
+    --sidebar-text-dim: 0 0% 50%;
+    --sidebar-active: 233 73% 60%;
+    --sidebar-hover: 0 0% 100%;
+
     /* ── Semantic CSS Variable Mappings ── */
     --background: var(--paper);
     --foreground: var(--ledger-ink);
@@ -83,6 +90,9 @@
     --chart-3: var(--attention-amber);
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    /* Right-side AI Copilot panel */
+    --copilot-width: 24rem;
 
     /* Sidebar — collapsed icon rail by default (expands to 16rem on hover) */
     --sidebar-width: 4.25rem;
