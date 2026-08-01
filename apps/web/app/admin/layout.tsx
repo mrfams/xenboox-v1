@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Cpu,
   LogOut,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
@@ -73,6 +74,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   }, [adminSession, checkingAccess, router]);
 
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   if (checkingAccess || !adminSession) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -83,7 +86,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 flex-col border-r border-white/[0.06] bg-[hsl(var(--sidebar-bg))] p-4 lg:flex">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/[0.06] bg-[hsl(var(--sidebar-bg))] p-4 transition-transform duration-200 ease-in-out",
+          "lg:static lg:translate-x-0 lg:flex",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
         {/* Logo */}
         <div className="flex items-center gap-2.5 border-b border-white/[0.06] pb-4 mb-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20">
@@ -144,9 +161,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </aside>
 
-      {/* Mobile sidebar */}
+      {/* Mobile header */}
       <div className="lg:hidden">
-        <div className="flex h-16 items-center justify-between border-b border-border/50 bg-background px-4">
+        <div className="flex h-16 items-center gap-3 border-b border-border/50 bg-background px-4">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            aria-label="Open navigation"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
           <Link href="/admin" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20">
               X
