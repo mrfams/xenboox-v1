@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Bot } from "lucide-react";
 import { SessionProvider } from "next-auth/react";
 import { EntityProvider, useEntity } from "@/lib/entity-context";
 import { PermissionProvider, serializePermissions } from "@/lib/permissions";
@@ -63,6 +64,22 @@ export default function DashboardLayout({
 
               <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
             </div>
+
+            {/* Floating CFO Agent button */}
+            {!chatOpen && (
+              <button
+                type="button"
+                onClick={() => setChatOpen(true)}
+                aria-label="Open CFO Agent chat"
+                className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+              >
+                <Bot className="h-5 w-5" />
+                <span className="hidden sm:inline text-sm font-medium">
+                  CFO Agent
+                </span>
+              </button>
+            )}
+
             <Toaster position="top-right" richColors closeButton />
           </PermissionAwareLayout>
         </WhiteLabelProvider>

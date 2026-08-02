@@ -12,7 +12,6 @@ import {
   Landmark,
   Receipt,
   Users,
-  Sparkles,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -152,188 +151,177 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
         <AICommandBar compact placeholder="Search anything..." />
       </div>
 
-      {/* Mobile AI trigger */}
-      <div className="flex sm:hidden flex-1" />
+      {/* Right-aligned cluster */}
+      <div className="ml-auto flex items-center gap-3">
+        {/* System Status */}
+        <div className="hidden md:flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 shadow-sm text-sm text-muted-foreground">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="text-xs">All Systems Operational</span>
+        </div>
 
-      {/* AI Command Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="hidden md:inline-flex gap-2 border bg-card shadow-sm"
-        onClick={() => onChatToggle?.()}
-      >
-        <Sparkles className="h-4 w-4 text-primary" />
-        <span className="text-sm">AI Command</span>
-      </Button>
+        {/* Notifications */}
+        <div className="relative" ref={notifRef}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Notifications"
+            onClick={() => setNotifOpen(!notifOpen)}
+          >
+            <Bell className="h-5 w-5" />
+            {showBadge ? (
+              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
+                {unreadTotal}
+              </span>
+            ) : null}
+          </Button>
 
-      {/* System Status */}
-      <div className="hidden md:flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 shadow-sm text-sm text-muted-foreground">
-        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-        <span className="text-xs">All Systems Operational</span>
-      </div>
-
-      {/* Notifications */}
-      <div className="relative" ref={notifRef}>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Notifications"
-          onClick={() => setNotifOpen(!notifOpen)}
-        >
-          <Bell className="h-5 w-5" />
-          {showBadge ? (
-            <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
-              {unreadTotal}
-            </span>
-          ) : null}
-        </Button>
-
-        {notifOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setNotifOpen(false)}
-            />
-            <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-md border bg-popover shadow-lg">
-              <div className="flex items-center justify-between border-b px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Notifications
-                </p>
-                {unread.length > 0 && (
-                  <button
-                    onClick={() => {
-                      markAllRead.mutate();
-                    }}
-                    className="text-xs text-primary"
-                  >
-                    Mark all read
-                  </button>
-                )}
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {unread.length === 0 ? (
-                  <div className="p-4 text-sm text-muted-foreground text-center">
-                    No unread notifications
-                  </div>
-                ) : (
-                  unread.map((n) => (
-                    <div
-                      key={n.id}
-                      className="flex items-start gap-3 border-b px-3 py-2 last:border-b-0"
-                    >
-                      <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-destructive" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{n.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {n.body}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-col gap-1">
-                        <button
-                          onClick={() => {
-                            markRead.mutate({ id: n.id });
-                          }}
-                          className="text-xs text-primary"
-                        >
-                          Read
-                        </button>
-                        <button
-                          onClick={() => deleteNotif.mutate({ id: n.id })}
-                          className="text-xs text-destructive"
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="border-t px-3 py-2">
-                <Link
-                  href="/dashboard/notifications"
-                  className="flex items-center gap-2 text-xs text-primary hover:underline"
-                  onClick={() => setNotifOpen(false)}
-                >
-                  View all notifications <ChevronRight className="h-3 w-3" />
-                </Link>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* CFO Agent Chat toggle */}
-      {onChatToggle && (
-        <Button
-          variant={chatOpen ? "default" : "ghost"}
-          size="sm"
-          onClick={onChatToggle}
-          data-tour="chat-panel-toggle"
-          aria-label="Toggle CFO Agent chat"
-          className="hidden sm:inline-flex gap-2"
-        >
-          <MessageSquare className="h-4 w-4" />
-          <span className="hidden md:inline">CFO Agent</span>
-        </Button>
-      )}
-
-      {/* User menu */}
-      <div className="relative pl-2 border-l" ref={userMenuRef}>
-        <button
-          type="button"
-          onClick={() => setUserMenuOpen(!userMenuOpen)}
-          aria-label="Open user menu"
-          aria-expanded={userMenuOpen}
-          className="flex items-center gap-1.5 rounded-full p-1 pr-2 hover:bg-accent transition-colors"
-        >
-          <Avatar className="h-8 w-8">
-            {user?.image && (
-              <AvatarImage
-                src={user.image}
-                alt={user.name ?? ""}
-                className="h-full w-full object-cover"
+          {notifOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setNotifOpen(false)}
               />
-            )}
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-          </Avatar>
-          <ChevronDown
-            className={`h-4 w-4 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
-          />
-        </button>
-
-        {userMenuOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setUserMenuOpen(false)}
-            />
-            <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-md border bg-popover shadow-lg overflow-hidden">
-              <div className="border-b px-3 py-2.5">
-                <p className="truncate text-sm font-medium leading-tight">
-                  {user?.name}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {user?.email}
-                </p>
+              <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-md border bg-popover shadow-lg">
+                <div className="flex items-center justify-between border-b px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Notifications
+                  </p>
+                  {unread.length > 0 && (
+                    <button
+                      onClick={() => {
+                        markAllRead.mutate();
+                      }}
+                      className="text-xs text-primary"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {unread.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground text-center">
+                      No unread notifications
+                    </div>
+                  ) : (
+                    unread.map((n) => (
+                      <div
+                        key={n.id}
+                        className="flex items-start gap-3 border-b px-3 py-2 last:border-b-0"
+                      >
+                        <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-destructive" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{n.title}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {n.body}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-1">
+                          <button
+                            onClick={() => {
+                              markRead.mutate({ id: n.id });
+                            }}
+                            className="text-xs text-primary"
+                          >
+                            Read
+                          </button>
+                          <button
+                            onClick={() => deleteNotif.mutate({ id: n.id })}
+                            className="text-xs text-destructive"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="border-t px-3 py-2">
+                  <Link
+                    href="/dashboard/notifications"
+                    className="flex items-center gap-2 text-xs text-primary hover:underline"
+                    onClick={() => setNotifOpen(false)}
+                  >
+                    View all notifications <ChevronRight className="h-3 w-3" />
+                  </Link>
+                </div>
               </div>
-              <Link
-                href="/dashboard/settings"
-                onClick={() => setUserMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-              >
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                Settings
-              </Link>
-              <button
-                onClick={() => signOut({ callbackUrl: "/login" })}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-accent transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </button>
-            </div>
-          </>
+            </>
+          )}
+        </div>
+
+        {/* CFO Agent Chat toggle */}
+        {onChatToggle && (
+          <Button
+            variant={chatOpen ? "default" : "ghost"}
+            size="sm"
+            onClick={onChatToggle}
+            data-tour="chat-panel-toggle"
+            aria-label="Toggle CFO Agent chat"
+            className="hidden sm:inline-flex gap-2"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden md:inline">CFO Agent</span>
+          </Button>
         )}
+
+        {/* User menu */}
+        <div className="relative pl-2 border-l" ref={userMenuRef}>
+          <button
+            type="button"
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            aria-label="Open user menu"
+            aria-expanded={userMenuOpen}
+            className="flex items-center gap-1.5 rounded-full p-1 pr-2 hover:bg-accent transition-colors"
+          >
+            <Avatar className="h-8 w-8">
+              {user?.image && (
+                <AvatarImage
+                  src={user.image}
+                  alt={user.name ?? ""}
+                  className="h-full w-full object-cover"
+                />
+              )}
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            </Avatar>
+            <ChevronDown
+              className={`h-4 w-4 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {userMenuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setUserMenuOpen(false)}
+              />
+              <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-md border bg-popover shadow-lg overflow-hidden">
+                <div className="border-b px-3 py-2.5">
+                  <p className="truncate text-sm font-medium leading-tight">
+                    {user?.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {user?.email}
+                  </p>
+                </div>
+                <Link
+                  href="/dashboard/settings"
+                  onClick={() => setUserMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                >
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  Settings
+                </Link>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-accent transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Command Palette */}

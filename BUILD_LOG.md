@@ -6,6 +6,38 @@
 
 ---
 
+### [2026-08-03] — Header: right-align cluster, rounded-md status pill, floating CFO Agent button
+
+**Agent:** opencode (Autonomous Engineer)
+**Files Modified:** 2
+
+**Request:** Right-align everything from the AI command center through the avatar at the far right of the screen; make "All systems operational" less rounded; add a floating CFO Agent at bottom-right of all dashboard pages (keep the header CFO Agent toggle).
+
+**Changes:**
+
+1. **`apps/web/components/layout/top-nav.tsx`**
+   - Wrapped the System Status pill, Notifications, CFO Agent toggle, and User menu in a `ml-auto flex items-center gap-3` cluster so they pin to the far right.
+   - Removed the "AI Command" button from the header (and its `Sparkles` import).
+   - "All Systems Operational" pill: `rounded-full` → `rounded-md`.
+   - Removed the now-redundant mobile spacer div.
+2. **`apps/web/app/dashboard/layout.tsx`**
+   - Added a fixed bottom-right CFO Agent floating button (`bottom-5 right-5`, primary bg, Bot icon, "CFO Agent" label) that opens the shared ChatPanel. Hidden while the chat is open so it never overlaps the panel.
+
+### Verification
+
+| Check                                     | Status                                          |
+| ----------------------------------------- | ----------------------------------------------- |
+| Production build (`next build --no-lint`) | ✅ Successful — all routes compiled & generated |
+| Typecheck (`@xenboox/web`)                | ✅ Clean                                        |
+| Test suite (`pnpm test`)                  | ✅ 216 pass / 1 skip (20 files)                 |
+| Lint (changed files)                      | ✅ No errors (pre-existing warnings only)       |
+
+### Next Steps
+
+- `packages/db/seed/reset.ts` (untracked, hardcoded DB credential) still not committed — confirm intent before merging.
+
+---
+
 ### [2026-08-03] — Header optimization: avatar dropdown, theme moved to Settings, status/AI cards
 
 **Agent:** opencode (Autonomous Engineer)
