@@ -19,6 +19,7 @@ import {
   Settings,
   HelpCircle,
   ChevronsLeft,
+  RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 
@@ -78,11 +79,12 @@ const primaryNavItems: NavItem[] = [
     label: "Banking",
     href: "/dashboard/banking",
     icon: Wallet,
-    match: [
-      "/dashboard/banking",
-      "/dashboard/treasury",
-      "/dashboard/reconciliation",
-    ],
+    match: ["/dashboard/banking", "/dashboard/treasury"],
+  },
+  {
+    label: "Reconciliation",
+    href: "/dashboard/reconciliation",
+    icon: RefreshCw,
   },
   {
     label: "Chart of Accounts",
