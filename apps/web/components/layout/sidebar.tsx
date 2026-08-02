@@ -85,16 +85,10 @@ const primaryNavItems: NavItem[] = [
     ],
   },
   {
-    label: "General Ledger",
-    href: "/dashboard/coa",
+    label: "Chart of Accounts",
+    href: "/dashboard/chart-of-accounts",
     icon: BookOpen,
-    match: [
-      "/dashboard/coa",
-      "/dashboard/journal",
-      "/dashboard/trial-balance",
-      "/dashboard/close",
-      "/dashboard/consolidation",
-    ],
+    match: ["/dashboard/chart-of-accounts", "/dashboard/coa"],
   },
   {
     label: "Customers",
