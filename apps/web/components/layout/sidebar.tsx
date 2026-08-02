@@ -49,13 +49,13 @@ type ApprovalCounts = {
 const primaryNavItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   {
-    label: "AI Workspace",
+    label: "AI Command Center",
     href: "/dashboard/chat",
     icon: MessageSquare,
     attrs: { "data-tour": "cfo-agent" },
   },
   {
-    label: "Inbox & Approvals",
+    label: "Inbox",
     href: "/dashboard/inbox",
     icon: Receipt,
     countKey: "total",
@@ -69,52 +69,41 @@ const primaryNavItems: NavItem[] = [
     label: "Transactions",
     href: "/dashboard/transactions",
     icon: BookOpen,
-    match: [
-      "/dashboard/transactions",
-      "/dashboard/journal",
-      "/dashboard/trial-balance",
-    ],
   },
   {
     label: "Banking",
     href: "/dashboard/banking",
     icon: Wallet,
-    match: ["/dashboard/banking", "/dashboard/treasury"],
   },
   {
-    label: "Reconciliation",
-    href: "/dashboard/reconciliation",
-    icon: RefreshCw,
-  },
-  {
-    label: "Chart of Accounts",
-    href: "/dashboard/chart-of-accounts",
+    label: "General Ledger",
+    href: "/dashboard/journal",
     icon: BookOpen,
-    match: ["/dashboard/chart-of-accounts", "/dashboard/coa"],
+    match: [
+      "/dashboard/journal",
+      "/dashboard/chart-of-accounts",
+      "/dashboard/trial-balance",
+    ],
   },
   {
     label: "Customers",
     href: "/dashboard/customers",
     icon: Users,
-    match: ["/dashboard/customers", "/dashboard/ar/customers"],
   },
   {
     label: "Vendors",
-    href: "/dashboard/ap/suppliers",
+    href: "/dashboard/vendors",
     icon: Users,
-    match: ["/dashboard/ap"],
   },
   {
     label: "Invoicing",
     href: "/dashboard/invoicing",
     icon: Receipt,
-    match: ["/dashboard/invoicing", "/dashboard/ar/invoices"],
   },
   {
     label: "Bills",
     href: "/dashboard/bills",
     icon: CreditCard,
-    match: ["/dashboard/bills", "/dashboard/ap/invoices"],
   },
   {
     label: "Expenses",
@@ -123,38 +112,17 @@ const primaryNavItems: NavItem[] = [
   },
   {
     label: "Payroll",
-    href: "/dashboard/payroll/pipeline",
+    href: "/dashboard/payroll",
     icon: Users,
-    match: ["/dashboard/payroll", "/dashboard/expense"],
   },
   {
     label: "Reports",
     href: "/dashboard/reports",
     icon: BarChart3,
-    match: [
-      "/dashboard/reports",
-      "/dashboard/budget",
-      "/dashboard/analytics",
-      "/dashboard/benchmarking",
-    ],
   },
-  {
-    label: "Agent Monitor",
-    href: "/dashboard/agent-monitor",
-    icon: Activity,
-    match: ["/dashboard/agent-monitor"],
-  },
-  {
-    label: "Automation",
-    href: "/dashboard/automation",
-    icon: Boxes,
-    match: ["/dashboard/automation"],
-  },
-  {
-    label: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
+  { label: "Agent Monitor", href: "/dashboard/agent-monitor", icon: Activity },
+  { label: "Automation", href: "/dashboard/automation", icon: Boxes },
+  { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 const bottomNavItems: NavItem[] = [
