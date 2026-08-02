@@ -4,22 +4,24 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
 import {
   Menu,
-  LogOut,
-  User,
   Bell,
   MessageSquare,
+  ChevronDown,
   ChevronRight,
   FileText,
   Landmark,
   Receipt,
   Users,
   Sparkles,
+  Settings,
+  LogOut,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Button,
   Avatar,
   AvatarFallback,
+  AvatarImage,
   CommandDialog,
   CommandInput,
   CommandList,
@@ -29,7 +31,6 @@ import {
   CommandShortcut,
 } from "@/components/ui";
 import { AICommandBar } from "@/components/shared/ai-command-bar";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { getInitials } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
@@ -51,8 +52,10 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
   const { data: session } = useSession();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [commands, setCommands] = useState<SearchItem[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const { data: notifications } = trpc.notifications.list.useQuery(
@@ -156,7 +159,7 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
       <Button
         variant="outline"
         size="sm"
-        className="hidden md:inline-flex gap-2 border-dashed"
+        className="hidden md:inline-flex gap-2 border bg-card shadow-sm"
         onClick={() => onChatToggle?.()}
       >
         <Sparkles className="h-4 w-4 text-primary" />
@@ -164,7 +167,7 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
       </Button>
 
       {/* System Status */}
-      <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="hidden md:flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 shadow-sm text-sm text-muted-foreground">
         <span className="h-2 w-2 rounded-full bg-emerald-500" />
         <span className="text-xs">All Systems Operational</span>
       </div>
@@ -274,33 +277,63 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
         </Button>
       )}
 
-      {/* Theme Toggle */}
-      <ThemeToggle />
-
       {/* User menu */}
-      <div className="flex items-center gap-3 pl-2 border-l">
-        <Avatar className="h-8 w-8">
-          {user?.image && (
-            <img
-              src={user.image}
-              alt={user.name ?? ""}
-              className="h-full w-full object-cover"
-            />
-          )}
-          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-        </Avatar>
-        <div className="hidden md:block">
-          <p className="text-sm font-medium leading-none">{user?.name}</p>
-          <p className="text-xs text-muted-foreground">{user?.email}</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          aria-label="Sign out"
+      <div className="relative pl-2 border-l" ref={userMenuRef}>
+        <button
+          type="button"
+          onClick={() => setUserMenuOpen(!userMenuOpen)}
+          aria-label="Open user menu"
+          aria-expanded={userMenuOpen}
+          className="flex items-center gap-1.5 rounded-full p-1 pr-2 hover:bg-accent transition-colors"
         >
-          <LogOut className="h-4 w-4" />
-        </Button>
+          <Avatar className="h-8 w-8">
+            {user?.image && (
+              <AvatarImage
+                src={user.image}
+                alt={user.name ?? ""}
+                className="h-full w-full object-cover"
+              />
+            )}
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+          </Avatar>
+          <ChevronDown
+            className={`h-4 w-4 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {userMenuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setUserMenuOpen(false)}
+            />
+            <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-md border bg-popover shadow-lg overflow-hidden">
+              <div className="border-b px-3 py-2.5">
+                <p className="truncate text-sm font-medium leading-tight">
+                  {user?.name}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {user?.email}
+                </p>
+              </div>
+              <Link
+                href="/dashboard/settings"
+                onClick={() => setUserMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+              >
+                <Settings className="h-4 w-4 text-muted-foreground" />
+                Settings
+              </Link>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-accent transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Command Palette */}

@@ -6,6 +6,37 @@
 
 ---
 
+### [2026-08-03] — Header optimization: avatar dropdown, theme moved to Settings, status/AI cards
+
+**Agent:** opencode (Autonomous Engineer)
+**Files Modified:** 2
+
+**Request:** Optimize the authenticated app-shell header: avatar-only user menu (initials fallback) with chevron-down opening a dropdown; move light/dark theme toggle to Settings page; give "All systems operational" and "AI command center" elements a card/shadow effect.
+
+**Changes:**
+
+1. **`apps/web/components/layout/top-nav.tsx`**
+   - Replaced the avatar + name/email + standalone sign-out button row with a single user menu: avatar (uses `AvatarImage` when `user.image` exists, initials fallback via `getInitials`) + `ChevronDown` (rotates when open). Clicking opens a dropdown (same click-outside overlay pattern as the notifications panel) containing user name/email header, a "Settings" link (`/dashboard/settings`), and a "Sign out" item.
+   - Removed the `ThemeToggle` from the header.
+   - "AI Command" button and "All Systems Operational" pill restyled with `bg-card shadow-sm` (and `rounded-full border` pill for status).
+2. **`apps/web/app/dashboard/settings/page.tsx`**
+   - Added an "Appearance" section card (Monitor icon) that renders the existing `ThemeToggle` (Light/Dark/System) inline instead of the arrow.
+
+### Verification
+
+| Check                                     | Status                                          |
+| ----------------------------------------- | ----------------------------------------------- |
+| Production build (`next build --no-lint`) | ✅ Successful — all routes compiled & generated |
+| Typecheck (`@xenboox/web`)                | ✅ Clean                                        |
+| Test suite (`pnpm test`)                  | ✅ 216 pass / 1 skip (20 files)                 |
+| Lint (changed files)                      | ✅ No errors (pre-existing warnings only)       |
+
+### Next Steps
+
+- `packages/db/seed/reset.ts` (untracked, hardcoded DB credential) still not committed — confirm intent before merging.
+
+---
+
 ### [2026-08-03] — Fix: Web app production build fails to compile (type errors + dead code)
 
 **Agent:** opencode (Autonomous Engineer)

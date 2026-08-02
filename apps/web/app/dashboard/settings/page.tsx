@@ -8,7 +8,9 @@ import {
   Bell,
   Shield,
   Globe,
+  Monitor,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export default function SettingsPage() {
   const sections = [
@@ -54,6 +56,13 @@ export default function SettingsPage() {
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
+    {
+      icon: Monitor,
+      title: "Appearance",
+      description: "Light, dark, or system theme preference",
+      color: "text-slate-600",
+      bgColor: "bg-slate-100",
+    },
   ];
 
   return (
@@ -89,7 +98,11 @@ export default function SettingsPage() {
                     {section.description}
                   </p>
                 </div>
-                <span className="text-slate-400">→</span>
+                {section.title === "Appearance" ? (
+                  <ThemeToggle />
+                ) : (
+                  <span className="text-slate-400">→</span>
+                )}
               </button>
             ))}
           </div>
