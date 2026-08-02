@@ -6,7 +6,36 @@
 
 ---
 
-### [2026-08-02] — Fix: Modals invisible — overlay shows but dialog body renders off-screen
+### [2026-08-02] — Fix: Entity creation fails — tRPC v11 mutation body format
+
+**Agent:** opencode (Autonomous Engineer)
+**Duration:** ~45 min
+**Files Created:** 2 **Files Modified:** 2
+
+**Problem:** Clicking "Create Entity" in the entity switcher never created an entity — the dialog showed an error ("Invalid input" / "Unexpected response from server").
+
+**Root cause:** `apps/web/components/layout/entity-switcher.tsx` called `organization.create` via raw `fetch` with the **tRPC v10** body envelope `{ json: { name, slug, type } }`. The server runs **tRPC v11** with an identity transformer, which deserializes the raw POST body directly as the procedure input — so zod received `{ json: ... }` instead of `{ name, slug, type }` and rejected it. (v11 sends the input un-wrapped; confirmed against `@trpc/server@11.18.0` `jsonContentTypeHandler.parse` + `httpLink` `getBody`.) The v11 error/success envelopes already matched the component's response parsing, so only the request body needed fixing.
+
+**Files:**
+
+- `apps/web/components/layout/entity-switcher.tsx` — MODIFIED: dropped the `json:` wrapper from the create POST body; also moved the `handleSelect` `useCallback` above the early returns to fix a pre-existing `react-hooks/rules-of-hooks` error (`useCallback` called after early return) in the same file.
+- `apps/web/vitest.config.js` — MODIFIED: added `esbuild: { jsx: 'automatic' }` so component tests use the React automatic JSX runtime (matches Next.js; previously classic runtime required an unused `React` import).
+- `apps/web/__tests__/entity-switcher.test.tsx` — CREATED: regression test asserting the create POST body is `{ name, slug, type }` (no `json` key), the success path switches the active entity, and the server error message surfaces on failure.
+
+### Verification
+
+| Check                        | Status                                                 |
+| ---------------------------- | ------------------------------------------------------ |
+| Full web suite (`pnpm test`) | ✅ 1290 pass / 1 skip (46 files)                       |
+| New entity-switcher tests    | ✅ 2/2 pass                                            |
+| Typecheck (`@xenboox/web`)   | ✅ Clean                                               |
+| Lint on changed files        | ✅ No errors (pre-existing import/order warnings only) |
+
+### Next Steps
+
+- Full-repo `next lint` still fails on pre-existing errors in unrelated files (e.g. `no-useless-escape` in `app/*/error.tsx`, `no-dupe-else-if` in `app/error.tsx`) — out of scope for this fix.
+
+---
 
 **Agent:** opencode (Autonomous Engineer)
 **Duration:** ~15 min

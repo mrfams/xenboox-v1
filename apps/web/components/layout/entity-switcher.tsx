@@ -95,7 +95,9 @@ export function EntitySwitcher() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          json: { name: entityName.trim(), slug, type: entityType },
+          name: entityName.trim(),
+          slug,
+          type: entityType,
         }),
       });
       const data = await response.json();
@@ -118,6 +120,14 @@ export function EntitySwitcher() {
       setCreating(false);
     }
   }, [entityName, entityType, setEntityId]);
+
+  const handleSelect = useCallback(
+    (entity: Entity) => {
+      setEntityId(entity.id, entity.role);
+      setIsOpen(false);
+    },
+    [setEntityId],
+  );
 
   if (!isLoaded) {
     return (
@@ -217,14 +227,6 @@ export function EntitySwitcher() {
       </>
     );
   }
-
-  const handleSelect = useCallback(
-    (entity: Entity) => {
-      setEntityId(entity.id, entity.role);
-      setIsOpen(false);
-    },
-    [setEntityId],
-  );
 
   return (
     <div className="relative">
