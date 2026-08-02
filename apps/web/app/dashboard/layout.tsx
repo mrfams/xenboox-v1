@@ -7,7 +7,6 @@ import { PermissionProvider, serializePermissions } from "@/lib/permissions";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { ChatPanel } from "@/components/layout/chat-panel";
-import { CopilotPanel } from "@/components/dashboard/copilot-panel";
 import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
 import { Toaster } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -39,7 +38,6 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [copilotOpen, setCopilotOpen] = useState(false);
 
   return (
     <SessionProvider>
@@ -64,11 +62,6 @@ export default function DashboardLayout({
               </div>
 
               <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
-              <CopilotPanel
-                open={copilotOpen}
-                onClose={() => setCopilotOpen(false)}
-                onOpen={() => setCopilotOpen(true)}
-              />
             </div>
             <Toaster position="top-right" richColors closeButton />
           </PermissionAwareLayout>

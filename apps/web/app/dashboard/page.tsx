@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { useEntity } from "@/lib/entity-context";
-import { Skeleton } from "@/components/shared/loading";
-import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
+import { Skeleton } from "@/components/shared/loading";
+import { Button } from "@/components/ui";
 import {
   TrendingUp,
   TrendingDown,
@@ -21,13 +23,12 @@ import {
   Sparkles,
   RefreshCw,
   Search,
-  MessageSquare,
   Wallet,
   BarChart3,
   BookOpen,
   Shield,
+  MessageSquare,
 } from "lucide-react";
-import { Button, Badge, Input } from "@/components/ui";
 
 // ─── Mini Sparkline Component ─────────────────────────────────────────────
 
@@ -52,12 +53,12 @@ function MiniSparkline({ data, color }: { data: number[]; color: string }) {
   return (
     <svg width={width} height={height} className="overflow-visible">
       <defs>
-        <linearGradient id={`gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={`sparkline-${color}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.3" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={areaPoints} fill={`url(#gradient-${color})`} />
+      <polygon points={areaPoints} fill={`url(#sparkline-${color})`} />
       <polyline
         points={points}
         fill="none"
@@ -70,9 +71,9 @@ function MiniSparkline({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-// ─── AI Greeting Component ────────────────────────────────────────────────
+// ─── Greeting Component ──────────────────────────────────────────────────
 
-function AIGreeting() {
+function AIGreeting({ firstName }: { firstName?: string }) {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -80,7 +81,7 @@ function AIGreeting() {
   return (
     <div className="space-y-1">
       <h1 className="text-3xl font-bold tracking-tight text-foreground">
-        {greeting}, Famara!{" "}
+        {greeting}, {firstName ?? "there"}!{" "}
         <span className="inline-block motion-safe:animate-[wave_2s_ease-in-out_infinite] origin-[70%_70%]">
           👋
         </span>
@@ -116,7 +117,7 @@ function AIChatInput() {
         className={cn(
           "relative group rounded-2xl border-2 bg-card transition-all duration-300",
           isFocused
-            ? "border-[#6366F1]/50 shadow-lg shadow-[#6366F1]/5"
+            ? "border-primary/50 shadow-lg shadow-primary/5"
             : "border-border/50 hover:border-border/80 hover:shadow-md",
         )}
       >
@@ -136,8 +137,8 @@ function AIChatInput() {
             className={cn(
               "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
               inputValue.trim()
-                ? "bg-[#6366F1] hover:bg-[#6366F1]/90 text-white shadow-sm"
-                : "bg-[#6366F1] text-white",
+                ? "bg-primary hover:bg-primary/90 text-white shadow-sm"
+                : "bg-primary text-white",
             )}
           >
             <ArrowRight className="h-4 w-4" />
@@ -154,7 +155,7 @@ function AIChatInput() {
               className={cn(
                 "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
                 "text-xs text-muted-foreground transition-all duration-200",
-                "hover:border-[#6366F1]/30 hover:text-[#6366F1] hover:bg-[#6366F1]/5 hover:shadow-sm",
+                "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
                 "active:scale-95",
               )}
             >
@@ -177,75 +178,43 @@ function AIChatInput() {
 
 // ─── Executive Briefing Component ─────────────────────────────────────────
 
-function ExecutiveBriefing() {
-  const items = [
-    {
-      id: "1",
+function ExecutiveBriefing({
+  items,
+}: {
+  items: Array<{
+    id: string;
+    type: string;
+    title: string;
+    value: string;
+    detail: string;
+    statusLabel: string;
+  }>;
+}) {
+  const statusConfig: Record<
+    string,
+    { icon: typeof TrendingUp; iconColor: string; iconBg: string }
+  > = {
+    positive: {
       icon: TrendingUp,
       iconColor: "text-balanced-green",
       iconBg: "bg-balanced-green-bg",
-      title: "Revenue is up 8%",
-      value: "GMD 1,234,567",
-      detail: "vs last month",
-      status: "positive",
-      statusLabel: "Strong performance",
     },
-    {
-      id: "2",
-      icon: DollarSign,
-      iconColor: "text-balanced-green",
-      iconBg: "bg-balanced-green-bg",
-      title: "Cash position is healthy",
-      value: "GMD 1,234,567",
-      detail: "12% above last month",
-      status: "positive",
-      statusLabel: "+12% above last month",
-    },
-    {
-      id: "3",
-      icon: Clock,
-      iconColor: "text-attention-amber",
-      iconBg: "bg-attention-amber-bg",
-      title: "Payroll due in 3 days",
-      value: "For 24 employees",
-      detail: "Jul 31, 2025",
-      status: "warning",
-      statusLabel: "Review draft",
-    },
-    {
-      id: "4",
-      icon: FileText,
-      iconColor: "text-[#6366F1]",
-      iconBg: "bg-[#6366F1]/10",
-      title: "VAT return ready",
-      value: "For July 2025",
-      detail: "Due Aug 15",
-      status: "neutral",
-      statusLabel: "Ready for review",
-    },
-    {
-      id: "5",
+    negative: {
       icon: AlertTriangle,
       iconColor: "text-error-clay",
       iconBg: "bg-error-clay-bg",
-      title: "2 invoices overdue",
-      value: "Totalling GMD 5,600",
-      detail: "Overdue by 30+ days",
-      status: "negative",
-      statusLabel: "Follow up required",
     },
-    {
-      id: "6",
-      icon: Shield,
+    warning: {
+      icon: Clock,
       iconColor: "text-attention-amber",
       iconBg: "bg-attention-amber-bg",
-      title: "1 suspicious transaction",
-      value: "Needs your review",
-      detail: "Flagged by AI",
-      status: "warning",
-      statusLabel: "Review now",
     },
-  ];
+    neutral: {
+      icon: FileText,
+      iconColor: "text-primary",
+      iconBg: "bg-primary/10",
+    },
+  };
 
   const statusColors: Record<string, string> = {
     positive: "text-balanced-green",
@@ -261,14 +230,14 @@ function ExecutiveBriefing() {
           <h2 className="text-sm font-semibold text-foreground">
             Executive Briefing
           </h2>
-          <span className="flex items-center gap-1 rounded-full bg-[#6366F1]/10 px-2 py-0.5 text-[10px] font-medium text-[#6366F1]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#6366F1]" />
+          <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
             AI generated
           </span>
         </div>
         <button
           type="button"
-          className="flex items-center gap-1 text-[11px] font-medium text-[#6366F1] hover:text-[#6366F1]/80 transition-colors"
+          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
         >
           View all insights
           <ChevronRight className="h-3 w-3" />
@@ -277,7 +246,8 @@ function ExecutiveBriefing() {
 
       <div className="scrollbar-hide flex items-center gap-3 overflow-x-auto pb-1">
         {items.map((item) => {
-          const Icon = item.icon;
+          const config = statusConfig[item.type] ?? statusConfig.neutral;
+          const Icon = config.icon;
           return (
             <div
               key={item.id}
@@ -286,10 +256,10 @@ function ExecutiveBriefing() {
               <div
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  item.iconBg,
+                  config.iconBg,
                 )}
               >
-                <Icon className={cn("h-5 w-5", item.iconColor)} />
+                <Icon className={cn("h-5 w-5", config.iconColor)} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground truncate">
@@ -305,7 +275,7 @@ function ExecutiveBriefing() {
               <span
                 className={cn(
                   "text-[10px] font-medium whitespace-nowrap",
-                  statusColors[item.status],
+                  statusColors[item.type] ?? "text-muted-foreground",
                 )}
               >
                 {item.statusLabel}
@@ -320,60 +290,118 @@ function ExecutiveBriefing() {
 
 // ─── Business Health Component ────────────────────────────────────────────
 
-function BusinessHealth() {
+function BusinessHealth({
+  data,
+}: {
+  data: {
+    cashBalance: number;
+    revenue: number;
+    expenses: number;
+    profit: number;
+    arOutstanding: number;
+    apOutstanding: number;
+    revenueChange: number;
+    expensesChange: number;
+    profitChange: number;
+    arChange: number;
+    apChange: number;
+  };
+}) {
   const metrics = [
     {
       id: "cash",
       label: "Cash Balance",
-      value: 1234567,
+      value: data.cashBalance,
       change: 12.5,
       sparkline: [
-        800000, 900000, 850000, 1000000, 1100000, 1050000, 1200000, 1234567,
+        800000,
+        900000,
+        850000,
+        1000000,
+        1100000,
+        1050000,
+        1200000,
+        data.cashBalance || 1234567,
       ],
     },
     {
       id: "revenue",
       label: "Revenue",
-      value: 2345890,
-      change: 8.1,
+      value: data.revenue,
+      change: data.revenueChange,
       sparkline: [
-        1800000, 1900000, 2000000, 2100000, 2000000, 2200000, 2300000, 2345890,
+        1800000,
+        1900000,
+        2000000,
+        2100000,
+        2000000,
+        2200000,
+        2300000,
+        data.revenue || 2345890,
       ],
     },
     {
       id: "expenses",
       label: "Expenses",
-      value: 1345221,
-      change: -3.4,
+      value: data.expenses,
+      change: data.expensesChange,
       sparkline: [
-        1400000, 1350000, 1300000, 1320000, 1380000, 1360000, 1350000, 1345221,
+        1400000,
+        1350000,
+        1300000,
+        1320000,
+        1380000,
+        1360000,
+        1350000,
+        data.expenses || 1345221,
       ],
     },
     {
       id: "profit",
       label: "Profit",
-      value: 1000669,
-      change: 12.2,
+      value: data.profit,
+      change: data.profitChange,
       sparkline: [
-        600000, 700000, 650000, 800000, 850000, 900000, 950000, 1000669,
+        600000,
+        700000,
+        650000,
+        800000,
+        850000,
+        900000,
+        950000,
+        data.profit || 1000669,
       ],
     },
     {
       id: "ar",
       label: "A/R (Outstanding)",
-      value: 234550,
-      change: 5.6,
+      value: data.arOutstanding,
+      change: data.arChange,
       sparkline: [
-        200000, 210000, 220000, 230000, 225000, 235000, 230000, 234550,
+        200000,
+        210000,
+        220000,
+        230000,
+        225000,
+        235000,
+        230000,
+        data.arOutstanding || 234550,
       ],
     },
     {
       id: "ap",
       label: "A/P (Outstanding)",
-      value: 345667,
-      change: -2.1,
+      value: data.apOutstanding,
+      change: data.apChange,
       sparkline: [
-        360000, 355000, 350000, 345000, 350000, 348000, 346000, 345667,
+        360000,
+        355000,
+        350000,
+        345000,
+        350000,
+        348000,
+        346000,
+        data.apOutstanding || 345667,
       ],
     },
   ];
@@ -444,7 +472,7 @@ function BusinessHealth() {
                     <TrendingDown className="h-3 w-3" />
                   )}
                   {isPositive ? "+" : ""}
-                  {metric.change}%
+                  {metric.change.toFixed(1)}%
                 </span>
 
                 <MiniSparkline data={metric.sparkline} color={sparkColor} />
@@ -459,59 +487,36 @@ function BusinessHealth() {
 
 // ─── AI Activity Feed Component ───────────────────────────────────────────
 
-function AgentActivityFeed() {
-  const activities = [
-    {
-      id: "1",
-      agent: "Invoice Processor",
-      action: "Processed 12 invoices from Acme Corp",
-      time: "2 min ago",
-      status: "completed",
-      icon: Bot,
-      color: "text-[#6366F1]",
-      bgColor: "bg-[#6366F1]/10",
-    },
-    {
-      id: "2",
-      agent: "Bank Reconciler",
-      action: "Reconciled GTBank account #1234",
-      time: "15 min ago",
-      status: "completed",
-      icon: RefreshCw,
-      color: "text-emerald-500",
-      bgColor: "bg-emerald-50",
-    },
-    {
-      id: "3",
-      agent: "Payroll Agent",
-      action: "Prepared payroll draft for July 2025",
-      time: "32 min ago",
-      status: "in_progress",
-      icon: Clock,
-      color: "text-amber-500",
-      bgColor: "bg-amber-50",
-    },
-    {
-      id: "4",
-      agent: "Bookkeeper Agent",
-      action: "Posted 8 journal entries",
-      time: "1 hr ago",
-      status: "completed",
-      icon: BookOpen,
-      color: "text-blue-500",
-      bgColor: "bg-blue-50",
-    },
-    {
-      id: "5",
-      agent: "Document Extractor",
-      action: "Extracted data from 24 receipts",
-      time: "2 hrs ago",
-      status: "completed",
-      icon: FileText,
-      color: "text-purple-500",
-      bgColor: "bg-purple-50",
-    },
-  ];
+function AgentActivityFeed({
+  activities,
+}: {
+  activities: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    createdAt: Date | null;
+  }>;
+}) {
+  const colorMap: Record<string, { color: string; bgColor: string }> = {
+    document: { color: "text-primary", bgColor: "bg-primary/10" },
+    bank_account: { color: "text-emerald-500", bgColor: "bg-emerald-50" },
+    journal_entry: { color: "text-blue-500", bgColor: "bg-blue-50" },
+    invoice_ap: { color: "text-amber-500", bgColor: "bg-amber-50" },
+    invoice_ar: { color: "text-purple-500", bgColor: "bg-purple-50" },
+    default: { color: "text-primary", bgColor: "bg-primary/10" },
+  };
+
+  function formatTimeAgo(date: Date | null): string {
+    if (!date) return "Unknown";
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} min ago`;
+    if (hours < 24) return `${hours} hr ago`;
+    return `${Math.floor(hours / 24)} days ago`;
+  }
 
   return (
     <div className="space-y-3">
@@ -525,119 +530,73 @@ function AgentActivityFeed() {
       </div>
 
       <div className="space-y-2">
-        {activities.map((activity) => {
-          const Icon = activity.icon;
-          return (
-            <div
-              key={activity.id}
-              className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-sm"
-            >
+        {activities.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            No recent activity
+          </p>
+        ) : (
+          activities.map((activity) => {
+            const colors = colorMap[activity.entityType] ?? colorMap.default;
+            return (
               <div
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                  activity.bgColor,
-                )}
+                key={activity.id}
+                className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-sm"
               >
-                <Icon className={cn("h-4 w-4", activity.color)} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground">
-                  {activity.agent}
-                </p>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {activity.action}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-muted-foreground">
-                  {activity.time}
-                </span>
-                <Badge
-                  variant="secondary"
+                <div
                   className={cn(
-                    "text-[10px]",
-                    activity.status === "completed"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-amber-100 text-amber-700",
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                    colors.bgColor,
                   )}
                 >
-                  {activity.status === "completed"
-                    ? "Completed"
-                    : "In Progress"}
-                </Badge>
+                  <Bot className={cn("h-4 w-4", colors.color)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground capitalize">
+                    {activity.entityType?.replace(/_/g, " ") ?? "Agent"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {activity.action}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground">
+                    {formatTimeAgo(activity.createdAt)}
+                  </span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                    Completed
+                  </span>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
-      <button
-        type="button"
-        className="flex items-center gap-1 text-[11px] font-medium text-[#6366F1] hover:text-[#6366F1]/80 transition-colors"
+      <Link
+        href="/dashboard/agent-monitor"
+        className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
       >
         View all activity
         <ChevronRight className="h-3 w-3" />
-      </button>
+      </Link>
     </div>
   );
 }
 
 // ─── Pending Approvals Component ──────────────────────────────────────────
 
-function PendingApprovals() {
-  const items = [
-    {
-      id: "1",
-      title: "Payroll July 2025",
-      subtitle: "24 employees",
-      amount: "GMD 78,450",
-      status: "pending",
-      icon: CheckCircle2,
-      iconColor: "text-balanced-green",
-      iconBg: "bg-balanced-green-bg",
-    },
-    {
-      id: "2",
-      title: "Payment to Office Rent",
-      subtitle: "Rent for August",
-      amount: "GMD 15,000",
-      status: "pending",
-      icon: CheckCircle2,
-      iconColor: "text-balanced-green",
-      iconBg: "bg-balanced-green-bg",
-    },
-    {
-      id: "3",
-      title: "Journal Entry #JE-2025-124",
-      subtitle: "Depreciation Expense",
-      amount: "GMD 4,250",
-      status: "pending",
-      icon: CheckCircle2,
-      iconColor: "text-balanced-green",
-      iconBg: "bg-balanced-green-bg",
-    },
-    {
-      id: "4",
-      title: "VAT Return July 2025",
-      subtitle: "VAT payable GMD 9,850",
-      amount: "GMD 9,850",
-      status: "review",
-      icon: AlertTriangle,
-      iconColor: "text-attention-amber",
-      iconBg: "bg-attention-amber-bg",
-    },
-    {
-      id: "5",
-      title: "AI Correction",
-      subtitle: "Uncategorized expense",
-      amount: "GMD 2,300",
-      status: "review",
-      icon: Bot,
-      iconColor: "text-[#6366F1]",
-      iconBg: "bg-[#6366F1]/10",
-    },
-  ];
-
+function PendingApprovals({
+  items,
+}: {
+  items: Array<{
+    id: string;
+    type: string;
+    title: string;
+    subtitle: string;
+    amount: string;
+    status: "pending" | "review";
+  }>;
+}) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -650,9 +609,12 @@ function PendingApprovals() {
       </div>
 
       <div className="space-y-2">
-        {items.map((item) => {
-          const Icon = item.icon;
-          return (
+        {items.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            No pending approvals
+          </p>
+        ) : (
+          items.map((item) => (
             <div
               key={item.id}
               className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-sm"
@@ -660,22 +622,34 @@ function PendingApprovals() {
               <div
                 className={cn(
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                  item.iconBg,
+                  item.status === "pending"
+                    ? "bg-balanced-green-bg"
+                    : item.type === "agent_escalation"
+                      ? "bg-primary/10"
+                      : "bg-attention-amber-bg",
                 )}
               >
-                <Icon className={cn("h-4 w-4", item.iconColor)} />
+                {item.status === "pending" ? (
+                  <CheckCircle2 className="h-4 w-4 text-balanced-green" />
+                ) : item.type === "agent_escalation" ? (
+                  <Bot className="h-4 w-4 text-primary" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-attention-amber" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground truncate">
                   {item.title}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground truncate">
                   {item.subtitle}
                 </p>
               </div>
-              <span className="text-xs font-bold tabular-nums text-foreground whitespace-nowrap">
-                {item.amount}
-              </span>
+              {item.amount !== "—" && (
+                <span className="text-xs font-bold tabular-nums text-foreground whitespace-nowrap">
+                  {item.amount}
+                </span>
+              )}
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -691,17 +665,17 @@ function PendingApprovals() {
                 </button>
               </div>
             </div>
-          );
-        })}
+          ))
+        )}
       </div>
 
-      <button
-        type="button"
-        className="flex items-center gap-1 text-[11px] font-medium text-[#6366F1] hover:text-[#6366F1]/80 transition-colors"
+      <Link
+        href="/dashboard/review-queue"
+        className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
       >
         View all approvals
         <ChevronRight className="h-3 w-3" />
-      </button>
+      </Link>
     </div>
   );
 }
@@ -724,7 +698,7 @@ function ActiveAgents() {
       detail: "Processing invoices",
       progress: 78,
       eta: "ETA 3m",
-      color: "from-[#6366F1] to-blue-500",
+      color: "from-primary to-blue-500",
     },
     {
       id: "3",
@@ -804,104 +778,65 @@ function ActiveAgents() {
         ))}
       </div>
 
-      <button
-        type="button"
-        className="flex items-center gap-1 text-[11px] font-medium text-[#6366F1] hover:text-[#6366F1]/80 transition-colors"
+      <Link
+        href="/dashboard/agent-monitor"
+        className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
       >
         View all agents
         <ChevronRight className="h-3 w-3" />
-      </button>
+      </Link>
     </div>
   );
 }
 
 // ─── Dashboard Right Sidebar ──────────────────────────────────────────────
 
-function DashboardRightSidebar() {
-  const deadlines = [
-    {
-      id: "1",
-      label: "Payroll Payment",
-      date: "Jul 31, 2025",
-      tag: "In 3 days",
-      tagColor: "bg-amber-50 text-amber-700 border-amber-200",
-    },
-    {
-      id: "2",
-      label: "VAT Return Due",
-      date: "Aug 15, 2025",
-      tag: "In 18 days",
-      tagColor: "bg-blue-50 text-blue-700 border-blue-200",
-    },
-    {
-      id: "3",
-      label: "Management Report",
-      date: "Aug 20, 2025",
-      tag: "In 23 days",
-      tagColor: "bg-blue-50 text-blue-700 border-blue-200",
-    },
-    {
-      id: "4",
-      label: "Tax Payment",
-      date: "Aug 31, 2025",
-      tag: "In 34 days",
-      tagColor: "bg-blue-50 text-blue-700 border-blue-200",
-    },
-  ];
+function DashboardRightSidebar({
+  deadlines,
+  recentDocuments,
+  recentConversations,
+  suggestedActions,
+}: {
+  deadlines: Array<{
+    id: string;
+    label: string;
+    date: string;
+    urgency: string;
+  }>;
+  recentDocuments: Array<{
+    id: string;
+    name: string;
+    type: string;
+    createdAt: Date | null;
+  }>;
+  recentConversations: Array<{
+    id: string;
+    title: string | null;
+    lastMessageAt: Date | null;
+  }>;
+  suggestedActions: string[];
+}) {
+  function formatDocTime(date: Date | null): string {
+    if (!date) return "";
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} min ago`;
+    if (hours < 24) return `${hours} hr ago`;
+    return `${Math.floor(hours / 24)} days ago`;
+  }
 
-  const docs = [
-    {
-      id: "1",
-      name: "GTBank Statement - July 2025.pdf",
-      time: "2 min ago",
-      icon: FileText,
-      color: "text-red-500",
-    },
-    {
-      id: "2",
-      name: "Invoice INV-1001 - Acme Corp.pdf",
-      time: "12 min ago",
-      icon: FileText,
-      color: "text-[#6366F1]",
-    },
-    {
-      id: "3",
-      name: "Payroll July 2025.xlsx",
-      time: "32 min ago",
-      icon: FileText,
-      color: "text-emerald-500",
-    },
-    {
-      id: "4",
-      name: "VAT Return - July 2025.pdf",
-      time: "1 hr ago",
-      icon: FileText,
-      color: "text-red-500",
-    },
-    {
-      id: "5",
-      name: "Management Report - June 2025.pdf",
-      time: "2 hrs ago",
-      icon: FileText,
-      color: "text-[#6366F1]",
-    },
-  ];
-
-  const conversations = [
-    { id: "1", text: "Explain cash position", time: "Just now" },
-    { id: "2", text: "Why did expenses increase?", time: "1 hr ago" },
-    { id: "3", text: "Show unpaid invoices", time: "3 hrs ago" },
-    { id: "4", text: "Forecast next month cash flow", time: "Yesterday" },
-    { id: "5", text: "Close June books", time: "2 days ago" },
-  ];
-
-  const actions = [
-    { id: "1", text: "Follow up 2 overdue invoices" },
-    { id: "2", text: "Reconcile 2 bank accounts" },
-    { id: "3", text: "Review 1 suspicious transaction" },
-    { id: "4", text: "Approve payroll draft" },
-    { id: "5", text: "Connect Paystack account" },
-  ];
+  function getDocColor(type: string): string {
+    const colors: Record<string, string> = {
+      bank_statement: "text-red-500",
+      invoice: "text-primary",
+      payroll_report: "text-emerald-500",
+      tax_return: "text-red-500",
+    };
+    return colors[type] ?? "text-primary";
+  }
 
   return (
     <div className="space-y-6">
@@ -913,7 +848,7 @@ function DashboardRightSidebar() {
           </h3>
           <button
             type="button"
-            className="flex items-center gap-0.5 text-[11px] font-medium text-[#6366F1] hover:text-[#6366F1]/80"
+            className="flex items-center gap-0.5 text-[11px] font-medium text-primary hover:text-primary/80"
           >
             View calendar <ChevronRight className="h-3 w-3" />
           </button>
@@ -924,8 +859,8 @@ function DashboardRightSidebar() {
               key={d.id}
               className="flex items-center gap-3 rounded-lg border border-border/50 bg-card p-2.5 hover:shadow-sm transition-all"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#6366F1]/10">
-                <Calendar className="h-4 w-4 text-[#6366F1]" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Calendar className="h-4 w-4 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground truncate">
@@ -936,10 +871,12 @@ function DashboardRightSidebar() {
               <span
                 className={cn(
                   "rounded-full border px-2 py-0.5 text-[9px] font-medium whitespace-nowrap",
-                  d.tagColor,
+                  d.urgency === "upcoming"
+                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                    : "bg-blue-50 text-blue-700 border-blue-200",
                 )}
               >
-                {d.tag}
+                {d.urgency === "upcoming" ? "Upcoming" : "Scheduled"}
               </span>
             </div>
           ))}
@@ -952,31 +889,36 @@ function DashboardRightSidebar() {
           <h3 className="text-sm font-semibold text-foreground">
             Recent Documents
           </h3>
-          <button
-            type="button"
-            className="flex items-center gap-0.5 text-[11px] font-medium text-[#6366F1] hover:text-[#6366F1]/80"
+          <Link
+            href="/dashboard/documents"
+            className="flex items-center gap-0.5 text-[11px] font-medium text-primary hover:text-primary/80"
           >
             View all <ChevronRight className="h-3 w-3" />
-          </button>
+          </Link>
         </div>
         <div className="space-y-1.5">
-          {docs.map((doc) => {
-            const Icon = doc.icon;
-            return (
+          {recentDocuments.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              No documents yet
+            </p>
+          ) : (
+            recentDocuments.map((doc) => (
               <div
                 key={doc.id}
                 className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
               >
-                <Icon className={cn("h-4 w-4 shrink-0", doc.color)} />
+                <FileText
+                  className={cn("h-4 w-4 shrink-0", getDocColor(doc.type))}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-foreground truncate">{doc.name}</p>
                 </div>
                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                  {doc.time}
+                  {formatDocTime(doc.createdAt)}
                 </span>
               </div>
-            );
-          })}
+            ))
+          )}
         </div>
       </div>
 
@@ -986,28 +928,36 @@ function DashboardRightSidebar() {
           <h3 className="text-sm font-semibold text-foreground">
             Recent Conversations
           </h3>
-          <button
-            type="button"
-            className="flex items-center gap-0.5 text-[11px] font-medium text-[#6366F1] hover:text-[#6366F1]/80"
+          <Link
+            href="/dashboard/chat"
+            className="flex items-center gap-0.5 text-[11px] font-medium text-primary hover:text-primary/80"
           >
             View all <ChevronRight className="h-3 w-3" />
-          </button>
+          </Link>
         </div>
         <div className="space-y-1.5">
-          {conversations.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
-            >
-              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-foreground truncate">{c.text}</p>
+          {recentConversations.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              No conversations yet
+            </p>
+          ) : (
+            recentConversations.map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
+              >
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-foreground truncate">
+                    {c.title ?? "Untitled conversation"}
+                  </p>
+                </div>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  {formatDocTime(c.lastMessageAt)}
+                </span>
               </div>
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                {c.time}
-              </span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -1017,19 +967,25 @@ function DashboardRightSidebar() {
           Suggested Actions
         </h3>
         <div className="space-y-1.5">
-          {actions.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent/50 text-left transition-colors group"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-[#6366F1] shrink-0" />
-              <span className="flex-1 text-xs text-foreground truncate">
-                {a.text}
-              </span>
-              <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
-            </button>
-          ))}
+          {suggestedActions.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              All caught up!
+            </p>
+          ) : (
+            suggestedActions.map((action, i) => (
+              <button
+                key={i}
+                type="button"
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent/50 text-left transition-colors group"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="flex-1 text-xs text-foreground truncate">
+                  {action}
+                </span>
+                <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
+              </button>
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -1040,35 +996,38 @@ function DashboardRightSidebar() {
 
 export default function DashboardPage() {
   const { entityId } = useEntity();
-  const [copilotOpen, setCopilotOpen] = useState(true);
+  const { data: session } = useSession();
+  const firstName = session?.user?.name?.split(" ")[0];
 
-  // Fetch real data for metrics
-  const { data: arInvoices, isLoading: arLoading } =
-    trpc.ar.listInvoices.useQuery({}, { enabled: !!entityId });
-  const { data: apInvoices, isLoading: apLoading } =
-    trpc.ap.listInvoices.useQuery(undefined, { enabled: !!entityId });
-  const { data: bankAccounts, isLoading: bankLoading } =
-    trpc.treasury.listBankAccounts.useQuery(undefined, { enabled: !!entityId });
-  const { data: cashAccounts, isLoading: cashLoading } =
-    trpc.cash.listCashAccounts.useQuery(undefined, { enabled: !!entityId });
-
-  const isLoading = arLoading || apLoading || bankLoading || cashLoading;
+  // Fetch dashboard data
+  const { data: dashboardData, isLoading } =
+    trpc.dashboard.getDashboardData.useQuery(undefined, {
+      enabled: !!entityId,
+      refetchInterval: 30000, // Refresh every 30 seconds
+    });
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-16 w-96 rounded-xl" />
-        <Skeleton className="h-16 w-full rounded-xl" />
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <div className="grid gap-4 lg:grid-cols-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
+      <div className="flex h-[calc(100vh-4rem)]">
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-6 p-6">
+            <Skeleton className="h-16 w-96 rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <div className="grid gap-4 lg:grid-cols-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-28 rounded-xl" />
+              ))}
+            </div>
+            <div className="grid gap-6 lg:grid-cols-3">
+              <Skeleton className="h-64 rounded-xl" />
+              <Skeleton className="h-64 rounded-xl" />
+              <Skeleton className="h-64 rounded-xl" />
+            </div>
+          </div>
         </div>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Skeleton className="h-64 rounded-xl" />
-          <Skeleton className="h-64 rounded-xl" />
+        <div className="w-80 border-l bg-card hidden lg:block p-6">
           <Skeleton className="h-64 rounded-xl" />
         </div>
       </div>
@@ -1081,21 +1040,39 @@ export default function DashboardPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-6 p-6">
           {/* Row 1: Greeting */}
-          <AIGreeting />
+          <AIGreeting firstName={firstName} />
 
           {/* Row 2: AI Command Box */}
           <AIChatInput />
 
           {/* Row 3: Executive Briefing */}
-          <ExecutiveBriefing />
+          <ExecutiveBriefing items={dashboardData?.briefingItems ?? []} />
 
           {/* Row 4: Business Health KPI Cards */}
-          <BusinessHealth />
+          <BusinessHealth
+            data={
+              dashboardData?.businessHealth ?? {
+                cashBalance: 0,
+                revenue: 0,
+                expenses: 0,
+                profit: 0,
+                arOutstanding: 0,
+                apOutstanding: 0,
+                revenueChange: 0,
+                expensesChange: 0,
+                profitChange: 0,
+                arChange: 0,
+                apChange: 0,
+              }
+            }
+          />
 
           {/* Row 5: 3-column — Activity Feed | Pending Approvals | Active Agents */}
           <div className="grid gap-6 lg:grid-cols-3">
-            <AgentActivityFeed />
-            <PendingApprovals />
+            <AgentActivityFeed
+              activities={dashboardData?.agentActivity ?? []}
+            />
+            <PendingApprovals items={dashboardData?.pendingApprovals ?? []} />
             <ActiveAgents />
           </div>
         </div>
@@ -1103,7 +1080,12 @@ export default function DashboardPage() {
 
       {/* Right Sidebar */}
       <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto p-6">
-        <DashboardRightSidebar />
+        <DashboardRightSidebar
+          deadlines={dashboardData?.deadlines ?? []}
+          recentDocuments={dashboardData?.recentDocuments ?? []}
+          recentConversations={dashboardData?.recentConversations ?? []}
+          suggestedActions={dashboardData?.suggestedActions ?? []}
+        />
       </div>
     </div>
   );

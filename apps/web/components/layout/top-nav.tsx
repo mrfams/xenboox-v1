@@ -145,12 +145,29 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
       </Button>
 
       {/* Global AI Command Bar */}
-      <div className="hidden sm:flex relative flex-1 max-w-sm">
-        <AICommandBar compact placeholder="Ask Xenboox AI..." />
+      <div className="hidden sm:flex relative flex-1 max-w-md">
+        <AICommandBar compact placeholder="Search anything..." />
       </div>
 
       {/* Mobile AI trigger */}
       <div className="flex sm:hidden flex-1" />
+
+      {/* AI Command Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="hidden md:inline-flex gap-2 border-dashed"
+        onClick={() => onChatToggle?.()}
+      >
+        <Sparkles className="h-4 w-4 text-primary" />
+        <span className="text-sm">AI Command</span>
+      </Button>
+
+      {/* System Status */}
+      <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+        <span className="text-xs">All Systems Operational</span>
+      </div>
 
       {/* Notifications */}
       <div className="relative" ref={notifRef}>

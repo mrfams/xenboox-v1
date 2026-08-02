@@ -18,6 +18,7 @@ import {
   Activity,
   Settings,
   HelpCircle,
+  ChevronsLeft,
   type LucideIcon,
 } from "lucide-react";
 
@@ -45,47 +46,71 @@ type ApprovalCounts = {
 };
 
 const primaryNavItems: NavItem[] = [
-  { label: "Home", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   {
-    label: "Ask CFO Agent",
+    label: "AI Workspace",
     href: "/dashboard/chat",
     icon: MessageSquare,
-    badge: "AI",
     attrs: { "data-tour": "cfo-agent" },
   },
   {
-    label: "Money",
-    href: "/dashboard/cash",
+    label: "Inbox",
+    href: "/dashboard/review-queue",
+    icon: Receipt,
+    countKey: "total",
+    match: ["/dashboard/review-queue", "/dashboard/notifications"],
+  },
+  {
+    label: "Transactions",
+    href: "/dashboard/journal",
+    icon: BookOpen,
+    match: ["/dashboard/journal", "/dashboard/trial-balance"],
+  },
+  {
+    label: "Banking",
+    href: "/dashboard/treasury",
     icon: Wallet,
+    match: ["/dashboard/treasury", "/dashboard/banking"],
+  },
+  {
+    label: "General Ledger",
+    href: "/dashboard/coa",
+    icon: BookOpen,
     match: [
-      "/dashboard/cash",
-      "/dashboard/treasury",
-      "/dashboard/mobile-money",
+      "/dashboard/coa",
+      "/dashboard/journal",
+      "/dashboard/trial-balance",
+      "/dashboard/close",
+      "/dashboard/consolidation",
     ],
   },
   {
-    label: "Sales",
-    href: "/dashboard/ar/invoices",
-    icon: Receipt,
+    label: "Customers",
+    href: "/dashboard/ar/customers",
+    icon: Users,
     match: ["/dashboard/ar"],
   },
   {
-    label: "Purchases",
-    href: "/dashboard/ap/invoices",
-    icon: CreditCard,
+    label: "Vendors",
+    href: "/dashboard/ap/suppliers",
+    icon: Users,
     match: ["/dashboard/ap"],
   },
   {
-    label: "Payroll & People",
+    label: "Invoices",
+    href: "/dashboard/ar/invoices",
+    icon: Receipt,
+  },
+  {
+    label: "Bills",
+    href: "/dashboard/ap/invoices",
+    icon: CreditCard,
+  },
+  {
+    label: "Payroll",
     href: "/dashboard/payroll/pipeline",
     icon: Users,
     match: ["/dashboard/payroll", "/dashboard/expense"],
-  },
-  {
-    label: "Assets & Inventory",
-    href: "/dashboard/inventory/pipeline",
-    icon: Boxes,
-    match: ["/dashboard/inventory", "/dashboard/fixed-assets"],
   },
   {
     label: "Reports",
@@ -99,38 +124,25 @@ const primaryNavItems: NavItem[] = [
     ],
   },
   {
-    label: "Accounting",
-    href: "/dashboard/coa",
-    icon: BookOpen,
-    match: [
-      "/dashboard/coa",
-      "/dashboard/journal",
-      "/dashboard/trial-balance",
-      "/dashboard/close",
-      "/dashboard/consolidation",
-    ],
+    label: "Agent Monitor",
+    href: "/dashboard/agent-monitor",
+    icon: Activity,
+    match: ["/dashboard/agent-monitor"],
   },
   {
-    label: "Compliance",
-    href: "/dashboard/compliance",
-    icon: Shield,
-    match: [
-      "/dashboard/compliance",
-      "/dashboard/tax-compliance",
-      "/dashboard/audit",
-    ],
+    label: "Automation",
+    href: "/dashboard/automation",
+    icon: Boxes,
+    match: ["/dashboard/automation"],
+  },
+  {
+    label: "Settings",
+    href: "/dashboard/settings",
+    icon: Settings,
   },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
-  {
-    label: "Approvals",
-    href: "/dashboard/review-queue",
-    icon: Activity,
-    attrs: { "data-tour": "approvals" },
-  },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
   { label: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
 ];
 
@@ -349,13 +361,31 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         </nav>
 
-        {/* Agent Status + Bottom Nav */}
+        {/* Bottom Nav + User Profile */}
         <div className="border-t border-white/[0.06] p-3 space-y-2">
           <AgentStatusBar />
           <div className="space-y-0.5">
             {bottomNavItems.map((item) =>
               renderNavItem(item, item.label === "Approvals"),
             )}
+          </div>
+        </div>
+
+        {/* User Profile */}
+        <div className="border-t border-white/[0.06] p-3">
+          <div className="lg:hidden lg:group-hover:flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              FT
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-[hsl(var(--sidebar-text))] truncate">
+                Famara Touray
+              </p>
+              <p className="text-[10px] text-[hsl(var(--sidebar-text-dim))] truncate">
+                Administrator
+              </p>
+            </div>
+            <ChevronsLeft className="h-4 w-4 text-[hsl(var(--sidebar-text-dim))] shrink-0" />
           </div>
         </div>
       </aside>

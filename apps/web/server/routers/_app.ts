@@ -43,6 +43,7 @@ import { permissionsAdminRouter } from "./permissions-admin";
 import { complianceLivenessRouter } from "./compliance-liveness";
 import { cfoLivenessRouter } from "./cfo-liveness";
 import { invitationsRouter } from "./invitations";
+import { dashboardRouter } from "./dashboard";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -90,6 +91,7 @@ export const appRouter = router({
   benchmarking: benchmarkingRouter,
   permissionsAdmin: permissionsAdminRouter,
   invitations: invitationsRouter,
+  dashboard: dashboardRouter,
 });
 
 export type AppRouter = typeof appRouter;
