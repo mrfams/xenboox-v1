@@ -114,11 +114,11 @@ export const chartOfAccountsRouter = router({
     );
 
     // Build hierarchy for tree view
-    const accountMap = new Map<
-      string,
-      (typeof allAccounts)[number] & { children: typeof allAccounts }
-    >();
-    const roots: typeof allAccounts = [];
+    type AccountNode = (typeof allAccounts)[number] & {
+      children: AccountNode[];
+    };
+    const accountMap = new Map<string, AccountNode>();
+    const roots: AccountNode[] = [];
 
     for (const account of allAccounts) {
       accountMap.set(account.id, { ...account, children: [] });
@@ -171,11 +171,11 @@ export const chartOfAccountsRouter = router({
     });
 
     // Build hierarchy
-    const accountMap = new Map<
-      string,
-      (typeof accounts)[number] & { children: typeof accounts }
-    >();
-    const roots: typeof accounts = [];
+    type AccountNode = (typeof accounts)[number] & {
+      children: AccountNode[];
+    };
+    const accountMap = new Map<string, AccountNode>();
+    const roots: AccountNode[] = [];
 
     for (const account of accounts) {
       accountMap.set(account.id, { ...account, children: [] });

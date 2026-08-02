@@ -160,7 +160,7 @@ export const aiWorkspaceRouter = router({
         eq(invoicesAp.entityId, entityId),
         gte(
           invoicesAp.createdAt,
-          new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+          new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
         ),
       ),
       orderBy: [desc(invoicesAp.createdAt)],
@@ -405,7 +405,7 @@ export const aiWorkspaceRouter = router({
     const transactions = await db.query.bankTransactions.findMany({
       where: and(
         eq(bankTransactions.entityId, entityId),
-        gte(bankTransactions.createdAt, startOfMonth.toISOString()),
+        gte(bankTransactions.createdAt, startOfMonth),
       ),
       orderBy: [desc(bankTransactions.createdAt)],
       limit: 100,

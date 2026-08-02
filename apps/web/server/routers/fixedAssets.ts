@@ -292,4 +292,68 @@ export const fixedAssetsRouter = router({
         handleMutationError(error, "Failed to delete asset");
       }
     }),
+
+  getOverview: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const assets = await db.query.fixedAssets.findMany({
+      where: eq(fixedAssets.entityId, entityId),
+    });
+
+    const totalAssets = assets.reduce(
+      (sum, a) => sum + parseFloat(a.cost ?? "0"),
+      0,
+    );
+    const totalDepreciation = assets.reduce(
+      (sum, a) => sum + parseFloat(a.accumulatedDepreciation ?? "0"),
+      0,
+    );
+    const netBookValue = assets.reduce(
+      (sum, a) => sum + parseFloat(a.netBookValue ?? "0"),
+      0,
+    );
+    const activeAssets = assets.filter((a) => a.status === "active").length;
+    const disposedThisMonth = assets.filter(
+      (a) => a.status === "disposed",
+    ).length;
+
+    return {
+      summary: {
+        totalAssets,
+        totalAssetsChange: 0,
+        totalDepreciation,
+        netBookValue,
+        activeAssets,
+        disposedThisMonth,
+        assetsCount: assets.length,
+      },
+    };
+  }),
+
+  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const assets = await db.query.fixedAssets.findMany({
+      where: eq(fixedAssets.entityId, entityId),
+    });
+
+    const insights = [
+      {
+        id: "1",
+        type: "info" as const,
+        title: "Asset Portfolio Health",
+        description: `${assets.length} assets tracked with total NBV of GMD ${assets.reduce((sum, a) => sum + parseFloat(a.netBookValue ?? "0"), 0).toLocaleString()}`,
+        actionLabel: "View Details",
+      },
+      {
+        id: "2",
+        type: "warning" as const,
+        title: "Depreciation Due",
+        description: `${assets.filter((a) => a.status === "active").length} active assets require depreciation scheduling`,
+        actionLabel: "Schedule Now",
+      },
+    ];
+
+    return insights;
+  }),
 });

@@ -93,7 +93,7 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
         const invoices = await utils.ar.listInvoices.fetch({});
         const customers = await utils.ar.listCustomers.fetch({});
         const bankAccounts = await utils.treasury.listBankAccounts.fetch();
-        const docs = await utils.document.listDocuments.fetch();
+        const docs = await utils.document.listDocuments.fetch({});
         const results: SearchItem[] = [
           ...(invoices ?? []).map((inv: Record<string, unknown>) => ({
             label: `Invoice ${inv.invoiceNumber as string}`,

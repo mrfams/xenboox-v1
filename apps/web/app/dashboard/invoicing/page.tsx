@@ -55,6 +55,7 @@ function SummaryCards({
     outstandingChange: number;
     overdueAmount: number;
     overdueCount: number;
+    overdueChange: number;
     paidThisMonth: number;
     paidChange: number;
     avgCollectionDays: number;

@@ -271,7 +271,14 @@ export const transactionsRouter = router({
         startDate: z.string().optional(),
         endDate: z.string().optional(),
         status: z
-          .enum(["all", "needs_review", "matched", "unmatched", "excluded"])
+          .enum([
+            "all",
+            "needs_review",
+            "matched",
+            "unmatched",
+            "excluded",
+            "uncategorized",
+          ])
           .default("all"),
         accountId: z.string().uuid().optional(),
         category: z.string().optional(),
@@ -309,10 +316,10 @@ export const transactionsRouter = router({
 
       if (input.status === "matched") {
         conditions.push(eq(bankTransactions.isReconciled, true));
-      } else if (input.status === "unmatched") {
-        conditions.push(eq(bankTransactions.isReconciled, false));
-        conditions.push(sql`${bankTransactions.journalEntryId} IS NOT NULL`);
-      } else if (input.status === "needs_review") {
+      } else if (
+        input.status === "needs_review" ||
+        input.status === "uncategorized"
+      ) {
         conditions.push(eq(bankTransactions.isReconciled, false));
         conditions.push(sql`${bankTransactions.journalEntryId} IS NULL`);
       }
@@ -375,7 +382,7 @@ export const transactionsRouter = router({
       let accountMap = new Map<string, { code: string; name: string }>();
 
       if (accountIds.length > 0) {
-        const journalEntries = await db.query.journalEntries.findMany({
+        const journalEntryRecords = await db.query.journalEntries.findMany({
           where: sql`${journalEntries.id} IN ${accountIds}`,
           columns: { id: true, entryNumber: true },
         });

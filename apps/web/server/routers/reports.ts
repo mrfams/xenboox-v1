@@ -67,8 +67,8 @@ export const reportsRouter = router({
         where: and(
           eq(journalEntries.entityId, entityId),
           eq(journalEntries.status, "posted"),
-          sql`${journalEntries.entryDate} >= ${startDate}`,
-          sql`${journalEntries.entryDate} <= ${endDate}`,
+          sql`${journalEntries.date} >= ${startDate}`,
+          sql`${journalEntries.date} <= ${endDate}`,
         ),
       });
 
@@ -77,8 +77,8 @@ export const reportsRouter = router({
         where: and(
           eq(journalEntries.entityId, entityId),
           eq(journalEntries.status, "posted"),
-          sql`${journalEntries.entryDate} >= ${prevStartDate}`,
-          sql`${journalEntries.entryDate} <= ${prevEndDate}`,
+          sql`${journalEntries.date} >= ${prevStartDate}`,
+          sql`${journalEntries.date} <= ${prevEndDate}`,
         ),
       });
 
@@ -119,8 +119,8 @@ export const reportsRouter = router({
           const account = accountMap.get(line.accountId);
           if (!account) continue;
 
-          const debit = parseFloat(line.debit);
-          const credit = parseFloat(line.credit);
+          const debit = parseFloat(line.debit ?? "0");
+          const credit = parseFloat(line.credit ?? "0");
 
           switch (account.type) {
             case "revenue":
@@ -231,8 +231,8 @@ export const reportsRouter = router({
         where: and(
           eq(journalEntries.entityId, entityId),
           eq(journalEntries.status, "posted"),
-          sql`${journalEntries.entryDate} >= ${startDate}`,
-          sql`${journalEntries.entryDate} <= ${endDate}`,
+          sql`${journalEntries.date} >= ${startDate}`,
+          sql`${journalEntries.date} <= ${endDate}`,
         ),
       });
 
@@ -256,7 +256,8 @@ export const reportsRouter = router({
         const account = accountMap.get(line.accountId);
         if (!account) continue;
 
-        const amount = parseFloat(line.credit) - parseFloat(line.debit);
+        const amount =
+          parseFloat(line.credit ?? "0") - parseFloat(line.debit ?? "0");
         if (account.type === "revenue") revenue += Math.abs(amount);
         if (account.type === "expense") expenses += Math.abs(amount);
       }
@@ -306,8 +307,8 @@ export const reportsRouter = router({
         where: and(
           eq(journalEntries.entityId, entityId),
           eq(journalEntries.status, "posted"),
-          sql`${journalEntries.entryDate} >= ${startDate}`,
-          sql`${journalEntries.entryDate} <= ${endDate}`,
+          sql`${journalEntries.date} >= ${startDate}`,
+          sql`${journalEntries.date} <= ${endDate}`,
         ),
       });
 
@@ -330,7 +331,8 @@ export const reportsRouter = router({
         const account = accountMap.get(line.accountId);
         if (!account || account.type !== "expense") continue;
 
-        const amount = parseFloat(line.debit) - parseFloat(line.credit);
+        const amount =
+          parseFloat(line.debit ?? "0") - parseFloat(line.credit ?? "0");
         const existing = categoryMap.get(account.name) ?? 0;
         categoryMap.set(account.name, existing + Math.abs(amount));
       }
@@ -412,8 +414,8 @@ export const reportsRouter = router({
         where: and(
           eq(journalEntries.entityId, entityId),
           eq(journalEntries.status, "posted"),
-          sql`${journalEntries.entryDate} >= ${startDate}`,
-          sql`${journalEntries.entryDate} <= ${endDate}`,
+          sql`${journalEntries.date} >= ${startDate}`,
+          sql`${journalEntries.date} <= ${endDate}`,
         ),
       });
 
@@ -435,7 +437,8 @@ export const reportsRouter = router({
       for (const line of lines) {
         const account = accountMap.get(line.accountId);
         if (!account) continue;
-        const amount = parseFloat(line.credit) - parseFloat(line.debit);
+        const amount =
+          parseFloat(line.credit ?? "0") - parseFloat(line.debit ?? "0");
         if (account.type === "revenue") revenue += Math.abs(amount);
         if (account.type === "expense") expenses += Math.abs(amount);
       }

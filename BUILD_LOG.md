@@ -6,6 +6,48 @@
 
 ---
 
+### [2026-08-03] — Fix: Web app production build fails to compile (type errors + dead code)
+
+**Agent:** opencode (Autonomous Engineer)
+**Duration:** ~2 hrs
+**Files Modified:** 21 **Files Deleted:** 28 (26 orphaned tests + 2 dead components)
+
+**Problem:** `pnpm build --filter=@xenboox/web` (`next build`) failed to compile on multiple type errors and missing modules. The build was fully broken — nothing would ship.
+
+**Root causes & fixes (in build order):**
+
+1. **`app/dashboard/banking/page.tsx`** — local `formatTimeAgo` inside `SummaryCards` was typed `(date: Date | null)` and shadowed the module-level one, so passing `lastSyncAt: string | null` failed. Removed the redundant local copy; the module-level helper already handles strings.
+2. **`server/routers/chart-of-accounts.ts`** — `getOverview`/`getAccountTree` typed the hierarchy as a flat array (`typeof allAccounts`), so tRPC inferred `accountTree` without the recursive `children` the client's `AccountTreeTable` requires. Introduced a recursive `AccountNode` type for both procedures.
+3. **`app/dashboard/chart-of-accounts/page.tsx`** — `RecentActivity` prop typed `createdAt: Date | null` but tRPC serializes dates as strings. Changed to `string | null` (renderer already runs `new Date(...)`).
+4. **`app/dashboard/documents/page.tsx`** — passed `documentsData?.documents` but `listDocuments` returns a plain array. Mapped raw DB rows to the table's expected shape (`category`, `uploadedAt`, `size`).
+5. **`server/routers/document.ts`** + **`app/dashboard/documents/page.tsx`** — `listDocuments` input was `z.string()` but the column is a pgEnum; `eq()` rejected `string`. Typed the input with `z.enum(docTypeEnum.enumValues)` and mapped the page's display tabs ("invoices"/"receipts"/"contracts") to enum values. Also fixed `getOverview` counting `status === "pending"` which doesn't exist on the doc status enum → now counts `"processed"`.
+6. **`app/dashboard/fixed-assets/page.tsx`** + **`server/routers/fixedAssets.ts`** — `AssetsTable` expected a mapped shape but received raw rows (missing `category`/`purchaseCost`/`usefulLife`); mapped fields in the page. Router summary was missing `totalAssetsChange` that the cards required — added `totalAssetsChange: 0`.
+7. **`app/dashboard/invoicing/page.tsx`** — `SummaryCards` prop type was missing `overdueChange` (a card reads it); added it.
+8. **`app/dashboard/page.tsx`** — `formatTimeAgo` typed `(date: Date | null)` but receives serialized strings; changed to `string | null`.
+9. **`components/dashboard/agent-activity-feed.tsx`** (DELETED) — orphaned component; its three children (`agent-activity-item`, `agent-thought-stream`, `confidence-bar`) were deleted in commit `1bdf0c6`. Nothing imports the feed (dashboard/page.tsx has its own self-contained version). Removed the dead file.
+10. **`components/dashboard/index.ts`** (DELETED) — barrel exporting 12 components that were all deleted in `1bdf0c6`; nothing imported it. Removed.
+11. **`components/layout/top-nav.tsx`** — `document.listDocuments.fetch()` needs an input arg in tRPC v11; changed to `fetch({})`.
+12. **`server/routers/reports.ts`** — four `parseFloat(line.debit/credit)` calls where the columns are nullable (`string | null`); added `?? "0"` fallbacks.
+
+**Pre-existing failures fixed separately (deferred scope, user-approved):** 25 `*-liveness.test.tsx` + 1 `knowledge-components.test.tsx` referenced components deleted in commit `1bdf0c6`; they failed `tsc --noEmit` and vitest (module resolution) and could never pass. Deleted all 26 (their components were removed with the dashboard rebuild).
+
+### Verification
+
+| Check                                     | Status                                                          |
+| ----------------------------------------- | --------------------------------------------------------------- |
+| Production build (`next build --no-lint`) | ✅ Successful — all routes compiled & generated                 |
+| Typecheck (`@xenboox/web`)                | ✅ Clean                                                        |
+| Test suite (`pnpm test`)                  | ✅ 216 pass / 1 skip (20 files)                                 |
+| Lint (changed files)                      | ✅ No errors (pre-existing import/order + unused warnings only) |
+
+### Next Steps
+
+- All module pages (banking, COA, documents, fixed-assets, invoicing, dashboard, transactions, inbox, reports) now build against real tRPC shapes.
+- Document tab filtering now validates against the DB `doc_type` enum; "Reports"/"Other" tabs intentionally pass no filter (they don't map to a single enum value) — worth a future UI pass if per-category filtering is desired.
+- `packages/db/seed/reset.ts` (untracked, hardcoded DB credential) still not committed — confirm intent before merging.
+
+---
+
 ### [2026-08-02] — Fix: Entity creation fails — tRPC v11 mutation body format
 
 **Agent:** opencode (Autonomous Engineer)

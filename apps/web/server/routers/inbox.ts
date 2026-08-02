@@ -7,8 +7,8 @@ import {
   invoicesAp,
   salesInvoices,
   bankAccounts,
-  vendorPayments,
   documents,
+  paymentsAp,
   conversations,
   chatMessages,
   auditLog,
@@ -194,11 +194,10 @@ export const inboxRouter = router({
             amountValue: 0,
             priority: "medium",
             status: "pending",
-            createdAt: entry.createdAt ?? new Date(),
+            createdAt: new Date(entry.createdAt),
             metadata: {
               entryNumber: entry.entryNumber,
               description: entry.description,
-              lineCount: entry.lineCount,
             },
           });
         }
@@ -232,7 +231,7 @@ export const inboxRouter = router({
               (meta.priority as string as "high" | "medium" | "low") ??
               "medium",
             status: "review",
-            createdAt: log.createdAt ?? new Date(),
+            createdAt: new Date(log.createdAt),
             metadata: meta,
           });
         }
@@ -260,7 +259,9 @@ export const inboxRouter = router({
             amountValue: 0,
             priority: "low",
             status: "completed",
-            createdAt: entry.postedAt ?? entry.createdAt ?? new Date(),
+            createdAt: entry.postedAt
+              ? new Date(entry.postedAt)
+              : new Date(entry.createdAt),
             metadata: {
               entryNumber: entry.entryNumber,
               postedBy: entry.postedBy,
@@ -291,7 +292,7 @@ export const inboxRouter = router({
             amountValue: 0,
             priority: "low",
             status: "rejected",
-            createdAt: entry.createdAt ?? new Date(),
+            createdAt: new Date(entry.createdAt),
             metadata: {
               entryNumber: entry.entryNumber,
             },
@@ -388,7 +389,7 @@ export const inboxRouter = router({
             supportingDocuments: [],
             activityTimeline: [
               {
-                timestamp: entry.createdAt ?? new Date(),
+                timestamp: new Date(entry.createdAt),
                 action: "Entry created",
                 detail: "AI agent generated this journal entry",
               },
@@ -396,7 +397,6 @@ export const inboxRouter = router({
             metadata: {
               entryNumber: entry.entryNumber,
               date: entry.date,
-              lineCount: entry.lineCount,
             },
           };
         }
@@ -431,7 +431,7 @@ export const inboxRouter = router({
               (meta.documents as Array<{ name: string; type: string }>) ?? [],
             activityTimeline: [
               {
-                timestamp: log.createdAt ?? new Date(),
+                timestamp: new Date(log.createdAt),
                 action: "Agent escalation",
                 detail: log.inputSummary ?? "Requires review",
               },
@@ -453,9 +453,9 @@ export const inboxRouter = router({
       const entityId = ctx.entityId!;
 
       // Get recent vendor payments
-      const payments = await db.query.vendorPayments.findMany({
-        where: eq(vendorPayments.entityId, entityId),
-        orderBy: [desc(vendorPayments.createdAt)],
+      const payments = await db.query.paymentsAp.findMany({
+        where: eq(paymentsAp.entityId, entityId),
+        orderBy: [desc(paymentsAp.createdAt)],
         limit: 10,
       });
 
@@ -517,7 +517,7 @@ export const inboxRouter = router({
     return conversationsList.map((c) => ({
       id: c.id,
       title: c.title ?? "Untitled conversation",
-      lastMessageAt: c.lastMessageAt,
+      lastMessageAt: c.lastMessageAt ? new Date(c.lastMessageAt) : null,
       messageCount: c.messageCount ?? 0,
     }));
   }),

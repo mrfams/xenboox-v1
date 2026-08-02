@@ -125,7 +125,7 @@ function AccountTreeTable({
     subtype: string;
     parentId: string | null;
     isActive: boolean;
-    createdAt: Date | null;
+    createdAt: string | null;
     children: Array<{
       id: string;
       code: string;
@@ -134,7 +134,7 @@ function AccountTreeTable({
       subtype: string;
       parentId: string | null;
       isActive: boolean;
-      createdAt: Date | null;
+      createdAt: string | null;
       children: Array<{
         id: string;
         code: string;
@@ -143,7 +143,7 @@ function AccountTreeTable({
         subtype: string;
         parentId: string | null;
         isActive: boolean;
-        createdAt: Date | null;
+        createdAt: string | null;
       }>;
     }>;
   }>;
@@ -353,7 +353,7 @@ function RecentActivity({
     id: string;
     action: string;
     entityType: string;
-    createdAt: Date | null;
+    createdAt: string | null;
   }>;
 }) {
   const actionIcons: Record<string, React.ElementType> = {

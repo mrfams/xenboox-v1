@@ -118,7 +118,9 @@ export const bankingRouter = router({
         inactiveAccounts,
         unreconciledBalance,
         unreconciledAccounts: unreconciledCount,
-        lastSyncAt: lastConnection?.lastSyncedAt ?? null,
+        lastSyncAt: lastConnection?.lastSyncedAt
+          ? new Date(lastConnection.lastSyncedAt)
+          : null,
         lastSyncStatus: lastConnection?.status ?? "unknown",
       },
       accounts: accountsWithStats,
@@ -387,7 +389,7 @@ export const bankingRouter = router({
             tx.type === "deposit"
               ? "Transactions synced"
               : "Statement imported",
-          date: tx.createdAt,
+          date: new Date(tx.createdAt),
         };
       }),
     );

@@ -494,7 +494,7 @@ function AgentActivityFeed({
     id: string;
     action: string;
     entityType: string;
-    createdAt: Date | null;
+    createdAt: string | null;
   }>;
 }) {
   const colorMap: Record<string, { color: string; bgColor: string }> = {
@@ -506,7 +506,7 @@ function AgentActivityFeed({
     default: { color: "text-primary", bgColor: "bg-primary/10" },
   };
 
-  function formatTimeAgo(date: Date | null): string {
+  function formatTimeAgo(date: string | null): string {
     if (!date) return "Unknown";
     const now = new Date();
     const diff = now.getTime() - new Date(date).getTime();
@@ -807,16 +807,16 @@ function DashboardRightSidebar({
     id: string;
     name: string;
     type: string;
-    createdAt: Date | null;
+    createdAt: string | null;
   }>;
   recentConversations: Array<{
     id: string;
     title: string | null;
-    lastMessageAt: Date | null;
+    lastMessageAt: string | null;
   }>;
   suggestedActions: string[];
 }) {
-  function formatDocTime(date: Date | null): string {
+  function formatDocTime(date: string | null): string {
     if (!date) return "";
     const now = new Date();
     const diff = now.getTime() - new Date(date).getTime();

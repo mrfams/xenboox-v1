@@ -403,20 +403,29 @@ export default function DocumentsPage() {
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
-    trpc.documents?.getOverview?.useQuery?.() ?? {
+    trpc.document?.getOverview?.useQuery?.() ?? {
       data: undefined,
       isLoading: false,
     };
 
   // Fetch documents list
+  const categoryFilter: "invoice" | "receipt" | "contract" | undefined =
+    activeTab === "invoices"
+      ? "invoice"
+      : activeTab === "receipts"
+        ? "receipt"
+        : activeTab === "contracts"
+          ? "contract"
+          : undefined;
+
   const { data: documentsData, isLoading: documentsLoading } =
-    trpc.documents?.listDocuments?.useQuery?.({ category: activeTab }) ?? {
+    trpc.document?.listDocuments?.useQuery?.({ category: categoryFilter }) ?? {
       data: undefined,
       isLoading: false,
     };
 
   // Fetch AI insights
-  const { data: aiInsights } = trpc.documents?.getAiInsights?.useQuery?.() ?? {
+  const { data: aiInsights } = trpc.document?.getAiInsights?.useQuery?.() ?? {
     data: undefined,
   };
 
@@ -484,7 +493,7 @@ export default function DocumentsPage() {
           <div className="rounded-xl border border-slate-200 bg-white">
             <div className="flex items-center justify-between p-4 border-b border-slate-200">
               <h3 className="font-medium text-slate-900">
-                Documents ({documentsData?.documents?.length ?? 0})
+                Documents ({documentsData?.length ?? 0})
               </h3>
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -502,7 +511,15 @@ export default function DocumentsPage() {
               </div>
             </div>
             <DocumentsTable
-              documents={documentsData?.documents ?? []}
+              documents={(documentsData ?? []).map((doc) => ({
+                id: doc.id,
+                name: doc.name,
+                type: doc.type,
+                category: doc.type,
+                uploadedBy: doc.uploadedBy ?? "—",
+                uploadedAt: doc.createdAt ?? new Date().toISOString(),
+                size: doc.sizeBytes ?? 0,
+              }))}
               isLoading={documentsLoading}
             />
           </div>

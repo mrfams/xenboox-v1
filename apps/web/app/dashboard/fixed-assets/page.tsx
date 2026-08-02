@@ -500,7 +500,7 @@ export default function FixedAssetsPage() {
           <div className="rounded-xl border border-slate-200 bg-white">
             <div className="flex items-center justify-between p-4 border-b border-slate-200">
               <h3 className="font-medium text-slate-900">
-                Assets ({assetsData?.assets?.length ?? 0})
+                Assets ({assetsData?.length ?? 0})
               </h3>
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -517,7 +517,20 @@ export default function FixedAssetsPage() {
               </div>
             </div>
             <AssetsTable
-              assets={assetsData?.assets ?? []}
+              assets={(assetsData ?? []).map((asset) => ({
+                id: asset.id,
+                name: asset.name,
+                category: asset.assetClass,
+                purchaseDate: asset.purchaseDate,
+                purchaseCost: parseFloat(asset.cost ?? "0"),
+                depreciationMethod: asset.depreciationMethod,
+                usefulLife: asset.usefulLifeMonths ?? 0,
+                accumulatedDepreciation: parseFloat(
+                  asset.accumulatedDepreciation ?? "0",
+                ),
+                netBookValue: parseFloat(asset.netBookValue ?? "0"),
+                status: asset.status,
+              }))}
               isLoading={assetsLoading}
             />
           </div>

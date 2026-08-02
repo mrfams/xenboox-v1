@@ -15,6 +15,7 @@ import {
   exchangeRates,
   organizations,
   userEntityAccess,
+  docTypeEnum,
 } from "@xenboox/db/schema";
 import { triggerClient } from "@/lib/trigger";
 import {
@@ -52,12 +53,25 @@ async function getEntityPlan(entityId: string): Promise<string> {
 
 export const documentRouter = router({
   // ── Documents ──
-  listDocuments: protectedProcedure.query(({ ctx }) => {
-    return db.query.documents.findMany({
-      where: eq(documents.entityId, ctx.entityId!),
-      orderBy: [desc(documents.createdAt)],
-    });
-  }),
+  listDocuments: protectedProcedure
+    .input(
+      z.object({
+        category: z.enum(docTypeEnum.enumValues).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const whereClause = input.category
+        ? and(
+            eq(documents.entityId, ctx.entityId!),
+            eq(documents.type, input.category),
+          )
+        : eq(documents.entityId, ctx.entityId!);
+
+      return db.query.documents.findMany({
+        where: whereClause,
+        orderBy: [desc(documents.createdAt)],
+      });
+    }),
 
   getStatus: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -439,4 +453,49 @@ export const documentRouter = router({
       const [rate] = await db.insert(exchangeRates).values(input).returning();
       return rate;
     }),
+
+  getOverview: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const docs = await db.query.documents.findMany({
+      where: eq(documents.entityId, entityId),
+    });
+
+    const totalDocuments = docs.length;
+    const pendingReview = docs.filter((d) => d.status === "processed").length;
+    const totalSize = docs.reduce((sum, d) => sum + (d.sizeBytes ?? 0), 0);
+
+    return {
+      summary: {
+        totalDocuments,
+        totalDocumentsChange: 0,
+        storageUsed: totalSize,
+        storageLimit: 1073741824,
+        recentUploads: docs.filter((d) => {
+          const day = new Date(d.createdAt ?? Date.now());
+          const now = new Date();
+          return day.getTime() > now.getTime() - 7 * 24 * 60 * 60 * 1000;
+        }).length,
+        pendingReview,
+      },
+      documents: docs,
+    };
+  }),
+
+  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const docs = await db.query.documents.findMany({
+      where: eq(documents.entityId, entityId),
+      limit: 10,
+    });
+
+    return docs.map((doc) => ({
+      id: doc.id,
+      type: "info" as const,
+      title: doc.name,
+      description: `Document uploaded on ${new Date(doc.createdAt ?? Date.now()).toLocaleDateString()}`,
+      actionLabel: "View",
+    }));
+  }),
 });

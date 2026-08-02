@@ -129,7 +129,7 @@ export const expensesRouter = router({
 
       // Budget vs Actual (get total budget for current month)
       const budgetResult = await db
-        .select({ total: sum(budgetLines.budgetAmount) })
+        .select({ total: sum(budgetLines.annualAmount) })
         .from(budgetLines)
         .innerJoin(budgets, eq(budgetLines.budgetId, budgets.id))
         .where(
@@ -665,7 +665,7 @@ export const expensesRouter = router({
     const endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
 
     const totalBudget = lines.reduce(
-      (sum, l) => sum + parseFloat(l.budgetAmount ?? "0"),
+      (sum, l) => sum + parseFloat(l.annualAmount ?? "0"),
       0,
     );
 
@@ -684,7 +684,7 @@ export const expensesRouter = router({
 
     // Map lines to categories (simplified - in production would use account mappings)
     const categories = lines.slice(0, 5).map((line) => {
-      const budgetAmount = parseFloat(line.budgetAmount ?? "0");
+      const budgetAmount = parseFloat(line.annualAmount ?? "0");
       // Estimate spent based on proportion
       const estimatedSpent =
         totalBudget > 0 ? (budgetAmount / totalBudget) * totalSpent : 0;
@@ -694,7 +694,7 @@ export const expensesRouter = router({
           : 0;
 
       return {
-        name: line.description ?? "Budget Line",
+        name: line.lineDescription ?? "Budget Line",
         budget: budgetAmount,
         budgetFormatted: `GMD ${budgetAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         spent: estimatedSpent,

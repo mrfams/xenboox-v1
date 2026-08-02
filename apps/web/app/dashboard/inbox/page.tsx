@@ -154,7 +154,7 @@ function ApprovalListItem({
     amount: string;
     priority: "high" | "medium" | "low";
     status: string;
-    createdAt: Date;
+    createdAt: string;
   };
   isSelected: boolean;
   onSelect: () => void;
@@ -253,7 +253,7 @@ function ApprovalDetail({
     checkItems: string[];
     supportingDocuments: Array<{ name: string; type: string }>;
     activityTimeline: Array<{
-      timestamp: Date;
+      timestamp: string;
       action: string;
       detail: string;
     }>;
@@ -475,7 +475,7 @@ function AiAssistantPanel({
   recentConversations: Array<{
     id: string;
     title: string;
-    lastMessageAt: Date | null;
+    lastMessageAt: string | null;
   }>;
 }) {
   const [message, setMessage] = useState("");

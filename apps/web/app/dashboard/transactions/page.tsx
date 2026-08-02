@@ -148,7 +148,7 @@ function TransactionTable({
     id: string;
     date: string;
     description: string;
-    reference?: string;
+    reference: string | null;
     account: string;
     accountCode: string;
     category: string;
@@ -379,7 +379,7 @@ function TransactionDetailPanel({
     id: string;
     date: string;
     description: string;
-    reference?: string;
+    reference: string | null;
     amount: number;
     amountFormatted: string;
     isPositive: boolean;

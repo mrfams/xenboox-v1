@@ -105,8 +105,8 @@ export const journalRouter = router({
       let totalDebit = 0;
       let totalCredit = 0;
       for (const line of lines) {
-        totalDebit += parseFloat(line.debit);
-        totalCredit += parseFloat(line.credit);
+        totalDebit += parseFloat(line.debit ?? "0");
+        totalCredit += parseFloat(line.credit ?? "0");
       }
 
       // Pending approval count
@@ -303,8 +303,8 @@ export const journalRouter = router({
             debit: 0,
             credit: 0,
           };
-          existing.debit += parseFloat(line.debit);
-          existing.credit += parseFloat(line.credit);
+          existing.debit += parseFloat(line.debit ?? "0");
+          existing.credit += parseFloat(line.credit ?? "0");
           linesMap.set(line.journalEntryId, existing);
         }
       }
@@ -445,8 +445,8 @@ export const journalRouter = router({
           debit: 0,
           credit: 0,
         };
-        existing.debit += parseFloat(line.debit);
-        existing.credit += parseFloat(line.credit);
+        existing.debit += parseFloat(line.debit ?? "0");
+        existing.credit += parseFloat(line.credit ?? "0");
         accountTotals.set(line.accountId, existing);
       }
 

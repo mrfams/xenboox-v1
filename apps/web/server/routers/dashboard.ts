@@ -43,10 +43,10 @@ export const dashboardRouter = router({
     // Cash accounts balance
     const cashAccountsData = await db.query.cashAccounts.findMany({
       where: eq(cashAccounts.entityId, entityId),
-      columns: { balance: true },
+      columns: { currentBalance: true },
     });
     const pettyCashBalance = cashAccountsData.reduce(
-      (sum, a) => sum + parseFloat(a.balance ?? "0"),
+      (sum, a) => sum + parseFloat(a.currentBalance ?? "0"),
       0,
     );
     const totalCashBalance = cashBalance + pettyCashBalance;

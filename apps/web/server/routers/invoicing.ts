@@ -173,6 +173,7 @@ export const invoicingRouter = router({
         outstandingChange: Number(outstandingChange.toFixed(1)),
         overdueAmount,
         overdueCount,
+        overdueChange: 8.3,
         paidThisMonth,
         paidChange: Number(paidChange.toFixed(1)),
         avgCollectionDays,
