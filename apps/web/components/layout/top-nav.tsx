@@ -138,7 +138,7 @@ export function TopNav({
   const initials = getInitials(user?.name || user?.email || "User");
 
   return (
-    <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-border/50 bg-background px-4 lg:px-6 backdrop-blur-sm bg-background/80">
+    <header className="grid h-16 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-border/50 bg-background px-4 lg:px-6 backdrop-blur-sm bg-background/80">
       {/* Left: Entity switcher + mobile menu */}
       <div className="flex items-center gap-2 min-w-0">
         <EntitySwitcher />

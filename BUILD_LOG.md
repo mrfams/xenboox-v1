@@ -6,6 +6,30 @@
 
 ---
 
+### [2026-08-03] — Header: restore 64px height
+
+**Agent:** opencode (Autonomous Engineer)
+**Files Modified:** 1
+
+**Request:** The header lost its fixed height when the layout changed to a grid — restore the previous 64px (`h-16`).
+
+**Changes — `apps/web/components/layout/top-nav.tsx`:**
+
+- Re-added `h-16` to the header's className (it was dropped when switching from `flex` to the 3-column grid). Height is now 64px again.
+
+### Verification
+
+| Check                                     | Status                                                |
+| ----------------------------------------- | ----------------------------------------------------- |
+| Production build (`next build --no-lint`) | ✅ Successful — all routes compiled & generated       |
+| Lint (top-nav.tsx)                        | ✅ 0 errors (pre-existing import/order warnings only) |
+
+### Next Steps
+
+- `packages/db/seed/reset.ts` (untracked, hardcoded DB credential) still not committed — confirm intent before merging.
+
+---
+
 ### [2026-08-03] — Header: comment out CFO toggle + status, center search, entity switcher far-left, avatar initials
 
 **Agent:** opencode (Autonomous Engineer)
