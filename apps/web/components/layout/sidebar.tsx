@@ -117,6 +117,11 @@ const primaryNavItems: NavItem[] = [
     match: ["/dashboard/bills", "/dashboard/ap/invoices"],
   },
   {
+    label: "Expenses",
+    href: "/dashboard/expenses",
+    icon: Receipt,
+  },
+  {
     label: "Payroll",
     href: "/dashboard/payroll/pipeline",
     icon: Users,
