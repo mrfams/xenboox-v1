@@ -879,15 +879,17 @@ export default function ReportsPage() {
             {[
               "Overview",
               "Financial Statements",
-              "Management Reports",
-              "Compliance",
+              "Trial Balance",
+              "Consolidation",
+              "Budget",
+              "Tax & Compliance",
               "Custom Reports",
-            ].map((tab) => (
+            ].map((tab, i) => (
               <button
                 key={tab}
                 className={cn(
                   "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                  tab === "Overview"
+                  i === 0
                     ? "bg-indigo-50 text-indigo-600"
                     : "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
                 )}

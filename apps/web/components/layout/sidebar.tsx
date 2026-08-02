@@ -74,6 +74,7 @@ const primaryNavItems: NavItem[] = [
     label: "Banking",
     href: "/dashboard/banking",
     icon: Wallet,
+    match: ["/dashboard/banking", "/dashboard/cash", "/dashboard/fixed-assets"],
   },
   {
     label: "General Ledger",
@@ -119,9 +120,25 @@ const primaryNavItems: NavItem[] = [
     label: "Reports",
     href: "/dashboard/reports",
     icon: BarChart3,
+    match: [
+      "/dashboard/reports",
+      "/dashboard/trial-balance",
+      "/dashboard/consolidation",
+      "/dashboard/documents",
+    ],
+  },
+  {
+    label: "Close Center",
+    href: "/dashboard/close",
+    icon: RefreshCw,
+    badge: "New",
+  },
+  {
+    label: "Reconciliation",
+    href: "/dashboard/reconciliation/center",
+    icon: RefreshCw,
   },
   { label: "Agent Monitor", href: "/dashboard/agent-monitor", icon: Activity },
-  { label: "Automation", href: "/dashboard/automation", icon: Boxes },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

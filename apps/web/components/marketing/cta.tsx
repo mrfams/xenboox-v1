@@ -1,0 +1,59 @@
+import Link from "next/link";
+import { ArrowRight, CalendarDays } from "lucide-react";
+
+import { Button } from "@/components/ui";
+import { Section } from "@/components/marketing/section";
+import { FadeInUp } from "@/components/marketing/reveal";
+
+export function Cta() {
+  return (
+    <Section id="cta">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <FadeInUp>
+          <div className="relative overflow-hidden rounded-3xl bg-ledger-ink px-8 py-16 text-center sm:px-16 lg:py-20">
+            <div
+              className="pointer-events-none absolute inset-0"
+              aria-hidden="true"
+              style={{
+                backgroundImage:
+                  "radial-gradient(ellipse 60% 90% at 80% 0%, rgba(59, 79, 224, 0.35), transparent 60%), radial-gradient(ellipse 50% 80% at 10% 100%, rgba(15, 113, 89, 0.25), transparent 60%)",
+              }}
+            />
+            <div className="relative mx-auto max-w-2xl">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-paper">
+                <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                Next month-end could be your shortest
+              </span>
+              <h2 className="mt-6 text-3xl font-semibold tracking-tight text-paper sm:text-4xl lg:text-5xl">
+                Let the agents do the books.
+              </h2>
+              <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-paper/70">
+                Join the first teams in The Gambia closing their books in days,
+                not weeks. Set up in under 30 minutes — no data entry required.
+              </p>
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <Button asChild size="lg" className="gap-2">
+                  <Link href="/onboarding">
+                    Start free
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="border-white/20 bg-white/5 text-paper hover:bg-white/10 hover:text-paper"
+                >
+                  <Link href="/pricing">See pricing</Link>
+                </Button>
+              </div>
+              <p className="mt-5 text-sm text-paper/50">
+                Free for your first quarter. Cancel anytime.
+              </p>
+            </div>
+          </div>
+        </FadeInUp>
+      </div>
+    </Section>
+  );
+}

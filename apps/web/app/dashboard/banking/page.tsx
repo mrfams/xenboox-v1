@@ -802,6 +802,8 @@ export default function BankingPage() {
     { key: "overview", label: "Overview" },
     { key: "accounts", label: "Accounts" },
     { key: "transactions", label: "Transactions" },
+    { key: "cash", label: "Cash Management" },
+    { key: "mobile-money", label: "Mobile Money" },
     { key: "rules", label: "Rules" },
     { key: "connections", label: "Connections" },
     { key: "statements", label: "Statements" },

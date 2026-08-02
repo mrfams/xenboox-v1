@@ -1,0 +1,21 @@
+import { Agents } from "@/components/marketing/agents";
+import { Cta } from "@/components/marketing/cta";
+import { Features } from "@/components/marketing/features";
+import { Hero } from "@/components/marketing/hero-home";
+import { HowItWorks } from "@/components/marketing/how-it-works";
+import { Security } from "@/components/marketing/security";
+import { Testimonials } from "@/components/marketing/testimonials";
+
+export default function HomePage() {
+  return (
+    <>
+      <Hero />
+      <HowItWorks />
+      <Agents />
+      <Features />
+      <Security />
+      <Testimonials />
+      <Cta />
+    </>
+  );
+}
