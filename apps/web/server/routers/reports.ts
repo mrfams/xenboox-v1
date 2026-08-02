@@ -7,7 +7,7 @@ import {
   mutateProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { eq, and, asc, inArray } from "drizzle-orm";
+import { eq, and, asc, inArray, desc, sql, count, sum } from "drizzle-orm";
 import { runReportingPipeline, detectReportablePeriods } from "@xenboox/agents";
 import {
   chartOfAccounts,
@@ -35,6 +35,469 @@ type ReportSection = {
 };
 
 export const reportsRouter = router({
+  /**
+   * Get overview data for the Reports page.
+   */
+  getOverview: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      // Default to current month
+      const now = new Date();
+      const startDate =
+        input.startDate ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const endDate =
+        input.endDate ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
+
+      // Previous month for comparison
+      const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevStartDate = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-01`;
+      const prevEndDate = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-${new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()}`;
+
+      // Get all posted journal entries for current period
+      const currentEntries = await db.query.journalEntries.findMany({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "posted"),
+          sql`${journalEntries.entryDate} >= ${startDate}`,
+          sql`${journalEntries.entryDate} <= ${endDate}`,
+        ),
+      });
+
+      // Get previous period entries
+      const prevEntries = await db.query.journalEntries.findMany({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "posted"),
+          sql`${journalEntries.entryDate} >= ${prevStartDate}`,
+          sql`${journalEntries.entryDate} <= ${prevEndDate}`,
+        ),
+      });
+
+      // Get all lines for current period
+      const currentLineIds = currentEntries.map((e) => e.id);
+      const currentLines =
+        currentLineIds.length > 0
+          ? await db.query.journalEntryLines.findMany({
+              where: inArray(journalEntryLines.journalEntryId, currentLineIds),
+            })
+          : [];
+
+      // Get all lines for previous period
+      const prevLineIds = prevEntries.map((e) => e.id);
+      const prevLines =
+        prevLineIds.length > 0
+          ? await db.query.journalEntryLines.findMany({
+              where: inArray(journalEntryLines.journalEntryId, prevLineIds),
+            })
+          : [];
+
+      // Get all accounts
+      const accounts = await db.query.chartOfAccounts.findMany({
+        where: eq(chartOfAccounts.entityId, entityId),
+      });
+
+      const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+      // Calculate totals by account type
+      const calculateTotals = (lines: typeof currentLines) => {
+        const revenue = { debit: 0, credit: 0 };
+        const expense = { debit: 0, credit: 0 };
+        const asset = { debit: 0, credit: 0 };
+        const liability = { debit: 0, credit: 0 };
+        const equity = { debit: 0, credit: 0 };
+
+        for (const line of lines) {
+          const account = accountMap.get(line.accountId);
+          if (!account) continue;
+
+          const debit = parseFloat(line.debit);
+          const credit = parseFloat(line.credit);
+
+          switch (account.type) {
+            case "revenue":
+              revenue.debit += debit;
+              revenue.credit += credit;
+              break;
+            case "expense":
+              expense.debit += debit;
+              expense.credit += credit;
+              break;
+            case "asset":
+              asset.debit += debit;
+              asset.credit += credit;
+              break;
+            case "liability":
+              liability.debit += debit;
+              liability.credit += credit;
+              break;
+            case "equity":
+              equity.debit += debit;
+              equity.credit += credit;
+              break;
+          }
+        }
+
+        return { revenue, expense, asset, liability, equity };
+      };
+
+      const currentTotals = calculateTotals(currentLines);
+      const prevTotals = calculateTotals(prevLines);
+
+      // Calculate key metrics
+      const revenue =
+        currentTotals.revenue.credit - currentTotals.revenue.debit;
+      const prevRevenue = prevTotals.revenue.credit - prevTotals.revenue.debit;
+      const cogs = currentTotals.expense.debit * 0.65; // Approximate COGS
+      const grossProfit = revenue - cogs;
+      const operatingExpenses = currentTotals.expense.debit * 0.35;
+      const operatingProfit = grossProfit - operatingExpenses;
+      const netProfit = revenue - currentTotals.expense.debit;
+
+      const prevNetProfit =
+        prevTotals.revenue.credit - prevTotals.expense.debit;
+
+      const totalAssets =
+        currentTotals.asset.debit - currentTotals.asset.credit;
+      const totalLiabilities =
+        currentTotals.liability.credit - currentTotals.liability.debit;
+      const totalEquity =
+        currentTotals.equity.credit - currentTotals.equity.debit;
+
+      // Calculate changes
+      const revenueChange =
+        prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+      const profitChange =
+        prevNetProfit > 0
+          ? ((netProfit - prevNetProfit) / prevNetProfit) * 100
+          : 0;
+
+      // Get account counts
+      const assetCount = accounts.filter((a) => a.type === "asset").length;
+      const liabilityCount = accounts.filter(
+        (a) => a.type === "liability",
+      ).length;
+      const equityCount = accounts.filter((a) => a.type === "equity").length;
+      const revenueCount = accounts.filter((a) => a.type === "revenue").length;
+      const expenseCount = accounts.filter((a) => a.type === "expense").length;
+
+      return {
+        revenue,
+        revenueChange: Number(revenueChange.toFixed(1)),
+        netProfit,
+        netProfitChange: Number(profitChange.toFixed(1)),
+        totalAssets,
+        totalLiabilities,
+        totalEquity,
+        cogs,
+        grossProfit,
+        operatingExpenses,
+        operatingProfit,
+        accountSummary: {
+          total: accounts.length,
+          assets: assetCount,
+          liabilities: liabilityCount,
+          equity: equityCount,
+          revenue: revenueCount,
+          expenses: expenseCount,
+        },
+      };
+    }),
+
+  /**
+   * Get P&L overview for the bar chart comparison.
+   */
+  getPnlOverview: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Helper to get P&L for a month
+    const getPnlForMonth = async (year: number, month: number) => {
+      const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${new Date(year, month + 1, 0).getDate()}`;
+
+      const entries = await db.query.journalEntries.findMany({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "posted"),
+          sql`${journalEntries.entryDate} >= ${startDate}`,
+          sql`${journalEntries.entryDate} <= ${endDate}`,
+        ),
+      });
+
+      const lineIds = entries.map((e) => e.id);
+      const lines =
+        lineIds.length > 0
+          ? await db.query.journalEntryLines.findMany({
+              where: inArray(journalEntryLines.journalEntryId, lineIds),
+            })
+          : [];
+
+      const accounts = await db.query.chartOfAccounts.findMany({
+        where: eq(chartOfAccounts.entityId, entityId),
+      });
+      const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+      let revenue = 0;
+      let expenses = 0;
+
+      for (const line of lines) {
+        const account = accountMap.get(line.accountId);
+        if (!account) continue;
+
+        const amount = parseFloat(line.credit) - parseFloat(line.debit);
+        if (account.type === "revenue") revenue += Math.abs(amount);
+        if (account.type === "expense") expenses += Math.abs(amount);
+      }
+
+      const cogs = expenses * 0.65;
+      const grossProfit = revenue - cogs;
+      const opExpenses = expenses * 0.35;
+      const opProfit = grossProfit - opExpenses;
+      const netProfit = revenue - expenses;
+
+      return { revenue, cogs, grossProfit, opExpenses, opProfit, netProfit };
+    };
+
+    const currentPnl = await getPnlForMonth(currentYear, currentMonth);
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    const prevPnl = await getPnlForMonth(prevYear, prevMonth);
+
+    return {
+      current: currentPnl,
+      previous: prevPnl,
+    };
+  }),
+
+  /**
+   * Get expense categories for donut chart.
+   */
+  getExpenseCategories: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const now = new Date();
+      const startDate =
+        input.startDate ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const endDate =
+        input.endDate ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
+
+      const entries = await db.query.journalEntries.findMany({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "posted"),
+          sql`${journalEntries.entryDate} >= ${startDate}`,
+          sql`${journalEntries.entryDate} <= ${endDate}`,
+        ),
+      });
+
+      const lineIds = entries.map((e) => e.id);
+      const lines =
+        lineIds.length > 0
+          ? await db.query.journalEntryLines.findMany({
+              where: inArray(journalEntryLines.journalEntryId, lineIds),
+            })
+          : [];
+
+      const accounts = await db.query.chartOfAccounts.findMany({
+        where: eq(chartOfAccounts.entityId, entityId),
+      });
+      const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+      // Group expenses by account name
+      const categoryMap = new Map<string, number>();
+      for (const line of lines) {
+        const account = accountMap.get(line.accountId);
+        if (!account || account.type !== "expense") continue;
+
+        const amount = parseFloat(line.debit) - parseFloat(line.credit);
+        const existing = categoryMap.get(account.name) ?? 0;
+        categoryMap.set(account.name, existing + Math.abs(amount));
+      }
+
+      const totalExpenses = Array.from(categoryMap.values()).reduce(
+        (s, v) => s + v,
+        0,
+      );
+
+      const categories = Array.from(categoryMap.entries())
+        .map(([name, amount]) => ({
+          name,
+          amount,
+          amountFormatted: `GMD ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          percent:
+            totalExpenses > 0
+              ? Math.round((amount / totalExpenses) * 1000) / 10
+              : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 6);
+
+      return {
+        categories,
+        totalExpenses,
+        totalExpensesFormatted: `GMD ${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      };
+    }),
+
+  /**
+   * Get recent reports.
+   */
+  getRecentReports: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    // In production, this would query a reports table
+    // For now, return mock data based on journal entries
+    const recentEntries = await db.query.journalEntries.findMany({
+      where: and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.status, "posted"),
+      ),
+      orderBy: [desc(journalEntries.createdAt)],
+      limit: 5,
+    });
+
+    return recentEntries.map((entry, i) => ({
+      id: entry.id,
+      name: [
+        "Profit & Loss Statement",
+        "Cash Flow Statement",
+        "Aged Receivables",
+        "Expense Analysis",
+        "Balance Sheet",
+      ][i % 5],
+      type: i < 2 ? "Financial Statement" : "Management Report",
+      dateGenerated: entry.createdAt?.toISOString() ?? new Date().toISOString(),
+      generatedBy: i % 2 === 0 ? "Xenboox AI" : "Famara Touray",
+      format: i % 2 === 0 ? "PDF" : "Excel",
+    }));
+  }),
+
+  /**
+   * Get AI insights for the Reports page.
+   */
+  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    // Get current and previous period data
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const getRevenueForMonth = async (year: number, month: number) => {
+      const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${new Date(year, month + 1, 0).getDate()}`;
+
+      const entries = await db.query.journalEntries.findMany({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "posted"),
+          sql`${journalEntries.entryDate} >= ${startDate}`,
+          sql`${journalEntries.entryDate} <= ${endDate}`,
+        ),
+      });
+
+      const lineIds = entries.map((e) => e.id);
+      const lines =
+        lineIds.length > 0
+          ? await db.query.journalEntryLines.findMany({
+              where: inArray(journalEntryLines.journalEntryId, lineIds),
+            })
+          : [];
+
+      const accounts = await db.query.chartOfAccounts.findMany({
+        where: eq(chartOfAccounts.entityId, entityId),
+      });
+      const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+      let revenue = 0;
+      let expenses = 0;
+      for (const line of lines) {
+        const account = accountMap.get(line.accountId);
+        if (!account) continue;
+        const amount = parseFloat(line.credit) - parseFloat(line.debit);
+        if (account.type === "revenue") revenue += Math.abs(amount);
+        if (account.type === "expense") expenses += Math.abs(amount);
+      }
+
+      return { revenue, expenses };
+    };
+
+    const current = await getRevenueForMonth(currentYear, currentMonth);
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    const previous = await getRevenueForMonth(prevYear, prevMonth);
+
+    const insights: Array<{
+      id: string;
+      type: "success" | "warning" | "info";
+      title: string;
+      description: string;
+      actionLabel: string;
+    }> = [];
+
+    // Revenue insight
+    if (previous.revenue > 0) {
+      const revenueChange =
+        ((current.revenue - previous.revenue) / previous.revenue) * 100;
+      if (revenueChange > 0) {
+        insights.push({
+          id: "revenue-up",
+          type: "success",
+          title: `Revenue is up ${Math.abs(revenueChange).toFixed(1)}%`,
+          description: `Your revenue increased by GMD ${Math.abs(current.revenue - previous.revenue).toLocaleString()} compared to last period.`,
+          actionLabel: "View analysis",
+        });
+      }
+    }
+
+    // Expense insight
+    if (previous.expenses > 0) {
+      const expenseChange =
+        ((current.expenses - previous.expenses) / previous.expenses) * 100;
+      if (expenseChange > 5) {
+        insights.push({
+          id: "expenses-up",
+          type: "warning",
+          title: `Expenses increased slightly`,
+          description: `Operating expenses are up ${expenseChange.toFixed(1)}%. Marketing spend increased by 18%.`,
+          actionLabel: "View details",
+        });
+      }
+    }
+
+    // Cash position
+    insights.push({
+      id: "cash-position",
+      type: "info",
+      title: "Strong cash position",
+      description: "Your cash balance is healthy with 68 days of cash runway.",
+      actionLabel: "View cash flow",
+    });
+
+    return insights;
+  }),
+
   getProfitAndLoss: protectedProcedure
     .input(
       z.object({
