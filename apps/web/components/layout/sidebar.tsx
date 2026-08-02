@@ -66,9 +66,13 @@ const primaryNavItems: NavItem[] = [
   },
   {
     label: "Transactions",
-    href: "/dashboard/journal",
+    href: "/dashboard/transactions",
     icon: BookOpen,
-    match: ["/dashboard/journal", "/dashboard/trial-balance"],
+    match: [
+      "/dashboard/transactions",
+      "/dashboard/journal",
+      "/dashboard/trial-balance",
+    ],
   },
   {
     label: "Banking",
