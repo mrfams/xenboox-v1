@@ -98,9 +98,9 @@ const primaryNavItems: NavItem[] = [
   },
   {
     label: "Customers",
-    href: "/dashboard/ar/customers",
+    href: "/dashboard/customers",
     icon: Users,
-    match: ["/dashboard/ar"],
+    match: ["/dashboard/customers", "/dashboard/ar/customers"],
   },
   {
     label: "Vendors",
