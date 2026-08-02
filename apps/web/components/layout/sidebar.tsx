@@ -76,9 +76,13 @@ const primaryNavItems: NavItem[] = [
   },
   {
     label: "Banking",
-    href: "/dashboard/treasury",
+    href: "/dashboard/banking",
     icon: Wallet,
-    match: ["/dashboard/treasury", "/dashboard/banking"],
+    match: [
+      "/dashboard/banking",
+      "/dashboard/treasury",
+      "/dashboard/reconciliation",
+    ],
   },
   {
     label: "General Ledger",
