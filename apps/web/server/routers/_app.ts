@@ -54,6 +54,7 @@ import { chartOfAccountsRouter } from "./chart-of-accounts";
 import { billsRouter } from "./bills";
 import { reconciliationRouter } from "./reconciliation";
 import { expensesRouter } from "./expenses";
+import { closeCenterRouter } from "./close-center";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -112,6 +113,7 @@ export const appRouter = router({
   bills: billsRouter,
   reconciliation: reconciliationRouter,
   expenses: expensesRouter,
+  closeCenter: closeCenterRouter,
 });
 
 export type AppRouter = typeof appRouter;
