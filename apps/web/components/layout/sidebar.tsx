@@ -54,11 +54,15 @@ const primaryNavItems: NavItem[] = [
     attrs: { "data-tour": "cfo-agent" },
   },
   {
-    label: "Inbox",
-    href: "/dashboard/review-queue",
+    label: "Inbox & Approvals",
+    href: "/dashboard/inbox",
     icon: Receipt,
     countKey: "total",
-    match: ["/dashboard/review-queue", "/dashboard/notifications"],
+    match: [
+      "/dashboard/inbox",
+      "/dashboard/review-queue",
+      "/dashboard/notifications",
+    ],
   },
   {
     label: "Transactions",

@@ -45,6 +45,7 @@ import { cfoLivenessRouter } from "./cfo-liveness";
 import { invitationsRouter } from "./invitations";
 import { dashboardRouter } from "./dashboard";
 import { aiWorkspaceRouter } from "./ai-workspace";
+import { inboxRouter } from "./inbox";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -94,6 +95,7 @@ export const appRouter = router({
   invitations: invitationsRouter,
   dashboard: dashboardRouter,
   aiWorkspace: aiWorkspaceRouter,
+  inbox: inboxRouter,
 });
 
 export type AppRouter = typeof appRouter;
