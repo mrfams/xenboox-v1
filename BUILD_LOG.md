@@ -6,6 +6,37 @@
 
 ---
 
+### [2026-08-03] — Header: comment out CFO toggle + status, center search, entity switcher far-left, avatar initials
+
+**Agent:** opencode (Autonomous Engineer)
+**Files Modified:** 1
+
+**Request:** Comment out the header CFO Agent toggle and "All Systems Operational" (keep the code for re-enabling); move the search bar to the center and make it wider/more prominent; put the entity switcher at the far left of the header (keep the sidebar one too); make the header avatar match the sidebar style (gradient circle with initials, no "??").
+
+**Changes — `apps/web/components/layout/top-nav.tsx`:**
+
+1. Layout rebuilt as a 3-column grid (`[minmax(0,1fr)_auto_minmax(0,1fr)]`) so the search bar centers between the left and right clusters.
+2. Far left: `EntitySwitcher` (shared component, already used in the sidebar) + mobile menu button.
+3. Center: global `AICommandBar` widened to `min(100vw-20rem, 560px)` and still `hidden sm:block` (mobile gets a placeholder spacer).
+4. Right cluster: now `justify-end` (was `ml-auto`). The "All Systems Operational" pill and CFO Agent chat toggle are commented out with `{/* ... */}` so they can be re-enabled later; props `onChatToggle`/`chatOpen` are kept in the interface and aliased (`_onChatToggle`/`_chatOpen`) to avoid unused-var warnings while unused.
+5. Avatar: `initials = getInitials(user?.name || user?.email || "User")` — never shows "??". `AvatarFallback` now uses the sidebar's gradient style (`bg-gradient-to-br from-primary to-primary/80 text-white font-bold`).
+6. Removed the now-unused `MessageSquare` icon import.
+
+### Verification
+
+| Check                                     | Status                                                |
+| ----------------------------------------- | ----------------------------------------------------- |
+| Production build (`next build --no-lint`) | ✅ Successful — all routes compiled & generated       |
+| Typecheck (`@xenboox/web`)                | ✅ Clean                                              |
+| Test suite (`pnpm test`)                  | ✅ 216 pass / 1 skip (20 files)                       |
+| Lint (top-nav.tsx)                        | ✅ 0 errors (pre-existing import/order warnings only) |
+
+### Next Steps
+
+- `packages/db/seed/reset.ts` (untracked, hardcoded DB credential) still not committed — confirm intent before merging.
+
+---
+
 ### [2026-08-03] — Header: right-align cluster, rounded-md status pill, floating CFO Agent button
 
 **Agent:** opencode (Autonomous Engineer)

@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from "react";
 import {
   Menu,
   Bell,
-  MessageSquare,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -30,6 +29,7 @@ import {
   CommandShortcut,
 } from "@/components/ui";
 import { AICommandBar } from "@/components/shared/ai-command-bar";
+import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { getInitials } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
@@ -47,7 +47,11 @@ type SearchItem = {
   group: string;
 };
 
-export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
+export function TopNav({
+  onMenuClick,
+  onChatToggle: _onChatToggle,
+  chatOpen: _chatOpen,
+}: TopNavProps) {
   const { data: session } = useSession();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -131,33 +135,37 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
   }, [utils]);
 
   const user = session?.user;
-  const initials = user?.name ? getInitials(user.name) : "??";
+  const initials = getInitials(user?.name || user?.email || "User");
 
   return (
-    <header className="flex h-16 items-center gap-3 border-b border-border/50 bg-background px-4 lg:px-6 backdrop-blur-sm bg-background/80">
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden"
-        onClick={onMenuClick}
-        aria-label="Toggle navigation"
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
-
-      {/* Global AI Command Bar */}
-      <div className="hidden sm:flex relative flex-1 max-w-md">
-        <AICommandBar compact placeholder="Search anything..." />
+    <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-border/50 bg-background px-4 lg:px-6 backdrop-blur-sm bg-background/80">
+      {/* Left: Entity switcher + mobile menu */}
+      <div className="flex items-center gap-2 min-w-0">
+        <EntitySwitcher />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={onMenuClick}
+          aria-label="Toggle navigation"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
       </div>
 
+      {/* Center: Global AI Command Bar (wider, prominent) */}
+      <div className="hidden sm:block w-[min(100vw-20rem,560px)]">
+        <AICommandBar compact placeholder="Search anything..." />
+      </div>
+      <div className="sm:hidden" />
+
       {/* Right-aligned cluster */}
-      <div className="ml-auto flex items-center gap-3">
-        {/* System Status */}
-        <div className="hidden md:flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 shadow-sm text-sm text-muted-foreground">
+      <div className="flex items-center justify-end gap-3 min-w-0">
+        {/* System Status — commented out for now */}
+        {/* <div className="hidden md:flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 shadow-sm text-sm text-muted-foreground">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           <span className="text-xs">All Systems Operational</span>
-        </div>
+        </div> */}
 
         {/* Notifications */}
         <div className="relative" ref={notifRef}>
@@ -249,8 +257,8 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
           )}
         </div>
 
-        {/* CFO Agent Chat toggle */}
-        {onChatToggle && (
+        {/* CFO Agent Chat toggle — commented out for now */}
+        {/* {onChatToggle && (
           <Button
             variant={chatOpen ? "default" : "ghost"}
             size="sm"
@@ -262,7 +270,7 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">CFO Agent</span>
           </Button>
-        )}
+        )} */}
 
         {/* User menu */}
         <div className="relative pl-2 border-l" ref={userMenuRef}>
@@ -281,7 +289,9 @@ export function TopNav({ onMenuClick, onChatToggle, chatOpen }: TopNavProps) {
                   className="h-full w-full object-cover"
                 />
               )}
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xs font-bold">
+                {initials}
+              </AvatarFallback>
             </Avatar>
             <ChevronDown
               className={`h-4 w-4 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
