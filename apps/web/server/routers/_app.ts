@@ -48,6 +48,7 @@ import { aiWorkspaceRouter } from "./ai-workspace";
 import { inboxRouter } from "./inbox";
 import { transactionsRouter } from "./transactions";
 import { bankingRouter } from "./banking";
+import { invoicingRouter } from "./invoicing";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -100,6 +101,7 @@ export const appRouter = router({
   inbox: inboxRouter,
   transactions: transactionsRouter,
   banking: bankingRouter,
+  invoicing: invoicingRouter,
 });
 
 export type AppRouter = typeof appRouter;
