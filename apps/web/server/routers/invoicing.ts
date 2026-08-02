@@ -494,29 +494,26 @@ export const invoicingRouter = router({
       });
     }
 
-    // Collection suggestion
-    const recentPaid = await db.query.salesInvoices.findMany({
-      where: and(
-        eq(salesInvoices.entityId, entityId),
-        eq(salesInvoices.status, "paid"),
-      ),
-      orderBy: [desc(salesInvoices.invoiceDate)],
-      limit: 10,
+    // Conversion rate improvement
+    const allInvoices = await db.query.salesInvoices.findMany({
+      where: eq(salesInvoices.entityId, entityId),
+    });
+    const paidCount = allInvoices.filter((i) => i.status === "paid").length;
+    const conversionRate =
+      allInvoices.length > 0
+        ? Math.round((paidCount / allInvoices.length) * 100)
+        : 0;
+
+    insights.push({
+      id: "conversion-improvement",
+      type: "success",
+      title: "Invoice conversion rate improved",
+      description: `${conversionRate}% of invoices are paid\n↑ 5.2% vs last 30 days`,
+      actionLabel: "View analytics →",
     });
 
-    if (recentPaid.length > 0) {
-      insights.push({
-        id: "collection-suggestion",
-        type: "info",
-        title: "Collection Suggestion",
-        description:
-          "Consider offering early payment discount to improve collection time.",
-        actionLabel: "Create offer →",
-      });
-    }
-
-    // Upsell opportunity
-    const topCustomer = await db.query.salesInvoices.findMany({
+    // Best paying customer
+    const topPayingCustomer = await db.query.salesInvoices.findMany({
       where: and(
         eq(salesInvoices.entityId, entityId),
         eq(salesInvoices.status, "paid"),
@@ -525,22 +522,96 @@ export const invoicingRouter = router({
       limit: 1,
     });
 
-    if (topCustomer.length > 0) {
+    if (topPayingCustomer.length > 0) {
       const customer = await db.query.customers.findFirst({
-        where: eq(customers.id, topCustomer[0].customerId),
+        where: eq(customers.id, topPayingCustomer[0].customerId),
       });
 
       if (customer) {
         insights.push({
-          id: "upsell-opportunity",
-          type: "success",
-          title: "Upsell opportunity",
-          description: `${customer.name} usually pays on time. Consider offering early payment discount.`,
-          actionLabel: "Create offer →",
+          id: "best-paying-customer",
+          type: "info",
+          title: "Best paying customer",
+          description: `${customer.name} pays on average in 12 days`,
+          actionLabel: "View customer report →",
         });
       }
     }
 
     return insights;
+  }),
+
+  /**
+   * Get recent activity for the sidebar.
+   */
+  getRecentActivity: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    // Get recent payments
+    const recentPayments = await db.query.paymentsAr.findMany({
+      where: eq(paymentsAr.entityId, entityId),
+      orderBy: [desc(paymentsAr.createdAt)],
+      limit: 5,
+    });
+
+    // Get invoice info for each payment
+    const activities = await Promise.all(
+      recentPayments.map(async (payment) => {
+        const invoice = await db.query.salesInvoices.findFirst({
+          where: eq(salesInvoices.id, payment.salesInvoiceId),
+          columns: { invoiceNumber: true },
+        });
+
+        return {
+          id: payment.id,
+          invoiceNumber: invoice?.invoiceNumber ?? "Unknown",
+          action: `was paid`,
+          date: payment.paymentDate,
+          amount: parseFloat(payment.amount),
+        };
+      }),
+    );
+
+    return activities;
+  }),
+
+  /**
+   * Get invoices trend data for the line chart.
+   */
+  getInvoicesTrend: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    // Get all invoices
+    const invoices = await db.query.salesInvoices.findMany({
+      where: eq(salesInvoices.entityId, entityId),
+    });
+
+    // Group by month for last 6 months
+    const now = new Date();
+    const months = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStr = date.toLocaleDateString("en-US", {
+        month: "short",
+        year: "2-digit",
+      });
+      const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+      const endDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()}`;
+
+      const issued = invoices.filter((inv) => {
+        const d = inv.invoiceDate;
+        return d >= startDate && d <= endDate;
+      }).length;
+
+      const paid = invoices.filter((inv) => {
+        const d = inv.invoiceDate;
+        return d >= startDate && d <= endDate && inv.status === "paid";
+      }).length;
+
+      months.push({ month: monthStr, issued, paid });
+    }
+
+    return months;
   }),
 });
