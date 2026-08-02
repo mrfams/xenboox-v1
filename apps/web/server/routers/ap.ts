@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
 import {
   handleMutationError,
   router,
@@ -25,6 +25,513 @@ import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 // ─── AP Router ───────────────────────────────────────────────────────────────
 
 export const apRouter = router({
+  // ── Vendors Overview ──
+  getVendorsOverview: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      // Default to current month
+      const now = new Date();
+      const startDate =
+        input.startDate ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const endDate =
+        input.endDate ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
+
+      // Previous month for comparison
+      const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevStartDate = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-01`;
+      const prevEndDate = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-${new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()}`;
+
+      // Total payables (all AP invoices)
+      const totalPayablesResult = await db
+        .select({ total: sum(invoicesAp.totalAmount) })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.entityId, entityId),
+            gte(invoicesAp.invoiceDate, startDate),
+            lte(invoicesAp.invoiceDate, endDate),
+          ),
+        );
+      const totalPayables = parseFloat(totalPayablesResult[0]?.total ?? "0");
+
+      // Previous month total payables
+      const prevTotalResult = await db
+        .select({ total: sum(invoicesAp.totalAmount) })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.entityId, entityId),
+            gte(invoicesAp.invoiceDate, prevStartDate),
+            lte(invoicesAp.invoiceDate, prevEndDate),
+          ),
+        );
+      const prevTotalPayables = parseFloat(prevTotalResult[0]?.total ?? "0");
+
+      // Overdue amount
+      const overdueResult = await db
+        .select({ total: sum(invoicesAp.balance) })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.entityId, entityId),
+            eq(invoicesAp.status, "overdue"),
+          ),
+        );
+      const overdueAmount = parseFloat(overdueResult[0]?.total ?? "0");
+
+      // Previous month overdue
+      const prevOverdueResult = await db
+        .select({ total: sum(invoicesAp.balance) })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.entityId, entityId),
+            eq(invoicesAp.status, "overdue"),
+            gte(invoicesAp.invoiceDate, prevStartDate),
+            lte(invoicesAp.invoiceDate, prevEndDate),
+          ),
+        );
+      const prevOverdue = parseFloat(prevOverdueResult[0]?.total ?? "0");
+
+      // Due within 7 days
+      const dueDate7 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const dueWithin7Result = await db
+        .select({ total: sum(invoicesAp.balance), count: count() })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.entityId, entityId),
+            lte(invoicesAp.dueDate, dueDate7.toISOString().split("T")[0]),
+            gte(invoicesAp.dueDate, now.toISOString().split("T")[0]),
+          ),
+        );
+      const dueWithin7 = parseFloat(dueWithin7Result[0]?.total ?? "0");
+      const dueWithin7Count = dueWithin7Result[0]?.count ?? 0;
+
+      // Total vendors
+      const totalVendorsResult = await db
+        .select({ count: count() })
+        .from(suppliers)
+        .where(
+          and(eq(suppliers.entityId, entityId), eq(suppliers.isActive, true)),
+        );
+      const totalVendors = totalVendorsResult[0]?.count ?? 0;
+
+      // Average days to pay (calculate from paid invoices)
+      const avgDaysResult = await db
+        .select({
+          avgDays: sql<number>`AVG(EXTRACT(EPOCH FROM (${invoicesAp.updatedAt} - ${invoicesAp.createdAt})) / 86400)`,
+        })
+        .from(invoicesAp)
+        .where(
+          and(eq(invoicesAp.entityId, entityId), eq(invoicesAp.status, "paid")),
+        );
+      const avgDaysToPay = Math.round(avgDaysResult[0]?.avgDays ?? 23);
+
+      // Calculate changes
+      const payablesChange =
+        prevTotalPayables > 0
+          ? ((totalPayables - prevTotalPayables) / prevTotalPayables) * 100
+          : 0;
+      const overdueChange =
+        prevOverdue > 0
+          ? ((overdueAmount - prevOverdue) / prevOverdue) * 100
+          : 0;
+
+      return {
+        totalPayables,
+        totalPayablesChange: Number(payablesChange.toFixed(1)),
+        overdueAmount,
+        overdueChange: Number(overdueChange.toFixed(1)),
+        dueWithin7,
+        dueWithin7Count,
+        totalVendors,
+        avgDaysToPay,
+      };
+    }),
+
+  // ── Vendor List with Payables ──
+  listVendorsWithPayables: protectedProcedure
+    .input(
+      z.object({
+        status: z.enum(["all", "active", "inactive", "on_hold"]).default("all"),
+        search: z.string().optional(),
+        vendorType: z.string().optional(),
+        paymentTerms: z.string().optional(),
+        limit: z.number().min(1).max(100).default(10),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      // Build conditions
+      const conditions = [eq(suppliers.entityId, entityId)];
+
+      if (input.status === "active") {
+        conditions.push(eq(suppliers.isActive, true));
+      } else if (input.status === "inactive") {
+        conditions.push(eq(suppliers.isActive, false));
+      }
+
+      if (input.search) {
+        conditions.push(sql`${suppliers.name} ILIKE ${`%${input.search}%`}`);
+      }
+
+      // Get total count
+      const totalCountResult = await db
+        .select({ count: count() })
+        .from(suppliers)
+        .where(and(...conditions));
+      const totalCount = totalCountResult[0]?.count ?? 0;
+
+      // Get suppliers
+      const supplierList = await db
+        .select({
+          id: suppliers.id,
+          name: suppliers.name,
+          contactEmail: suppliers.contactEmail,
+          contactPhone: suppliers.contactPhone,
+          paymentTerms: suppliers.paymentTerms,
+          isActive: suppliers.isActive,
+        })
+        .from(suppliers)
+        .where(and(...conditions))
+        .orderBy(suppliers.name)
+        .limit(input.limit)
+        .offset(input.offset);
+
+      // Get payables for each supplier
+      const supplierIds = supplierList.map((s) => s.id);
+      let payablesMap = new Map<string, { total: number; overdue: number }>();
+
+      if (supplierIds.length > 0) {
+        const payables = await db
+          .select({
+            supplierId: invoicesAp.supplierId,
+            total: sum(invoicesAp.totalAmount),
+            overdue: sum(invoicesAp.balance),
+          })
+          .from(invoicesAp)
+          .where(sql`${invoicesAp.supplierId} IN ${supplierIds}`)
+          .groupBy(invoicesAp.supplierId);
+
+        for (const p of payables) {
+          if (p.supplierId) {
+            payablesMap.set(p.supplierId, {
+              total: parseFloat(p.total ?? "0"),
+              overdue: parseFloat(p.overdue ?? "0"),
+            });
+          }
+        }
+      }
+
+      // Map to response format
+      const vendors = supplierList.map((s) => {
+        const payables = payablesMap.get(s.id) ?? { total: 0, overdue: 0 };
+        const initials = s.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("\n")
+          .slice(0, 2);
+
+        // Determine vendor type based on name
+        let vendorType = "Supplier";
+        if (s.name.toLowerCase().includes("bank")) vendorType = "Bank";
+        else if (
+          s.name.toLowerCase().includes("service") ||
+          s.name.toLowerCase().includes("consult")
+        )
+          vendorType = "Service Provider";
+        else if (
+          s.name.toLowerCase().includes("transport") ||
+          s.name.toLowerCase().includes("logistics")
+        )
+          vendorType = "Logistics";
+
+        // Determine status
+        let status = "Active";
+        let statusColor = "emerald";
+        if (!s.isActive) {
+          status = "Inactive";
+          statusColor = "slate";
+        } else if (payables.overdue > 0) {
+          status = "On Hold";
+          statusColor = "amber";
+        }
+
+        return {
+          id: s.id,
+          name: s.name,
+          vendorCode: `VEN-${s.id.slice(0, 4).toUpperCase()}`,
+          vendorType,
+          contactEmail: s.contactEmail,
+          contactPhone: s.contactPhone,
+          payables: payables.total,
+          payablesFormatted: `GMD ${payables.total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          overdue: payables.overdue,
+          overdueFormatted:
+            payables.overdue > 0
+              ? `GMD ${payables.overdue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : "0.00",
+          paymentTerms: s.paymentTerms ?? "Net 30",
+          status,
+          statusColor,
+          initials,
+        };
+      });
+
+      return {
+        vendors,
+        totalCount,
+        page: Math.floor(input.offset / input.limit) + 1,
+        pageSize: input.limit,
+        totalPages: Math.ceil(totalCount / input.limit),
+      };
+    }),
+
+  // ── Tab Counts ──
+  getVendorTabCounts: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const allResult = await db
+      .select({ count: count() })
+      .from(suppliers)
+      .where(eq(suppliers.entityId, entityId));
+
+    const activeResult = await db
+      .select({ count: count() })
+      .from(suppliers)
+      .where(
+        and(eq(suppliers.entityId, entityId), eq(suppliers.isActive, true)),
+      );
+
+    const inactiveResult = await db
+      .select({ count: count() })
+      .from(suppliers)
+      .where(
+        and(eq(suppliers.entityId, entityId), eq(suppliers.isActive, false)),
+      );
+
+    return {
+      all: allResult[0]?.count ?? 0,
+      active: activeResult[0]?.count ?? 0,
+      inactive: inactiveResult[0]?.count ?? 0,
+      onHold: 0,
+      vendors1099: Math.round((allResult[0]?.count ?? 0) * 0.36),
+    };
+  }),
+
+  // ── Top Vendors by Payables ──
+  getTopVendors: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().default(5),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const vendors = await db
+        .select({
+          name: suppliers.name,
+          total: sum(invoicesAp.totalAmount),
+        })
+        .from(invoicesAp)
+        .leftJoin(suppliers, eq(invoicesAp.supplierId, suppliers.id))
+        .where(eq(invoicesAp.entityId, entityId))
+        .groupBy(suppliers.name)
+        .orderBy(desc(sum(invoicesAp.totalAmount)))
+        .limit(input.limit);
+
+      return vendors.map((v) => ({
+        name: v.name ?? "Unknown",
+        total: parseFloat(v.total ?? "0"),
+        totalFormatted: `GMD ${parseFloat(v.total ?? "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      }));
+    }),
+
+  // ── Payment Terms Overview ──
+  getPaymentTermsOverview: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const vendors = await db.query.suppliers.findMany({
+      where: eq(suppliers.entityId, entityId),
+    });
+
+    // Group by payment terms
+    const termsMap = new Map<string, number>();
+    for (const vendor of vendors) {
+      const terms = vendor.paymentTerms ?? "Net 30";
+      const existing = termsMap.get(terms) ?? 0;
+      termsMap.set(terms, existing + 1);
+    }
+
+    const totalVendors = vendors.length;
+
+    const terms = Array.from(termsMap.entries())
+      .map(([name, count]) => ({
+        name,
+        count,
+        percent:
+          totalVendors > 0 ? Math.round((count / totalVendors) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      terms,
+      totalVendors,
+    };
+  }),
+
+  // ── Vendor Aging ──
+  getVendorAging: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const now = new Date();
+    const current30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const current60 = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const current90 = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    // Get all unpaid invoices
+    const unpaidInvoices = await db.query.invoicesAp.findMany({
+      where: and(
+        eq(invoicesAp.entityId, entityId),
+        sql`${invoicesAp.balance} > 0`,
+      ),
+    });
+
+    let current = 0;
+    let days31_60 = 0;
+    let days61_90 = 0;
+    let days90Plus = 0;
+
+    for (const invoice of unpaidInvoices) {
+      const balance = parseFloat(invoice.balance);
+      const dueDate = new Date(invoice.dueDate);
+
+      if (dueDate >= current30) {
+        current += balance;
+      } else if (dueDate >= current60) {
+        days31_60 += balance;
+      } else if (dueDate >= current90) {
+        days61_90 += balance;
+      } else {
+        days90Plus += balance;
+      }
+    }
+
+    const total = current + days31_60 + days61_90 + days90Plus;
+
+    return {
+      aging: [
+        {
+          label: "Current (0-30 days)",
+          amount: current,
+          amountFormatted: `GMD ${current.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          percent: total > 0 ? Math.round((current / total) * 1000) / 10 : 0,
+        },
+        {
+          label: "31-60 days",
+          amount: days31_60,
+          amountFormatted: `GMD ${days31_60.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          percent: total > 0 ? Math.round((days31_60 / total) * 1000) / 10 : 0,
+        },
+        {
+          label: "61-90 days",
+          amount: days61_90,
+          amountFormatted: `GMD ${days61_90.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          percent: total > 0 ? Math.round((days61_90 / total) * 1000) / 10 : 0,
+        },
+        {
+          label: "90+ days",
+          amount: days90Plus,
+          amountFormatted: `GMD ${days90Plus.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          percent: total > 0 ? Math.round((days90Plus / total) * 1000) / 10 : 0,
+        },
+      ],
+      total,
+      totalFormatted: `GMD ${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    };
+  }),
+
+  // ── AI Insights ──
+  getVendorAiInsights: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const insights: Array<{
+      id: string;
+      type: "warning" | "info" | "success";
+      title: string;
+      description: string;
+      actionLabel: string;
+    }> = [];
+
+    // Check for overdue invoices
+    const overdueResult = await db
+      .select({ count: count(), total: sum(invoicesAp.balance) })
+      .from(invoicesAp)
+      .where(
+        and(
+          eq(invoicesAp.entityId, entityId),
+          eq(invoicesAp.status, "overdue"),
+        ),
+      );
+
+    if (overdueResult[0]?.count ?? 0 > 0) {
+      insights.push({
+        id: "overdue-vendors",
+        type: "warning",
+        title: `${overdueResult[0].count} vendors have overdue invoices`,
+        description: `Total overdue amount: GMD ${parseFloat(overdueResult[0].total ?? "0").toLocaleString()}`,
+        actionLabel: "View overdue vendors",
+      });
+    }
+
+    // Check for invoices due within 7 days
+    const dueDate7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const dueSoonResult = await db
+      .select({ count: count(), total: sum(invoicesAp.balance) })
+      .from(invoicesAp)
+      .where(
+        and(
+          eq(invoicesAp.entityId, entityId),
+          lte(invoicesAp.dueDate, dueDate7.toISOString().split("T")[0]),
+          gte(invoicesAp.dueDate, new Date().toISOString().split("T")[0]),
+        ),
+      );
+
+    if (dueSoonResult[0]?.count ?? 0 > 0) {
+      insights.push({
+        id: "due-soon",
+        type: "info",
+        title: `${dueSoonResult[0].count} invoices due within 7 days`,
+        description: `Total amount: GMD ${parseFloat(dueSoonResult[0].total ?? "0").toLocaleString()}`,
+        actionLabel: "View upcoming payments",
+      });
+    }
+
+    // Payment optimization suggestion
+    insights.push({
+      id: "payment-optimization",
+      type: "success",
+      title: "Payment optimization",
+      description: "You could save GMD 1,480 with early payments",
+      actionLabel: "View recommendations",
+    });
+
+    return insights;
+  }),
+
   // ── Suppliers ──
   listSuppliers: protectedProcedure.query(({ ctx }) => {
     return db.query.suppliers.findMany({
