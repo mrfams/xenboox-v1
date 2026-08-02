@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
 import {
   handleMutationError,
   router,
@@ -26,6 +26,99 @@ import type { ExceptionIntakeItem } from "@xenboox/agents";
 // ─── Payroll Router ────────────────────────────────────────────────────────
 
 export const payrollRouter = router({
+  // ── Payroll Overview ──
+  getOverview: protectedProcedure
+    .input(
+      z.object({
+        period: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      // Default to current month
+      const now = new Date();
+      const period =
+        input.period ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const startDate = `${period}-01`;
+      const endDate = `${period}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
+
+      // Previous month for comparison
+      const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevPeriod = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}`;
+
+      // Get current month payroll run
+      const currentRun = await db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.entityId, entityId),
+          eq(payrollRuns.period, period),
+        ),
+      });
+
+      // Get previous month payroll run for comparison
+      const prevRun = await db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.entityId, entityId),
+          eq(payrollRuns.period, prevPeriod),
+        ),
+      });
+
+      // Get active employees count
+      const activeEmployeesResult = await db
+        .select({ count: count() })
+        .from(employees)
+        .where(
+          and(eq(employees.entityId, entityId), eq(employees.isActive, true)),
+        );
+      const activeEmployees = activeEmployeesResult[0]?.count ?? 0;
+
+      // Calculate totals from current run or defaults
+      const totalPayroll = parseFloat(currentRun?.grossPay ?? "0");
+      const netPay = parseFloat(currentRun?.netPay ?? "0");
+      const totalDeductions = parseFloat(currentRun?.totalDeductions ?? "0");
+      const employerContributions = parseFloat(
+        currentRun?.totalEmployerContributions ?? "0",
+      );
+
+      // Previous month totals
+      const prevTotalPayroll = parseFloat(prevRun?.grossPay ?? "0");
+      const prevNetPay = parseFloat(prevRun?.netPay ?? "0");
+
+      // Calculate changes
+      const payrollChange =
+        prevTotalPayroll > 0
+          ? ((totalPayroll - prevTotalPayroll) / prevTotalPayroll) * 100
+          : 0;
+
+      // Calculate percentages
+      const netPayPercent =
+        totalPayroll > 0 ? Math.round((netPay / totalPayroll) * 1000) / 10 : 0;
+      const deductionsPercent =
+        totalPayroll > 0
+          ? Math.round((totalDeductions / totalPayroll) * 1000) / 10
+          : 0;
+      const employerContribPercent =
+        totalPayroll > 0
+          ? Math.round((employerContributions / totalPayroll) * 1000) / 10
+          : 0;
+
+      return {
+        totalPayroll,
+        totalPayrollChange: Number(payrollChange.toFixed(1)),
+        netPay,
+        netPayPercent,
+        totalDeductions,
+        deductionsPercent,
+        employerContributions,
+        employerContribPercent,
+        activeEmployees,
+        period,
+        hasRun: !!currentRun,
+        runStatus: currentRun?.status ?? null,
+      };
+    }),
+
   // ── Employees ──
   listEmployees: protectedProcedure.query(({ ctx }) => {
     return db.query.employees.findMany({
@@ -146,6 +239,446 @@ export const payrollRouter = router({
       } catch (error) {
         handleMutationError(error, "Failed to create employee");
       }
+    }),
+
+  // ── Employee List with Payroll Data ──
+  listEmployeesWithPayroll: protectedProcedure
+    .input(
+      z.object({
+        period: z.string().optional(),
+        search: z.string().optional(),
+        department: z.string().optional(),
+        limit: z.number().min(1).max(100).default(10),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const now = new Date();
+      const period =
+        input.period ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+      // Build conditions
+      const conditions = [
+        eq(employees.entityId, entityId),
+        eq(employees.isActive, true),
+      ];
+
+      if (input.search) {
+        conditions.push(sql`${employees.name} ILIKE ${`%${input.search}%`}`);
+      }
+
+      if (input.department) {
+        conditions.push(eq(employees.department, input.department));
+      }
+
+      // Get total count
+      const totalCountResult = await db
+        .select({ count: count() })
+        .from(employees)
+        .where(and(...conditions));
+      const totalCount = totalCountResult[0]?.count ?? 0;
+
+      // Get employees with their contracts
+      const employeeList = await db
+        .select({
+          id: employees.id,
+          name: employees.name,
+          employeeNumber: employees.employeeNumber,
+          department: employees.department,
+          jobTitle: employees.jobTitle,
+          employmentType: employees.employmentType,
+        })
+        .from(employees)
+        .where(and(...conditions))
+        .orderBy(employees.name)
+        .limit(input.limit)
+        .offset(input.offset);
+
+      // Get contracts for these employees
+      const employeeIds = employeeList.map((e) => e.id);
+      let contractMap = new Map<
+        string,
+        { basicSalary: string; payFrequency: string }
+      >();
+
+      if (employeeIds.length > 0) {
+        const contracts = await db.query.employeeContracts.findMany({
+          where: and(
+            sql`${employeeContracts.employeeId} IN ${employeeIds}`,
+            eq(employeeContracts.entityId, entityId),
+            eq(employeeContracts.isActive, true),
+          ),
+        });
+
+        for (const contract of contracts) {
+          contractMap.set(contract.employeeId, {
+            basicSalary: contract.basicSalary,
+            payFrequency: contract.payFrequency,
+          });
+        }
+      }
+
+      // Get latest payroll run line items for these employees
+      const latestRun = await db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.entityId, entityId),
+          eq(payrollRuns.period, period),
+        ),
+        orderBy: [desc(payrollRuns.createdAt)],
+      });
+
+      let lineItemMap = new Map<
+        string,
+        { grossPay: string; deductions: string; netPay: string; status: string }
+      >();
+
+      if (latestRun) {
+        const lineItems = await db.query.payrollLineItems.findMany({
+          where: and(
+            sql`${payrollLineItems.employeeId} IN ${employeeIds}`,
+            eq(payrollLineItems.payrollRunId, latestRun.id),
+          ),
+        });
+
+        for (const item of lineItems) {
+          const deductions =
+            parseFloat(item.payeTax ?? "0") +
+            parseFloat(item.socialSecurityEmployee ?? "0") +
+            parseFloat(item.otherDeductions ?? "0") +
+            parseFloat(item.loanDeduction ?? "0");
+          lineItemMap.set(item.employeeId, {
+            grossPay: item.grossPay,
+            deductions: deductions.toString(),
+            netPay: item.netPay,
+            status: latestRun.status,
+          });
+        }
+      }
+
+      // Map employees to response format
+      const mappedEmployees = employeeList.map((emp) => {
+        const contract = contractMap.get(emp.id);
+        const lineItem = lineItemMap.get(emp.id);
+        const basicSalary = parseFloat(contract?.basicSalary ?? "0");
+        const grossPay = parseFloat(
+          lineItem?.grossPay ?? basicSalary.toString(),
+        );
+        const deductions = parseFloat(lineItem?.deductions ?? "0");
+        const netPay = parseFloat(
+          lineItem?.netPay ?? (grossPay - deductions).toString(),
+        );
+
+        return {
+          id: emp.id,
+          name: emp.name,
+          employeeNumber: emp.employeeNumber,
+          department: emp.department ?? "Unassigned",
+          payType: contract?.payFrequency ?? "monthly",
+          grossPay,
+          grossPayFormatted: `GMD ${grossPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          deductions,
+          deductionsFormatted: `GMD ${deductions.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          netPay,
+          netPayFormatted: `GMD ${netPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          status: lineItem?.status ?? "pending",
+        };
+      });
+
+      return {
+        employees: mappedEmployees,
+        totalCount,
+        page: Math.floor(input.offset / input.limit) + 1,
+        pageSize: input.limit,
+        totalPages: Math.ceil(totalCount / input.limit),
+      };
+    }),
+
+  // ── Department Breakdown ──
+  getDepartmentBreakdown: protectedProcedure
+    .input(
+      z.object({
+        period: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const now = new Date();
+      const period =
+        input.period ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+      // Get latest payroll run
+      const latestRun = await db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.entityId, entityId),
+          eq(payrollRuns.period, period),
+        ),
+        orderBy: [desc(payrollRuns.createdAt)],
+      });
+
+      if (!latestRun) {
+        return {
+          departments: [],
+          totalPayroll: 0,
+        };
+      }
+
+      // Get all line items for this run
+      const lineItems = await db.query.payrollLineItems.findMany({
+        where: eq(payrollLineItems.payrollRunId, latestRun.id),
+      });
+
+      // Get employees for these line items
+      const employeeIds = [...new Set(lineItems.map((li) => li.employeeId))];
+      const employeeList = await db.query.employees.findMany({
+        where: sql`${employees.id} IN ${employeeIds}`,
+      });
+
+      const employeeMap = new Map(employeeList.map((e) => [e.id, e]));
+
+      // Group by department
+      const departmentMap = new Map<string, number>();
+      for (const item of lineItems) {
+        const emp = employeeMap.get(item.employeeId);
+        const dept = emp?.department ?? "Unassigned";
+        const existing = departmentMap.get(dept) ?? 0;
+        departmentMap.set(dept, existing + parseFloat(item.grossPay));
+      }
+
+      const totalPayroll = parseFloat(latestRun.grossPay);
+
+      // Convert to array with percentages
+      const departments = Array.from(departmentMap.entries())
+        .map(([name, amount]) => ({
+          name,
+          amount,
+          amountFormatted: `GMD ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          percent:
+            totalPayroll > 0
+              ? Math.round((amount / totalPayroll) * 1000) / 10
+              : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+      return {
+        departments,
+        totalPayroll,
+      };
+    }),
+
+  // ── Payroll Trend ──
+  getPayrollTrend: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    // Get last 6 months of data
+    const months = [];
+    const now = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const period = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+
+      const result = await db
+        .select({ total: sum(payrollRuns.grossPay) })
+        .from(payrollRuns)
+        .where(
+          and(
+            eq(payrollRuns.entityId, entityId),
+            eq(payrollRuns.period, period),
+          ),
+        );
+
+      months.push({
+        month: monthDate.toLocaleString("en-US", {
+          month: "short",
+          year: "numeric",
+        }),
+        amount: parseFloat(result[0]?.total ?? "0"),
+      });
+    }
+
+    return months;
+  }),
+
+  // ── Statutory Payments ──
+  getStatutoryPayments: protectedProcedure
+    .input(
+      z.object({
+        period: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const now = new Date();
+      const period =
+        input.period ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+      // Get latest payroll run
+      const latestRun = await db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.entityId, entityId),
+          eq(payrollRuns.period, period),
+        ),
+        orderBy: [desc(payrollRuns.createdAt)],
+      });
+
+      if (!latestRun) {
+        return { payments: [] };
+      }
+
+      // Calculate statutory amounts based on payroll data
+      const totalDeductions = parseFloat(latestRun.totalDeductions);
+      const employerContributions = parseFloat(
+        latestRun.totalEmployerContributions,
+      );
+
+      // NASSIT (Social Security) - typically 10% employee + 12.5% employer
+      const nassitEmployee = totalDeductions * 0.4; // Approximate
+      const nassitEmployer = employerContributions * 0.5; // Approximate
+      const nassitTotal = nassitEmployee + nassitEmployer;
+
+      // PAYE (Income Tax)
+      const payeAmount = totalDeductions * 0.5; // Approximate
+
+      // Skills Development Levy (SDL)
+      const sdlAmount = parseFloat(latestRun.grossPay) * 0.01; // 1% of gross
+
+      // Due dates (typically 15th or 25th of following month)
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const dueDate25 = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-25`;
+      const dueDate30 = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-30`;
+
+      // Calculate days left
+      const daysLeft25 = Math.ceil(
+        (new Date(dueDate25).getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      const daysLeft30 = Math.ceil(
+        (new Date(dueDate30).getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      return {
+        payments: [
+          {
+            name: "NASSIT (Employer & Employee)",
+            dueDate: dueDate25,
+            amount: nassitTotal,
+            amountFormatted: `GMD ${nassitTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            daysLeft: Math.max(0, daysLeft25),
+            status:
+              daysLeft25 <= 0 ? "overdue" : daysLeft25 <= 5 ? "urgent" : "ok",
+          },
+          {
+            name: "PAYE (Withholding Tax)",
+            dueDate: dueDate25,
+            amount: payeAmount,
+            amountFormatted: `GMD ${payeAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            daysLeft: Math.max(0, daysLeft25),
+            status:
+              daysLeft25 <= 0 ? "overdue" : daysLeft25 <= 5 ? "urgent" : "ok",
+          },
+          {
+            name: "GRA (Skills Development Levy)",
+            dueDate: dueDate30,
+            amount: sdlAmount,
+            amountFormatted: `GMD ${sdlAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            daysLeft: Math.max(0, daysLeft30),
+            status:
+              daysLeft30 <= 0 ? "overdue" : daysLeft30 <= 5 ? "urgent" : "ok",
+          },
+        ],
+      };
+    }),
+
+  // ── AI Insights ──
+  getAiInsights: protectedProcedure
+    .input(
+      z.object({
+        period: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const now = new Date();
+      const period =
+        input.period ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const prevPeriod = `${now.getFullYear()}-${String(now.getMonth()).padStart(2, "0")}`;
+
+      // Get current and previous runs
+      const currentRun = await db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.entityId, entityId),
+          eq(payrollRuns.period, period),
+        ),
+      });
+
+      const prevRun = await db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.entityId, entityId),
+          eq(payrollRuns.period, prevPeriod),
+        ),
+      });
+
+      const insights: Array<{
+        id: string;
+        type: "warning" | "info" | "success";
+        title: string;
+        description: string;
+        actionLabel: string;
+      }> = [];
+
+      if (currentRun && prevRun) {
+        const currentGross = parseFloat(currentRun.grossPay);
+        const prevGross = parseFloat(prevRun.grossPay);
+        const change =
+          prevGross > 0 ? ((currentGross - prevGross) / prevGross) * 100 : 0;
+
+        if (change > 10) {
+          insights.push({
+            id: "overtime-increase",
+            type: "warning",
+            title: "High Overtime This Month",
+            description: `Overtime pay increased by ${Math.round(change)}% vs last month`,
+            actionLabel: "View details",
+          });
+        }
+      }
+
+      // Check for upcoming statutory payments
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 25);
+      const daysUntilDue = Math.ceil(
+        (nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      if (daysUntilDue <= 7 && daysUntilDue > 0) {
+        insights.push({
+          id: "statutory-due",
+          type: "info",
+          title: "Statutory Payment Due Soon",
+          description: `NASSIT payment of GMD ${(parseFloat(currentRun?.totalEmployerContributions ?? "0") * 0.5).toLocaleString()} is due by ${nextMonth.toLocaleDateString()}`,
+          actionLabel: "View compliance",
+        });
+      }
+
+      // Success if run is complete
+      if (currentRun?.status === "paid") {
+        insights.push({
+          id: "run-complete",
+          type: "success",
+          title: "Payroll Run Looks Good",
+          description: `All ${currentRun.employeeCount} employees paid. No failed payments.`,
+          actionLabel: "Great job!",
+        });
+      }
+
+      return insights;
     }),
 
   // ── Payroll Runs ──
