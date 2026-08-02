@@ -6,7 +6,33 @@
 
 ---
 
-### [2026-07-31] — Cross-Section Page Navigation: Tabs on Every Page Within Each Sidebar Section
+### [2026-08-02] — Fix: Modals invisible — overlay shows but dialog body renders off-screen
+
+**Agent:** opencode (Autonomous Engineer)
+**Duration:** ~15 min
+**Files Modified:** 2
+
+**Problem:** On web, opening any modal (create dialog, confirm dialog, etc.) showed only the dark backdrop — the dialog body itself was not visible on screen ("the modal goes somewhere").
+
+**Root cause:** Commit `97a584c` ("build fixes") stripped the shadcn positioning classes from `DialogContent` and `AlertDialogContent` in `packages/ui/src/`. `fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]` was replaced with bare `relative`. Since Radix portals to `document.body`, the content then lays out in normal document flow at the top of the page instead of being fixed/centered over the viewport — invisible to a scrolled-down user while the `fixed inset-0` overlay still darkens the screen. The `flex items-center justify-center` added to the overlay had no effect because the content is a sibling of the overlay, not a child.
+
+**Files:**
+
+- `packages/ui/src/dialog.tsx` — restored `fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]` (+ slide in/out animation classes) on `DialogContent`
+- `packages/ui/src/alert-dialog.tsx` — same restoration on `AlertDialogContent`
+
+### Verification
+
+| Check                     | Status       |
+| ------------------------- | ------------ |
+| Typecheck (`@xenboox/ui`) | ✅ Clean     |
+| Lint (`@xenboox/ui`)      | ✅ No errors |
+
+### Next Steps
+
+- Manually confirm a create dialog and confirm dialog render centered over the overlay in the running web app.
+
+---
 
 **Agent:** opencode (Autonomous Engineer)
 **Duration:** ~2.5 hrs
