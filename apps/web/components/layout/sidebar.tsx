@@ -110,8 +110,9 @@ const primaryNavItems: NavItem[] = [
   },
   {
     label: "Bills",
-    href: "/dashboard/ap/invoices",
+    href: "/dashboard/bills",
     icon: CreditCard,
+    match: ["/dashboard/bills", "/dashboard/ap/invoices"],
   },
   {
     label: "Payroll",
