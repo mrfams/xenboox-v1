@@ -15,23 +15,22 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
-import { Section, SectionHeading } from "@/components/marketing/section";
+import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
 
 const features = [
   {
     icon: Bot,
-    title: "AI Agent Workforce",
-    subtitle: "19 specialized agents working for you",
+    title: "AI-Powered Automation",
+    subtitle: "Intelligent bookkeeping that runs itself",
     description:
-      "From journal entry validation to payroll processing, each agent is trained on domain-specific rules and African tax regulations.",
+      "Automate journal entries, reconciliations, and routine accounting tasks with AI that learns your business and gets smarter over time.",
     items: [
-      "Hierarchical architecture (CFO → Department Heads → Workers)",
-      "Confidence-based escalation to humans",
-      "LangFuse observability for every decision",
+      "Automated transaction categorization",
+      "Smart matching and reconciliation",
+      "Human review for complex decisions",
       "Natural language chat interface",
     ],
-    gradient: "from-blue-600 to-indigo-600",
   },
   {
     icon: BookOpen,
@@ -45,7 +44,6 @@ const features = [
       "Multi-currency with exchange rates",
       "Fiscal period management with close workflows",
     ],
-    gradient: "from-emerald-500 to-teal-600",
   },
   {
     icon: Receipt,
@@ -59,7 +57,6 @@ const features = [
       "Invoice processing with line items",
       "Payment recording and aging reports",
     ],
-    gradient: "from-amber-500 to-orange-600",
   },
   {
     icon: Landmark,
@@ -73,21 +70,19 @@ const features = [
       "Bank reconciliation workflow",
       "Cash position monitoring",
     ],
-    gradient: "from-violet-500 to-purple-600",
   },
   {
     icon: Wallet,
     title: "Payroll Processing",
     subtitle: "Multi-jurisdiction payroll engine",
     description:
-      "Full payroll with Gambia PAYE tax bands, SSNIT contributions, and configurable deductions.",
+      "Full payroll with local tax bands, statutory contributions, and configurable deductions.",
     items: [
-      "PAYE tax calculation (Gambia bands)",
-      "SSNIT employee (5%) and employer (10%)",
+      "PAYE tax calculation",
+      "Statutory contributions (SSNIT, NHIL)",
       "Configurable deduction types",
       "Payslip generation and storage",
     ],
-    gradient: "from-pink-500 to-rose-600",
   },
   {
     icon: BarChart3,
@@ -101,49 +96,45 @@ const features = [
       "Trial Balance",
       "Cash flow analysis",
     ],
-    gradient: "from-cyan-500 to-blue-600",
   },
   {
     icon: FileText,
     title: "Document Management",
     subtitle: "AI-powered document processing",
     description:
-      "Upload, classify, and extract data from documents automatically. Powered by Cloudflare R2.",
+      "Upload, classify, and extract data from documents automatically. Secure cloud storage included.",
     items: [
-      "Presigned upload URLs (R2)",
+      "Secure cloud storage",
       "Document-to-transaction linking",
-      "OCR text extraction pipeline",
-      "Agent-powered document classification",
+      "OCR text extraction",
+      "Automatic document classification",
     ],
-    gradient: "from-teal-500 to-emerald-600",
   },
   {
     icon: Shield,
     title: "Enterprise Security",
     subtitle: "Bank-grade data protection",
     description:
-      "Row-level security, AES-256 encryption, rate limiting, and comprehensive audit logging.",
+      "Row-level security, encryption, rate limiting, and comprehensive audit logging.",
     items: [
-      "PostgreSQL Row-Level Security",
+      "Database-level security",
       "AES-256 encryption for sensitive fields",
-      "Rate limiting (Upstash Redis)",
-      "Full audit trail on every mutation",
+      "Rate limiting and abuse prevention",
+      "Full audit trail on every action",
     ],
-    gradient: "from-red-500 to-rose-600",
   },
   {
     icon: RefreshCw,
     title: "Offline-First Desktop",
     subtitle: "Works with or without internet",
     description:
-      "Tauri desktop app with local SQLite caching. Work offline and sync when reconnected.",
+      "Desktop app with local caching. Work offline and sync when reconnected.",
     items: [
-      "Local SQLite database cache",
+      "Local database cache",
       "Automatic sync on reconnection",
       "Cross-platform (Windows, macOS)",
-      "Lightweight Rust backend",
+      "Lightweight and fast",
     ],
-    gradient: "from-indigo-500 to-blue-600",
   },
   {
     icon: Users,
@@ -152,12 +143,11 @@ const features = [
     description:
       "Manage multiple entities from a single account with role-based access control for teams.",
     items: [
-      "Entity-level data isolation (RLS)",
+      "Entity-level data isolation",
       "Role-based access (Owner, Admin, Viewer)",
       "Entity switching from any screen",
       "Per-entity audit trails",
     ],
-    gradient: "from-orange-500 to-amber-600",
   },
   {
     icon: Globe,
@@ -166,26 +156,24 @@ const features = [
     description:
       "Handle transactions in multiple currencies with automatic exchange rate synchronization.",
     items: [
-      "ECB exchange rate sync",
+      "Automatic exchange rate sync",
       "Currency conversion in reports",
       "GMD, USD, EUR, GBP support",
       "Per-account currency settings",
     ],
-    gradient: "from-green-500 to-emerald-600",
   },
   {
     icon: Zap,
     title: "Real-Time Processing",
-    subtitle: "Instant AI-powered insights",
+    subtitle: "Instant insights and updates",
     description:
-      "SSE token streaming, Trigger.dev background jobs, and live dashboard updates.",
+      "Live dashboard updates, background job processing, and real-time notifications.",
     items: [
-      "SSE token streaming for AI chat",
-      "Trigger.dev background jobs",
-      "Real-time dashboard metrics",
-      "Live agent activity monitoring",
+      "Real-time chat interface",
+      "Background job processing",
+      "Live dashboard metrics",
+      "Instant notifications",
     ],
-    gradient: "from-yellow-500 to-amber-600",
   },
 ];
 
@@ -215,11 +203,11 @@ export default function FeaturesPage() {
                 Everything included
               </span>
               <h1 className="mt-6 text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                Everything a finance team does.{" "}
-                <span className="text-primary">Done by agents.</span>
+                Everything your finance team{" "}
+                <span className="text-primary">needs to run</span>
               </h1>
               <p className="mt-6 max-w-2xl mx-auto text-lg leading-relaxed text-muted-foreground">
-                All 20 modules work together as one system — no spreadsheets, no
+                All modules work together as one system — no spreadsheets, no
                 plugins, no patchwork.
               </p>
             </div>

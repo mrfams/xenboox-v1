@@ -262,9 +262,9 @@ export default function MarketingLayout({
                 <span className="text-lg font-bold">Xenboox</span>
               </Link>
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed max-w-sm">
-                AI-native accounting platform built for African businesses.
+                AI-native accounting platform built for businesses worldwide.
                 Automated journal entries, reconciliations, payroll, and
-                financial reporting — powered by 19 specialized AI agents.
+                financial reporting — all in one place.
               </p>
               <div className="mt-6 flex items-center gap-3">
                 {socialLinks.map((social) => (

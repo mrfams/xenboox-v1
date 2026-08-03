@@ -23,7 +23,7 @@ const faqCategories = [
       },
       {
         q: "Is there a free plan?",
-        a: "Yes, Xenboox offers a free tier that includes basic accounting features, access to the Journal and Cash modules, and limited AI agent interactions. Upgrade to a paid plan for full access to all 20 modules and 19 AI agents.",
+        a: "Yes, Xenboox offers a free tier that includes basic accounting features and limited automation. Upgrade to a paid plan for full access to all modules and advanced AI features.",
       },
       {
         q: "What payment methods do you accept?",
@@ -66,28 +66,28 @@ const faqCategories = [
     ],
   },
   {
-    title: "AI Agents",
+    title: "AI & Automation",
     icon: Bot,
     questions: [
       {
-        q: "How do AI agents work in Xenboox?",
-        a: "Xenboox has 19 specialized AI agents in a three-tier hierarchy. The CFO Agent handles strategic decisions, department heads (Controller, Treasury, Payroll Manager, Compliance) manage specific domains, and worker agents execute tasks. Each agent operates with a confidence score, and low-confidence decisions are escalated to human supervisors.",
+        q: "How does AI automation work in Xenboox?",
+        a: "Xenboox uses AI to automate routine accounting tasks like transaction categorization, invoice processing, and bank reconciliation. The system learns from your business patterns and gets smarter over time, while always keeping you in control of important decisions.",
       },
       {
-        q: "Can I override AI agent decisions?",
-        a: "Absolutely. AI agents operate with human oversight at all times. Every action includes a confidence score. Below 0.7 confidence, actions are escalated to a supervisor agent. Below 0.4, they're escalated to a human. You can review, approve, or reject any agent action.",
+        q: "Can I override AI decisions?",
+        a: "Absolutely. You have full control at all times. Every AI action requires your approval before it affects your books. You can review, approve, or reject any suggestion, and the system learns from your feedback.",
       },
       {
-        q: "What happens if an AI agent makes a mistake?",
-        a: "All agent actions are logged with full context, including reasoning and confidence scores. If an error is detected, you can reverse the action and provide corrective feedback. The agent learns from corrections through the feedback loop. Additionally, the Ledger Agent validates all postings for double-entry integrity.",
+        q: "What happens if the AI makes a mistake?",
+        a: "All AI actions are logged and reversible. If you spot an error, you can undo it and provide feedback to improve future accuracy. The system maintains a complete audit trail of all actions for your records.",
       },
       {
-        q: "Which AI models power the agents?",
-        a: "Xenboox uses a multi-LLM architecture. Strategic agents (CFO, Controller) use Claude Sonnet for deep reasoning. Worker agents use Haiku for fast, efficient task execution. All agent activity is traced to LangFuse for observability.",
+        q: "Is my data used to train AI models?",
+        a: "No. Your financial data is never used to train AI models. We use industry-standard AI services that process your data only to provide the service, and all data is encrypted and isolated between customers.",
       },
       {
-        q: "Can I use my own API keys for AI?",
-        a: "Enterprise customers can configure custom LLM providers and API keys. This allows you to use your own accounts with Anthropic, OpenAI, or other providers for enhanced control and privacy.",
+        q: "Can I customize how the AI works for my business?",
+        a: "Yes. You can configure automation rules, set approval thresholds, and teach the AI your specific categorization preferences. Enterprise customers can also customize workflows to match their unique processes.",
       },
     ],
   },
@@ -97,7 +97,7 @@ const faqCategories = [
     questions: [
       {
         q: "What accounting modules are available?",
-        a: "Xenboox offers 20 modules: Accounts Payable, Accounts Receivable, Payroll, Treasury, Cash, Mobile Money, Inventory, Fixed Assets, Chart of Accounts, Journal, Fiscal Periods, Reports, Documents, Chat, Multi-Currency, Organizations, Settings, Analytics, Budgeting, and AI Agent Management.",
+        a: "Xenboox includes all core accounting modules: Accounts Payable, Accounts Receivable, Payroll, Treasury, Cash Management, Inventory, Fixed Assets, Chart of Accounts, Journal Entries, Financial Reports, and more. All modules work together seamlessly.",
       },
       {
         q: "Does Xenboox support multi-currency?",

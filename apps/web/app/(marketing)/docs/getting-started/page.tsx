@@ -79,15 +79,15 @@ const steps = [
     ],
   },
   {
-    title: "Explore AI Agents",
+    title: "Explore AI Features",
     description:
-      "Xenboox comes with 19 specialized AI agents that automate accounting tasks. Start using them to streamline your workflow.",
+      "Xenboox includes AI-powered automation for accounting tasks. Start using these features to streamline your workflow.",
     icon: Bot,
     details: [
-      "Chat with the CFO Agent for strategic financial insights",
-      "Use the Ledger Agent for automated journal posting",
-      "Let the AP Agent process invoices automatically",
-      "Schedule the Payroll Manager Agent for payroll runs",
+      "Use the AI chat assistant for financial insights",
+      "Enable automated transaction categorization",
+      "Set up automatic invoice processing",
+      "Configure approval workflows for your team",
     ],
   },
 ];
@@ -130,8 +130,8 @@ export default function GettingStartedPage() {
         <section>
           <p className="text-muted-foreground leading-relaxed">
             Xenboox is an AI-native, full-stack accounting platform designed for
-            businesses of all sizes. With 19 AI agents, 20 accounting modules,
-            and support for web, mobile, and desktop platforms, it provides
+            businesses of all sizes. With comprehensive accounting modules and
+            support for web, mobile, and desktop platforms, it provides
             everything you need to manage your financial operations efficiently.
           </p>
         </section>
@@ -239,10 +239,10 @@ export default function GettingStartedPage() {
                 </li>
                 <li>
                   <Link
-                    href="/docs/agents/cfo"
+                    href="/docs/getting-started"
                     className="text-primary hover:underline"
                   >
-                    Chat with the CFO Agent for financial insights →
+                    Learn about AI features →
                   </Link>
                 </li>
                 <li>
@@ -285,9 +285,9 @@ export default function GettingStartedPage() {
               description: "Browse all accounting modules",
             },
             {
-              title: "AI Agents Overview",
+              title: "AI Features",
               href: "/docs/agents",
-              description: "Learn about all 19 AI agents",
+              description: "Learn about AI automation features",
             },
           ]}
         />
