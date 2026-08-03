@@ -143,7 +143,7 @@ const primaryNavItems: NavItem[] = [
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
+  { label: "Help & Support", href: "/dashboard/settings", icon: HelpCircle },
 ];
 
 interface SidebarProps {

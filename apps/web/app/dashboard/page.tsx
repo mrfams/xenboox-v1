@@ -276,13 +276,13 @@ function ExecutiveBriefing({
             AI generated
           </span>
         </div>
-        <button
-          type="button"
+        <Link
+          href="/dashboard/chat"
           className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
         >
           View all insights
           <ArrowUpRight className="h-3 w-3" />
-        </button>
+        </Link>
       </div>
 
       <div className="scrollbar-hide flex items-center gap-3 overflow-x-auto pb-1">
@@ -717,7 +717,7 @@ function PendingApprovals({
       </div>
 
       <Link
-        href="/dashboard/review-queue"
+        href="/dashboard/inbox"
         className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
       >
         View all approvals
@@ -955,7 +955,7 @@ function DashboardRightSidebar({
         badge={String(deadlines.length)}
         action={
           <Link
-            href="/dashboard/calendar"
+            href="/dashboard/close"
             className="text-[11px] font-medium text-primary hover:text-primary/80 mr-2"
           >
             View all
