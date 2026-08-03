@@ -47,3 +47,4 @@ export * from "./ops-console";
 export * from "./ops-agent-monitor";
 export * from "./ops-live-runs";
 export * from "./ops-llm-router";
+export * from "./ops-cost-analytics";
