@@ -7,14 +7,20 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import {
   BookOpen,
+  Rocket,
+  Layers,
+  Key,
+  Webhook,
+  FileCode,
+  CreditCard,
   Shield,
-  Server,
-  FileText,
-  Bot,
+  HelpCircle,
   Sun,
   Moon,
   ChevronDown,
   ExternalLink,
+  Bell,
+  MessageSquare,
 } from "lucide-react";
 import { SearchDialog } from "./components/search-dialog";
 import { MobileNav } from "./components/mobile-nav";
@@ -28,72 +34,74 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    group: "Documentation",
+    group: "Introduction",
     href: "/docs",
     icon: <BookOpen className="h-4 w-4" />,
     items: [
+      { label: "Overview", href: "/docs" },
+      { label: "Quickstart", href: "/docs/quickstart" },
+      { label: "Core Concepts", href: "/docs/concepts" },
+    ],
+  },
+  {
+    group: "Guides",
+    href: "/docs/guides",
+    icon: <Rocket className="h-4 w-4" />,
+    items: [
       { label: "Getting Started", href: "/docs/getting-started" },
-      { label: "FAQ", href: "/docs/faq" },
+      { label: "Chart of Accounts", href: "/docs/chart-of-accounts" },
+      { label: "Users & Roles", href: "/docs/users-roles" },
+      { label: "Integrations", href: "/docs/integrations" },
+      { label: "Reports & Exports", href: "/docs/reports" },
+      { label: "Month-End Close", href: "/docs/month-end-close" },
     ],
   },
   {
     group: "Modules",
     href: "/docs/modules",
-    icon: <FileText className="h-4 w-4" />,
+    icon: <Layers className="h-4 w-4" />,
     items: [
-      { label: "AP", href: "/docs/modules/ap" },
-      { label: "AR", href: "/docs/modules/ar" },
+      { label: "Overview", href: "/docs/modules" },
+      { label: "Accounts Payable", href: "/docs/modules/ap" },
+      { label: "Accounts Receivable", href: "/docs/modules/ar" },
       { label: "Payroll", href: "/docs/modules/payroll" },
       { label: "Treasury", href: "/docs/modules/treasury" },
-      { label: "Cash", href: "/docs/modules/cash" },
-      { label: "Mobile Money", href: "/docs/modules/mobile-money" },
-      { label: "Inventory", href: "/docs/modules/inventory" },
-      { label: "Fixed Assets", href: "/docs/modules/fixed-assets" },
-      { label: "COA", href: "/docs/modules/coa" },
-      { label: "Journal", href: "/docs/modules/journal" },
-      { label: "Fiscal", href: "/docs/modules/fiscal" },
       { label: "Reports", href: "/docs/modules/reports" },
-      { label: "Documents", href: "/docs/modules/documents" },
-      { label: "Chat", href: "/docs/modules/chat" },
-      { label: "Currency", href: "/docs/modules/currency" },
-      { label: "Organizations", href: "/docs/modules/organizations" },
-      { label: "Settings", href: "/docs/modules/settings" },
-      { label: "Analytics", href: "/docs/modules/analytics" },
     ],
   },
   {
-    group: "AI Agents",
-    href: "/docs/agents",
-    icon: <Bot className="h-4 w-4" />,
+    group: "API",
+    href: "/docs/api",
+    icon: <FileCode className="h-4 w-4" />,
     items: [
-      { label: "CFO", href: "/docs/agents/cfo" },
-      { label: "Controller", href: "/docs/agents/controller" },
-      { label: "Payroll", href: "/docs/agents/payroll" },
-      { label: "Treasury", href: "/docs/agents/treasury" },
-      { label: "Compliance", href: "/docs/agents/compliance" },
-      { label: "Ledger", href: "/docs/agents/ledger" },
-      { label: "AP", href: "/docs/agents/ap" },
-      { label: "AR", href: "/docs/agents/ar" },
-      { label: "Cash", href: "/docs/agents/cash" },
-      { label: "Mobile Money", href: "/docs/agents/mobile-money" },
-      { label: "Inventory", href: "/docs/agents/inventory" },
-      { label: "Fixed Assets", href: "/docs/agents/fixed-assets" },
-      { label: "Reporting", href: "/docs/agents/reporting" },
-      { label: "Fiscal", href: "/docs/agents/fiscal" },
-      { label: "Document", href: "/docs/agents/document" },
-      { label: "Chat", href: "/docs/agents/chat" },
-      { label: "Analytics", href: "/docs/agents/analytics" },
-      { label: "Budget", href: "/docs/agents/budget" },
-      { label: "Audit", href: "/docs/agents/audit" },
+      { label: "Overview", href: "/docs/api" },
+      { label: "Authentication", href: "/docs/api/auth" },
+      { label: "Endpoints", href: "/docs/api/endpoints" },
+      { label: "Webhooks", href: "/docs/webhooks" },
+      { label: "Rate Limits", href: "/docs/api/rate-limits" },
+      { label: "SDKs", href: "/docs/sdks" },
     ],
   },
   {
-    group: "Infrastructure",
-    href: "#",
+    group: "Security",
+    href: "/docs/security",
     icon: <Shield className="h-4 w-4" />,
     items: [
-      { label: "Security", href: "/docs/security" },
-      { label: "DevOps", href: "/docs/devsecops" },
+      { label: "Overview", href: "/docs/security" },
+      { label: "Authentication", href: "/docs/security/auth" },
+      { label: "Encryption", href: "/docs/security/encryption" },
+      { label: "Compliance", href: "/docs/security/compliance" },
+    ],
+  },
+  {
+    group: "Resources",
+    href: "/docs/resources",
+    icon: <HelpCircle className="h-4 w-4" />,
+    items: [
+      { label: "FAQ", href: "/docs/faq" },
+      { label: "Changelog", href: "/docs/changelog" },
+      { label: "Status", href: "https://status.xenboox.com" },
+      { label: "Support", href: "/contact" },
     ],
   },
 ];
@@ -107,7 +115,7 @@ export default function DocsLayout({
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(["Documentation"]),
+    new Set(["Introduction"]),
   );
 
   useEffect(() => setMounted(true), []);
@@ -135,7 +143,7 @@ export default function DocsLayout({
 
   return (
     <>
-      {/* Mobile bar — docs nav, search, dark mode on small screens */}
+      {/* Mobile bar */}
       <div className="md:hidden sticky top-14 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-12 items-center justify-between px-4">
           <MobileNav />
@@ -165,10 +173,12 @@ export default function DocsLayout({
           {/* Left Sidebar */}
           <aside className="hidden md:flex w-56 lg:w-64 shrink-0 border-r">
             <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto w-full p-3 scrollbar-thin">
-              {/* Search inside sidebar - only on md screens where sidebar is visible */}
-              <div className="mb-3">
+              {/* Search */}
+              <div className="mb-4">
                 <SearchDialog />
               </div>
+
+              {/* Navigation */}
               <nav className="space-y-1">
                 {navGroups.map((group, idx) => {
                   const isActive =
@@ -237,9 +247,18 @@ export default function DocsLayout({
                   href="/contact"
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <ExternalLink className="h-3 w-3" />
+                  <MessageSquare className="h-3 w-3" />
                   Support
                 </Link>
+                <a
+                  href="https://status.xenboox.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Bell className="h-3 w-3" />
+                  Status
+                </a>
                 <div className="border-t pt-2 mt-2">
                   <button
                     onClick={() =>
