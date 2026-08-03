@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEntity } from "@/lib/entity-context";
@@ -789,6 +789,67 @@ function ActiveAgents() {
   );
 }
 
+// ─── Collapsible Section Component ─────────────────────────────────────────
+
+function CollapsibleSection({
+  title,
+  children,
+  action,
+  defaultOpen = true,
+  badge,
+  icon,
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+  defaultOpen?: boolean;
+  badge?: string;
+  icon?: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card overflow-hidden transition-all duration-200 hover:border-border/80">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-accent/30"
+      >
+        <div className="flex items-center gap-2.5">
+          {icon && (
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+              {icon}
+            </span>
+          )}
+          <span className="text-sm font-semibold text-foreground">{title}</span>
+          {badge && (
+            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
+              {badge}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {action}
+          <ChevronRight
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform duration-200",
+              isOpen && "rotate-90",
+            )}
+          />
+        </div>
+      </button>
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-300 ease-in-out",
+          isOpen ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0",
+        )}
+      >
+        <div className="px-4 pb-4 pt-1">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard Right Sidebar ──────────────────────────────────────────────
 
 function DashboardRightSidebar({
@@ -839,25 +900,27 @@ function DashboardRightSidebar({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Upcoming & Deadlines */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">
-            Upcoming & Deadlines
-          </h3>
-          <button
-            type="button"
-            className="flex items-center gap-0.5 text-[11px] font-medium text-primary hover:text-primary/80"
+      <CollapsibleSection
+        title="Upcoming & Deadlines"
+        icon={<Calendar className="h-4 w-4 text-primary" />}
+        badge={String(deadlines.length)}
+        action={
+          <Link
+            href="/dashboard/calendar"
+            className="text-[11px] font-medium text-primary hover:text-primary/80 mr-2"
           >
-            View calendar <ChevronRight className="h-3 w-3" />
-          </button>
-        </div>
+            View all
+          </Link>
+        }
+        defaultOpen={true}
+      >
         <div className="space-y-2">
           {deadlines.map((d) => (
             <div
               key={d.id}
-              className="flex items-center gap-3 rounded-lg border border-border/50 bg-card p-2.5 hover:shadow-sm transition-all"
+              className="flex items-center gap-3 rounded-lg bg-background p-2.5 hover:shadow-sm transition-all border border-border/30"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                 <Calendar className="h-4 w-4 text-primary" />
@@ -881,21 +944,23 @@ function DashboardRightSidebar({
             </div>
           ))}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Recent Documents */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">
-            Recent Documents
-          </h3>
+      <CollapsibleSection
+        title="Recent Documents"
+        icon={<FileText className="h-4 w-4 text-blue-500" />}
+        badge={String(recentDocuments.length)}
+        action={
           <Link
             href="/dashboard/documents"
-            className="flex items-center gap-0.5 text-[11px] font-medium text-primary hover:text-primary/80"
+            className="text-[11px] font-medium text-primary hover:text-primary/80 mr-2"
           >
-            View all <ChevronRight className="h-3 w-3" />
+            View all
           </Link>
-        </div>
+        }
+        defaultOpen={true}
+      >
         <div className="space-y-1.5">
           {recentDocuments.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
@@ -920,21 +985,23 @@ function DashboardRightSidebar({
             ))
           )}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Recent Conversations */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">
-            Recent Conversations
-          </h3>
+      <CollapsibleSection
+        title="Recent Conversations"
+        icon={<MessageSquare className="h-4 w-4 text-purple-500" />}
+        badge={String(recentConversations.length)}
+        action={
           <Link
             href="/dashboard/chat"
-            className="flex items-center gap-0.5 text-[11px] font-medium text-primary hover:text-primary/80"
+            className="text-[11px] font-medium text-primary hover:text-primary/80 mr-2"
           >
-            View all <ChevronRight className="h-3 w-3" />
+            View all
           </Link>
-        </div>
+        }
+        defaultOpen={true}
+      >
         <div className="space-y-1.5">
           {recentConversations.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
@@ -959,13 +1026,15 @@ function DashboardRightSidebar({
             ))
           )}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Suggested Actions */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">
-          Suggested Actions
-        </h3>
+      <CollapsibleSection
+        title="Suggested Actions"
+        icon={<Sparkles className="h-4 w-4 text-amber-500" />}
+        badge={String(suggestedActions.length)}
+        defaultOpen={true}
+      >
         <div className="space-y-1.5">
           {suggestedActions.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
@@ -987,7 +1056,7 @@ function DashboardRightSidebar({
             ))
           )}
         </div>
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }
