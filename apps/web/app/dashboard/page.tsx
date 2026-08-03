@@ -28,7 +28,11 @@ import {
   BookOpen,
   Shield,
   MessageSquare,
+  Zap,
+  Activity,
+  ArrowUpRight,
 } from "lucide-react";
+import { TextSelectionMenu } from "@/components/dashboard/text-selection-menu";
 
 // ─── Mini Sparkline Component ─────────────────────────────────────────────
 
@@ -79,16 +83,26 @@ function AIGreeting({ firstName }: { firstName?: string }) {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="space-y-1">
-      <h1 className="text-3xl font-bold tracking-tight text-foreground">
-        {greeting}, {firstName ?? "there"}!{" "}
-        <span className="inline-block motion-safe:animate-[wave_2s_ease-in-out_infinite] origin-[70%_70%]">
-          👋
-        </span>
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Here&apos;s what&apos;s happening with your business today.
-      </p>
+    <div className="flex items-start justify-between">
+      <div className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          {greeting}, {firstName ?? "there"}!{" "}
+          <span className="inline-block motion-safe:animate-[wave_2s_ease-in-out_infinite] origin-[70%_70%]">
+            👋
+          </span>
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Here&apos;s what&apos;s happening with your business today.
+        </p>
+      </div>
+      <div className="hidden sm:flex items-center gap-2">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-medium text-emerald-700">
+            All systems operational
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -100,28 +114,41 @@ function AIChatInput() {
   const [isFocused, setIsFocused] = useState(false);
 
   const suggestions = [
-    { label: "Close July books", icon: BookOpen },
-    { label: "Explain cash position", icon: Wallet },
-    { label: "Create payroll", icon: FileText },
-    { label: "Find duplicate expenses", icon: Search },
-    { label: "Forecast next month", icon: BarChart3 },
-    { label: "Show unpaid invoices", icon: Calendar },
+    { label: "Close July books", icon: BookOpen, color: "text-blue-500" },
+    { label: "Explain cash position", icon: Wallet, color: "text-emerald-500" },
+    { label: "Create payroll", icon: FileText, color: "text-purple-500" },
+    { label: "Find duplicate expenses", icon: Search, color: "text-amber-500" },
+    { label: "Forecast next month", icon: BarChart3, color: "text-indigo-500" },
+    { label: "Show unpaid invoices", icon: Calendar, color: "text-rose-500" },
   ];
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-foreground">
-        What would you like Xenboox to do today?
-      </p>
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20">
+          <Zap className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            AI Command Center
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Ask anything or give a task to your AI agents
+          </p>
+        </div>
+      </div>
       <div
         className={cn(
           "relative group rounded-2xl border-2 bg-card transition-all duration-300",
           isFocused
-            ? "border-primary/50 shadow-lg shadow-primary/5"
+            ? "border-primary/50 shadow-lg shadow-primary/10"
             : "border-border/50 hover:border-border/80 hover:shadow-md",
         )}
       >
         <div className="relative flex items-center gap-3 px-4 py-3.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Bot className="h-4 w-4" />
+          </div>
           <input
             type="text"
             value={inputValue}
@@ -144,6 +171,20 @@ function AIChatInput() {
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
+        {isFocused && (
+          <div className="border-t border-border/50 px-4 py-2">
+            <p className="text-[10px] text-muted-foreground">
+              <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">
+                Enter
+              </kbd>{" "}
+              to send ·
+              <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">
+                Shift+Enter
+              </kbd>{" "}
+              for new line
+            </p>
+          </div>
+        )}
       </div>
       <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
         {suggestions.map((suggestion) => {
@@ -159,7 +200,7 @@ function AIChatInput() {
                 "active:scale-95",
               )}
             >
-              <Icon className="h-3 w-3" />
+              <Icon className={cn("h-3 w-3", suggestion.color)} />
               {suggestion.label}
             </button>
           );
@@ -230,8 +271,8 @@ function ExecutiveBriefing({
           <h2 className="text-sm font-semibold text-foreground">
             Executive Briefing
           </h2>
-          <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+          <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-primary/10 to-purple-500/10 px-2.5 py-0.5 text-[10px] font-medium text-primary">
+            <Sparkles className="h-3 w-3" />
             AI generated
           </span>
         </div>
@@ -240,7 +281,7 @@ function ExecutiveBriefing({
           className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
         >
           View all insights
-          <ChevronRight className="h-3 w-3" />
+          <ArrowUpRight className="h-3 w-3" />
         </button>
       </div>
 
@@ -409,9 +450,15 @@ function BusinessHealth({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">
-          Business Health
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground">
+            Business Health
+          </h2>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Activity className="h-3 w-3" />
+            Live data
+          </span>
+        </div>
         <select className="text-[11px] font-medium text-muted-foreground bg-transparent border border-border/50 rounded-lg px-2 py-1 outline-none">
           <option>This month</option>
           <option>Last month</option>
@@ -1103,8 +1150,25 @@ export default function DashboardPage() {
     );
   }
 
+  const handleAskAI = (text: string) => {
+    console.log("Ask AI about:", text);
+  };
+
+  const handleExplain = (text: string) => {
+    console.log("Explain:", text);
+  };
+
+  const handleCorrect = (text: string) => {
+    console.log("Correct:", text);
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
+      <TextSelectionMenu
+        onAskAI={handleAskAI}
+        onExplain={handleExplain}
+        onCorrect={handleCorrect}
+      />
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-6 p-6">
