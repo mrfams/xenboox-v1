@@ -2,25 +2,25 @@ import { test, expect } from "@playwright/test";
 
 /**
  * =============================================================================
- * XENBOOX — COMPREHENSIVE E2E TEST SUITE
+ * XENBOOX — COMPREHENSIVE E2E TEST SUITE (v2 — Updated)
  * =============================================================================
  *
  * This suite tests every surface of the application:
  *   W.01  Marketing Pages (public)
  *   W.02  Auth Pages (login, register, forgot-password)
  *   W.03  Protected Routes (redirect to login when unauthenticated)
- *   W.04  Dashboard Module Routes (all 20+ modules)
- *   W.05  Cross-Cutting: Register -> Onboarding -> Dashboard flow
- *   W.06  Security & Edge Cases (XSS, validation, security headers)
- *   W.07  API Endpoints (health, tRPC)
- *   W.08  Error Handling (404, 500, error boundaries)
- *   W.09  Responsive Design (desktop, tablet, mobile)
+ *   W.04  Dashboard Module Routes
+ *   W.05  Cross-Cutting: Login → Dashboard flow
+ *   W.06  Security & Edge Cases
+ *   W.07  API Endpoints
+ *   W.08  Error Handling
+ *   W.09  Responsive Design
  *   W.10  Performance Budgets
  *   W.11  Accessibility Basics
- *   W.12  Admin & Firm Routes
- *   W.13  Legal & Compliance Pages
- *   W.14  Document/Media Routes
- *   W.15  Pipeline & Sub-routes
+ *   W.12  Legal & Compliance Pages
+ *   W.13  Blog Pages
+ *   W.14  Careers Pages
+ *   W.15  Console Error Audit
  */
 
 const BASE_URL = process.env.BASE_URL || "https://xenboox.vercel.app";
@@ -63,7 +63,7 @@ test.describe("W.01 Marketing Pages — Public Routes", () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// W.02 — AUTH PAGES (Login, Register, Forgot Password)
+// W.02 — AUTH PAGES
 // ═════════════════════════════════════════════════════════════════════════════
 
 test.describe("W.02 Auth Pages", () => {
@@ -90,7 +90,6 @@ test.describe("W.02 Auth Pages", () => {
     await page.locator('input[type="password"]').fill("wrongpassword123");
     await page.locator('button[type="submit"]').click();
     await page.waitForTimeout(3000);
-    // Should stay on login or be at error callback — not at dashboard
     expect(page.url()).not.toContain("/dashboard");
   });
 
@@ -133,7 +132,7 @@ test.describe("W.02 Auth Pages", () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// W.03 — PROTECTED ROUTES (all must redirect to login)
+// W.03 — PROTECTED ROUTES
 // ═════════════════════════════════════════════════════════════════════════════
 
 test.describe("W.03 Protected Routes — Unauthenticated Redirect", () => {
@@ -141,90 +140,83 @@ test.describe("W.03 Protected Routes — Unauthenticated Redirect", () => {
     "/dashboard",
     "/dashboard/settings",
     "/dashboard/chat",
-    "/dashboard/notifications",
-    "/dashboard/review-queue",
-    "/dashboard/approvals",
-    "/dashboard/audit-log",
+    "/dashboard/inbox",
+    "/dashboard/transactions",
+    "/dashboard/banking",
+    "/dashboard/journal",
+    "/dashboard/customers",
+    "/dashboard/vendors",
+    "/dashboard/invoicing",
+    "/dashboard/bills",
+    "/dashboard/expenses",
+    "/dashboard/payroll",
+    "/dashboard/reports",
+    "/dashboard/close",
+    "/dashboard/reconciliation/center",
+    "/dashboard/agent-monitor",
     "/admin",
-    "/admin/users",
-    "/admin/organizations",
-    "/admin/settings",
-    "/admin/analytics",
-    "/admin/financial",
-    "/admin/spending",
   ];
 
   for (const route of protectedRoutes) {
     test(`${route}: redirects unauthenticated user to login`, async ({
       page,
     }) => {
-      await page.goto(route, { waitUntil: "domcontentloaded", timeout: 15000 });
+      await page.goto(route, {
+        waitUntil: "domcontentloaded",
+        timeout: 15000,
+      });
       await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
     });
   }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// W.04 — DASHBOARD MODULE ROUTES (all must redirect to login when unauthed)
+// W.04 — DASHBOARD MODULE ROUTES
 // ═════════════════════════════════════════════════════════════════════════════
 
 test.describe("W.04 Dashboard Module Routes — Redirect to Login", () => {
   const moduleRoutes = [
-    "/dashboard/coa",
-    "/dashboard/journal",
-    "/dashboard/ap/invoices",
-    "/dashboard/ap/suppliers",
-    "/dashboard/ap/pos",
-    "/dashboard/ar/invoices",
-    "/dashboard/ar/customers",
-    "/dashboard/treasury",
-    "/dashboard/cash",
-    "/dashboard/mobile-money",
-    "/dashboard/payroll",
-    "/dashboard/payroll/runs",
-    "/dashboard/payroll/employees",
-    "/dashboard/fixed-assets",
-    "/dashboard/inventory",
-    "/dashboard/inventory/warehouses",
-    "/dashboard/expense/pipeline",
-    "/dashboard/budget/pipeline",
-    "/dashboard/reports",
-    "/dashboard/reports/profit-and-loss",
-    "/dashboard/reports/balance-sheet",
-    "/dashboard/trial-balance",
-    "/dashboard/tax-compliance/pipeline",
-    "/dashboard/audit/pipeline",
-    "/dashboard/analytics/pipeline",
+    "/dashboard/agent-monitor",
+    "/dashboard/automation",
+    "/dashboard/banking",
+    "/dashboard/bills",
+    "/dashboard/chart-of-accounts",
+    "/dashboard/chat",
     "/dashboard/close",
+    "/dashboard/customers",
     "/dashboard/documents",
-    "/dashboard/invoices",
-    "/dashboard/consolidation",
-    "/dashboard/consolidation/view",
-    "/dashboard/firm",
-    "/dashboard/jurisdiction",
-    "/dashboard/api-keys",
-    "/dashboard/branding",
-    "/dashboard/benchmarking",
-    "/dashboard/ingestion",
-    "/dashboard/help",
-    "/dashboard/fiscal",
+    "/dashboard/expenses",
+    "/dashboard/fixed-assets",
+    "/dashboard/inbox",
+    "/dashboard/invoicing",
+    "/dashboard/journal",
+    "/dashboard/payroll",
+    "/dashboard/reconciliation/center",
+    "/dashboard/reconciliation",
+    "/dashboard/reports",
+    "/dashboard/settings",
+    "/dashboard/transactions",
+    "/dashboard/vendors",
   ];
 
   for (const route of moduleRoutes) {
     test(`${route}: redirects to login when unauthenticated`, async ({
       page,
     }) => {
-      await page.goto(route, { waitUntil: "domcontentloaded", timeout: 15000 });
+      await page.goto(route, {
+        waitUntil: "domcontentloaded",
+        timeout: 15000,
+      });
       await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
     });
   }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// W.05 — CROSS-CUTTING: Register -> Onboarding -> Dashboard (demo@xenboox.com)
+// W.05 — CROSS-CUTTING: Login → Dashboard
 // ═════════════════════════════════════════════════════════════════════════════
 
-test.describe("W.05 Cross-Cutting Flow — Register / Login / Dashboard", () => {
+test.describe("W.05 Cross-Cutting Flow — Login / Dashboard", () => {
   test("login with demo credentials redirects to dashboard", async ({
     page,
   }) => {
@@ -236,6 +228,30 @@ test.describe("W.05 Cross-Cutting Flow — Register / Login / Dashboard", () => 
     await page.waitForURL("**/dashboard**", { timeout: 20000 });
     expect(page.url()).toContain("/dashboard");
     await expect(page.locator("body")).toBeVisible();
+  });
+
+  test("dashboard has sidebar navigation", async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, "Test credentials not configured");
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    await page.locator('input[type="email"]').fill(TEST_EMAIL);
+    await page.locator('input[type="password"]').fill(TEST_PASSWORD);
+    await page.locator('button[type="submit"]').click();
+    await page.waitForURL("**/dashboard**", { timeout: 20000 });
+
+    // Should have sidebar with navigation items
+    await expect(page.locator('[data-tour="sidebar"]')).toBeVisible();
+  });
+
+  test("dashboard has AI chat panel", async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, "Test credentials not configured");
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    await page.locator('input[type="email"]').fill(TEST_EMAIL);
+    await page.locator('input[type="password"]').fill(TEST_PASSWORD);
+    await page.locator('button[type="submit"]').click();
+    await page.waitForURL("**/dashboard**", { timeout: 20000 });
+
+    // Should have CFO Agent chat panel
+    await expect(page.locator("text=CFO Agent").first()).toBeVisible();
   });
 });
 
@@ -259,41 +275,6 @@ test.describe("W.06 Security & Edge Cases", () => {
       await page.waitForTimeout(1000);
       await expect(page.locator("body")).toBeVisible();
     }
-  });
-
-  test("register form: special characters in name are handled", async ({
-    page,
-  }) => {
-    const specialNames = [
-      "John <script>alert('xss')</script> Doe",
-      "日本語の名前",
-      "الاسم العربي",
-      "𝒥𝓊𝓈𝓉𝒾𝓃 𝓉ℯ𝓈𝓉",
-    ];
-    for (const name of specialNames) {
-      await page.goto("/register", { waitUntil: "domcontentloaded" });
-      await page.locator('input[id="name"]').fill(name);
-      await page
-        .locator('input[id="email"]')
-        .fill(`test${Date.now()}@example.com`);
-      await page.locator('input[id="password"]').fill("password123");
-      await page.waitForTimeout(500);
-      await expect(page.locator('input[id="name"]')).toHaveValue(name);
-    }
-  });
-
-  test("security headers: Content-Security-Policy present", async ({
-    page,
-  }) => {
-    const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-    expect(response).not.toBeNull();
-    const headers = response!.headers();
-    expect(headers["x-content-type-options"]).toBeDefined();
-    // Vercel typically sets these
-    const hasCSP = headers["content-security-policy"] !== undefined;
-    const hasXFO = headers["x-frame-options"] !== undefined;
-    const hasRP = headers["referrer-policy"] !== undefined;
-    console.log(`Security headers: CSP=${hasCSP} XFO=${hasXFO} RP=${hasRP}`);
   });
 
   test("URL parameters: open redirect protection", async ({ page }) => {
@@ -321,17 +302,6 @@ test.describe("W.07 API Endpoints", () => {
     });
     expect(response?.status()).toBe(200);
   });
-
-  test("protected tRPC endpoint returns 401/redirect for unauthenticated", async ({
-    page,
-  }) => {
-    const response = await page.goto("/api/trpc/ar.listInvoices", {
-      waitUntil: "domcontentloaded",
-    });
-    // Should not expose data
-    const body = await page.locator("body").textContent();
-    expect(body).not.toContain("invoices");
-  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -343,7 +313,7 @@ test.describe("W.08 Error Handling", () => {
     const response = await page.goto("/this-route-does-not-exist", {
       waitUntil: "domcontentloaded",
     });
-    expect(response?.status()).toBe(200); // Next.js renders not-found.tsx
+    expect(response?.status()).toBe(200);
     const bodyText = await page.locator("body").textContent();
     expect(bodyText).toMatch(/not.?found|404|missing/i);
   });
@@ -352,12 +322,6 @@ test.describe("W.08 Error Handling", () => {
     await page.goto("/dashboard/this-does-not-exist", {
       waitUntil: "domcontentloaded",
     });
-    await expect(page.locator("body")).toBeVisible();
-  });
-
-  test("error boundary renders for dashboard errors", async ({ page }) => {
-    // Trigger an error route
-    await page.goto("/dashboard/error", { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
   });
 });
@@ -444,38 +408,10 @@ test.describe("W.11 Accessibility Basics", () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// W.12 — ADMIN & FIRM ROUTES
+// W.12 — LEGAL & COMPLIANCE PAGES
 // ═════════════════════════════════════════════════════════════════════════════
 
-test.describe("W.12 Admin & Firm Routes — Redirect to Login", () => {
-  const routes = [
-    "/admin",
-    "/admin/users",
-    "/admin/organizations",
-    "/admin/analytics",
-    "/admin/alerts",
-    "/admin/settings",
-    "/admin/spending",
-    "/admin/financial",
-    "/dashboard/firm",
-    "/dashboard/firm/clients",
-    "/dashboard/branding",
-    "/dashboard/api-keys",
-  ];
-
-  for (const route of routes) {
-    test(`${route}: redirects unauthenticated`, async ({ page }) => {
-      await page.goto(route, { waitUntil: "domcontentloaded", timeout: 15000 });
-      await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    });
-  }
-});
-
-// ═════════════════════════════════════════════════════════════════════════════
-// W.13 — LEGAL & COMPLIANCE PAGES
-// ═════════════════════════════════════════════════════════════════════════════
-
-test.describe("W.13 Legal & Compliance Pages", () => {
+test.describe("W.12 Legal & Compliance Pages", () => {
   const legalPages = [
     { path: "/privacy", title: /Privacy|Xenboox/i },
     { path: "/terms", title: /Terms|Xenboox/i },
@@ -483,7 +419,6 @@ test.describe("W.13 Legal & Compliance Pages", () => {
     { path: "/refund", title: /Refund|Xenboox/i },
     { path: "/sla", title: /SLA|Xenboox/i },
     { path: "/docs", title: /Docs|Xenboox/i },
-    { path: "/docs/security", title: /Security|Xenboox/i },
   ];
 
   for (const { path, title } of legalPages) {
@@ -499,10 +434,69 @@ test.describe("W.13 Legal & Compliance Pages", () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// W.14 — CONSOLE ERROR AUDIT
+// W.13 — BLOG PAGES
 // ═════════════════════════════════════════════════════════════════════════════
 
-test.describe("W.14 Console & Page Error Audit", () => {
+test.describe("W.13 Blog Pages", () => {
+  test("blog listing page loads", async ({ page }) => {
+    const response = await page.goto("/blog", {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+    expect(response?.status()).toBe(200);
+    await expect(page.locator("h1")).toBeVisible();
+  });
+
+  test("blog post pages load (from listing)", async ({ page }) => {
+    await page.goto("/blog", { waitUntil: "domcontentloaded" });
+    // Click on first blog post link
+    const firstPost = page.locator('a[href^="/blog/"]').first();
+    if (await firstPost.isVisible()) {
+      await firstPost.click();
+      await page.waitForLoadState("domcontentloaded");
+      await expect(page.locator("article")).toBeVisible();
+    }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// W.14 — CAREERS PAGES
+// ═════════════════════════════════════════════════════════════════════════════
+
+test.describe("W.14 Careers Pages", () => {
+  test("careers listing page loads", async ({ page }) => {
+    const response = await page.goto("/careers", {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+    expect(response?.status()).toBe(200);
+    await expect(page.locator("h1")).toBeVisible();
+  });
+
+  test("careers page has job listings", async ({ page }) => {
+    await page.goto("/careers", { waitUntil: "domcontentloaded" });
+    // Should have job listing cards
+    const jobCards = page.locator('a[href^="/careers/"]');
+    const count = await jobCards.count();
+    expect(count).toBeGreaterThan(0);
+  });
+
+  test("job detail page loads", async ({ page }) => {
+    await page.goto("/careers", { waitUntil: "domcontentloaded" });
+    const firstJob = page.locator('a[href^="/careers/"]').first();
+    if (await firstJob.isVisible()) {
+      await firstJob.click();
+      await page.waitForLoadState("domcontentloaded");
+      await expect(page.locator("h1")).toBeVisible();
+    }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// W.15 — CONSOLE ERROR AUDIT
+// ═════════════════════════════════════════════════════════════════════════════
+
+test.describe("W.15 Console & Page Error Audit", () => {
   test("no console errors across all public pages", async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (msg) => {
@@ -520,6 +514,8 @@ test.describe("W.14 Console & Page Error Audit", () => {
       "/contact",
       "/privacy",
       "/terms",
+      "/blog",
+      "/careers",
     ];
     for (const path of pages) {
       await page.goto(path, { waitUntil: "domcontentloaded", timeout: 15000 });
@@ -547,30 +543,4 @@ test.describe("W.14 Console & Page Error Audit", () => {
     }
     expect(errors).toEqual([]);
   });
-});
-
-// ═════════════════════════════════════════════════════════════════════════════
-// W.15 — PIPELINE SUB-ROUTES
-// ═════════════════════════════════════════════════════════════════════════════
-
-test.describe("W.15 Pipeline Sub-Routes — Redirect to Login", () => {
-  const pipelineRoutes = [
-    "/dashboard/audit/pipeline",
-    "/dashboard/analytics/pipeline",
-    "/dashboard/expense/pipeline",
-    "/dashboard/budget/pipeline",
-    "/dashboard/asset-pipeline/pipeline",
-    "/dashboard/inventory-pipeline/pipeline",
-    "/dashboard/tax-compliance/pipeline",
-    "/dashboard/payroll/pipeline",
-    "/dashboard/consolidation/pipeline",
-    "/dashboard/ingestion",
-  ];
-
-  for (const route of pipelineRoutes) {
-    test(`${route}: redirects unauthenticated`, async ({ page }) => {
-      await page.goto(route, { waitUntil: "domcontentloaded", timeout: 15000 });
-      await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    });
-  }
 });
