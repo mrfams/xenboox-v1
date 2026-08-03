@@ -58,6 +58,7 @@ import { closeCenterRouter } from "./close-center";
 import { opsConsoleRouter } from "./ops-console";
 import { agentMonitorRouter } from "./agent-monitor";
 import { liveRunsRouter } from "./live-runs";
+import { llmRouter } from "./llm-router";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -120,6 +121,7 @@ export const appRouter = router({
   opsConsole: opsConsoleRouter,
   agentMonitor: agentMonitorRouter,
   liveRuns: liveRunsRouter,
+  llmRouter: llmRouter,
 });
 
 export type AppRouter = typeof appRouter;
