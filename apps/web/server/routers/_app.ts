@@ -64,6 +64,7 @@ import { tokenUsageRouter } from "./token-usage";
 import { promptLibraryRouter } from "./prompt-library";
 import { reviewQueueRouter } from "./review-queue";
 import { customerDiagnosticsRouter } from "./customer-diagnostics";
+import { infrastructureRouter } from "./infrastructure";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -132,6 +133,7 @@ export const appRouter = router({
   promptLibrary: promptLibraryRouter,
   reviewQueue: reviewQueueRouter,
   customerDiagnostics: customerDiagnosticsRouter,
+  infrastructure: infrastructureRouter,
 });
 
 export type AppRouter = typeof appRouter;
