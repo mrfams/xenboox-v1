@@ -55,3 +55,4 @@ export * from "./ops-customer-diagnostics";
 export * from "./ops-infrastructure";
 export * from "./ops-logs-traces";
 export * from "./ops-feature-flags";
+export * from "./ops-company-brain";
