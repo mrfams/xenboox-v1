@@ -60,6 +60,7 @@ import { agentMonitorRouter } from "./agent-monitor";
 import { liveRunsRouter } from "./live-runs";
 import { llmRouter } from "./llm-router";
 import { costAnalyticsRouter } from "./cost-analytics";
+import { tokenUsageRouter } from "./token-usage";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -124,6 +125,7 @@ export const appRouter = router({
   liveRuns: liveRunsRouter,
   llmRouter: llmRouter,
   costAnalytics: costAnalyticsRouter,
+  tokenUsage: tokenUsageRouter,
 });
 
 export type AppRouter = typeof appRouter;
