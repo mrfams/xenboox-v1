@@ -1,4 +1,5 @@
 export interface BlogPost {
+  id: string;
   slug: string;
   title: string;
   excerpt: string;
@@ -18,6 +19,7 @@ export interface BlogPost {
 
 export const blogPosts: BlogPost[] = [
   {
+    id: "1",
     slug: "introducing-ai-accounting",
     title: "Introducing AI-Native Accounting for Modern Businesses",
     excerpt:
@@ -71,6 +73,7 @@ We're just getting started. Our roadmap includes:
     featured: true,
   },
   {
+    id: "2",
     slug: "why-traditional-accounting-fails",
     title: "Why Traditional Accounting Software Fails Modern Businesses",
     excerpt:
@@ -132,6 +135,7 @@ The accounting software industry is ripe for disruption. We're building the plat
     featured: true,
   },
   {
+    id: "3",
     slug: "building-ai-agents",
     title: "Building Intelligent AI Agents for Accounting",
     excerpt:
@@ -195,6 +199,7 @@ We're continuing to push the boundaries of what's possible with AI in accounting
     featured: false,
   },
   {
+    id: "4",
     slug: "multi-currency-support",
     title: "Multi-Currency Support: Handling Global Transactions",
     excerpt:
@@ -256,6 +261,7 @@ Here's how a simple transaction looks:
     featured: false,
   },
   {
+    id: "5",
     slug: "getting-started-guide",
     title: "Getting Started with Xenboox: A Complete Guide",
     excerpt:
@@ -323,6 +329,7 @@ This guide will walk you through everything you need to get started with Xenboox
     featured: false,
   },
   {
+    id: "6",
     slug: "security-best-practices",
     title: "Security Best Practices for Your Financial Data",
     excerpt:
