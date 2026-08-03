@@ -162,7 +162,7 @@ function DonutChart({
   total,
   totalLabel,
 }: {
-  segments: { name: string; percentage: string; tokens: string }[];
+  segments: { name: string; percentage: string; tokens: string | number }[];
   total: string;
   totalLabel: string;
 }) {
@@ -251,7 +251,12 @@ function HorizontalBarList({
   maxTokens,
 }: {
   title: string;
-  items: { name: string; tokens: string; percentage: string; runs?: number }[];
+  items: {
+    name: string;
+    tokens: string | number;
+    percentage: string;
+    runs?: number;
+  }[];
   maxTokens: number;
 }) {
   return (
@@ -303,7 +308,7 @@ function InsightsCard({
     type: string;
     title: string;
     description: string;
-    badge: string;
+    badge: string | null;
   }[];
 }) {
   const icons: Record<string, React.ReactNode> = {
@@ -341,7 +346,10 @@ function InsightsCard({
             </div>
             <Badge
               variant="secondary"
-              className={cn("text-[10px]", badgeStyles[insight.badge])}
+              className={cn(
+                "text-[10px]",
+                insight.badge ? badgeStyles[insight.badge] : "",
+              )}
             >
               {insight.badge}
             </Badge>
