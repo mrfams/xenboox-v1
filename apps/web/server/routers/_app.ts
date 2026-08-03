@@ -56,6 +56,8 @@ import { reconciliationRouter } from "./reconciliation";
 import { expensesRouter } from "./expenses";
 import { closeCenterRouter } from "./close-center";
 import { opsConsoleRouter } from "./ops-console";
+import { agentMonitorRouter } from "./agent-monitor";
+import { liveRunsRouter } from "./live-runs";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -116,6 +118,8 @@ export const appRouter = router({
   expenses: expensesRouter,
   closeCenter: closeCenterRouter,
   opsConsole: opsConsoleRouter,
+  agentMonitor: agentMonitorRouter,
+  liveRuns: liveRunsRouter,
 });
 
 export type AppRouter = typeof appRouter;

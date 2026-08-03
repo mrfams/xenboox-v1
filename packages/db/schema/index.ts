@@ -44,3 +44,5 @@ export * from "./invitations";
 export * from "./entity-settings";
 export * from "./donor-grant";
 export * from "./ops-console";
+export * from "./ops-agent-monitor";
+export * from "./ops-live-runs";
