@@ -56,3 +56,5 @@ export * from "./ops-infrastructure";
 export * from "./ops-logs-traces";
 export * from "./ops-feature-flags";
 export * from "./ops-company-brain";
+export * from "./ops-workflow-builder";
+export * from "./ops-automation-studio";

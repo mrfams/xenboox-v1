@@ -68,6 +68,7 @@ import { infrastructureRouter } from "./infrastructure";
 import { logsTracesRouter } from "./logs-traces";
 import { featureFlagsRouter } from "./feature-flags";
 import { companyBrainRouter } from "./company-brain";
+import { automationStudioRouter } from "./automation-studio";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -140,6 +141,7 @@ export const appRouter = router({
   logsTraces: logsTracesRouter,
   featureFlags: featureFlagsRouter,
   companyBrain: companyBrainRouter,
+  automationStudio: automationStudioRouter,
 });
 
 export type AppRouter = typeof appRouter;
