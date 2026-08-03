@@ -1,4 +1,3 @@
-import { Agents } from "@/components/marketing/agents";
 import { Cta } from "@/components/marketing/cta";
 import { Features } from "@/components/marketing/features";
 import { Hero } from "@/components/marketing/hero-home";
@@ -11,7 +10,6 @@ export default function HomePage() {
     <>
       <Hero />
       <HowItWorks />
-      <Agents />
       <Features />
       <Security />
       <Testimonials />

@@ -44,13 +44,6 @@ const journal = [
   { date: "01 Aug", desc: "Revenue", dr: "", cr: "413,100" },
 ];
 
-const metrics = [
-  { value: "70%", label: "faster month-end close" },
-  { value: "19", label: "specialized agents" },
-  { value: "20", label: "accounting modules" },
-  { value: "0", label: "lines of data entry" },
-];
-
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-paper">
@@ -80,14 +73,6 @@ export function Hero() {
         <div className="grid items-center gap-16 pb-16 pt-16 sm:pt-20 lg:grid-cols-2 lg:pb-24 lg:pt-24">
           <FadeInUp>
             <div className="flex flex-col items-start gap-6">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                </span>
-                Your agents are live
-              </span>
-
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Your entire accounting department, running{" "}
                 <span className="text-primary">autonomously</span>.
@@ -133,24 +118,6 @@ export function Hero() {
             <ProductPreview />
           </FadeInUp>
         </div>
-
-        <FadeInUp delay={0.2}>
-          <dl className="mb-20 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border lg:grid-cols-4">
-            {metrics.map((metric) => (
-              <div
-                key={metric.label}
-                className="flex flex-col gap-1 bg-card px-6 py-6"
-              >
-                <dt className="order-2 text-sm text-muted-foreground">
-                  {metric.label}
-                </dt>
-                <dd className="order-1 text-3xl font-semibold tracking-tight text-foreground tabular-nums">
-                  {metric.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </FadeInUp>
       </div>
     </section>
   );
