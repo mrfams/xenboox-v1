@@ -62,6 +62,8 @@ import { llmRouter } from "./llm-router";
 import { costAnalyticsRouter } from "./cost-analytics";
 import { tokenUsageRouter } from "./token-usage";
 import { promptLibraryRouter } from "./prompt-library";
+import { reviewQueueRouter } from "./review-queue";
+import { customerDiagnosticsRouter } from "./customer-diagnostics";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -128,6 +130,8 @@ export const appRouter = router({
   costAnalytics: costAnalyticsRouter,
   tokenUsage: tokenUsageRouter,
   promptLibrary: promptLibraryRouter,
+  reviewQueue: reviewQueueRouter,
+  customerDiagnostics: customerDiagnosticsRouter,
 });
 
 export type AppRouter = typeof appRouter;

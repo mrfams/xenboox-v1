@@ -50,3 +50,5 @@ export * from "./ops-llm-router";
 export * from "./ops-cost-analytics";
 export * from "./ops-token-usage";
 export * from "./ops-prompt-library";
+export * from "./ops-review-queue";
+export * from "./ops-customer-diagnostics";
