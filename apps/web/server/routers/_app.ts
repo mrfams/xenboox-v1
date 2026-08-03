@@ -65,6 +65,7 @@ import { promptLibraryRouter } from "./prompt-library";
 import { reviewQueueRouter } from "./review-queue";
 import { customerDiagnosticsRouter } from "./customer-diagnostics";
 import { infrastructureRouter } from "./infrastructure";
+import { logsTracesRouter } from "./logs-traces";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -134,6 +135,7 @@ export const appRouter = router({
   reviewQueue: reviewQueueRouter,
   customerDiagnostics: customerDiagnosticsRouter,
   infrastructure: infrastructureRouter,
+  logsTraces: logsTracesRouter,
 });
 
 export type AppRouter = typeof appRouter;
