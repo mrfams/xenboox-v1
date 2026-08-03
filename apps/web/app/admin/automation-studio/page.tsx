@@ -2,16 +2,6 @@
 
 import { useState, useMemo } from "react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Input,
-  Skeleton,
-} from "@xenboox/ui";
-import {
   Search,
   Plus,
   Download,
@@ -33,6 +23,12 @@ import {
   CreditCard,
   Users,
   Bot,
+  X,
+  RefreshCw,
+  MessageSquare,
+  Lightbulb,
+  HelpCircle,
+  Eye,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
@@ -67,33 +63,33 @@ function KpiCard({
       : "text-red-500";
 
   return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`p-1.5 rounded-lg ${iconBg}`}>
-            <div className={iconColor}>{icon}</div>
-          </div>
-          <span className="text-xs text-muted-foreground">{label}</span>
+    <div className="bg-white rounded-xl p-4 border border-gray-200">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm text-gray-500">{label}</span>
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}
+        >
+          <div className={iconColor}>{icon}</div>
         </div>
-        <p className="text-2xl font-bold">
-          {typeof value === "number" ? value.toLocaleString() : value}
-        </p>
-        {delta !== undefined && (
-          <div className="flex items-center gap-1 mt-1">
-            {isPositive ? (
-              <ArrowUp className={cn("h-3 w-3", deltaColor)} />
-            ) : (
-              <ArrowDown className={cn("h-3 w-3", deltaColor)} />
-            )}
-            <span className={cn("text-xs font-medium", deltaColor)}>
-              {isPositive ? "↑" : "↓"} {Math.abs(delta)}
-              {label === "Accuracy Rate" ? "%" : ""}
-            </span>
-            <span className="text-xs text-muted-foreground">{deltaLabel}</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      <p className="text-2xl font-bold text-gray-900">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
+      {delta !== undefined && (
+        <div className="flex items-center gap-1 mt-1">
+          {isPositive ? (
+            <ArrowUp className={`h-3 w-3 ${deltaColor}`} />
+          ) : (
+            <ArrowDown className={`h-3 w-3 ${deltaColor}`} />
+          )}
+          <span className={`text-xs font-medium ${deltaColor}`}>
+            {isPositive ? "↑" : "↓"} {Math.abs(delta)}
+            {label === "Accuracy Rate" ? "%" : ""}
+          </span>
+          <span className="text-xs text-gray-500">{deltaLabel}</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -123,36 +119,33 @@ function TemplateCard({
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-lg ${iconBg}`}>
-            <div className={iconColor}>
-              {icons[icon] || <Zap className="h-5 w-5" />}
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">{name}</p>
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-              {description}
-            </p>
-            {tag && (
-              <Badge
-                variant="secondary"
-                className={cn(
-                  "text-[10px] mt-2",
-                  tag === "popular"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-blue-100 text-blue-700",
-                )}
-              >
-                {tag === "popular" ? "⭐ Popular" : "✨ New"}
-              </Badge>
-            )}
+    <div className="bg-white rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg ${iconBg}`}>
+          <div className={iconColor}>
+            {icons[icon] || <Zap className="h-5 w-5" />}
           </div>
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900">{name}</p>
+          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+            {description}
+          </p>
+          {tag && (
+            <span
+              className={cn(
+                "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium mt-2",
+                tag === "popular"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-blue-100 text-blue-700",
+              )}
+            >
+              {tag === "popular" ? "⭐ Popular" : "✨ New"}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -167,11 +160,18 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <Badge variant="secondary" className={colors[status] || colors.running}>
+    <span
+      className={cn(
+        "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+        colors[status] || colors.running,
+      )}
+    >
       {status === "running"
         ? "● Running"
-        : status.charAt(0).toUpperCase() + status.slice(1)}
-    </Badge>
+        : status === "completed"
+          ? "✓ Completed"
+          : status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
   );
 }
 
@@ -180,13 +180,13 @@ function StatusBadge({ status }: { status: string }) {
 function ConfidenceBar({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+      <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
         <div
           className="h-full bg-purple-500 rounded-full"
           style={{ width: `${value}%` }}
         />
       </div>
-      <span className="text-xs text-muted-foreground w-8">{value}%</span>
+      <span className="text-xs text-gray-600 w-8">{value}%</span>
     </div>
   );
 }
@@ -239,10 +239,10 @@ function DonutChart({
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold">{centerValue}</span>
-          <span className="text-[10px] text-muted-foreground">
-            {centerLabel}
+          <span className="text-2xl font-bold text-gray-900">
+            {centerValue}
           </span>
+          <span className="text-[10px] text-gray-500">{centerLabel}</span>
         </div>
       </div>
       <div className="space-y-1 mt-4">
@@ -252,13 +252,11 @@ function DonutChart({
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: segment.color }}
             />
-            <span className="text-muted-foreground">{segment.name}</span>
-            <span className="font-medium">
+            <span className="text-gray-500">{segment.name}</span>
+            <span className="font-medium text-gray-900">
               {segment.value.toLocaleString()}
             </span>
-            <span className="text-muted-foreground">
-              ({segment.percentage}%)
-            </span>
+            <span className="text-gray-500">({segment.percentage}%)</span>
           </div>
         ))}
       </div>
@@ -279,6 +277,8 @@ export default function AutomationStudioPage() {
     | "audit"
   >("overview");
   const [buildPrompt, setBuildPrompt] = useState("");
+  const [showAiAssistant, setShowAiAssistant] = useState(true);
+  const [aiMessage, setAiMessage] = useState("");
 
   // Fetch data
   const { data: overview, isLoading: overviewLoading } =
@@ -329,177 +329,181 @@ export default function AutomationStudioPage() {
     ];
   }, [performance]);
 
-  if (overviewLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-96 mt-2" />
-          </div>
-        </div>
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <Skeleton className="h-24 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const tabs = [
+    "overview",
+    "all",
+    "templates",
+    "triggers",
+    "connections",
+    "logs",
+    "audit",
+  ] as const;
+
+  const tabLabels: Record<string, string> = {
+    overview: "Overview",
+    all: "All Automations",
+    templates: "Templates",
+    triggers: "Triggers",
+    connections: "Connections",
+    logs: "Logs",
+    audit: "Audit Trail",
+  };
+
+  const quickActions = [
+    {
+      icon: <MessageSquare className="h-4 w-4" />,
+      text: "Suggest an automation for invoice processing",
+    },
+    {
+      icon: <HelpCircle className="h-4 w-4" />,
+      text: "Why did this automation fail yesterday?",
+    },
+    {
+      icon: <Zap className="h-4 w-4" />,
+      text: "Show me automations saving the most time",
+    },
+    {
+      icon: <Bot className="h-4 w-4" />,
+      text: "Help me build a bank reconciliation flow",
+    },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Sparkles className="h-8 w-8 text-purple-600" />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Automation Studio
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Build, run and improve AI automations that keep your books
-              accurate.
-            </p>
+      <div className="bg-white border-b border-gray-200">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Automation Studio
+                </h1>
+                <p className="text-sm text-gray-500">
+                  Build, run and improve AI automations that keep your books
+                  accurate.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                New Automation
+              </button>
+              <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Import
+              </button>
+              <button
+                onClick={() => seedMutation.mutate()}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Seed Data
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 mt-4">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === tab
+                    ? "bg-purple-100 text-purple-700"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {tabLabels[tab]}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button className="bg-purple-600 hover:bg-purple-700">
-            <Plus className="h-4 w-4 mr-1" />
-            New Automation
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-1" />
-            Import
-          </Button>
-          <Button
-            onClick={() => seedMutation.mutate()}
-            variant="outline"
-            size="sm"
-          >
-            Seed Data
-          </Button>
-        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b">
-        <div className="flex gap-6">
-          {(
-            [
-              "overview",
-              "all",
-              "templates",
-              "triggers",
-              "connections",
-              "logs",
-              "audit",
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "py-3 text-sm font-medium border-b-2 transition-colors",
-                activeTab === tab
-                  ? "border-purple-600 text-purple-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab === "all"
-                ? "All Automations"
-                : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
+      <div className="flex">
+        {/* Main Content */}
+        <div className={`flex-1 p-6 ${showAiAssistant ? "pr-0" : ""}`}>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-6 gap-4 mb-6">
+            <KpiCard
+              label="Automations Running"
+              value={overview?.kpis?.automationsRunning ?? 0}
+              delta={overview?.kpis?.runningDelta}
+              deltaLabel="vs last month"
+              icon={<Zap className="h-4 w-4" />}
+              iconColor="text-emerald-600"
+              iconBg="bg-emerald-100"
+            />
+            <KpiCard
+              label="Tasks Automated"
+              value={overview?.kpis?.tasksAutomated ?? 0}
+              delta={overview?.kpis?.tasksDelta}
+              deltaLabel="vs last month"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              iconColor="text-blue-600"
+              iconBg="bg-blue-100"
+            />
+            <KpiCard
+              label="Time Saved"
+              value={`${overview?.kpis?.timeSavedHours ?? 0} hrs`}
+              delta={overview?.kpis?.timeDelta}
+              deltaLabel="vs last month"
+              icon={<Clock className="h-4 w-4" />}
+              iconColor="text-violet-600"
+              iconBg="bg-violet-100"
+            />
+            <KpiCard
+              label="Accuracy Rate"
+              value={`${overview?.kpis?.accuracyRate ?? 0}%`}
+              delta={overview?.kpis?.accuracyDelta}
+              deltaLabel="vs last month"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              iconColor="text-emerald-600"
+              iconBg="bg-emerald-100"
+            />
+            <KpiCard
+              label="Exceptions"
+              value={overview?.kpis?.exceptions ?? 0}
+              delta={overview?.kpis?.exceptionsDelta}
+              deltaLabel="vs last month"
+              icon={<AlertTriangle className="h-4 w-4" />}
+              iconColor="text-amber-600"
+              iconBg="bg-amber-100"
+            />
+            <KpiCard
+              label="Cost Savings"
+              value={`${overview?.kpis?.costSavingsCurrency ?? "GMD"} ${(overview?.kpis?.costSavings ?? 0).toLocaleString()}`}
+              delta={overview?.kpis?.costSavingsDelta}
+              deltaLabel="vs last month"
+              icon={<DollarSign className="h-4 w-4" />}
+              iconColor="text-emerald-600"
+              iconBg="bg-emerald-100"
+            />
+          </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-6 gap-4">
-        <KpiCard
-          label="Automations Running"
-          value={overview?.kpis?.automationsRunning ?? 0}
-          delta={overview?.kpis?.runningDelta}
-          deltaLabel="vs last month"
-          icon={<Zap className="h-4 w-4" />}
-          iconColor="text-emerald-600"
-          iconBg="bg-emerald-100"
-        />
-        <KpiCard
-          label="Tasks Automated"
-          value={overview?.kpis?.tasksAutomated ?? 0}
-          delta={overview?.kpis?.tasksDelta}
-          deltaLabel="vs last month"
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          iconColor="text-blue-600"
-          iconBg="bg-blue-100"
-        />
-        <KpiCard
-          label="Time Saved"
-          value={`${overview?.kpis?.timeSavedHours ?? 0} hrs`}
-          delta={overview?.kpis?.timeDelta}
-          deltaLabel="vs last month"
-          icon={<Clock className="h-4 w-4" />}
-          iconColor="text-violet-600"
-          iconBg="bg-violet-100"
-        />
-        <KpiCard
-          label="Accuracy Rate"
-          value={`${overview?.kpis?.accuracyRate ?? 0}%`}
-          delta={overview?.kpis?.accuracyDelta}
-          deltaLabel="vs last month"
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          iconColor="text-emerald-600"
-          iconBg="bg-emerald-100"
-        />
-        <KpiCard
-          label="Exceptions"
-          value={overview?.kpis?.exceptions ?? 0}
-          delta={overview?.kpis?.exceptionsDelta}
-          deltaLabel="vs last month"
-          icon={<AlertTriangle className="h-4 w-4" />}
-          iconColor="text-amber-600"
-          iconBg="bg-amber-100"
-        />
-        <KpiCard
-          label="Cost Savings"
-          value={`${overview?.kpis?.costSavingsCurrency ?? "GMD"} ${(overview?.kpis?.costSavings ?? 0).toLocaleString()}`}
-          delta={overview?.kpis?.costSavingsDelta}
-          deltaLabel="vs last month"
-          icon={<DollarSign className="h-4 w-4" />}
-          iconColor="text-emerald-600"
-          iconBg="bg-emerald-100"
-        />
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
-        {/* Left Column */}
-        <div className="lg:col-span-2 space-y-4">
           {/* Recommended Templates */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div className="bg-white rounded-xl border border-gray-200 mb-6">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-semibold">
+                <h3 className="text-sm font-semibold text-gray-900">
                   Recommended Templates
-                </CardTitle>
-                <Badge
-                  variant="secondary"
-                  className="bg-purple-100 text-purple-700 text-[10px]"
-                >
+                </h3>
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700 rounded">
                   AI
-                </Badge>
+                </span>
               </div>
               <button className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1">
                 View all templates <ChevronRight className="h-3 w-3" />
               </button>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-4">
+            </div>
+            <div className="p-4">
+              <p className="text-xs text-gray-500 mb-4">
                 Pre-built automations for common accounting workflows.
               </p>
               <div className="grid grid-cols-5 gap-3">
@@ -517,236 +521,269 @@ export default function AutomationStudioPage() {
                     />
                   ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Active Automations */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div className="bg-white rounded-xl border border-gray-200 mb-6">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-semibold">
+                <h3 className="text-sm font-semibold text-gray-900">
                   Active Automations
-                </CardTitle>
-                <Badge variant="secondary">{automations?.length ?? 0}</Badge>
+                </h3>
+                <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">
+                  {automations?.length ?? 0}
+                </span>
               </div>
               <button className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1">
                 View all automations <ChevronRight className="h-3 w-3" />
               </button>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 text-xs font-medium text-muted-foreground">
-                      Automation
-                    </th>
-                    <th className="text-left py-2 text-xs font-medium text-muted-foreground">
-                      Trigger
-                    </th>
-                    <th className="text-left py-2 text-xs font-medium text-muted-foreground">
-                      Last Run
-                    </th>
-                    <th className="text-left py-2 text-xs font-medium text-muted-foreground">
-                      Success Rate
-                    </th>
-                    <th className="text-left py-2 text-xs font-medium text-muted-foreground">
-                      Status
-                    </th>
-                    <th className="text-left py-2 text-xs font-medium text-muted-foreground">
-                      AI Confidence
-                    </th>
-                    <th className="w-10"></th>
+                  <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                    <th className="px-4 py-3">Automation</th>
+                    <th className="px-4 py-3">Trigger</th>
+                    <th className="px-4 py-3">Last Run</th>
+                    <th className="px-4 py-3">Success Rate</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">AI Confidence</th>
+                    <th className="px-4 py-3 w-10"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-gray-100">
                   {automations?.slice(0, 8).map((auto: any) => (
-                    <tr key={auto.id} className="hover:bg-muted/50">
-                      <td className="py-3">
-                        <div className="flex items-center gap-2">
+                    <tr key={auto.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
                             <Zap className="h-4 w-4 text-purple-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium">{auto.name}</p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-sm font-medium text-gray-900">
+                              {auto.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
                               {auto.description}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 text-xs text-muted-foreground">
+                      <td className="px-4 py-3 text-xs text-gray-500">
                         {auto.triggerSchedule}
                       </td>
-                      <td className="py-3 text-xs text-muted-foreground">
+                      <td className="px-4 py-3 text-xs text-gray-500">
                         {auto.lastRunAt
                           ? new Date(auto.lastRunAt).toLocaleString()
                           : "N/A"}
                       </td>
-                      <td className="py-3 text-sm font-medium">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
                         {auto.successRate}%
                       </td>
-                      <td className="py-3">
+                      <td className="px-4 py-3">
                         <StatusBadge status={auto.status} />
                       </td>
-                      <td className="py-3">
+                      <td className="px-4 py-3">
                         <ConfidenceBar value={auto.aiConfidence ?? 0} />
                       </td>
-                      <td className="py-3">
-                        <button className="p-1 hover:bg-muted rounded">
-                          <MoreHorizontal className="h-4 w-4" />
+                      <td className="px-4 py-3">
+                        <button className="p-1 hover:bg-gray-100 rounded">
+                          <MoreHorizontal className="h-4 w-4 text-gray-400" />
                         </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <button className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 mt-4">
+            </div>
+            <div className="px-4 py-3 border-t border-gray-100">
+              <button className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1">
                 View all automations <ChevronRight className="h-3 w-3" />
               </button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Build with AI */}
-          <Card className="border-purple-200 bg-purple-50/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="h-5 w-5 text-purple-600" />
-                <h3 className="text-sm font-semibold">Build with AI</h3>
+          <div className="bg-white rounded-xl border border-purple-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              <h3 className="text-sm font-semibold text-gray-900">
+                Build with AI
+              </h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Describe what you want to automate and we&apos;ll build it for
+              you.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={buildPrompt}
+                onChange={(e) => setBuildPrompt(e.target.value)}
+                placeholder="E.g., When a new invoice is received, extract the data, validate it and record it in bills..."
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <button className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Generate Automation
+              </button>
+            </div>
+            <div className="flex items-center gap-4 mt-3">
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Bot className="h-3 w-3" /> Natural language builder
               </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                Describe what you want to automate and we&apos;ll build it for
-                you.
-              </p>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="E.g., When a new invoice is received, extract the data, validate it and record it in bills..."
-                  value={buildPrompt}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setBuildPrompt(e.target.value)
-                  }
-                  className="flex-1"
-                />
-                <Button className="bg-purple-600 hover:bg-purple-700">
-                  <Sparkles className="h-4 w-4 mr-1" />
-                  Generate Automation
-                </Button>
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <CheckCircle2 className="h-3 w-3" /> AI tests & validates
               </div>
-              <div className="flex items-center gap-4 mt-3">
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Bot className="h-3 w-3" /> Natural language builder
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <CheckCircle2 className="h-3 w-3" /> AI tests & validates
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Sparkles className="h-3 w-3" /> Smart suggestions
-                </div>
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Sparkles className="h-3 w-3" /> Smart suggestions
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-4">
-          {/* Automation Activity */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-semibold">
-                Automation Activity
-              </CardTitle>
-              <Badge
-                variant="secondary"
-                className="bg-emerald-100 text-emerald-700 text-[10px]"
-              >
-                Live
-              </Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {activity?.map((a: any) => (
-                  <div key={a.id} className="flex items-start gap-3">
-                    <div
-                      className={cn(
-                        "p-1.5 rounded-lg",
-                        a.status === "success"
-                          ? "bg-emerald-100"
-                          : "bg-red-100",
-                      )}
-                    >
-                      {a.status === "success" ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{a.automationName}</p>
-                      <p className="text-xs text-muted-foreground">{a.title}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {a.createdAt
-                          ? new Date(a.createdAt).toLocaleTimeString()
-                          : ""}
-                      </p>
-                    </div>
+        {/* Right Panel - AI Assistant */}
+        {showAiAssistant && (
+          <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-white" />
                   </div>
-                ))}
-              </div>
-              <button className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 mt-4">
-                View full activity log <ChevronRight className="h-3 w-3" />
-              </button>
-            </CardContent>
-          </Card>
-
-          {/* Automation Performance */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-semibold">
-                Automation Performance
-              </CardTitle>
-              <select className="text-xs border rounded px-2 py-1">
-                <option>This Month</option>
-                <option>Last Month</option>
-                <option>Last 3 Months</option>
-              </select>
-            </CardHeader>
-            <CardContent>
-              <DonutChart
-                segments={perfSegments}
-                centerValue={performance?.totalTasks?.toLocaleString() ?? "0"}
-                centerLabel="Tasks Automated"
-              />
-            </CardContent>
-          </Card>
-
-          {/* Top Time Saving */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-semibold">
-                Top Time Saving Automations
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {timeSavings?.map((s: any) => (
-                  <div key={s.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-muted-foreground w-5">
-                        {s.rank}
-                      </span>
-                      <span className="text-sm">{s.automationName}</span>
-                    </div>
-                    <span className="text-sm font-medium text-emerald-600">
-                      {s.timeSavedHours} hrs
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Xenboox AI Assistant
+                    </p>
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700 rounded">
+                      Beta
                     </span>
                   </div>
+                </div>
+                <button
+                  onClick={() => setShowAiAssistant(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4 space-y-4">
+              {/* Greeting */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Hello Famara! 👋
+                </h3>
+                <p className="text-sm text-gray-500">
+                  I can help you build and improve automations.
+                </p>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="space-y-2">
+                {quickActions.map((action, i) => (
+                  <button
+                    key={i}
+                    className="w-full p-3 text-left text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 flex items-center gap-3"
+                  >
+                    <span className="text-purple-500">{action.icon}</span>
+                    {action.text}
+                  </button>
                 ))}
               </div>
-              <button className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 mt-4">
-                View full report <ChevronRight className="h-3 w-3" />
-              </button>
-            </CardContent>
-          </Card>
-        </div>
+
+              {/* AI Suggestion */}
+              <div className="bg-purple-50 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightbulb className="h-4 w-4 text-purple-600" />
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    AI Suggestion
+                  </h4>
+                </div>
+                <p className="text-sm text-gray-700 mb-3">
+                  You could automate VAT return data extraction from your sales
+                  and purchase journals.
+                </p>
+                <div className="flex gap-2">
+                  <button className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Preview
+                  </button>
+                  <button className="px-3 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-1">
+                    <Plus className="h-3 w-3" /> Add Automation
+                  </button>
+                </div>
+              </div>
+
+              {/* Automation Performance */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    Automation Performance
+                  </h4>
+                  <select className="text-xs border border-gray-200 rounded px-2 py-1">
+                    <option>This Month</option>
+                    <option>Last Month</option>
+                    <option>Last 3 Months</option>
+                  </select>
+                </div>
+                <DonutChart
+                  segments={perfSegments}
+                  centerValue={performance?.totalTasks?.toLocaleString() ?? "0"}
+                  centerLabel="Tasks Automated"
+                />
+              </div>
+
+              {/* Top Time Saving */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                  Top Time Saving Automations
+                </h4>
+                <div className="space-y-2">
+                  {timeSavings?.map((s: any) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500 w-5">
+                          {s.rank}
+                        </span>
+                        <span className="text-sm text-gray-900">
+                          {s.automationName}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium text-emerald-600">
+                        {s.timeSavedHours} hrs
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <button className="text-xs text-purple-600 hover:text-purple-700 font-medium mt-3 flex items-center gap-1">
+                  View full report <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Chat Input */}
+            <div className="p-4 border-t border-gray-100">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={aiMessage}
+                  onChange={(e) => setAiMessage(e.target.value)}
+                  placeholder="Ask Xenboox AI anything..."
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <button className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
