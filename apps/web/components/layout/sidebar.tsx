@@ -355,7 +355,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* Primary Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 scrollbar-thin">
+        <nav className="flex-1 overflow-y-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="space-y-0.5 px-2">
             {primaryNavItems.map((item) => renderNavItem(item))}
           </div>
