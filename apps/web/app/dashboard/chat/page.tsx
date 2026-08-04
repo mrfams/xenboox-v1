@@ -49,6 +49,7 @@ import {
   Zap,
   History,
 } from "lucide-react";
+import { useRealtimeAgentEvents } from "@/lib/hooks/use-realtime-agent-events";
 import { AIComposer } from "@/components/workspace/ai-composer";
 import { TaskList } from "@/components/workspace/task-cards";
 import type { AgentTask } from "@/components/workspace/task-cards";
@@ -1372,6 +1373,267 @@ function ChatMessages({
   );
 }
 
+// ─── Smart Suggestions Component ──────────────────────────────────────────
+
+function SmartSuggestions({
+  entityId,
+  onSelect,
+}: {
+  entityId: string | null;
+  onSelect: (prompt: string) => void;
+}) {
+  const [context, setContext] = useState<{
+    hasOverdueInvoices: boolean;
+    hasUnpaidBills: boolean;
+    hasPendingJournals: boolean;
+    hasRecentDocuments: boolean;
+    hasBankAccounts: boolean;
+    overdueCount: number;
+    unpaidBillCount: number;
+    pendingJournalCount: number;
+    recentDocCount: number;
+  } | null>(null);
+
+  // Fetch context data
+  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
+    undefined,
+    { enabled: !!entityId },
+  );
+
+  useEffect(() => {
+    if (dashboardData) {
+      const bh = dashboardData.businessHealth;
+      setContext({
+        hasOverdueInvoices: bh.arOutstanding > 0,
+        hasUnpaidBills: bh.apOutstanding > 0,
+        hasPendingJournals: dashboardData.pendingApprovalsCount > 0,
+        hasRecentDocuments: dashboardData.recentDocuments.length > 0,
+        hasBankAccounts: true,
+        overdueCount: dashboardData.pendingApprovalsCount,
+        unpaidBillCount: dashboardData.agentEscalationsCount,
+        pendingJournalCount: dashboardData.pendingApprovals.length,
+        recentDocCount: dashboardData.recentDocuments.length,
+      });
+    }
+  }, [dashboardData]);
+
+  // Generate smart suggestions based on context
+  const suggestions = [
+    // Priority actions (based on data)
+    ...(context?.hasOverdueInvoices
+      ? [
+          {
+            id: "overdue",
+            prompt: "Show me all overdue invoices and help me follow up",
+            label: "Overdue invoices",
+            description: "Review and follow up on overdue payments",
+            icon: AlertTriangle,
+            color: "text-amber-600",
+            bgColor: "bg-amber-50",
+            priority: true,
+          },
+        ]
+      : []),
+    ...(context?.hasUnpaidBills
+      ? [
+          {
+            id: "bills",
+            prompt: "What bills need to be paid this week?",
+            label: "Upcoming bills",
+            description: "Review bills due for payment",
+            icon: CreditCard,
+            color: "text-red-600",
+            bgColor: "bg-red-50",
+            priority: true,
+          },
+        ]
+      : []),
+    ...(context?.hasPendingJournals
+      ? [
+          {
+            id: "journals",
+            prompt: "Review pending journal entries that need approval",
+            label: "Pending journals",
+            description: "Approve or review draft entries",
+            icon: FileText,
+            color: "text-blue-600",
+            bgColor: "bg-blue-50",
+            priority: true,
+          },
+        ]
+      : []),
+    // Always show these useful suggestions
+    {
+      id: "cash",
+      prompt: "Explain my current cash position and trends",
+      label: "Cash position",
+      description: "Understand your cash flow status",
+      icon: TrendingUp,
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-50",
+      priority: false,
+    },
+    {
+      id: "reconcile",
+      prompt: "Reconcile my bank transactions for this month",
+      label: "Bank reconciliation",
+      description: "Match transactions with bank statements",
+      icon: RefreshCw,
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50",
+      priority: false,
+    },
+    {
+      id: "report",
+      prompt: "Generate a profit and loss statement for this month",
+      label: "P&L report",
+      description: "Generate financial statements",
+      icon: BarChart3,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+      priority: false,
+    },
+    {
+      id: "expenses",
+      prompt: "Analyze my top expenses and find any duplicates",
+      label: "Expense analysis",
+      description: "Identify spending patterns and duplicates",
+      icon: CreditCard,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+      priority: false,
+    },
+    {
+      id: "payroll",
+      prompt: "Help me run payroll for this month",
+      label: "Run payroll",
+      description: "Process employee salaries and taxes",
+      icon: Users,
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-50",
+      priority: false,
+    },
+  ];
+
+  // Separate priority and regular suggestions
+  const prioritySuggestions = suggestions.filter((s) => s.priority);
+  const regularSuggestions = suggestions.filter((s) => !s.priority);
+
+  return (
+    <div className="space-y-6">
+      {/* Priority Actions (if any) */}
+      {prioritySuggestions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-5 w-5 items-center justify-center rounded bg-amber-100">
+              <AlertTriangle className="h-3 w-3 text-amber-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">
+              Needs Attention
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {prioritySuggestions.map((suggestion) => {
+              const Icon = suggestion.icon;
+              return (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  onClick={() => onSelect(suggestion.prompt)}
+                  className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-left transition-all duration-200 hover:shadow-md hover:border-amber-300"
+                >
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                      suggestion.bgColor,
+                    )}
+                  >
+                    <Icon className={cn("h-5 w-5", suggestion.color)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {suggestion.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {suggestion.description}
+                    </p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">
+            What can I help with?
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {regularSuggestions.map((suggestion) => {
+            const Icon = suggestion.icon;
+            return (
+              <button
+                key={suggestion.id}
+                type="button"
+                onClick={() => onSelect(suggestion.prompt)}
+                className="flex items-start gap-3 rounded-xl border border-border/50 bg-card p-4 text-left transition-all duration-200 hover:shadow-md hover:border-border/80"
+              >
+                <div
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                    suggestion.bgColor,
+                  )}
+                >
+                  <Icon className={cn("h-5 w-5", suggestion.color)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {suggestion.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {suggestion.description}
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Quick Prompts */}
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">Or try asking:</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            "Show cash flow forecast",
+            "Which invoices are overdue?",
+            "Reconcile my bank account",
+            "Create expense report",
+            "Explain why cash decreased",
+            "Find duplicate payments",
+          ].map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => onSelect(prompt)}
+              className="rounded-full border border-border/50 bg-background px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AIWorkspaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1410,40 +1672,6 @@ function AIWorkspaceContent() {
     },
   });
 
-  // Fetch data
-  const { data: tasksData, isLoading: tasksLoading } =
-    trpc.aiWorkspace.getActiveTasks.useQuery(undefined, {
-      enabled: !!entityId && !isChatMode,
-    });
-
-  const { data: suggestionsData, isLoading: suggestionsLoading } =
-    trpc.aiWorkspace.getSuggestions.useQuery(undefined, {
-      enabled: !!entityId && !isChatMode,
-    });
-
-  const { data: insightsData, isLoading: insightsLoading } =
-    trpc.aiWorkspace.getFinancialInsights.useQuery(undefined, {
-      enabled: !!entityId && !isChatMode,
-    });
-
-  const { data: cashFlowData, isLoading: cashFlowLoading } =
-    trpc.aiWorkspace.getCashFlowOverview.useQuery(undefined, {
-      enabled: !!entityId && !isChatMode,
-    });
-
-  const isLoading =
-    !isChatMode &&
-    (tasksLoading || suggestionsLoading || insightsLoading || cashFlowLoading);
-
-  const suggestions = [
-    { label: "Close May books", icon: FileText },
-    { label: "Explain cash position", icon: BarChart3 },
-    { label: "Reconcile transactions", icon: RefreshCw },
-    { label: "Create payroll", icon: Users },
-    { label: "Forecast next month", icon: TrendingUp },
-    { label: "Analyze expenses", icon: CreditCard },
-  ];
-
   const handleNewChat = () => {
     setActiveConversationId(null);
     setIsChatMode(false);
@@ -1462,13 +1690,6 @@ function AIWorkspaceContent() {
     sendStreamingMessage(inputValue, activeConversationId ?? undefined);
     setInputValue("");
   };
-
-  const quickActions = [
-    "Show cash flow forecast",
-    "Which invoices are overdue?",
-    "Reconcile GTBank account",
-    "Create cash flow report",
-  ];
 
   return (
     <div className="flex h-full">
@@ -1532,7 +1753,7 @@ function AIWorkspaceContent() {
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
-            <div className="space-y-6">
+            <div className="space-y-6 p-6">
               {/* Header */}
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -1543,54 +1764,13 @@ function AIWorkspaceContent() {
                 </p>
               </div>
 
-              {/* Active AI Tasks */}
-              <TaskList
-                tasks={(tasksData?.tasks ?? []).map((t) => ({
-                  ...t,
-                  status:
-                    t.status === "active"
-                      ? ("running" as const)
-                      : t.status === "review"
-                        ? ("review" as const)
-                        : ("completed" as const),
-                  startTime: t.eta || "Now",
-                  agent: "AI Agent",
-                }))}
-                onPause={(id) => console.log("Pause", id)}
-                onResume={(id) => console.log("Resume", id)}
-                onCancel={(id) => console.log("Cancel", id)}
-                onRetry={(id) => console.log("Retry", id)}
-                onReview={(id) => console.log("Review", id)}
-                onOpen={(id) => console.log("Open", id)}
+              {/* Smart Suggestions */}
+              <SmartSuggestions
+                entityId={entityId}
+                onSelect={(prompt) => {
+                  setInputValue(prompt);
+                }}
               />
-
-              {/* AI Suggestions */}
-              <AISuggestions suggestions={suggestionsData?.suggestions ?? []} />
-
-              {/* Live Agent Timeline */}
-              <AgentTimeline
-                entityId={entityId || "default"}
-                maxEntries={15}
-                showStats={true}
-                showHeader={true}
-              />
-
-              {/* Financial Insights + Cash Flow */}
-              <div className="grid gap-6 lg:grid-cols-2">
-                <FinancialInsights insights={insightsData?.insights ?? []} />
-                <CashFlowOverview
-                  data={
-                    cashFlowData ?? {
-                      chartData: [],
-                      summary: {
-                        totalCashIn: 0,
-                        totalCashOut: 0,
-                        netCashFlow: 0,
-                      },
-                    }
-                  }
-                />
-              </div>
             </div>
           </div>
 
