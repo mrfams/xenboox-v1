@@ -440,14 +440,6 @@ export function AIComposer({
       <div className="flex items-center gap-2 px-4 py-3">
         {/* Action Buttons */}
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            title="Attach file"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
           <input
             ref={fileInputRef}
             type="file"
