@@ -222,17 +222,25 @@ export const invoicingRouter = router({
       const conditions = [eq(salesInvoices.entityId, entityId)];
 
       if (input.status !== "all") {
-        const statusMap: Record<string, string> = {
-          draft: "pending",
-          sent: "pending",
-          viewed: "partial",
-          overdue: "overdue",
-          paid: "paid",
-          cancelled: "voided",
-        };
-        conditions.push(
-          eq(salesInvoices.status, statusMap[input.status] as any),
-        );
+        if (input.status === "draft") {
+          // Draft = pending status AND not yet sent (sentAt is null)
+          conditions.push(eq(salesInvoices.status, "pending"));
+          conditions.push(sql`${salesInvoices.sentAt} IS NULL`);
+        } else if (input.status === "sent") {
+          // Sent = pending status AND sentAt is set
+          conditions.push(eq(salesInvoices.status, "pending"));
+          conditions.push(sql`${salesInvoices.sentAt} IS NOT NULL`);
+        } else {
+          const statusMap: Record<string, string> = {
+            viewed: "partial",
+            overdue: "overdue",
+            paid: "paid",
+            cancelled: "voided",
+          };
+          conditions.push(
+            eq(salesInvoices.status, statusMap[input.status] as any),
+          );
+        }
       }
 
       if (input.customerId) {

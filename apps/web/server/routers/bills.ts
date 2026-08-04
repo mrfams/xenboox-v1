@@ -262,15 +262,28 @@ export const billsRouter = router({
       const conditions = [eq(invoicesAp.entityId, entityId)];
 
       if (input.status !== "all") {
-        const statusMap: Record<string, string> = {
-          draft: "pending",
-          pending_approval: "pending",
-          approved: "pending",
-          scheduled: "partial",
-          paid: "paid",
-          overdue: "overdue",
-        };
-        conditions.push(eq(invoicesAp.status, statusMap[input.status] as any));
+        if (input.status === "paid") {
+          conditions.push(eq(invoicesAp.status, "paid"));
+        } else if (input.status === "overdue") {
+          conditions.push(eq(invoicesAp.status, "overdue"));
+        } else if (input.status === "scheduled") {
+          conditions.push(eq(invoicesAp.status, "partial"));
+        } else if (input.status === "draft") {
+          // Draft = pending status with no notes (not yet submitted)
+          conditions.push(eq(invoicesAp.status, "pending"));
+          conditions.push(
+            sql`(${invoicesAp.notes} IS NULL OR ${invoicesAp.notes} = '')`,
+          );
+        } else if (input.status === "pending_approval") {
+          // Pending approval = pending status with notes (submitted for approval)
+          conditions.push(eq(invoicesAp.status, "pending"));
+          conditions.push(
+            sql`${invoicesAp.notes} IS NOT NULL AND ${invoicesAp.notes} != ''`,
+          );
+        } else if (input.status === "approved") {
+          // Approved = all pending bills (matching overview behavior)
+          conditions.push(eq(invoicesAp.status, "pending"));
+        }
       }
 
       if (input.vendorId) {

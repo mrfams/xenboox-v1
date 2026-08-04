@@ -197,20 +197,21 @@ export const expensesRouter = router({
           ),
         );
 
-      // Draft (no status or draft)
+      // Draft = pending with no notes
       const draftResult = await db
         .select({ count: count() })
         .from(invoicesAp)
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            eq(invoicesAp.status, "pending"),
+            sql`(${invoicesAp.notes} IS NULL OR ${invoicesAp.notes} = '')`,
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
-            sql`${invoicesAp.notes} ILIKE '%draft%'`,
           ),
         );
 
-      // Pending approval
+      // Pending approval = pending with notes
       const pendingResult = await db
         .select({ count: count() })
         .from(invoicesAp)
@@ -218,6 +219,7 @@ export const expensesRouter = router({
           and(
             eq(invoicesAp.entityId, entityId),
             eq(invoicesAp.status, "pending"),
+            sql`${invoicesAp.notes} IS NOT NULL AND ${invoicesAp.notes} != ''`,
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -294,10 +296,26 @@ export const expensesRouter = router({
         lte(invoicesAp.invoiceDate, endDate),
       ];
 
-      if (input.status === "pending") {
+      if (input.status === "draft") {
+        // Draft = pending with no notes (not yet submitted)
         conditions.push(eq(invoicesAp.status, "pending"));
-      } else if (input.status === "approved" || input.status === "reimbursed") {
+        conditions.push(
+          sql`(${invoicesAp.notes} IS NULL OR ${invoicesAp.notes} = '')`,
+        );
+      } else if (input.status === "pending") {
+        // Pending = pending with notes (submitted for approval)
+        conditions.push(eq(invoicesAp.status, "pending"));
+        conditions.push(
+          sql`${invoicesAp.notes} IS NOT NULL AND ${invoicesAp.notes} != ''`,
+        );
+      } else if (input.status === "approved") {
+        // Approved = paid
         conditions.push(eq(invoicesAp.status, "paid"));
+      } else if (input.status === "reimbursed") {
+        // Reimbursed = has payments recorded
+        conditions.push(
+          sql`${invoicesAp.id} IN (SELECT ${paymentsAp.invoiceApId} FROM ${paymentsAp})`,
+        );
       }
 
       if (input.search) {
