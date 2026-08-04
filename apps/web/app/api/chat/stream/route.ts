@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { conversations, chatMessages } from "@xenboox/db/schema";
+import { conversations, chatMessages, bankAccounts } from "@xenboox/db/schema";
 import { eq, and, sum } from "drizzle-orm";
-import { bankAccounts } from "@xenboox/db/schema";
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession();
+  const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

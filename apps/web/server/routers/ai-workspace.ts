@@ -575,7 +575,7 @@ export const aiWorkspaceRouter = router({
         id: invoice.id,
         type: "invoice",
         title: invoice.invoiceNumber || "Invoice",
-        description: invoice.vendorName || "Pending invoice",
+        description: "Pending invoice",
         amount: `GMD ${parseFloat(invoice.totalAmount).toLocaleString()}`,
       });
     }
@@ -597,8 +597,8 @@ export const aiWorkspaceRouter = router({
 
     const docList = recentDocs.map((doc) => ({
       id: doc.id,
-      name: doc.fileName || "Untitled Document",
-      type: doc.documentType || "Document",
+      name: "Untitled Document",
+      type: doc.type || "Document",
       date: doc.createdAt
         ? new Date(doc.createdAt).toLocaleDateString("en-US", {
             month: "short",
@@ -630,8 +630,8 @@ export const aiWorkspaceRouter = router({
 
       return {
         id: log.id,
-        title: log.agentName || "Agent Action",
-        description: log.action || "Processing",
+        title: "Agent Action",
+        description: "Processing",
         status,
         time: timeAgo,
       };

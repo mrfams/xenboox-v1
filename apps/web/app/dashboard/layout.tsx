@@ -5,7 +5,7 @@ import { Bot, PanelRightOpen, PanelRightClose } from "lucide-react";
 import { SessionProvider } from "next-auth/react";
 import { EntityProvider, useEntity } from "@/lib/entity-context";
 import { PermissionProvider, serializePermissions } from "@/lib/permissions";
-import { Sidebar } from "@/components/layout/sidebar";
+import { AISidebar } from "@/components/layout/ai-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { ChatPanel } from "@/components/layout/chat-panel";
 import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
@@ -81,7 +81,7 @@ export default function DashboardLayout({
           <PermissionAwareLayout>
             <div data-dashboard className="flex h-screen overflow-hidden">
               {/* Left Sidebar */}
-              <Sidebar
+              <AISidebar
                 isOpen={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}
               />

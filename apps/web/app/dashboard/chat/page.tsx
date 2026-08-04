@@ -49,6 +49,9 @@ import {
   Zap,
   History,
 } from "lucide-react";
+import { AIComposer } from "@/components/workspace/ai-composer";
+import { TaskList } from "@/components/workspace/task-cards";
+import type { AgentTask } from "@/components/workspace/task-cards";
 
 // ─── Active AI Tasks Component ────────────────────────────────────────────
 
@@ -1412,79 +1415,6 @@ function ChatMessages({
   );
 }
 
-// ─── Chat Input Component ─────────────────────────────────────────────────
-
-function ChatInput({
-  conversationId,
-  onSend,
-  isPending,
-}: {
-  conversationId: string | null;
-  onSend: (message: string) => void;
-  isPending: boolean;
-}) {
-  const [inputValue, setInputValue] = useState("");
-
-  const quickActions = [
-    "Show cash flow forecast",
-    "Which invoices are overdue?",
-    "Reconcile GTBank account",
-    "Create cash flow report",
-  ];
-
-  const handleSend = () => {
-    if (!inputValue.trim()) return;
-    onSend(inputValue);
-    setInputValue("");
-  };
-
-  return (
-    <div className="border-t border-border/50">
-      {/* Quick Actions */}
-      <div className="px-4 pt-3 pb-2">
-        <div className="flex flex-wrap gap-1.5">
-          {quickActions.map((action) => (
-            <button
-              key={action}
-              type="button"
-              onClick={() => setInputValue(action)}
-              className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-card/80 px-2.5 py-1 text-[10px] text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all"
-            >
-              {action}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="px-4 pb-4">
-        <div className="relative flex items-center gap-2">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Ask follow up..."
-            className="flex-1 bg-accent rounded-xl px-4 py-2.5 text-xs text-foreground placeholder:text-muted-foreground outline-none"
-          />
-          <Button
-            type="button"
-            size="icon"
-            onClick={handleSend}
-            disabled={!inputValue.trim() || isPending}
-            className="h-9 w-9 rounded-xl shrink-0"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-[9px] text-muted-foreground text-center mt-2">
-          Xenboox AI can make mistakes. Verify important information.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function AIWorkspaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1628,14 +1558,19 @@ function AIWorkspaceContent() {
             />
           </div>
 
-          {/* Chat Input */}
-          <ChatInput
-            conversationId={activeConversationId}
-            onSend={(msg) => {
-              sendStreamingMessage(msg, activeConversationId ?? undefined);
-            }}
-            isPending={isStreaming}
-          />
+          {/* AI Composer */}
+          <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4">
+            <AIComposer
+              onSend={(message, files) => {
+                sendStreamingMessage(
+                  message,
+                  activeConversationId ?? undefined,
+                );
+              }}
+              isStreaming={isStreaming}
+              placeholder="Ask follow up..."
+            />
+          </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -1652,7 +1587,25 @@ function AIWorkspaceContent() {
               </div>
 
               {/* Active AI Tasks */}
-              <ActiveAITasks tasks={tasksData?.tasks ?? []} />
+              <TaskList
+                tasks={(tasksData?.tasks ?? []).map((t) => ({
+                  ...t,
+                  status:
+                    t.status === "active"
+                      ? ("running" as const)
+                      : t.status === "review"
+                        ? ("review" as const)
+                        : ("completed" as const),
+                  startTime: t.eta || "Now",
+                  agent: "AI Agent",
+                }))}
+                onPause={(id) => console.log("Pause", id)}
+                onResume={(id) => console.log("Resume", id)}
+                onCancel={(id) => console.log("Cancel", id)}
+                onRetry={(id) => console.log("Retry", id)}
+                onReview={(id) => console.log("Review", id)}
+                onOpen={(id) => console.log("Open", id)}
+              />
 
               {/* AI Suggestions */}
               <AISuggestions suggestions={suggestionsData?.suggestions ?? []} />
@@ -1676,103 +1629,19 @@ function AIWorkspaceContent() {
             </div>
           </div>
 
-          {/* Pinned AI Command Box */}
+          {/* AI Composer */}
           <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4 flex-shrink-0">
-            <div className="mx-auto w-full max-w-3xl space-y-3">
-              {/* Quick suggestions above input */}
-              <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
-                {suggestions.map((suggestion) => {
-                  const Icon = suggestion.icon;
-                  return (
-                    <button
-                      key={suggestion.label}
-                      type="button"
-                      onClick={() => {
-                        if (!isStreaming) {
-                          sendStreamingMessage(
-                            suggestion.label,
-                            activeConversationId ?? undefined,
-                          );
-                        }
-                      }}
-                      disabled={isStreaming}
-                      className={cn(
-                        "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
-                        "text-xs text-muted-foreground transition-all duration-200",
-                        "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
-                        "active:scale-95",
-                        isStreaming && "opacity-50 cursor-not-allowed",
-                      )}
-                    >
-                      <Icon className="h-3 w-3" />
-                      {suggestion.label}
-                    </button>
+            <div className="mx-auto w-full max-w-3xl">
+              <AIComposer
+                onSend={(message, files) => {
+                  sendStreamingMessage(
+                    message,
+                    activeConversationId ?? undefined,
                   );
-                })}
-              </div>
-
-              {/* Input */}
-              <div
-                className={cn(
-                  "relative group rounded-2xl border-2 bg-card transition-all duration-300 shadow-sm",
-                  isFocused
-                    ? "border-primary/50 shadow-lg shadow-primary/5"
-                    : "border-border/50 hover:border-border/80 hover:shadow-md",
-                )}
-              >
-                <div className="relative flex items-center gap-3 px-4 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
-                    >
-                      <Mic className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
-                    >
-                      <Paperclip className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && handleCommandSubmit()
-                    }
-                    placeholder="What would you like Xenboox to do?"
-                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    onClick={handleCommandSubmit}
-                    disabled={!inputValue.trim() || isStreaming}
-                    className={cn(
-                      "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
-                      inputValue.trim()
-                        ? "bg-primary hover:bg-primary/90 text-white shadow-sm"
-                        : "bg-primary text-white",
-                    )}
-                  >
-                    {isStreaming ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ArrowRight className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
+                }}
+                isStreaming={isStreaming}
+                placeholder="What would you like Xenboox to do?"
+              />
             </div>
           </div>
         </div>
