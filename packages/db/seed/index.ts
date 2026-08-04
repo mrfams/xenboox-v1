@@ -78,6 +78,7 @@ import { seedPermissions } from "./permissions";
 import { seedAgents } from "./agents";
 import { seedApprovals } from "./approvals";
 import { seedGoldenEvals } from "./golden-evals";
+import { seedComprehensiveData } from "./comprehensive-data";
 
 const USER_ID = crypto.randomUUID();
 const ORG_ID = crypto.randomUUID();
@@ -1895,6 +1896,9 @@ export async function seed() {
 
   // Seed RBAC permissions from the Matrix
   await seedPermissions();
+
+  // Seed comprehensive data (conversations, audit, routing, exchange rates, close sessions)
+  await seedComprehensiveData();
 
   // 30. Mobile Money Accounts
   console.log("  Creating mobile money accounts...");
