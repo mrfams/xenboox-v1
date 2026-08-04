@@ -100,9 +100,7 @@ export default function DashboardLayout({
                     onChatToggle={() => setChatOpen(!chatOpen)}
                     chatOpen={chatOpen}
                   />
-                  <main className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-6">
-                    {children}
-                  </main>
+                  <main className="flex-1 overflow-y-auto">{children}</main>
                 </div>
 
                 {/* Right Panel Toggle Button (when closed) */}
