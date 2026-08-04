@@ -37,17 +37,26 @@ import { TextSelectionMenu } from "@/components/dashboard/text-selection-menu";
 
 // ─── Mini Sparkline Component ─────────────────────────────────────────────
 
-function MiniSparkline({ data, color }: { data: number[]; color: string }) {
+function MiniSparkline({
+  data,
+  color,
+  className,
+}: {
+  data: number[];
+  color: string;
+  className?: string;
+}) {
   const max = Math.max(...data);
   const min = Math.min(...data);
   const range = max - min || 1;
-  const width = 80;
-  const height = 24;
+  const width = 60;
+  const height = 20;
   const padding = 2;
 
   const points = data
     .map((v, i) => {
-      const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+      const x =
+        padding + (i / Math.max(data.length - 1, 1)) * (width - padding * 2);
       const y = height - padding - ((v - min) / range) * (height - padding * 2);
       return `${x},${y}`;
     })
@@ -56,14 +65,27 @@ function MiniSparkline({ data, color }: { data: number[]; color: string }) {
   const areaPoints = `${padding},${height - padding} ${points} ${width - padding},${height - padding}`;
 
   return (
-    <svg width={width} height={height} className="overflow-visible">
+    <svg
+      width={width}
+      height={height}
+      className={cn("overflow-visible shrink-0", className)}
+    >
       <defs>
-        <linearGradient id={`sparkline-${color}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient
+          id={`sparkline-${color.replace("#", "")}`}
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="1"
+        >
           <stop offset="0%" stopColor={color} stopOpacity="0.3" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={areaPoints} fill={`url(#sparkline-${color})`} />
+      <polygon
+        points={areaPoints}
+        fill={`url(#sparkline-${color.replace("#", "")})`}
+      />
       <polyline
         points={points}
         fill="none"
@@ -439,6 +461,13 @@ function BusinessHealth({
     profitChange: number;
     arChange: number;
     apChange: number;
+    // Sparkline data from backend
+    cashSparkline?: number[];
+    revenueSparkline?: number[];
+    expensesSparkline?: number[];
+    profitSparkline?: number[];
+    arSparkline?: number[];
+    apSparkline?: number[];
   };
 }) {
   const metrics = [
@@ -447,15 +476,9 @@ function BusinessHealth({
       label: "Cash Balance",
       value: data.cashBalance,
       change: 12.5,
-      sparkline: [
-        800000,
-        900000,
-        850000,
-        1000000,
-        1100000,
-        1050000,
-        1200000,
-        data.cashBalance || 1234567,
+      sparkline: data.cashSparkline ?? [
+        data.cashBalance * 0.85,
+        data.cashBalance,
       ],
     },
     {
@@ -463,31 +486,16 @@ function BusinessHealth({
       label: "Revenue",
       value: data.revenue,
       change: data.revenueChange,
-      sparkline: [
-        1800000,
-        1900000,
-        2000000,
-        2100000,
-        2000000,
-        2200000,
-        2300000,
-        data.revenue || 2345890,
-      ],
+      sparkline: data.revenueSparkline ?? [data.revenue * 0.9, data.revenue],
     },
     {
       id: "expenses",
       label: "Expenses",
       value: data.expenses,
       change: data.expensesChange,
-      sparkline: [
-        1400000,
-        1350000,
-        1300000,
-        1320000,
-        1380000,
-        1360000,
-        1350000,
-        data.expenses || 1345221,
+      sparkline: data.expensesSparkline ?? [
+        data.expenses * 1.05,
+        data.expenses,
       ],
     },
     {
@@ -495,47 +503,26 @@ function BusinessHealth({
       label: "Profit",
       value: data.profit,
       change: data.profitChange,
-      sparkline: [
-        600000,
-        700000,
-        650000,
-        800000,
-        850000,
-        900000,
-        950000,
-        data.profit || 1000669,
-      ],
+      sparkline: data.profitSparkline ?? [data.profit * 0.9, data.profit],
     },
     {
       id: "ar",
-      label: "A/R (Outstanding)",
+      label: "A/R",
       value: data.arOutstanding,
       change: data.arChange,
-      sparkline: [
-        200000,
-        210000,
-        220000,
-        230000,
-        225000,
-        235000,
-        230000,
-        data.arOutstanding || 234550,
+      sparkline: data.arSparkline ?? [
+        data.arOutstanding * 0.95,
+        data.arOutstanding,
       ],
     },
     {
       id: "ap",
-      label: "A/P (Outstanding)",
+      label: "A/P",
       value: data.apOutstanding,
       change: data.apChange,
-      sparkline: [
-        360000,
-        355000,
-        350000,
-        345000,
-        350000,
-        348000,
-        346000,
-        data.apOutstanding || 345667,
+      sparkline: data.apSparkline ?? [
+        data.apOutstanding * 1.05,
+        data.apOutstanding,
       ],
     },
   ];
@@ -559,7 +546,7 @@ function BusinessHealth({
         </select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         {metrics.map((metric) => {
           const isPositive = metric.change >= 0;
           const sparkColor = isPositive ? "#10B981" : "#EF4444";
@@ -567,55 +554,45 @@ function BusinessHealth({
           return (
             <div
               key={metric.id}
-              className="rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:shadow-md"
+              className="rounded-xl border border-border/50 bg-card p-3 sm:p-4 transition-all duration-200 hover:shadow-md min-w-0"
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground truncate">
                   {metric.label}
                 </p>
-                <button
-                  type="button"
-                  className="h-5 w-5 rounded-full flex items-center justify-center text-muted-foreground/30 hover:text-foreground hover:bg-muted transition-all"
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <circle
-                      cx="7"
-                      cy="7"
-                      r="6"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M7 6v4M7 4.5v0"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
               </div>
 
-              <p className="text-xl font-bold tracking-tight tabular-nums text-foreground">
+              <p className="text-base sm:text-xl font-bold tracking-tight tabular-nums text-foreground truncate">
                 {formatCurrency(metric.value)}
               </p>
 
-              <div className="flex items-center justify-between mt-3">
+              <div className="flex items-center justify-between mt-2 sm:mt-3 gap-2">
                 <span
                   className={cn(
-                    "inline-flex items-center gap-0.5 text-xs font-semibold",
+                    "inline-flex items-center gap-0.5 text-[10px] sm:text-xs font-semibold",
                     isPositive ? "text-balanced-green" : "text-error-clay",
                   )}
                 >
                   {isPositive ? (
-                    <TrendingUp className="h-3 w-3" />
+                    <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   ) : (
-                    <TrendingDown className="h-3 w-3" />
+                    <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   )}
-                  {isPositive ? "+" : ""}
-                  {metric.change.toFixed(1)}%
+                  <span className="hidden sm:inline">
+                    {isPositive ? "+" : ""}
+                    {metric.change.toFixed(1)}%
+                  </span>
+                  <span className="sm:hidden">
+                    {isPositive ? "+" : ""}
+                    {metric.change.toFixed(0)}%
+                  </span>
                 </span>
 
-                <MiniSparkline data={metric.sparkline} color={sparkColor} />
+                <MiniSparkline
+                  data={metric.sparkline}
+                  color={sparkColor}
+                  className="hidden sm:block"
+                />
               </div>
             </div>
           );
@@ -1245,8 +1222,8 @@ export default function DashboardPage() {
               }
             />
 
-            {/* Row 4: 3-column — Activity Feed | Pending Approvals | Active Agents */}
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {/* Row 4: Activity Feed | Pending Approvals | Active Agents */}
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <AgentActivityFeed
                 activities={dashboardData?.agentActivity ?? []}
               />
