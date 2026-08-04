@@ -52,6 +52,8 @@ import {
 import { AIComposer } from "@/components/workspace/ai-composer";
 import { TaskList } from "@/components/workspace/task-cards";
 import type { AgentTask } from "@/components/workspace/task-cards";
+import { AgentTimeline } from "@/components/workspace/agent-timeline";
+import { RichMessageRenderer } from "@/components/workspace/rich-message-renderer";
 
 // ─── Active AI Tasks Component ────────────────────────────────────────────
 
@@ -1159,64 +1161,15 @@ function RightSidebar({
           </div>
         )}
 
-        {/* Activity Tab */}
+        {/* Activity Tab - Live Agent Timeline */}
         {activeTab === "activity" && (
           <div className="p-3">
-            <div className="relative">
-              {/* Timeline line */}
-              <div className="absolute left-[15px] top-0 bottom-0 w-px bg-border/50" />
-
-              <div className="space-y-3">
-                {agentActivity.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 mb-2">
-                      <Activity className="h-5 w-5 text-primary" />
-                    </div>
-                    <p className="text-xs font-medium text-foreground">
-                      No activity yet
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Agent actions will appear here
-                    </p>
-                  </div>
-                ) : (
-                  agentActivity.map((activity, index) => (
-                    <div key={activity.id} className="flex gap-2 relative">
-                      <div
-                        className={cn(
-                          "flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full z-10",
-                          activity.status === "completed"
-                            ? "bg-emerald-100"
-                            : activity.status === "active"
-                              ? "bg-primary/10"
-                              : "bg-amber-100",
-                        )}
-                      >
-                        {activity.status === "completed" ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                        ) : activity.status === "active" ? (
-                          <Zap className="h-3.5 w-3.5 text-primary" />
-                        ) : (
-                          <Clock className="h-3.5 w-3.5 text-amber-600" />
-                        )}
-                      </div>
-                      <div className="flex-1 pb-3">
-                        <p className="text-[11px] font-medium text-foreground">
-                          {activity.title}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {activity.description}
-                        </p>
-                        <p className="text-[9px] text-muted-foreground/60 mt-1 flex items-center gap-1">
-                          <History className="h-2.5 w-2.5" />
-                          {activity.time}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            <AgentTimeline
+              entityId={entityId || "default"}
+              maxEntries={30}
+              showStats={true}
+              showHeader={false}
+            />
           </div>
         )}
       </div>
@@ -1311,7 +1264,11 @@ function ChatMessages({
                   : "bg-accent text-foreground rounded-bl-md",
               )}
             >
-              {msg.content}
+              {msg.role === "assistant" && msg.content ? (
+                <RichMessageRenderer content={msg.content} />
+              ) : (
+                msg.content
+              )}
             </div>
             {msg.role === "user" && (
               <span className="text-[10px] text-muted-foreground mt-1">
@@ -1514,7 +1471,7 @@ function AIWorkspaceContent() {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-full">
       {/* Conversation Threads - Left Side */}
       <ConversationThreads
         activeConversationId={activeConversationId}
@@ -1610,6 +1567,14 @@ function AIWorkspaceContent() {
               {/* AI Suggestions */}
               <AISuggestions suggestions={suggestionsData?.suggestions ?? []} />
 
+              {/* Live Agent Timeline */}
+              <AgentTimeline
+                entityId={entityId || "default"}
+                maxEntries={15}
+                showStats={true}
+                showHeader={true}
+              />
+
               {/* Financial Insights + Cash Flow */}
               <div className="grid gap-6 lg:grid-cols-2">
                 <FinancialInsights insights={insightsData?.insights ?? []} />
@@ -1657,7 +1622,7 @@ export default function AIWorkspacePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-[calc(100vh-4rem)]">
+        <div className="flex h-full">
           <div className="flex-1 p-6">
             <Skeleton className="h-16 w-96 rounded-xl" />
             <Skeleton className="h-40 w-full rounded-xl mt-6" />
