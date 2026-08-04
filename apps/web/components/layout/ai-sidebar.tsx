@@ -17,7 +17,6 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
-import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { trpc } from "@/lib/trpc/client";
 
@@ -271,12 +270,9 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        {/* Logo + Entity Switcher */}
+        {/* Logo */}
         <div className="flex flex-col gap-3 border-b border-white/[0.06] p-4">
           <WhiteLabelLogo />
-          <div className="lg:hidden lg:group-hover:block">
-            <EntitySwitcher />
-          </div>
         </div>
 
         {/* Primary Navigation */}

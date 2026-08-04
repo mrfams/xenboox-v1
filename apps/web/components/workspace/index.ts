@@ -16,3 +16,7 @@ export {
   AlertCard,
   TimelineCard,
 } from "./rich-responses";
+export { AgentTimeline, CompactAgentTimeline } from "./agent-timeline";
+export type { AgentTimelineProps } from "./agent-timeline";
+export { RichMessageRenderer } from "./rich-message-renderer";
+export type { RichMessageRendererProps } from "./rich-message-renderer";

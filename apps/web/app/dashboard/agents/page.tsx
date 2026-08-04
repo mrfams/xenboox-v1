@@ -15,61 +15,14 @@ import {
   Pause,
   RotateCcw,
   Eye,
-  ChevronRight,
-  Zap,
-  Brain,
-  TrendingUp,
-  ArrowRight,
 } from "lucide-react";
+import { AgentTimeline } from "@/components/workspace/agent-timeline";
 
 const agentTabs = [
   { id: "overview", label: "Overview", icon: Activity },
   { id: "running", label: "Running", icon: Play },
   { id: "completed", label: "Completed", icon: CheckCircle2 },
   { id: "failed", label: "Failed", icon: AlertTriangle },
-];
-
-const agentTypes = [
-  {
-    id: "cfo",
-    name: "CFO Agent",
-    description: "Strategic financial oversight and decision-making",
-    icon: Brain,
-    color: "bg-violet-100 text-violet-600",
-    tier: "Tier 1",
-  },
-  {
-    id: "ledger",
-    name: "Ledger Agent",
-    description: "Journal entries and general ledger management",
-    icon: Bot,
-    color: "bg-blue-100 text-blue-600",
-    tier: "Tier 3",
-  },
-  {
-    id: "document",
-    name: "Document Agent",
-    description: "OCR processing and document intelligence",
-    icon: Bot,
-    color: "bg-emerald-100 text-emerald-600",
-    tier: "Tier 3",
-  },
-  {
-    id: "reconciliation",
-    name: "Reconciliation Agent",
-    description: "Bank reconciliation and transaction matching",
-    icon: Bot,
-    color: "bg-amber-100 text-amber-600",
-    tier: "Tier 3",
-  },
-  {
-    id: "reporting",
-    name: "Reporting Agent",
-    description: "Financial reports and analytics generation",
-    icon: Bot,
-    color: "bg-cyan-100 text-cyan-600",
-    tier: "Platform",
-  },
 ];
 
 export default function AgentsPage() {
@@ -184,111 +137,14 @@ export default function AgentsPage() {
         {/* Overview Tab */}
         {activeTab === "overview" && (
           <>
-            {/* Agent Types Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {agentTypes.map((agent) => (
-                <div
-                  key={agent.id}
-                  className="rounded-xl border border-border/50 bg-card p-5 hover:shadow-md transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-xl ${agent.color}`}
-                    >
-                      <agent.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {agent.name}
-                        </p>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          {agent.tier}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {agent.description}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-4">
-                    <span className="flex items-center gap-1 text-xs text-emerald-600">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      Active
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Recent Activity */}
-            <div className="rounded-xl border border-border/50 bg-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Recent Agent Activity
-                </h3>
-                <button className="text-xs text-primary hover:underline">
-                  View All
-                </button>
-              </div>
-              <div className="space-y-3">
-                {[
-                  {
-                    id: 1,
-                    agent: "Document Agent",
-                    action: "Processed invoice INV-2847",
-                    time: "2 minutes ago",
-                    status: "completed",
-                  },
-                  {
-                    id: 2,
-                    agent: "Reconciliation Agent",
-                    action: "Matched 12 transactions",
-                    time: "5 minutes ago",
-                    status: "completed",
-                  },
-                  {
-                    id: 3,
-                    agent: "Reporting Agent",
-                    action: "Generated monthly P&L",
-                    time: "10 minutes ago",
-                    status: "completed",
-                  },
-                  {
-                    id: 4,
-                    agent: "Document Agent",
-                    action: "OCR processing receipt",
-                    time: "12 minutes ago",
-                    status: "running",
-                  },
-                ].map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-center gap-3 rounded-lg border border-border/50 bg-background p-3"
-                  >
-                    <div
-                      className={cn(
-                        "h-2 w-2 rounded-full",
-                        activity.status === "completed"
-                          ? "bg-emerald-500"
-                          : "bg-blue-500 animate-pulse",
-                      )}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">
-                        {activity.action}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.agent}
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">
-                      {activity.time}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Live Agent Timeline */}
+            <AgentTimeline
+              entityId={entityId || "default"}
+              maxEntries={20}
+              showStats={true}
+              showHeader={true}
+              className="w-full"
+            />
           </>
         )}
 

@@ -29,11 +29,6 @@ const insightSections = [
     href: "/dashboard/reports",
     icon: BarChart3,
     color: "bg-blue-100 text-blue-600",
-    children: [
-      { label: "All Reports", href: "/dashboard/reports" },
-      { label: "Trial Balance", href: "/dashboard/trial-balance" },
-      { label: "Consolidation", href: "/dashboard/consolidation" },
-    ],
   },
   {
     id: "journal",
@@ -42,11 +37,6 @@ const insightSections = [
     href: "/dashboard/journal",
     icon: BookOpen,
     color: "bg-emerald-100 text-emerald-600",
-    children: [
-      { label: "Journal Entries", href: "/dashboard/journal" },
-      { label: "Chart of Accounts", href: "/dashboard/chart-of-accounts" },
-      { label: "Trial Balance", href: "/dashboard/trial-balance" },
-    ],
   },
   {
     id: "customers",
@@ -196,20 +186,6 @@ export default function InsightsPage() {
                 <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </Link>
-            {section.children && (
-              <div className="mt-2 ml-5 space-y-1">
-                {section.children.map((child) => (
-                  <Link
-                    key={child.href}
-                    href={child.href}
-                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors py-1"
-                  >
-                    <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
-                    {child.label}
-                  </Link>
-                ))}
-              </div>
-            )}
           </div>
         ))}
       </div>

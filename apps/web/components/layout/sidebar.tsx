@@ -24,11 +24,10 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui";
 import { Logo } from "@/components/ui/logo";
-import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { trpc } from "@/lib/trpc/client";
+import { Badge } from "@/components/ui";
 
 type NavItem = {
   label: string;
@@ -345,12 +344,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        {/* Logo + Entity Switcher */}
+        {/* Logo */}
         <div className="flex flex-col gap-3 border-b border-white/[0.06] p-4">
           <WhiteLabelLogo />
-          <div className="lg:hidden lg:group-hover:block">
-            <EntitySwitcher />
-          </div>
         </div>
 
         {/* Primary Navigation */}
