@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEntity } from "@/lib/entity-context";
@@ -451,12 +452,18 @@ function CashFlowOverview({
 
 // ─── AI Chat Panel Component ──────────────────────────────────────────────
 
-function AIChatPanel() {
+function AIChatPanel({
+  initialConversationId,
+}: {
+  initialConversationId?: string | null;
+}) {
   const { entityId } = useEntity();
   const { data: session } = useSession();
   const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(true);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(
+    initialConversationId ?? null,
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const utils = trpc.useUtils();
@@ -686,7 +693,9 @@ function AIChatPanel() {
 
 // ─── Main AI Workspace Page ───────────────────────────────────────────────
 
-export default function AIWorkspacePage() {
+function AIWorkspaceContent() {
+  const searchParams = useSearchParams();
+  const initialConversationId = searchParams?.get("c") ?? null;
   const { entityId } = useEntity();
   const { data: session } = useSession();
   const [inputValue, setInputValue] = useState("");
@@ -862,7 +871,24 @@ export default function AIWorkspacePage() {
       </div>
 
       {/* AI Chat Panel */}
-      <AIChatPanel />
+      <AIChatPanel initialConversationId={initialConversationId} />
     </div>
+  );
+}
+
+export default function AIWorkspacePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-[calc(100vh-4rem)]">
+          <div className="flex-1 p-6">
+            <Skeleton className="h-16 w-96 rounded-xl" />
+            <Skeleton className="h-40 w-full rounded-xl mt-6" />
+          </div>
+        </div>
+      }
+    >
+      <AIWorkspaceContent />
+    </Suspense>
   );
 }

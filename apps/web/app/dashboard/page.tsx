@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEntity } from "@/lib/entity-context";
@@ -110,16 +111,60 @@ function AIGreeting({ firstName }: { firstName?: string }) {
 // ─── AI Chat Input Component ──────────────────────────────────────────────
 
 function AIChatInput() {
+  const router = useRouter();
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
+  const sendMessage = trpc.aiWorkspace.sendMessage.useMutation({
+    onSuccess: (data) => {
+      router.push(`/dashboard/chat?c=${data.conversationId}`);
+    },
+  });
+
+  const handleSubmit = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !sendMessage.isPending) {
+      sendMessage.mutate({ message: trimmed });
+    }
+  };
+
   const suggestions = [
-    { label: "Close July books", icon: BookOpen, color: "text-blue-500" },
-    { label: "Explain cash position", icon: Wallet, color: "text-emerald-500" },
-    { label: "Create payroll", icon: FileText, color: "text-purple-500" },
-    { label: "Find duplicate expenses", icon: Search, color: "text-amber-500" },
-    { label: "Forecast next month", icon: BarChart3, color: "text-indigo-500" },
-    { label: "Show unpaid invoices", icon: Calendar, color: "text-rose-500" },
+    {
+      label: "Close July books",
+      icon: BookOpen,
+      color: "text-blue-500",
+      prompt: "Close the books for July 2026",
+    },
+    {
+      label: "Explain cash position",
+      icon: Wallet,
+      color: "text-emerald-500",
+      prompt: "Explain my current cash position",
+    },
+    {
+      label: "Create payroll",
+      icon: FileText,
+      color: "text-purple-500",
+      prompt: "Create a new payroll run for this month",
+    },
+    {
+      label: "Find duplicate expenses",
+      icon: Search,
+      color: "text-amber-500",
+      prompt: "Scan for duplicate expenses this month",
+    },
+    {
+      label: "Forecast next month",
+      icon: BarChart3,
+      color: "text-indigo-500",
+      prompt: "Forecast cash flow for next month",
+    },
+    {
+      label: "Show unpaid invoices",
+      icon: Calendar,
+      color: "text-rose-500",
+      prompt: "Show all unpaid invoices",
+    },
   ];
 
   return (
@@ -155,12 +200,20 @@ function AIChatInput() {
             onChange={(e) => setInputValue(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(inputValue);
+              }
+            }}
             placeholder="Ask anything about your accounting..."
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
           />
           <Button
             type="button"
             size="icon"
+            onClick={() => handleSubmit(inputValue)}
+            disabled={!inputValue.trim() || sendMessage.isPending}
             className={cn(
               "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
               inputValue.trim()
@@ -168,7 +221,11 @@ function AIChatInput() {
                 : "bg-primary text-white",
             )}
           >
-            <ArrowRight className="h-4 w-4" />
+            {sendMessage.isPending ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowRight className="h-4 w-4" />
+            )}
           </Button>
         </div>
         {isFocused && (
@@ -193,11 +250,14 @@ function AIChatInput() {
             <button
               key={suggestion.label}
               type="button"
+              onClick={() => handleSubmit(suggestion.prompt)}
+              disabled={sendMessage.isPending}
               className={cn(
                 "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
                 "text-xs text-muted-foreground transition-all duration-200",
                 "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
                 "active:scale-95",
+                "disabled:opacity-50 disabled:pointer-events-none",
               )}
             >
               <Icon className={cn("h-3 w-3", suggestion.color)} />
