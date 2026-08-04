@@ -83,19 +83,19 @@ function AIGreeting({ firstName }: { firstName?: string }) {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="flex items-start justify-between">
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
           {greeting}, {firstName ?? "there"}!{" "}
           <span className="inline-block motion-safe:animate-[wave_2s_ease-in-out_infinite] origin-[70%_70%]">
             👋
           </span>
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs sm:text-sm text-muted-foreground">
           Here&apos;s what&apos;s happening with your business today.
         </p>
       </div>
-      <div className="hidden sm:flex items-center gap-2">
+      <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs font-medium text-emerald-700">
@@ -178,15 +178,18 @@ function AIChatInput() {
               onClick={() => handleSubmit(suggestion.prompt)}
               disabled={sendMessage.isPending}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
-                "text-xs text-muted-foreground transition-all duration-200",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-2.5 sm:px-3 py-1.5",
+                "text-[10px] sm:text-xs text-muted-foreground transition-all duration-200",
                 "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
                 "active:scale-95",
                 "disabled:opacity-50 disabled:pointer-events-none",
               )}
             >
               <Icon className={cn("h-3 w-3", suggestion.color)} />
-              {suggestion.label}
+              <span className="hidden sm:inline">{suggestion.label}</span>
+              <span className="sm:hidden">
+                {suggestion.label.split(" ")[0]}
+              </span>
             </button>
           );
         })}
@@ -313,7 +316,7 @@ function ExecutiveBriefing({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-foreground">
             Executive Briefing
@@ -332,7 +335,8 @@ function ExecutiveBriefing({
         </Link>
       </div>
 
-      <div className="scrollbar-hide flex items-center gap-3 overflow-x-auto pb-1">
+      {/* Desktop: horizontal scroll, Mobile/Tablet: grid layout */}
+      <div className="hidden md:scrollbar-hide md:flex md:items-center md:gap-3 md:overflow-x-auto md:pb-1">
         {items.map((item) => {
           const config = statusConfig[item.type] ?? statusConfig.neutral;
           const Icon = config.icon;
@@ -340,6 +344,47 @@ function ExecutiveBriefing({
             <div
               key={item.id}
               className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md hover:border-border/80 min-w-[200px]"
+            >
+              <div
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                  config.iconBg,
+                )}
+              >
+                <Icon className={cn("h-5 w-5", config.iconColor)} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground truncate">
+                  {item.title}
+                </p>
+                <p className="text-sm font-bold tabular-nums text-foreground">
+                  {item.value}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {item.detail}
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "text-[10px] font-medium whitespace-nowrap",
+                  statusColors[item.type] ?? "text-muted-foreground",
+                )}
+              >
+                {item.statusLabel}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {/* Mobile/Tablet: stacked grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:hidden">
+        {items.map((item) => {
+          const config = statusConfig[item.type] ?? statusConfig.neutral;
+          const Icon = config.icon;
+          return (
+            <div
+              key={item.id}
+              className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md hover:border-border/80"
             >
               <div
                 className={cn(
@@ -496,7 +541,7 @@ function BusinessHealth({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-foreground">
             Business Health
@@ -513,7 +558,7 @@ function BusinessHealth({
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {metrics.map((metric) => {
           const isPositive = metric.change >= 0;
           const sparkColor = isPositive ? "#10B981" : "#EF4444";
@@ -1172,7 +1217,7 @@ export default function DashboardPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-4rem)]">
+      <div className="flex h-full">
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-6 p-6">
             <Skeleton className="h-16 w-96 rounded-xl" />
@@ -1210,7 +1255,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-full">
       <TextSelectionMenu
         onAskAI={handleAskAI}
         onExplain={handleExplain}
@@ -1246,7 +1291,7 @@ export default function DashboardPage() {
             />
 
             {/* Row 4: 3-column — Activity Feed | Pending Approvals | Active Agents */}
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               <AgentActivityFeed
                 activities={dashboardData?.agentActivity ?? []}
               />
@@ -1263,7 +1308,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 border-l bg-card hidden lg:block sticky top-0 h-screen overflow-y-auto p-6">
+      <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto p-6">
         <DashboardRightSidebar
           deadlines={dashboardData?.deadlines ?? []}
           recentDocuments={dashboardData?.recentDocuments ?? []}
