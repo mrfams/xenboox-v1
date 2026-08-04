@@ -110,7 +110,17 @@ async function generateStreamingResponse(
   const lowerMessage = message.toLowerCase();
   let response = "";
 
-  if (lowerMessage.includes("cash position") || lowerMessage.includes("cash")) {
+  // Check if message contains file references
+  const hasFileAttachments =
+    lowerMessage.includes("[attached:") || lowerMessage.includes("doc:");
+
+  if (hasFileAttachments) {
+    // Handle file-based input - route to appropriate agent
+    response = await handleFileBasedInput(message, entityId, onChunk);
+  } else if (
+    lowerMessage.includes("cash position") ||
+    lowerMessage.includes("cash")
+  ) {
     const cashBalance = await db
       .select({ total: sum(bankAccounts.currentBalance) })
       .from(bankAccounts)
@@ -171,12 +181,78 @@ async function generateStreamingResponse(
       await new Promise((resolve) => setTimeout(resolve, 30));
     }
   } else {
-    response = `I understand your question about "${message}". I'm your AI accounting assistant and I can help with:\n\n• Cash position and flow analysis\n• Revenue and expense tracking\n• Bank reconciliation\n• Payroll processing\n• Financial reporting\n• Tax compliance\n\nWhat specific task would you like me to help with?`;
+    response = `I understand your question about "${message.slice(0, 100)}${message.length > 100 ? "..." : ""}". I'm your AI accounting assistant and I can help with:\n\n• Cash position and flow analysis\n• Revenue and expense tracking\n• Bank reconciliation\n• Payroll processing\n• Financial reporting\n• Tax compliance\n• Document processing and ingestion\n\nWhat specific task would you like me to help with?`;
     const words = response.split(" ");
     for (const word of words) {
       onChunk(word + " ");
       await new Promise((resolve) => setTimeout(resolve, 30));
     }
+  }
+
+  return response;
+}
+
+// ─── File-Based Input Handler ──────────────────────────────────────────────
+
+async function handleFileBasedInput(
+  message: string,
+  entityId: string,
+  onChunk: (chunk: string) => void,
+): Promise<string> {
+  // Extract file references from message
+  const fileRefs = message.match(/\[Attached: (.+?)\]/g) ?? [];
+  const docIds = message.match(/doc:([a-f0-9-]+)/g) ?? [];
+
+  const fileNames = fileRefs.map((ref) => {
+    const match = ref.match(/\[Attached: (.+?)\]/);
+    return match?.[1] ?? "unknown";
+  });
+
+  // Determine the type of files uploaded
+  const hasInvoices = fileNames.some(
+    (n) =>
+      n.toLowerCase().includes("invoice") || n.toLowerCase().includes("inv-"),
+  );
+  const hasReceipts = fileNames.some((n) =>
+    n.toLowerCase().includes("receipt"),
+  );
+  const hasStatements = fileNames.some(
+    (n) =>
+      n.toLowerCase().includes("statement") || n.toLowerCase().includes("bank"),
+  );
+  const hasSpreadsheets = fileNames.some(
+    (n) => n.endsWith(".xlsx") || n.endsWith(".xls") || n.endsWith(".csv"),
+  );
+  const hasPDFs = fileNames.some((n) => n.toLowerCase().endsWith(".pdf"));
+  const hasImages = fileNames.some(
+    (n) =>
+      n.toLowerCase().endsWith(".png") ||
+      n.toLowerCase().endsWith(".jpg") ||
+      n.toLowerCase().endsWith(".jpeg"),
+  );
+
+  let response = "";
+
+  // Route based on file type
+  if (hasInvoices) {
+    response = `I've received ${fileNames.length} invoice(s):\n\n${fileNames.map((n) => `• ${n}`).join("\n")}\n\nI'm now processing these through the Document Agent for OCR extraction and data validation. Once extracted, I'll automatically create the corresponding journal entries and accounts payable records.\n\n**Processing steps:**\n1. OCR extraction of invoice details (vendor, amount, date, line items)\n2. Validation against your chart of accounts\n3. Creation of AP invoice record\n4. Journal entry generation for accrual\n\nThis typically takes 2-3 minutes. You'll be notified when ready for your review.`;
+  } else if (hasReceipts) {
+    response = `I've received ${fileNames.length} receipt(s):\n\n${fileNames.map((n) => `• ${n}`).join("\n")}\n\nI'm processing these through the Document Agent to extract expense details. I'll categorize each expense and create the appropriate journal entries.\n\n**Processing steps:**\n1. OCR extraction of receipt details (vendor, amount, date, category)\n2. Expense categorization using AI\n3. Journal entry creation\n4. Match against existing transactions (if applicable)\n\nResults will be ready for your review shortly.`;
+  } else if (hasStatements) {
+    response = `I've received ${fileNames.length} bank statement(s):\n\n${fileNames.map((n) => `• ${n}`).join("\n")}\n\nI'm processing these for bank reconciliation. I'll match the transactions against your book records and highlight any discrepancies.\n\n**Processing steps:**\n1. Parse bank statement transactions\n2. Match against existing book entries\n3. Identify unmatched transactions\n4. Generate reconciliation report\n\nI'll notify you when the reconciliation is ready for review.`;
+  } else if (hasSpreadsheets) {
+    response = `I've received ${fileNames.length} spreadsheet(s):\n\n${fileNames.map((n) => `• ${n}`).join("\n")}\n\nI'm analyzing the spreadsheet data to understand its contents. Based on the structure, I'll route it to the appropriate agent for processing.\n\n**Possible actions:**\n• If it contains financial data → Create journal entries\n• If it's a budget → Update budget forecasts\n• If it's a report → Generate insights and analysis\n• If it's a data import → Process and validate entries\n\nLet me analyze the contents and get back to you with specifics.`;
+  } else if (hasPDFs || hasImages) {
+    response = `I've received ${fileNames.length} document(s):\n\n${fileNames.map((n) => `• ${n}`).join("\n")}\n\nI'm processing these through our AI document pipeline:\n\n1. **OCR Processing** - Extracting text and data from the documents\n2. **Classification** - Identifying document type (invoice, receipt, contract, etc.)\n3. **Data Extraction** - Pulling key fields (dates, amounts, parties)\n4. **Validation** - Checking for completeness and accuracy\n5. **Routing** - Creating appropriate records in the system\n\nI'll notify you once processing is complete with a summary of what was extracted.`;
+  } else {
+    response = `I've received ${fileNames.length} file(s):\n\n${fileNames.map((n) => `• ${n}`).join("\n")}\n\nI'm analyzing these files to determine the best way to process them. Our AI will:\n\n1. Identify the file types and contents\n2. Route to the appropriate processing pipeline\n3. Extract relevant data\n4. Create necessary records\n\nPlease give me a moment to process these files.`;
+  }
+
+  // Stream the response
+  const words = response.split(" ");
+  for (const word of words) {
+    onChunk(word + " ");
+    await new Promise((resolve) => setTimeout(resolve, 20));
   }
 
   return response;

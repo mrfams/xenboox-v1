@@ -34,6 +34,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { TextSelectionMenu } from "@/components/dashboard/text-selection-menu";
+import { DashboardInput } from "@/components/dashboard/dashboard-input";
 
 // ─── Mini Sparkline Component ─────────────────────────────────────────────
 
@@ -130,165 +131,7 @@ function AIGreeting({ firstName }: { firstName?: string }) {
   );
 }
 
-// ─── AI Chat Input Component ──────────────────────────────────────────────
-
-function AIChatInput() {
-  const router = useRouter();
-  const [inputValue, setInputValue] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
-
-  const sendMessage = trpc.aiWorkspace.sendMessage.useMutation({
-    onSuccess: (data) => {
-      router.push(`/dashboard/chat?c=${data.conversationId}`);
-    },
-  });
-
-  const handleSubmit = (value: string) => {
-    const trimmed = value.trim();
-    if (trimmed && !sendMessage.isPending) {
-      sendMessage.mutate({ message: trimmed });
-    }
-  };
-
-  const suggestions = [
-    {
-      label: "Close July books",
-      icon: BookOpen,
-      color: "text-blue-500",
-      prompt: "Close the books for July 2026",
-    },
-    {
-      label: "Explain cash position",
-      icon: Wallet,
-      color: "text-emerald-500",
-      prompt: "Explain my current cash position",
-    },
-    {
-      label: "Create payroll",
-      icon: FileText,
-      color: "text-purple-500",
-      prompt: "Create a new payroll run for this month",
-    },
-    {
-      label: "Find duplicate expenses",
-      icon: Search,
-      color: "text-amber-500",
-      prompt: "Scan for duplicate expenses this month",
-    },
-    {
-      label: "Forecast next month",
-      icon: BarChart3,
-      color: "text-indigo-500",
-      prompt: "Forecast cash flow for next month",
-    },
-    {
-      label: "Show unpaid invoices",
-      icon: Calendar,
-      color: "text-rose-500",
-      prompt: "Show all unpaid invoices",
-    },
-  ];
-
-  return (
-    <div className="mx-auto w-full max-w-3xl space-y-3">
-      <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
-        {suggestions.map((suggestion) => {
-          const Icon = suggestion.icon;
-          return (
-            <button
-              key={suggestion.label}
-              type="button"
-              onClick={() => handleSubmit(suggestion.prompt)}
-              disabled={sendMessage.isPending}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-2.5 sm:px-3 py-1.5",
-                "text-[10px] sm:text-xs text-muted-foreground transition-all duration-200",
-                "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
-                "active:scale-95",
-                "disabled:opacity-50 disabled:pointer-events-none",
-              )}
-            >
-              <Icon className={cn("h-3 w-3", suggestion.color)} />
-              <span className="hidden sm:inline">{suggestion.label}</span>
-              <span className="sm:hidden">
-                {suggestion.label.split(" ")[0]}
-              </span>
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          className="inline-flex shrink-0 items-center justify-center h-7 w-7 rounded-xl border border-border/50 bg-card/80 text-muted-foreground transition-all hover:bg-accent"
-          title="Refresh suggestions"
-        >
-          <RefreshCw className="h-3 w-3" />
-        </button>
-      </div>
-
-      <div
-        className={cn(
-          "relative group rounded-2xl border-2 bg-card transition-all duration-300 shadow-sm",
-          isFocused
-            ? "border-primary/50 shadow-lg shadow-primary/10"
-            : "border-border/50 hover:border-border/80 hover:shadow-md",
-        )}
-      >
-        <div className="relative flex items-center gap-3 px-4 py-3.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Bot className="h-4 w-4" />
-          </div>
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(inputValue);
-              }
-            }}
-            placeholder="Ask anything about your accounting..."
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
-          />
-          <Button
-            type="button"
-            size="icon"
-            onClick={() => handleSubmit(inputValue)}
-            disabled={!inputValue.trim() || sendMessage.isPending}
-            className={cn(
-              "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
-              inputValue.trim()
-                ? "bg-primary hover:bg-primary/90 text-white shadow-sm"
-                : "bg-primary text-white",
-            )}
-          >
-            {sendMessage.isPending ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowRight className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-        {isFocused && (
-          <div className="border-t border-border/50 px-4 py-2">
-            <p className="text-[10px] text-muted-foreground">
-              <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">
-                Enter
-              </kbd>{" "}
-              to send ·
-              <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">
-                Shift+Enter
-              </kbd>{" "}
-              for new line
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+// AIChatInput replaced by DashboardInput component with file upload support
 
 // ─── Executive Briefing Component ─────────────────────────────────────────
 
@@ -1233,9 +1076,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Pinned AI Command Bar */}
+        {/* Pinned AI Command Bar with File Upload */}
         <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4 flex-shrink-0">
-          <AIChatInput />
+          <div className="mx-auto w-full max-w-3xl">
+            <DashboardInput />
+          </div>
         </div>
       </div>
 
