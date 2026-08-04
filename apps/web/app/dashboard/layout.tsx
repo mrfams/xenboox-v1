@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Bot, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { EntityProvider, useEntity } from "@/lib/entity-context";
 import { PermissionProvider, serializePermissions } from "@/lib/permissions";
@@ -38,10 +39,22 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [panelWidth, setPanelWidth] = useState(400);
+
+  const PAGE_PADDING_ROUTES = new Set([
+    "/dashboard/work",
+    "/dashboard/money",
+    "/dashboard/insights",
+    "/dashboard/agents",
+    "/dashboard/settings",
+  ]);
+
+  const isPaddedPage = pathname ? PAGE_PADDING_ROUTES.has(pathname) : false;
+  const isDashboardHome = pathname === "/dashboard";
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -91,7 +104,7 @@ export default function DashboardLayout({
                 {/* Main Content */}
                 <div
                   className={cn(
-                    "flex flex-col overflow-hidden transition-all duration-300",
+                    "flex flex-col overflow-hidden transition-all duration-300 flex-1",
                     chatOpen ? "flex-1" : "flex-1",
                   )}
                 >
@@ -100,7 +113,14 @@ export default function DashboardLayout({
                     onChatToggle={() => setChatOpen(!chatOpen)}
                     chatOpen={chatOpen}
                   />
-                  <main className="flex-1 overflow-y-auto">{children}</main>
+                  <main
+                    className={cn(
+                      "flex-1 overflow-y-auto",
+                      isPaddedPage && "p-6",
+                    )}
+                  >
+                    {children}
+                  </main>
                 </div>
 
                 {/* Right Panel Toggle Button (when closed) */}

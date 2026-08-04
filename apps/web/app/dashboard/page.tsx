@@ -933,49 +933,37 @@ function ActiveAgents() {
 function CollapsibleSection({
   title,
   children,
-  action,
   defaultOpen = true,
-  badge,
   icon,
 }: {
   title: string;
   children: React.ReactNode;
-  action?: React.ReactNode;
   defaultOpen?: boolean;
-  badge?: string;
   icon?: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card overflow-hidden transition-all duration-200 hover:border-border/80">
+    <div>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-accent/30"
+        className="flex w-full items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-left transition-colors hover:bg-muted/80"
       >
         <div className="flex items-center gap-2.5">
           {icon && (
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
               {icon}
             </span>
           )}
           <span className="text-sm font-semibold text-foreground">{title}</span>
-          {badge && (
-            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
-              {badge}
-            </span>
+        </div>
+        <ChevronRight
+          className={cn(
+            "h-5 w-5 text-muted-foreground transition-transform duration-200",
+            isOpen && "rotate-90",
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          {action}
-          <ChevronRight
-            className={cn(
-              "h-4 w-4 text-muted-foreground transition-transform duration-200",
-              isOpen && "rotate-90",
-            )}
-          />
-        </div>
+        />
       </button>
       <div
         className={cn(
@@ -983,7 +971,7 @@ function CollapsibleSection({
           isOpen ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0",
         )}
       >
-        <div className="px-4 pb-4 pt-1">{children}</div>
+        <div className="pt-2">{children}</div>
       </div>
     </div>
   );
@@ -1044,23 +1032,11 @@ function DashboardRightSidebar({
       <CollapsibleSection
         title="Upcoming & Deadlines"
         icon={<Calendar className="h-4 w-4 text-primary" />}
-        badge={String(deadlines.length)}
-        action={
-          <Link
-            href="/dashboard/close"
-            className="text-[11px] font-medium text-primary hover:text-primary/80 mr-2"
-          >
-            View all
-          </Link>
-        }
         defaultOpen={true}
       >
-        <div className="space-y-2">
+        <div className="space-y-1">
           {deadlines.map((d) => (
-            <div
-              key={d.id}
-              className="flex items-center gap-3 rounded-lg bg-background p-2.5 hover:shadow-sm transition-all border border-border/30"
-            >
+            <div key={d.id} className="flex items-center gap-3 py-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                 <Calendar className="h-4 w-4 text-primary" />
               </div>
@@ -1089,18 +1065,9 @@ function DashboardRightSidebar({
       <CollapsibleSection
         title="Recent Documents"
         icon={<FileText className="h-4 w-4 text-blue-500" />}
-        badge={String(recentDocuments.length)}
-        action={
-          <Link
-            href="/dashboard/documents"
-            className="text-[11px] font-medium text-primary hover:text-primary/80 mr-2"
-          >
-            View all
-          </Link>
-        }
         defaultOpen={true}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-0.5">
           {recentDocuments.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
               No documents yet
@@ -1109,7 +1076,7 @@ function DashboardRightSidebar({
             recentDocuments.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
+                className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
               >
                 <FileText
                   className={cn("h-4 w-4 shrink-0", getDocColor(doc.type))}
@@ -1130,18 +1097,9 @@ function DashboardRightSidebar({
       <CollapsibleSection
         title="Recent Conversations"
         icon={<MessageSquare className="h-4 w-4 text-purple-500" />}
-        badge={String(recentConversations.length)}
-        action={
-          <Link
-            href="/dashboard/chat"
-            className="text-[11px] font-medium text-primary hover:text-primary/80 mr-2"
-          >
-            View all
-          </Link>
-        }
         defaultOpen={true}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-0.5">
           {recentConversations.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
               No conversations yet
@@ -1150,7 +1108,7 @@ function DashboardRightSidebar({
             recentConversations.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
+                className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
               >
                 <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -1171,10 +1129,9 @@ function DashboardRightSidebar({
       <CollapsibleSection
         title="Suggested Actions"
         icon={<Sparkles className="h-4 w-4 text-amber-500" />}
-        badge={String(suggestedActions.length)}
         defaultOpen={true}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-0.5">
           {suggestedActions.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
               All caught up!
@@ -1184,7 +1141,7 @@ function DashboardRightSidebar({
               <button
                 key={i}
                 type="button"
-                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent/50 text-left transition-colors group"
+                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 text-left transition-colors group"
               >
                 <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span className="flex-1 text-xs text-foreground truncate">
@@ -1219,7 +1176,7 @@ export default function DashboardPage() {
     return (
       <div className="flex h-full">
         <div className="flex-1 overflow-y-auto">
-          <div className="space-y-6">
+          <div className="space-y-6 px-6 pt-6">
             <Skeleton className="h-16 w-96 rounded-xl" />
             <Skeleton className="h-16 w-full rounded-xl" />
             <Skeleton className="h-20 w-full rounded-xl" />
@@ -1235,7 +1192,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <div className="w-80 border-l bg-card hidden lg:block p-6">
+        <div className="w-80 border-l bg-card hidden lg:block">
           <Skeleton className="h-64 rounded-xl" />
         </div>
       </div>
@@ -1264,7 +1221,7 @@ export default function DashboardPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">
-          <div className="space-y-6">
+          <div className="space-y-6 px-6 pt-6">
             {/* Row 1: Greeting */}
             <AIGreeting firstName={firstName} />
 
@@ -1308,7 +1265,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto p-6">
+      <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto">
         <DashboardRightSidebar
           deadlines={dashboardData?.deadlines ?? []}
           recentDocuments={dashboardData?.recentDocuments ?? []}
