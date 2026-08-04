@@ -508,7 +508,7 @@ function AIChatPanel({
   return (
     <div
       className={cn(
-        "border-l bg-card transition-all duration-300",
+        "border-r bg-card transition-all duration-300",
         isOpen ? "w-96" : "w-12",
       )}
     >
@@ -758,7 +758,10 @@ function AIWorkspaceContent() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
-      {/* Main Content */}
+      {/* AI Chat Panel - Left Side */}
+      <AIChatPanel initialConversationId={initialConversationId} />
+
+      {/* Main Content - Right Side */}
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-6 p-6">
           {/* Header */}
@@ -869,9 +872,6 @@ function AIWorkspaceContent() {
           </div>
         </div>
       </div>
-
-      {/* AI Chat Panel */}
-      <AIChatPanel initialConversationId={initialConversationId} />
     </div>
   );
 }
