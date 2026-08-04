@@ -72,7 +72,7 @@ export function AICommandBar({
   if (compact) {
     return (
       <div className={cn("relative", className)}>
-        <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 shadow-sm">
+        <div className="flex h-9 items-center gap-2 rounded-lg border bg-card px-3 shadow-sm">
           <Sparkles className="h-3.5 w-3.5 text-signal-indigo shrink-0" />
           <input
             ref={inputRef}

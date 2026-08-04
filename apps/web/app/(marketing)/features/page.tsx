@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   Check,
-  Sparkles,
   Zap,
   Shield,
   Globe,
@@ -336,13 +335,6 @@ export default function FeaturesPage() {
         </div>
 
         <div className="relative z-10 mx-auto max-w-5xl px-4 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 mb-8">
-            <Sparkles className="h-4 w-4 text-blue-400" />
-            <span className="text-sm text-white/80">
-              AI-Native Accounting Platform
-            </span>
-          </div>
-
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
             Accounting that{" "}
             <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">

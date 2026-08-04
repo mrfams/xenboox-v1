@@ -87,7 +87,7 @@ export default function DashboardLayout({
               />
 
               {/* Main Content + Right Panel Container */}
-              <div className="flex flex-1 overflow-hidden">
+              <div className="flex flex-1 overflow-hidden lg:pl-[4.25rem]">
                 {/* Main Content */}
                 <div
                   className={cn(
@@ -114,7 +114,7 @@ export default function DashboardLayout({
                     title="Open AI Assistant"
                   >
                     <PanelRightOpen className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-[10px] font-medium text-muted-foreground writing-vertical-rl rotate-180">
+                    <span className="text-[10px] font-medium text-muted-foreground writing-vertical-rl">
                       AI Agent
                     </span>
                   </button>

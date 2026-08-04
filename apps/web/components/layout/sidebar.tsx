@@ -342,7 +342,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         className={cn(
           "group fixed inset-y-0 left-0 z-[49] flex w-64 flex-col border-r border-white/[0.06] transition-all duration-200 ease-in-out",
           "bg-[hsl(var(--sidebar-bg))]",
-          "lg:static lg:translate-x-0 lg:w-[var(--sidebar-width)]",
+          "lg:translate-x-0 lg:w-[var(--sidebar-width)]",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >

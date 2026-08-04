@@ -91,6 +91,21 @@ export function TopNav({
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  // Close the user menu when clicking anywhere outside it
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        userMenuOpen &&
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target as Node)
+      ) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [userMenuOpen]);
+
   const utils = trpc.useUtils();
 
   useEffect(() => {
@@ -300,10 +315,6 @@ export function TopNav({
 
           {userMenuOpen && (
             <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setUserMenuOpen(false)}
-              />
               <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-md border bg-popover shadow-lg overflow-hidden">
                 <div className="border-b px-3 py-2.5">
                   <p className="truncate text-sm font-medium leading-tight">
