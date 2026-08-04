@@ -521,9 +521,145 @@ export const aiWorkspaceRouter = router({
         limit: 50,
       });
     }),
+
+  /**
+   * Get pending approvals for the right sidebar
+   */
+  getPendingApprovals: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    // Get pending journal entries
+    const pendingJournals = await db.query.journalEntries.findMany({
+      where: and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.status, "draft"),
+      ),
+      orderBy: [desc(journalEntries.createdAt)],
+      limit: 5,
+    });
+
+    // Get pending AP invoices
+    const pendingInvoices = await db
+      .select()
+      .from(invoicesAp)
+      .where(
+        and(
+          eq(invoicesAp.entityId, entityId),
+          sql`${invoicesAp.status} IN ('pending', 'partial')`,
+        ),
+      )
+      .orderBy(desc(invoicesAp.createdAt))
+      .limit(5);
+
+    const approvals: Array<{
+      id: string;
+      type: "journal" | "invoice" | "other";
+      title: string;
+      description: string;
+      amount?: string;
+    }> = [];
+
+    // Add journal entries
+    for (const journal of pendingJournals) {
+      approvals.push({
+        id: journal.id,
+        type: "journal",
+        title: `Journal Entry`,
+        description: journal.description || "Draft entry pending review",
+      });
+    }
+
+    // Add invoices
+    for (const invoice of pendingInvoices) {
+      approvals.push({
+        id: invoice.id,
+        type: "invoice",
+        title: invoice.invoiceNumber || "Invoice",
+        description: invoice.vendorName || "Pending invoice",
+        amount: `GMD ${parseFloat(invoice.totalAmount).toLocaleString()}`,
+      });
+    }
+
+    return { approvals: approvals.slice(0, 5) };
+  }),
+
+  /**
+   * Get recent documents for the right sidebar
+   */
+  getRecentDocuments: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const recentDocs = await db.query.documents.findMany({
+      where: eq(documents.entityId, entityId),
+      orderBy: [desc(documents.createdAt)],
+      limit: 5,
+    });
+
+    const docList = recentDocs.map((doc) => ({
+      id: doc.id,
+      name: doc.fileName || "Untitled Document",
+      type: doc.documentType || "Document",
+      date: doc.createdAt
+        ? new Date(doc.createdAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })
+        : "",
+    }));
+
+    return { documents: docList };
+  }),
+
+  /**
+   * Get agent activity for the right sidebar
+   */
+  getAgentActivity: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const recentLogs = await db.query.agentRoutingLogs.findMany({
+      where: eq(agentRoutingLogs.entityId, entityId),
+      orderBy: [desc(agentRoutingLogs.createdAt)],
+      limit: 10,
+    });
+
+    const activity = recentLogs.map((log) => {
+      const timeAgo = getTimeAgo(log.createdAt);
+      let status: "completed" | "active" | "pending" = "completed";
+      if (log.decision === "escalated") status = "pending";
+      else if (log.decision === "routed") status = "active";
+
+      return {
+        id: log.id,
+        title: log.agentName || "Agent Action",
+        description: log.action || "Processing",
+        status,
+        time: timeAgo,
+      };
+    });
+
+    return { activity };
+  }),
 });
 
 // ─── AI Response Generator ────────────────────────────────────────────────
+
+// ─── Helper Functions ────────────────────────────────────────────────────
+
+function getTimeAgo(date: Date | string | null): string {
+  if (!date) return "";
+  const now = new Date();
+  const d = new Date(date);
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 async function generateAIResponse(
   message: string,

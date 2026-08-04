@@ -29,10 +29,7 @@ export function Testimonials() {
     <Section id="testimonials" className="bg-paper-2/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
-          <SectionHeading
-            eyebrow="In their words"
-            title="Trusted by teams who closed faster than ever."
-          />
+          <SectionHeading title="Trusted by teams who closed faster than ever." />
         </FadeInUp>
 
         <div className="mx-auto mt-16 grid max-w-5xl gap-6 lg:grid-cols-2">

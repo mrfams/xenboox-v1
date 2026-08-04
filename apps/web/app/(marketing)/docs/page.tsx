@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   BookOpen,
@@ -16,6 +17,12 @@ import {
   Users,
 } from "lucide-react";
 import { FadeInUp } from "@/components/marketing/reveal";
+
+export const metadata: Metadata = {
+  title: "Documentation",
+  description:
+    "Everything you need to build with Xenboox - from quickstart guides to API references.",
+};
 
 const categories = [
   {

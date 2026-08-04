@@ -38,7 +38,6 @@ export function Security() {
           <div className="max-w-xl">
             <SectionHeading
               align="left"
-              eyebrow="Built on trust"
               title="Bank-grade security, built for financial data."
               lead="Xenboox is engineered around one principle: your books are your business. We protect them like ours."
             />

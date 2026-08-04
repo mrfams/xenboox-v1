@@ -30,7 +30,6 @@ export function HowItWorks() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
           <SectionHeading
-            eyebrow="How it works"
             title="Set up in minutes. Owned in days."
             lead="Xenboox replaces the daily grind of accounting work, not your judgment."
           />

@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { LegalHero, LegalContent } from "@/components/marketing/legal-hero";
+
+export const metadata: Metadata = {
+  title: "Cookie Policy",
+  description:
+    "How Xenboox uses cookies and similar tracking technologies. We use cookies only for essential platform operations.",
+};
 
 const tableOfContents = [
   { id: "what-are", label: "What Are Cookies" },

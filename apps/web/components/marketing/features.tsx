@@ -74,7 +74,6 @@ export function Features() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
           <SectionHeading
-            eyebrow="Everything included"
             title="Everything a finance team does. Done by agents."
             lead="All 20 modules work together as one system — no spreadsheets, no plugins, no patchwork."
           />

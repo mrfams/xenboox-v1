@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Shield, Clock, FileText } from "lucide-react";
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -91,6 +94,54 @@ type LegalContentProps = {
 };
 
 export function LegalContent({ children, tableOfContents }: LegalContentProps) {
+  const [activeId, setActiveId] = useState<string>("");
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+      e.preventDefault();
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+        setActiveId(id);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!tableOfContents || tableOfContents.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the first visible section
+        const visibleEntries = entries.filter((entry) => entry.isIntersecting);
+        if (visibleEntries.length > 0) {
+          // Pick the one closest to the top
+          const closest = visibleEntries.reduce((prev, curr) =>
+            prev.boundingClientRect.top < curr.boundingClientRect.top
+              ? prev
+              : curr,
+          );
+          setActiveId(closest.target.id);
+        }
+      },
+      {
+        rootMargin: "-80px 0px -70% 0px",
+        threshold: 0,
+      },
+    );
+
+    // Observe all sections
+    tableOfContents.forEach((item) => {
+      const element = document.getElementById(item.id);
+      if (element) {
+        observer.observe(element);
+      }
+    });
+
+    return () => observer.disconnect();
+  }, [tableOfContents]);
+
   return (
     <section className="py-12 sm:py-16">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
@@ -102,17 +153,28 @@ export function LegalContent({ children, tableOfContents }: LegalContentProps) {
                 <p className="text-xs font-semibold text-slate-900 uppercase tracking-wider mb-4">
                   On this page
                 </p>
-                <ul className="space-y-2">
-                  {tableOfContents.map((item) => (
-                    <li key={item.id}>
-                      <a
-                        href={`#${item.id}`}
-                        className="text-sm text-slate-500 hover:text-blue-600 transition-colors"
-                      >
-                        {item.label}
-                      </a>
-                    </li>
-                  ))}
+                <ul className="space-y-1">
+                  {tableOfContents.map((item) => {
+                    const isActive = activeId === item.id;
+                    return (
+                      <li key={item.id}>
+                        <a
+                          href={`#${item.id}`}
+                          onClick={(e) => handleClick(e, item.id)}
+                          className={`
+                            block text-sm py-1.5 pl-3 -ml-3 rounded-r-lg transition-all duration-200
+                            ${
+                              isActive
+                                ? "text-blue-600 font-medium bg-blue-50/80 border-l-2 border-blue-600"
+                                : "text-slate-500 hover:text-slate-900 border-l-2 border-transparent"
+                            }
+                          `}
+                        >
+                          {item.label}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </nav>
             </FadeInUp>

@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { LegalHero, LegalContent } from "@/components/marketing/legal-hero";
+
+export const metadata: Metadata = {
+  title: "Refund Policy",
+  description:
+    "Our policy on refunds, cancellations, and billing disputes. We aim to be fair and transparent.",
+};
 
 const tableOfContents = [
   { id: "overview", label: "Overview" },

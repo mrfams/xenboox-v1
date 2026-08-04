@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { LegalHero, LegalContent } from "@/components/marketing/legal-hero";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description:
+    "How Xenboox collects, uses, and protects your personal data. We believe in transparency and giving you control over your information.",
+};
 
 const tableOfContents = [
   { id: "introduction", label: "Introduction" },

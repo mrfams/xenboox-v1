@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { LegalHero, LegalContent } from "@/components/marketing/legal-hero";
+
+export const metadata: Metadata = {
+  title: "Service Level Agreement",
+  description:
+    "Our commitment to platform availability, performance, and support response times.",
+};
 
 const tableOfContents = [
   { id: "commitment", label: "Service Commitment" },

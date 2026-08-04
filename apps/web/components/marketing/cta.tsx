@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui";
 import { Section } from "@/components/marketing/section";
@@ -20,10 +20,6 @@ export function Cta() {
               }}
             />
             <div className="relative mx-auto max-w-2xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-paper">
-                <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-                Next month-end could be your shortest
-              </span>
               <h2 className="mt-6 text-3xl font-semibold tracking-tight text-paper sm:text-4xl lg:text-5xl">
                 Let the agents do the books.
               </h2>

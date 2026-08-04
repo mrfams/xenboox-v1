@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Mail,
@@ -9,6 +10,12 @@ import {
 } from "lucide-react";
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
+
+export const metadata: Metadata = {
+  title: "Contact",
+  description:
+    "Get in touch with Xenboox. Our team is here to help with questions, demos, and support.",
+};
 
 const contactMethods = [
   {

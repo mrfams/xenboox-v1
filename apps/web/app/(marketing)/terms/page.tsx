@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { LegalHero, LegalContent } from "@/components/marketing/legal-hero";
+
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description:
+    "The terms governing your use of the Xenboox platform. Please read carefully - by using our services, you agree to these terms.",
+};
 
 const tableOfContents = [
   { id: "acceptance", label: "Acceptance of Terms" },

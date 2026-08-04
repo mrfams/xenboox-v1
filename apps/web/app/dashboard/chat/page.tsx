@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/shared/loading";
 import { Button } from "@/components/ui";
+import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
 import {
   ArrowRight,
   Plus,
@@ -40,6 +41,13 @@ import {
   MoreHorizontal,
   Edit3,
   Trash2,
+  ClipboardCheck,
+  Activity,
+  Eye,
+  Download,
+  Shield,
+  Zap,
+  History,
 } from "lucide-react";
 
 // ─── Active AI Tasks Component ────────────────────────────────────────────
@@ -902,11 +910,341 @@ function groupConversationsByDate(
   return result;
 }
 
+// ─── Right Sidebar Component ──────────────────────────────────────────────
+
+function RightSidebar({
+  entityId,
+  isChatMode,
+}: {
+  entityId: string | null;
+  isChatMode: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState<
+    "approvals" | "documents" | "activity"
+  >("approvals");
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Fetch pending approvals
+  const { data: approvalsData } = trpc.aiWorkspace.getPendingApprovals.useQuery(
+    undefined,
+    { enabled: !!entityId },
+  );
+
+  // Fetch recent documents
+  const { data: documentsData } = trpc.aiWorkspace.getRecentDocuments.useQuery(
+    undefined,
+    { enabled: !!entityId },
+  );
+
+  // Fetch agent activity
+  const { data: activityData } = trpc.aiWorkspace.getAgentActivity.useQuery(
+    undefined,
+    { enabled: !!entityId },
+  );
+
+  const pendingApprovals = approvalsData?.approvals ?? [];
+  const recentDocuments = documentsData?.documents ?? [];
+  const agentActivity = activityData?.activity ?? [];
+
+  if (isCollapsed) {
+    return (
+      <div className="w-12 border-l bg-card flex flex-col items-center py-3 gap-3">
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(false)}
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors relative"
+        >
+          <ClipboardCheck className="h-4 w-4" />
+          {pendingApprovals.length > 0 && (
+            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-[9px] font-bold text-white flex items-center justify-center">
+              {pendingApprovals.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(false)}
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+        >
+          <FileText className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(false)}
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+        >
+          <Activity className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-80 border-l bg-card flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-border/50">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+            <ClipboardCheck className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <p className="text-xs font-semibold text-foreground">Workspace</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(true)}
+          className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border/50">
+        {[
+          {
+            id: "approvals" as const,
+            label: "Approvals",
+            count: pendingApprovals.length,
+          },
+          {
+            id: "documents" as const,
+            label: "Documents",
+            count: recentDocuments.length,
+          },
+          { id: "activity" as const, label: "Activity", count: null },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-medium transition-colors",
+              activeTab === tab.id
+                ? "text-primary border-b-2 border-primary"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {tab.label}
+            {tab.count !== null && tab.count > 0 && (
+              <span className="h-4 min-w-[16px] rounded-full bg-primary/10 px-1 text-[9px] font-bold text-primary flex items-center justify-center">
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Approvals Tab */}
+        {activeTab === "approvals" && (
+          <div className="p-3 space-y-2">
+            {pendingApprovals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 mb-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                </div>
+                <p className="text-xs font-medium text-foreground">
+                  All caught up!
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  No pending approvals
+                </p>
+              </div>
+            ) : (
+              pendingApprovals.map((approval) => (
+                <div
+                  key={approval.id}
+                  className="rounded-xl border border-border/50 bg-background p-3 space-y-2"
+                >
+                  <div className="flex items-start gap-2">
+                    <div
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                        approval.type === "journal"
+                          ? "bg-blue-100"
+                          : approval.type === "invoice"
+                            ? "bg-amber-100"
+                            : "bg-purple-100",
+                      )}
+                    >
+                      {approval.type === "journal" ? (
+                        <FileText className="h-3.5 w-3.5 text-blue-600" />
+                      ) : approval.type === "invoice" ? (
+                        <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+                      ) : (
+                        <Shield className="h-3.5 w-3.5 text-purple-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-foreground truncate">
+                        {approval.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {approval.description}
+                      </p>
+                      {approval.amount && (
+                        <p className="text-[10px] font-medium text-foreground mt-1">
+                          {approval.amount}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="flex-1 h-7 rounded-lg bg-emerald-500 text-white text-[10px] font-medium hover:bg-emerald-600 transition-colors"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      className="flex-1 h-7 rounded-lg border border-border bg-background text-[10px] font-medium text-foreground hover:bg-accent transition-colors"
+                    >
+                      Review
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Documents Tab */}
+        {activeTab === "documents" && (
+          <div className="p-3 space-y-2">
+            {recentDocuments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 mb-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <p className="text-xs font-medium text-foreground">
+                  No documents yet
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Documents created by AI will appear here
+                </p>
+              </div>
+            ) : (
+              recentDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="rounded-xl border border-border/50 bg-background p-3 hover:shadow-sm transition-all cursor-pointer"
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <FileText className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-foreground truncate">
+                        {doc.name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {doc.type} · {doc.date}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+                    >
+                      <Download className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Activity Tab */}
+        {activeTab === "activity" && (
+          <div className="p-3">
+            <div className="relative">
+              {/* Timeline line */}
+              <div className="absolute left-[15px] top-0 bottom-0 w-px bg-border/50" />
+
+              <div className="space-y-3">
+                {agentActivity.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 mb-2">
+                      <Activity className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-xs font-medium text-foreground">
+                      No activity yet
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Agent actions will appear here
+                    </p>
+                  </div>
+                ) : (
+                  agentActivity.map((activity, index) => (
+                    <div key={activity.id} className="flex gap-2 relative">
+                      <div
+                        className={cn(
+                          "flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full z-10",
+                          activity.status === "completed"
+                            ? "bg-emerald-100"
+                            : activity.status === "active"
+                              ? "bg-primary/10"
+                              : "bg-amber-100",
+                        )}
+                      >
+                        {activity.status === "completed" ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : activity.status === "active" ? (
+                          <Zap className="h-3.5 w-3.5 text-primary" />
+                        ) : (
+                          <Clock className="h-3.5 w-3.5 text-amber-600" />
+                        )}
+                      </div>
+                      <div className="flex-1 pb-3">
+                        <p className="text-[11px] font-medium text-foreground">
+                          {activity.title}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {activity.description}
+                        </p>
+                        <p className="text-[9px] text-muted-foreground/60 mt-1 flex items-center gap-1">
+                          <History className="h-2.5 w-2.5" />
+                          {activity.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="p-2 border-t border-border/50">
+        <button
+          type="button"
+          className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-accent/50 px-3 py-2 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <Eye className="h-3 w-3" />
+          View full dashboard
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main AI Workspace Page ───────────────────────────────────────────────
 
 // ─── Chat Messages Component ──────────────────────────────────────────────
 
-function ChatMessages({ conversationId }: { conversationId: string | null }) {
+function ChatMessages({
+  conversationId,
+  streamedContent,
+  isStreaming,
+}: {
+  conversationId: string | null;
+  streamedContent?: string;
+  isStreaming?: boolean;
+}) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: messages } = trpc.aiWorkspace.getMessages.useQuery(
@@ -916,9 +1254,9 @@ function ChatMessages({ conversationId }: { conversationId: string | null }) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamedContent]);
 
-  if (!conversationId) {
+  if (!conversationId && !isStreaming) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-4">
@@ -1015,6 +1353,60 @@ function ChatMessages({ conversationId }: { conversationId: string | null }) {
           </p>
         </div>
       )}
+      {/* Streaming response */}
+      {isStreaming && streamedContent && (
+        <div className="flex flex-col gap-1 items-start">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
+              <Bot className="h-3 w-3 text-primary" />
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              Xenboox AI
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="text-[10px] text-primary">typing...</span>
+            </span>
+          </div>
+          <div className="max-w-[80%] rounded-2xl rounded-bl-md px-4 py-2.5 text-xs leading-relaxed bg-accent text-foreground">
+            {streamedContent}
+            <span className="inline-block w-0.5 h-3 bg-primary ml-0.5 animate-pulse" />
+          </div>
+        </div>
+      )}
+      {/* Typing indicator when streaming starts but no content yet */}
+      {isStreaming && !streamedContent && (
+        <div className="flex flex-col gap-1 items-start">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
+              <Bot className="h-3 w-3 text-primary" />
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              Xenboox AI
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="text-[10px] text-primary">thinking...</span>
+            </span>
+          </div>
+          <div className="max-w-[80%] rounded-2xl rounded-bl-md px-4 py-2.5 text-xs leading-relaxed bg-accent text-foreground">
+            <div className="flex items-center gap-1">
+              <span
+                className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              />
+              <span
+                className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-bounce"
+                style={{ animationDelay: "150ms" }}
+              />
+              <span
+                className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       <div ref={messagesEndRef} />
     </div>
   );
@@ -1108,19 +1500,26 @@ function AIWorkspaceContent() {
 
   const utils = trpc.useUtils();
 
-  // Create conversation mutation
-  const createConversation = trpc.chat.createConversation.useMutation();
-
-  // Send message via workspace
-  const sendMessage = trpc.aiWorkspace.sendMessage.useMutation({
-    onSuccess: (data) => {
-      setActiveConversationId(data.conversationId);
+  // Streaming chat hook
+  const {
+    sendMessage: sendStreamingMessage,
+    isStreaming,
+    streamedContent,
+  } = useStreamingChat({
+    entityId: entityId ?? "",
+    onConversationCreated: (convId) => {
+      setActiveConversationId(convId);
       setIsChatMode(true);
-      utils.aiWorkspace.getMessages.invalidate({
-        conversationId: data.conversationId,
-      });
+      router.replace(`/dashboard/chat?c=${convId}`);
       utils.chat.listConversations.invalidate();
-      setInputValue("");
+    },
+    onComplete: () => {
+      // Refresh messages after streaming completes
+      if (activeConversationId) {
+        utils.aiWorkspace.getMessages.invalidate({
+          conversationId: activeConversationId,
+        });
+      }
     },
   });
 
@@ -1172,8 +1571,9 @@ function AIWorkspaceContent() {
   };
 
   const handleCommandSubmit = async () => {
-    if (!inputValue.trim()) return;
-    sendMessage.mutate({ message: inputValue });
+    if (!inputValue.trim() || isStreaming) return;
+    sendStreamingMessage(inputValue, activeConversationId ?? undefined);
+    setInputValue("");
   };
 
   const quickActions = [
@@ -1192,7 +1592,7 @@ function AIWorkspaceContent() {
         onNewChat={handleNewChat}
       />
 
-      {/* Main Content - Right Side */}
+      {/* Main Content - Center */}
       {isChatMode ? (
         <div className="flex-1 flex flex-col h-full">
           {/* Chat Header */}
@@ -1221,39 +1621,100 @@ function AIWorkspaceContent() {
 
           {/* Chat Messages Area */}
           <div className="flex-1 overflow-y-auto p-4">
-            <ChatMessages conversationId={activeConversationId} />
+            <ChatMessages
+              conversationId={activeConversationId}
+              streamedContent={streamedContent}
+              isStreaming={isStreaming}
+            />
           </div>
 
           {/* Chat Input */}
           <ChatInput
             conversationId={activeConversationId}
             onSend={(msg) => {
-              sendMessage.mutate({
-                message: msg,
-                conversationId: activeConversationId ?? undefined,
-              });
+              sendStreamingMessage(msg, activeConversationId ?? undefined);
             }}
-            isPending={sendMessage.isPending}
+            isPending={isStreaming}
           />
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
-          <div className="space-y-6 p-6">
-            {/* Header */}
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                AI Workspace
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Collaborate with AI on your accounting and financial tasks.
-              </p>
-            </div>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-6 p-6">
+              {/* Header */}
+              <div className="space-y-1">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  AI Workspace
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Collaborate with AI on your accounting and financial tasks.
+                </p>
+              </div>
 
-            {/* AI Command Box */}
-            <div className="space-y-3">
+              {/* Active AI Tasks */}
+              <ActiveAITasks tasks={tasksData?.tasks ?? []} />
+
+              {/* AI Suggestions */}
+              <AISuggestions suggestions={suggestionsData?.suggestions ?? []} />
+
+              {/* Financial Insights + Cash Flow */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                <FinancialInsights insights={insightsData?.insights ?? []} />
+                <CashFlowOverview
+                  data={
+                    cashFlowData ?? {
+                      chartData: [],
+                      summary: {
+                        totalCashIn: 0,
+                        totalCashOut: 0,
+                        netCashFlow: 0,
+                      },
+                    }
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Pinned AI Command Box */}
+          <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4 flex-shrink-0">
+            <div className="mx-auto w-full max-w-3xl space-y-3">
+              {/* Quick suggestions above input */}
+              <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
+                {suggestions.map((suggestion) => {
+                  const Icon = suggestion.icon;
+                  return (
+                    <button
+                      key={suggestion.label}
+                      type="button"
+                      onClick={() => {
+                        if (!isStreaming) {
+                          sendStreamingMessage(
+                            suggestion.label,
+                            activeConversationId ?? undefined,
+                          );
+                        }
+                      }}
+                      disabled={isStreaming}
+                      className={cn(
+                        "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
+                        "text-xs text-muted-foreground transition-all duration-200",
+                        "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
+                        "active:scale-95",
+                        isStreaming && "opacity-50 cursor-not-allowed",
+                      )}
+                    >
+                      <Icon className="h-3 w-3" />
+                      {suggestion.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Input */}
               <div
                 className={cn(
-                  "relative group rounded-2xl border-2 bg-card transition-all duration-300",
+                  "relative group rounded-2xl border-2 bg-card transition-all duration-300 shadow-sm",
                   isFocused
                     ? "border-primary/50 shadow-lg shadow-primary/5"
                     : "border-border/50 hover:border-border/80 hover:shadow-md",
@@ -1296,7 +1757,7 @@ function AIWorkspaceContent() {
                     type="button"
                     size="icon"
                     onClick={handleCommandSubmit}
-                    disabled={!inputValue.trim() || sendMessage.isPending}
+                    disabled={!inputValue.trim() || isStreaming}
                     className={cn(
                       "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
                       inputValue.trim()
@@ -1304,62 +1765,21 @@ function AIWorkspaceContent() {
                         : "bg-primary text-white",
                     )}
                   >
-                    <ArrowRight className="h-4 w-4" />
+                    {isStreaming ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ArrowRight className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
-
-              {/* Quick suggestions */}
-              <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
-                {suggestions.map((suggestion) => {
-                  const Icon = suggestion.icon;
-                  return (
-                    <button
-                      key={suggestion.label}
-                      type="button"
-                      onClick={() => {
-                        setInputValue(suggestion.label);
-                      }}
-                      className={cn(
-                        "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
-                        "text-xs text-muted-foreground transition-all duration-200",
-                        "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
-                        "active:scale-95",
-                      )}
-                    >
-                      <Icon className="h-3 w-3" />
-                      {suggestion.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Active AI Tasks */}
-            <ActiveAITasks tasks={tasksData?.tasks ?? []} />
-
-            {/* AI Suggestions */}
-            <AISuggestions suggestions={suggestionsData?.suggestions ?? []} />
-
-            {/* Financial Insights + Cash Flow */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              <FinancialInsights insights={insightsData?.insights ?? []} />
-              <CashFlowOverview
-                data={
-                  cashFlowData ?? {
-                    chartData: [],
-                    summary: {
-                      totalCashIn: 0,
-                      totalCashOut: 0,
-                      netCashFlow: 0,
-                    },
-                  }
-                }
-              />
             </div>
           </div>
         </div>
       )}
+
+      {/* Right Sidebar - Approvals, Documents, Activity */}
+      <RightSidebar entityId={entityId} isChatMode={isChatMode} />
     </div>
   );
 }

@@ -29,7 +29,6 @@ import {
   BookOpen,
   Shield,
   MessageSquare,
-  Zap,
   Activity,
   ArrowUpRight,
 } from "lucide-react";
@@ -168,23 +167,41 @@ function AIChatInput() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20">
-          <Zap className="h-4 w-4" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            AI Command Center
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Ask anything or give a task to your AI agents
-          </p>
-        </div>
+    <div className="mx-auto w-full max-w-3xl space-y-3">
+      <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
+        {suggestions.map((suggestion) => {
+          const Icon = suggestion.icon;
+          return (
+            <button
+              key={suggestion.label}
+              type="button"
+              onClick={() => handleSubmit(suggestion.prompt)}
+              disabled={sendMessage.isPending}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
+                "text-xs text-muted-foreground transition-all duration-200",
+                "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
+                "active:scale-95",
+                "disabled:opacity-50 disabled:pointer-events-none",
+              )}
+            >
+              <Icon className={cn("h-3 w-3", suggestion.color)} />
+              {suggestion.label}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className="inline-flex shrink-0 items-center justify-center h-7 w-7 rounded-xl border border-border/50 bg-card/80 text-muted-foreground transition-all hover:bg-accent"
+          title="Refresh suggestions"
+        >
+          <RefreshCw className="h-3 w-3" />
+        </button>
       </div>
+
       <div
         className={cn(
-          "relative group rounded-2xl border-2 bg-card transition-all duration-300",
+          "relative group rounded-2xl border-2 bg-card transition-all duration-300 shadow-sm",
           isFocused
             ? "border-primary/50 shadow-lg shadow-primary/10"
             : "border-border/50 hover:border-border/80 hover:shadow-md",
@@ -242,36 +259,6 @@ function AIChatInput() {
             </p>
           </div>
         )}
-      </div>
-      <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
-        {suggestions.map((suggestion) => {
-          const Icon = suggestion.icon;
-          return (
-            <button
-              key={suggestion.label}
-              type="button"
-              onClick={() => handleSubmit(suggestion.prompt)}
-              disabled={sendMessage.isPending}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-3 py-1.5",
-                "text-xs text-muted-foreground transition-all duration-200",
-                "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
-                "active:scale-95",
-                "disabled:opacity-50 disabled:pointer-events-none",
-              )}
-            >
-              <Icon className={cn("h-3 w-3", suggestion.color)} />
-              {suggestion.label}
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          className="inline-flex shrink-0 items-center justify-center h-7 w-7 rounded-xl border border-border/50 bg-card/80 text-muted-foreground transition-all hover:bg-accent"
-          title="Refresh suggestions"
-        >
-          <RefreshCw className="h-3 w-3" />
-        </button>
       </div>
     </div>
   );
@@ -1230,49 +1217,53 @@ export default function DashboardPage() {
         onCorrect={handleCorrect}
       />
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="space-y-6 p-6">
-          {/* Row 1: Greeting */}
-          <AIGreeting firstName={firstName} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-6 p-6">
+            {/* Row 1: Greeting */}
+            <AIGreeting firstName={firstName} />
 
-          {/* Row 2: AI Command Box */}
-          <AIChatInput />
+            {/* Row 2: Executive Briefing */}
+            <ExecutiveBriefing items={dashboardData?.briefingItems ?? []} />
 
-          {/* Row 3: Executive Briefing */}
-          <ExecutiveBriefing items={dashboardData?.briefingItems ?? []} />
-
-          {/* Row 4: Business Health KPI Cards */}
-          <BusinessHealth
-            data={
-              dashboardData?.businessHealth ?? {
-                cashBalance: 0,
-                revenue: 0,
-                expenses: 0,
-                profit: 0,
-                arOutstanding: 0,
-                apOutstanding: 0,
-                revenueChange: 0,
-                expensesChange: 0,
-                profitChange: 0,
-                arChange: 0,
-                apChange: 0,
+            {/* Row 3: Business Health KPI Cards */}
+            <BusinessHealth
+              data={
+                dashboardData?.businessHealth ?? {
+                  cashBalance: 0,
+                  revenue: 0,
+                  expenses: 0,
+                  profit: 0,
+                  arOutstanding: 0,
+                  apOutstanding: 0,
+                  revenueChange: 0,
+                  expensesChange: 0,
+                  profitChange: 0,
+                  arChange: 0,
+                  apChange: 0,
+                }
               }
-            }
-          />
-
-          {/* Row 5: 3-column — Activity Feed | Pending Approvals | Active Agents */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <AgentActivityFeed
-              activities={dashboardData?.agentActivity ?? []}
             />
-            <PendingApprovals items={dashboardData?.pendingApprovals ?? []} />
-            <ActiveAgents />
+
+            {/* Row 4: 3-column — Activity Feed | Pending Approvals | Active Agents */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              <AgentActivityFeed
+                activities={dashboardData?.agentActivity ?? []}
+              />
+              <PendingApprovals items={dashboardData?.pendingApprovals ?? []} />
+              <ActiveAgents />
+            </div>
           </div>
+        </div>
+
+        {/* Pinned AI Command Bar */}
+        <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4 flex-shrink-0">
+          <AIChatInput />
         </div>
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto p-6">
+      <div className="w-80 border-l bg-card hidden lg:block sticky top-0 h-screen overflow-y-auto p-6">
         <DashboardRightSidebar
           deadlines={dashboardData?.deadlines ?? []}
           recentDocuments={dashboardData?.recentDocuments ?? []}

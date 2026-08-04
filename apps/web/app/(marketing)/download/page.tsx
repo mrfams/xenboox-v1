@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Monitor,
@@ -9,6 +10,12 @@ import {
 } from "lucide-react";
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
+
+export const metadata: Metadata = {
+  title: "Download",
+  description:
+    "Access Xenboox from anywhere - web, desktop, or mobile. Download the app or launch in your browser.",
+};
 
 const platforms = [
   {

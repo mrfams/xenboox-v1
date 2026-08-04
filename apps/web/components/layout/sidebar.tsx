@@ -25,6 +25,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui";
+import { Logo } from "@/components/ui/logo";
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { trpc } from "@/lib/trpc/client";
@@ -199,9 +200,7 @@ function WhiteLabelLogo() {
       href="/dashboard"
       className="flex items-center gap-2.5 lg:justify-center lg:group-hover:justify-start"
     >
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20">
-        X
-      </div>
+      <Logo size={32} className="shadow-lg shadow-primary/20" />
       <span className="text-lg font-bold tracking-tight text-[hsl(var(--sidebar-text))] lg:hidden lg:group-hover:inline">
         Xenboox
       </span>

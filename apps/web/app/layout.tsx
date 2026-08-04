@@ -48,7 +48,7 @@ const baseUrl = resolveBaseUrl();
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: "Xenboox — AI-Native Accounting for Africa",
+    default: "Home | Xenboox",
     template: "%s | Xenboox",
   },
   description:
