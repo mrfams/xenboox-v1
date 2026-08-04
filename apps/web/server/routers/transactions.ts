@@ -313,7 +313,6 @@ export const transactionsRouter = router({
       if (input.accountId) {
         conditions.push(eq(bankTransactions.bankAccountId, input.accountId));
       }
-
       if (input.status === "matched") {
         conditions.push(eq(bankTransactions.isReconciled, true));
       } else if (
@@ -322,6 +321,12 @@ export const transactionsRouter = router({
       ) {
         conditions.push(eq(bankTransactions.isReconciled, false));
         conditions.push(sql`${bankTransactions.journalEntryId} IS NULL`);
+      } else if (input.status === "excluded") {
+        conditions.push(
+          sql`${bankTransactions.metadata}::jsonb->>'excluded' = 'true'`,
+        );
+      } else if (input.status === "unmatched") {
+        conditions.push(eq(bankTransactions.isReconciled, false));
       }
 
       if (input.search) {
