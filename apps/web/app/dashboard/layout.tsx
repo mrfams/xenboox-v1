@@ -79,7 +79,7 @@ export default function DashboardLayout({
       <EntityProvider>
         <WhiteLabelProvider>
           <PermissionAwareLayout>
-            <div className="flex h-screen overflow-hidden">
+            <div data-dashboard className="flex h-screen overflow-hidden">
               {/* Left Sidebar */}
               <Sidebar
                 isOpen={sidebarOpen}

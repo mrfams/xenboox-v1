@@ -423,6 +423,15 @@
     display: none;
   }
 
+  /* Dashboard-wide scrollbar hiding — all scrollable areas in dashboard */
+  [data-dashboard] *::-webkit-scrollbar {
+    display: none;
+  }
+
+  [data-dashboard] * {
+    scrollbar-width: none;
+  }
+
   /* ── Text Balance ── */
   .text-balance {
     text-wrap: balance;
