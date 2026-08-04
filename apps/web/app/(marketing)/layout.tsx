@@ -230,8 +230,8 @@ export default function MarketingLayout({
           <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-8 mb-12 text-center sm:p-10">
             <h3 className="text-xl font-bold text-white">Stay in the loop</h3>
             <p className="mt-2 text-sm text-slate-400 max-w-md mx-auto">
-              Product updates, accounting tips, and African fintech insights. No
-              spam, unsubscribe anytime.
+              Product updates, accounting best practices, and industry insights.
+              No spam, unsubscribe anytime.
             </p>
             <form
               onSubmit={(e) => e.preventDefault()}
