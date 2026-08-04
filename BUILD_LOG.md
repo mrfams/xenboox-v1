@@ -6,6 +6,42 @@
 
 ---
 
+### [2026-08-04] — Header search → command palette; dashboard right sidebar cleanup
+
+**Agent:** opencode (Autonomous Engineer)
+
+**Requests:**
+
+1. Make the header search bar navigate to pages (e.g. "payroll" → Payroll page), like a modern command palette.
+2. Increase the search bar height a little and add a keyboard shortcut to open it.
+3. On /dashboard, strip the right-section cards: remove the "View all" links and their count numbers, enlarge the chevrons, and remove the bordered box around each collapsible section (header becomes a background block; contents appear plainly below with no borders).
+4. On /money and /insights, remove the child-link lists under Banking, Reports, and General Ledger cards.
+
+**Changes:**
+
+- `apps/web/lib/nav.ts` _(new)_ — single source-of-truth `NAV_PAGES` registry (label/href/group/keywords) for ~31 navigable dashboard pages, plus a `filterNavPages(query)` ranking helper.
+- `apps/web/components/shared/ai-command-bar.tsx` — compact (header) bar now acts as a command palette: typing filters `NAV_PAGES`, arrow keys + Enter navigate, click navigates, and an "Ask Xenboox…" fallback sends unmatched queries to `/dashboard/chat`. Bar height `h-9`→`h-10`; shortcut changed to **Cmd/Ctrl+K** (`⌘K` hint); `⌘⇧K` no longer used.
+- `apps/web/components/layout/top-nav.tsx` — moved the legacy `Cmd+K` CommandDialog shortcut to **Cmd+Shift+K** so it no longer conflicts with the new palette focus shortcut.
+- `apps/web/components/layout/top-nav.tsx` — narrowed the header search column from `min(100vw-20rem, 560px)` to `min(100vw-16rem, 480px)`; placeholder is now "Search or jump to…".
+- `apps/web/components/shared/ai-command-bar.tsx` — (follow-up polish) compact bar bumped to `h-11`, rounded-xl, `focus-within` ring + primary border, leading icon chip (`signal-indigo/10`), divider + refined `⌘K` shortcut pill, removed redundant send arrow, `role="combobox"`/`aria-expanded`/`aria-controls`, dropdown `id="ai-command-palette"` with max-height scroll and softer shadow.
+- `apps/web/app/dashboard/page.tsx` — `CollapsibleSection` redesigned: removed the enclosing `bg-card` bordered box, header is a rounded `bg-muted/60` block, contents render plainly below with no borders, chevrons `h-4`→`h-5`. Removed `action` ("View all") and `badge` (count) props from all four right-sidebar sections; deadline rows no longer have borders/background.
+- `apps/web/app/dashboard/money/page.tsx` — removed Banking card child link list and the generic `children` renderer.
+- `apps/web/app/dashboard/insights/page.tsx` — removed Reports & General Ledger card child link lists and the generic `children` renderer.
+
+**Verification**
+
+| Check                                              | Status                                                                  |
+| -------------------------------------------------- | ----------------------------------------------------------------------- |
+| Typecheck (`pnpm typecheck --filter=@xenboox/web`) | OK — clean                                                              |
+| Tests (`shared/core-components`)                   | OK — 40 passed (AICommandBar suite)                                     |
+| Lint (changed files)                               | OK — 0 errors (pre-existing unused-import + import-order warnings only) |
+
+**Next Steps**
+
+- `packages/db/seed/reset.ts` (untracked, hardcoded DB credential) still not committed — confirm intent before merging.
+
+---
+
 ### [2026-08-03] — Header: restore 64px height
 
 **Agent:** opencode (Autonomous Engineer)

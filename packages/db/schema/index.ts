@@ -58,3 +58,5 @@ export * from "./ops-feature-flags";
 export * from "./ops-company-brain";
 export * from "./ops-workflow-builder";
 export * from "./ops-automation-studio";
+export * from "./user-preferences";
+export * from "./api-keys";
