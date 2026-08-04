@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import {
   Search,
   Plus,
@@ -26,6 +26,10 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import {
+  realtimeQueryOptions,
+  analyticsQueryOptions,
+} from "@/lib/trpc/query-options";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -773,18 +777,27 @@ export default function BankingPage() {
     null,
   );
 
-  // Fetch overview data
+  // Fetch overview data with optimized caching
   const { data: overviewData, isLoading: overviewLoading } =
-    trpc.banking.getOverview.useQuery();
+    trpc.banking.getOverview.useQuery(undefined, realtimeQueryOptions);
 
-  // Fetch cash position
-  const { data: cashPosition } = trpc.banking.getCashPosition.useQuery({});
+  // Fetch cash position - realtime data
+  const { data: cashPosition } = trpc.banking.getCashPosition.useQuery(
+    {},
+    realtimeQueryOptions,
+  );
 
-  // Fetch AI insights
-  const { data: aiInsights } = trpc.banking.getAiInsights.useQuery();
+  // Fetch AI insights - cache aggressively
+  const { data: aiInsights } = trpc.banking.getAiInsights.useQuery(
+    undefined,
+    analyticsQueryOptions,
+  );
 
   // Fetch recent activity
-  const { data: recentActivity } = trpc.banking.getRecentActivity.useQuery();
+  const { data: recentActivity } = trpc.banking.getRecentActivity.useQuery(
+    undefined,
+    realtimeQueryOptions,
+  );
 
   const tabs = [
     { key: "overview", label: "Overview" },

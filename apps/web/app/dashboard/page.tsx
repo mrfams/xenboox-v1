@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
-import { Skeleton } from "@/components/shared/loading";
+import { DashboardSkeleton } from "@/components/shared/skeletons";
+import { dashboardQueryOptions } from "@/lib/trpc/query-options";
 import { Button } from "@/components/ui";
 import {
   TrendingUp,
@@ -1164,36 +1165,33 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(" ")[0];
 
-  // Fetch dashboard data
+  // Fetch dashboard data with optimized caching
   const { data: dashboardData, isLoading } =
     trpc.dashboard.getDashboardData.useQuery(undefined, {
       enabled: !!entityId,
-      refetchInterval: 30000, // Refresh every 30 seconds
+      ...dashboardQueryOptions,
+      refetchInterval: 60000, // Refresh every 60 seconds (less aggressive)
     });
 
-  // Loading state
+  // Loading state - show skeleton immediately for perceived performance
   if (isLoading) {
     return (
       <div className="flex h-full">
-        <div className="flex-1 overflow-y-auto">
-          <div className="space-y-6 px-6 pt-6">
-            <Skeleton className="h-16 w-96 rounded-xl" />
-            <Skeleton className="h-16 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <div className="grid gap-4 lg:grid-cols-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Skeleton key={i} className="h-28 rounded-xl" />
+        <div className="flex-1 overflow-y-auto p-6">
+          <DashboardSkeleton />
+        </div>
+        <div className="w-80 border-l bg-card hidden lg:block p-6">
+          <div className="space-y-4">
+            <div className="h-8 w-32 bg-muted rounded animate-pulse" />
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-16 bg-muted rounded-lg animate-pulse"
+                />
               ))}
             </div>
-            <div className="grid gap-6 lg:grid-cols-3">
-              <Skeleton className="h-64 rounded-xl" />
-              <Skeleton className="h-64 rounded-xl" />
-              <Skeleton className="h-64 rounded-xl" />
-            </div>
           </div>
-        </div>
-        <div className="w-80 border-l bg-card hidden lg:block">
-          <Skeleton className="h-64 rounded-xl" />
         </div>
       </div>
     );
