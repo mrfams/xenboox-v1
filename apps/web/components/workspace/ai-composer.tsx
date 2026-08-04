@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import {
   ArrowUp,
@@ -30,6 +31,8 @@ interface UploadedFile {
   status: "uploading" | "processing" | "ready" | "error";
   progress?: number;
   preview?: string;
+  documentId?: string;
+  error?: string;
 }
 
 // ─── Slash Commands ──────────────────────────────────────────────────────
@@ -153,7 +156,9 @@ function FilePreviewCard({
             </span>
           )}
           {file.status === "error" && (
-            <span className="text-[10px] text-red-600">Failed</span>
+            <span className="text-[10px] text-red-600">
+              {file.error || "Failed"}
+            </span>
           )}
         </div>
         {/* Progress bar */}
@@ -238,6 +243,7 @@ interface AIComposerProps {
   onCancel?: () => void;
   placeholder?: string;
   disabled?: boolean;
+  entityId?: string;
 }
 
 export function AIComposer({
@@ -257,6 +263,10 @@ export function AIComposer({
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
+
+  // tRPC mutations for file upload
+  const getUploadUrl = trpc.document.getUploadUrl.useMutation();
+  const confirmUpload = trpc.document.confirmUpload.useMutation();
 
   // Handle slash commands
   useEffect(() => {
@@ -317,41 +327,140 @@ export function AIComposer({
 
     setUploadedFiles((prev) => [...prev, ...newFiles]);
 
-    // Simulate upload progress
+    // Start real upload for each file
     newFiles.forEach((f) => {
-      simulateUpload(f.id);
+      uploadFile(f);
     });
   };
 
-  const simulateUpload = (fileId: string) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 30;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        setUploadedFiles((prev) =>
-          prev.map((f) =>
-            f.id === fileId
-              ? { ...f, status: "processing" as const, progress: 100 }
-              : f,
-          ),
-        );
-        // Simulate processing
-        setTimeout(() => {
-          setUploadedFiles((prev) =>
-            prev.map((f) =>
-              f.id === fileId ? { ...f, status: "ready" as const } : f,
-            ),
-          );
-        }, 1500);
-      } else {
-        setUploadedFiles((prev) =>
-          prev.map((f) => (f.id === fileId ? { ...f, progress } : f)),
-        );
+  // Real upload to R2
+  const uploadFile = async (fileToUpload: UploadedFile) => {
+    try {
+      // Step 1: Get presigned upload URL
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileToUpload.id
+            ? { ...f, status: "uploading" as const, progress: 30 }
+            : f,
+        ),
+      );
+
+      const uploadResult = await getUploadUrl.mutateAsync({
+        fileName: fileToUpload.name,
+        fileSize: fileToUpload.size,
+        mimeType: fileToUpload.type as any,
+      });
+
+      // Step 2: Upload file to R2
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileToUpload.id
+            ? { ...f, status: "processing" as const, progress: 60 }
+            : f,
+        ),
+      );
+
+      const response = await fetch(uploadResult.uploadUrl, {
+        method: "PUT",
+        body: fileToUpload.file,
+        headers: {
+          "Content-Type": fileToUpload.type,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to upload file to storage");
       }
-    }, 200);
+
+      // Step 3: Confirm upload and create document record
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileToUpload.id
+            ? { ...f, status: "processing" as const, progress: 90 }
+            : f,
+        ),
+      );
+
+      const docType = inferDocumentType(fileToUpload.type, fileToUpload.name);
+      const confirmResult = await confirmUpload.mutateAsync({
+        r2Key: uploadResult.storagePath,
+        r2Bucket: "xenboox-documents",
+        name: fileToUpload.name,
+        type: docType,
+        mimeType: fileToUpload.type,
+        fileSize: fileToUpload.size,
+      });
+
+      // Mark as ready
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileToUpload.id
+            ? {
+                ...f,
+                status: "ready" as const,
+                progress: 100,
+                documentId: confirmResult.documentId,
+              }
+            : f,
+        ),
+      );
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileToUpload.id
+            ? {
+                ...f,
+                status: "error" as const,
+                error: error instanceof Error ? error.message : "Upload failed",
+              }
+            : f,
+        ),
+      );
+    }
   };
+
+  // Infer document type from filename and MIME type
+  function inferDocumentType(
+    mimeType: string,
+    fileName: string,
+  ):
+    | "invoice"
+    | "receipt"
+    | "contract"
+    | "voucher"
+    | "bank_statement"
+    | "tax_return"
+    | "payroll_report"
+    | "journal_entry"
+    | "po"
+    | "supporting" {
+    const lower = fileName.toLowerCase();
+
+    if (lower.includes("invoice") || lower.includes("inv-")) return "invoice";
+    if (lower.includes("receipt")) return "receipt";
+    if (lower.includes("contract") || lower.includes("agreement"))
+      return "contract";
+    if (lower.includes("voucher") || lower.includes("journal"))
+      return "voucher";
+    if (
+      lower.includes("bank") ||
+      lower.includes("statement") ||
+      lower.includes("stmt")
+    )
+      return "bank_statement";
+    if (lower.includes("tax") || lower.includes("return")) return "tax_return";
+    if (lower.includes("payroll") || lower.includes("salary"))
+      return "payroll_report";
+    if (lower.includes("purchase") || lower.includes("po-")) return "po";
+
+    if (mimeType.includes("spreadsheet") || mimeType.includes("excel"))
+      return "supporting";
+    if (mimeType.includes("pdf")) return "supporting";
+    if (mimeType.includes("image")) return "supporting";
+
+    return "supporting";
+  }
 
   const removeFile = (fileId: string) => {
     setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
