@@ -1532,7 +1532,7 @@ function AIWorkspaceContent() {
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
-            <div className="space-y-6 p-6">
+            <div className="space-y-6">
               {/* Header */}
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">

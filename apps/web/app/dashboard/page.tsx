@@ -1219,7 +1219,7 @@ export default function DashboardPage() {
     return (
       <div className="flex h-full">
         <div className="flex-1 overflow-y-auto">
-          <div className="space-y-6 p-6">
+          <div className="space-y-6">
             <Skeleton className="h-16 w-96 rounded-xl" />
             <Skeleton className="h-16 w-full rounded-xl" />
             <Skeleton className="h-20 w-full rounded-xl" />
@@ -1264,7 +1264,7 @@ export default function DashboardPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">
-          <div className="space-y-6 p-6">
+          <div className="space-y-6">
             {/* Row 1: Greeting */}
             <AIGreeting firstName={firstName} />
 
