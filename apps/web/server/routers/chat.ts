@@ -360,6 +360,87 @@ export const chatRouter = router({
     }),
 
   /**
+   * Rename a conversation.
+   */
+  renameConversation: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string().uuid(),
+        title: z.string().min(1).max(200),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const conversation = await db.query.conversations.findFirst({
+          where: and(
+            eq(conversations.id, input.conversationId),
+            eq(conversations.entityId, ctx.entityId!),
+          ),
+        });
+
+        if (!conversation) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Conversation not found",
+          });
+        }
+
+        const [updated] = await db
+          .update(conversations)
+          .set({
+            title: input.title,
+            updatedAt: new Date(),
+          })
+          .where(eq(conversations.id, input.conversationId))
+          .returning();
+
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to rename conversation");
+      }
+    }),
+
+  /**
+   * Delete (archive) a conversation.
+   */
+  deleteConversation: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const conversation = await db.query.conversations.findFirst({
+          where: and(
+            eq(conversations.id, input.conversationId),
+            eq(conversations.entityId, ctx.entityId!),
+          ),
+        });
+
+        if (!conversation) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Conversation not found",
+          });
+        }
+
+        const [updated] = await db
+          .update(conversations)
+          .set({
+            status: "archived",
+            updatedAt: new Date(),
+          })
+          .where(eq(conversations.id, input.conversationId))
+          .returning();
+
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to delete conversation");
+      }
+    }),
+
+  /**
    * Fork a conversation at a specific message.
    * Creates a new conversation with messages up to and including the fork point.
    */
