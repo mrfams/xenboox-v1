@@ -12,12 +12,12 @@ Wave launched in The Gambia in 2021 and has grown rapidly. As of 2026, Wave Gamb
 
 **Wave API availability in Gambia**: ✅ Available but limited
 
-| API | Availability in Gambia | Notes |
-|-----|----------------------|-------|
-| Checkout API (collect payments) | ✅ Full | Currency: GMD (Gambian Dalasi) |
-| Payout API (send money) | ⚠️ Limited | Not fully documented for GMD; contact Wave enterprise support |
-| Balance API | ✅ Full | Works with GMD wallets |
-| Aggregated Merchants API | ⚠️ Restricted | Requires enterprise agreement |
+| API                             | Availability in Gambia | Notes                                                         |
+| ------------------------------- | ---------------------- | ------------------------------------------------------------- |
+| Checkout API (collect payments) | ✅ Full                | Currency: GMD (Gambian Dalasi)                                |
+| Payout API (send money)         | ⚠️ Limited             | Not fully documented for GMD; contact Wave enterprise support |
+| Balance API                     | ✅ Full                | Works with GMD wallets                                        |
+| Aggregated Merchants API        | ⚠️ Restricted          | Requires enterprise agreement                                 |
 
 **Key finding**: Wave's Gambia API uses **GMD (Gambian Dalasi)**, not XOF. The API key for Gambia is issued separately from UEMOA-region (Senegal/CI/Mali) keys. You must contact Wave enterprise support to enable GMD on your account.
 
@@ -25,17 +25,18 @@ Wave launched in The Gambia in 2021 and has grown rapidly. As of 2026, Wave Gamb
 
 Wave's self-serve Business Portal (business.wave.com) requires a **Senegal-registered business phone number** to create an account. This is a significant barrier for Gambian entities:
 
-| Option | Feasibility | Timeline |
-|--------|-------------|----------|
-| Partner with Senegalese registered business | Moderate | 2-4 weeks |
-| Contact Wave directly at business@wave.com for enterprise onboarding | Recommended | 4-8 weeks |
-| Use aggregator (Waychit, Flutterwave, CinetPay) that offers Wave as channel | High | 1-2 weeks |
+| Option                                                                      | Feasibility | Timeline  |
+| --------------------------------------------------------------------------- | ----------- | --------- |
+| Partner with Senegalese registered business                                 | Moderate    | 2-4 weeks |
+| Contact Wave directly at business@wave.com for enterprise onboarding        | Recommended | 4-8 weeks |
+| Use aggregator (Waychit, Flutterwave, CinetPay) that offers Wave as channel | High        | 1-2 weeks |
 
 **Recommendation**: For MVP, use an aggregator (Waychit) rather than direct Wave API integration.
 
 ### Statement Import
 
 Wave does not offer a native statement export API endpoint. Currently:
+
 - **In-app statement**: Wave app shows transaction history (last 90 days)
 - **No CSV export**: Wave does not provide downloadable CSV/Excel from the consumer app
 - **SMS notifications**: Each transaction generates an SMS (can be parsed)
@@ -43,25 +44,25 @@ Wave does not offer a native statement export API endpoint. Currently:
 
 ### Wave Fees (Gambia 2026)
 
-| Transaction Type | Fee |
-|-----------------|-----|
-| P2P transfer | 1% (capped at GMD 50 ~$0.85) |
-| Cash-in at agent | Free |
-| Cash-out at agent | Free |
-| Merchant payment (Checkout API) | 1% per transaction |
-| Bank cash-out | Flat GMD 50 (~$0.85) |
-| Bulk payout | 1% |
+| Transaction Type                | Fee                          |
+| ------------------------------- | ---------------------------- |
+| P2P transfer                    | 1% (capped at GMD 50 ~$0.85) |
+| Cash-in at agent                | Free                         |
+| Cash-out at agent               | Free                         |
+| Merchant payment (Checkout API) | 1% per transaction           |
+| Bank cash-out                   | Flat GMD 50 (~$0.85)         |
+| Bulk payout                     | 1%                           |
 
 ### Wave API Endpoints (for reference when direct access is available)
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/v1/checkout/sessions` | Create payment session |
-| GET | `/v1/checkout/sessions/:id` | Verify payment |
-| POST | `/v1/payout` | Send money to mobile |
-| GET | `/v1/balance` | Wallet balance |
-| GET | `/v1/transactions` | Transaction history (per day) |
-| POST | `/v1/transactions/:id/refund` | Refund a transaction |
+| Method | Endpoint                      | Purpose                       |
+| ------ | ----------------------------- | ----------------------------- |
+| POST   | `/v1/checkout/sessions`       | Create payment session        |
+| GET    | `/v1/checkout/sessions/:id`   | Verify payment                |
+| POST   | `/v1/payout`                  | Send money to mobile          |
+| GET    | `/v1/balance`                 | Wallet balance                |
+| GET    | `/v1/transactions`            | Transaction history (per day) |
+| POST   | `/v1/transactions/:id/refund` | Refund a transaction          |
 
 ---
 
@@ -69,23 +70,24 @@ Wave does not offer a native statement export API endpoint. Currently:
 
 ### Status in The Gambia
 
-**Orange Money is not available in The Gambia.** Orange operates in Senegal (adjacent) and 17 other African markets, but the Orange Money service has not been licensed to operate in The Gambia.
+**Orange Money is not available in The Gambia.** Orange operates in Senegal (adjacent) and 17 other markets, but the Orange Money service has not been licensed to operate in The Gambia.
 
 ### Availability by Country
 
-| Country | Orange Money API | Notes |
-|---------|-----------------|-------|
-| Senegal | ✅ Full | Web Payment API available |
-| Côte d'Ivoire | ✅ Full | Mature market |
-| Mali | ✅ Full | |
-| Guinea Bissau | ✅ Limited | Via Orange Developer Portal |
-| Sierra Leone | ✅ Limited | Partner API, not self-service |
-| Guinea Conakry | ✅ Limited | |
-| **The Gambia** | ❌ Not available | No Orange network in Gambia |
+| Country        | Orange Money API | Notes                         |
+| -------------- | ---------------- | ----------------------------- |
+| Senegal        | ✅ Full          | Web Payment API available     |
+| Côte d'Ivoire  | ✅ Full          | Mature market                 |
+| Mali           | ✅ Full          |                               |
+| Guinea Bissau  | ✅ Limited       | Via Orange Developer Portal   |
+| Sierra Leone   | ✅ Limited       | Partner API, not self-service |
+| Guinea Conakry | ✅ Limited       |                               |
+| **The Gambia** | ❌ Not available | No Orange network in Gambia   |
 
 ### Orange Money API Requirements
 
 Where available, Orange Money requires:
+
 1. Developer account at developer.orange.com
 2. Application for Orange Money Web Payment API
 3. Merchant must subscribe to Orange Money at a local Orange store
@@ -98,7 +100,7 @@ Orange Money Web Payment API documentation is available at `developer.orange.com
 
 ### Implications for Xenboox
 
-**Orange Money integration is not viable for a Gambia-focused MVP.** If Xenboox expands to Senegal or Côte d'Ivoire in the future, Orange Money becomes critical (it has market share in Francophone West Africa). For now, defer.
+**Orange Money integration is not viable for a Gambia-focused MVP.** If Xenboox expands to Senegal or Côte d'Ivoire in the future, Orange Money becomes critical (it has market share in the region). For now, defer.
 
 ---
 
@@ -106,36 +108,36 @@ Orange Money Web Payment API documentation is available at `developer.orange.com
 
 ### Status in The Gambia
 
-**MTN does not operate in The Gambia.** The Gambia's mobile network operators are Africell (Afrimoney) and QCell (QMoney). MTN operates in 21+ African countries but not in Gambia.
+**MTN does not operate in The Gambia.** The Gambia's mobile network operators are Africell (Afrimoney) and QCell (QMoney). MTN operates in 21+ countries but not in Gambia.
 
 ### MTN MoMo API
 
 MTN's Mobile Money API is called **MoMo API** and is available via momodeveloper.mtn.com.
 
-| Feature | Availability |
-|---------|-------------|
-| Collection (receive payments) | ✅ In supported OpCos |
-| Disbursement (send money) | ✅ In supported OpCos |
-| Sandbox | ✅ Self-service |
-| Production | Requires formal agreement |
+| Feature                       | Availability              |
+| ----------------------------- | ------------------------- |
+| Collection (receive payments) | ✅ In supported OpCos     |
+| Disbursement (send money)     | ✅ In supported OpCos     |
+| Sandbox                       | ✅ Self-service           |
+| Production                    | Requires formal agreement |
 
 ### Countries Where MTN MoMo Works
 
 The following OpCos have MTN MoMo API support (as of 2026):
 
-| OpCo | API Status |
-|------|-----------|
-| Uganda | ✅ Full |
-| Ghana | ✅ Full |
-| Côte d'Ivoire | ✅ Full |
-| Cameroon | ✅ Full |
-| Zambia | ✅ Full |
-| Benin | ✅ Full |
-| Guinea Conakry | ✅ Full |
-| Liberia | ✅ Full |
-| South Africa | ✅ Full |
-| Congo | ✅ Full |
-| Rwanda | ✅ Full |
+| OpCo           | API Status |
+| -------------- | ---------- |
+| Uganda         | ✅ Full    |
+| Ghana          | ✅ Full    |
+| Côte d'Ivoire  | ✅ Full    |
+| Cameroon       | ✅ Full    |
+| Zambia         | ✅ Full    |
+| Benin          | ✅ Full    |
+| Guinea Conakry | ✅ Full    |
+| Liberia        | ✅ Full    |
+| South Africa   | ✅ Full    |
+| Congo          | ✅ Full    |
+| Rwanda         | ✅ Full    |
 
 **The Gambia is not listed. MTN MoMo API integration is not relevant for Gambia MVP.**
 
@@ -159,16 +161,16 @@ The following OpCos have MTN MoMo API support (as of 2026):
 
 Safaricom's Daraja API is available at developer.safaricom.co.ke.
 
-| API | Description | Status |
-|-----|-------------|--------|
-| STK Push (M-Pesa Express) | Customer payment prompt | ✅ Well-documented |
-| C2B (Customer to Business) | Incoming payments | ✅ |
-| B2C (Business to Customer) | Payouts | ✅ Requires bulk account |
-| B2B | Business transfers | ✅ |
-| Transaction Status | Query | ✅ |
-| Reversal | Reverse transactions | ✅ |
-| Account Balance | Query balance | ✅ |
-| QR Code | Generate M-Pesa QR | ✅ |
+| API                        | Description             | Status                   |
+| -------------------------- | ----------------------- | ------------------------ |
+| STK Push (M-Pesa Express)  | Customer payment prompt | ✅ Well-documented       |
+| C2B (Customer to Business) | Incoming payments       | ✅                       |
+| B2C (Business to Customer) | Payouts                 | ✅ Requires bulk account |
+| B2B                        | Business transfers      | ✅                       |
+| Transaction Status         | Query                   | ✅                       |
+| Reversal                   | Reverse transactions    | ✅                       |
+| Account Balance            | Query balance           | ✅                       |
+| QR Code                    | Generate M-Pesa QR      | ✅                       |
 
 ### Key Details for Future Kenya Expansion
 
@@ -190,25 +192,25 @@ If Xenboox expands to Kenya, M-Pesa Daraja integration is non-negotiable (over 3
 
 ### Status in The Gambia
 
-**Airtel does not operate in The Gambia.** Airtel Africa operates in 14+ countries but Gambia is not one of them.
+**Airtel does not operate in The Gambia.** Airtel operates in 14+ countries but Gambia is not one of them.
 
 ### Airtel Money API
 
 Airtel provides a developer portal at developers.airtel.africa with collection and disbursement APIs.
 
-| Country | Airtel Money API Status |
-|---------|------------------------|
-| Uganda | ✅ Full |
-| Kenya | ✅ Full |
-| Tanzania | ✅ Full |
-| Rwanda | ✅ Full |
-| Malawi | ✅ Full |
-| Zambia | ✅ Full |
-| Madagascar | ✅ |
-| DRC | ✅ |
-| Chad | ✅ |
-| Niger | ✅ |
-| Gabon | ✅ |
+| Country    | Airtel Money API Status |
+| ---------- | ----------------------- |
+| Uganda     | ✅ Full                 |
+| Kenya      | ✅ Full                 |
+| Tanzania   | ✅ Full                 |
+| Rwanda     | ✅ Full                 |
+| Malawi     | ✅ Full                 |
+| Zambia     | ✅ Full                 |
+| Madagascar | ✅                      |
+| DRC        | ✅                      |
+| Chad       | ✅                      |
+| Niger      | ✅                      |
+| Gabon      | ✅                      |
 
 ### API Requirements
 
@@ -229,23 +231,24 @@ Airtel Money is important for East African markets (Uganda, Kenya, Tanzania, Zam
 
 ### The Gambia Mobile Money Landscape
 
-| Service | In Gambia | Has Public API | Can Import Statements | MVP Feasibility |
-|---------|-----------|---------------|---------------------|----------------|
-| Wave | ✅ | ✅ (limited) | ⚠️ Manual | **Best option** |
-| QMoney (QCell) | ✅ | ❌ No public API | ⚠️ Manual | **Partner needed** |
-| Afrimoney (Africell) | ✅ | ❌ No public API | ⚠️ Manual | **Partner needed** |
-| Orange Money | ❌ | N/A | N/A | Not available |
-| MTN MoMo | ❌ | N/A | N/A | Not available |
-| M-Pesa | ❌ | N/A | N/A | Not available |
-| Airtel Money | ❌ | N/A | N/A | Not available |
-| Waychit (aggregator) | ✅ | ✅ Full | N/A | **Strong alternative** |
-| Bank transfers | ✅ | ✅ (Ecobank, etc.) | ⚠️ CSV | Phase 2 |
+| Service              | In Gambia | Has Public API     | Can Import Statements | MVP Feasibility        |
+| -------------------- | --------- | ------------------ | --------------------- | ---------------------- |
+| Wave                 | ✅        | ✅ (limited)       | ⚠️ Manual             | **Best option**        |
+| QMoney (QCell)       | ✅        | ❌ No public API   | ⚠️ Manual             | **Partner needed**     |
+| Afrimoney (Africell) | ✅        | ❌ No public API   | ⚠️ Manual             | **Partner needed**     |
+| Orange Money         | ❌        | N/A                | N/A                   | Not available          |
+| MTN MoMo             | ❌        | N/A                | N/A                   | Not available          |
+| M-Pesa               | ❌        | N/A                | N/A                   | Not available          |
+| Airtel Money         | ❌        | N/A                | N/A                   | Not available          |
+| Waychit (aggregator) | ✅        | ✅ Full            | N/A                   | **Strong alternative** |
+| Bank transfers       | ✅        | ✅ (Ecobank, etc.) | ⚠️ CSV                | Phase 2                |
 
 ### MVP Recommendation: ModemPay
 
 **Use ModemPay as the primary mobile money integration for MVP.**
 
 Why ModemPay:
+
 - CBG licensed (Central Bank of The Gambia) — Reg No. 2025/C25067
 - TypeScript SDK, Node.js SDK, CLI, sandbox
 - Wave, Afrimoney, QMoney behind a single API
@@ -276,47 +279,47 @@ Why ModemPay:
 
 **Key Endpoints**:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/payment-intents` | POST | Create a payment intent (collect payment) |
-| `/v1/payment-intents/{id}` | GET | Get payment status |
-| `/v1/transfers` | POST | Initiate payout (send money) |
-| `/v1/transfers/{id}` | GET | Get transfer status |
-| `/v1/balance` | GET | Get account balance |
-| `/webhooks` | POST | Real-time event notifications |
+| Endpoint                   | Method | Description                               |
+| -------------------------- | ------ | ----------------------------------------- |
+| `/v1/payment-intents`      | POST   | Create a payment intent (collect payment) |
+| `/v1/payment-intents/{id}` | GET    | Get payment status                        |
+| `/v1/transfers`            | POST   | Initiate payout (send money)              |
+| `/v1/transfers/{id}`       | GET    | Get transfer status                       |
+| `/v1/balance`              | GET    | Get account balance                       |
+| `/webhooks`                | POST   | Real-time event notifications             |
 
 **Supported Networks**:
 
-| Network | Key | Type | Settlement |
-|---------|-----|------|------------|
-| Wave | `wave` | Mobile Money | Instant |
-| Afrimoney | `afrimoney` | Mobile Money | Instant |
-| QMoney | `qmoney` | Mobile Money | Instant |
-| Visa/Mastercard | `card` | Card | Next-day |
-| Bank Transfer | `bank_transfer` | Bank | Next-day |
+| Network         | Key             | Type         | Settlement |
+| --------------- | --------------- | ------------ | ---------- |
+| Wave            | `wave`          | Mobile Money | Instant    |
+| Afrimoney       | `afrimoney`     | Mobile Money | Instant    |
+| QMoney          | `qmoney`        | Mobile Money | Instant    |
+| Visa/Mastercard | `card`          | Card         | Next-day   |
+| Bank Transfer   | `bank_transfer` | Bank         | Next-day   |
 
 ### Code Example: Collect Payment
 
 ```typescript
-import ModemPay from "modem-pay"
+import ModemPay from "modem-pay";
 
-const modempay = new ModemPay(process.env.MODEMPAY_SECRET_KEY!)
+const modempay = new ModemPay(process.env.MODEMPAY_SECRET_KEY!);
 
 // Collect a payment via Wave
 const intent = await modempay.paymentIntents.create({
   amount: 2450,
   network: "wave",
-  account_number: "7000001",  // customer's Wave phone number
+  account_number: "7000001", // customer's Wave phone number
   metadata: {
     entity_id: entityId,
-    invoice_id: invoiceId
-  }
-})
+    invoice_id: invoiceId,
+  },
+});
 
 // Handle webhook confirmation
 app.post("/api/webhooks/modempay", async (req, res) => {
-  const signature = req.headers["x-modempay-signature"]
-  const event = modempay.webhooks.verify(req.body, signature)
+  const signature = req.headers["x-modempay-signature"];
+  const event = modempay.webhooks.verify(req.body, signature);
 
   if (event.type === "payment_intent.succeeded") {
     // Record payment in ledger
@@ -326,61 +329,66 @@ app.post("/api/webhooks/modempay", async (req, res) => {
       amount: event.data.amount,
       network: event.data.network,
       account_number: event.data.account_number,
-      status: "completed"
-    })
+      status: "completed",
+    });
   }
 
-  res.json({ received: true })
-})
+  res.json({ received: true });
+});
 ```
 
 ### Code Example: Send Payment (Payout)
 
 ```typescript
 // Send money to a mobile wallet
-const transfer = await modempay.transfers.initiate({
-  amount: 5000,
-  currency: "GMD",
-  network: "wave",
-  account_number: "7834567",
-  beneficiary_name: "Fatou Ndiaye",
-  narration: "Vendor payment for April supplies",
-  metadata: {
-    entity_id: entityId,
-    vendor_id: vendorId
-  }
-}, `idempotency-${crypto.randomUUID()}`)
+const transfer = await modempay.transfers.initiate(
+  {
+    amount: 5000,
+    currency: "GMD",
+    network: "wave",
+    account_number: "7834567",
+    beneficiary_name: "Fatou Ndiaye",
+    narration: "Vendor payment for April supplies",
+    metadata: {
+      entity_id: entityId,
+      vendor_id: vendorId,
+    },
+  },
+  `idempotency-${crypto.randomUUID()}`,
+);
 
 // transfer.status: "processing" → "completed" (via webhook)
 ```
 
 ### What We Integrate (MVP)
 
-| Feature | MVP | Post-MVP |
-|---------|-----|----------|
-| Collect payments via Wave | ✅ Via ModemPay | ✅ |
-| Collect via QMoney | ✅ Via ModemPay | ✅ |
-| Collect via Afrimoney | ✅ Via ModemPay | ✅ |
-| Send payments (payouts) | ✅ Via ModemPay | ✅ |
-| Auto-reconcile via webhooks | ✅ | ✅ |
-| Statement import (manual) | ✅ CSV upload + AI parser | ✅ |
-| Bank transfers | ✅ Via ModemPay (1.25%) | ✅ |
-| Card payments | ✅ Via ModemPay (3.5%) | ✅ |
-| Bulk payouts | ❌ Deferred | Phase 2 |
-| GamSwitch integration | ❌ Deferred | Phase 2 — when BANTABA 2.0 APIs mature |
-| M-Pesa (Kenya) | ❌ Deferred | Phase 2 |
+| Feature                     | MVP                       | Post-MVP                               |
+| --------------------------- | ------------------------- | -------------------------------------- |
+| Collect payments via Wave   | ✅ Via ModemPay           | ✅                                     |
+| Collect via QMoney          | ✅ Via ModemPay           | ✅                                     |
+| Collect via Afrimoney       | ✅ Via ModemPay           | ✅                                     |
+| Send payments (payouts)     | ✅ Via ModemPay           | ✅                                     |
+| Auto-reconcile via webhooks | ✅                        | ✅                                     |
+| Statement import (manual)   | ✅ CSV upload + AI parser | ✅                                     |
+| Bank transfers              | ✅ Via ModemPay (1.25%)   | ✅                                     |
+| Card payments               | ✅ Via ModemPay (3.5%)    | ✅                                     |
+| Bulk payouts                | ❌ Deferred               | Phase 2                                |
+| GamSwitch integration       | ❌ Deferred               | Phase 2 — when BANTABA 2.0 APIs mature |
+| M-Pesa (Kenya)              | ❌ Deferred               | Phase 2                                |
 
 ### GamSwitch (Future — Phase 2)
 
 GamSwitch is The Gambia's national payment switch (BANTABA 2.0 launched Dec 2025). Built on Mojaloop, connects 152+ institutions, 99.76% uptime, GMD 9B+ annual transaction value.
 
 **Why not MVP:**
+
 - B2B/institutional API — requires onboarding as a connected institution
 - Not self-service — requires CBG approval and integration agreement
 - Settlement infrastructure, not merchant-facing
-- GamSwitch is the *rails*, ModemPay is the *interface*
+- GamSwitch is the _rails_, ModemPay is the _interface_
 
 **When to integrate:**
+
 - When we need direct bank-to-bank transfers at scale
 - When we want to bypass aggregator fees for high-volume operations
 - When GamSwitch exposes merchant-facing APIs (they have api.gamswitch.com but documentation is limited)
@@ -424,14 +432,14 @@ No public information on export formats. Expect similar CSV or PDF formats with 
 
 The CSV parser in `docs/DATA_MIGRATION.md` is designed to handle these formats. Key considerations:
 
-| Issue | Handling |
-|-------|----------|
+| Issue                      | Handling                                            |
+| -------------------------- | --------------------------------------------------- |
 | Transaction type indicator | Detect "Receive/Send", "Credit/Debit", "+/-" prefix |
-| Fee column | Detect and separate from principal amount |
-| Currency symbol | Strip GMD/D/XOF prefixes |
-| Date format | Normalize DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD |
-| Balance column | Use for reconciliation, don't import as transaction |
-| SMS/notification format | Regex parsing (Phase 2) |
+| Fee column                 | Detect and separate from principal amount           |
+| Currency symbol            | Strip GMD/D/XOF prefixes                            |
+| Date format                | Normalize DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD        |
+| Balance column             | Use for reconciliation, don't import as transaction |
+| SMS/notification format    | Regex parsing (Phase 2)                             |
 
 ---
 
@@ -439,40 +447,41 @@ The CSV parser in `docs/DATA_MIGRATION.md` is designed to handle these formats. 
 
 ### ModemPay Pricing (MVP Route)
 
-| Service | Cost | Notes |
-|---------|------|-------|
-| ModemPay API access | Free (self-service) | No setup fee, no monthly fee |
-| Mobile Money (Wave, Afrimoney, QMoney) | 1.5% per transaction | Instant settlement |
-| Bank Transfer | 1.25% per transfer | Next-day settlement |
-| Card Payments (Visa/Mastercard) | 3.5% per transaction | 3D Secure included |
-| Stablecoins (USDC/USDT) | 1.0% on-ramp/off-ramp | Instant conversion |
-| Free between ModemPay users | 0% | Internal transfers |
-| Bulk Payouts | 1.5% | Phase 2 |
-| Payouts (send money) | 1.5% | Same rate as collections |
+| Service                                | Cost                  | Notes                        |
+| -------------------------------------- | --------------------- | ---------------------------- |
+| ModemPay API access                    | Free (self-service)   | No setup fee, no monthly fee |
+| Mobile Money (Wave, Afrimoney, QMoney) | 1.5% per transaction  | Instant settlement           |
+| Bank Transfer                          | 1.25% per transfer    | Next-day settlement          |
+| Card Payments (Visa/Mastercard)        | 3.5% per transaction  | 3D Secure included           |
+| Stablecoins (USDC/USDT)                | 1.0% on-ramp/off-ramp | Instant conversion           |
+| Free between ModemPay users            | 0%                    | Internal transfers           |
+| Bulk Payouts                           | 1.5%                  | Phase 2                      |
+| Payouts (send money)                   | 1.5%                  | Same rate as collections     |
 
 **Cost impact on Xenboox:**
+
 - A 2,450 GMD mobile money payment costs ModemPay 36.75 GMD (1.5%)
 - For a business processing 100 mobile money payments/month averaging 2,000 GMD: 3,000 GMD/month (~$42) in ModemPay fees
 - This is a pass-through cost — Xenboox doesn't absorb it, the customer pays it to ModemPay directly
-| Monthly minimum | None reported | Self-service tier |
+  | Monthly minimum | None reported | Self-service tier |
 
 ### Direct Wave API Pricing
 
-| Service | Cost |
-|---------|------|
-| Merchant fee | 1% per transaction (capped at GMD ~50) |
-| Monthly subscription | $0 |
-| Bank cash-out | GMD 50 flat |
-| API access | $0 (included with merchant account) |
+| Service              | Cost                                   |
+| -------------------- | -------------------------------------- |
+| Merchant fee         | 1% per transaction (capped at GMD ~50) |
+| Monthly subscription | $0                                     |
+| Bank cash-out        | GMD 50 flat                            |
+| API access           | $0 (included with merchant account)    |
 
 ### Estimated Cost Comparison (Per GMD 10,000 Transaction)
 
-| Route | Fee | Notes |
-|-------|-----|-------|
-| Direct Wave | GMD 100 (1%) | Requires Senegal-registered business to apply |
-| Waychit (Wave via agg) | GMD 150-300 (1.5-3%) | Higher but no onboarding barrier |
-| Waychit (card) | GMD 350-500 (3.5-5%) | Cards are more expensive |
-| Manual import | $0 | No live payment integration |
+| Route                  | Fee                  | Notes                                         |
+| ---------------------- | -------------------- | --------------------------------------------- |
+| Direct Wave            | GMD 100 (1%)         | Requires Senegal-registered business to apply |
+| Waychit (Wave via agg) | GMD 150-300 (1.5-3%) | Higher but no onboarding barrier              |
+| Waychit (card)         | GMD 350-500 (3.5-5%) | Cards are more expensive                      |
+| Manual import          | $0                   | No live payment integration                   |
 
 ### Break-Even Analysis
 
@@ -487,6 +496,7 @@ If Xenboox processes >GMD 500,000/month in Wave payments, the 1.5% Waychit premi
 Mobile money in The Gambia is governed by:
 
 1. **Central Bank of The Gambia Mobile Money Regulations (2011)**
+
    - Applicable to all payment service providers
    - Core capital requirement: GMD 10,000,000 for non-bank providers
    - Authorization required before commencing business
@@ -499,14 +509,14 @@ Mobile money in The Gambia is governed by:
 
 ### Compliance Requirements for Xenboox
 
-| Requirement | Status | Action |
-|------------|--------|--------|
-| Payment service provider license | ❌ Not held | Xenboox is a platform, not a PSP |
-| Partnership with licensed operator | ✅ Required | Waychit handles this |
-| Data protection / privacy | ⚠️ Must comply | Ensure data processing agreements |
-| AML / KYC | ⚠️ Handled by providers | Waychit/Wave handle KYC for transactions |
-| Transaction record keeping | ✅ Xenboox handles | 7-year retention per CBG guidelines |
-| Cross-border data transfer | ⚠️ Review required | For entities with Senegalese parent companies |
+| Requirement                        | Status                  | Action                                        |
+| ---------------------------------- | ----------------------- | --------------------------------------------- |
+| Payment service provider license   | ❌ Not held             | Xenboox is a platform, not a PSP              |
+| Partnership with licensed operator | ✅ Required             | Waychit handles this                          |
+| Data protection / privacy          | ⚠️ Must comply          | Ensure data processing agreements             |
+| AML / KYC                          | ⚠️ Handled by providers | Waychit/Wave handle KYC for transactions      |
+| Transaction record keeping         | ✅ Xenboox handles      | 7-year retention per CBG guidelines           |
+| Cross-border data transfer         | ⚠️ Review required      | For entities with Senegalese parent companies |
 
 ### Key Compliance Decision
 

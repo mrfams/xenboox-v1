@@ -9,13 +9,13 @@ metadata:
 
 ## What Xenboox Is
 
-Xenboox is an AI-native, full-stack accounting platform built for Africa and the world. A workforce of 19 AI agents — organized in a three-tier hierarchy — handles every accounting function autonomously. Humans manage and approve. Agents execute.
+Xenboox is an AI-native, full-stack accounting platform built for SMEs worldwide. A workforce of 19 AI agents — organized in a three-tier hierarchy — handles every accounting function autonomously. Humans manage and approve. Agents execute.
 
 **Core promise:** "Your entire accounting department, running autonomously. Agents do the work. You make the decisions that matter."
 
 **Launch market:** The Gambia. Expansion: Nigeria, Ghana, Senegal, Kenya.
 
-**What makes it different:** Not a tool you operate — a workforce that operates itself. Built natively for African markets: mobile money as first-class rail, cash/imprest management, local tax regimes. 20 modules covering every accounting function. Web, mobile, and desktop surfaces.
+**What makes it different:** Not a tool you operate — a workforce that operates itself. Built natively for SME needs: mobile money as first-class rail, cash/imprest management, local tax regimes. 20 modules covering every accounting function. Web, mobile, and desktop surfaces.
 
 ---
 

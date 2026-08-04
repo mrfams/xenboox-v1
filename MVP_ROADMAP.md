@@ -1,6 +1,6 @@
 # XENBOOX — FOCUSED MVP ROADMAP
 
-> **Goal:** First 20 paying customers (SMEs, NGOs, accounting firms) in West Africa
+> **Goal:** First 20 paying customers (SMEs, NGOs, accounting firms)
 > **Constraint:** Ship 4 core agents — defer the other 15
 > **Horizon:** 90 days to first paying customer
 
@@ -11,7 +11,7 @@
 Xenboox has 19 agents across 3 tiers. This is the right architecture for the **mature product**, but for the MVP it is the wrong priority. The gap between "all 19 agents built" and "first customer delighted" is not more agents — it is:
 
 1. An end-to-end accounting flow that a real business can use
-2. West African market fit (mobile money, local tax, local bank integrations)
+2. Market fit (mobile money, local tax, local bank integrations)
 3. A feedback loop with actual users
 
 **This roadmap defers 15 agents and focuses everything on the 4 that matter for a complete accounting loop:**
@@ -89,18 +89,18 @@ Xenboox has 19 agents across 3 tiers. This is the right architecture for the **m
 
 ---
 
-## Phase 2: West Africa Market Fit (Weeks 5-8)
+## Phase 2: Market Fit (Weeks 5-8)
 
 ### Critical Gaps (from codebase audit)
 
-| Gap                         | Current State                                                     | MVP Action                                                                                                    |
-| --------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Mobile Money**            | Schema exists (`mobile-money.ts`). Agent exists.                  | **Validate** with 1 real provider (MTN MoMo or Orange Money). Test with real statement data.                  |
-| **Local Tax Jurisdictions** | Schema exists (`jurisdiction.ts`). No West Africa-specific rules. | Ship with Nigeria (VAT 7.5%, PAYE, WHT) + Ghana (VAT 15%, NHIL, GETFUND). Hardcode first, parameterize later. |
-| **Local Bank Integrations** | Plaid integration exists. No Mono/Okra/OnePipe.                   | Integrate with **Mono** (Nigeria) and **one simple bank CSV upload** flow. Mono covers 15+ Nigerian banks.    |
-| **Multi-Currency**          | Schema supports it.                                               | Ship with NGN + GHS + XOF. Use hardcoded rates first (crawled daily via ECB + CBN).                           |
-| **Entity Structure**        | Works: org → entity → user_entity_access                          | SME-friendly: single entity auto-created on signup. No multi-entity complexity in MVP.                        |
-| **Onboarding Wizard**       | UI exists (`/app/(auth)/register/onboarding/`).                   | Trim to 3 steps: (1) Create org, (2) Connect bank/MoMo, (3) First look.                                       |
+| Gap                         | Current State                                         | MVP Action                                                                                                    |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Mobile Money**            | Schema exists (`mobile-money.ts`). Agent exists.      | **Validate** with 1 real provider (MTN MoMo or Orange Money). Test with real statement data.                  |
+| **Local Tax Jurisdictions** | Schema exists (`jurisdiction.ts`). No specific rules. | Ship with Nigeria (VAT 7.5%, PAYE, WHT) + Ghana (VAT 15%, NHIL, GETFUND). Hardcode first, parameterize later. |
+| **Local Bank Integrations** | Plaid integration exists. No Mono/Okra/OnePipe.       | Integrate with **Mono** (Nigeria) and **one simple bank CSV upload** flow. Mono covers 15+ Nigerian banks.    |
+| **Multi-Currency**          | Schema supports it.                                   | Ship with NGN + GHS + XOF. Use hardcoded rates first (crawled daily via ECB + CBN).                           |
+| **Entity Structure**        | Works: org → entity → user_entity_access              | SME-friendly: single entity auto-created on signup. No multi-entity complexity in MVP.                        |
+| **Onboarding Wizard**       | UI exists (`/app/(auth)/register/onboarding/`).       | Trim to 3 steps: (1) Create org, (2) Connect bank/MoMo, (3) First look.                                       |
 
 ### Integration Priorities (by customer impact)
 
@@ -185,7 +185,7 @@ From the CEO review, these issues have outsized impact on the first customer:
 1. **Pricing page** — Does one exist? If yes, verify it works. If not, build a simple one.
 2. **Signup → first data** time — Measure it. Target: < 5 minutes from signup to seeing data.
 3. **Error messages** — Every error a user sees must say WHAT, WHY, and HOW TO FIX.
-4. **Mobile responsiveness** — Most West African SME owners use phones for business. Test the dashboard on a mid-range Android.
+4. **Mobile responsiveness** — Most SME owners use phones for business. Test the dashboard on a mid-range Android.
 5. **Loading states** — Ensure every page has a skeleton loading state. 3G is normal in Lagos.
 
 ---

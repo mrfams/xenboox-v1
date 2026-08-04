@@ -1161,7 +1161,7 @@ Tabs added to **every** render branch of pipeline pages (loading, empty, and loa
 
 - Remaining liveness specs: Document, Treasury, Controller, Reporting
 - Tax spec §9 schema flags: `tax_rules` table with versioning (`effective_date`, `superseded_date`) so every calculation cites an exact rule version, `tax_return_lines.rule_id`/`rule_version_cited` — flagged for schema review
-- Tax spec §11 open questions: OHADA (Senegal/Francophone West Africa) rule tables pending per PRD §21; Nigeria (FIRS) and Ghana (GRA-GH) Phase 3 per PRD §20 — spec written jurisdiction-agnostic so rule-versioning pattern extends without rework
+- Tax spec §11 open questions: OHADA (Senegal) rule tables pending per PRD §21; Nigeria (FIRS) and Ghana (GRA-GH) Phase 3 per PRD §20 — spec written jurisdiction-agnostic so rule-versioning pattern extends without rework
 - Tax design note: second component in the suite with **zero confidence meters across the entire lifecycle** (after Inventory) — all-deterministic spec, audit-trail confidence column showing "—" is deliberate
 - `packages/db/seed/reset.ts` (untracked) — confirm intent before merging
 

@@ -1,4 +1,5 @@
 # XENBOOX — Product Requirements Document (PRD)
+
 > The complete, definitive product specification for Xenboox.
 > Single source of truth for all sessions — engineering, YC application, pitching, hiring, and building.
 > Version: v1.0 | Last updated: July 2026 | Authors: Founder + Claude (co-founder sessions)
@@ -7,16 +8,18 @@
 
 ## 1. Vision
 
-Xenboox is the first AI-native, full-stack accounting platform built for Africa and the world. It combines everything QuickBooks, Xero, Digits, and Pilot do into one product — with an autonomous agent workforce that does the actual accounting work so your team doesn't have to.
+Xenboox is the first AI-native, full-stack accounting platform built for SMEs worldwide. It combines everything QuickBooks, Xero, Digits, and Pilot do into one product — with an autonomous agent workforce that does the actual accounting work so your team doesn't have to.
 
 **The core promise:**
+
 > "Your entire accounting department, running autonomously. Agents do the work. You make the decisions that matter."
 
 **What makes Xenboox different:**
+
 - Not a tool you operate — a workforce that operates itself
 - Not built for Silicon Valley startups — built for real organizations doing real business
 - Not a narrow solution — a complete accounting platform covering every function
-- Not Western-first — built natively for African markets, currencies, tax regimes, and payment rails
+- Not Western-first — built natively for SME needs, currencies, tax regimes, and payment rails
 - Not one surface — available on web, mobile, and desktop
 
 ---
@@ -26,20 +29,22 @@ Xenboox is the first AI-native, full-stack accounting platform built for Africa 
 Organizations of every size need accounting. But the current solutions fail them in different ways:
 
 **For SMEs:**
+
 - Can't afford a full-time accountant ($1,500-$3,000/month)
 - Accounting firms are expensive and slow
 - QuickBooks and Xero require someone to operate them — the owner ends up doing accounting work themselves, badly, late, and stressed
 
-**For corporations and agencies in Africa:**
+**For corporations and agencies:**
+
 - SAP costs $50,000+ to implement — completely inaccessible
 - Sage has weak penetration outside South Africa
-- QuickBooks and Xero weren't built for African tax regimes, mobile money, or cash-heavy operations
+- QuickBooks and Xero weren't built for SME needs, mobile money, or cash-heavy operations
 - Most organizations use Excel — fragile, error-prone, not auditable
 - No platform handles mobile money as a first-class payment rail
-- No platform has proper imprest and cash management for cash-heavy African operations
+- No platform has proper imprest and cash management for cash-heavy operations
 
 **The gap:**
-Every serious accounting platform was built for Western markets with Western assumptions. Africa has 40+ million SMEs and thousands of corporations operating with tools that don't fit how they actually work. Nobody has built the right thing for this market. Xenboox does.
+Every serious accounting platform was built for Western markets with Western assumptions. There are 40+ million SMEs and thousands of corporations operating with tools that don't fit how they actually work. Nobody has built the right thing for this market. Xenboox does.
 
 ---
 
@@ -58,20 +63,24 @@ Every serious accounting platform was built for Western markets with Western ass
 ## 4. Target Market
 
 ### Launch Market
+
 **The Gambia** — small enough to know users personally, test assumptions fast, fix problems before they scale, and prove the model before expanding.
 
 ### Expansion Markets (Phase 2)
-- Nigeria — 40 million SMEs, largest African economy, sharpest formalization pressure
+
+- Nigeria — 40 million SMEs, largest economy in Africa, sharpest formalization pressure
 - Ghana — stable, growing, English-speaking, strong fintech ecosystem
 - Senegal — French-speaking West Africa gateway, strong NGO and development sector
-- Kenya — most digitally advanced East African economy, M-Pesa infrastructure
+- Kenya — most digitally advanced economy in East Africa, M-Pesa infrastructure
 
 ### Global Ambition
-Xenboox is built for Africa first but designed for the world. The agent architecture, multi-currency support, and modular compliance system make it deployable in any market by adding jurisdiction-specific compliance rules.
+
+Xenboox is built for SMEs first but designed for all organizations. The agent architecture, multi-currency support, and modular compliance system make it deployable in any market by adding jurisdiction-specific compliance rules.
 
 ### Customer Segments
 
 **Segment 1 — SMEs**
+
 - 1-50 employees
 - No dedicated finance team or one part-time bookkeeper
 - Currently using Excel, paper, or nothing
@@ -79,6 +88,7 @@ Xenboox is built for Africa first but designed for the world. The agent architec
 - Primary interface: web and mobile
 
 **Segment 2 — Mid-size Organizations**
+
 - 50-200 employees
 - Small finance team of 2-5 people
 - Currently using Excel or basic accounting software
@@ -86,13 +96,15 @@ Xenboox is built for Africa first but designed for the world. The agent architec
 - Primary interface: web with desktop for document-heavy workflows
 
 **Segment 3 — Corporations and Agencies**
+
 - 200+ employees
 - Full finance department
 - Currently using SAP (too expensive), Sage, or Excel
-- Pain: no AI-native automation, not built for African operations, expensive consultants
+- Pain: no AI-native automation, not built for SME operations, expensive consultants
 - Primary interface: web, with multi-entity and branch accounting
 
 **Segment 4 — NGOs and Development Organizations**
+
 - Any size
 - Finance officer or small team
 - Donor reporting obligations
@@ -100,6 +112,7 @@ Xenboox is built for Africa first but designed for the world. The agent architec
 - Primary interface: web and mobile
 
 **Segment 5 — Accounting Firms**
+
 - Manages books for multiple clients
 - Needs multi-client dashboard
 - Pain: switching between client systems, manual work, no unified platform
@@ -118,28 +131,28 @@ Xenboox runs an autonomous accounting department for any organization. A workfor
 
 Xenboox covers every accounting function in one platform:
 
-| # | Module | Description |
-|---|--------|-------------|
-| 1 | General Ledger | Foundation of everything. Chart of accounts, journal entries, double-entry enforcement, trial balance |
-| 2 | Bank Reconciliation | Bank statement matching from API feeds, PDF uploads, manual entry |
-| 3 | Accounts Payable | Invoice ingestion, supplier management, payment tracking, aging |
-| 4 | Accounts Receivable | Invoice creation, customer management, payment tracking, aging |
-| 5 | Cash and Imprest Management | Daily cash position, petty cash, imprest issuance and retirement |
-| 6 | Mobile Money | Wave, Orange Money, MTN MoMo, M-Pesa, Airtel Money — first-class rails |
-| 7 | Payroll | Salary calculation, PAYE, social security, payslips, contractor payments |
-| 8 | Invoicing | Professional invoice creation, templates, recurring, payment links |
-| 9 | Expense Management | Employee claims, receipt capture, approval workflow, reimbursement |
-| 10 | Fixed Assets | Asset register, depreciation, disposal, physical verification |
-| 11 | Inventory | Stock tracking, COGS, purchase orders, valuations, alerts |
-| 12 | Budgeting | Annual budget, monthly tracking, variance analysis, forecasting |
-| 13 | Financial Reporting | P&L, balance sheet, cash flow, trial balance, custom reports |
-| 14 | Tax Compliance | VAT, PAYE filing prep, withholding tax, corporate tax, jurisdiction exports |
-| 15 | Donor and Grant Reporting | Budget vs actual by project/donor, donor portal, automated reports |
-| 16 | Audit Preparation | Supporting schedules, voucher management, audit trail, auditor portal |
-| 17 | Multi-Entity and Branch | Multiple entities, inter-company, consolidation, branch reporting |
-| 18 | Multi-Currency | Exchange rates, realized/unrealized FX gains and losses, all currencies |
-| 19 | Document Management | Ingestion, OCR, classification, storage, audit trail linking |
-| 20 | Analytics and Insights | Trends, anomaly detection, cash flow forecasting, health scoring |
+| #   | Module                      | Description                                                                                           |
+| --- | --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | General Ledger              | Foundation of everything. Chart of accounts, journal entries, double-entry enforcement, trial balance |
+| 2   | Bank Reconciliation         | Bank statement matching from API feeds, PDF uploads, manual entry                                     |
+| 3   | Accounts Payable            | Invoice ingestion, supplier management, payment tracking, aging                                       |
+| 4   | Accounts Receivable         | Invoice creation, customer management, payment tracking, aging                                        |
+| 5   | Cash and Imprest Management | Daily cash position, petty cash, imprest issuance and retirement                                      |
+| 6   | Mobile Money                | Wave, Orange Money, MTN MoMo, M-Pesa, Airtel Money — first-class rails                                |
+| 7   | Payroll                     | Salary calculation, PAYE, social security, payslips, contractor payments                              |
+| 8   | Invoicing                   | Professional invoice creation, templates, recurring, payment links                                    |
+| 9   | Expense Management          | Employee claims, receipt capture, approval workflow, reimbursement                                    |
+| 10  | Fixed Assets                | Asset register, depreciation, disposal, physical verification                                         |
+| 11  | Inventory                   | Stock tracking, COGS, purchase orders, valuations, alerts                                             |
+| 12  | Budgeting                   | Annual budget, monthly tracking, variance analysis, forecasting                                       |
+| 13  | Financial Reporting         | P&L, balance sheet, cash flow, trial balance, custom reports                                          |
+| 14  | Tax Compliance              | VAT, PAYE filing prep, withholding tax, corporate tax, jurisdiction exports                           |
+| 15  | Donor and Grant Reporting   | Budget vs actual by project/donor, donor portal, automated reports                                    |
+| 16  | Audit Preparation           | Supporting schedules, voucher management, audit trail, auditor portal                                 |
+| 17  | Multi-Entity and Branch     | Multiple entities, inter-company, consolidation, branch reporting                                     |
+| 18  | Multi-Currency              | Exchange rates, realized/unrealized FX gains and losses, all currencies                               |
+| 19  | Document Management         | Ingestion, OCR, classification, storage, audit trail linking                                          |
+| 20  | Analytics and Insights      | Trends, anomaly detection, cash flow forecasting, health scoring                                      |
 
 ---
 
@@ -202,6 +215,7 @@ Platform-wide (Report directly to CFO Agent):
 The master orchestrator and the face of Xenboox. The human always talks to the CFO Agent first.
 
 Responsibilities:
+
 - Receives instructions from human owners and finance directors in plain English
 - Assigns work to department head agents
 - Reviews department head summaries — never individual transactions
@@ -221,6 +235,7 @@ Owns the integrity of the general ledger and all accounting records.
 Oversees: Ledger Agent, AP Agent, AR Agent, Asset Agent, Inventory Agent
 
 Responsibilities:
+
 - Reviews all journal entries before final posting
 - Enforces double-entry integrity across all postings
 - Produces trial balance and confirms to CFO Agent
@@ -234,6 +249,7 @@ Owns all cash, bank, and payment rail management.
 Oversees: Reconciliation Agent, Cash Agent, Mobile Money Agent, Expense Agent
 
 Responsibilities:
+
 - Reviews all reconciliations before marking complete
 - Monitors daily cash position across all accounts and payment rails
 - Manages payment scheduling and cash flow planning
@@ -247,6 +263,7 @@ Owns the entire payroll function end to end.
 Oversees: Payroll Worker Agent
 
 Responsibilities:
+
 - Reviews payroll calculations before processing
 - Confirms statutory deductions are correct for the specific jurisdiction
 - Approves payroll journal posting to Controller Agent
@@ -260,6 +277,7 @@ Owns all regulatory, tax, and audit obligations.
 Oversees: Tax Agent, Audit Agent
 
 Responsibilities:
+
 - Monitors all filing deadlines across every jurisdiction the organization operates in
 - Reviews tax calculations before submission packages are produced
 - Manages audit preparation process from start to finish
@@ -273,6 +291,7 @@ Responsibilities:
 **Under Controller Agent:**
 
 **Ledger Agent**
+
 - Posts all journal entries from every other agent
 - Maintains chart of accounts
 - Enforces double-entry — the hard mathematical constraint layer
@@ -282,6 +301,7 @@ Responsibilities:
 - The most critical agent in the system
 
 **AP Agent**
+
 - Invoice ingestion from all formats — email, PDF, image, WhatsApp photo, Excel
 - Supplier master data management
 - Invoice matching to purchase orders
@@ -292,6 +312,7 @@ Responsibilities:
 - Flags overdue and disputed items to Controller Agent
 
 **AR Agent**
+
 - Invoice creation and professional delivery
 - Customer master data management
 - Payment tracking and matching to invoices
@@ -301,6 +322,7 @@ Responsibilities:
 - Donor payment tracking for NGOs
 
 **Asset Agent**
+
 - Asset register maintenance — every asset, location, value, condition, responsible person
 - Depreciation calculation — straight line, reducing balance by asset class
 - Asset disposal and write-off processing
@@ -308,6 +330,7 @@ Responsibilities:
 - Asset journal posting to Ledger Agent
 
 **Inventory Agent**
+
 - Stock level tracking across all locations
 - Purchase order management
 - Goods received note recording
@@ -319,6 +342,7 @@ Responsibilities:
 **Under Treasury Agent:**
 
 **Reconciliation Agent**
+
 - Bank statement reconciliation from API feeds, PDF uploads, and manual entry
 - Matches transactions to ledger entries automatically
 - Flags every unmatched item with specific detail
@@ -327,15 +351,17 @@ Responsibilities:
 - Handles multi-bank, multi-account reconciliation simultaneously
 
 **Cash Agent**
+
 - Daily cash position tracking across all physical cash tills and locations
 - Petty cash float management
 - Imprest issuance — records who received float, how much, for what purpose, when
 - Imprest retirement — matches receipts to float issued, calculates balance due
 - Cash discrepancy detection and immediate flagging
 - Daily cash reconciliation report
-- Critical for African operations — built more robustly than any Western platform
+- Critical for cash-heavy operations — built more robustly than any Western platform
 
 **Mobile Money Agent**
+
 - Wave integration and transaction ingestion
 - Orange Money integration
 - MTN Mobile Money integration
@@ -347,6 +373,7 @@ Responsibilities:
 - Flags timing differences between mobile money confirmation and bank settlement
 
 **Expense Agent**
+
 - Employee expense claim ingestion from mobile app
 - OCR extraction from photographed receipts
 - Policy compliance checking — is this claim within policy limits
@@ -357,6 +384,7 @@ Responsibilities:
 **Under Payroll Manager Agent:**
 
 **Payroll Worker Agent**
+
 - Staff database management — salaries, allowances, deductions, bank details
 - Monthly payroll calculation for all staff
 - PAYE tax deduction calculation by jurisdiction — GRA, FIRS, KRA, GRA-GH
@@ -370,6 +398,7 @@ Responsibilities:
 **Under Compliance Agent:**
 
 **Tax Agent**
+
 - VAT calculation and return preparation by jurisdiction
 - PAYE filing preparation linked to payroll
 - Withholding tax calculation on all contractor payments
@@ -379,6 +408,7 @@ Responsibilities:
 - Tax position summary for management
 
 **Audit Agent**
+
 - Runs continuously — not just at year end
 - Continuously samples transactions for accuracy against accounting standards
 - Runs independent checks against all ledger entries
@@ -392,6 +422,7 @@ Responsibilities:
 **Platform-wide Agents (Report directly to CFO Agent):**
 
 **Reporting Agent**
+
 - P&L statement — monthly, quarterly, annual
 - Balance sheet
 - Cash flow statement
@@ -406,6 +437,7 @@ Responsibilities:
 - Consolidated group reports for multi-entity organizations
 
 **Budget Agent**
+
 - Annual budget creation and storage
 - Monthly budget vs actual comparison for every budget line
 - Variance analysis with plain-English explanation of significant variances
@@ -415,6 +447,7 @@ Responsibilities:
 - Multi-year budget planning for larger organizations
 
 **Analytics Agent**
+
 - Trend detection across all financial data
 - Anomaly detection — unusual transactions, spending pattern shifts, timing irregularities
 - Cash flow forecasting — "at current trajectory you have X months of runway"
@@ -425,6 +458,7 @@ Responsibilities:
 - Year-on-year performance comparisons
 
 **Document Agent**
+
 - Document ingestion from all sources — email, upload, scan, mobile photo, desktop folder watch
 - OCR extraction from all formats
 - Document classification — invoice, receipt, contract, bank statement, payslip, grant letter
@@ -437,6 +471,7 @@ Responsibilities:
 ### 6.6 How Agents Work Together — Example Flow
 
 **Supplier invoice arrives by email:**
+
 1. Document Agent ingests email, OCR extracts invoice data
 2. AP Agent receives structured data, matches to purchase order, schedules payment
 3. Cash Agent confirms sufficient cash position for payment
@@ -456,6 +491,7 @@ Responsibilities:
 Xenboox's core technical moat. Built from day one, never retrofitted.
 
 **Layer 1 — Deterministic Rules (Zero AI tolerance)**
+
 - Double-entry must always balance. Period. No exceptions.
 - Bank balance must match reconciled ledger. Period.
 - Tax figures pass rule-based validator before any output
@@ -463,6 +499,7 @@ Xenboox's core technical moat. Built from day one, never retrofitted.
 - No agent can override these rules under any circumstances
 
 **Layer 2 — Agent Cross-Checking**
+
 - Worker agents do the work
 - Department head agents review before committing
 - CFO Agent reviews department head summaries
@@ -470,6 +507,7 @@ Xenboox's core technical moat. Built from day one, never retrofitted.
 - Disagreements between agents trigger escalation not coin-flip
 
 **Layer 3 — Confidence Threshold System**
+
 - Every agent output carries a confidence score
 - Below threshold → flag to appropriate superior agent or human
 - Never guess silently on anything material
@@ -478,6 +516,7 @@ Xenboox's core technical moat. Built from day one, never retrofitted.
 - Regression testing before every product deployment
 
 **Layer 4 — Human in the Loop + Full Audit Trail**
+
 - Every decision logged: what, why, which agent, confidence level, timestamp
 - Human approves: anything above dollar threshold, CFO Agent escalations, month-end close
 - Full audit trail exportable at any time for any period
@@ -489,14 +528,17 @@ Xenboox's core technical moat. Built from day one, never retrofitted.
 ## 7. The Interfaces
 
 ### 7.1 Web Platform
+
 Primary interface for Finance Directors, accountants, and business owners on desktop browsers.
 
 Full access to all modules based on user role. Real-time updates. The primary engineering target for MVP.
 
 ### 7.2 Mobile App
+
 Primary interface for business owners checking financial position, employees submitting expenses, cashiers recording cash transactions, and department managers approving expenses.
 
 **Mobile-first design principles:**
+
 - Core actions completable in under 3 taps
 - Works on low bandwidth — data-efficient API design
 - Offline capable — queues actions when disconnected, syncs when connected
@@ -505,17 +547,20 @@ Primary interface for business owners checking financial position, employees sub
 - Available on iOS and Android
 
 **Key mobile use cases:**
+
 - Business owner: check cash position, approve month-end close, chat with CFO Agent
 - Employee: photograph receipt, submit expense claim, check reimbursement status
 - Cashier: record cash transaction, issue imprest, capture receipt
 - Department manager: approve team expense claims, check department budget
 
 ### 7.3 Desktop Application
+
 Native Windows and Mac application for organizations with document-heavy workflows — finance teams working with Excel files, local PDFs, scanned invoices, and other locally stored documents.
 
 **Technology:** Tauri (Rust backend + React/Shadcn webview)
 
 **Rust Backend Capabilities:**
+
 - File system watcher — monitors designated folders continuously for new or changed files
 - Format detection and routing to correct parser
 - PDF extraction — text layer and OCR for scanned documents
@@ -531,6 +576,7 @@ Native Windows and Mac application for organizations with document-heavy workflo
 - Auto-update — silent background updates
 
 **Supported Input Formats:**
+
 - Excel: .xlsx, .xls
 - CSV and TSV
 - Word: .docx, .doc
@@ -540,11 +586,13 @@ Native Windows and Mac application for organizations with document-heavy workflo
 - Plain text: .txt
 
 **OCR Strategy:**
+
 - Tesseract — primary, runs locally, no API cost, handles most documents
 - Claude Vision API — fallback for complex, low quality, or handwritten documents
 - Keeps costs low and data local by default
 
 **Desktop UI:**
+
 - Document Inbox — every detected file with processing status pipeline
 - Status: Detected → Processing → Extracted → Synced → Agent Processing → Done
 - Full Xenboox dashboard (identical to web)
@@ -556,11 +604,13 @@ Native Windows and Mac application for organizations with document-heavy workflo
 Agents always run in the cloud. The desktop app is the local interface and document bridge only. Agent logic never runs on the client device. This enables silent updates, consistent agent behavior, and prevents the client machine becoming a dependency.
 
 ### 7.4 Chat Interface
+
 Available on all surfaces. The human's primary way of interacting with the agent workforce.
 
 The CFO Agent is always the first point of contact. It routes to specialist agents as needed.
 
 **Example interactions:**
+
 - "What was our profit last month?" → Reporting Agent produces, CFO Agent delivers
 - "Run payroll for July" → CFO Agent instructs Payroll Manager Agent
 - "Why did you categorize this as office supplies?" → Bookkeeping logic explained
@@ -569,6 +619,7 @@ The CFO Agent is always the first point of contact. It routes to specialist agen
 - "The June close is wrong, marketing spend is miscategorized" → Recovery flow initiates
 
 ### 7.5 Email Delivery
+
 Month-end close reports, VAT filing reminders, budget alerts, and overdue invoice notifications delivered automatically to relevant users. Owner doesn't have to log in — results come to them.
 
 ---
@@ -590,11 +641,13 @@ Month-end close reports, VAT filing reminders, budget alerts, and overdue invoic
 ### Error Recovery Flow
 
 **How owner flags:**
+
 - Dashboard "Reopen this close" button
 - Reply to close notification email
 - Chat: "The June close is wrong"
 
 **What happens:**
+
 1. CFO Agent reopens the period
 2. Asks owner to describe the issue in plain English
 3. Identifies scope — which transactions, which agents involved
@@ -606,6 +659,7 @@ Month-end close reports, VAT filing reminders, budget alerts, and overdue invoic
 6. Owner notified when correction is complete
 
 **How far back can owner reopen:**
+
 - Last 3 months: immediate, fast recovery
 - 3-12 months: available, agent flags downstream effects
 - Beyond 12 months: available with honest scope assessment from CFO Agent before beginning
@@ -652,6 +706,7 @@ user_entity_access
 ### 9.3 Use Cases
 
 **Corporation with subsidiaries:**
+
 ```
 Organization: Fatima Holdings Group
     ├── Entity: Fatima Holdings Ltd (Parent)
@@ -659,9 +714,11 @@ Organization: Fatima Holdings Group
     ├── Entity: Fatima Properties Ltd
     └── Entity: Fatima Foods Ltd
 ```
+
 Finance Director sees all entities and consolidated group view. Each entity has completely separate books. CFO Agent runs consolidated reporting on demand.
 
 **Accounting firm:**
+
 ```
 Organization: Koroma & Associates
     ├── Entity: Gamtel (Client)
@@ -669,18 +726,22 @@ Organization: Koroma & Associates
     ├── Entity: ActionAid Gambia (Client)
     └── Entity: Kairaba Shopping Center (Client)
 ```
+
 Accountant logs in once, sees client dashboard, switches between clients. Each client's data completely isolated. Clients can also log in independently.
 
 **Simple SME:**
+
 ```
 Organization: Lamin's Trading Co.
     └── Entity: Lamin's Trading Co.
 ```
+
 Single entity. No complexity needed.
 
 ### 9.4 Organization-Level Roles
 
 **Organization Owner**
+
 - Creates and manages all entities
 - Manages billing
 - Manages all users across all entities
@@ -688,6 +749,7 @@ Single entity. No complexity needed.
 - Cannot be removed by anyone else
 
 **Organization Admin**
+
 - Manages users across all entities
 - Sees all entities
 - Cannot manage billing
@@ -696,17 +758,17 @@ Single entity. No complexity needed.
 
 Users can have different roles in different entities:
 
-| Role | Access |
-|------|--------|
-| Finance Director | Full finance access for this entity |
-| Accountant | Domain-scoped access (AP, AR, etc.) |
-| Payroll Officer | Payroll module only — salary data strictly scoped |
-| Cashier | Cash module only |
-| Department Manager | Their department budget + expense approvals |
-| Employee | Expense submission only |
-| External Auditor | Read-only, period-locked, auditor portal |
-| External Accountant | Full access, multi-client dashboard |
-| Donor/Funder | Read-only, project-scoped donor portal |
+| Role                | Access                                            |
+| ------------------- | ------------------------------------------------- |
+| Finance Director    | Full finance access for this entity               |
+| Accountant          | Domain-scoped access (AP, AR, etc.)               |
+| Payroll Officer     | Payroll module only — salary data strictly scoped |
+| Cashier             | Cash module only                                  |
+| Department Manager  | Their department budget + expense approvals       |
+| Employee            | Expense submission only                           |
+| External Auditor    | Read-only, period-locked, auditor portal          |
+| External Accountant | Full access, multi-client dashboard               |
+| Donor/Funder        | Read-only, project-scoped donor portal            |
 
 ### 9.6 Consolidated View
 
@@ -722,6 +784,7 @@ Viewing: [Fatima Holdings Group ▼]
 ```
 
 Controller Agent handles consolidation:
+
 - Eliminates inter-company transactions
 - Converts subsidiary financials to parent reporting currency
 - Produces consolidated P&L, balance sheet, cash flow
@@ -746,6 +809,7 @@ Active Clients (4)
 ## 10. The Ten User Types
 
 ### Level 1 — Platform Owner
+
 **Account Owner / Business Owner**
 Signs up, pays, has full access. Not necessarily an accountant. Primary chat partner with CFO Agent.
 
@@ -753,6 +817,7 @@ Sees: Executive dashboard, CFO Agent chat, approval queue, all reports, settings
 Cannot: Post journal entries directly, approve own expenses, override compliance without audit trail
 
 ### Level 2 — Finance Leadership
+
 **Finance Director / CFO (Human)**
 Senior finance professional inside larger organizations.
 
@@ -760,6 +825,7 @@ Sees: Full finance dashboard, agent activity feed, all approval queues with agen
 Cannot: Change system settings without Account Owner, add/remove users, access billing
 
 ### Level 3 — Finance Team
+
 **Accountant / Bookkeeper**
 Day-to-day finance team. Works alongside agents, reviews outputs, handles exceptions.
 
@@ -773,6 +839,7 @@ Specifically manages payroll. Sees all salary information. Strictly scoped role.
 Manages physical cash and imprest. Mobile-first role for field cash recording.
 
 ### Level 4 — Operational Users
+
 **Employee (Expense Claimant)**
 Submits expense claims only. Simplest possible interface.
 
@@ -786,6 +853,7 @@ Sees: Department budget dashboard, team expense claims pending approval, departm
 Cannot: See anything outside their department
 
 ### Level 5 — External Users
+
 **External Auditor**
 Read-only access to specific period. Interacts with Audit Agent only.
 
@@ -803,6 +871,7 @@ Read-only access to their specific grant or project. Donor portal. Automated rep
 ## 11. Data Integrations
 
 ### Web Platform Integrations
+
 - **QuickBooks Online** — via OAuth through Merge.dev
 - **Xero** — via OAuth through Merge.dev
 - **Shopify** — payout reconciliation, order data, refunds
@@ -814,13 +883,16 @@ Read-only access to their specific grant or project. Donor portal. Automated rep
 - **File upload** — PDF, Excel, CSV, Word, image
 
 ### Desktop Application Integrations
+
 All web integrations plus:
+
 - **Local file system** — automatic folder watching for all document formats
 - **Microsoft Excel** — direct file reading without upload
 - **Email clients** — local .eml and .msg export reading
 
 ### Integration Priority for MVP
-1. Bank PDF statement upload (most universal for African markets)
+
+1. Bank PDF statement upload (most universal for emerging markets)
 2. Mobile money statement import — Wave first (dominant in Gambia)
 3. Email invoice ingestion
 4. Excel/CSV file upload
@@ -835,6 +907,7 @@ All web integrations plus:
 Available on all tiers. No currency limits. Restricting currencies per tier would break the product for businesses receiving unexpected foreign payments.
 
 **Exchange rate source:**
+
 - Primary: European Central Bank rates — free, reliable, widely accepted
 - Fallback: Open Exchange Rates API
 - Rates pulled daily at market close
@@ -843,11 +916,13 @@ Available on all tiers. No currency limits. Restricting currencies per tier woul
 
 **Transaction recording:**
 Every foreign currency transaction stored with three values:
+
 - Original amount and currency: £450 GBP
 - Exchange rate used: 1.27
 - Base currency equivalent: $571.50
 
 **Realized vs unrealized gains and losses:**
+
 - Unrealized: sale made, payment not yet received, rate moves → balance sheet, not P&L
 - Realized: payment received and converted → hits P&L as foreign exchange gain or loss
 - Bookkeeping Agent posts these entries automatically
@@ -865,17 +940,20 @@ Target: first meaningful value within 12 minutes of signup.
 **First value moment:** Transactions appearing in the system, categorized correctly, in real time. Not the close — the moment they see the agents starting work.
 
 **Step 1 — Signup (2 minutes)**
+
 - Email + password or Google OAuth
 - Organization name, type, country
 - How they currently manage books — routes to correct setup path
 
 **Step 2 — Entity setup (1 minute)**
+
 - Business name, industry, fiscal year end
 - Base currency
 - For accounting firms: invite first client
 
 **Step 3 — Connect your data (5 minutes)**
 Three connection cards shown in sequence based on what they have:
+
 - Connect bank — PDF upload or API feed
 - Connect mobile money — statement import
 - Connect accounting software (if applicable) — QuickBooks or Xero OAuth
@@ -884,23 +962,27 @@ Three connection cards shown in sequence based on what they have:
 Progress shown in real time. Each connection triggers immediate feedback: "Bank statement uploaded. Processing 847 transactions..."
 
 **Step 4 — Historical data pull (background)**
+
 - All available history pulled automatically — no paywall, no limits
 - Free because it's a prerequisite for accurate work, not a feature
 - Visual shows transactions appearing: "Processing April 2025..."
 - Beyond 12 months: CFO Agent asks permission before beginning — "I found data going back to 2022. Shall I reconstruct those years? It may take up to 24 hours."
 
 **Step 5 — Chart of accounts setup (3 minutes)**
+
 - Xenboox proposes standard chart of accounts based on business type and country
 - Owner reviews and confirms — no accounting knowledge required
 - Pre-built templates for each segment and market
 - Can customize any time via chat
 
 **Step 6 — First look (done)**
+
 - Dashboard loads with transactions already categorized
 - CFO Agent sends first message: "I've reviewed your records. Here's what I found..."
 - Flags anything needing attention immediately
 
 **Failure states:**
+
 - Bank upload fails → manual transaction entry offered
 - Mobile money statement format not recognized → agent asks for different export format
 - QuickBooks OAuth fails → CSV export path offered
@@ -911,6 +993,7 @@ Progress shown in real time. Each connection triggers immediate feedback: "Bank 
 ## 14. Liability and Legal Positioning
 
 ### Core Position
+
 Xenboox is a financial software tool, not a licensed accounting firm. Industry standard — QuickBooks, Xero, Pilot all operate identically.
 
 ### Protection Layers
@@ -924,6 +1007,7 @@ Xenboox is a financial software tool, not a licensed accounting firm. Industry s
 **Pro tier human review** — Qualified accountants review before close on highest tier. Stronger accuracy guarantee. Justifies premium pricing.
 
 ### YC Answer on Liability
+
 "We have four layers of accuracy architecture that make errors extremely rare. Our audit trail means we can identify exactly what happened and why. Our ToS positions us as a software tool — the same standard the entire accounting software industry operates on. Our owner notification creates a legal acknowledgment moment. And our Pro tier includes human accountant review for clients who need the strongest guarantee."
 
 ---
@@ -931,20 +1015,23 @@ Xenboox is a financial software tool, not a licensed accounting firm. Industry s
 ## 15. Pricing
 
 ### Philosophy
+
 Price to value, not cost. Organizations currently pay $500-$3,000/month for bookkeepers, accounting firms, or finance staff. Xenboox must be obviously cheaper while delivering equal or better output.
 
 ### Tiers
 
-| Plan | Price | Entities | Users | Key Features |
-|------|-------|----------|-------|--------------|
-| Free | $0 | 1 | 2 | Core modules, 100 transactions/month, basic reports |
-| Starter | $19/month | 1 | 5 | All modules, 500 transactions, mobile app, email delivery |
-| Growth | $39/month | 5 | 15 | Everything + multi-entity, desktop app, donor reporting, budget module |
-| Pro | $99/month | Unlimited | Unlimited | Everything + human accountant review, audit preparation, API access, priority support |
-| Firm | $149/month | Unlimited clients | Unlimited | Everything Pro + firm dashboard, client switcher, white-label option |
+| Plan    | Price      | Entities          | Users     | Key Features                                                                          |
+| ------- | ---------- | ----------------- | --------- | ------------------------------------------------------------------------------------- |
+| Free    | $0         | 1                 | 2         | Core modules, 100 transactions/month, basic reports                                   |
+| Starter | $19/month  | 1                 | 5         | All modules, 500 transactions, mobile app, email delivery                             |
+| Growth  | $39/month  | 5                 | 15        | Everything + multi-entity, desktop app, donor reporting, budget module                |
+| Pro     | $99/month  | Unlimited         | Unlimited | Everything + human accountant review, audit preparation, API access, priority support |
+| Firm    | $149/month | Unlimited clients | Unlimited | Everything Pro + firm dashboard, client switcher, white-label option                  |
 
 ### Free Tier Philosophy
+
 Free tier exists to:
+
 - Build user base in markets where $19/month is a real barrier
 - Generate word of mouth
 - Capture data and insights from The Gambia launch
@@ -953,9 +1040,11 @@ Free tier exists to:
 Free tier is genuinely useful — not crippled. Limited by transaction volume and user count, not by crippling feature removal.
 
 ### Trial
+
 14-day free trial of Growth plan. No credit card required. Full close withheld until paid — prevents "one close and cancel" abuse while demonstrating full value.
 
 ### Long-Term Revenue
+
 - Overage fees above transaction limits
 - Add-on modules for specialized verticals
 - API access for developers building on Xenboox data
@@ -967,23 +1056,25 @@ Free tier is genuinely useful — not crippled. Limited by transaction volume an
 ## 16. Competitive Landscape
 
 ### The Gap
-Every serious competitor was built for Western markets targeting VC-backed tech startups. No competitor has built a full-stack, AI-native accounting platform for Africa with mobile money as a first-class rail, cash and imprest management, local tax compliance, and donor reporting. This market is genuinely open.
+
+Every serious competitor was built for Western markets targeting VC-backed tech startups. No competitor has built a full-stack, AI-native accounting platform for SMEs with mobile money as a first-class rail, cash and imprest management, local tax compliance, and donor reporting. This market is genuinely open.
 
 ### Competitors
 
-| Competitor | Strength | Weakness vs Xenboox |
-|-----------|---------|-------------------|
-| QuickBooks | Market dominance, integrations | Tool not workforce, not built for Africa, no mobile money, no agents |
-| Xero | Clean UX, global | Same as QuickBooks — operator required, not Africa-native |
-| Sage | Africa presence | Expensive, legacy architecture, no AI agents |
-| Pilot | Human + AI hybrid | US only, QuickBooks dependent, VC startups only, $299+ |
-| Digits | AI-native | US only, startup focused, $250+ |
-| Zeni | AI + humans | US only, $549+, VC startups only |
-| Wave | Free bookkeeping | No AI agents, limited features, shutting down international |
+| Competitor | Strength                       | Weakness vs Xenboox                                                |
+| ---------- | ------------------------------ | ------------------------------------------------------------------ |
+| QuickBooks | Market dominance, integrations | Tool not workforce, not built for SMEs, no mobile money, no agents |
+| Xero       | Clean UX, global               | Same as QuickBooks — operator required, not SME-native             |
+| Sage       | SME presence                   | Expensive, legacy architecture, no AI agents                       |
+| Pilot      | Human + AI hybrid              | US only, QuickBooks dependent, VC startups only, $299+             |
+| Digits     | AI-native                      | US only, startup focused, $250+                                    |
+| Zeni       | AI + humans                    | US only, $549+, VC startups only                                   |
+| Wave       | Free bookkeeping               | No AI agents, limited features, shutting down international        |
 
 ### Xenboox Differentiators
+
 1. **Agentic workforce not tool** — agents do the work, humans manage
-2. **Africa-native** — mobile money, cash/imprest, local tax, local currencies built in
+2. **SME-native** — mobile money, cash/imprest, local tax, local currencies built in
 3. **Full stack** — 20 modules, not a narrow solution
 4. **Every surface** — web, mobile, desktop
 5. **Every organization size** — SME to corporation on one platform
@@ -994,13 +1085,15 @@ Every serious competitor was built for Western markets targeting VC-backed tech 
 10. **Free tier** — genuine value, not crippled
 
 ### Competitive Position Statement
-"Xenboox is the first AI-native, full-stack accounting platform built for Africa. Where QuickBooks requires a human operator, Xenboox deploys an autonomous agent workforce. Where Western competitors ignore mobile money, cash operations, and African tax compliance, Xenboox was built natively for how African organizations actually operate. And where competitors charge $250-$549/month targeting Silicon Valley startups, Xenboox starts at $19/month for the organizations that need it most."
+
+"Xenboox is the first AI-native, full-stack accounting platform built for SMEs. Where QuickBooks requires a human operator, Xenboox deploys an autonomous agent workforce. Where Western competitors ignore mobile money, cash operations, and SME tax compliance, Xenboox was built natively for how SMEs actually operate. And where competitors charge $250-$549/month targeting Silicon Valley startups, Xenboox starts at $19/month for the organizations that need it most."
 
 ---
 
 ## 17. Distribution Strategy
 
 ### Phase 1 — The Gambia Launch
+
 - Direct outreach to SMEs, NGOs, and corporations in Banjul and Greater Banjul Area
 - Founder's personal network — the unfair advantage of knowing the market
 - Accounting firms — each firm brings multiple clients
@@ -1008,21 +1101,24 @@ Every serious competitor was built for Western markets targeting VC-backed tech 
 - Government adjacent bodies — committees, agencies, parastatals
 
 ### Phase 2 — West Africa Expansion
+
 - Nigeria: fintech communities, SME associations, accounting firm networks
 - Ghana: business associations, NGO sector, growing startup ecosystem
 - Senegal: French language support, development sector, OHADA accounting standard compliance
 
 ### Long-Term
+
 - Accounting firm partnerships — each firm is a distribution multiplier
 - API ecosystem — developers building on Xenboox
 - Referral program — finance directors recommend to peers
-- Content marketing — accounting education for African businesses
+- Content marketing — accounting education for SMEs
 
 ---
 
 ## 18. Tech Stack (Locked)
 
 ### Web Platform
+
 ```
 Frontend          Next.js 15 + TypeScript
 UI Components     Shadcn/ui + Tailwind
@@ -1043,6 +1139,7 @@ Observability     LangFuse
 ```
 
 ### Mobile Application
+
 ```
 Framework         React Native (Expo)
 Language          TypeScript
@@ -1057,6 +1154,7 @@ Deployment        iOS (App Store) + Android (Google Play)
 ```
 
 ### Desktop Application
+
 ```
 Shell             Tauri
 Backend           Rust
@@ -1070,10 +1168,12 @@ Deployment        Windows (.msi) + Mac (.dmg)
 ```
 
 ### Model Cost Strategy
+
 - claude-haiku-4-5 — transaction categorization, simple matching, routine worker agent tasks
 - claude-sonnet-4-6 — reconciliation, anomaly detection, report generation, complex reasoning, all management and strategic agent decisions
 
 ### Key Stack Decisions
+
 - **LangGraph over CrewAI** — stateful graph maps perfectly to three-tier hierarchy. Native human-in-the-loop matches approval flow.
 - **LangFuse over LangSmith** — open source, self-hostable, better cost at scale
 - **Merge.dev** — one API for QuickBooks and Xero, saves weeks of integration work
@@ -1082,6 +1182,7 @@ Deployment        Windows (.msi) + Mac (.dmg)
 - **Agents in cloud always** — desktop app is local interface only, agent logic never on device
 
 ### Future Stack
+
 - Go backend — when specific measured performance bottlenecks require it
 - Eino — Go-native agent framework, revisit with Go backend
 - Cloudflare Durable Objects — real-time dashboard state at scale
@@ -1091,6 +1192,7 @@ Deployment        Windows (.msi) + Mac (.dmg)
 ## 19. Security and Compliance
 
 ### Data Security
+
 - AES-256 encryption at rest for all financial data
 - TLS 1.3 for all data in transit
 - Row-level security in PostgreSQL — entity isolation at database layer
@@ -1098,6 +1200,7 @@ Deployment        Windows (.msi) + Mac (.dmg)
 - No financial data leaves device unencrypted
 
 ### Access Control
+
 - Role-based access control — strict, no exceptions
 - Entity-level scoping — users only see their permitted entities
 - Payroll data additionally scoped — only Payroll Officer and Finance Director
@@ -1105,12 +1208,14 @@ Deployment        Windows (.msi) + Mac (.dmg)
 - All access logged in audit trail
 
 ### Compliance Roadmap
+
 - SOC 2 Type II — target within 12 months of launch
 - GDPR compliance for any EU-touching operations
 - Local data residency options as markets require
 - Regular penetration testing — quarterly target post-Series A
 
 ### Liability Protection
+
 - ToS positions Xenboox as software tool, not licensed firm
 - Owner notification on close creates legal acknowledgment
 - Full audit trail for every decision
@@ -1121,9 +1226,11 @@ Deployment        Windows (.msi) + Mac (.dmg)
 ## 20. Build Phases
 
 ### Phase 1 — MVP (Launch in Gambia)
+
 Build this, nothing more, before first user:
 
 **Must have:**
+
 - Auth, organization and entity setup, user roles
 - General Ledger and Chart of Accounts
 - Bank reconciliation — PDF statement upload
@@ -1139,6 +1246,7 @@ Build this, nothing more, before first user:
 - Multi-currency with daily exchange rates
 
 **Agent workforce for MVP:**
+
 - CFO Agent (orchestrator)
 - Controller Agent (management)
 - Treasury Agent (management)
@@ -1154,6 +1262,7 @@ Build this, nothing more, before first user:
 11 agents for MVP. Full 19-agent workforce in Phase 2.
 
 ### Phase 2 — Depth (3-6 months post launch)
+
 - Payroll module + Payroll Manager Agent + Payroll Worker Agent
 - Tax compliance + Tax Agent + Compliance Agent
 - Audit preparation + Audit Agent
@@ -1168,6 +1277,7 @@ Build this, nothing more, before first user:
 - Donor portal
 
 ### Phase 3 — Scale (6-12 months post launch)
+
 - Desktop application (Tauri)
 - Inventory module + Inventory Agent
 - Multi-entity and consolidation
@@ -1193,13 +1303,14 @@ Build this, nothing more, before first user:
 
 ## 22. Founder Insight (YC Unfair Advantage)
 
-The founder has direct, lived-in domain knowledge of African accounting pain:
+The founder has direct, lived-in domain knowledge of SME accounting pain:
+
 - Helped family member manage treasurer responsibilities for a Gambian town development committee
 - Hands-on experience with invoice reconciliation, imprest management, and period-end close
-- Ground-level understanding of how African organizations actually handle cash, mobile money, and manual reconciliation
+- Ground-level understanding of how SMEs actually handle cash, mobile money, and manual reconciliation
 - This is not academic knowledge — it is operational insight no Silicon Valley competitor has
 
-This directly informed the product: the Cash and Imprest module, mobile money as a first-class rail, the plain-English summary for non-accountant owners, the four-layer accuracy architecture, and the understanding that African organizations need accounting infrastructure built for them — not Western tools retrofitted.
+This directly informed the product: the Cash and Imprest module, mobile money as a first-class rail, the plain-English summary for non-accountant owners, the four-layer accuracy architecture, and the understanding that SMEs need accounting infrastructure built for them — not Western tools retrofitted.
 
 ---
 
@@ -1208,15 +1319,15 @@ This directly informed the product: the Cash and Imprest module, mobile money as
 - LLM capability crossed a threshold in 2024-2025 making reliable autonomous multi-step financial workflows possible for the first time
 - Agent infrastructure matured — tool use, memory, multi-agent coordination production-ready
 - Cost of inference dropped — 19 agents per organization per month is economically viable at $19/month price points
-- Africa's formalization pressure is increasing — tax enforcement tightening, donor accountability requirements growing, bank loan requirements demanding proper financial statements
-- Mobile money infrastructure is mature across West Africa — Wave alone has millions of users in Gambia, Senegal, Mali
-- No serious AI-native competitor is targeting African accounting — the market is completely open
+- Global formalization pressure is increasing — tax enforcement tightening, donor accountability requirements growing, bank loan requirements demanding proper financial statements
+- Mobile money infrastructure is mature across emerging markets — Wave alone has millions of users in Gambia, Senegal, Mali
+- No serious AI-native competitor is targeting SME accounting — the market is completely open
 - Bench shut down December 2024 — created massive trust damage in AI accounting broadly, opening for a reliability-first product that takes accuracy seriously
 
 ---
 
-*Document version: v1.0 — Complete Platform PRD*
-*Last updated: July 2026*
-*Company: Xenboox*
-*Authors: Founder + Claude (co-founder sessions)*
-*Next session: YC Application*
+_Document version: v1.0 — Complete Platform PRD_
+_Last updated: July 2026_
+_Company: Xenboox_
+_Authors: Founder + Claude (co-founder sessions)_
+_Next session: YC Application_
