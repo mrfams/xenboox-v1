@@ -82,7 +82,11 @@ export function TopNav({
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "k"
+      ) {
         e.preventDefault();
         setSearchOpen(true);
       }
@@ -169,8 +173,8 @@ export function TopNav({
       </div>
 
       {/* Center: Global AI Command Bar (wider, prominent) */}
-      <div className="hidden sm:block w-[min(100vw-20rem,560px)]">
-        <AICommandBar compact placeholder="Search anything..." />
+      <div className="hidden sm:block w-[min(100vw-16rem,520px)]">
+        <AICommandBar compact placeholder="Search or jump to…" />
       </div>
       <div className="sm:hidden" />
 
