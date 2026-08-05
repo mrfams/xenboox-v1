@@ -3,7 +3,7 @@ import {
   handleMutationError,
   router,
   protectedProcedure,
-  publicProcedure,
+  authProcedure,
   mutateProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -154,9 +154,8 @@ export const organizationRouter = router({
 
   // ─── ORGANIZATIONS ─────────────────────────────
 
-  list: publicProcedure.query(async ({ ctx }) => {
-    if (!ctx.session?.user) return [];
-    const userId = ctx.session.user.id!;
+  list: authProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session!.user!.id!;
     // Get orgs where user has an org_roles entry (owner/admin)
     const userRoles = await db.query.orgRoles.findMany({
       where: eq(orgRoles.userId, userId),
@@ -169,7 +168,7 @@ export const organizationRouter = router({
     });
   }),
 
-  create: publicProcedure
+  create: authProcedure
     .input(
       z.object({
         name: z.string().min(1).max(200),
@@ -185,12 +184,7 @@ export const organizationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        if (!ctx.session?.user) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Must be logged in",
-          });
-        }
+        const userId = ctx.session!.user!.id!;
 
         const existing = await db.query.organizations.findFirst({
           where: eq(organizations.slug, input.slug),
@@ -201,8 +195,6 @@ export const organizationRouter = router({
             message: "Slug already taken",
           });
         }
-
-        const userId = ctx.session.user.id!;
 
         // Create org + org_roles (owner) + org-level admin bypass for creator
         const [org] = await db
@@ -357,9 +349,10 @@ export const organizationRouter = router({
       });
     }),
 
-  // createEntity uses publicProcedure with manual auth check
-  // because we can't use protectedProcedure (requires entityId scoping)
-  createEntity: publicProcedure
+  // createEntity uses authProcedure (authenticated but no entity scoping)
+  // because we can't use protectedProcedure (requires entityId scoping).
+  // Auth is handled by the authMiddleware — no manual session check needed.
+  createEntity: authProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -373,14 +366,7 @@ export const organizationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        // Manual auth check since we can't use protectedProcedure
-        if (!ctx.session?.user?.id) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "You must be logged in to create an entity",
-          });
-        }
-        const userId = ctx.session.user.id;
+        const userId = ctx.session!.user!.id!;
 
         // Check orgRoles for permission to create entities under this org
         const role = await db.query.orgRoles.findFirst({

@@ -689,6 +689,12 @@ const idempotencyMiddleware = t.middleware(async ({ ctx, next, path }) => {
   return result;
 });
 
+// Authenticated procedure that DOES NOT require entity scoping.
+// Use for operations like entity creation where no entity exists yet.
+export const authProcedure = t.procedure
+  .use(loggingMiddleware)
+  .use(authMiddleware);
+
 export const mutateProcedure = t.procedure
   .use(loggingMiddleware)
   .use(authMiddleware)
