@@ -537,10 +537,12 @@ export default function FixedAssetsPage() {
         </div>
       </div>
 
-      {/* AI Copilot Panel */}
-      <div className="w-[360px]">
-        <AiCopilotPanel insights={aiInsights ?? []} />
-      </div>
+      {/*
+        AI Copilot Panel - DISABLED
+        <div className="w-[360px]">
+          <AiCopilotPanel insights={aiInsights ?? []} />
+        </div>
+      */}
     </div>
   );
 }

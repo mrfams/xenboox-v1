@@ -951,25 +951,27 @@ export default function PayrollPage() {
         </div>
       </div>
 
-      {/* Right Panel */}
-      <div className="w-[360px]">
-        <RightPanel
-          overview={
-            overview ?? {
-              totalPayroll: 0,
-              period: "",
-              hasRun: false,
-              runStatus: null,
-              activeEmployees: 0,
+      {/*
+        Right Panel - DISABLED
+        <div className="w-[360px]">
+          <RightPanel
+            overview={
+              overview ?? {
+                totalPayroll: 0,
+                period: "",
+                hasRun: false,
+                runStatus: null,
+                activeEmployees: 0,
+              }
             }
-          }
-          departmentBreakdown={
-            departmentBreakdown ?? { departments: [], totalPayroll: 0 }
-          }
-          insights={insights ?? []}
-          statutoryPayments={statutoryData?.payments ?? []}
-        />
-      </div>
+            departmentBreakdown={
+              departmentBreakdown ?? { departments: [], totalPayroll: 0 }
+            }
+            insights={insights ?? []}
+            statutoryPayments={statutoryData?.payments ?? []}
+          />
+        </div>
+      */}
     </div>
   );
 }

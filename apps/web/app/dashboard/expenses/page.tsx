@@ -809,20 +809,22 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      {/* AI Copilot Panel */}
-      <div className="w-[360px]">
-        <AiCopilotPanel
-          insights={insights ?? []}
-          budgetOverview={
-            budgetOverview ?? {
-              hasBudget: false,
-              categories: [],
-              overallPercent: 0,
+      {/*
+        AI Copilot Panel - DISABLED
+        <div className="w-[360px]">
+          <AiCopilotPanel
+            insights={insights ?? []}
+            budgetOverview={
+              budgetOverview ?? {
+                hasBudget: false,
+                categories: [],
+                overallPercent: 0,
+              }
             }
-          }
-          topVendors={topVendors ?? []}
-        />
-      </div>
+            topVendors={topVendors ?? []}
+          />
+        </div>
+      */}
     </div>
   );
 }

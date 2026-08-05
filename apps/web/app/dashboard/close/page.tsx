@@ -993,22 +993,24 @@ export default function CloseCenterPage() {
         </div>
       </div>
 
-      {/* AI Copilot Panel */}
-      <div className="w-[340px]">
-        <AiCopilotPanel
-          overview={
-            overview ?? {
-              overallProgress: 0,
-              completedTasks: 0,
-              totalTasks: 40,
-              estimatedCloseDate: "",
-              risksAndBlockers: 0,
-              isOnTrack: true,
+      {/*
+        AI Copilot Panel - DISABLED
+        <div className="w-[340px]">
+          <AiCopilotPanel
+            overview={
+              overview ?? {
+                overallProgress: 0,
+                completedTasks: 0,
+                totalTasks: 40,
+                estimatedCloseDate: "",
+                risksAndBlockers: 0,
+                isOnTrack: true,
+              }
             }
-          }
-          insights={insights ?? []}
-        />
-      </div>
+            insights={insights ?? []}
+          />
+        </div>
+      */}
     </div>
   );
 }

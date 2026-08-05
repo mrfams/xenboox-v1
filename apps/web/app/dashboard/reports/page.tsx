@@ -988,10 +988,12 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* AI Report Assistant Panel */}
-      <div className="w-[340px]">
-        <AiReportAssistantPanel insights={insights ?? []} />
-      </div>
+      {/*
+        AI Report Assistant Panel - DISABLED
+        <div className="w-[340px]">
+          <AiReportAssistantPanel insights={insights ?? []} />
+        </div>
+      */}
     </div>
   );
 }

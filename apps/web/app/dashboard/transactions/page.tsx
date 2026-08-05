@@ -1035,14 +1035,16 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Transaction Detail Panel */}
-      <div className="w-[380px]">
-        <TransactionDetailPanel
-          transactionDetail={transactionDetail ?? null}
-          aiInsights={aiInsights ?? []}
-          onClose={() => setSelectedTransactionId(null)}
-        />
-      </div>
+      {/*
+        Transaction Detail Panel - DISABLED
+        <div className="w-[380px]">
+          <TransactionDetailPanel
+            transactionDetail={transactionDetail ?? null}
+            aiInsights={aiInsights ?? []}
+            onClose={() => setSelectedTransactionId(null)}
+          />
+        </div>
+      */}
     </div>
   );
 }

@@ -1080,20 +1080,22 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* Right AI Copilot Panel */}
-      <div className="w-[360px]">
-        <AiCopilotPanel
-          insights={aiInsights ?? []}
-          customerHealth={
-            overviewData?.customerHealth ?? {
-              healthy: 0,
-              atRisk: 0,
-              overdue: 0,
-              inactive: 0,
+      {/*
+        Right AI Copilot Panel - DISABLED
+        <div className="w-[360px]">
+          <AiCopilotPanel
+            insights={aiInsights ?? []}
+            customerHealth={
+              overviewData?.customerHealth ?? {
+                healthy: 0,
+                atRisk: 0,
+                overdue: 0,
+                inactive: 0,
+              }
             }
-          }
-        />
-      </div>
+          />
+        </div>
+      */}
     </div>
   );
 }

@@ -943,14 +943,16 @@ export default function JournalEntriesPage() {
         </div>
       </div>
 
-      {/* AI Copilot Panel */}
-      <div className="w-[360px]">
-        <AiCopilotPanel
-          insights={insights ?? []}
-          sources={sources ?? { sources: [], totalCount: 0 }}
-          recentActivity={recentActivity ?? []}
-        />
-      </div>
+      {/*
+        AI Copilot Panel - DISABLED
+        <div className="w-[360px]">
+          <AiCopilotPanel
+            insights={insights ?? []}
+            sources={sources ?? { sources: [], totalCount: 0 }}
+            recentActivity={recentActivity ?? []}
+          />
+        </div>
+      */}
     </div>
   );
 }

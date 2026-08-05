@@ -1032,21 +1032,23 @@ export default function ReconciliationPage() {
         </div>
       </div>
 
-      {/* Right AI Copilot Panel */}
-      <div className="w-[360px]">
-        <AiCopilotPanel
-          insights={aiInsights ?? []}
-          reconciliationSummary={
-            overviewData?.reconciliationSummary ?? {
-              total: 0,
-              matched: 0,
-              unmatched: 0,
-              partialMatch: 0,
-              duplicates: 0,
+      {/*
+        Right AI Copilot Panel - DISABLED
+        <div className="w-[360px]">
+          <AiCopilotPanel
+            insights={aiInsights ?? []}
+            reconciliationSummary={
+              overviewData?.reconciliationSummary ?? {
+                total: 0,
+                matched: 0,
+                unmatched: 0,
+                partialMatch: 0,
+                duplicates: 0,
+              }
             }
-          }
-        />
-      </div>
+          />
+        </div>
+      */}
     </div>
   );
 }

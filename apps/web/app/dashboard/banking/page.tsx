@@ -948,14 +948,16 @@ export default function BankingPage() {
         </div>
       </div>
 
-      {/* AI Copilot Panel */}
-      <div className="w-[360px]">
-        <AiCopilotPanel
-          insights={aiInsights ?? []}
-          recentActivity={recentActivity ?? []}
-          connections={overviewData?.connections ?? []}
-        />
-      </div>
+      {/*
+        AI Copilot Panel - DISABLED
+        <div className="w-[360px]">
+          <AiCopilotPanel
+            insights={aiInsights ?? []}
+            recentActivity={recentActivity ?? []}
+            connections={overviewData?.connections ?? []}
+          />
+        </div>
+      */}
     </div>
   );
 }

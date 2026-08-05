@@ -1023,13 +1023,15 @@ export default function VendorsPage() {
         </div>
       </div>
 
-      {/* AI Copilot Panel */}
-      <div className="w-[360px]">
-        <AiCopilotPanel
-          insights={insights ?? []}
-          aging={aging ?? { aging: [], total: 0, totalFormatted: "GMD 0" }}
-        />
-      </div>
+      {/*
+        AI Copilot Panel - DISABLED
+        <div className="w-[360px]">
+          <AiCopilotPanel
+            insights={insights ?? []}
+            aging={aging ?? { aging: [], total: 0, totalFormatted: "GMD 0" }}
+          />
+        </div>
+      */}
     </div>
   );
 }

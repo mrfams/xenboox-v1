@@ -1008,21 +1008,23 @@ export default function BillsPage() {
         </div>
       </div>
 
-      {/* Right AI Copilot Panel */}
-      <div className="w-[360px]">
-        <AiCopilotPanel
-          insights={aiInsights ?? []}
-          agingSummary={
-            overviewData?.agingSummary ?? {
-              "0_30": 0,
-              "31_60": 0,
-              "61_90": 0,
-              "90_plus": 0,
+      {/*
+        Right AI Copilot Panel - DISABLED
+        <div className="w-[360px]">
+          <AiCopilotPanel
+            insights={aiInsights ?? []}
+            agingSummary={
+              overviewData?.agingSummary ?? {
+                "0_30": 0,
+                "31_60": 0,
+                "61_90": 0,
+                "90_plus": 0,
+              }
             }
-          }
-          totalOutstanding={overviewData?.summary.totalOutstanding ?? 0}
-        />
-      </div>
+            totalOutstanding={overviewData?.summary.totalOutstanding ?? 0}
+          />
+        </div>
+      */}
     </div>
   );
 }
