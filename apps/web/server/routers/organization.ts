@@ -357,7 +357,9 @@ export const organizationRouter = router({
       });
     }),
 
-  createEntity: protectedProcedure
+  // createEntity uses publicProcedure with manual auth check
+  // because we can't use protectedProcedure (requires entityId scoping)
+  createEntity: publicProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -370,40 +372,53 @@ export const organizationRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check orgRoles for permission to create entities under this org
-      const role = await db.query.orgRoles.findFirst({
-        where: and(
-          eq(orgRoles.userId, ctx.session!.user!.id!),
-          eq(orgRoles.orgId, input.organizationId),
-        ),
-      });
-      if (!role) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only org owners and admins can create entities",
+      try {
+        // Manual auth check since we can't use protectedProcedure
+        if (!ctx.session?.user?.id) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "You must be logged in to create an entity",
+          });
+        }
+        const userId = ctx.session.user.id;
+
+        // Check orgRoles for permission to create entities under this org
+        const role = await db.query.orgRoles.findFirst({
+          where: and(
+            eq(orgRoles.userId, userId),
+            eq(orgRoles.orgId, input.organizationId),
+          ),
         });
+        if (!role) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only org owners and admins can create entities",
+          });
+        }
+
+        const [entity] = await db
+          .insert(entities)
+          .values({
+            organizationId: input.organizationId,
+            name: input.name,
+            type: input.type,
+            currency: input.currency,
+            country: input.country,
+          })
+          .returning();
+
+        // Grant admin access to creator
+        await db.insert(userEntityAccess).values({
+          userId,
+          entityId: entity.id,
+          role: "admin",
+          grantedBy: userId,
+        });
+
+        return entity;
+      } catch (error) {
+        handleMutationError(error, "Failed to create entity");
       }
-
-      const [entity] = await db
-        .insert(entities)
-        .values({
-          organizationId: input.organizationId,
-          name: input.name,
-          type: input.type,
-          currency: input.currency,
-          country: input.country,
-        })
-        .returning();
-
-      // Grant admin access to creator
-      await db.insert(userEntityAccess).values({
-        userId: ctx.session!.user!.id!,
-        entityId: entity.id,
-        role: "admin",
-        grantedBy: ctx.session!.user!.id!,
-      });
-
-      return entity;
     }),
 
   updateEntity: protectedProcedure

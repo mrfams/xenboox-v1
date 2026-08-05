@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc/client";
 type Entity = {
   id: string;
   name: string;
-  type: string;
+  type?: string;
   role?: string;
 };
 
@@ -22,36 +22,33 @@ export function EntitySwitcher() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newEntityName, setNewEntityName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
 
-  // Fetch entities
+  // tRPC queries and mutations
+  const listUserEntitiesQuery = trpc.organization.listUserEntities.useQuery(
+    undefined,
+    { enabled: isLoaded },
+  );
+  const listOrgsQuery = trpc.organization.list.useQuery(undefined, {
+    enabled: false, // We'll call this manually
+  });
+  const createEntityMutation = trpc.organization.createEntity.useMutation();
+  const createOrgMutation = trpc.organization.create.useMutation();
+
+  // Fetch entities via tRPC
   useEffect(() => {
-    async function fetchEntities() {
-      try {
-        const response = await fetch(
-          "/api/trpc/organization.listUserEntities",
-          {
-            headers: {
-              "x-entity-id": entityId || "",
-            },
-          },
-        );
-        const data = await response.json();
-        const result = data?.result?.data;
-        if (Array.isArray(result)) {
-          setEntities(result);
-          if (!entityId && result.length > 0) {
-            setEntityId(result[0].id, result[0].role);
-          }
+    if (listUserEntitiesQuery.data) {
+      const result = listUserEntitiesQuery.data;
+      if (Array.isArray(result)) {
+        setEntities(result);
+        if (!entityId && result.length > 0) {
+          setEntityId(result[0].id, result[0].role);
         }
-      } catch {
-        // Silently fail
       }
     }
-
-    if (isLoaded) fetchEntities();
-  }, [isLoaded, entityId, setEntityId]);
+  }, [listUserEntitiesQuery.data, entityId, setEntityId]);
 
   // Update current entity when entities or entityId changes
   useEffect(() => {
@@ -69,93 +66,82 @@ export function EntitySwitcher() {
     [setEntityId],
   );
 
-  // Handle create entity
+  // Handle create entity using tRPC mutations
   const handleCreateEntity = useCallback(async () => {
     if (!newEntityName.trim()) return;
 
     setIsCreating(true);
+    setCreateError(null);
     try {
       // First, get or create an organization
-      const orgResponse = await fetch("/api/trpc/organization.list", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const orgData = await orgResponse.json();
-      const orgs = orgData?.result?.data;
-
       let orgId: string;
 
+      // Fetch existing orgs via direct fetch with proper batch format
+      const orgResponse = await fetch(
+        "/api/trpc/organization.list?batch=1&input=%7B%7D",
+        {
+          method: "GET",
+          credentials: "include",
+        },
+      );
+      const orgData = await orgResponse.json();
+      // tRPC batch response is an array
+      const orgs = Array.isArray(orgData)
+        ? orgData[0]?.result?.data?.json
+        : orgData?.result?.data;
+
       if (Array.isArray(orgs) && orgs.length > 0) {
-        // Use existing organization
         orgId = orgs[0].id;
       } else {
-        // Create a new organization
-        const createOrgResponse = await fetch("/api/trpc/organization.create", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            0: {
-              json: {
-                name: "My Organization",
-                slug: `org-${Date.now()}`,
-                type: "business",
-              },
-            },
-          }),
+        // Create a new organization using tRPC mutation
+        const org = await createOrgMutation.mutateAsync({
+          name: "My Organization",
+          slug: `org-${Date.now()}`,
+          type: "business",
         });
-        const createOrgData = await createOrgResponse.json();
-        const org = createOrgData?.result?.data?.json;
         if (!org?.organization?.id) {
           throw new Error("Failed to create organization");
         }
         orgId = org.organization.id;
       }
 
-      // Create the entity
-      const createEntityResponse = await fetch(
-        "/api/trpc/organization.createEntity",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            0: {
-              json: {
-                organizationId: orgId,
-                name: newEntityName.trim(),
-                type: "company",
-                currency: "GMD",
-                country: "GM",
-              },
-            },
-          }),
-        },
-      );
-
-      const createEntityData = await createEntityResponse.json();
-      const entity = createEntityData?.result?.data?.json;
+      // Create the entity using tRPC mutation
+      const entity = await createEntityMutation.mutateAsync({
+        organizationId: orgId,
+        name: newEntityName.trim(),
+        type: "company",
+        currency: "GMD",
+        country: "GM",
+      });
 
       if (entity?.id) {
         // Refresh entities list
         await utils.organization.listUserEntities.invalidate();
 
         // Select the new entity
-        setEntityId(entity.id, "owner");
+        setEntityId(entity.id, "admin");
         setShowCreateDialog(false);
         setNewEntityName("");
+        setCreateError(null);
         setIsOpen(false);
       }
     } catch (error) {
       console.error("Failed to create entity:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to create entity. Please try again.";
+      setCreateError(message);
     } finally {
       setIsCreating(false);
     }
-  }, [newEntityName, setEntityId, utils]);
+  }, [
+    newEntityName,
+    setEntityId,
+    utils,
+    createOrgMutation,
+    createEntityMutation,
+  ]);
 
   // Loading state
   if (!isLoaded) {
@@ -190,11 +176,13 @@ export function EntitySwitcher() {
             onClose={() => {
               setShowCreateDialog(false);
               setNewEntityName("");
+              setCreateError(null);
             }}
             onCreate={handleCreateEntity}
             name={newEntityName}
             onNameChange={setNewEntityName}
             isCreating={isCreating}
+            error={createError}
           />
         )}
       </>
@@ -287,11 +275,13 @@ export function EntitySwitcher() {
           onClose={() => {
             setShowCreateDialog(false);
             setNewEntityName("");
+            setCreateError(null);
           }}
           onCreate={handleCreateEntity}
           name={newEntityName}
           onNameChange={setNewEntityName}
           isCreating={isCreating}
+          error={createError}
         />
       )}
     </>
@@ -307,6 +297,7 @@ function CreateEntityDialog({
   name,
   onNameChange,
   isCreating,
+  error,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -314,6 +305,7 @@ function CreateEntityDialog({
   name: string;
   onNameChange: (value: string) => void;
   isCreating: boolean;
+  error?: string | null;
 }) {
   if (!isOpen) return null;
 
@@ -376,8 +368,15 @@ function CreateEntityDialog({
             </div>
           </div>
 
+          {/* Error message */}
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 mt-4">
+              <p className="text-xs text-red-700">{error}</p>
+            </div>
+          )}
+
           {/* Actions */}
-          <div className="flex items-center justify-end gap-2 mt-6">
+          <div className="flex items-center justify-end gap-2 mt-4">
             <Button
               variant="outline"
               size="sm"

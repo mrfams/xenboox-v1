@@ -155,7 +155,8 @@ export const reportsRouter = router({
       // Calculate key metrics
       const revenue =
         currentTotals.revenue.credit - currentTotals.revenue.debit;
-      const prevRevenue = prevTotals.revenue.credit - prevTotals.revenue.debit;
+      const prevRevenueForChange =
+        prevTotals.revenue.credit - prevTotals.revenue.debit;
       const cogs = currentTotals.expense.debit * 0.65; // Approximate COGS
       const grossProfit = revenue - cogs;
       const operatingExpenses = currentTotals.expense.debit * 0.35;
@@ -174,7 +175,9 @@ export const reportsRouter = router({
 
       // Calculate changes
       const revenueChange =
-        prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+        prevRevenueForChange > 0
+          ? ((revenue - prevRevenueForChange) / prevRevenueForChange) * 100
+          : 0;
       const profitChange =
         prevNetProfit > 0
           ? ((netProfit - prevNetProfit) / prevNetProfit) * 100
@@ -189,6 +192,36 @@ export const reportsRouter = router({
       const revenueCount = accounts.filter((a) => a.type === "revenue").length;
       const expenseCount = accounts.filter((a) => a.type === "expense").length;
 
+      // Calculate changes for assets, liabilities, equity
+      const prevTotalAssets = prevTotals.asset.debit - prevTotals.asset.credit;
+      const prevTotalLiabilities =
+        prevTotals.liability.credit - prevTotals.liability.debit;
+      const prevTotalEquity =
+        prevTotals.equity.credit - prevTotals.equity.debit;
+
+      const assetsChange =
+        prevTotalAssets > 0
+          ? ((totalAssets - prevTotalAssets) / prevTotalAssets) * 100
+          : 0;
+      const liabilitiesChange =
+        prevTotalLiabilities > 0
+          ? ((totalLiabilities - prevTotalLiabilities) / prevTotalLiabilities) *
+            100
+          : 0;
+      const equityChange =
+        prevTotalEquity > 0
+          ? ((totalEquity - prevTotalEquity) / prevTotalEquity) * 100
+          : 0;
+
+      // Calculate period-over-period changes for P&L items
+      const prevCogs = prevTotals.expense.debit * 0.65;
+      const prevGrossProfit = prevRevenueForChange - prevCogs;
+      const prevOpExpenses = prevTotals.expense.debit * 0.35;
+      const prevOpProfit = prevGrossProfit - prevOpExpenses;
+
+      const calcChange = (current: number, previous: number) =>
+        previous > 0 ? ((current - previous) / Math.abs(previous)) * 100 : 0;
+
       return {
         revenue,
         revenueChange: Number(revenueChange.toFixed(1)),
@@ -201,6 +234,21 @@ export const reportsRouter = router({
         grossProfit,
         operatingExpenses,
         operatingProfit,
+        // Period-over-period changes for all P&L items
+        cogsChange: Number(calcChange(cogs, prevCogs).toFixed(1)),
+        grossProfitChange: Number(
+          calcChange(grossProfit, prevGrossProfit).toFixed(1),
+        ),
+        operatingExpensesChange: Number(
+          calcChange(operatingExpenses, prevOpExpenses).toFixed(1),
+        ),
+        operatingProfitChange: Number(
+          calcChange(operatingProfit, prevOpProfit).toFixed(1),
+        ),
+        // Balance sheet changes
+        assetsChange: Number(assetsChange.toFixed(1)),
+        liabilitiesChange: Number(liabilitiesChange.toFixed(1)),
+        equityChange: Number(equityChange.toFixed(1)),
         accountSummary: {
           total: accounts.length,
           assets: assetCount,

@@ -27,6 +27,10 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import {
+  PageEmptyState,
+  getPageEmptyState,
+} from "@/components/shared/page-empty-state";
+import {
   realtimeQueryOptions,
   analyticsQueryOptions,
 } from "@/lib/trpc/query-options";
@@ -872,6 +876,21 @@ export default function BankingPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50">
+          {/* Empty State */}
+          {overviewData &&
+            overviewData.accounts.length === 0 &&
+            !overviewLoading && (
+              <PageEmptyState
+                icon={getPageEmptyState("banking").icon}
+                iconColor={getPageEmptyState("banking").iconColor}
+                iconBg={getPageEmptyState("banking").iconBg}
+                title={getPageEmptyState("banking").title}
+                description={getPageEmptyState("banking").description}
+                actions={getPageEmptyState("banking").actions}
+                tips={getPageEmptyState("banking").tips}
+              />
+            )}
+
           {/* Summary Cards */}
           {overviewData?.summary && (
             <SummaryCards summary={overviewData.summary} />

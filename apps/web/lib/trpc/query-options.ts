@@ -49,4 +49,5 @@ export const dashboardQueryOptions = {
   gcTime: 10 * 60 * 1000, // 10 minutes
   refetchOnWindowFocus: false,
   refetchOnMount: false,
+  refetchOnReconnect: false, // Don't refetch on reconnect to prevent page refreshes
 };

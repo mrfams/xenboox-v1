@@ -156,14 +156,12 @@ export function TeamSection() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                      {access.user?.name?.[0]?.toUpperCase() ??
-                        access.user?.email?.[0]?.toUpperCase() ??
-                        "?"}
+                      {access.userId?.[0]?.toUpperCase() ?? "?"}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium truncate">
-                          {access.user?.name ?? "Unknown"}
+                          User {access.userId.slice(0, 8)}...
                         </span>
                         {isCurrentUser && (
                           <span className="text-xs text-muted-foreground">
@@ -175,7 +173,7 @@ export function TeamSection() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {access.user?.email}
+                        ID: {access.userId.slice(0, 8)}...
                       </span>
                     </div>
                   </div>
@@ -241,10 +239,9 @@ export function TeamSection() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Revoke Access</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will remove{" "}
-                              {access.user?.name ?? "this user"}&apos;s access
-                              to this entity. They will no longer be able to
-                              view or edit any data.
+                              This will remove this user&apos;s access to this
+                              entity. They will no longer be able to view or
+                              edit any data.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

@@ -868,6 +868,10 @@ export default function CustomersPage() {
     },
   ];
 
+  // Empty state for new users
+  const isEmpty =
+    !customersLoading && (!overviewData || overviewData.statusCounts.all === 0);
+
   return (
     <div className="h-[calc(100vh-4rem)] flex">
       {/* Main Content */}
@@ -939,6 +943,41 @@ export default function CustomersPage() {
         {overviewData?.summary && (
           <div className="p-4 bg-slate-50 border-b border-slate-200">
             <SummaryCards summary={overviewData.summary} />
+          </div>
+        )}
+
+        {/* Empty State for New Users */}
+        {isEmpty && (
+          <div className="flex-1 flex items-center justify-center bg-white">
+            <div className="max-w-lg text-center space-y-6 p-8">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-indigo-100">
+                <Users className="h-10 w-10 text-indigo-600" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-slate-900">
+                  Add your first customer
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Start tracking invoices, payments, and customer relationships.
+                  You can add customers manually or import from a spreadsheet.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                  <Plus className="h-4 w-4" />
+                  Add Customer
+                </button>
+                <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                  <Download className="h-4 w-4" />
+                  Import Customers
+                </button>
+              </div>
+              <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
+                <span>✓ Track receivables</span>
+                <span>✓ Auto-reminders</span>
+                <span>✓ Credit limits</span>
+              </div>
+            </div>
           </div>
         )}
 

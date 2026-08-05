@@ -211,11 +211,17 @@ function WhiteLabelLogo() {
 
 function AgentStatusBar() {
   const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
-    refetchInterval: 60000,
+    staleTime: 60 * 1000, // 1 minute
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
   const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
     { limit: 50 },
-    { refetchInterval: 60000 },
+    {
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
   );
 
   const pendingReview = stats?.pendingReview ?? 0;
@@ -255,11 +261,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   }, [isHovered]);
 
   const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
-    refetchInterval: 60000,
+    staleTime: 60 * 1000, // 1 minute
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
   const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
     { limit: 50 },
-    { refetchInterval: 60000 },
+    {
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
   );
 
   const pendingReview = stats?.pendingReview ?? 0;

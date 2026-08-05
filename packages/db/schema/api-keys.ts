@@ -15,8 +15,12 @@ import { users } from "./auth";
 // ─── API KEYS ──────────────────────────────────────────────────────────────
 // Stores API keys for external integrations (banking, payments, etc.)
 
-export const apiKeys = pgTable(
-  "api_keys",
+// ─── ENTITY-SCOPED API KEYS ───────────────────────────────────────────────
+// API keys scoped to a specific entity (used by settings router)
+// Note: This is different from the org-based apiKeys in api-platform.ts
+
+export const entityApiKeys = pgTable(
+  "entity_api_keys",
   {
     id: uuidId(),
     entityId: entityId.references(() => entities.id, { onDelete: "cascade" }),
@@ -42,18 +46,18 @@ export const apiKeys = pgTable(
     ...timestamps,
   },
   (t) => [
-    index("idx_api_keys_entity").on(t.entityId),
-    index("idx_api_keys_user").on(t.userId),
+    index("idx_entity_api_keys_entity").on(t.entityId),
+    index("idx_entity_api_keys_user").on(t.userId),
   ],
 );
 
-export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+export const entityApiKeysRelations = relations(entityApiKeys, ({ one }) => ({
   entity: one(entities, {
-    fields: [apiKeys.entityId],
+    fields: [entityApiKeys.entityId],
     references: [entities.id],
   }),
   user: one(users, {
-    fields: [apiKeys.userId],
+    fields: [entityApiKeys.userId],
     references: [users.id],
   }),
 }));

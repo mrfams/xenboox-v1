@@ -20,7 +20,9 @@ function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
     undefined,
     {
       enabled: !!entityRole,
-      staleTime: 60_000,
+      staleTime: 5 * 60_000, // 5 minutes - permissions don't change often
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
       retry: false,
     },
   );

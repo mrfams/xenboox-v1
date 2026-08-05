@@ -10,6 +10,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/shared/loading";
 import { Button } from "@/components/ui";
 import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
+import { StreamingMessage } from "@/components/workspace/streaming-message";
 import {
   ArrowRight,
   Plus,
@@ -1197,10 +1198,33 @@ function ChatMessages({
   conversationId,
   streamedContent,
   isStreaming,
+  streamingActivities = [],
+  streamingDelegations = [],
+  streamingApprovals = [],
+  streamingDocuments = [],
 }: {
   conversationId: string | null;
   streamedContent?: string;
   isStreaming?: boolean;
+  streamingActivities?: Array<{
+    agent: string;
+    status: "started" | "completed" | "failed";
+    action: string;
+    confidence?: number;
+    durationMs?: number;
+  }>;
+  streamingDelegations?: Array<{ from: string; to: string; reason: string }>;
+  streamingApprovals?: Array<{
+    title: string;
+    description: string;
+    amount?: string;
+  }>;
+  streamingDocuments?: Array<{
+    documentId: string;
+    name: string;
+    docType: string;
+    url?: string;
+  }>;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -1314,59 +1338,16 @@ function ChatMessages({
           </p>
         </div>
       )}
-      {/* Streaming response */}
-      {isStreaming && streamedContent && (
-        <div className="flex flex-col gap-1 items-start">
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
-              <Bot className="h-3 w-3 text-primary" />
-            </div>
-            <span className="text-[10px] text-muted-foreground">
-              Xenboox AI
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[10px] text-primary">typing...</span>
-            </span>
-          </div>
-          <div className="max-w-[80%] rounded-2xl rounded-bl-md px-4 py-2.5 text-xs leading-relaxed bg-accent text-foreground">
-            {streamedContent}
-            <span className="inline-block w-0.5 h-3 bg-primary ml-0.5 animate-pulse" />
-          </div>
-        </div>
-      )}
-      {/* Typing indicator when streaming starts but no content yet */}
-      {isStreaming && !streamedContent && (
-        <div className="flex flex-col gap-1 items-start">
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
-              <Bot className="h-3 w-3 text-primary" />
-            </div>
-            <span className="text-[10px] text-muted-foreground">
-              Xenboox AI
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[10px] text-primary">thinking...</span>
-            </span>
-          </div>
-          <div className="max-w-[80%] rounded-2xl rounded-bl-md px-4 py-2.5 text-xs leading-relaxed bg-accent text-foreground">
-            <div className="flex items-center gap-1">
-              <span
-                className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-bounce"
-                style={{ animationDelay: "0ms" }}
-              />
-              <span
-                className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-bounce"
-                style={{ animationDelay: "150ms" }}
-              />
-              <span
-                className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-bounce"
-                style={{ animationDelay: "300ms" }}
-              />
-            </div>
-          </div>
-        </div>
+      {/* Streaming response with agent activity */}
+      {isStreaming && (
+        <StreamingMessage
+          content={streamedContent ?? ""}
+          isStreaming={isStreaming}
+          agentActivities={streamingActivities}
+          delegations={streamingDelegations}
+          documents={streamingDocuments as any}
+          approvals={streamingApprovals as any}
+        />
       )}
       <div ref={messagesEndRef} />
     </div>
@@ -1388,10 +1369,12 @@ function SmartSuggestions({
     hasPendingJournals: boolean;
     hasRecentDocuments: boolean;
     hasBankAccounts: boolean;
+    hasAnyData: boolean;
     overdueCount: number;
     unpaidBillCount: number;
     pendingJournalCount: number;
     recentDocCount: number;
+    totalTransactions: number;
   } | null>(null);
 
   // Fetch context data
@@ -1403,24 +1386,236 @@ function SmartSuggestions({
   useEffect(() => {
     if (dashboardData) {
       const bh = dashboardData.businessHealth;
+      const hasAnyData =
+        bh.arOutstanding > 0 ||
+        bh.apOutstanding > 0 ||
+        dashboardData.pendingApprovalsCount > 0 ||
+        dashboardData.recentDocuments.length > 0 ||
+        bh.revenue > 0;
       setContext({
         hasOverdueInvoices: bh.arOutstanding > 0,
         hasUnpaidBills: bh.apOutstanding > 0,
         hasPendingJournals: dashboardData.pendingApprovalsCount > 0,
         hasRecentDocuments: dashboardData.recentDocuments.length > 0,
         hasBankAccounts: true,
+        hasAnyData,
         overdueCount: dashboardData.pendingApprovalsCount,
         unpaidBillCount: dashboardData.agentEscalationsCount,
         pendingJournalCount: dashboardData.pendingApprovals.length,
         recentDocCount: dashboardData.recentDocuments.length,
+        totalTransactions: bh.revenue + bh.expenses,
       });
     }
   }, [dashboardData]);
 
-  // Generate smart suggestions based on context
+  // Show loading skeleton while fetching context
+  if (!context) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="h-24 rounded-xl bg-accent/50 animate-pulse"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state for new users with no data
+  if (!context.hasAnyData) {
+    const onboardingSuggestions = [
+      {
+        id: "upload",
+        prompt: "I want to upload my first financial documents",
+        label: "Upload documents",
+        description:
+          "Start by uploading invoices, receipts, or bank statements",
+        icon: FileText,
+        color: "text-blue-600",
+        bgColor: "bg-blue-50",
+        featured: true,
+      },
+      {
+        id: "connect",
+        prompt: "Help me connect my bank account",
+        label: "Connect bank",
+        description: "Automatically import transactions from your bank",
+        icon: CreditCard,
+        color: "text-emerald-600",
+        bgColor: "bg-emerald-50",
+        featured: true,
+      },
+      {
+        id: "customers",
+        prompt: "I need to add my first customer",
+        label: "Add customers",
+        description: "Start tracking invoices and payments",
+        icon: Users,
+        color: "text-purple-600",
+        bgColor: "bg-purple-50",
+        featured: true,
+      },
+      {
+        id: "journal",
+        prompt: "Create my first journal entry",
+        label: "Journal entry",
+        description: "Record a transaction manually",
+        icon: Edit3,
+        color: "text-amber-600",
+        bgColor: "bg-amber-50",
+        featured: false,
+      },
+      {
+        id: "chart",
+        prompt: "Set up my chart of accounts",
+        label: "Chart of accounts",
+        description: "Configure your account structure",
+        icon: BarChart3,
+        color: "text-indigo-600",
+        bgColor: "bg-indigo-50",
+        featured: false,
+      },
+      {
+        id: "learn",
+        prompt: "Show me how Xenboox works",
+        label: "Take a tour",
+        description: "Learn about AI-powered accounting",
+        icon: Sparkles,
+        color: "text-cyan-600",
+        bgColor: "bg-cyan-50",
+        featured: false,
+      },
+    ];
+
+    const featuredSuggestions = onboardingSuggestions.filter((s) => s.featured);
+    const otherSuggestions = onboardingSuggestions.filter((s) => !s.featured);
+
+    return (
+      <div className="space-y-8">
+        {/* Welcome header */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-primary">
+              Welcome to Xenboox
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Your AI accounting assistant is ready. Let's get you started with a
+            few simple steps.
+          </p>
+        </div>
+
+        {/* Featured actions */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            Get started in 3 steps
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {featuredSuggestions.map((suggestion, index) => {
+              const Icon = suggestion.icon;
+              return (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  onClick={() => onSelect(suggestion.prompt)}
+                  className="relative flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-card p-6 text-center transition-all duration-200 hover:shadow-lg hover:border-primary/30 group"
+                >
+                  <div className="absolute -top-3 -left-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
+                    {index + 1}
+                  </div>
+                  <div
+                    className={cn(
+                      "flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110",
+                      suggestion.bgColor,
+                    )}
+                  >
+                    <Icon className={cn("h-7 w-7", suggestion.color)} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {suggestion.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {suggestion.description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Other options */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Or explore on your own
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {otherSuggestions.map((suggestion) => {
+              const Icon = suggestion.icon;
+              return (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  onClick={() => onSelect(suggestion.prompt)}
+                  className="flex items-start gap-3 rounded-xl border border-border/50 bg-card p-4 text-left transition-all duration-200 hover:shadow-md hover:border-border/80"
+                >
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                      suggestion.bgColor,
+                    )}
+                  >
+                    <Icon className={cn("h-5 w-5", suggestion.color)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {suggestion.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {suggestion.description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Quick prompts for getting started */}
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Try asking:</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              "How do I get started?",
+              "What can you help me with?",
+              "Set up my business profile",
+              "Import my existing data",
+            ].map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => onSelect(prompt)}
+                className="rounded-full border border-border/50 bg-background px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Generate smart suggestions based on context (existing users with data)
   const suggestions = [
     // Priority actions (based on data)
-    ...(context?.hasOverdueInvoices
+    ...(context.hasOverdueInvoices
       ? [
           {
             id: "overdue",
@@ -1434,7 +1629,7 @@ function SmartSuggestions({
           },
         ]
       : []),
-    ...(context?.hasUnpaidBills
+    ...(context.hasUnpaidBills
       ? [
           {
             id: "bills",
@@ -1448,7 +1643,7 @@ function SmartSuggestions({
           },
         ]
       : []),
-    ...(context?.hasPendingJournals
+    ...(context.hasPendingJournals
       ? [
           {
             id: "journals",
@@ -1649,6 +1844,38 @@ function AIWorkspaceContent() {
 
   const utils = trpc.useUtils();
 
+  // Agent activity state for streaming
+  const [streamingActivities, setStreamingActivities] = useState<
+    Array<{
+      type: "agent_activity";
+      agent: string;
+      status: "started" | "completed" | "failed";
+      action: string;
+      confidence?: number;
+      durationMs?: number;
+    }>
+  >([]);
+  const [streamingDelegations, setStreamingDelegations] = useState<
+    Array<{ type: "delegation"; from: string; to: string; reason: string }>
+  >([]);
+  const [streamingApprovals, setStreamingApprovals] = useState<
+    Array<{
+      type: "approval_needed";
+      title: string;
+      description: string;
+      amount?: string;
+    }>
+  >([]);
+  const [streamingDocuments, setStreamingDocuments] = useState<
+    Array<{
+      type: "document_created";
+      documentId: string;
+      name: string;
+      docType: string;
+      url?: string;
+    }>
+  >([]);
+
   // Streaming chat hook
   const {
     sendMessage: sendStreamingMessage,
@@ -1662,6 +1889,18 @@ function AIWorkspaceContent() {
       router.replace(`/dashboard/chat?c=${convId}`);
       utils.chat.listConversations.invalidate();
     },
+    onAgentActivity: (activity) => {
+      setStreamingActivities((prev) => [...prev, activity]);
+    },
+    onDelegation: (delegation) => {
+      setStreamingDelegations((prev) => [...prev, delegation]);
+    },
+    onApprovalNeeded: (approval) => {
+      setStreamingApprovals((prev) => [...prev, approval]);
+    },
+    onDocumentCreated: (doc) => {
+      setStreamingDocuments((prev) => [...prev, doc]);
+    },
     onComplete: () => {
       // Refresh messages after streaming completes
       if (activeConversationId) {
@@ -1669,6 +1908,11 @@ function AIWorkspaceContent() {
           conversationId: activeConversationId,
         });
       }
+      // Clear streaming state
+      setStreamingActivities([]);
+      setStreamingDelegations([]);
+      setStreamingApprovals([]);
+      setStreamingDocuments([]);
     },
   });
 
@@ -1685,9 +1929,20 @@ function AIWorkspaceContent() {
     router.replace(`/dashboard/chat?c=${id}`);
   };
 
-  const handleCommandSubmit = async () => {
+  const handleCommandSubmit = async (
+    files?: Array<{ documentId?: string; name: string; type: string }>,
+  ) => {
     if (!inputValue.trim() || isStreaming) return;
-    sendStreamingMessage(inputValue, activeConversationId ?? undefined);
+    // Filter files to only include those with a documentId
+    const validFiles = files?.filter(
+      (f): f is { documentId: string; name: string; type: string } =>
+        !!f.documentId,
+    );
+    sendStreamingMessage(
+      inputValue,
+      activeConversationId ?? undefined,
+      validFiles,
+    );
     setInputValue("");
   };
 
@@ -1733,6 +1988,10 @@ function AIWorkspaceContent() {
               conversationId={activeConversationId}
               streamedContent={streamedContent}
               isStreaming={isStreaming}
+              streamingActivities={streamingActivities}
+              streamingDelegations={streamingDelegations}
+              streamingApprovals={streamingApprovals}
+              streamingDocuments={streamingDocuments}
             />
           </div>
 
@@ -1740,10 +1999,7 @@ function AIWorkspaceContent() {
           <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4">
             <AIComposer
               onSend={(message, files) => {
-                sendStreamingMessage(
-                  message,
-                  activeConversationId ?? undefined,
-                );
+                handleCommandSubmit(files);
               }}
               isStreaming={isStreaming}
               placeholder="Ask follow up..."
@@ -1779,10 +2035,7 @@ function AIWorkspaceContent() {
             <div className="mx-auto w-full max-w-3xl">
               <AIComposer
                 onSend={(message, files) => {
-                  sendStreamingMessage(
-                    message,
-                    activeConversationId ?? undefined,
-                  );
+                  handleCommandSubmit(files);
                 }}
                 isStreaming={isStreaming}
                 placeholder="What would you like Xenboox to do?"

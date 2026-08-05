@@ -438,6 +438,10 @@ export default function DocumentsPage() {
     { key: "other" as TabFilter, label: "Other" },
   ];
 
+  // Empty state for new users
+  const isEmpty =
+    !documentsLoading && (!documentsData || documentsData.length === 0);
+
   return (
     <div className="h-[calc(100vh-4rem)] flex">
       {/* Main Content */}
@@ -487,6 +491,42 @@ export default function DocumentsPage() {
           {/* Summary Cards */}
           {overviewData?.summary && (
             <SummaryCards summary={overviewData.summary} />
+          )}
+
+          {/* Empty State for New Users */}
+          {isEmpty && (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12">
+              <div className="max-w-md text-center space-y-4 mx-auto">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100">
+                  <FolderOpen className="h-8 w-8 text-indigo-600" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Upload your first document
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Store invoices, receipts, contracts, and reports. AI will
+                    automatically categorize and extract data from your
+                    documents.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                    <Upload className="h-4 w-4" />
+                    Upload Document
+                  </button>
+                  <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                    <FileText className="h-4 w-4" />
+                    Scan with AI
+                  </button>
+                </div>
+                <div className="flex items-center justify-center gap-4 text-xs text-slate-400 pt-2">
+                  <span>✓ PDF, images, spreadsheets</span>
+                  <span>✓ Auto-categorization</span>
+                  <span>✓ OCR extraction</span>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Documents Table */}

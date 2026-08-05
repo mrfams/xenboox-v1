@@ -18,6 +18,69 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+// ─── Notifications Tab Component ─────────────────────────────────────────
+
+function NotificationsTab({ entityId }: { entityId: string | null }) {
+  const { data: notifications } = trpc.notifications.list.useQuery(
+    { limit: 10, onlyUnread: false },
+    { enabled: !!entityId },
+  );
+
+  function formatTimeAgo(date: Date | string | null): string {
+    if (!date) return "";
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} min ago`;
+    if (hours < 24) return `${hours} hours ago`;
+    return `${Math.floor(hours / 24)} days ago`;
+  }
+
+  const items = notifications ?? [];
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border/50">
+        <Bell className="h-12 w-12 text-muted-foreground/30 mb-3" />
+        <p className="text-sm font-medium text-foreground">No notifications</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          You're all caught up!
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((notification) => (
+        <div
+          key={notification.id}
+          className="rounded-xl border border-border/50 bg-card p-4 hover:shadow-sm transition-all"
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">
+                {notification.title}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {notification.body}
+              </p>
+              <p className="text-[10px] text-muted-foreground/60 mt-2">
+                {formatTimeAgo(notification.createdAt)}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const workTabs = [
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "approvals", label: "Approvals", icon: FileCheck },
@@ -89,8 +152,10 @@ export default function WorkPage() {
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">12</p>
-              <p className="text-xs text-muted-foreground">Completed Today</p>
+              <p className="text-2xl font-bold text-foreground">
+                {stats?.autoPosted ?? 0}
+              </p>
+              <p className="text-xs text-muted-foreground">Auto-Posted</p>
             </div>
           </div>
         </div>
@@ -100,7 +165,9 @@ export default function WorkPage() {
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">2</p>
+              <p className="text-2xl font-bold text-foreground">
+                {stats?.failed ?? 0}
+              </p>
               <p className="text-xs text-muted-foreground">Failed</p>
             </div>
           </div>
@@ -170,7 +237,7 @@ export default function WorkPage() {
                         Bank Reconciliation Exceptions
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        3 transactions couldn't be auto-matched
+                        {pendingReview} documents need attention
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -281,44 +348,7 @@ export default function WorkPage() {
 
         {/* Notifications Tab */}
         {activeTab === "notifications" && (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-border/50 bg-card p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">
-                    Invoice INV-2847 Paid
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Seagull Logistics paid GMD 45,000
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-2">
-                    2 hours ago
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border/50 bg-card p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
-                  <MessageSquare className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">
-                    AI Agent Completed Task
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Bank reconciliation for GTBank completed
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-2">
-                    5 hours ago
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <NotificationsTab entityId={entityId} />
         )}
       </div>
     </div>

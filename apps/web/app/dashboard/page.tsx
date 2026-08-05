@@ -34,6 +34,10 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { TextSelectionMenu } from "@/components/dashboard/text-selection-menu";
+import {
+  PageEmptyState,
+  getPageEmptyState,
+} from "@/components/shared/page-empty-state";
 
 // ─── Mini Sparkline Component ─────────────────────────────────────────────
 
@@ -134,20 +138,83 @@ function AIGreeting({ firstName }: { firstName?: string }) {
 
 function AIChatInput() {
   const router = useRouter();
+  const { entityId } = useEntity();
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [inlineResponse, setInlineResponse] = useState("");
+  const [isResponding, setIsResponding] = useState(false);
+  const [responseConversationId, setResponseConversationId] = useState<
+    string | null
+  >(null);
 
-  const sendMessage = trpc.aiWorkspace.sendMessage.useMutation({
-    onSuccess: (data) => {
-      router.push(`/dashboard/chat?c=${data.conversationId}`);
-    },
-  });
+  const utils = trpc.useUtils();
+
+  const handleInlineSubmit = async () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed || isResponding || !entityId) return;
+
+    setIsResponding(true);
+    setInlineResponse("");
+    setInputValue("");
+
+    try {
+      const response = await fetch("/api/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: trimmed, entityId }),
+      });
+
+      if (!response.ok) throw new Error("Failed to send message");
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === "conversation") {
+                setResponseConversationId(data.conversationId);
+              } else if (data.type === "token" && data.content) {
+                fullResponse += data.content;
+                setInlineResponse(fullResponse);
+              } else if (data.type === "done") {
+                // Refresh conversation list
+                utils.chat.listConversations.invalidate();
+              }
+            } catch {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } catch (error) {
+      setInlineResponse("Sorry, I encountered an error. Please try again.");
+    } finally {
+      setIsResponding(false);
+    }
+  };
+
+  const handleGoToChat = () => {
+    if (responseConversationId) {
+      router.push(`/dashboard/chat?c=${responseConversationId}`);
+    }
+  };
 
   const handleSubmit = (value: string) => {
-    const trimmed = value.trim();
-    if (trimmed && !sendMessage.isPending) {
-      sendMessage.mutate({ message: trimmed });
-    }
+    setInputValue(value);
+    // Auto-submit on suggestion click
+    setTimeout(() => handleInlineSubmit(), 0);
   };
 
   const suggestions = [
@@ -191,6 +258,44 @@ function AIChatInput() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-3">
+      {/* Inline response area */}
+      {(inlineResponse || isResponding) && (
+        <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+              <Bot className="h-3 w-3 text-primary" />
+            </div>
+            <span className="text-xs font-medium text-foreground">
+              Xenboox AI
+            </span>
+            {isResponding && !inlineResponse && (
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] text-primary">Thinking...</span>
+              </span>
+            )}
+          </div>
+          {inlineResponse && (
+            <div className="text-sm text-foreground leading-relaxed">
+              {inlineResponse}
+              {isResponding && (
+                <span className="inline-block w-0.5 h-3 bg-primary ml-0.5 animate-pulse" />
+              )}
+            </div>
+          )}
+          {responseConversationId && !isResponding && (
+            <button
+              type="button"
+              onClick={handleGoToChat}
+              className="text-xs text-primary hover:underline"
+            >
+              Open in chat →
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Suggestions */}
       <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
         {suggestions.map((suggestion) => {
           const Icon = suggestion.icon;
@@ -199,7 +304,7 @@ function AIChatInput() {
               key={suggestion.label}
               type="button"
               onClick={() => handleSubmit(suggestion.prompt)}
-              disabled={sendMessage.isPending}
+              disabled={isResponding}
               className={cn(
                 "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-2.5 sm:px-3 py-1.5",
                 "text-[10px] sm:text-xs text-muted-foreground transition-all duration-200",
@@ -246,7 +351,7 @@ function AIChatInput() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleSubmit(inputValue);
+                handleInlineSubmit();
               }
             }}
             placeholder="Ask anything about your accounting..."
@@ -255,8 +360,8 @@ function AIChatInput() {
           <Button
             type="button"
             size="icon"
-            onClick={() => handleSubmit(inputValue)}
-            disabled={!inputValue.trim() || sendMessage.isPending}
+            onClick={() => handleInlineSubmit()}
+            disabled={!inputValue.trim() || isResponding}
             className={cn(
               "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
               inputValue.trim()
@@ -264,7 +369,7 @@ function AIChatInput() {
                 : "bg-primary text-white",
             )}
           >
-            {sendMessage.isPending ? (
+            {isResponding ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
             ) : (
               <ArrowRight className="h-4 w-4" />
@@ -799,100 +904,114 @@ function PendingApprovals({
 
 // ─── Active Agents Component ──────────────────────────────────────────────
 
-function ActiveAgents() {
-  const agents = [
-    {
-      id: "1",
-      name: "Bank Reconciler",
-      detail: "Reconciled 3 of 5 accounts",
-      progress: 60,
-      eta: "ETA 5m",
+function ActiveAgents({
+  activities,
+}: {
+  activities: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    createdAt: string | null;
+  }>;
+}) {
+  // Map activity entity types to agent display info
+  const agentDisplayMap: Record<string, { name: string; color: string }> = {
+    document: { name: "Document Agent", color: "from-primary to-blue-500" },
+    bank_account: {
+      name: "Treasury Agent",
       color: "from-emerald-500 to-teal-500",
     },
-    {
-      id: "2",
-      name: "Invoice Processor",
-      detail: "Processing invoices",
-      progress: 78,
-      eta: "ETA 3m",
-      color: "from-primary to-blue-500",
+    journal_entry: {
+      name: "Controller Agent",
+      color: "from-blue-500 to-indigo-500",
     },
-    {
-      id: "3",
-      name: "Payroll Agent",
-      detail: "Calculating taxes",
-      progress: 45,
-      eta: "ETA 8m",
-      color: "from-amber-500 to-orange-500",
-    },
-    {
-      id: "4",
-      name: "Report Generator",
-      detail: "Generating P&L report",
-      progress: 90,
-      eta: "ETA 2m",
+    invoice_ap: { name: "AP Agent", color: "from-amber-500 to-orange-500" },
+    invoice_ar: {
+      name: "AR Agent",
       color: "from-purple-500 to-indigo-500",
     },
-    {
-      id: "5",
-      name: "Expense Categorizer",
-      detail: "Categorizing expenses",
-      progress: 30,
-      eta: "ETA 10m",
-      color: "from-sky-500 to-cyan-500",
-    },
-  ];
+  };
+
+  const defaultAgent = { name: "AI Agent", color: "from-sky-500 to-cyan-500" };
+
+  // Deduplicate by entityType and show most recent per type
+  const recentByType = new Map<string, (typeof activities)[0]>();
+  for (const activity of activities) {
+    const key = activity.entityType ?? "default";
+    if (!recentByType.has(key)) {
+      recentByType.set(key, activity);
+    }
+  }
+
+  const agentItems = Array.from(recentByType.entries())
+    .slice(0, 5)
+    .map(([type, activity]) => {
+      const display = agentDisplayMap[type] ?? defaultAgent;
+      return {
+        id: activity.id,
+        name: display.name,
+        detail: activity.action,
+        color: display.color,
+        createdAt: activity.createdAt,
+      };
+    });
+
+  function formatTimeAgo(date: string | null): string {
+    if (!date) return "";
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Active Agents</h2>
+        <h2 className="text-sm font-semibold text-foreground">
+          Recent Agent Activity
+        </h2>
         <span className="text-[10px] text-muted-foreground">
-          {agents.length} agents are currently working
+          {agentItems.length} agents active today
         </span>
       </div>
 
       <div className="space-y-2">
-        {agents.map((agent) => (
-          <div
-            key={agent.id}
-            className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-sm"
-          >
+        {agentItems.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            No recent agent activity
+          </p>
+        ) : (
+          agentItems.map((agent) => (
             <div
-              className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white",
-                agent.color,
-              )}
+              key={agent.id}
+              className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-sm"
             >
-              <Bot className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">
-                {agent.name}
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {agent.detail}
-              </p>
-              <div className="mt-1.5 flex items-center gap-2">
-                <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all duration-1000 bg-gradient-to-r",
-                      agent.color,
-                    )}
-                    style={{ width: `${agent.progress}%` }}
-                  />
-                </div>
-                <span className="text-[10px] tabular-nums text-muted-foreground">
-                  {agent.progress}%
-                </span>
+              <div
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white",
+                  agent.color,
+                )}
+              >
+                <Bot className="h-4 w-4" />
               </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground truncate">
+                  {agent.name}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {agent.detail}
+                </p>
+              </div>
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                {formatTimeAgo(agent.createdAt)}
+              </span>
             </div>
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-              {agent.eta}
-            </span>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <Link
@@ -1005,7 +1124,7 @@ function DashboardRightSidebar({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-0 p-4">
       {/* Upcoming & Deadlines */}
       <CollapsibleSection
         title="Upcoming & Deadlines"
@@ -1147,7 +1266,8 @@ export default function DashboardPage() {
     trpc.dashboard.getDashboardData.useQuery(undefined, {
       enabled: !!entityId,
       ...dashboardQueryOptions,
-      refetchInterval: 60000, // Refresh every 60 seconds (less aggressive)
+      // No refetchInterval - use staleTime from dashboardQueryOptions (2 minutes)
+      // This prevents unnecessary re-renders and page refreshes
     });
 
   // Loading state - show skeleton immediately for perceived performance
@@ -1169,6 +1289,40 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state - no data yet
+  const hasData =
+    dashboardData &&
+    (dashboardData.briefingItems.length > 0 ||
+      dashboardData.businessHealth.cashBalance > 0 ||
+      dashboardData.agentActivity.length > 0);
+
+  if (!hasData) {
+    const emptyState = getPageEmptyState("dashboard");
+    return (
+      <div className="flex h-full">
+        <div className="flex-1 overflow-y-auto">
+          <PageEmptyState
+            icon={emptyState.icon}
+            iconColor={emptyState.iconColor}
+            iconBg={emptyState.iconBg}
+            title={emptyState.title}
+            description={emptyState.description}
+            actions={emptyState.actions}
+            tips={emptyState.tips}
+          />
+        </div>
+        <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto">
+          <DashboardRightSidebar
+            deadlines={[]}
+            recentDocuments={[]}
+            recentConversations={[]}
+            suggestedActions={[]}
+          />
         </div>
       </div>
     );
@@ -1228,7 +1382,7 @@ export default function DashboardPage() {
                 activities={dashboardData?.agentActivity ?? []}
               />
               <PendingApprovals items={dashboardData?.pendingApprovals ?? []} />
-              <ActiveAgents />
+              <ActiveAgents activities={dashboardData?.agentActivity ?? []} />
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { entitySettings } from "@xenboox/db/schema/entity-settings";
 import { users } from "@xenboox/db/schema/auth";
 import { userPreferences } from "@xenboox/db/schema/user-preferences";
-import { apiKeys } from "@xenboox/db/schema/api-keys";
+import { entityApiKeys } from "@xenboox/db/schema/api-keys";
 import { auditLog } from "@xenboox/db/schema/documents";
 import { handleMutationError } from "@/lib/trpc/server";
 import { createHash, randomBytes } from "crypto";
@@ -303,14 +303,31 @@ export const settingsRouter = router({
           await db
             .update(userPreferences)
             .set({
-              security: input,
+              security: {
+                requirePasswordChange:
+                  input.requirePasswordChange ??
+                  existing.security?.requirePasswordChange ??
+                  false,
+                sessionTimeout:
+                  input.sessionTimeout ??
+                  existing.security?.sessionTimeout ??
+                  60,
+                loginNotifications:
+                  input.loginNotifications ??
+                  existing.security?.loginNotifications ??
+                  true,
+              },
               updatedAt: new Date(),
             })
             .where(eq(userPreferences.userId, userId));
         } else {
           await db.insert(userPreferences).values({
             userId,
-            security: input,
+            security: {
+              requirePasswordChange: input.requirePasswordChange ?? false,
+              sessionTimeout: input.sessionTimeout ?? 60,
+              loginNotifications: input.loginNotifications ?? true,
+            },
           });
         }
 
@@ -325,9 +342,9 @@ export const settingsRouter = router({
   getApiKeys: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.entityId) return [];
 
-    const keys = await db.query.apiKeys.findMany({
-      where: eq(apiKeys.entityId, ctx.entityId),
-      orderBy: [desc(apiKeys.createdAt)],
+    const keys = await db.query.entityApiKeys.findMany({
+      where: eq(entityApiKeys.entityId, ctx.entityId),
+      orderBy: [desc(entityApiKeys.createdAt)],
     });
 
     // Don't return the actual key, only metadata
@@ -372,7 +389,7 @@ export const settingsRouter = router({
           : null;
 
         const [created] = await db
-          .insert(apiKeys)
+          .insert(entityApiKeys)
           .values({
             entityId: ctx.entityId,
             userId,
@@ -418,10 +435,13 @@ export const settingsRouter = router({
         const userId = ctx.session!.user!.id!;
 
         await db
-          .update(apiKeys)
+          .update(entityApiKeys)
           .set({ isActive: false, updatedAt: new Date() })
           .where(
-            and(eq(apiKeys.id, input.id), eq(apiKeys.entityId, ctx.entityId)),
+            and(
+              eq(entityApiKeys.id, input.id),
+              eq(entityApiKeys.entityId, ctx.entityId),
+            ),
           );
 
         // Log to audit trail

@@ -63,13 +63,19 @@ export function TopNav({
 
   const { data: notifications } = trpc.notifications.list.useQuery(
     { limit: 20, onlyUnread: true },
-    { refetchInterval: 60000 },
+    {
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
   );
 
   const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(
     undefined,
     {
-      refetchInterval: 60000,
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
     },
   );
   const markRead = trpc.notifications.markAsRead.useMutation();

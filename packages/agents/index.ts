@@ -105,6 +105,7 @@ export {
   getInventoryPipelineStatus,
   runConsolidationPipeline,
   getConsolidationStatus,
+  processChatInput,
   approveConsolidationRun,
   createEntityRelationship,
   listEntityRelationships,

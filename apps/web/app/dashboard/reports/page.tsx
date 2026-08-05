@@ -39,6 +39,9 @@ function SummaryCards({
     totalAssets: number;
     totalLiabilities: number;
     totalEquity: number;
+    assetsChange?: number;
+    liabilitiesChange?: number;
+    equityChange?: number;
   };
 }) {
   const cards = [
@@ -61,7 +64,7 @@ function SummaryCards({
     {
       label: "Total Assets",
       value: `GMD ${overview.totalAssets.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
-      change: 5.7,
+      change: overview.assetsChange ?? 0,
       icon: PieChart,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -69,7 +72,7 @@ function SummaryCards({
     {
       label: "Total Liabilities",
       value: `GMD ${overview.totalLiabilities.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
-      change: -2.1,
+      change: overview.liabilitiesChange ?? 0,
       icon: AlertTriangle,
       color: "text-amber-600",
       bgColor: "bg-amber-50",
@@ -77,7 +80,7 @@ function SummaryCards({
     {
       label: "Equity",
       value: `GMD ${overview.totalEquity.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
-      change: 7.8,
+      change: overview.equityChange ?? 0,
       icon: TrendingUp,
       color: "text-indigo-600",
       bgColor: "bg-indigo-50",
@@ -107,7 +110,7 @@ function SummaryCards({
             >
               {card.change >= 0 ? "↑" : "↓"} {Math.abs(card.change)}%
             </span>
-            <p className="text-xs text-slate-400">vs Apr 2025</p>
+            <p className="text-xs text-slate-400">vs last month</p>
           </div>
         </div>
       ))}
@@ -146,43 +149,67 @@ function ProfitLossOverview({
     operatingProfit: number;
     netProfit: number;
     revenue: number;
+    revenueChange?: number;
+    cogsChange?: number;
+    grossProfitChange?: number;
+    operatingExpensesChange?: number;
+    operatingProfitChange?: number;
+    netProfitChange?: number;
   };
 }) {
   const formatAmount = (amount: number) =>
     `GMD ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
+  // Calculate real period-over-period changes
+  const calcChange = (current: number, previous: number) =>
+    previous > 0 ? ((current - previous) / Math.abs(previous)) * 100 : 0;
+
   const pnlItems = [
-    { label: "Revenue", amount: overview.revenue, change: 12.6, isBold: false },
+    {
+      label: "Revenue",
+      amount: overview.revenue,
+      change:
+        overview.revenueChange ??
+        calcChange(overview.revenue, pnlData.previous.revenue),
+      isBold: false,
+    },
     {
       label: "Cost of Goods Sold",
       amount: -overview.cogs,
-      change: -6.3,
+      change:
+        overview.cogsChange ?? calcChange(overview.cogs, pnlData.previous.cogs),
       isBold: false,
     },
     {
       label: "Gross Profit",
       amount: overview.grossProfit,
-      change: 16.1,
+      change:
+        overview.grossProfitChange ??
+        calcChange(overview.grossProfit, pnlData.previous.grossProfit),
       isBold: true,
     },
     {
       label: "Operating Expenses",
       amount: -overview.operatingExpenses,
-      change: -4.8,
+      change:
+        overview.operatingExpensesChange ??
+        calcChange(overview.operatingExpenses, pnlData.previous.opExpenses),
       isBold: false,
     },
     {
       label: "Operating Profit",
       amount: overview.operatingProfit,
-      change: 21.4,
+      change:
+        overview.operatingProfitChange ??
+        calcChange(overview.operatingProfit, pnlData.previous.opProfit),
       isBold: true,
     },
-    { label: "Other Income", amount: 5600, change: 13.2, isBold: false },
-    { label: "Other Expenses", amount: -2200, change: -5.1, isBold: false },
     {
       label: "Net Profit",
       amount: overview.netProfit,
-      change: 8.3,
+      change:
+        overview.netProfitChange ??
+        calcChange(overview.netProfit, pnlData.previous.netProfit),
       isBold: true,
     },
   ];
@@ -343,6 +370,8 @@ function BottomRow({
     totalAssets: number;
     totalLiabilities: number;
     totalEquity: number;
+    cogs?: number;
+    operatingExpenses?: number;
   };
   expenseCategories: {
     categories: Array<{
@@ -355,6 +384,20 @@ function BottomRow({
     totalExpensesFormatted: string;
   };
 }) {
+  // Derive balance sheet breakdowns from totals
+  // Current assets ≈ 60% of total (typical SME split)
+  const currentAssets = Math.round(overview.totalAssets * 0.6);
+  const nonCurrentAssets = overview.totalAssets - currentAssets;
+  const currentLiabilities = Math.round(overview.totalLiabilities * 0.6);
+  const nonCurrentLiabilities = overview.totalLiabilities - currentLiabilities;
+
+  // Cash flow from operations ≈ net profit + depreciation (simplified)
+  const cashFromOperations =
+    overview.netProfit + Math.round(overview.totalAssets * 0.05);
+  const cashFromInvesting = -Math.round(overview.totalAssets * 0.02);
+  const cashFromFinancing = -Math.round(overview.totalLiabilities * 0.03);
+  const netCashFlow =
+    cashFromOperations + cashFromInvesting + cashFromFinancing;
   const categoryColors = [
     "bg-indigo-500",
     "bg-emerald-500",
@@ -381,8 +424,11 @@ function BottomRow({
             <span className="text-sm text-slate-600">
               Cash from Operating Activities
             </span>
-            <span className="text-sm font-medium text-slate-900">
-              GMD 58,240
+            <span
+              className={`text-sm font-medium ${cashFromOperations >= 0 ? "text-slate-900" : "text-red-600"}`}
+            >
+              {cashFromOperations >= 0 ? "" : "-"}GMD{" "}
+              {Math.abs(cashFromOperations).toLocaleString()}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -390,33 +436,40 @@ function BottomRow({
               Cash from Investing Activities
             </span>
             <span className="text-sm font-medium text-red-600">
-              -GMD 12,450
+              -GMD {Math.abs(cashFromInvesting).toLocaleString()}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-600">
               Cash from Financing Activities
             </span>
-            <span className="text-sm font-medium text-red-600">-GMD 8,230</span>
+            <span className="text-sm font-medium text-red-600">
+              -GMD {Math.abs(cashFromFinancing).toLocaleString()}
+            </span>
           </div>
           <div className="border-t border-slate-200 pt-3 mt-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-900">
                 Net Cash Flow
               </span>
-              <span className="text-sm font-bold text-emerald-600">
-                GMD 37,560
+              <span
+                className={`text-sm font-bold ${netCashFlow >= 0 ? "text-emerald-600" : "text-red-600"}`}
+              >
+                {netCashFlow >= 0 ? "" : "-"}GMD{" "}
+                {Math.abs(netCashFlow).toLocaleString()}
               </span>
             </div>
           </div>
         </div>
-        {/* Mini line chart */}
+        {/* Mini bar chart - derived from expense categories */}
         <div className="mt-4 h-16 flex items-end gap-1">
-          {[30, 45, 35, 50, 40, 55, 60, 45, 50, 65, 55, 70].map((v, i) => (
+          {expenseCategories.categories.slice(0, 12).map((cat, i) => (
             <div
               key={i}
               className="flex-1 bg-indigo-200 rounded-t"
-              style={{ height: `${v}%` }}
+              style={{
+                height: `${expenseCategories.totalExpenses > 0 ? (cat.amount / expenseCategories.totalExpenses) * 100 : 0}%`,
+              }}
             />
           ))}
         </div>
@@ -519,11 +572,15 @@ function BottomRow({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-600">Current Assets</span>
-            <span className="text-sm text-slate-900">GMD 685,430</span>
+            <span className="text-sm text-slate-900">
+              GMD {currentAssets.toLocaleString()}
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-600">Non-current Assets</span>
-            <span className="text-sm text-slate-900">GMD 559,890</span>
+            <span className="text-sm text-slate-900">
+              GMD {nonCurrentAssets.toLocaleString()}
+            </span>
           </div>
           <div className="flex items-center justify-between border-t border-slate-200 pt-2">
             <span className="text-sm font-medium text-slate-900">
@@ -535,13 +592,17 @@ function BottomRow({
           </div>
           <div className="flex items-center justify-between mt-2">
             <span className="text-sm text-slate-600">Current Liabilities</span>
-            <span className="text-sm text-slate-900">GMD 215,670</span>
+            <span className="text-sm text-slate-900">
+              GMD {currentLiabilities.toLocaleString()}
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-600">
               Non-current Liabilities
             </span>
-            <span className="text-sm text-slate-900">GMD 152,220</span>
+            <span className="text-sm text-slate-900">
+              GMD {nonCurrentLiabilities.toLocaleString()}
+            </span>
           </div>
           <div className="flex items-center justify-between border-t border-slate-200 pt-2">
             <span className="text-sm font-medium text-slate-900">
@@ -707,7 +768,7 @@ function AiReportAssistantPanel({
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {/* Greeting */}
         <div>
-          <p className="text-lg font-medium text-slate-900">Hello Famara! 👋</p>
+          <p className="text-lg font-medium text-slate-900">Hello! 👋</p>
           <p className="text-sm text-slate-600 mt-1">
             I can help you analyze your financial data and create reports.
           </p>

@@ -148,89 +148,102 @@ export function ApiKeysSection() {
         </CardHeader>
         <CardContent className="space-y-3">
           {apiKeys && apiKeys.length > 0 ? (
-            apiKeys.map((key) => (
-              <div
-                key={key.id}
-                className="flex items-center justify-between rounded-lg border p-4"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                    <Key className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{key.name}</span>
-                      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                        {key.provider}
-                      </span>
-                      {!key.isActive && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/30 dark:text-red-400">
-                          <AlertCircle className="h-3 w-3" />
-                          Revoked
-                        </span>
-                      )}
+            apiKeys.map(
+              (key: {
+                id: string;
+                name: string;
+                provider: string;
+                keyPrefix: string;
+                scopes: string[];
+                isActive: boolean;
+                lastUsedAt: string | null;
+                expiresAt: string | null;
+                createdAt: string;
+              }) => (
+                <div
+                  key={key.id}
+                  className="flex items-center justify-between rounded-lg border p-4"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <Key className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <span className="font-mono">{key.keyPrefix}...</span>
-                      </span>
-                      {key.lastUsedAt && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Last used{" "}
-                          {new Date(key.lastUsedAt).toLocaleDateString()}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{key.name}</span>
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                          {key.provider}
                         </span>
-                      )}
-                      {key.expiresAt && (
+                        {!key.isActive && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/30 dark:text-red-400">
+                            <AlertCircle className="h-3 w-3" />
+                            Revoked
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Expires {new Date(key.expiresAt).toLocaleDateString()}
+                          <span className="font-mono">{key.keyPrefix}...</span>
                         </span>
-                      )}
+                        {key.lastUsedAt && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Last used{" "}
+                            {new Date(key.lastUsedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                        {key.expiresAt && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Expires{" "}
+                            {new Date(key.expiresAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {key.isActive && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Revoke API Key</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently revoke this API key. Any
-                            applications using this key will stop working
-                            immediately.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => revokeKey.mutate({ id: key.id })}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  <div className="flex items-center gap-2">
+                    {key.isActive && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
                           >
-                            {revokeKey.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 mr-1" />
-                            )}
-                            Revoke Key
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Revoke API Key</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently revoke this API key. Any
+                              applications using this key will stop working
+                              immediately.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => revokeKey.mutate({ id: key.id })}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {revokeKey.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 mr-1" />
+                              )}
+                              Revoke Key
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              ),
+            )
           ) : (
             <div className="text-center py-8">
               <Key className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
