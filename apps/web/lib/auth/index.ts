@@ -1,7 +1,8 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
-import { buildSsoProviders, isSsoEnabled, loadSsoConfig } from "./sso";
+import { buildSsoProviders, loadSsoConfig } from "./sso";
+import { getSsoSettings, isDomainEnforced } from "@/lib/sso-settings";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@xenboox/db";
 import { eq, sql } from "drizzle-orm";
@@ -247,17 +248,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         account?.provider === "credentials"
       ) {
         // Check if user email matches an SSO-restricted domain
-        // (Admin would configure this via the SSO settings page)
-        // For now, SSO enforcement is opt-in via environment variable
-        const enforceSso = process.env.SSO_ENFORCE === "true";
-        if (enforceSso && user?.email) {
-          const ssoDomain = process.env.SSO_DOMAIN;
-          if (ssoDomain && user.email.endsWith(`@${ssoDomain}`)) {
-            console.warn(
-              `[sso] Password login blocked for SSO domain user: ${user.email}`,
-            );
-            return false;
-          }
+        // Reads from config file (admin UI) or env vars
+        if (user?.email && isDomainEnforced(user.email)) {
+          console.warn(
+            `[sso] Password login blocked for SSO domain user: ${user.email}`,
+          );
+          return false;
         }
       }
 

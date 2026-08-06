@@ -16,6 +16,7 @@
  */
 
 import type { Provider } from "next-auth/providers";
+import { getSsoSettings } from "@/lib/sso-settings";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -36,9 +37,24 @@ export interface SsoConfig {
 // ─── Config Loader ────────────────────────────────────────────────────────
 
 /**
- * Load SSO configuration from environment variables.
+ * Load SSO configuration. Priority: config file > env vars.
  */
 export function loadSsoConfig(): SsoConfig {
+  // 1. Try config file first (admin UI writes here)
+  const { settings, source } = getSsoSettings();
+
+  if (source === "config" || settings.enabled) {
+    return {
+      enabled: settings.enabled,
+      provider: settings.provider as SsoProviderType,
+      clientId: settings.clientId || undefined,
+      clientSecret: settings.clientSecret || undefined,
+      issuer: settings.issuer || undefined,
+      callbackUrl: settings.callbackUrl || undefined,
+    };
+  }
+
+  // 2. Fall back to env vars
   const enabled = process.env.SSO_ENABLED === "true";
   const provider = (process.env.SSO_PROVIDER ?? "none") as SsoProviderType;
 
@@ -96,7 +112,6 @@ function buildAzureAdProvider(config: SsoConfig): Provider[] {
     return [];
   }
 
-  // Dynamic import to avoid bundling when not used
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const AzureAD = require("next-auth/providers/azure-ad").default;
 
@@ -105,10 +120,19 @@ function buildAzureAdProvider(config: SsoConfig): Provider[] {
       clientId: config.clientId!,
       clientSecret: config.clientSecret!,
       issuer: config.issuer,
+      // callbackUrl tells the IdP where to redirect after authentication
+      // This is the URL that must be registered in the Azure AD app's redirect URIs
+      callbacks: {
+        async redirectTo({ baseUrl }) {
+          return config.callbackUrl ?? `${baseUrl}/api/auth/callback/sso`;
+        },
+      },
       authorization: {
         params: {
           scope: "openid profile email User.Read",
           response_type: "code",
+          // redirect_uri is derived from the callback URL
+          ...(config.callbackUrl ? { redirect_uri: config.callbackUrl } : {}),
         },
       },
     }),
@@ -139,10 +163,17 @@ function buildOktaProvider(config: SsoConfig): Provider[] {
       clientId: config.clientId!,
       clientSecret: config.clientSecret!,
       issuer: config.issuer,
+      // callbackUrl tells the IdP where to redirect after authentication
+      callbacks: {
+        async redirectTo({ baseUrl }) {
+          return config.callbackUrl ?? `${baseUrl}/api/auth/callback/sso`;
+        },
+      },
       authorization: {
         params: {
           scope: "openid profile email",
           response_type: "code",
+          ...(config.callbackUrl ? { redirect_uri: config.callbackUrl } : {}),
         },
       },
     }),
