@@ -97,7 +97,37 @@ async function vectorSearch(
     return [];
   }
 
-  // 2. Fetch candidate chunks
+  // 2. Try pgvector native search first (much faster)
+  const vectorStr = `[${queryEmbedding.join(",")}]`;
+
+  try {
+    const results = await db.execute(sql`
+      SELECT * FROM search_similar_chunks(
+        ${vectorStr}::vector,
+        ${entityId}::uuid,
+        ${topK},
+        ${minScore},
+        ${sourceType ?? null}
+      )
+    `);
+
+    if (results.rows.length > 0) {
+      return results.rows.map((row: any) => ({
+        id: row.id,
+        content: row.content,
+        documentId: row.document_id,
+        sourceType: row.source_type,
+        chunkIndex: row.chunk_index,
+        score: parseFloat(row.similarity),
+        method: "vector" as const,
+        metadata: row.metadata as Record<string, unknown> | undefined,
+      }));
+    }
+  } catch {
+    // pgvector function not available, fall back to application-level search
+  }
+
+  // 3. Fallback: application-level cosine similarity search
   const conditions = [
     eq(documentChunks.entityId, entityId),
     eq(documentChunks.isEmbedded, true),
@@ -109,10 +139,9 @@ async function vectorSearch(
   const chunks = await db.query.documentChunks.findMany({
     where: and(...conditions),
     orderBy: [desc(documentChunks.createdAt)],
-    limit: 1000, // Limit for performance; production would use pgvector index
+    limit: 1000,
   });
 
-  // 3. Score each chunk by cosine similarity
   const scored = chunks
     .map((chunk) => {
       let chunkEmbedding: number[] = [];

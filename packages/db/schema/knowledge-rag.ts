@@ -28,6 +28,7 @@ import {
   uniqueIndex,
   numeric,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
 import { uuidId, entityId, timestamps } from "./helpers";
 import { entities } from "./organization";
@@ -60,8 +61,11 @@ export const documentChunks = pgTable(
     /** Token count of this chunk (for context window management) */
     tokenCount: integer("token_count").notNull().default(0),
 
-    /** Vector embedding (1536 dimensions for text-embedding-3-small) */
-    embedding: text("embedding"), // Stored as JSON array; pgvector extension handles actual vector type
+    /** Vector embedding as JSON string (for backward compatibility) */
+    embedding: text("embedding"),
+
+    /** pgvector vector column for efficient similarity search */
+    embeddingVector: sql<string>`vector(1536)`,
 
     /** Metadata about this chunk (section heading, page number, etc.) */
     metadata: jsonb("metadata").$type<{
@@ -108,8 +112,11 @@ export const knowledgeEmbeddings = pgTable(
     /** Document category for filtering */
     category: text("category"),
 
-    /** Document-level embedding (aggregate of all chunks) */
-    embedding: text("embedding"), // JSON array of floats
+    /** Document-level embedding as JSON string */
+    embedding: text("embedding"),
+
+    /** pgvector vector column for document-level similarity */
+    embeddingVector: sql<string>`vector(1536)`,
 
     /** Total chunks in this document */
     chunkCount: integer("chunk_count").notNull().default(0),

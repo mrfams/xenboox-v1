@@ -58,7 +58,8 @@ export type TaskType =
   | "anomaly_detection"
   | "chat_response"
   | "summarization"
-  | "translation";
+  | "translation"
+  | "text_embedding";
 
 // ─── Call Model Parameters ────────────────────────────────────────────
 

@@ -1,15 +1,18 @@
 /**
  * Embedding Service — Generate vector embeddings via the model gateway.
  *
- * Uses the model control plane (callModel) to generate embeddings,
- * so the embedding model is admin-configurable via the Model Ops panel.
- * Supports OpenAI text-embedding-3-small (1536 dims) as default.
+ * Uses the OpenAI text-embedding-3-small model (1536 dimensions) by default.
+ * The embedding model is configurable via environment variables:
+ * - EMBEDDING_MODEL: model name (default: text-embedding-3-small)
+ * - EMBEDDING_DIMENSIONS: vector dimensions (default: 1536)
+ * - OPENAI_API_KEY: required for real embeddings
  *
  * Features:
  * - Document chunking (smart split by sentences/paragraphs)
- * - Batch embedding for efficiency
+ * - Batch embedding for efficiency (max 2048 texts per batch)
  * - Entity-scoped: every embedding carries entityId
- * - Model gateway: embedding model chosen by admin, not hard-coded
+ * - Graceful fallback: if API fails, generates deterministic mock embeddings
+ * - Rate limiting: respects API rate limits with exponential backoff
  */
 
 import { db } from "@xenboox/db";
@@ -18,11 +21,19 @@ import { documentChunks, knowledgeEmbeddings } from "@xenboox/db/schema";
 
 // ─── Configuration ─────────────────────────────────────────────────────────
 
-const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
-const DEFAULT_EMBEDDING_DIMENSIONS = 1536;
+const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL ?? "text-embedding-3-small";
+const EMBEDDING_DIMENSIONS = parseInt(
+  process.env.EMBEDDING_DIMENSIONS ?? "1536",
+  10,
+);
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_BASE_URL =
+  process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
 const DEFAULT_CHUNK_SIZE = 512; // tokens
 const DEFAULT_CHUNK_OVERLAP = 64; // tokens
-const MAX_BATCH_SIZE = 100; // max chunks per embedding call
+const MAX_BATCH_SIZE = 2048; // OpenAI limit per request
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
 
 // ─── Chunking ──────────────────────────────────────────────────────────────
 
@@ -136,23 +147,49 @@ function getOverlapText(text: string, overlapTokens: number): string {
 // ─── Embedding Generation ──────────────────────────────────────────────────
 
 /**
- * Generate embeddings for an array of text chunks.
- * Uses the model gateway (callModel) with the embedding model.
+ * Generate embeddings for an array of text strings.
+ * Calls the OpenAI embedding API via fetch.
  *
- * For now, this generates a mock embedding (random vector).
- * In production, this calls the embedding model via the gateway.
+ * Falls back to deterministic mock embeddings if:
+ * - OPENAI_API_KEY is not set
+ * - API call fails after retries
  *
  * @param texts - Array of text strings to embed
- * @param entityId - Entity ID for scoping
+ * @param entityId - Entity ID for scoping (used for logging)
  * @param dimensions - Embedding dimensions (default 1536)
  * @returns Array of embedding vectors (each is a number[])
  */
 export async function generateEmbeddings(
   texts: string[],
   entityId: string,
-  dimensions = DEFAULT_EMBEDDING_DIMENSIONS,
+  dimensions = EMBEDDING_DIMENSIONS,
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
+
+  // Try real embeddings if API key is available
+  if (OPENAI_API_KEY) {
+    try {
+      return await generateRealEmbeddings(texts, dimensions);
+    } catch (error) {
+      console.warn(
+        `[embeddings] Real embedding failed, falling back to mock: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+
+  // Fallback: generate deterministic mock embeddings
+  return texts.map((text) => generateMockEmbedding(text, dimensions));
+}
+
+/**
+ * Generate real embeddings via OpenAI API.
+ * Handles batching, retries, and rate limiting.
+ */
+async function generateRealEmbeddings(
+  texts: string[],
+  dimensions: number,
+): Promise<number[][]> {
+  const allEmbeddings: number[][] = [];
 
   // Batch texts to avoid exceeding API limits
   const batches: string[][] = [];
@@ -160,26 +197,105 @@ export async function generateEmbeddings(
     batches.push(texts.slice(i, i + MAX_BATCH_SIZE));
   }
 
-  const allEmbeddings: number[][] = [];
-
   for (const batch of batches) {
-    // In production, this calls the embedding model via the gateway:
-    // const response = await callModel({
-    //   agentName: "document",
-    //   taskType: "embedding",
-    //   entityId,
-    //   messages: [{ role: "user", content: batch }],
-    //   // embedding-specific params
-    // });
-    //
-    // For now, generate deterministic mock embeddings based on text hash
-    const embeddings = batch.map((text) =>
-      generateMockEmbedding(text, dimensions),
-    );
+    const embeddings = await callEmbeddingApi(batch, dimensions);
     allEmbeddings.push(...embeddings);
   }
 
   return allEmbeddings;
+}
+
+/**
+ * Call the OpenAI embedding API with retry logic.
+ */
+async function callEmbeddingApi(
+  texts: string[],
+  dimensions: number,
+): Promise<number[][]> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(`${OPENAI_BASE_URL}/embeddings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: texts,
+          dimensions,
+          encoding_format: "float",
+        }),
+      });
+
+      // Handle rate limiting
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("Retry-After");
+        const delayMs = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        console.warn(`[embeddings] Rate limited, retrying in ${delayMs}ms`);
+        await sleep(delayMs);
+        continue;
+      }
+
+      // Handle server errors (retry)
+      if (response.status >= 500) {
+        const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        console.warn(
+          `[embeddings] Server error ${response.status}, retrying in ${delayMs}ms`,
+        );
+        await sleep(delayMs);
+        continue;
+      }
+
+      // Handle client errors (don't retry)
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(
+          `Embedding API error ${response.status}: ${body.slice(0, 200)}`,
+        );
+      }
+
+      const data = (await response.json()) as {
+        data: Array<{ embedding: number[]; index: number }>;
+        model: string;
+        usage: { prompt_tokens: number; total_tokens: number };
+      };
+
+      // Sort by index to maintain order
+      const sorted = data.data.sort((a, b) => a.index - b.index);
+      return sorted.map((item) => item.embedding);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Don't retry on client errors (except 429 which is handled above)
+      if (
+        lastError.message.includes("400") ||
+        lastError.message.includes("401") ||
+        lastError.message.includes("403")
+      ) {
+        throw lastError;
+      }
+
+      // Retry on network errors and server errors
+      if (attempt < MAX_RETRIES - 1) {
+        const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        console.warn(
+          `[embeddings] Attempt ${attempt + 1} failed, retrying in ${delayMs}ms: ${lastError.message}`,
+        );
+        await sleep(delayMs);
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Embedding API failed after all retries");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -213,7 +329,7 @@ function generateMockEmbedding(text: string, dimensions: number): number[] {
 
 /**
  * Chunk a document and generate embeddings for all chunks.
- * Stores chunks in the document_chunks table.
+ * Stores chunks in the document_chunks table with both JSON and vector columns.
  *
  * @param documentId - The knowledge document ID
  * @param entityId - Entity ID for scoping
@@ -252,6 +368,9 @@ export async function processDocumentForRAG(
     const chunk = chunks[i];
     const embedding = embeddings[i];
 
+    // Convert embedding to pgvector format: '[0.1, 0.2, ...]'
+    const vectorStr = embedding ? `[${embedding.join(",")}]` : null;
+
     await db.insert(documentChunks).values({
       entityId,
       documentId,
@@ -259,7 +378,8 @@ export async function processDocumentForRAG(
       chunkIndex: chunk.index,
       content: chunk.content,
       tokenCount: chunk.tokenCount,
-      embedding: JSON.stringify(embedding),
+      embedding: JSON.stringify(embedding), // JSON for backward compat
+      embeddingVector: vectorStr as any, // pgvector format
       metadata: chunk.metadata,
       isEmbedded: true,
     });
@@ -274,6 +394,10 @@ export async function processDocumentForRAG(
       ? embeddings[0] // Use first chunk as document-level embedding
       : null;
 
+  const vectorStr = aggregateEmbedding
+    ? `[${aggregateEmbedding.join(",")}]`
+    : null;
+
   await db
     .insert(knowledgeEmbeddings)
     .values({
@@ -282,10 +406,11 @@ export async function processDocumentForRAG(
       title: metadata?.title ?? `Document ${documentId}`,
       category: metadata?.category,
       embedding: aggregateEmbedding ? JSON.stringify(aggregateEmbedding) : null,
+      embeddingVector: vectorStr as any,
       chunkCount: chunksCreated,
       totalTokens: chunks.reduce((sum, c) => sum + c.tokenCount, 0),
       fullyEmbedded: true,
-      embeddingModel: DEFAULT_EMBEDDING_MODEL,
+      embeddingModel: EMBEDDING_MODEL,
     })
     .onConflictDoNothing();
 
@@ -296,6 +421,7 @@ export async function processDocumentForRAG(
 
 /**
  * Cosine similarity between two vectors.
+ * Used as fallback when pgvector is not available.
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
@@ -312,4 +438,16 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 
   const denominator = Math.sqrt(normA) * Math.sqrt(normB);
   return denominator === 0 ? 0 : dotProduct / denominator;
+}
+
+/**
+ * Get the embedding model configuration.
+ */
+export function getEmbeddingConfig() {
+  return {
+    model: EMBEDDING_MODEL,
+    dimensions: EMBEDDING_DIMENSIONS,
+    hasApiKey: !!OPENAI_API_KEY,
+    baseUrl: OPENAI_BASE_URL,
+  };
 }

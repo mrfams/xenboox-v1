@@ -45,6 +45,8 @@ const _TASK_TO_DEFAULT_MODEL: Record<
   chat_response: { model: "claude-sonnet-4-6", provider: "anthropic" },
   summarization: { model: "claude-haiku-4-5", provider: "anthropic" },
   translation: { model: "claude-haiku-4-5", provider: "anthropic" },
+  // Embeddings
+  text_embedding: { model: "text-embedding-3-small", provider: "openai" },
 };
 
 /**
