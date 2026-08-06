@@ -32,18 +32,27 @@ export function encryptSecret(plain: string): string {
 
 /** Decrypt a TOTP secret. Returns null when the payload is invalid/tampered. */
 export function decryptSecret(payload: string): string | null {
+  // First try encrypted format: iv.tag.ciphertext (base64)
   try {
     const [ivB64, tagB64, dataB64] = payload.split(".");
-    if (!ivB64 || !tagB64 || !dataB64) return null;
-    const iv = Buffer.from(ivB64, "base64");
-    const tag = Buffer.from(tagB64, "base64");
-    const data = Buffer.from(dataB64, "base64");
-    const decipher = createDecipheriv(ALGO, getKey(), iv);
-    decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(data), decipher.final()]).toString(
-      "utf8",
-    );
+    if (ivB64 && tagB64 && dataB64) {
+      const iv = Buffer.from(ivB64, "base64");
+      const tag = Buffer.from(tagB64, "base64");
+      const data = Buffer.from(dataB64, "base64");
+      const decipher = createDecipheriv(ALGO, getKey(), iv);
+      decipher.setAuthTag(tag);
+      return Buffer.concat([decipher.update(data), decipher.final()]).toString(
+        "utf8",
+      );
+    }
   } catch {
-    return null;
+    // Not encrypted or tampered — fall through
   }
+
+  // Fallback: payload IS the raw TOTP secret (base32, e.g. from setup scripts)
+  if (/^[A-Z2-7]+=*$/i.test(payload) && payload.length >= 16) {
+    return payload;
+  }
+
+  return null;
 }
