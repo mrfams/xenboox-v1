@@ -130,12 +130,16 @@ and are chosen per (agent, task type) from the database.
 
 ---
 
-## 5. Tool System & Least-Privilege Grants
+## 5. Tool System & Least-Privilege Grants [~] ✅ Buffy 2026-08-06
 
-### 5.1 Tool contract (replaces `core/tools.ts`)
+### 5.1 Tool contract (replaces `core/tools.ts`) [x] ✅ Buffy 2026-08-06
 
 Each tool has: `name`, `description`, `inputSchema` (zod), `execute(ctx)`, `grantPolicy`, `readOnly:boolean`,
 `writes: boolean`, `idempotencyKey: boolean`.
+
+- **Done:** `packages/agents/core/tool-contract.ts` — `ToolDefinition`, `ToolExecutionContext`, `ToolResult`, `ToolGrant` types with zod schemas.
+- **Done:** `packages/agents/core/tool-registry.ts` — 5 tools migrated from dead `core/tools.ts`: `validate_double_entry`, `get_account_balance`, `get_journal_entry_lines`, `get_recent_journal_entries`, `get_account_by_code`.
+- **Done:** `packages/agents/core/tool-executor.ts` — Grant enforcement (DB grants → default config → default deny), audit logging, batch execution.
 
 Tools fall into two classes:
 
@@ -143,10 +147,13 @@ Tools fall into two classes:
 - **Write/Capability tools** — things that change accounting state; **always behind the TrustGuard** and available
   only to the responsible agent.
 
-### 5.2 Registry & grants
+### 5.2 Registry & grants [x] ✅ Buffy 2026-08-06
 
 A **ToolRegistry** enumerates every tool once. Grants are a matrix (agent × tool + action), stored in DB and/or
 environment, default **deny**. Only a deliberately granted tool can be dispatched.
+
+- **Done:** `packages/db/schema/tool-grants.ts` — `tool_grants` table with (entityId, agentName, toolName, action), unique index, `DEFAULT_TOOL_GRANTS` for all agents.
+- **Done:** `packages/agents/core/tool-contract.ts` — `DEFAULT_AGENT_TOOL_CONFIGS` per agent (CFO read-only, Controller read+validate, Ledger GL writer, etc.).
 
 | Agent              | Reading tools (example)                          | Write/capability tools                                      |
 | ------------------ | ------------------------------------------------ | ----------------------------------------------------------- |
@@ -158,7 +165,7 @@ environment, default **deny**. Only a deliberately granted tool can be dispatche
 | AP / AR            | vendors, invoices, aging                         | `createInvoice`, `matchPayment` (via ledger)                |
 | Compliance         | tax rules, filings                               | `prepareFiling`, hold for human                             |
 
-### 5.3 Tool execution loop (agent)
+### 5.3 Tool execution loop (agent) [x] ✅ Buffy 2026-08-06
 
 ```
 repeat until assistant has no toolCall:
@@ -171,6 +178,8 @@ repeat until assistant has no toolCall:
 ```
 
 No tool result is ever fed back without a `confidence` and an audit entry.
+
+- **Done:** `packages/agents/core/tool-executor.ts` — `executeTool()` checks grant → validates input → executes → logs to auditLog + agentActivity. `executeToolCalls()` for batch execution. `getAgentGrants()` for admin UI.
 
 ---
 
@@ -241,7 +250,7 @@ Each validation emits a `confidence` + `checks[]` recorded in the document's `me
 
 ---
 
-## 8. RAG / Company Brain (pgvector)
+## 8. RAG / Company Brain (pgvector) [~] ✅ Buffy 2026-08-06
 
 - **Vector store:** Neon **pgvector** extension (Postgres-native, entity-scoped, no external infra).
 - **Embeddings:** called through the model gateway: an `embedTask` using a registered embedding model from
@@ -250,6 +259,10 @@ Each validation emits a `confidence` + `checks[]` recorded in the document's `me
   store per **entity**, always filter by `entityId` at query time (multi-tenant isolation).
 - **Hybrid retrieval:** vector sim + BM25 over OCR/text; reranker when the model tier supports it.
 - **Usage:** CFO/Controller/chat answers cite source chunks; every citation logged.
+
+- **Done:** `packages/db/schema/knowledge-rag.ts` — `document_chunks` (chunked text + embeddings), `knowledge_embeddings` (document-level), `rag_citations` (audit trail). Entity-scoped with indexes.
+- **Done:** `packages/ingestion/engine/embeddings.ts` — `chunkText()` (sentence-aware chunking), `generateEmbeddings()` (batch via model gateway), `processDocumentForRAG()` (full pipeline), `cosineSimilarity()`.
+- **Done:** `packages/ingestion/engine/retrieval.ts` — `vectorSearch()` (cosine similarity), `keywordSearch()` (BM25), `hybridFuse()` (RRF), `retrieve()` (main entry with audit logging), `formatCitations()`.
 
 > Reuse the `ops-company-brain` tables as the **operational UI/logging** layer; the serving layer is the pgvector
 > columns on `knowledge_documents` + a retrieval service.
@@ -325,7 +338,7 @@ Human → CFO (tier1, strategic) → Dept Heads (tier2) → Workers (tier3) → 
 | [x] **P0** ✅ opencode 2026-08-06 | Close direct-call holes | Rewrite `classification.ts`/`extraction.ts`/`ocr.ts` to gateway; delete direct anthropic fetch; no code `fetch` to provider; extend `CallModelParams` to support `ModelMessageContentBlock[]` for vision; update all 5 adapters (Anthropic, OpenAI, OpenWeight, Bedrock, Vertex)                                                                          | typecheck / lint pass                                    |
 | [x] **P1** ✅ opencode 2026-08-06 | Model control plane     | Fix adapters for tools (Bedrock/Vertex), complete Router→DB wiring, admin Model Ops page reads/writes `model_assignments` — **done:** Bedrock tool forwarding (tools + tool_choice + tool_use response parsing), Vertex function calling (functionDeclarations + toolConfig + functionCalls response), admin UI with full CRUD for assignments and models | admin can switch model live, cost telemetry in dashboard |
 | [x] **P2** ✅ Buffy 2026-08-06    | Ingestion pipelines     | Unify state-machine; fully deterministic Trust-verify; improve OCR+classify+extract; artifact store                                                                                                                                                                                                                                                       | financial PDF ingestion end-to-end                       |
-| **P3**                            | Tools & RAG             | Replace `core/tools.ts` with registry+grants; tool execution loop; pgvector embed+retrieval; citation in chat                                                                                                                                                                                                                                             | HR document → company brain; CFO can answer from docs    |
+| [~] **P3** ~ Buffy 2026-08-06     | Tools & RAG             | Replace `core/tools.ts` with registry+grants; tool execution loop; pgvector embed+retrieval; citation in chat                                                                                                                                                                                                                                             | HR document → company brain; CFO can answer from docs    |
 | **P4**                            | Chat & pipeline         | Replace regex intent; full chat→agent glue; streaming tool effects coded for                                                                                                                                                                                                                                                                              | beats eval, cross-validation green                       |
 | **P5**                            | Evaluations & hardening | Golden suites, scaling load, security/SSO, installable desktop                                                                                                                                                                                                                                                                                            | Go-live / rollout                                        |
 

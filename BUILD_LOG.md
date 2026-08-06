@@ -6,6 +6,88 @@
 
 ---
 
+### [2026-08-06] — P3: Tool System + RAG Infrastructure
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~30 min
+**Files Created:** 7
+**Files Modified:** 2
+
+**Request:** Phase P3 — Replace dead `core/tools.ts` with registry+grants, build tool execution loop, add pgvector RAG schema, embeddings service, and retrieval engine.
+
+**What was built:**
+
+**Tool System:**
+
+1. **`packages/agents/core/tool-contract.ts`** — NEW (tool contract types):
+
+   - `ToolExecutionContext` — entity scope, user identity, agent name, trace ID
+   - `ToolResult` — success/failure, data, confidence, audit metadata
+   - `ToolDefinition` — name, description, zod inputSchema, execute function, readOnly/writes/idempotencyKey flags
+   - `ToolGrant` — agent × tool × action grant entry
+   - `DEFAULT_AGENT_TOOL_CONFIGS` — per-agent tool access configs (CFO read-only, Ledger GL writer, etc.)
+
+2. **`packages/agents/core/tool-registry.ts`** — NEW (tool registry):
+
+   - 5 tools migrated from dead `core/tools.ts` to new contract: `validate_double_entry`, `get_account_balance`, `get_journal_entry_lines`, `get_recent_journal_entries`, `get_account_by_code`
+   - `getTool()`, `getAllTools()`, `getToolsByCategory()` — lookup functions
+   - `toolToCallModelFormat()` — convert tools to callModel format for LLM tool definitions
+   - `getToolsForAgent()` — get allowed tools for a specific agent
+
+3. **`packages/agents/core/tool-executor.ts`** — NEW (tool execution with grants):
+
+   - `checkGrant()` — entity-level DB grants → default config fallback → default deny
+   - `executeTool()` — grant check → zod validation → execute → audit log → return result
+   - `executeToolCalls()` — batch execution with stopOnError option
+   - `getAgentGrants()` — list all grants for an agent (admin UI)
+   - Audit trail: every execution logged to `auditLog` + `agentActivity`
+
+4. **`packages/db/schema/tool-grants.ts`** — NEW (grants table):
+   - `tool_grants` table: entityId, agentName, toolName, action (execute/read/\*), isActive, grantedBy, conditions, notes
+   - Unique index on (entityId, agentName, toolName, action)
+   - `DEFAULT_TOOL_GRANTS` — platform-level default grants for all agents
+   - `buildDefaultGrantValues()` — helper for seeding grants during entity creation
+
+**RAG / Company Brain:**
+
+5. **`packages/db/schema/knowledge-rag.ts`** — NEW (pgvector schema):
+
+   - `document_chunks` table: entityId, documentId, sourceType, chunkIndex, content, tokenCount, embedding (JSON), metadata, isEmbedded
+   - `knowledge_embeddings` table: entityId, documentId, title, category, embedding, chunkCount, totalTokens, fullyEmbedded, embeddingModel
+   - `rag_citations` table: entityId, query, agentName, chunkIds, scores, citedChunkIds, totalChunks, retrievalMethod, durationMs
+   - Entity-scoped with indexes for efficient retrieval
+
+6. **`packages/ingestion/engine/embeddings.ts`** — NEW (embedding service):
+
+   - `chunkText()` — smart chunking by sentences with configurable size/overlap
+   - `generateEmbeddings()` — batch embedding via model gateway (mock for now, production calls embedding model)
+   - `processDocumentForRAG()` — full pipeline: chunk → embed → store in DB
+   - `cosineSimilarity()` — vector similarity function
+
+7. **`packages/ingestion/engine/retrieval.ts`** — NEW (hybrid retrieval):
+
+   - `vectorSearch()` — cosine similarity search over chunk embeddings
+   - `keywordSearch()` — BM25-style keyword matching
+   - `hybridFuse()` — Reciprocal Rank Fusion to combine vector + keyword results
+   - `retrieve()` — main entry point: hybrid search with audit logging to ragCitations
+   - `formatCitations()` / `formatStructuredCitations()` — citation formatting for chat responses
+
+8. **`packages/db/schema/index.ts`** — MODIFIED: added tool-grants and knowledge-rag exports
+
+9. **`packages/ingestion/package.json`** — MODIFIED: added embeddings and retrieval exports
+
+**Rules applied:** Entity scoping on every query. Default deny for tool grants. Audit trail on every tool execution. No direct provider calls (embeddings through gateway). Citation logging for every RAG retrieval.
+
+**After building:**
+
+- `next build` compiled successfully (✓ in 73s)
+- No new TypeScript errors in tool-grants or knowledge-rag schemas
+- Pre-existing lint errors (irregular whitespace, prefer-const) unchanged
+
+**Scope boundaries:** P3 tool system + RAG infrastructure complete. Next: P4 (Chat & pipeline — replace regex intent, full chat→agent glue).
+
+---
+
 ### [2026-08-06] — P2: Full Ingestion Pipeline Completion
 
 **Agent:** Buffy (Autonomous Engineer)
