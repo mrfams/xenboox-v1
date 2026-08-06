@@ -258,7 +258,9 @@ async function logToolExecution(
       agentName: ctx.agentName,
       action: `tool_${toolName}`,
       input: args,
-      output: result.data ?? { error: result.error },
+      output: (result.data as Record<string, unknown>) ?? {
+        error: result.error,
+      },
       confidence: result.confidence ? String(result.confidence) : undefined,
       durationMs,
       status: result.success ? "success" : "failed",

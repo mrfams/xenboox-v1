@@ -22,7 +22,10 @@ import type {
   ToolGrant,
 } from "./tool-contract";
 import { DEFAULT_AGENT_TOOL_CONFIGS } from "./tool-contract";
-import { validateDoubleEntry as validateDoubleEntryRule } from "./accounting-rules";
+import {
+  validateDoubleEntry as validateDoubleEntryRule,
+  type JournalLine,
+} from "./accounting-rules";
 
 // ─── Tool Implementations ──────────────────────────────────────────────────
 
@@ -45,7 +48,7 @@ const validateDoubleEntryTool: ToolDefinition = {
   }),
   execute: async (input) => {
     const result = validateDoubleEntryRule(
-      input.lines.map((l) => ({
+      input.lines.map((l: JournalLine) => ({
         accountId: l.accountId,
         debit: l.debit,
         credit: l.credit,
