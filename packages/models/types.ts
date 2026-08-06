@@ -62,6 +62,10 @@ export type TaskType =
 
 // ─── Call Model Parameters ────────────────────────────────────────────
 
+export type ModelMessageContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image"; mediaType: string; data: string };
+
 export interface CallModelParams {
   agentName: string;
   taskType: TaskType;
@@ -69,13 +73,19 @@ export interface CallModelParams {
   systemPrompt: string;
   messages: Array<{
     role: "user" | "assistant" | "system";
-    content: string;
+    content: string | ModelMessageContentBlock[];
   }>;
   tools?: Array<{
     name: string;
     description: string;
     inputSchema: Record<string, unknown>;
   }>;
+  /**
+   * Force the model to call a specific tool (or free-run when omitted).
+   * `{ type: "tool", name }` maps to Anthropic's `tool_choice: { type: "tool" }`
+   * and OpenAI's `tool_choice: { type: "function", function: { name } }`.
+   */
+  toolChoice?: { type: "tool"; name: string };
   fallbackAllowed?: boolean;
   maxTokens?: number;
   temperature?: number;
@@ -93,6 +103,7 @@ export interface ModelAssignmentRecord {
   fallbackModelId: string | null;
   fallbackProvider: ProviderId | null;
   trafficSplit: Record<string, number> | null;
+  evaluationGate: string | null;
 }
 
 // ─── Provider Route ──────────────────────────────────────────────────
@@ -111,12 +122,16 @@ export interface ProviderAdapter {
   complete(params: {
     model: string;
     systemPrompt: string;
-    messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+    messages: Array<{
+      role: "user" | "assistant" | "system";
+      content: string | ModelMessageContentBlock[];
+    }>;
     tools?: Array<{
       name: string;
       description: string;
       inputSchema: Record<string, unknown>;
     }>;
+    toolChoice?: { type: "tool"; name: string };
     maxTokens?: number;
     temperature?: number;
   }): Promise<NormalizedModelResponse>;
@@ -124,12 +139,16 @@ export interface ProviderAdapter {
   stream?(params: {
     model: string;
     systemPrompt: string;
-    messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+    messages: Array<{
+      role: "user" | "assistant" | "system";
+      content: string | ModelMessageContentBlock[];
+    }>;
     tools?: Array<{
       name: string;
       description: string;
       inputSchema: Record<string, unknown>;
     }>;
+    toolChoice?: { type: "tool"; name: string };
     maxTokens?: number;
     temperature?: number;
     onToken: (token: string) => void;

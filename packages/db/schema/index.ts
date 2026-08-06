@@ -60,3 +60,4 @@ export * from "./ops-workflow-builder";
 export * from "./ops-automation-studio";
 export * from "./user-preferences";
 export * from "./api-keys";
+export * from "./artifacts";

@@ -1,11 +1,12 @@
 import { getModelRouter } from "./router";
-import { getLangfuse } from "../langfuse";
+import { getLangfuse } from "./langfuse";
+import { recordAgentActivity } from "./telemetry";
 import type {
   CallModelParams,
   NormalizedModelResponse,
   ProviderId,
 } from "./types";
-import { isTaskTypeAllowedForAgent } from "../security";
+import { isTaskTypeAllowedForAgent } from "./task-policy";
 
 // Map task types to model tiers for default assignment when DB has no row
 const _TASK_TO_DEFAULT_MODEL: Record<
@@ -117,6 +118,7 @@ export async function callModel(
         systemPrompt: params.systemPrompt,
         messages: params.messages,
         tools: params.tools,
+        toolChoice: params.toolChoice,
         maxTokens: params.maxTokens,
         temperature: params.temperature,
       },
@@ -141,6 +143,30 @@ export async function callModel(
       },
     });
 
+    // §4.4 — Record agent activity with model telemetry
+    await recordAgentActivity({
+      entityId: params.entityId,
+      agentName: params.agentName,
+      action: params.taskType,
+      input: {
+        messagesCount: params.messages.length,
+        toolsCount: params.tools?.length ?? 0,
+      },
+      output: {
+        contentLength: result.content.length,
+        toolCallsCount: result.toolCalls.length,
+      },
+      confidence: result.fromCache ? 1.0 : 0.95,
+      durationMs,
+      modelId: result.model,
+      provider: result.provider,
+      inputTokens: result.tokensUsed.input,
+      outputTokens: result.tokensUsed.output,
+      fromCache: result.fromCache,
+      langfuseTraceId: trace.id,
+      status: "success",
+    });
+
     return {
       content: result.content,
       toolCalls: result.toolCalls,
@@ -158,6 +184,18 @@ export async function callModel(
         error: msg,
         durationMs: Date.now() - startTime,
       },
+    });
+
+    // §4.4 — Record failed agent activity
+    await recordAgentActivity({
+      entityId: params.entityId,
+      agentName: params.agentName,
+      action: params.taskType,
+      input: { messagesCount: params.messages.length },
+      durationMs: Date.now() - startTime,
+      langfuseTraceId: trace.id,
+      status: "error",
+      errorMessage: msg,
     });
 
     throw error;
@@ -207,6 +245,7 @@ export async function streamModel(
       systemPrompt: params.systemPrompt,
       messages: params.messages,
       tools: params.tools,
+      toolChoice: params.toolChoice,
       maxTokens: params.maxTokens,
       temperature: params.temperature,
     },

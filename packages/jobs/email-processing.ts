@@ -70,18 +70,24 @@ export const processInboundEmail = task({
         const fileBuffer = Buffer.from(attachment.buffer, "base64");
 
         // Run OCR
-        const ocrResult = await extractText(fileBuffer, attachment.mimeType);
+        const ocrResult = await extractText(
+          fileBuffer,
+          attachment.mimeType,
+          entityId,
+        );
 
         // Classify
         const classification = await classifyDocument(
           ocrResult.text,
           attachment.mimeType,
+          entityId,
         );
 
         // Extract structured data
         const extraction = await extractStructuredData(
           ocrResult.text,
           classification.category,
+          entityId,
         );
 
         // Create document record - inline pipeline complete, set to 'synced'

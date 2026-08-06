@@ -137,6 +137,7 @@ export async function extractDocumentText(
   const ocrResult = await extractText(
     fileBuffer,
     doc.mimeType ?? "application/pdf",
+    entityId,
   );
 
   await db
@@ -184,6 +185,7 @@ export async function classifyDocumentAgent(
   const result = await classifyDocument(
     ocrText,
     doc.mimeType ?? "application/pdf",
+    entityId,
   );
 
   await db
@@ -258,6 +260,7 @@ export async function extractStructuredDataAgent(
   const extraction = await extractStructuredData(
     doc.ocrText,
     classification.category,
+    entityId,
   );
 
   const structuredData: Record<string, unknown> = {

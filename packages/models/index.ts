@@ -1,9 +1,12 @@
 // ─── Model Provider Layer ──────────────────────────────────────────
 // Single entry point for all model provider functionality.
-// See XENBOOX_MODEL_PROVIDER_LAYER.md for the full specification.
+// This is the model control plane — the ONLY place application code
+// may interact with model providers. No other code path may call a
+// provider SDK or HTTP endpoint directly.
 
 // Router & Entry Points
 export { getModelRouter, ModelRouter } from "./router";
+export type { RouterConfig } from "./router";
 export { callModel, streamModel } from "./entry";
 export {
   getAssignment,
@@ -31,6 +34,14 @@ export {
   recordShadowComparison,
   recordCanaryMetric,
 } from "./evaluation";
+
+// Observability
+export { getLangfuse, langfuse } from "./langfuse";
+export { recordAgentActivity, rollupDailyCosts } from "./telemetry";
+
+// Task-Policy (tier-based model authorization)
+export { getAgentTier, isTaskTypeAllowedForAgent } from "./task-policy";
+export type { AgentTierLevel } from "./task-policy";
 
 // Types
 export type {

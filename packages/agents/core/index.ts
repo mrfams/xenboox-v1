@@ -30,23 +30,15 @@ export type {
 } from "./llm/agent-llm";
 export { calculateCost, buildCostEntry } from "./llm/cost-tracker";
 
-// ─── NEW Model Provider System (preferred) ─────
-export { callModel, streamModel } from "./models/entry";
-export type {
-  CallModelParams,
-  NormalizedModelResponse,
-  NormalizedToolCall,
-  ProviderId,
-  TaskType,
-} from "./models/types";
-export { getModelRouter, ModelRouter } from "./models/router";
+// ─── NEW Model Control Plane (preferred) — lives in @xenboox/models ──
 export {
+  callModel,
+  streamModel,
+  getModelRouter,
+  ModelRouter,
   getAssignment,
   invalidateAssignment,
   invalidateAllAssignments,
-} from "./models/loader";
-export type { AssignmentRecord } from "./models/loader";
-export {
   runGate1,
   runGate2,
   runGate3,
@@ -54,7 +46,15 @@ export {
   rollbackModel,
   recordShadowComparison,
   recordCanaryMetric,
-} from "./models/evaluation";
+} from "@xenboox/models";
+export type {
+  CallModelParams,
+  NormalizedModelResponse,
+  NormalizedToolCall,
+  ProviderId,
+  TaskType,
+  ModelAssignmentRecord as AssignmentRecord,
+} from "@xenboox/models";
 
 // ─── State ─────────────────────────────────────
 export {

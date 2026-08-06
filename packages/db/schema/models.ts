@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   text,
+  integer,
   jsonb,
   timestamp,
   pgEnum,
@@ -76,6 +77,21 @@ export const modelAssignments = pgTable(
       .default({})
       .$type<Record<string, number>>(), // e.g. {"claude-sonnet-4-6": 90, "kimi-k3": 10}
     evaluationGate: text("evaluation_gate").default("none"), // "gate1" | "gate2" | "gate3" | "gate4" | "complete"
+    // ── P2 Schema Extensions ──
+    /** Whether this model supports text embeddings */
+    supportsEmbeddings: boolean("supports_embeddings").default(false),
+    /** Embedding dimensions (e.g. 1536 for text-embedding-3-small) */
+    embeddingDimensions: integer("embedding_dimensions"),
+    /** Override the system prompt for this assignment (null = use agent default) */
+    systemPromptOverride: text("system_prompt_override"),
+    /** Override temperature for this assignment (null = use model default) */
+    temperatureOverride: text("temperature_override"),
+    /** Retry policy: { maxRetries: number, backoffMs: number, retryOn: string[] } */
+    retryPolicy: jsonb("retry_policy").$type<{
+      maxRetries?: number;
+      backoffMs?: number;
+      retryOn?: string[]; // e.g. ["timeout", "rate_limit", "5xx"]
+    }>(),
     isActive: boolean("is_active").notNull().default(true),
     createdBy: uuid("created_by")
       .notNull()

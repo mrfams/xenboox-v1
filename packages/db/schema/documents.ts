@@ -31,11 +31,25 @@ export const docTypeEnum = pgEnum("doc_type", [
 ]);
 
 export const docStatusEnum = pgEnum("doc_status", [
+  // ── Document processing pipeline (stages 1-3) ──
   "detected",
   "processing",
   "extracted",
+  "validated",
   "synced",
+  // ── Ingestion pipeline (stages 4-13) ──
+  "resolving", // Stage 4: entity resolution
+  "classifying_workflow", // Stage 5: workflow classification
+  "mapping_accounts", // Stage 7: COA mapping
+  "calculating_tax", // Stage 8: tax calculation
+  "generating_journal", // Stage 9: journal entry generation
+  "validating_entry", // Stage 10: validation
+  "deciding_post", // Stage 12: posting decision
+  "posting", // Stage 13: posting execution
+  "propagating", // Stage 14: downstream propagation
+  // ── Terminal states ──
   "agent_processing",
+  "persisted",
   "done",
   "failed",
   "archived",
@@ -158,6 +172,12 @@ export const agentActivity = pgTable(
     confidence: numeric("confidence", { precision: 3, scale: 2 }),
     durationMs: integer("duration_ms"),
     costCents: integer("cost_cents"),
+    // §4.4 — Model telemetry fields
+    modelId: text("model_id"),
+    provider: text("provider"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    fromCache: boolean("from_cache").default(false),
     langfuseTraceId: text("langfuse_trace_id"),
     status: text("status").notNull().default("success"),
     errorMessage: text("error_message"),
@@ -167,6 +187,7 @@ export const agentActivity = pgTable(
     index("agent_activity_entity").on(t.entityId),
     index("agent_activity_agent").on(t.agentName),
     index("agent_activity_date").on(t.entityId, t.createdAt),
+    index("agent_activity_model").on(t.modelId, t.provider),
   ],
 );
 

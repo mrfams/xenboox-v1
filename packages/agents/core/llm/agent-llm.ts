@@ -1,6 +1,6 @@
 /**
  * @deprecated This module is preserved for backward compatibility.
- * All new agent code should use `callModel()` from `core/models/entry.ts`.
+ * All new agent code should use `callModel()` from `@xenboox/models`.
  *
  * This implementation now delegates to `callModel()` internally,
  * so existing agent code transparently benefits from the new
@@ -8,11 +8,11 @@
  *
  * Migrate agent code when convenient:
  *   import { callLLM } from "..."
- *   → import { callModel } from "../../core/models/entry"
+ *   → import { callModel } from "@xenboox/models"
  */
 
-import { callModel } from "../models/entry";
-import type { TaskType } from "../models/types";
+import { callModel } from "@xenboox/models";
+import type { TaskType } from "@xenboox/models";
 
 export type LLMRole = "user" | "assistant" | "system";
 
@@ -47,7 +47,7 @@ const TIER_TO_TASK: Record<string, TaskType> = {
 };
 
 /**
- * @deprecated Use `callModel()` from `core/models/entry` instead.
+ * @deprecated Use `callModel()` from `@xenboox/models` instead.
  * This delegates to callModel() internally.
  */
 export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
@@ -86,7 +86,7 @@ export interface LLMStreamCallbacks {
 }
 
 /**
- * @deprecated Use `streamModel()` from `core/models/entry` instead.
+ * @deprecated Use `streamModel()` from `@xenboox/models` instead.
  * This delegates to streamModel() internally.
  */
 export async function* streamLLM(

@@ -39,6 +39,7 @@ import {
 } from "./engine/posting-engine";
 import { resolveEntities } from "./engine/entity-resolution";
 import { calculateTax } from "./engine/tax-calculator";
+import { updateIngestionStatus } from "./engine/status-tracker";
 
 // ─── Main Pipeline Orchestrator ─────────────────────────────────────────────
 
@@ -79,7 +80,19 @@ export async function runIngestionPipeline(
     }
 
     // Ensure the document has been processed through OCR/classification/extraction
-    if (doc.status !== "synced" && doc.status !== "agent_processing") {
+    // or is in early ingestion stages (for pipeline recovery/retry)
+    const READY_STATUSES = new Set([
+      "synced",
+      "agent_processing",
+      "resolving",
+      "classifying_workflow",
+      "mapping_accounts",
+      "calculating_tax",
+      "generating_journal",
+      "validating_entry",
+      "deciding_post",
+    ]);
+    if (!READY_STATUSES.has(doc.status)) {
       return {
         documentId,
         entityId,
@@ -89,7 +102,7 @@ export async function runIngestionPipeline(
         postingDecision: {
           action: "rejected",
           confidence: 0,
-          reason: `Document not ready for ingestion: status is "${doc.status}", expected "synced" or "agent_processing"`,
+          reason: `Document not ready for ingestion: status is "${doc.status}"`,
         },
         error: `Document not ready: ${doc.status}`,
         pipelineDurationMs: Date.now() - startTime,
@@ -137,12 +150,18 @@ export async function runIngestionPipeline(
     });
 
     // ── Stage 4: Entity Resolution ──
+    await updateIngestionStatus(documentId, entityId, "resolving", {
+      category: state.classification.category,
+    });
     state.resolvedEntities = await resolveEntities(
       entityId,
       state.extraction.data,
     );
 
     // ── Stage 5: Transaction Classification ──
+    await updateIngestionStatus(documentId, entityId, "classifying_workflow", {
+      category: state.classification.category,
+    });
     state.workflow = classifyWorkflow(state);
     state.workflowConfidence = state.classification.confidence;
 
@@ -150,12 +169,18 @@ export async function runIngestionPipeline(
     state.accountingTreatment = determineAccountingTreatment(state);
 
     // ── Stage 7: COA Mapping ──
+    await updateIngestionStatus(documentId, entityId, "mapping_accounts", {
+      workflow: state.workflow,
+    });
     state.coaMapping = await mapToChartOfAccounts(
       entityId,
       state.accountingTreatment,
     );
 
     // ── Stage 8: Tax Calculation ──
+    await updateIngestionStatus(documentId, entityId, "calculating_tax", {
+      workflow: state.workflow,
+    });
     state.taxCalculation = calculateTax(
       state,
       state.accountingTreatment,
@@ -170,6 +195,13 @@ export async function runIngestionPipeline(
       undefined;
 
     // ── Stage 9: Journal Entry Generation ──
+    await updateIngestionStatus(documentId, entityId, "generating_journal", {
+      workflow: state.workflow,
+      coaLines: state.coaMapping
+        ? [...state.coaMapping.debitLines, ...state.coaMapping.creditLines]
+            .length
+        : 0,
+    });
     const { entry, validation } = await generateJournalEntry(
       entityId,
       state.accountingTreatment,
@@ -181,6 +213,11 @@ export async function runIngestionPipeline(
     state.validation = validation;
 
     // ── Stage 10: Validation ──
+    await updateIngestionStatus(documentId, entityId, "validating_entry", {
+      workflow: state.workflow,
+      balanced: entry.balanced,
+      lineCount: entry.lines.length,
+    });
     // Duplicate check
     const duplicateCount = await checkDuplicate(entityId, entry.reference);
     state.validation.noDuplicates = duplicateCount === 0;
@@ -198,9 +235,18 @@ export async function runIngestionPipeline(
     );
 
     // ── Stage 12: Posting Decision ──
+    await updateIngestionStatus(documentId, entityId, "deciding_post", {
+      workflow: state.workflow,
+      confidence: state.compositeConfidence.overall,
+    });
     const decision = decidePosting(state, state.compositeConfidence);
 
     // ── Stage 13-14: Posting Execution + Propagation ──
+    await updateIngestionStatus(documentId, entityId, "posting", {
+      workflow: state.workflow,
+      action: decision.action,
+      confidence: decision.confidence,
+    });
     const result = await executePosting(state, decision);
 
     // Log pipeline completion
@@ -435,6 +481,18 @@ export { propagatePosting } from "./engine/propagation";
 export { resolveEntities } from "./engine/entity-resolution";
 export { calculateTax } from "./engine/tax-calculator";
 export { sendIngestionNotifications } from "./engine/notifications";
+export {
+  updateIngestionStatus,
+  updateTerminalStatus,
+  transitionToFailed,
+  getStageLabel,
+  getOrderedStages,
+  isTerminalStage,
+  getStageNumber,
+  isValidTransition,
+  PIPELINE_STAGES,
+} from "./engine/status-tracker";
+export type { PipelineStage } from "./engine/status-tracker";
 export { runMonitoringCycle } from "./engine/monitoring-engine";
 export type {
   MonitoringReport,

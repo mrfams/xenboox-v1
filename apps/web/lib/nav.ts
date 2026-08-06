@@ -164,6 +164,12 @@ export const NAV_PAGES: NavPage[] = [
     keywords: ["files", "attachments", "receipts", "uploads"],
   },
   {
+    label: "Generated Artifacts",
+    href: "/dashboard/documents/artifacts",
+    group: "Reporting",
+    keywords: ["artifacts", "reports", "exports", "generated", "downloads"],
+  },
+  {
     label: "Close Center",
     href: "/dashboard/close",
     group: "Reporting",

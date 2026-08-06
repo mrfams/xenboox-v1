@@ -15,7 +15,9 @@
  */
 
 import crypto from "node:crypto";
+import { eq } from "drizzle-orm";
 import { db } from "../index";
+import { users } from "../schema/auth";
 import {
   budgets,
   budgetLines,
@@ -620,6 +622,13 @@ const VARIANCES: VarianceDef[] = [
 export async function seedBudget(entityId: string): Promise<void> {
   console.log("Seeding budget pipeline test data...");
 
+  // Resolve user ID from email
+  const userRows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, "demo@xenboox.com"));
+  const userId = userRows[0]?.id ?? "00000000-0000-0000-0000-000000000000";
+
   // ── 1. Budgets ────────────────────────────────────────────────────────
   console.log(`  Creating ${BUDGETS.length} budgets...`);
   const budgetIds: string[] = [];
@@ -638,8 +647,8 @@ export async function seedBudget(entityId: string): Promise<void> {
         fiscalYear: b.fiscalYear,
         status: b.status,
         totalBudgeted: b.totalBudgeted,
-        createdById: b.createdById,
-        approvedById: b.approvedById ?? null,
+        createdById: userId,
+        approvedById: userId,
         approvedAt: b.status === "active" ? new Date("2025-12-15") : null,
       })
       .onConflictDoNothing();
@@ -708,7 +717,7 @@ export async function seedBudget(entityId: string): Promise<void> {
         versionNumber: v.versionNumber,
         changesSummary: v.changesSummary,
         linesSnapshot: lineSnapshot,
-        approvedById: "demo@xenboox.com",
+        approvedById: userId,
         approvedAt: new Date(`2025-12-${10 + v.versionNumber}`),
       })
       .onConflictDoNothing();

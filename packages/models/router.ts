@@ -4,19 +4,54 @@ import type {
   ModelAssignmentRecord,
   ModelRegistryEntry,
   RouteHealth,
+  ModelMessageContentBlock,
 } from "./types";
 import { getAdapter } from "./adapters";
 import { db } from "@xenboox/db";
 import { modelAssignments, modelRegistry } from "@xenboox/db/schema";
 import { eq, and } from "drizzle-orm";
 
+// ─── Router Config ────────────────────────────────────────────────
+
+export interface RouterConfig {
+  /** Per-route timeout in ms (default: 30s) */
+  routeTimeoutMs: number;
+  /** Max retries per route before moving to next (default: 2) */
+  maxRouteRetries: number;
+  /** Base delay between route retries in ms (default: 1s) */
+  routeRetryBaseDelayMs: number;
+  /** Max delay between route retries in ms (default: 10s) */
+  routeRetryMaxDelayMs: number;
+  /** Auto-recovery time for unhealthy routes in ms (default: 30s) */
+  unhealthyRecoveryMs: number;
+  /** Consecutive errors to mark route unhealthy (default: 3) */
+  unhealthyThreshold: number;
+  /** Prompt cache TTL in ms (default: 5min) */
+  promptCacheTtlMs: number;
+  /** Assignment/registry cache TTL in ms (default: 60s) */
+  cacheTtlMs: number;
+}
+
+const DEFAULT_CONFIG: RouterConfig = {
+  routeTimeoutMs: 30_000,
+  maxRouteRetries: 2,
+  routeRetryBaseDelayMs: 1_000,
+  routeRetryMaxDelayMs: 10_000,
+  unhealthyRecoveryMs: 30_000,
+  unhealthyThreshold: 3,
+  promptCacheTtlMs: 5 * 60_000,
+  cacheTtlMs: 60_000,
+};
+
 // ─── Prompt Cache ──────────────────────────────────────────────────
-// Shared context (system prompts, entity settings) cached per entity.
-// Reduces token costs and speeds up repeat requests.
 
 class PromptCache {
   private cache = new Map<string, { content: string; cachedAt: number }>();
-  private ttlMs = 5 * 60 * 1000; // 5 minutes
+  private ttlMs: number;
+
+  constructor(ttlMs: number) {
+    this.ttlMs = ttlMs;
+  }
 
   get(key: string): string | undefined {
     const entry = this.cache.get(key);
@@ -30,7 +65,6 @@ class PromptCache {
 
   set(key: string, content: string): void {
     this.cache.set(key, { content, cachedAt: Date.now() });
-    // Evict oldest if cache exceeds 500 entries
     if (this.cache.size > 500) {
       const oldest = [...this.cache.entries()].sort(
         (a, b) => a[1].cachedAt - b[1].cachedAt,
@@ -55,10 +89,20 @@ function hashString(s: string): string {
 }
 
 // ─── Route Health Tracker ─────────────────────────────────────────
-// Tracks per-route health for load balancing
+// §4.3 — Circuit breaker, rate-limit awareness, auto-recovery
 
 class RouteHealthTracker {
   private health = new Map<string, RouteHealth>();
+  private config: Pick<
+    RouterConfig,
+    "unhealthyRecoveryMs" | "unhealthyThreshold"
+  >;
+
+  constructor(
+    config: Pick<RouterConfig, "unhealthyRecoveryMs" | "unhealthyThreshold">,
+  ) {
+    this.config = config;
+  }
 
   recordSuccess(
     routeId: string,
@@ -68,9 +112,9 @@ class RouteHealthTracker {
   ): void {
     const current =
       this.health.get(routeId) ?? this.createDefault(routeId, provider, model);
-    current.avgLatencyMs = current.avgLatencyMs * 0.9 + latencyMs * 0.1; // EMA
+    current.avgLatencyMs = current.avgLatencyMs * 0.9 + latencyMs * 0.1;
     current.consecutiveErrors = 0;
-    current.errorRate *= 0.95; // Decay
+    current.errorRate *= 0.95;
     current.isHealthy = true;
     this.health.set(routeId, current);
   }
@@ -81,7 +125,7 @@ class RouteHealthTracker {
     current.consecutiveErrors++;
     current.lastErrorAt = Date.now();
     current.errorRate = current.errorRate * 0.9 + 0.1;
-    if (current.consecutiveErrors >= 3) {
+    if (current.consecutiveErrors >= this.config.unhealthyThreshold) {
       current.isHealthy = false;
     }
     this.health.set(routeId, current);
@@ -95,15 +139,36 @@ class RouteHealthTracker {
     }
   }
 
+  /** Check if route is rate-limited (remaining=0 and resetAt in future) */
+  isRateLimited(routeId: string): boolean {
+    const h = this.health.get(routeId);
+    if (!h) return false;
+    if (h.rateLimitRemaining > 0) return false;
+    if (h.rateLimitResetAt === null) return false;
+    return Date.now() < h.rateLimitResetAt;
+  }
+
   getHealth(routeId: string): RouteHealth | undefined {
     const h = this.health.get(routeId);
     if (!h) return undefined;
-    // Auto-recover after 30s
-    if (!h.isHealthy && h.lastErrorAt && Date.now() - h.lastErrorAt > 30_000) {
+    // Auto-recover after configured interval
+    if (
+      !h.isHealthy &&
+      h.lastErrorAt &&
+      Date.now() - h.lastErrorAt > this.config.unhealthyRecoveryMs
+    ) {
       h.isHealthy = true;
       h.consecutiveErrors = 0;
     }
     return h;
+  }
+
+  /** Check if route should be skipped (unhealthy or rate-limited) */
+  shouldSkip(routeId: string): boolean {
+    const health = this.getHealth(routeId);
+    if (health && !health.isHealthy) return true;
+    if (this.isRateLimited(routeId)) return true;
+    return false;
   }
 
   private createDefault(
@@ -126,20 +191,61 @@ class RouteHealthTracker {
   }
 }
 
+// ─── Route Retry Helper ──────────────────────────────────────────
+// §4.3 — Retry with exponential backoff + jitter per route
+
+function calculateRetryDelay(attempt: number, config: RouterConfig): number {
+  const exponential = Math.min(
+    config.routeRetryBaseDelayMs * Math.pow(2, attempt),
+    config.routeRetryMaxDelayMs,
+  );
+  const jitter = exponential * 0.25 * Math.random();
+  return Math.round(exponential + jitter);
+}
+
+function isRetryableRouteError(error: Error): boolean {
+  const retryable = [
+    "TimeoutError",
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "ENOTFOUND",
+    "NetworkError",
+    "RateLimitError",
+    "429",
+    "503",
+    "502",
+  ];
+  return retryable.some(
+    (pattern) =>
+      error.name.includes(pattern) ||
+      error.message.includes(pattern) ||
+      error.message.includes("rate limit") ||
+      error.message.includes("timeout"),
+  );
+}
+
 // ─── Model Router ──────────────────────────────────────────────────
+// §4.3 — Route-level timeout, retry with backoff, rate-limit awareness,
+//         evaluation gate check, circuit breaker via RouteHealthTracker
 
 export class ModelRouter {
-  private promptCache = new PromptCache();
-  private healthTracker = new RouteHealthTracker();
+  private promptCache: PromptCache;
+  private healthTracker: RouteHealthTracker;
   private assignmentCache = new Map<string, ModelAssignmentRecord>();
   private registryCache = new Map<string, ModelRegistryEntry>();
   private lastFetch = 0;
-  private readonly cacheTtlMs = 60_000; // 1 minute
+  private config: RouterConfig;
+
+  constructor(config?: Partial<RouterConfig>) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.promptCache = new PromptCache(this.config.promptCacheTtlMs);
+    this.healthTracker = new RouteHealthTracker(this.config);
+  }
 
   /**
    * Get all available provider routes for a given agent/task.
-   * Looks up the model_assignments table for live + fallback configuration,
-   * then resolves to concrete provider routes.
+   * Filters out unhealthy and rate-limited routes.
+   * Checks evaluation gate — skips models that haven't passed Gate 4.
    */
   async getRoutes(
     agentName: string,
@@ -152,14 +258,19 @@ export class ModelRouter {
       return [];
     }
 
+    // §4.3 — Evaluation gate check: skip models still in evaluation
+    const gate = assignment.evaluationGate;
+    if (gate && gate !== "none" && gate !== "complete") {
+      // Model is still in Gate 1-3 evaluation — don't route production traffic
+      return [];
+    }
+
     const routes: ProviderRoute[] = [];
 
     // Live route
-    const liveAdapter = getAdapter(assignment.liveProvider);
-    if (liveAdapter) {
+    if (assignment.liveProvider && assignment.liveModelId) {
       const routeId = `${assignment.liveProvider}:${assignment.liveModelId}`;
-      const health = this.healthTracker.getHealth(routeId);
-      if (!health || health.isHealthy) {
+      if (!this.healthTracker.shouldSkip(routeId)) {
         routes.push({
           provider: assignment.liveProvider,
           model: assignment.liveModelId,
@@ -178,11 +289,10 @@ export class ModelRouter {
       );
       for (const [modelId, percent] of splitEntries) {
         if (percent > 0 && Math.random() * 100 < percent) {
-          // Try to find the provider for this model
           const entry = this.registryCache.get(modelId);
           if (entry) {
-            const adapter = getAdapter(entry.provider);
-            if (adapter) {
+            const routeId = `${entry.provider}:${modelId}`;
+            if (!this.healthTracker.shouldSkip(routeId)) {
               routes.push({
                 provider: entry.provider,
                 model: modelId,
@@ -196,8 +306,8 @@ export class ModelRouter {
 
     // Fallback route
     if (assignment.fallbackModelId && assignment.fallbackProvider) {
-      const fallbackAdapter = getAdapter(assignment.fallbackProvider);
-      if (fallbackAdapter) {
+      const routeId = `${assignment.fallbackProvider}:${assignment.fallbackModelId}`;
+      if (!this.healthTracker.shouldSkip(routeId)) {
         routes.push({
           provider: assignment.fallbackProvider,
           model: assignment.fallbackModelId,
@@ -206,15 +316,19 @@ export class ModelRouter {
       }
     }
 
-    // Sort by priority (lower = preferred)
     routes.sort((a, b) => a.priority - b.priority);
-
     return routes;
   }
 
   /**
-   * Execute a model call with automatic fallback across routes,
-   * provider-pool load balancing, and prompt caching.
+   * §4.3 — Execute a model call with:
+   *   - Route-level timeout (configurable, default 30s)
+   *   - Route-level retry with exponential backoff (retry same route before fallback)
+   *   - Rate-limit awareness (skip routes with exhausted limits)
+   *   - Circuit breaker (≥3 consecutive errors → skip route)
+   *   - Evaluation gate check (skip models in Gate 1-3)
+   *   - Provider-pool load balancing
+   *   - Prompt caching
    */
   async execute(
     agentName: string,
@@ -224,13 +338,14 @@ export class ModelRouter {
       systemPrompt: string;
       messages: Array<{
         role: "user" | "assistant" | "system";
-        content: string;
+        content: string | ModelMessageContentBlock[];
       }>;
       tools?: Array<{
         name: string;
         description: string;
         inputSchema: Record<string, unknown>;
       }>;
+      toolChoice?: { type: "tool"; name: string };
       maxTokens?: number;
       temperature?: number;
     },
@@ -262,16 +377,21 @@ export class ModelRouter {
       };
     }
 
-    // 2. Get routes
+    // 2. Get routes (already filtered for health, rate-limit, evaluation gate)
     const routes = await this.getRoutes(agentName, taskType, entityId);
     const errors: string[] = [];
 
-    // 3. Try routes in priority order (provider-pool load balancing)
-    //    For the same model available via multiple providers, try the healthiest first
+    if (routes.length === 0) {
+      throw new Error(
+        `No available routes for ${agentName}/${taskType} — all routes unhealthy, rate-limited, or in evaluation`,
+      );
+    }
+
+    // 3. Group by model for provider-pool load balancing
     const groupedRoutes = this.groupByModel(routes);
 
     for (const [, modelRoutes] of groupedRoutes) {
-      // Sort by health: healthy routes first, then by lowest avg latency
+      // Sort by health: healthy first, then by lowest avg latency
       const sorted = modelRoutes.sort((a, b) => {
         const healthA = this.healthTracker.getHealth(
           `${a.provider}:${a.model}`,
@@ -295,45 +415,90 @@ export class ModelRouter {
         }
 
         const routeId = `${route.provider}:${route.model}`;
-        const startTime = Date.now();
 
-        try {
-          const response = await adapter.complete({
-            model: route.model,
-            systemPrompt: params.systemPrompt,
-            messages: params.messages,
-            tools: params.tools,
-            maxTokens: params.maxTokens,
-            temperature: params.temperature,
-          });
-
-          const latencyMs = Date.now() - startTime;
-          this.healthTracker.recordSuccess(
-            routeId,
-            route.provider,
-            route.model,
-            latencyMs,
-          );
-
-          // Cache successful responses (only non-tool, non-streaming)
-          if (!response.toolCalls?.length && response.confidence > 0.9) {
-            this.promptCache.set(cacheKey, response.content);
+        // §4.3 — Route-level retry with exponential backoff
+        for (
+          let attempt = 0;
+          attempt <= this.config.maxRouteRetries;
+          attempt++
+        ) {
+          // §4.3 — Re-check health before each attempt
+          if (this.healthTracker.shouldSkip(routeId)) {
+            break; // Move to next route
           }
 
-          return {
-            content: response.content,
-            toolCalls: response.toolCalls,
-            provider: route.provider,
-            model: route.model,
-            tokensUsed: response.tokensUsed,
-            latencyMs,
-            fromCache: false,
-          };
-        } catch (error) {
-          this.healthTracker.recordError(routeId, route.provider, route.model);
-          const msg = error instanceof Error ? error.message : String(error);
-          errors.push(`[${route.provider}:${route.model}] ${msg}`);
-          continue;
+          const startTime = Date.now();
+
+          try {
+            // §4.3 — Route-level timeout via Promise.race
+            const response = await Promise.race([
+              adapter.complete({
+                model: route.model,
+                systemPrompt: params.systemPrompt,
+                messages: params.messages,
+                tools: params.tools,
+                toolChoice: params.toolChoice,
+                maxTokens: params.maxTokens,
+                temperature: params.temperature,
+              }),
+              new Promise<never>((_, reject) =>
+                setTimeout(
+                  () =>
+                    reject(
+                      new TimeoutError(
+                        `Route ${routeId} timed out after ${this.config.routeTimeoutMs}ms`,
+                      ),
+                    ),
+                  this.config.routeTimeoutMs,
+                ),
+              ),
+            ]);
+
+            const latencyMs = Date.now() - startTime;
+            this.healthTracker.recordSuccess(
+              routeId,
+              route.provider,
+              route.model,
+              latencyMs,
+            );
+
+            // Cache successful responses (only non-tool, high-confidence)
+            if (!response.toolCalls?.length && response.confidence > 0.9) {
+              this.promptCache.set(cacheKey, response.content);
+            }
+
+            return {
+              content: response.content,
+              toolCalls: response.toolCalls,
+              provider: route.provider,
+              model: route.model,
+              tokensUsed: response.tokensUsed,
+              latencyMs,
+              fromCache: false,
+            };
+          } catch (error) {
+            const err =
+              error instanceof Error ? error : new Error(String(error));
+            this.healthTracker.recordError(
+              routeId,
+              route.provider,
+              route.model,
+            );
+
+            // §4.3 — If retryable and retries remain, backoff and retry same route
+            if (
+              attempt < this.config.maxRouteRetries &&
+              isRetryableRouteError(err)
+            ) {
+              const delay = calculateRetryDelay(attempt, this.config);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+              continue; // Retry same route
+            }
+
+            // Non-retryable or retries exhausted — move to next route
+            errors.push(`[${routeId}] ${err.message}`);
+            break;
+          }
         }
       }
     }
@@ -355,7 +520,7 @@ export class ModelRouter {
   }
 
   private async refreshCache(): Promise<void> {
-    if (Date.now() - this.lastFetch < this.cacheTtlMs) return;
+    if (Date.now() - this.lastFetch < this.config.cacheTtlMs) return;
     this.lastFetch = Date.now();
 
     try {
@@ -409,12 +574,13 @@ export class ModelRouter {
             string,
             number
           > | null,
+          evaluationGate: assignment.evaluationGate,
         };
         this.assignmentCache.set(cacheKey, record);
         return record;
       }
     } catch {
-      // DB not available, return undefined — caller will use fallback
+      // DB not available, return undefined
     }
 
     return undefined;
@@ -425,9 +591,18 @@ export class ModelRouter {
 
 let router: ModelRouter | null = null;
 
-export function getModelRouter(): ModelRouter {
+export function getModelRouter(config?: Partial<RouterConfig>): ModelRouter {
   if (!router) {
-    router = new ModelRouter();
+    router = new ModelRouter(config);
   }
   return router;
+}
+
+// ─── TimeoutError ──────────────────────────────────────────────────
+
+class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TimeoutError";
+  }
 }

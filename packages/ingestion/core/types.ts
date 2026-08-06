@@ -147,7 +147,12 @@ export interface ResolvedEntities {
   // Any unmatched entities that may need creation
   unmatched?: {
     type:
-      "vendor" | "customer" | "employee" | "bank_account" | "asset" | "other";
+      | "vendor"
+      | "customer"
+      | "employee"
+      | "bank_account"
+      | "asset"
+      | "other";
     name: string;
     suggestion?: string;
   }[];
@@ -266,6 +271,24 @@ export interface IngestionValidation {
   noDuplicates: boolean;
   amountsValid: boolean;
   taxValid: boolean;
+  /** TrustGuard cross-validation result (deterministic math checks) */
+  trustGuard?: {
+    passed: boolean;
+    checks: Array<{
+      name: string;
+      description: string;
+      passed: boolean;
+      expected: number;
+      actual: number;
+      difference: number;
+      severity: "error" | "warning";
+      message: string;
+    }>;
+    passedCount: number;
+    totalCount: number;
+    confidenceImpact: number;
+    summary: string;
+  };
   errors: ValidationError[];
   warnings: ValidationWarning[];
 }

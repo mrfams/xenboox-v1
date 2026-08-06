@@ -14,6 +14,7 @@ import { getReviewItems } from "../core/confidence";
 import { postJournalEntry } from "./journal-generator";
 import { propagatePosting } from "./propagation";
 import { sendIngestionNotifications } from "./notifications";
+import { runTrustGuard, type TrustGuardResult } from "./trust-guard";
 
 // ─── Thresholds ─────────────────────────────────────────────────────────────
 
@@ -31,15 +32,19 @@ const THRESHOLDS = {
 // ─── Posting Decision Engine ────────────────────────────────────────────────
 
 /**
- * Make a posting decision based on the composite confidence score and
- * validation results.
+ * Make a posting decision based on the composite confidence score,
+ * validation results, AND TrustGuard cross-validation.
+ *
+ * TrustGuard is the safety net: if the deterministic math checks fail
+ * (e.g. line items don't add up to the total), the document is NEVER
+ * auto-posted regardless of LLM confidence.
  *
  * Decision matrix:
- *   ≥ 0.95  → auto_post         (post immediately, no review needed)
- *   ≥ 0.85  → auto_post_notify  (post immediately, notify user)
- *   ≥ 0.60  → pending_review    (prepare review items, wait for user)
- *   ≥ 0.40  → escalated         (flag for human review)
- *   < 0.40  → rejected          (cannot post, validation failure)
+ *   ≥ 0.95 AND TrustGuard passed → auto_post
+ *   ≥ 0.85 AND TrustGuard passed → auto_post with notification
+ *   ≥ 0.60 OR TrustGuard warnings → pending_review
+ *   ≥ 0.40 OR TrustGuard errors  → escalated
+ *   < 0.40                       → rejected
  */
 export function decidePosting(
   state: IngestionState,
@@ -59,12 +64,57 @@ export function decidePosting(
     };
   }
 
+  // Run TrustGuard cross-validation if not already done
+  let trustGuardResult: TrustGuardResult | undefined = state.validation
+    ?.trustGuard as TrustGuardResult | undefined;
+  if (!trustGuardResult) {
+    trustGuardResult = runTrustGuard(state);
+  }
+
+  const trustGuardFailed = !trustGuardResult.passed;
+  const trustGuardHasWarnings = trustGuardResult.checks.some(
+    (c) => !c.passed && c.severity === "warning",
+  );
+  const failedErrorChecks = trustGuardResult.checks.filter(
+    (c) => !c.passed && c.severity === "error",
+  );
+
+  // ── TrustGuard override: if deterministic checks fail, never auto-post ──
+  if (trustGuardFailed) {
+    const reviewItems = getReviewItems(state);
+    // Add TrustGuard failures as review items
+    for (const check of failedErrorChecks) {
+      reviewItems.push({
+        field: check.name,
+        label: check.description,
+        value: check.actual,
+        confidence: 0,
+      });
+    }
+
+    return {
+      action: "escalated",
+      confidence: Math.min(overall, trustGuardResult.confidenceImpact),
+      reason: `TrustGuard cross-validation failed: ${failedErrorChecks.map((c) => c.message).join("; ")}. Extraction requires human review regardless of LLM confidence.`,
+      reviewItems: reviewItems.map((item) => ({
+        field: item.field,
+        label: item.label,
+        extractedValue: item.value,
+        suggestedValue: item.value,
+        confidence: item.confidence,
+        editable: true,
+      })),
+    };
+  }
+
+  // ── Standard confidence-based decision (TrustGuard passed) ──
+
   // Auto-post: confidence ≥ 95%
   if (overall >= THRESHOLDS.AUTO_POST) {
     return {
       action: "auto_post",
       confidence: overall,
-      reason: `Confidence ${(overall * 100).toFixed(0)}% ≥ 95% threshold — auto-posting without review.`,
+      reason: `Confidence ${(overall * 100).toFixed(0)}% ≥ 95% threshold, TrustGuard passed — auto-posting without review.`,
     };
   }
 
@@ -73,17 +123,35 @@ export function decidePosting(
     return {
       action: "auto_post",
       confidence: overall,
-      reason: `Confidence ${(overall * 100).toFixed(0)}% ≥ 85% threshold — auto-posting with notification.`,
+      reason: `Confidence ${(overall * 100).toFixed(0)}% ≥ 85% threshold, TrustGuard passed — auto-posting with notification.`,
     };
   }
 
-  // Pending review: 60-84%
-  if (overall >= THRESHOLDS.PENDING_REVIEW) {
+  // Pending review: 60-84% (or TrustGuard warnings)
+  if (overall >= THRESHOLDS.PENDING_REVIEW || trustGuardHasWarnings) {
     const reviewItems = getReviewItems(state);
+    if (trustGuardHasWarnings) {
+      const warningChecks = trustGuardResult.checks.filter(
+        (c) => !c.passed && c.severity === "warning",
+      );
+      for (const check of warningChecks) {
+        reviewItems.push({
+          field: check.name,
+          label: check.description,
+          value: check.actual,
+          confidence: 0.6,
+        });
+      }
+    }
     return {
       action: "pending_review",
       confidence: overall,
-      reason: `Confidence ${(overall * 100).toFixed(0)}% below 85% threshold — requires user verification.`,
+      reason: trustGuardHasWarnings
+        ? `TrustGuard warnings detected: ${trustGuardResult.checks
+            .filter((c) => !c.passed && c.severity === "warning")
+            .map((c) => c.name)
+            .join(", ")}. Requires user verification.`
+        : `Confidence ${(overall * 100).toFixed(0)}% below 85% threshold — requires user verification.`,
       reviewItems: reviewItems.map((item) => ({
         field: item.field,
         label: item.label,
@@ -127,12 +195,23 @@ export function decidePosting(
  * Execute the posting decision. If auto-post, commit the journal entry
  * to the database, link the document, create audit entries, and propagate.
  * If pending review, create a review request and return.
+ *
+ * TrustGuard results are stored in the document metadata for audit trail.
  */
 export async function executePosting(
   state: IngestionState,
   decision: PostingDecision,
 ): Promise<IngestionPipelineResult> {
   const startTime = Date.now();
+
+  // Run TrustGuard if not already run (ensures result is always available)
+  let trustGuardResult = state.validation?.trustGuard as
+    | TrustGuardResult
+    | undefined;
+  if (!trustGuardResult) {
+    trustGuardResult = runTrustGuard(state);
+  }
+
   const result: IngestionPipelineResult = {
     documentId: state.documentId,
     entityId: state.entityId,
@@ -146,7 +225,7 @@ export async function executePosting(
 
   // Handle rejection
   if (decision.action === "rejected") {
-    await logIngestionFailure(state, decision);
+    await logIngestionFailure(state, decision, trustGuardResult);
     // Send notification: document rejected
     await sendIngestionNotifications(state.entityId, state, decision);
     result.error = decision.reason;
@@ -164,11 +243,11 @@ export async function executePosting(
         decision.confidence,
       );
 
-      // Update document status
+      // Update document status — go to 'persisted' after successful GL write
       await db
         .update(documents)
         .set({
-          status: "done",
+          status: "persisted",
           metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{ingestion}', ${JSON.stringify(
             {
               journalEntryId,
@@ -177,6 +256,12 @@ export async function executePosting(
               confidence: decision.confidence,
               postedAt: new Date().toISOString(),
               action: decision.action,
+              trustGuard: {
+                passed: trustGuardResult.passed,
+                checks: trustGuardResult.checks.length,
+                passedCount: trustGuardResult.passedCount,
+                confidenceImpact: trustGuardResult.confidenceImpact,
+              },
             },
           )}::jsonb)`,
         } as any)
@@ -288,6 +373,20 @@ export async function executePosting(
             proposedEntry: state.proposedJournal,
             dominantSignal: state.compositeConfidence?.dominantSignal,
             requiresReview: true,
+            trustGuard: {
+              passed: trustGuardResult.passed,
+              checks: trustGuardResult.checks.length,
+              passedCount: trustGuardResult.passedCount,
+              failedChecks: trustGuardResult.checks
+                .filter((c) => !c.passed)
+                .map((c) => ({
+                  name: c.name,
+                  message: c.message,
+                  severity: c.severity,
+                })),
+              confidenceImpact: trustGuardResult.confidenceImpact,
+              summary: trustGuardResult.summary,
+            },
           },
         )}::jsonb)`,
       } as any)
@@ -344,6 +443,7 @@ export async function checkDuplicate(
 async function logIngestionFailure(
   state: IngestionState,
   decision: PostingDecision,
+  trustGuardResult?: TrustGuardResult,
 ) {
   await db
     .update(documents)
@@ -355,6 +455,21 @@ async function logIngestionFailure(
           confidence: decision.confidence,
           reason: decision.reason,
           errors: state.validation?.errors ?? [],
+          trustGuard: trustGuardResult
+            ? {
+                passed: trustGuardResult.passed,
+                checks: trustGuardResult.checks.length,
+                passedCount: trustGuardResult.passedCount,
+                failedChecks: trustGuardResult.checks
+                  .filter((c) => !c.passed)
+                  .map((c) => ({
+                    name: c.name,
+                    message: c.message,
+                    severity: c.severity,
+                  })),
+                summary: trustGuardResult.summary,
+              }
+            : undefined,
         },
       )}::jsonb)`,
     } as any)

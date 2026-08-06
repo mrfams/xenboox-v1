@@ -37,6 +37,14 @@
     "./engine/propagation": {
       "import": "./engine/propagation.ts",
       "default": "./engine/propagation.ts"
+    },
+    "./engine/trust-guard": {
+      "import": "./engine/trust-guard.ts",
+      "default": "./engine/trust-guard.ts"
+    },
+    "./engine/status-tracker": {
+      "import": "./engine/status-tracker.ts",
+      "default": "./engine/status-tracker.ts"
     }
   },
   "scripts": {

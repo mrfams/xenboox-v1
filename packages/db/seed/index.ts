@@ -1898,7 +1898,7 @@ export async function seed() {
   await seedPermissions();
 
   // Seed comprehensive data (conversations, audit, routing, exchange rates, close sessions)
-  await seedComprehensiveData();
+  await seedComprehensiveData(ENTITY_ID);
 
   // 30. Mobile Money Accounts
   console.log("  Creating mobile money accounts...");

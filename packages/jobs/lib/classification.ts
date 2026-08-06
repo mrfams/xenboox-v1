@@ -1,11 +1,13 @@
 /**
- * Document Classification via Claude Haiku
+ * Document Classification via the model control plane
  *
- * Uses Claude Haiku for cost-effective document classification.
+ * Routes through @xenboox/models callModel gateway, so the model/provider
+ * is decided by the Model Ops admin panel (model_assignments), not hard-coded.
  * Returns category, confidence, reasoning, and extracted metadata.
  */
 
 import { z } from "zod";
+import { callModel } from "@xenboox/models";
 
 // ─── Schema ────────────────────────────────────────────────────────────────
 
@@ -20,6 +22,8 @@ export const ClassificationResultSchema = z.object({
     "journal_entry",
     "purchase_order",
     "supporting",
+    "ambiguous",
+    "multi_type",
     "other",
   ]),
   confidence: z.number().min(0).max(1),
@@ -40,157 +44,134 @@ export const ClassificationResultSchema = z.object({
       periodEnd: z.string().optional(),
       employeeName: z.string().optional(),
       documentTitle: z.string().optional(),
+      // Multi-type: list all detected document types
+      detectedTypes: z.array(z.string()).optional(),
+      primaryType: z.string().optional(),
     })
     .optional(),
 });
 
 export type ClassificationResult = z.infer<typeof ClassificationResultSchema>;
 
+const TOOL_NAME = "classify_document";
+
+// JSON Schema form of the classification schema (matches previous direct-call shape)
+const CLASSIFY_INPUT_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    category: {
+      type: "string",
+      enum: [
+        "invoice",
+        "receipt",
+        "bank_statement",
+        "contract",
+        "payroll_report",
+        "tax_document",
+        "journal_entry",
+        "purchase_order",
+        "supporting",
+        "ambiguous",
+        "multi_type",
+        "other",
+      ],
+      description:
+        "The document category. Use 'ambiguous' if the document is unclear or corrupted. Use 'multi_type' if the document contains multiple distinct document types (e.g., an invoice attached to a receipt).",
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description: "Classification confidence (0-1)",
+    },
+    reasoning: {
+      type: "string",
+      description: "Brief explanation of classification decision",
+    },
+    metadata: {
+      type: "object",
+      properties: {
+        vendorName: { type: "string", description: "Vendor/supplier name" },
+        invoiceNumber: { type: "string", description: "Invoice number" },
+        invoiceDate: {
+          type: "string",
+          description: "Invoice date (YYYY-MM-DD)",
+        },
+        totalAmount: { type: "number", description: "Total amount" },
+        currency: {
+          type: "string",
+          description: "Currency code (e.g., GMD, USD)",
+        },
+        taxAmount: { type: "number", description: "Tax amount" },
+        dueDate: { type: "string", description: "Due date (YYYY-MM-DD)" },
+        poNumber: { type: "string", description: "Purchase order number" },
+        bankName: { type: "string", description: "Bank name" },
+        accountNumber: { type: "string", description: "Account number" },
+        periodStart: {
+          type: "string",
+          description: "Statement period start",
+        },
+        periodEnd: { type: "string", description: "Statement period end" },
+        employeeName: { type: "string", description: "Employee name" },
+        documentTitle: { type: "string", description: "Document title" },
+        detectedTypes: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "All document types detected in the file (for multi_type category)",
+        },
+        primaryType: {
+          type: "string",
+          description:
+            "The primary/financial document type (for multi_type category)",
+        },
+      },
+    },
+  },
+  required: ["category", "confidence", "reasoning"],
+};
+
 // ─── Classification Function ───────────────────────────────────────────────
 
 export async function classifyDocument(
   text: string,
   mimeType: string,
+  entityId: string,
 ): Promise<ClassificationResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return fallbackClassify(text);
-  }
-
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20250414",
-        max_tokens: 1024,
-        messages: [
-          {
-            role: "user",
-            content: `Classify this document and extract key metadata. Return a JSON object.
+    const response = await callModel({
+      agentName: "document",
+      taskType: "document_classification",
+      entityId,
+      systemPrompt:
+        "You are Xenboox's document classifier. Classify the financial document and extract key metadata. Always use the classify_document tool.",
+      messages: [
+        {
+          role: "user",
+          content: `Classify this document and extract key metadata.
 
 Document type hint: ${mimeType}
 Document text (first 8000 chars):
 ${text.slice(0, 8000)}`,
-          },
-        ],
-        tools: [
-          {
-            name: "classify_document",
-            description: "Classify a financial document and extract metadata",
-            input_schema: {
-              type: "object",
-              properties: {
-                category: {
-                  type: "string",
-                  enum: [
-                    "invoice",
-                    "receipt",
-                    "bank_statement",
-                    "contract",
-                    "payroll_report",
-                    "tax_document",
-                    "journal_entry",
-                    "purchase_order",
-                    "supporting",
-                    "other",
-                  ],
-                  description: "The document category",
-                },
-                confidence: {
-                  type: "number",
-                  minimum: 0,
-                  maximum: 1,
-                  description: "Classification confidence (0-1)",
-                },
-                reasoning: {
-                  type: "string",
-                  description: "Brief explanation of classification decision",
-                },
-                metadata: {
-                  type: "object",
-                  properties: {
-                    vendorName: {
-                      type: "string",
-                      description: "Vendor/supplier name",
-                    },
-                    invoiceNumber: {
-                      type: "string",
-                      description: "Invoice number",
-                    },
-                    invoiceDate: {
-                      type: "string",
-                      description: "Invoice date (YYYY-MM-DD)",
-                    },
-                    totalAmount: {
-                      type: "number",
-                      description: "Total amount",
-                    },
-                    currency: {
-                      type: "string",
-                      description: "Currency code (e.g., GMD, USD)",
-                    },
-                    taxAmount: { type: "number", description: "Tax amount" },
-                    dueDate: {
-                      type: "string",
-                      description: "Due date (YYYY-MM-DD)",
-                    },
-                    poNumber: {
-                      type: "string",
-                      description: "Purchase order number",
-                    },
-                    bankName: { type: "string", description: "Bank name" },
-                    accountNumber: {
-                      type: "string",
-                      description: "Account number",
-                    },
-                    periodStart: {
-                      type: "string",
-                      description: "Statement period start",
-                    },
-                    periodEnd: {
-                      type: "string",
-                      description: "Statement period end",
-                    },
-                    employeeName: {
-                      type: "string",
-                      description: "Employee name",
-                    },
-                    documentTitle: {
-                      type: "string",
-                      description: "Document title",
-                    },
-                  },
-                },
-              },
-              required: ["category", "confidence", "reasoning"],
-            },
-          },
-        ],
-        tool_choice: { type: "tool", name: "classify_document" },
-      }),
+        },
+      ],
+      tools: [
+        {
+          name: TOOL_NAME,
+          description: "Classify a financial document and extract metadata",
+          inputSchema: CLASSIFY_INPUT_SCHEMA,
+        },
+      ],
+      toolChoice: { type: "tool", name: TOOL_NAME },
+      maxTokens: 1024,
     });
 
-    if (!response.ok) {
+    const toolCall = response.toolCalls.find((tc) => tc.name === TOOL_NAME);
+    if (!toolCall) {
       return fallbackClassify(text);
     }
 
-    const result = (await response.json()) as {
-      content?: { type: string; input?: Record<string, unknown> }[];
-    };
-    const toolCall = result.content?.find(
-      (c: { type: string }) => c.type === "tool_use",
-    );
-
-    if (!toolCall?.input) {
-      return fallbackClassify(text);
-    }
-
-    return ClassificationResultSchema.parse(toolCall.input);
+    return ClassificationResultSchema.parse(toolCall.arguments);
   } catch {
     return fallbackClassify(text);
   }
@@ -201,20 +182,27 @@ ${text.slice(0, 8000)}`,
 function fallbackClassify(text: string): ClassificationResult {
   const lower = text.toLowerCase();
 
+  // Weighted keyword scoring — each rule gets a score based on match count
   const rules: Array<{
     keywords: string[];
     category: ClassificationResult["category"];
-    confidence: number;
+    baseConfidence: number;
   }> = [
     {
-      keywords: ["invoice", "bill to", "amount due", "payment terms"],
+      keywords: [
+        "invoice",
+        "bill to",
+        "amount due",
+        "payment terms",
+        "tax invoice",
+      ],
       category: "invoice",
-      confidence: 0.7,
+      baseConfidence: 0.7,
     },
     {
-      keywords: ["receipt", "purchase", "paid", "transaction id"],
+      keywords: ["receipt", "purchase", "paid", "transaction id", "change"],
       category: "receipt",
-      confidence: 0.65,
+      baseConfidence: 0.65,
     },
     {
       keywords: [
@@ -222,47 +210,116 @@ function fallbackClassify(text: string): ClassificationResult {
         "account statement",
         "opening balance",
         "closing balance",
+        "account summary",
       ],
       category: "bank_statement",
-      confidence: 0.75,
+      baseConfidence: 0.75,
     },
     {
-      keywords: ["contract", "agreement", "terms and conditions", "signatory"],
+      keywords: [
+        "contract",
+        "agreement",
+        "terms and conditions",
+        "signatory",
+        "parties",
+      ],
       category: "contract",
-      confidence: 0.6,
+      baseConfidence: 0.6,
     },
     {
-      keywords: ["payslip", "payroll", "gross pay", "net pay", "deductions"],
+      keywords: [
+        "payslip",
+        "payroll",
+        "gross pay",
+        "net pay",
+        "deductions",
+        "pay period",
+      ],
       category: "payroll_report",
-      confidence: 0.7,
+      baseConfidence: 0.7,
     },
     {
-      keywords: ["tax return", "vat return", "tax assessment", "revenue"],
+      keywords: [
+        "tax return",
+        "vat return",
+        "tax assessment",
+        "revenue",
+        "tax authority",
+      ],
       category: "tax_document",
-      confidence: 0.6,
+      baseConfidence: 0.6,
     },
     {
-      keywords: ["journal entry", "debit", "credit", "general ledger"],
+      keywords: [
+        "journal entry",
+        "debit",
+        "credit",
+        "general ledger",
+        "trial balance",
+      ],
       category: "journal_entry",
-      confidence: 0.65,
+      baseConfidence: 0.65,
     },
     {
-      keywords: ["purchase order", "po number", "delivery date"],
+      keywords: ["purchase order", "po number", "delivery date", "supplier"],
       category: "purchase_order",
-      confidence: 0.7,
+      baseConfidence: 0.7,
     },
   ];
 
-  for (const rule of rules) {
-    const matchCount = rule.keywords.filter((kw) => lower.includes(kw)).length;
-    if (matchCount >= 2) {
+  // Score each category — count weighted matches
+  const scoredRules = rules
+    .map((rule) => {
+      const matches = rule.keywords.filter((kw) => lower.includes(kw));
+      const matchRatio = matches.length / rule.keywords.length;
+      // Boost confidence with more keyword matches
+      const boostedConfidence = Math.min(
+        1.0,
+        rule.baseConfidence + matchRatio * 0.2,
+      );
       return {
-        category: rule.category,
-        confidence: rule.confidence,
-        reasoning: `Keyword match: ${rule.keywords.filter((kw) => lower.includes(kw)).join(", ")}`,
-        metadata: {},
+        ...rule,
+        matches,
+        matchRatio,
+        score: matches.length >= 2 ? boostedConfidence : 0,
       };
-    }
+    })
+    .filter((r) => r.matches.length >= 2)
+    .sort((a, b) => b.score - a.score);
+
+  // Check for multi-type documents (multiple categories with strong matches)
+  const strongMatches = scoredRules.filter((r) => r.score >= 0.6);
+  if (strongMatches.length >= 2) {
+    return {
+      category: "multi_type",
+      confidence: 0.5,
+      reasoning: `Multiple document types detected: ${strongMatches.map((r) => r.category).join(", ")}`,
+      metadata: {
+        detectedTypes: strongMatches.map((r) => r.category),
+        primaryType: strongMatches[0]!.category,
+      },
+    };
+  }
+
+  // Return the best single match
+  if (scoredRules.length > 0) {
+    const best = scoredRules[0]!;
+    return {
+      category: best.category,
+      confidence: best.score,
+      reasoning: `Keyword match: ${best.matches.join(", ")}`,
+      metadata: {},
+    };
+  }
+
+  // Check if document is too short or garbled — mark as ambiguous
+  if (lower.length < 50) {
+    return {
+      category: "ambiguous",
+      confidence: 0.2,
+      reasoning: "Document text too short for classification",
+      metadata: {},
+    };
   }
 
   return {

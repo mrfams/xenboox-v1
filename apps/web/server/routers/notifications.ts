@@ -2,11 +2,11 @@ import { z } from "zod";
 import {
   handleMutationError,
   router,
-  rlsProtectedProcedure,
+  protectedProcedure,
   adminProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { eq, and, desc, or } from "drizzle-orm";
+import { eq, and, desc, or, sql } from "drizzle-orm";
 import {
   notifications,
   notificationTypeEnum,
@@ -14,9 +14,10 @@ import {
   notificationStatusEnum,
 } from "@xenboox/db/schema/notifications";
 import { users } from "@xenboox/db/schema/auth";
+import { logger } from "@/lib/logger";
 
 export const notificationsRouter = router({
-  list: rlsProtectedProcedure
+  list: protectedProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(20),
@@ -25,85 +26,122 @@ export const notificationsRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const whereClause = input.onlyUnread
-        ? and(
-            eq(notifications.userId, ctx.session!.user!.id!),
-            eq(notifications.entityId, ctx.entityId!),
-            eq(notifications.read, false),
-          )
-        : and(
-            eq(notifications.userId, ctx.session!.user!.id!),
-            eq(notifications.entityId, ctx.entityId!),
-          );
+      try {
+        const entityId = ctx.entityId;
+        if (!entityId) return [];
 
-      const results = await db.query.notifications.findMany({
-        where: whereClause,
-        orderBy: [desc(notifications.createdAt)],
-        limit: input.limit,
-        offset: input.offset,
-      });
+        const whereClause = input.onlyUnread
+          ? and(
+              eq(notifications.userId, ctx.session!.user!.id!),
+              eq(notifications.entityId, entityId),
+              eq(notifications.read, false),
+            )
+          : and(
+              eq(notifications.userId, ctx.session!.user!.id!),
+              eq(notifications.entityId, entityId),
+            );
 
-      return results;
+        const results = await db.query.notifications.findMany({
+          where: whereClause,
+          orderBy: [desc(notifications.createdAt)],
+          limit: input.limit,
+          offset: input.offset,
+        });
+
+        return results;
+      } catch (err) {
+        logger.warn({ err }, "notifications.list failed — returning empty");
+        return [];
+      }
     }),
 
-  unreadCount: rlsProtectedProcedure.query(async ({ ctx }) => {
-    const results = await db.query.notifications.findFirst({
-      where: and(
-        eq(notifications.userId, ctx.session!.user!.id!),
-        eq(notifications.entityId, ctx.entityId!),
-        eq(notifications.read, false),
-      ),
-    });
+  unreadCount: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      const entityId = ctx.entityId;
+      if (!entityId) return { count: 0 };
 
-    return { count: results ? 1 : 0 };
+      const results = await db.query.notifications.findFirst({
+        where: and(
+          eq(notifications.userId, ctx.session!.user!.id!),
+          eq(notifications.entityId, entityId),
+          eq(notifications.read, false),
+        ),
+      });
+
+      return { count: results ? 1 : 0 };
+    } catch (err) {
+      logger.warn({ err }, "notifications.unreadCount failed — returning 0");
+      return { count: 0 };
+    }
   }),
 
-  markAsRead: rlsProtectedProcedure
+  markAsRead: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId;
+        if (!entityId) return { success: false };
+
+        await db
+          .update(notifications)
+          .set({ read: true })
+          .where(
+            and(
+              eq(notifications.id, input.id),
+              eq(notifications.userId, ctx.session!.user!.id!),
+              eq(notifications.entityId, entityId),
+            ),
+          );
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to mark notification as read");
+      }
+    }),
+
+  markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
+    try {
+      const entityId = ctx.entityId;
+      if (!entityId) return { success: false };
+
       await db
         .update(notifications)
         .set({ read: true })
         .where(
           and(
-            eq(notifications.id, input.id),
             eq(notifications.userId, ctx.session!.user!.id!),
-            eq(notifications.entityId, ctx.entityId!),
+            eq(notifications.entityId, entityId),
+            eq(notifications.read, false),
           ),
         );
 
       return { success: true };
-    }),
-
-  markAllAsRead: rlsProtectedProcedure.mutation(async ({ ctx }) => {
-    await db
-      .update(notifications)
-      .set({ read: true })
-      .where(
-        and(
-          eq(notifications.userId, ctx.session!.user!.id!),
-          eq(notifications.entityId, ctx.entityId!),
-          eq(notifications.read, false),
-        ),
-      );
-
-    return { success: true };
+    } catch (error) {
+      handleMutationError(error, "Failed to mark all notifications as read");
+    }
   }),
 
-  delete: rlsProtectedProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await db
-        .delete(notifications)
-        .where(
-          and(
-            eq(notifications.id, input.id),
-            eq(notifications.userId, ctx.session!.user!.id!),
-            eq(notifications.entityId, ctx.entityId!),
-          ),
-        );
+      try {
+        const entityId = ctx.entityId;
+        if (!entityId) return { success: false };
 
-      return { success: true };
+        await db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.id, input.id),
+              eq(notifications.userId, ctx.session!.user!.id!),
+              eq(notifications.entityId, entityId),
+            ),
+          );
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to delete notification");
+      }
     }),
 
   create: adminProcedure
@@ -119,29 +157,33 @@ export const notificationsRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      const userId =
-        input.userId ||
-        (
-          await db.query.userEntityAccess.findFirst({
-            where: eq(notifications.entityId, input.entityId || ""),
-          })
-        )?.userId;
+      try {
+        const userId =
+          input.userId ||
+          (
+            await db.query.userEntityAccess.findFirst({
+              where: eq(notifications.entityId, input.entityId || ""),
+            })
+          )?.userId;
 
-      if (!userId) {
-        return { success: false, message: "User not found" };
+        if (!userId) {
+          return { success: false, message: "User not found" };
+        }
+
+        await db.insert(notifications).values({
+          userId,
+          entityId: input.entityId,
+          type: input.type,
+          priority: input.priority,
+          title: input.title,
+          body: input.body,
+          data: input.data ? JSON.stringify(input.data) : undefined,
+        });
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to create notification");
       }
-
-      await db.insert(notifications).values({
-        userId,
-        entityId: input.entityId,
-        type: input.type,
-        priority: input.priority,
-        title: input.title,
-        body: input.body,
-        data: input.data ? JSON.stringify(input.data) : undefined,
-      });
-
-      return { success: true };
     }),
 
   admin: adminProcedure
@@ -155,24 +197,30 @@ export const notificationsRouter = router({
       }),
     )
     .query(async ({ input }) => {
-      const conditions = [];
-      if (input.entityId)
-        conditions.push(eq(notifications.entityId, input.entityId));
-      if (input.type) conditions.push(eq(notifications.type, input.type));
-      if (input.priority)
-        conditions.push(eq(notifications.priority, input.priority));
-      if (input.status) conditions.push(eq(notifications.status, input.status));
+      try {
+        const conditions = [];
+        if (input.entityId)
+          conditions.push(eq(notifications.entityId, input.entityId));
+        if (input.type) conditions.push(eq(notifications.type, input.type));
+        if (input.priority)
+          conditions.push(eq(notifications.priority, input.priority));
+        if (input.status)
+          conditions.push(eq(notifications.status, input.status));
 
-      const whereClause =
-        conditions.length > 0 ? and(...conditions) : undefined;
+        const whereClause =
+          conditions.length > 0 ? and(...conditions) : undefined;
 
-      const results = await db.query.notifications.findMany({
-        where: whereClause,
-        orderBy: [desc(notifications.createdAt)],
-        limit: input.limit,
-        with: { user: true },
-      });
+        const results = await db.query.notifications.findMany({
+          where: whereClause,
+          orderBy: [desc(notifications.createdAt)],
+          limit: input.limit,
+          with: { user: true },
+        });
 
-      return results;
+        return results;
+      } catch (err) {
+        logger.warn({ err }, "notifications.admin failed — returning empty");
+        return [];
+      }
     }),
 });

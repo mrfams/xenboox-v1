@@ -45,7 +45,19 @@ export const runDocumentIngestion = task({
     }
 
     // Only process documents that have been synced (OCR + classification + extraction done)
-    if (doc.status !== "synced" && doc.status !== "agent_processing") {
+    // or are in early ingestion stages (for pipeline recovery/retry)
+    const READY_STATUSES = new Set([
+      "synced",
+      "agent_processing",
+      "resolving",
+      "classifying_workflow",
+      "mapping_accounts",
+      "calculating_tax",
+      "generating_journal",
+      "validating_entry",
+      "deciding_post",
+    ]);
+    if (!READY_STATUSES.has(doc.status)) {
       logger.info("[Ingestion] Document not ready for ingestion", {
         documentId,
         status: doc.status,

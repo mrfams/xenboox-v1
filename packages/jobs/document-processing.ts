@@ -1,50 +1,24 @@
 import { task, logger } from "@trigger.dev/sdk";
 import { triggerClient } from "./trigger-client";
 import { db } from "@xenboox/db";
-import { documents, auditLog } from "@xenboox/db/schema";
+import { documents } from "@xenboox/db/schema";
 import { eq } from "drizzle-orm";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { extractText } from "./lib/ocr";
 import { classifyDocument } from "./lib/classification";
 import { extractStructuredData } from "./lib/extraction";
+import { runTrustGuard } from "@xenboox/ingestion/engine/trust-guard";
+import type { IngestionState } from "@xenboox/ingestion/core/types";
+import {
+  updateIngestionStatus,
+  updateTerminalStatus,
+  transitionToFailed,
+  type PipelineStage,
+} from "@xenboox/ingestion/engine/status-tracker";
 
 // ---------------------------------------------------------------------------
 // Pipeline Helpers
 // ---------------------------------------------------------------------------
-
-async function writeAudit(params: {
-  entityId: string;
-  action: string;
-  entityIdRef: string;
-  newValues: Record<string, unknown>;
-}) {
-  await db.insert(auditLog).values({
-    entityId: params.entityId,
-    action: params.action,
-    entityType: "document",
-    entityIdRef: params.entityIdRef,
-    newValues: params.newValues,
-  });
-}
-
-async function transitionStatus(
-  documentId: string,
-  entityId: string,
-  status: string,
-  auditAction: string,
-  metadata?: Record<string, unknown>,
-) {
-  await db
-    .update(documents)
-    .set({ status } as any)
-    .where(eq(documents.id, documentId));
-  await writeAudit({
-    entityId,
-    action: auditAction,
-    entityIdRef: documentId,
-    newValues: { status, ...metadata },
-  });
-}
 
 async function getExistingMetadata(
   documentId: string,
@@ -69,7 +43,22 @@ const r2 = new S3Client({
 });
 
 // ---------------------------------------------------------------------------
-// Stage 2/5: PROCESSING - Format detection + file download
+// Stage 1: DETECTED — Document received, starting pipeline
+// ---------------------------------------------------------------------------
+
+async function stageDetected(
+  documentId: string,
+  entityId: string,
+): Promise<void> {
+  logger.info("[Stage 1] DETECTED — Document received, starting pipeline", {
+    documentId,
+  });
+
+  await updateIngestionStatus(documentId, entityId, "detected");
+}
+
+// ---------------------------------------------------------------------------
+// Stage 2: PROCESSING — Format detection + file download
 // ---------------------------------------------------------------------------
 
 async function stageProcessing(
@@ -78,21 +67,14 @@ async function stageProcessing(
   storagePath: string,
   mimeType: string,
 ): Promise<{ fileBuffer: Uint8Array }> {
-  logger.info("[Stage 2/5] PROCESSING - Format detection and parsing", {
+  logger.info("[Stage 2] PROCESSING — Format detection and parsing", {
     documentId,
     mimeType,
   });
 
-  await transitionStatus(
-    documentId,
-    entityId,
-    "processing",
-    "document.processing",
-    {
-      pipelineStage: 2,
-      mimeType,
-    },
-  );
+  await updateIngestionStatus(documentId, entityId, "processing", {
+    mimeType,
+  });
 
   const response = await r2.send(
     new GetObjectCommand({
@@ -115,7 +97,7 @@ async function stageProcessing(
 }
 
 // ---------------------------------------------------------------------------
-// Stage 3/5: EXTRACTED - OCR text extraction + confidence scoring
+// Stage 3: EXTRACTED — OCR text extraction + confidence scoring
 // ---------------------------------------------------------------------------
 
 async function stageExtracted(
@@ -126,11 +108,11 @@ async function stageExtracted(
 ): Promise<{
   ocrResult: Awaited<ReturnType<typeof extractText>>;
 }> {
-  logger.info("[Stage 3/5] EXTRACTED - OCR and field population", {
+  logger.info("[Stage 3] EXTRACTED — OCR and field population", {
     documentId,
   });
 
-  const ocrResult = await extractText(fileBuffer, mimeType);
+  const ocrResult = await extractText(fileBuffer, mimeType, entityId);
 
   logger.info("OCR completed", {
     documentId,
@@ -160,23 +142,17 @@ async function stageExtracted(
     } as any)
     .where(eq(documents.id, documentId));
 
-  await writeAudit({
-    entityId,
-    action: "document.extracted",
-    entityIdRef: documentId,
-    newValues: {
-      pipelineStage: 3,
-      method: ocrResult.method,
-      confidence: ocrResult.confidence,
-      textLength: ocrResult.text.length,
-    },
+  await updateIngestionStatus(documentId, entityId, "extracted", {
+    method: ocrResult.method,
+    confidence: ocrResult.confidence,
+    textLength: ocrResult.text.length,
   });
 
   return { ocrResult };
 }
 
 // ---------------------------------------------------------------------------
-// Stage 4/5: SYNCED - Classification + structured extraction + validation
+// Stage 4: SYNCED — Classification + structured extraction + validation
 // ---------------------------------------------------------------------------
 
 async function stageSynced(
@@ -188,14 +164,11 @@ async function stageSynced(
   classification: Awaited<ReturnType<typeof classifyDocument>>;
   extraction: Awaited<ReturnType<typeof extractStructuredData>>;
 }> {
-  logger.info(
-    "[Stage 4/5] SYNCED - Schema validation and structured extraction",
-    {
-      documentId,
-    },
-  );
+  logger.info("[Stage 4] SYNCED — Classification and structured extraction", {
+    documentId,
+  });
 
-  const classification = await classifyDocument(ocrText, mimeType);
+  const classification = await classifyDocument(ocrText, mimeType, entityId);
 
   logger.info("Classification completed", {
     documentId,
@@ -210,21 +183,17 @@ async function stageSynced(
     })
     .where(eq(documents.id, documentId));
 
-  await writeAudit({
-    entityId,
-    action: "document.classified",
-    entityIdRef: documentId,
-    newValues: {
-      pipelineStage: 4,
-      category: classification.category,
-      confidence: classification.confidence,
-      reasoning: classification.reasoning,
-    },
+  await updateIngestionStatus(documentId, entityId, "synced", {
+    category: classification.category,
+    confidence: classification.confidence,
+    reasoning: classification.reasoning,
   });
 
   const extraction = await extractStructuredData(
     ocrText,
     classification.category,
+    entityId,
+    classification.metadata,
   );
 
   logger.info("Data extraction completed", {
@@ -238,7 +207,6 @@ async function stageSynced(
   await db
     .update(documents)
     .set({
-      status: "synced",
       metadata: {
         ...existingMetadata,
         classifiedAt: new Date().toISOString(),
@@ -258,27 +226,120 @@ async function stageSynced(
     } as any)
     .where(eq(documents.id, documentId));
 
-  await writeAudit({
-    entityId,
-    action: "document.synced",
-    entityIdRef: documentId,
-    newValues: {
-      pipelineStage: 4,
-      category: classification.category,
-      extractionType: extraction.type,
-      extractionConfidence: extraction.confidence,
-      fieldCount: Object.keys(extraction.fieldConfidence ?? {}).length,
-      lowConfidenceFields: Object.entries(extraction.fieldConfidence ?? {})
-        .filter(([_, score]) => score < 0.7)
-        .map(([field, _]) => field),
-    },
-  });
-
   return { classification, extraction };
 }
 
 // ---------------------------------------------------------------------------
-// Stage 5/5: AGENT_PROCESSING - Hand off to agent pipeline
+// Stage 5: VALIDATED — TrustGuard cross-validation (deterministic math checks)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build an IngestionState from the pipeline's extracted data so we can
+ * run TrustGuard cross-validation. This is the deterministic safety net
+ * that verifies the LLM's extracted figures before any GL write.
+ */
+async function stageValidated(
+  documentId: string,
+  entityId: string,
+  classification: Awaited<ReturnType<typeof classifyDocument>>,
+  extraction: Awaited<ReturnType<typeof extractStructuredData>>,
+): Promise<{
+  trustGuardResult: ReturnType<typeof runTrustGuard>;
+}> {
+  logger.info("[Stage 5] VALIDATED — TrustGuard cross-validation", {
+    documentId,
+    category: classification.category,
+  });
+
+  // Build IngestionState from pipeline data
+  const state: IngestionState = {
+    documentId,
+    entityId,
+    mimeType: "", // Not needed for TrustGuard
+    ocrText: "", // Not needed for TrustGuard
+    ocrConfidence: 0, // Not needed for TrustGuard
+    classification: {
+      category: classification.category,
+      confidence: classification.confidence,
+      reasoning: classification.reasoning,
+      metadata: classification.metadata,
+    },
+    extraction: {
+      type: extraction.type,
+      confidence: extraction.confidence,
+      fieldConfidence: extraction.fieldConfidence,
+      data: extraction.data ?? {},
+    },
+  };
+
+  // Run TrustGuard — 100% deterministic, zero LLM calls
+  const trustGuardResult = runTrustGuard(state);
+
+  logger.info("TrustGuard completed", {
+    documentId,
+    passed: trustGuardResult.passed,
+    passedCount: trustGuardResult.passedCount,
+    totalCount: trustGuardResult.totalCount,
+    confidenceImpact: trustGuardResult.confidenceImpact,
+    failedChecks: trustGuardResult.checks
+      .filter((c) => !c.passed)
+      .map((c) => c.name),
+  });
+
+  // Store TrustGuard results in document metadata
+  const existingMetadata = await getExistingMetadata(documentId);
+  const failedChecks = trustGuardResult.checks
+    .filter((c) => !c.passed)
+    .map((c) => ({
+      name: c.name,
+      description: c.description,
+      severity: c.severity,
+      expected: c.expected,
+      actual: c.actual,
+      difference: c.difference,
+      message: c.message,
+    }));
+
+  // Transition to validated (TrustGuard passed) or agent_processing (failed)
+  const nextStage: PipelineStage = trustGuardResult.passed
+    ? "validated"
+    : "agent_processing";
+
+  await db
+    .update(documents)
+    .set({
+      status: nextStage,
+      metadata: {
+        ...existingMetadata,
+        trustGuard: {
+          passed: trustGuardResult.passed,
+          checks: trustGuardResult.checks.length,
+          passedCount: trustGuardResult.passedCount,
+          confidenceImpact: trustGuardResult.confidenceImpact,
+          summary: trustGuardResult.summary,
+          failedChecks,
+          validatedAt: new Date().toISOString(),
+        },
+      },
+    } as any)
+    .where(eq(documents.id, documentId));
+
+  // Audit log for TrustGuard
+  await updateIngestionStatus(documentId, entityId, nextStage, {
+    pipelineStage: "validated",
+    passed: trustGuardResult.passed,
+    passedCount: trustGuardResult.passedCount,
+    totalCount: trustGuardResult.totalCount,
+    confidenceImpact: trustGuardResult.confidenceImpact,
+    failedCheckNames: failedChecks.map((c) => c.name),
+    summary: trustGuardResult.summary,
+  });
+
+  return { trustGuardResult };
+}
+
+// ---------------------------------------------------------------------------
+// Stage 6: AGENT_PROCESSING — Hand off to downstream agent jobs
 // ---------------------------------------------------------------------------
 
 async function stageAgentProcessing(
@@ -288,21 +349,15 @@ async function stageAgentProcessing(
   storagePath: string,
   mimeType: string,
 ): Promise<void> {
-  logger.info("[Stage 5/5] AGENT_PROCESSING - Hand off to agent pipeline", {
+  logger.info("[Stage 6] AGENT_PROCESSING — Hand off to agent pipeline", {
     documentId,
     category: classification.category,
   });
 
-  await transitionStatus(
-    documentId,
-    entityId,
-    "agent_processing",
-    "document.agent_processing",
-    {
-      pipelineStage: 5,
-      category: classification.category,
-    },
-  );
+  await updateTerminalStatus(documentId, entityId, "agent_processing", {
+    category: classification.category,
+    triggeredAt: new Date().toISOString(),
+  });
 
   // Trigger downstream jobs based on document type
   if (classification.category === "bank_statement") {
@@ -376,14 +431,12 @@ export const processDocument = task({
       entityId,
     });
 
-    // Stage 1: DETECTED - Document already exists in DB with status='detected'
+    // Stage 1: DETECTED — Document already exists in DB with status='detected'
     // (Handled by the upload/create endpoint when the document row was created)
-    logger.info("[Stage 1/5] DETECTED - Document received, starting pipeline", {
-      documentId,
-    });
+    await stageDetected(documentId, entityId);
 
     try {
-      // Stage 2: PROCESSING - Format detection, file download, parser routing
+      // Stage 2: PROCESSING — Format detection, file download, parser routing
       const { fileBuffer } = await stageProcessing(
         documentId,
         entityId,
@@ -391,7 +444,7 @@ export const processDocument = task({
         mimeType,
       );
 
-      // Stage 3: EXTRACTED - OCR text extraction, per-field confidence scoring
+      // Stage 3: EXTRACTED — OCR text extraction, per-field confidence scoring
       const { ocrResult } = await stageExtracted(
         documentId,
         entityId,
@@ -399,7 +452,7 @@ export const processDocument = task({
         mimeType,
       );
 
-      // Stage 4: SYNCED - Classification, structured extraction, validation
+      // Stage 4: SYNCED — Classification, structured extraction
       const { classification, extraction } = await stageSynced(
         documentId,
         entityId,
@@ -407,7 +460,17 @@ export const processDocument = task({
         mimeType,
       );
 
-      // Stage 5: AGENT_PROCESSING - Hand off to downstream agent jobs
+      // Stage 5: VALIDATED — TrustGuard cross-validation (deterministic math checks)
+      const { trustGuardResult } = await stageValidated(
+        documentId,
+        entityId,
+        classification,
+        extraction,
+      );
+
+      // Stage 6: AGENT_PROCESSING — Hand off to downstream agent jobs
+      // TrustGuard results are stored in document metadata and available
+      // to the posting engine which makes the final auto-post decision.
       await stageAgentProcessing(
         documentId,
         entityId,
@@ -420,19 +483,22 @@ export const processDocument = task({
         documentId,
         category: classification.category,
         extractionType: extraction.type,
-        stagesCompleted: 5,
+        trustGuardPassed: trustGuardResult.passed,
+        stagesCompleted: 6,
       });
 
       return {
         success: true,
         documentId,
-        pipelineStages: 5,
+        pipelineStages: 6,
         category: classification.category,
         extractionType: extraction.type,
         ocrMethod: ocrResult.method,
         ocrConfidence: ocrResult.confidence,
         classificationConfidence: classification.confidence,
         extractionConfidence: extraction.confidence,
+        trustGuardPassed: trustGuardResult.passed,
+        trustGuardConfidenceImpact: trustGuardResult.confidenceImpact,
       };
     } catch (error) {
       const errorMessage =
@@ -443,24 +509,7 @@ export const processDocument = task({
         error: errorMessage,
       });
 
-      await db
-        .update(documents)
-        .set({
-          status: "failed",
-          metadata: {
-            error: errorMessage,
-            failedAt: new Date().toISOString(),
-            pipelineStage: "failed",
-          },
-        } as any)
-        .where(eq(documents.id, documentId));
-
-      await writeAudit({
-        entityId,
-        action: "document.failed",
-        entityIdRef: documentId,
-        newValues: { error: errorMessage, pipelineStage: "failed" },
-      });
+      await transitionToFailed(documentId, entityId, error);
 
       throw error;
     }

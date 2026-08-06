@@ -4,7 +4,33 @@ import type {
   NormalizedModelResponse,
   NormalizedToolCall,
   ProviderId,
+  ModelMessageContentBlock,
 } from "../types";
+
+// Maps our normalized content (string or blocks) to Anthropic's content format.
+function toAnthropicContent(
+  content: string | ModelMessageContentBlock[],
+):
+  | string
+  | Anthropic.Messages.TextBlockParam[]
+  | Anthropic.Messages.ImageBlockParam[] {
+  if (typeof content === "string") return content;
+  return content.map((block) => {
+    if (block.type === "text") {
+      return { type: "text", text: block.text };
+    }
+    return {
+      type: "image",
+      source: {
+        type: "base64" as const,
+        media_type: block.mediaType as "image/jpeg",
+        data: block.data,
+      },
+    };
+  }) as
+    | Anthropic.Messages.TextBlockParam[]
+    | Anthropic.Messages.ImageBlockParam[];
+}
 
 export class AnthropicAdapter implements ProviderAdapter {
   readonly providerId: ProviderId = "anthropic";
@@ -21,12 +47,16 @@ export class AnthropicAdapter implements ProviderAdapter {
   async complete(params: {
     model: string;
     systemPrompt: string;
-    messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+    messages: Array<{
+      role: "user" | "assistant" | "system";
+      content: string | ModelMessageContentBlock[];
+    }>;
     tools?: Array<{
       name: string;
       description: string;
       inputSchema: Record<string, unknown>;
     }>;
+    toolChoice?: { type: "tool"; name: string };
     maxTokens?: number;
     temperature?: number;
   }): Promise<NormalizedModelResponse> {
@@ -39,13 +69,16 @@ export class AnthropicAdapter implements ProviderAdapter {
         : undefined,
       messages: params.messages.map((m) => ({
         role: m.role as "user" | "assistant",
-        content: m.content,
+        content: toAnthropicContent(m.content),
       })),
       tools: params.tools?.map((t) => ({
         name: t.name,
         description: t.description,
         input_schema: t.inputSchema as Anthropic.Messages.Tool.InputSchema,
       })),
+      tool_choice: params.toolChoice
+        ? ({ type: "tool", name: params.toolChoice.name } as const)
+        : undefined,
       max_tokens: params.maxTokens ?? 4096,
       temperature: params.temperature ?? 0.1,
     });
@@ -85,12 +118,16 @@ export class AnthropicAdapter implements ProviderAdapter {
   async stream(params: {
     model: string;
     systemPrompt: string;
-    messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+    messages: Array<{
+      role: "user" | "assistant" | "system";
+      content: string | ModelMessageContentBlock[];
+    }>;
     tools?: Array<{
       name: string;
       description: string;
       inputSchema: Record<string, unknown>;
     }>;
+    toolChoice?: { type: "tool"; name: string };
     maxTokens?: number;
     temperature?: number;
     onToken: (token: string) => void;
@@ -107,13 +144,16 @@ export class AnthropicAdapter implements ProviderAdapter {
         : undefined,
       messages: params.messages.map((m) => ({
         role: m.role as "user" | "assistant",
-        content: m.content,
+        content: toAnthropicContent(m.content),
       })),
       tools: params.tools?.map((t) => ({
         name: t.name,
         description: t.description,
         input_schema: t.inputSchema as Anthropic.Messages.Tool.InputSchema,
       })),
+      tool_choice: params.toolChoice
+        ? ({ type: "tool", name: params.toolChoice.name } as const)
+        : undefined,
       max_tokens: params.maxTokens ?? 4096,
       temperature: params.temperature ?? 0.1,
       stream: true,

@@ -46,6 +46,7 @@ export const entityRoleEnum = pgEnum("entity_role", [
   "department_manager",
   "employee",
   "external_auditor",
+  "external_accountant",
   "donor",
 ]);
 

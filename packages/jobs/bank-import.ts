@@ -83,7 +83,7 @@ export const importBankStatement = task({
       mimeType === "application/vnd.ms-excel"
     ) {
       // For PDFs, run OCR/text extraction first
-      const ocrResult = await extractText(fileBuffer, mimeType);
+      const ocrResult = await extractText(fileBuffer, mimeType, entityId);
       parseResult = parseBankStatementPDF(ocrResult.text);
     } else {
       throw new Error(`Unsupported bank statement format: ${mimeType}`);

@@ -5,7 +5,7 @@ import * as schema from "../schema";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const ENTITY_ID = "f19095a8-b547-4751-91c1-ede98d59de9b";
+let ENTITY_ID = "f19095a8-b547-4751-91c1-ede98d59de9b";
 
 function seedUuid(type: string, n: number): string {
   const hash = crypto.createHash("sha256").update(`${type}-${n}`).digest("hex");
@@ -18,7 +18,8 @@ function dateStr(y: number, m: number, d: number): string {
 
 // ─── Seed Function ──────────────────────────────────────────────────────────
 
-export async function seedComprehensiveData() {
+export async function seedComprehensiveData(entityId?: string) {
+  if (entityId) ENTITY_ID = entityId;
   console.log(
     "Seeding comprehensive data (conversations, audit, routing, exchange rates, close sessions)...",
   );

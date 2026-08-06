@@ -4,7 +4,31 @@ import type {
   NormalizedModelResponse,
   NormalizedToolCall,
   ProviderId,
+  ModelMessageContentBlock,
 } from "../types";
+
+// Maps our normalized content (string or blocks) to OpenAI's chat content format.
+function toOpenAIContent(
+  content: string | ModelMessageContentBlock[],
+):
+  | string
+  | Array<
+      | { type: "text"; text: string }
+      | { type: "image_url"; image_url: { url: string } }
+    > {
+  if (typeof content === "string") return content;
+  return content.map((block) => {
+    if (block.type === "text") {
+      return { type: "text", text: block.text };
+    }
+    return {
+      type: "image_url",
+      image_url: {
+        url: `data:${block.mediaType};base64,${block.data}`,
+      },
+    };
+  });
+}
 
 export class OpenAIAdapter implements ProviderAdapter {
   readonly providerId: ProviderId = "openai";
@@ -21,12 +45,16 @@ export class OpenAIAdapter implements ProviderAdapter {
   async complete(params: {
     model: string;
     systemPrompt: string;
-    messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+    messages: Array<{
+      role: "user" | "assistant" | "system";
+      content: string | ModelMessageContentBlock[];
+    }>;
     tools?: Array<{
       name: string;
       description: string;
       inputSchema: Record<string, unknown>;
     }>;
+    toolChoice?: { type: "tool"; name: string };
     maxTokens?: number;
     temperature?: number;
   }): Promise<NormalizedModelResponse> {
@@ -36,10 +64,13 @@ export class OpenAIAdapter implements ProviderAdapter {
       model: params.model,
       messages: [
         { role: "system", content: params.systemPrompt },
-        ...params.messages.map((m) => ({
-          role: m.role as "user" | "assistant" | "system",
-          content: m.content,
-        })),
+        ...params.messages.map(
+          (m) =>
+            ({
+              role: m.role as "user" | "assistant" | "system",
+              content: toOpenAIContent(m.content),
+            }) as OpenAI.Chat.ChatCompletionMessageParam,
+        ),
       ],
       tools: params.tools?.map((t) => ({
         type: "function" as const,
@@ -49,6 +80,12 @@ export class OpenAIAdapter implements ProviderAdapter {
           parameters: t.inputSchema as Record<string, unknown>,
         },
       })),
+      tool_choice: params.toolChoice
+        ? ({
+            type: "function",
+            function: { name: params.toolChoice.name },
+          } as const)
+        : undefined,
       max_tokens: params.maxTokens ?? 4096,
       temperature: params.temperature ?? 0.1,
     });
@@ -92,12 +129,16 @@ export class OpenAIAdapter implements ProviderAdapter {
   async stream(params: {
     model: string;
     systemPrompt: string;
-    messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+    messages: Array<{
+      role: "user" | "assistant" | "system";
+      content: string | ModelMessageContentBlock[];
+    }>;
     tools?: Array<{
       name: string;
       description: string;
       inputSchema: Record<string, unknown>;
     }>;
+    toolChoice?: { type: "tool"; name: string };
     maxTokens?: number;
     temperature?: number;
     onToken: (token: string) => void;
@@ -111,10 +152,13 @@ export class OpenAIAdapter implements ProviderAdapter {
       model: params.model,
       messages: [
         { role: "system", content: params.systemPrompt },
-        ...params.messages.map((m) => ({
-          role: m.role as "user" | "assistant" | "system",
-          content: m.content,
-        })),
+        ...params.messages.map(
+          (m) =>
+            ({
+              role: m.role as "user" | "assistant" | "system",
+              content: toOpenAIContent(m.content),
+            }) as OpenAI.Chat.ChatCompletionMessageParam,
+        ),
       ],
       tools: params.tools?.map((t) => ({
         type: "function" as const,
@@ -124,6 +168,12 @@ export class OpenAIAdapter implements ProviderAdapter {
           parameters: t.inputSchema as Record<string, unknown>,
         },
       })),
+      tool_choice: params.toolChoice
+        ? ({
+            type: "function",
+            function: { name: params.toolChoice.name },
+          } as const)
+        : undefined,
       max_tokens: params.maxTokens ?? 4096,
       temperature: params.temperature ?? 0.1,
       stream: true,
