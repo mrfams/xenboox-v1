@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import { buildSsoProviders, isSsoEnabled, loadSsoConfig } from "./sso";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@xenboox/db";
 import { eq, sql } from "drizzle-orm";
@@ -91,6 +92,10 @@ async function verifyDirectAuthToken(
   }
 }
 
+// Build SSO providers from environment config
+const ssoProviders = buildSsoProviders();
+const ssoConfig = loadSsoConfig();
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db),
   session: { strategy: "jwt" },
@@ -100,10 +105,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   providers: [
+    // SSO providers (Azure AD, Okta, generic OIDC) — loaded from env vars
+    ...ssoProviders,
+    // Google (consumer) — always available if configured
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
+    // Email/password credentials
     Credentials({
       name: "credentials",
       credentials: {
@@ -226,9 +235,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === "google" && user?.id) {
+      // JIT provisioning: create org+entity for new SSO users
+      if (account?.provider && account.provider !== "credentials" && user?.id) {
         await ensureUserEntity(user.id, user.name ?? "User");
       }
+
+      // SSO domain enforcement: block password login for SSO domain users
+      if (
+        ssoConfig.enabled &&
+        ssoConfig.provider !== "none" &&
+        account?.provider === "credentials"
+      ) {
+        // Check if user email matches an SSO-restricted domain
+        // (Admin would configure this via the SSO settings page)
+        // For now, SSO enforcement is opt-in via environment variable
+        const enforceSso = process.env.SSO_ENFORCE === "true";
+        if (enforceSso && user?.email) {
+          const ssoDomain = process.env.SSO_DOMAIN;
+          if (ssoDomain && user.email.endsWith(`@${ssoDomain}`)) {
+            console.warn(
+              `[sso] Password login blocked for SSO domain user: ${user.email}`,
+            );
+            return false;
+          }
+        }
+      }
+
       return true;
     },
     async jwt({ token, user }) {

@@ -1,7 +1,11 @@
 import { LoginForm } from "@/components/auth/login-form";
 import Link from "next/link";
+import { isSsoEnabled, getSsoDisplayName } from "@/lib/auth/sso";
 
 export default function LoginPage() {
+  const ssoEnabled = isSsoEnabled();
+  const ssoDisplayName = getSsoDisplayName();
+
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-full max-w-md px-4 py-8">
@@ -18,7 +22,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <LoginForm />
+        <LoginForm ssoEnabled={ssoEnabled} ssoDisplayName={ssoDisplayName} />
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}

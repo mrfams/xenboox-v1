@@ -16,7 +16,15 @@ import {
   CardDescription,
 } from "@/components/ui";
 
-export function LoginForm() {
+interface LoginFormProps {
+  ssoEnabled?: boolean;
+  ssoDisplayName?: string | null;
+}
+
+export function LoginForm({
+  ssoEnabled = false,
+  ssoDisplayName,
+}: LoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,6 +81,11 @@ export function LoginForm() {
   async function handleGoogleSignIn() {
     setIsLoading(true);
     await signIn("google", { callbackUrl: "/dashboard" });
+  }
+
+  async function handleSsoSignIn() {
+    setIsLoading(true);
+    await signIn("sso", { callbackUrl: "/dashboard" });
   }
 
   return (
@@ -137,6 +150,28 @@ export function LoginForm() {
             <span className="bg-card px-2 text-muted-foreground">or</span>
           </div>
         </div>
+
+        {ssoEnabled && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleSsoSignIn}
+            disabled={isLoading}
+          >
+            <svg
+              className="mr-2 h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            {ssoDisplayName ?? "Sign in with SSO"}
+          </Button>
+        )}
 
         <Button
           variant="outline"

@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import { buildSsoProviders } from "./sso";
 
 /**
  * Lightweight auth config for Edge middleware.
@@ -12,6 +13,10 @@ import Credentials from "next-auth/providers/credentials";
  * In the middleware context NextAuth only verifies the existing JWT —
  * it never calls `authorize` or touches the adapter.
  */
+
+// Build SSO providers from environment config
+const ssoProviders = buildSsoProviders();
+
 export const { auth: edgeAuth } = NextAuth({
   session: { strategy: "jwt" },
   trustHost: true,
@@ -20,17 +25,20 @@ export const { auth: edgeAuth } = NextAuth({
     error: "/login",
   },
   providers: [
+    // SSO providers (Azure AD, Okta, generic OIDC)
+    ...ssoProviders,
+    // Google (consumer)
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
+    // Credentials — stub for middleware (authorize never called here)
     Credentials({
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      // Never called in middleware — only on /api/auth/signin
       async authorize() {
         return null;
       },

@@ -1,35 +1,28 @@
 /**
- * SSO Integration — P5
+ * SSO Integration — Enterprise SSO Providers for Auth.js v5
  *
- * Provides SAML and OIDC provider configurations for Auth.js v5.
- * Enterprise customers can configure SSO via environment variables or admin UI.
+ * Provides SSO provider instances that can be spread into the NextAuth providers array.
+ * Enterprise customers configure SSO via environment variables.
  *
  * Supported providers:
- * - Azure AD (OIDC)
- * - Okta (OIDC)
- * - Google Workspace (OIDC)
- * - Generic SAML 2.0 (via @auth/saml)
- * - Generic OIDC (via @auth/oidc)
+ * - Azure AD (OIDC) — via next-auth/providers/azure-ad
+ * - Okta (OIDC) — via next-auth/providers/okta
  *
  * Environment variables:
  * - SSO_ENABLED=true
- * - SSO_PROVIDER=azure|okta|google|saml|oidc
+ * - SSO_PROVIDER=azure|okta
  * - SSO_CLIENT_ID, SSO_CLIENT_SECRET, SSO_ISSUER
- * - SSO_CALLBACK_URL
- * - SAML_ENTRY_POINT, SAML_ISSUER, SAML_CERT (for SAML)
+ * - SSO_CALLBACK_URL (optional)
  */
 
 import type { Provider } from "next-auth/providers";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export type SsoProviderType =
-  | "azure"
-  | "okta"
-  | "google"
-  | "saml"
-  | "oidc"
-  | "none";
+export type SsoProviderType = "azure" | "okta" | "none";
+
+// Note: Generic OIDC is not supported in this version.
+// For other OIDC providers (Keycloak, Auth0, etc.), use a specific provider.
 
 export interface SsoConfig {
   enabled: boolean;
@@ -38,23 +31,6 @@ export interface SsoConfig {
   clientSecret?: string;
   issuer?: string;
   callbackUrl?: string;
-  // SAML-specific
-  samlEntryPoint?: string;
-  samlCert?: string;
-  // OIDC-specific
-  oidcAuthorizationUrl?: string;
-  oidcTokenUrl?: string;
-  oidcUserInfoUrl?: string;
-}
-
-export interface SsoAdminConfig {
-  enabled: boolean;
-  provider: SsoProviderType;
-  displayName: string;
-  iconUrl?: string;
-  domain?: string; // Restrict to email domain (e.g., "acme.com")
-  enforceSso: boolean; // If true, password login is disabled for SSO domain users
-  jitProvisioning: boolean; // Just-in-time user creation on first SSO login
 }
 
 // ─── Config Loader ────────────────────────────────────────────────────────
@@ -73,133 +49,130 @@ export function loadSsoConfig(): SsoConfig {
     clientSecret: process.env.SSO_CLIENT_SECRET,
     issuer: process.env.SSO_ISSUER,
     callbackUrl: process.env.SSO_CALLBACK_URL,
-    samlEntryPoint: process.env.SAML_ENTRY_POINT,
-    samlCert: process.env.SAML_CERT,
-    oidcAuthorizationUrl: process.env.OIDC_AUTHORIZATION_URL,
-    oidcTokenUrl: process.env.OIDC_TOKEN_URL,
-    oidcUserInfoUrl: process.env.OIDC_USER_INFO_URL,
   };
 }
 
 // ─── Provider Factory ─────────────────────────────────────────────────────
 
 /**
- * Build Auth.js provider from SSO config.
- * Returns null if SSO is not enabled or config is incomplete.
- *
- * NOTE: This function returns a provider config object that can be spread
- * into the NextAuth providers array. The actual `import(...)` of
- * `next-auth/providers/*` must happen at the top level due to bundler
- * requirements. This function provides the config shape.
+ * Build SSO provider(s) from environment configuration.
+ * Returns an array of providers to spread into the NextAuth providers array.
+ * Returns empty array if SSO is not enabled or config is incomplete.
  */
-export function buildSsoProvider(
-  config: SsoConfig,
-): Omit<Provider, "id"> | null {
-  if (!config.enabled || config.provider === "none") return null;
+export function buildSsoProviders(): Provider[] {
+  const config = loadSsoConfig();
+
+  if (!config.enabled || config.provider === "none") return [];
+  if (!config.clientId || !config.clientSecret) {
+    console.warn(
+      "[sso] SSO enabled but missing SSO_CLIENT_ID or SSO_CLIENT_SECRET",
+    );
+    return [];
+  }
 
   switch (config.provider) {
     case "azure":
+      return buildAzureAdProvider(config);
     case "okta":
-    case "oidc": {
-      // Generic OIDC provider config
-      // In practice, use: import AzureAD from "next-auth/providers/azure-ad"
-      // or: import Okta from "next-auth/providers/okta"
-      if (!config.clientId || !config.clientSecret || !config.issuer) {
-        console.warn(
-          "[sso] OIDC provider configured but missing clientId/clientSecret/issuer",
-        );
-        return null;
-      }
-
-      return {
-        clientId: config.clientId,
-        clientSecret: config.clientSecret,
-        issuer: config.issuer,
-        authorization: {
-          params: {
-            scope: "openid profile email",
-            response_type: "code",
-          },
-        },
-      };
-    }
-
-    case "google": {
-      if (!config.clientId || !config.clientSecret) {
-        console.warn(
-          "[sso] Google provider configured but missing clientId/clientSecret",
-        );
-        return null;
-      }
-
-      return {
-        clientId: config.clientId,
-        clientSecret: config.clientSecret,
-      };
-    }
-
-    case "saml": {
-      // SAML requires @auth/saml adapter
-      // Config is passed to the SAML provider
-      if (!config.samlEntryPoint || !config.clientId || !config.clientSecret) {
-        console.warn(
-          "[sso] SAML provider configured but missing entry point or credentials",
-        );
-        return null;
-      }
-
-      return {
-        clientId: config.clientId,
-        clientSecret: config.clientSecret,
-        issuer: config.issuer ?? "xenboox",
-      };
-    }
-
+      return buildOktaProvider(config);
     default:
-      return null;
+      return [];
   }
 }
 
-// ─── Admin Config Defaults ────────────────────────────────────────────────
-
-export const DEFAULT_SSO_ADMIN_CONFIG: SsoAdminConfig = {
-  enabled: false,
-  provider: "none",
-  displayName: "Enterprise SSO",
-  enforceSso: false,
-  jitProvisioning: true,
-};
-
-// ─── Domain Mapping ───────────────────────────────────────────────────────
-
-const PROVIDER_DOMAINS: Record<string, SsoProviderType> = {
-  "microsoftonline.com": "azure",
-  "okta.com": "okta",
-  "google.com": "google",
-};
-
 /**
- * Detect SSO provider from email domain.
+ * Azure AD provider — uses next-auth/providers/azure-ad.
+ *
+ * Required env vars:
+ * - SSO_CLIENT_ID (Application/client ID from Azure portal)
+ * - SSO_CLIENT_SECRET (Client secret from Azure portal)
+ * - SSO_ISSUER (e.g., https://login.microsoftonline.com/{tenant-id}/v2.0)
  */
-export function detectProviderFromEmail(email: string): SsoProviderType | null {
-  const domain = email.split("@")[1]?.toLowerCase();
-  if (!domain) return null;
-
-  // Check known enterprise domains
-  for (const [providerDomain, providerType] of Object.entries(
-    PROVIDER_DOMAINS,
-  )) {
-    if (domain.endsWith(providerDomain)) return providerType;
+function buildAzureAdProvider(config: SsoConfig): Provider[] {
+  if (!config.issuer) {
+    console.warn(
+      "[sso] Azure AD requires SSO_ISSUER (e.g., https://login.microsoftonline.com/{tenant-id}/v2.0)",
+    );
+    return [];
   }
 
-  return null;
+  // Dynamic import to avoid bundling when not used
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const AzureAD = require("next-auth/providers/azure-ad").default;
+
+  return [
+    AzureAD({
+      clientId: config.clientId!,
+      clientSecret: config.clientSecret!,
+      issuer: config.issuer,
+      authorization: {
+        params: {
+          scope: "openid profile email User.Read",
+          response_type: "code",
+        },
+      },
+    }),
+  ];
 }
 
 /**
- * Check if a user's email domain matches an SSO configuration.
+ * Okta provider — uses next-auth/providers/okta.
+ *
+ * Required env vars:
+ * - SSO_CLIENT_ID (Client ID from Okta app)
+ * - SSO_CLIENT_SECRET (Client secret from Okta app)
+ * - SSO_ISSUER (e.g., https://your-domain.okta.com/oauth2/default)
  */
-export function isSsoDomain(email: string, config: SsoAdminConfig): boolean {
-  if (!config.enabled || !config.domain) return false;
-  const domain = email.split("@")[1]?.toLowerCase();
-  return domain === config.domain.toLowerCase();
+function buildOktaProvider(config: SsoConfig): Provider[] {
+  if (!config.issuer) {
+    console.warn(
+      "[sso] Okta requires SSO_ISSUER (e.g., https://your-domain.okta.com/oauth2/default)",
+    );
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Okta = require("next-auth/providers/okta").default;
+
+  return [
+    Okta({
+      clientId: config.clientId!,
+      clientSecret: config.clientSecret!,
+      issuer: config.issuer,
+      authorization: {
+        params: {
+          scope: "openid profile email",
+          response_type: "code",
+        },
+      },
+    }),
+  ];
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Check if SSO is enabled.
+ */
+export function isSsoEnabled(): boolean {
+  return (
+    process.env.SSO_ENABLED === "true" && process.env.SSO_PROVIDER !== "none"
+  );
+}
+
+/**
+ * Get the SSO provider display name for the login page.
+ */
+export function getSsoDisplayName(): string | null {
+  if (!isSsoEnabled()) return null;
+
+  const provider = process.env.SSO_PROVIDER;
+  switch (provider) {
+    case "azure":
+      return "Sign in with Microsoft";
+    case "okta":
+      return "Sign in with Okta";
+    default:
+      return "Sign in with SSO";
+  }
 }
