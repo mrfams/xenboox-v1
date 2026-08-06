@@ -235,6 +235,10 @@ export const organizationRouter = router({
 
         return { organization: org, entity };
       } catch (error) {
+        logger.error(
+          { error, orgName: input.name },
+          "Failed to create organization",
+        );
         handleMutationError(error, "Failed to create organization");
       }
     }),
@@ -403,6 +407,10 @@ export const organizationRouter = router({
 
         return entity;
       } catch (error) {
+        logger.error(
+          { error, organizationId: input.organizationId },
+          "Failed to create entity",
+        );
         handleMutationError(error, "Failed to create entity");
       }
     }),

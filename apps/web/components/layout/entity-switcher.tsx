@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { ChevronDown, Check, Building2, Plus, X, Loader2 } from "lucide-react";
+
 import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ export function EntitySwitcher() {
     { enabled: isLoaded },
   );
   const listOrgsQuery = trpc.organization.list.useQuery(undefined, {
-    enabled: false, // We'll call this manually
+    enabled: isLoaded && showCreateDialog,
   });
   const createEntityMutation = trpc.organization.createEntity.useMutation();
   const createOrgMutation = trpc.organization.create.useMutation();
@@ -73,22 +74,9 @@ export function EntitySwitcher() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      // First, get or create an organization
+      // Get existing orgs from tRPC query
+      const orgs = listOrgsQuery.data;
       let orgId: string;
-
-      // Fetch existing orgs via direct fetch with proper batch format
-      const orgResponse = await fetch(
-        "/api/trpc/organization.list?batch=1&input=%7B%7D",
-        {
-          method: "GET",
-          credentials: "include",
-        },
-      );
-      const orgData = await orgResponse.json();
-      // tRPC batch response is an array
-      const orgs = Array.isArray(orgData)
-        ? orgData[0]?.result?.data?.json
-        : orgData?.result?.data;
 
       if (Array.isArray(orgs) && orgs.length > 0) {
         orgId = orgs[0].id;
@@ -127,10 +115,17 @@ export function EntitySwitcher() {
       }
     } catch (error) {
       console.error("Failed to create entity:", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to create entity. Please try again.";
+      // Extract a meaningful error message
+      let message = "Failed to create entity. Please try again.";
+      if (error && typeof error === "object" && "message" in error) {
+        const err = error as { message: string };
+        // Don't show generic masked errors to the user
+        if (err.message && !err.message.includes("unexpected error occurred")) {
+          message = err.message;
+        }
+      } else if (typeof error === "string") {
+        message = error;
+      }
       setCreateError(message);
     } finally {
       setIsCreating(false);
@@ -141,6 +136,7 @@ export function EntitySwitcher() {
     utils,
     createOrgMutation,
     createEntityMutation,
+    listOrgsQuery.data,
   ]);
 
   // Loading state
@@ -315,7 +311,7 @@ function CreateEntityDialog({
       <div className="fixed inset-0 z-50 bg-black/50" onClick={onClose} />
 
       {/* Dialog */}
-      <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-md">
+      <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-md max-h-[85vh] overflow-y-auto">
         <div className="rounded-xl border bg-card p-6 shadow-lg">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
