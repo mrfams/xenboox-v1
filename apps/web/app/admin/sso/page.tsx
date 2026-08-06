@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -18,18 +18,19 @@ import {
   Shield,
   Key,
   Globe,
-  Users,
+  Settings,
   AlertTriangle,
   CheckCircle2,
-  Settings,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
 type SsoProviderType = "azure" | "okta" | "google" | "saml" | "oidc" | "none";
 
-interface SsoSettings {
+interface SsoFormData {
   enabled: boolean;
   provider: SsoProviderType;
   clientId: string;
@@ -43,45 +44,7 @@ interface SsoSettings {
   samlCert: string;
 }
 
-const PROVIDERS: Array<{
-  value: SsoProviderType;
-  label: string;
-  description: string;
-  icon: string;
-}> = [
-  {
-    value: "azure",
-    label: "Azure AD",
-    description: "Microsoft Entra ID (formerly Azure AD)",
-    icon: "🔷",
-  },
-  {
-    value: "okta",
-    label: "Okta",
-    description: "Okta workforce identity",
-    icon: "🔵",
-  },
-  {
-    value: "google",
-    label: "Google Workspace",
-    description: "Google Cloud Identity",
-    icon: "🔴",
-  },
-  {
-    value: "saml",
-    label: "SAML 2.0",
-    description: "Generic SAML 2.0 identity provider",
-    icon: "🔐",
-  },
-  {
-    value: "oidc",
-    label: "OpenID Connect",
-    description: "Generic OIDC identity provider",
-    icon: "🌐",
-  },
-];
-
-const DEFAULT_SETTINGS: SsoSettings = {
+const DEFAULT_FORM: SsoFormData = {
   enabled: false,
   provider: "none",
   clientId: "",
@@ -98,33 +61,72 @@ const DEFAULT_SETTINGS: SsoSettings = {
 // ─── Component ────────────────────────────────────────────────────────────
 
 export default function SsoSettingsPage() {
-  const [settings, setSettings] = useState<SsoSettings>(DEFAULT_SETTINGS);
-  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState<SsoFormData>(DEFAULT_FORM);
+  const [hasChanges, setHasChanges] = useState(false);
 
-  const update = <K extends keyof SsoSettings>(
+  // tRPC queries
+  const settingsQuery = trpc.sso.getSettings.useQuery();
+  const providersQuery = trpc.sso.getProviders.useQuery();
+  const saveMutation = trpc.sso.saveSettings.useMutation();
+
+  // Load settings from server
+  useEffect(() => {
+    if (settingsQuery.data) {
+      const d = settingsQuery.data;
+      setForm({
+        enabled: d.enabled,
+        provider: d.provider as SsoProviderType,
+        clientId: d.clientId,
+        clientSecret: "", // Don't populate masked secret
+        issuer: d.issuer,
+        callbackUrl: d.callbackUrl,
+        domain: d.domain,
+        enforceSso: d.enforceSso,
+        jitProvisioning: d.jitProvisioning,
+        samlEntryPoint: d.samlEntryPoint,
+        samlCert: d.samlCert,
+      });
+    }
+  }, [settingsQuery.data]);
+
+  const update = <K extends keyof SsoFormData>(
     key: K,
-    value: SsoSettings[K],
+    value: SsoFormData[K],
   ) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-    setSaved(false);
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setHasChanges(true);
   };
 
   const handleSave = async () => {
-    // TODO: Wire to tRPC mutation when SSO settings router is created
-    console.log("Saving SSO settings:", settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      await saveMutation.mutateAsync(form);
+      setHasChanges(false);
+    } catch {
+      // Error handled by tRPC
+    }
   };
 
   const isOidcProvider = ["azure", "okta", "google", "oidc"].includes(
-    settings.provider,
+    form.provider,
   );
-  const isSaml = settings.provider === "saml";
+  const isSaml = form.provider === "saml";
   const isConfigured =
-    settings.enabled &&
-    settings.provider !== "none" &&
-    settings.clientId &&
-    settings.clientSecret;
+    form.enabled &&
+    form.provider !== "none" &&
+    form.clientId.length > 0 &&
+    form.clientSecret.length > 0;
+
+  const isSaving = saveMutation.isPending;
+  const saveError = saveMutation.error?.message;
+  const saveSuccess = saveMutation.isSuccess && !hasChanges;
+
+  if (settingsQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -139,12 +141,15 @@ export default function SsoSettingsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {settingsQuery.data?.source === "env" && (
+            <Badge variant="outline">Managed via Environment Variables</Badge>
+          )}
           {isConfigured ? (
             <Badge variant="default" className="bg-green-600">
               <CheckCircle2 className="mr-1 h-3 w-3" />
               Configured
             </Badge>
-          ) : settings.enabled ? (
+          ) : form.enabled ? (
             <Badge variant="destructive">
               <AlertTriangle className="mr-1 h-3 w-3" />
               Incomplete
@@ -174,17 +179,17 @@ export default function SsoSettingsPage() {
           <div className="flex items-center gap-4">
             <Switch
               id="sso-enabled"
-              checked={settings.enabled}
+              checked={form.enabled}
               onCheckedChange={(v) => update("enabled", v)}
             />
             <Label htmlFor="sso-enabled" className="cursor-pointer">
-              {settings.enabled ? "SSO is enabled" : "SSO is disabled"}
+              {form.enabled ? "SSO is enabled" : "SSO is disabled"}
             </Label>
           </div>
         </CardContent>
       </Card>
 
-      {settings.enabled && (
+      {form.enabled && (
         <>
           {/* Provider Selection */}
           <Card>
@@ -199,12 +204,14 @@ export default function SsoSettingsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {PROVIDERS.map((p) => (
+                {(providersQuery.data ?? []).map((p) => (
                   <button
                     key={p.value}
-                    onClick={() => update("provider", p.value)}
+                    onClick={() =>
+                      update("provider", p.value as SsoProviderType)
+                    }
                     className={`flex items-start gap-3 rounded-lg border p-4 text-left transition-colors ${
-                      settings.provider === p.value
+                      form.provider === p.value
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/50 hover:bg-muted/50"
                     }`}
@@ -223,7 +230,7 @@ export default function SsoSettingsPage() {
           </Card>
 
           {/* Provider Configuration */}
-          {settings.provider !== "none" && (
+          {form.provider !== "none" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -242,7 +249,7 @@ export default function SsoSettingsPage() {
                     <Input
                       id="client-id"
                       placeholder="abc123..."
-                      value={settings.clientId}
+                      value={form.clientId}
                       onChange={(e) => update("clientId", e.target.value)}
                     />
                   </div>
@@ -251,10 +258,20 @@ export default function SsoSettingsPage() {
                     <Input
                       id="client-secret"
                       type="password"
-                      placeholder="••••••••"
-                      value={settings.clientSecret}
+                      placeholder={
+                        settingsQuery.data?.clientSecret === "***"
+                          ? "•••••••• (set)"
+                          : "••••••••"
+                      }
+                      value={form.clientSecret}
                       onChange={(e) => update("clientSecret", e.target.value)}
                     />
+                    {settingsQuery.data?.clientSecret === "***" &&
+                      !form.clientSecret && (
+                        <p className="text-xs text-muted-foreground">
+                          Secret is set. Leave blank to keep current value.
+                        </p>
+                      )}
                   </div>
                 </div>
 
@@ -265,7 +282,7 @@ export default function SsoSettingsPage() {
                       <Input
                         id="issuer"
                         placeholder="https://login.microsoftonline.com/{tenant-id}/v2.0"
-                        value={settings.issuer}
+                        value={form.issuer}
                         onChange={(e) => update("issuer", e.target.value)}
                       />
                     </div>
@@ -274,7 +291,7 @@ export default function SsoSettingsPage() {
                       <Input
                         id="callback-url"
                         placeholder="https://app.xenboox.com/api/auth/callback/sso"
-                        value={settings.callbackUrl}
+                        value={form.callbackUrl}
                         onChange={(e) => update("callbackUrl", e.target.value)}
                       />
                       <p className="text-xs text-muted-foreground">
@@ -292,7 +309,7 @@ export default function SsoSettingsPage() {
                       <Input
                         id="saml-entry"
                         placeholder="https://idp.example.com/sso/saml"
-                        value={settings.samlEntryPoint}
+                        value={form.samlEntryPoint}
                         onChange={(e) =>
                           update("samlEntryPoint", e.target.value)
                         }
@@ -303,7 +320,7 @@ export default function SsoSettingsPage() {
                       <Input
                         id="saml-cert"
                         placeholder="-----BEGIN CERTIFICATE-----..."
-                        value={settings.samlCert}
+                        value={form.samlCert}
                         onChange={(e) => update("samlCert", e.target.value)}
                       />
                     </div>
@@ -330,7 +347,7 @@ export default function SsoSettingsPage() {
                 <Input
                   id="domain"
                   placeholder="acme.com"
-                  value={settings.domain}
+                  value={form.domain}
                   onChange={(e) => update("domain", e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -344,7 +361,7 @@ export default function SsoSettingsPage() {
               <div className="flex items-center gap-4">
                 <Switch
                   id="enforce-sso"
-                  checked={settings.enforceSso}
+                  checked={form.enforceSso}
                   onCheckedChange={(v) => update("enforceSso", v)}
                 />
                 <div>
@@ -361,7 +378,7 @@ export default function SsoSettingsPage() {
               <div className="flex items-center gap-4">
                 <Switch
                   id="jit-provisioning"
-                  checked={settings.jitProvisioning}
+                  checked={form.jitProvisioning}
                   onCheckedChange={(v) => update("jitProvisioning", v)}
                 />
                 <div>
@@ -385,7 +402,8 @@ export default function SsoSettingsPage() {
                 Environment Variables
               </CardTitle>
               <CardDescription>
-                These environment variables must be set in your deployment
+                These environment variables can override the UI settings in your
+                deployment
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -393,27 +411,27 @@ export default function SsoSettingsPage() {
                 <div className="space-y-1 text-muted-foreground">
                   <div>
                     <span className="text-green-600">SSO_ENABLED</span>=
-                    {settings.enabled ? "true" : "false"}
+                    {form.enabled ? "true" : "false"}
                   </div>
                   <div>
                     <span className="text-green-600">SSO_PROVIDER</span>=
-                    {settings.provider}
+                    {form.provider}
                   </div>
-                  {settings.clientId && (
+                  {form.clientId && (
                     <div>
                       <span className="text-green-600">SSO_CLIENT_ID</span>=***
                     </div>
                   )}
-                  {settings.clientSecret && (
-                    <div>
-                      <span className="text-green-600">SSO_CLIENT_SECRET</span>
-                      =***
-                    </div>
-                  )}
-                  {settings.issuer && (
+                  {form.issuer && (
                     <div>
                       <span className="text-green-600">SSO_ISSUER</span>=
-                      {settings.issuer}
+                      {form.issuer}
+                    </div>
+                  )}
+                  {form.domain && (
+                    <div>
+                      <span className="text-green-600">SSO_DOMAIN</span>=
+                      {form.domain}
                     </div>
                   )}
                 </div>
@@ -422,15 +440,23 @@ export default function SsoSettingsPage() {
           </Card>
 
           {/* Save Button */}
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
+            {saveError && (
+              <p className="text-sm text-destructive">{saveError}</p>
+            )}
+            {saveSuccess && (
+              <p className="text-sm text-green-600">
+                Settings saved successfully
+              </p>
+            )}
             <Button
               onClick={handleSave}
-              disabled={!isConfigured && settings.enabled}
+              disabled={isSaving || (!hasChanges && !saveMutation.isError)}
             >
-              {saved ? (
+              {isSaving ? (
                 <>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Saved
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
                 </>
               ) : (
                 "Save Configuration"
