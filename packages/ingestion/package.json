@@ -45,6 +45,14 @@
     "./engine/status-tracker": {
       "import": "./engine/status-tracker.ts",
       "default": "./engine/status-tracker.ts"
+    },
+    "./engine/embeddings": {
+      "import": "./engine/embeddings.ts",
+      "default": "./engine/embeddings.ts"
+    },
+    "./engine/retrieval": {
+      "import": "./engine/retrieval.ts",
+      "default": "./engine/retrieval.ts"
     }
   },
   "scripts": {

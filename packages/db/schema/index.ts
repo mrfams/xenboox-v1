@@ -61,3 +61,5 @@ export * from "./ops-automation-studio";
 export * from "./user-preferences";
 export * from "./api-keys";
 export * from "./artifacts";
+export * from "./tool-grants";
+export * from "./knowledge-rag";
