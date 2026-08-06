@@ -122,6 +122,14 @@ const navigationSections: NavSection[] = [
       { label: "Alerts", href: "/admin/alerts", icon: Bell },
     ],
   },
+  {
+    label: "SECURITY",
+    items: [
+      { label: "SSO Configuration", href: "/admin/sso", icon: Shield },
+      { label: "Model Ops", href: "/admin/model-ops", icon: Cpu },
+      { label: "Settings", href: "/admin/settings", icon: Settings },
+    ],
+  },
 ];
 
 interface AdminLayoutProps {
