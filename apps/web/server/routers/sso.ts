@@ -14,11 +14,14 @@ import { db } from "@/lib/db";
 import { auditLog } from "@xenboox/db/schema/documents";
 import {
   getSsoSettings,
-  saveSsoSettings,
   isSsoEnabled,
   getSsoDisplayName,
   isDomainEnforced,
 } from "@/lib/sso-settings";
+import {
+  getSsoSettingsWithFile,
+  saveSsoSettings,
+} from "@/lib/sso-settings-node";
 
 // ─── Validation Schema ────────────────────────────────────────────────────
 

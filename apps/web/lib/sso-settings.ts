@@ -1,15 +1,9 @@
 /**
- * SSO Settings Storage — Read/write SSO configuration.
+ * SSO Settings — Edge-compatible, env-var-only SSO configuration.
  *
- * In production, this would be a database table. For now, uses a JSON config
- * file with env-var fallback (enterprise customers set env vars in deployment).
- *
- * The config file path is: .sso-config.json (in the project root)
- * This file is gitignored and never committed.
+ * Used by middleware (Edge Runtime) and auth providers.
+ * File-based config (for admin UI) lives in a separate Node.js-only module.
  */
-
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -60,52 +54,19 @@ const DEFAULT_SETTINGS: SsoSettings = {
   updatedBy: null,
 };
 
-// ─── Config File Path ─────────────────────────────────────────────────────
-
-const CONFIG_DIR = join(process.cwd(), ".config");
-const CONFIG_PATH = join(CONFIG_DIR, "sso-settings.json");
-
-// ─── Config File Operations ───────────────────────────────────────────────
-
-function ensureConfigDir(): void {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
-  }
-}
-
-function readConfigFile(): SsoSettings | null {
-  try {
-    if (!existsSync(CONFIG_PATH)) return null;
-    const raw = readFileSync(CONFIG_PATH, "utf-8");
-    const parsed = JSON.parse(raw);
-    // Merge with defaults to handle schema evolution
-    return { ...DEFAULT_SETTINGS, ...parsed };
-  } catch {
-    return null;
-  }
-}
-
-function writeConfigFile(settings: SsoSettings): void {
-  ensureConfigDir();
-  writeFileSync(CONFIG_PATH, JSON.stringify(settings, null, 2), "utf-8");
-}
-
-// ─── Env Var Fallback ─────────────────────────────────────────────────────
+// ─── Settings from Environment Variables (Edge-safe) ──────────────────────
 
 function settingsFromEnv(): SsoSettings {
-  const enabled = process.env.SSO_ENABLED === "true";
-  const provider = (process.env.SSO_PROVIDER ?? "none") as SsoProviderType;
-
   return {
-    enabled,
-    provider,
+    enabled: process.env.SSO_ENABLED === "true",
+    provider: (process.env.SSO_PROVIDER ?? "none") as SsoProviderType,
     clientId: process.env.SSO_CLIENT_ID ?? "",
     clientSecret: process.env.SSO_CLIENT_SECRET ?? "",
     issuer: process.env.SSO_ISSUER ?? "",
     callbackUrl: process.env.SSO_CALLBACK_URL ?? "",
     domain: process.env.SSO_DOMAIN ?? "",
     enforceSso: process.env.SSO_ENFORCE === "true",
-    jitProvisioning: process.env.SSO_JIT !== "false", // default true
+    jitProvisioning: process.env.SSO_JIT !== "false",
     samlEntryPoint: process.env.SAML_ENTRY_POINT ?? "",
     samlCert: process.env.SAML_CERT ?? "",
     updatedAt: null,
@@ -116,44 +77,16 @@ function settingsFromEnv(): SsoSettings {
 // ─── Public API ───────────────────────────────────────────────────────────
 
 /**
- * Get SSO settings. Priority: config file > env vars > defaults.
+ * Get SSO settings. Reads from env vars only (Edge-safe).
+ * For file-based config (admin UI), use `getSsoSettingsWithFile()` from
+ * `lib/sso-settings-node.ts` in Node.js API routes only.
  */
 export function getSsoSettings(): SsoSettingsResponse {
-  // 1. Try config file first (admin UI writes here)
-  const configFile = readConfigFile();
-  if (configFile) {
-    return { settings: configFile, source: "config" };
-  }
-
-  // 2. Fall back to env vars
   const envSettings = settingsFromEnv();
   if (envSettings.enabled) {
     return { settings: envSettings, source: "env" };
   }
-
-  // 3. Defaults
   return { settings: DEFAULT_SETTINGS, source: "default" };
-}
-
-/**
- * Save SSO settings to the config file.
- * Returns the saved settings with timestamp.
- */
-export function saveSsoSettings(
-  settings: Partial<SsoSettings>,
-  updatedBy: string,
-): SsoSettings {
-  const current = readConfigFile() ?? DEFAULT_SETTINGS;
-
-  const merged: SsoSettings = {
-    ...current,
-    ...settings,
-    updatedAt: new Date().toISOString(),
-    updatedBy,
-  };
-
-  writeConfigFile(merged);
-  return merged;
 }
 
 /**
