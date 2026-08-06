@@ -183,12 +183,16 @@ No tool result is ever fed back without a `confidence` and an audit entry.
 - `documentLinks` pins a doc to any domain entity (invoice, expense, bank statement…).
 - **Encryption at rest (R2 SSE)**, TLS in transit; **retention/lifecycle** rules + purge policy by jurisdiction.
 
-### 6.2 Artifact store (generated outputs — new)
+### 6.2 Artifact store (generated outputs — new) [x] ✅ Buffy 2026-08-06
 
 Users and agents **generate** files (reports, exports, PDFs, CSVs, invoices, tax filings). Add:
 
 - `artifact_registry` table: `artifactId`, `entityId`, `kind` (report|export|file|invoice_pdf|filing), `documentId`,
   `r2Key`, `mimeType`, `sizeBytes`, `createdBy` (user or agent), `ttl`.
+- **Done:** `packages/db/schema/artifacts.ts` — `artifactRegistry` table with `artifactKindEnum`, `artifactStatusEnum`, entity-scoped indexes, TTL/expiresAt, pinned, metadata.
+- **Done:** `apps/web/server/routers/artifact.ts` — tRPC router with list/getById/download/create/delete/getSummary, all entity-scoped + audit-logged.
+- **Done:** `apps/web/components/documents/artifact-list.tsx` — reusable artifact list component with kind icons, status indicators, download/delete actions.
+- **Done:** `apps/web/app/dashboard/documents/artifacts/page.tsx` — full artifact store page with summary cards, kind/status filters, search.
 
 ### 6.3 Serving
 
@@ -201,9 +205,12 @@ Users and agents **generate** files (reports, exports, PDFs, CSVs, invoices, tax
 
 A single `analytics-ingestion` orchestration package (Trigger.dev) with a per-document **state machine** row.
 
-### 7.1 Unified states
+### 7.1 Unified states [x] ✅ Buffy 2026-08-06
 
 `DETECTED → PARSING → NORMALIZED → CLASSIFIED → EXTRACTED → VALIDATED → PERSISTED`.
+
+- **Done:** `packages/ingestion/engine/status-tracker.ts` — rewritten as unified pipeline stage tracker with `PIPELINE_STAGES` constant (14+ stages with numeric ordering), retry-safe `updateIngestionStatus()`, `updateTerminalStatus()`, `transitionToFailed()`, `isValidTransition()` for forward-only state enforcement.
+- **Done:** `packages/jobs/document-processing.ts` — refactored to use unified status-tracker instead of ad-hoc `transitionStatus()`/`writeAudit()`. Stage numbering aligned: 1 DETECTED → 2 PROCESSING → 3 EXTRACTED → 4 SYNCED → 5 VALIDATED → 6 AGENT_PROCESSING.
 
 ### 7.2 Sources
 
@@ -216,7 +223,7 @@ A single `analytics-ingestion` orchestration package (Trigger.dev) with a per-do
 | Email / mobile money / attachments | `email-processing`, chat attachment  | classify attachment → same doc pipeline |
 | RAG knowledge                      | crawlers/sync                        | chunk → embed → upsert pgvector         |
 
-### 7.3 Cross-validation (Trust Verify)
+### 7.3 Cross-validation (Trust Verify) [x] ✅ Buffy 2026-08-06
 
 The critical accounting safety net — for **every** extraction:
 
@@ -226,6 +233,11 @@ The critical accounting safety net — for **every** extraction:
 4. Also deterministic checks: double-entry balance, VAT recompute, budget check, currency conversion, GL account existence.
 
 Each validation emits a `confidence` + `checks[]` recorded in the document's `metadata` and the audit trail.
+
+- **Done:** `packages/ingestion/engine/trust-guard.ts` — 400+ lines, 100% deterministic, zero LLM calls. Validates invoice/receipt/bank statement/payroll math. Every check returns `TrustGuardCheck` with expected/actual/difference/severity/message.
+- **Done:** `packages/ingestion/__tests__/trust-guard.test.ts` — 26 tests, all passing.
+- **Done:** Wired into `document-processing.ts` pipeline (Stage 5: VALIDATED) and `posting-engine.ts` (blocks auto-post on failures).
+- **Done:** `packages/jobs/lib/extraction.ts` — added `validateExtractionConsistency()` for inline cross-field validation during extraction (line items → subtotal, subtotal + tax → total, gross - deductions → net).
 
 ---
 
