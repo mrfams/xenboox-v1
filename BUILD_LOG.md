@@ -6,6 +6,56 @@
 
 ---
 
+### [2026-08-06] — P4: Chat & Pipeline — Model Intent, Tool Loop, Streaming Effects
+
+**Agent:** Buffy (Autonomous Engineer)
+**Duration:** ~20 min
+**Files Created:** 0
+**Files Modified:** 4
+
+**Request:** Phase P4 — Replace regex intent resolution with model classification, wire tool executor into agent LLM loop, add streaming tool effects.
+
+**What was built:**
+
+1. **`packages/agents/core/pipeline.ts`** — REWRITTEN `resolveIntent()`:
+
+   - Uses `callModel()` with forced `classify_intent` tool for structured intent classification
+   - Returns: intent type, confidence, reasoning, entities, period, amount
+   - Regex fallback if model call fails (backward compatible)
+   - Session-based ambiguous reference resolution preserved
+
+2. **`packages/agents/core/llm/agent-llm.ts`** — NEW `callLLMWithTools()`:
+
+   - Tool execution loop: callModel → tool calls → execute via tool executor → feed results back → repeat
+   - Max 5 iterations to prevent infinite loops
+   - `onToolCall` / `onToolResult` callbacks for streaming events
+   - Grants enforced via `executeToolWithGrants()` from tool-executor
+   - LangFuse logging for every tool execution
+   - Old `callLLM()` preserved for backward compatibility
+
+3. **`apps/web/app/api/chat/stream/route.ts`** — ADDED streaming tool effects:
+
+   - `tool_call` SSE event: toolName, args, timestamp
+   - `tool_result` SSE event: toolName, success, data, timestamp
+   - Tool events streamed in real-time as they happen
+   - Tool calls saved to `chat_messages.tool_calls` column
+
+4. **`packages/db/schema/chat.ts`** — EXTENDED `chat_messages`:
+   - `toolCalls[]` jsonb: toolName, args, success, result, durationMs
+   - `citations[]` jsonb: chunkId, documentId, sourceType, content, score
+
+**Rules applied:** Model intent classification via callModel gateway (admin-configurable). Tool execution loop enforces grants. Streaming events are non-blocking. Backward compatible with existing `callLLM()` callers.
+
+**After building:**
+
+- `next build` compiled successfully (✓ in 71s)
+- No new TypeScript errors
+- Pre-existing lint errors unchanged
+
+**Scope boundaries:** P4 core complete. Next: P5 (Evaluations & hardening — golden suites, scaling load, security/SSO).
+
+---
+
 ### [2026-08-06] — P3: Tool System + RAG Infrastructure
 
 **Agent:** Buffy (Autonomous Engineer)

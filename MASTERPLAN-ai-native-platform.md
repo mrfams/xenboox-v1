@@ -293,13 +293,18 @@ Human → CFO (tier1, strategic) → Dept Heads (tier2) → Workers (tier3) → 
 
 ---
 
-## 10. Conversational Surface (replace regex)
+## 10. Conversational Surface (replace regex) [~] ✅ Buffy 2026-08-06
 
 - Replace `resolveIntent` regex with a model **intent span**: `classify intent + needed tools`, gated by grants.
 - Chat workers can call read tools (summarize GL, answer "what was cash last month") and trigger lower-risk writes
   after confirmation.
 - Streaming via `streamModel` (`chat/stream/route.ts`), attachment ingestion goes through `ingestion` pipeline.
 - Conversation/message/activity tables already exist — extend with `toolCalls[]` + `citations[]` on messages.
+
+- **Done:** `packages/agents/core/pipeline.ts` — `resolveIntent()` rewritten to use `callModel()` with `classify_intent` tool (structured output: intent, confidence, reasoning, entities, period, amount). Regex fallback on model failure.
+- **Done:** `packages/agents/core/llm/agent-llm.ts` — `callLLMWithTools()` with tool execution loop (max 5 iterations). Model can request tool calls → executor runs them → results fed back → repeat until final text response.
+- **Done:** `apps/web/app/api/chat/stream/route.ts` — SSE events for `tool_call` (name, args, timestamp) and `tool_result` (name, success, data, timestamp). Tool events streamed as they happen.
+- **Done:** `packages/db/schema/chat.ts` — Added `toolCalls[]` and `citations[]` jsonb columns to `chat_messages` table.
 
 ---
 
@@ -339,7 +344,7 @@ Human → CFO (tier1, strategic) → Dept Heads (tier2) → Workers (tier3) → 
 | [x] **P1** ✅ opencode 2026-08-06 | Model control plane     | Fix adapters for tools (Bedrock/Vertex), complete Router→DB wiring, admin Model Ops page reads/writes `model_assignments` — **done:** Bedrock tool forwarding (tools + tool_choice + tool_use response parsing), Vertex function calling (functionDeclarations + toolConfig + functionCalls response), admin UI with full CRUD for assignments and models | admin can switch model live, cost telemetry in dashboard |
 | [x] **P2** ✅ Buffy 2026-08-06    | Ingestion pipelines     | Unify state-machine; fully deterministic Trust-verify; improve OCR+classify+extract; artifact store                                                                                                                                                                                                                                                       | financial PDF ingestion end-to-end                       |
 | [~] **P3** ~ Buffy 2026-08-06     | Tools & RAG             | Replace `core/tools.ts` with registry+grants; tool execution loop; pgvector embed+retrieval; citation in chat                                                                                                                                                                                                                                             | HR document → company brain; CFO can answer from docs    |
-| **P4**                            | Chat & pipeline         | Replace regex intent; full chat→agent glue; streaming tool effects coded for                                                                                                                                                                                                                                                                              | beats eval, cross-validation green                       |
+| [~] **P4** ~ Buffy 2026-08-06     | Chat & pipeline         | Replace regex intent; full chat→agent glue; streaming tool effects coded for                                                                                                                                                                                                                                                                              | beats eval, cross-validation green                       |
 | **P5**                            | Evaluations & hardening | Golden suites, scaling load, security/SSO, installable desktop                                                                                                                                                                                                                                                                                            | Go-live / rollout                                        |
 
 > Each phase ends with `pnpm typecheck`, `pnpm lint`, `pnpm test`, and an update to `BUILD_LOG.md`.
