@@ -22,6 +22,7 @@ import {
   confidenceThresholds,
   agentRoutingLogs,
 } from "@xenboox/db/schema/agents";
+import { callModel } from "@xenboox/models";
 import { orchestrate, classifyUserMessage } from "./orchestrator";
 import type { AgentTaskType, AgentId, DepartmentResult } from "./orchestrator";
 import { DEPARTMENT_AGENTS, ALL_DEPARTMENTS } from "./registry";
@@ -393,69 +394,128 @@ export async function resolveIntent(
 ): Promise<ResolvedIntent> {
   const input = event.rawContent;
   const lower = input.toLowerCase().trim();
-  let intentType: IntentType = "query";
 
   // Try session-based ambiguous reference resolution first
+  let resolvedInput = input;
   if (session) {
     const resolved = resolveAmbiguousReference(session, input);
     if (resolved) {
-      // Reference was resolved — this is likely a follow-up query
-      intentType = "query";
+      resolvedInput = resolved;
     }
   }
 
-  // Classification: Correction/Dispute
-  if (
-    /wrong|error|mistake|fix|reopen|incorrect|issue|not right|should be/i.test(
-      lower,
-    )
-  ) {
-    intentType = "correction_dispute";
+  // ── Model-based intent classification (replaces regex) ──
+  // Uses callModel with a forced classify_intent tool for structured output.
+  // Falls back to regex if the model call fails.
+  let intentType: IntentType = "query";
+  let intentConfidence = 0.85;
+  let intentReasoning = "";
+
+  try {
+    const response = await callModel({
+      agentName: "cfo",
+      taskType: "chat_response",
+      entityId: event.entityId,
+      systemPrompt: `You are Xenboox's intent classifier. Classify the user's message into exactly one intent type.
+
+Intent types:
+- query: User is asking a question or requesting information (what, how, show, list, report, summary)
+- instruction: User wants you to do something (run, process, create, post, record, pay, send, close)
+- correction_dispute: User is correcting something or disputing a result (wrong, error, fix, reopen)
+- approval_response: User is responding to an approval request (yes, no, approve, reject, proceed)
+- agent_escalation: An agent needs human attention (escalate, flag, review needed)
+
+Also extract: entities mentioned, time period (YYYY-MM format if found), and monetary amount.
+Always use the classify_intent tool.`,
+      messages: [
+        {
+          role: "user",
+          content: `Classify this user message:\n\n"${resolvedInput.slice(0, 500)}"`,
+        },
+      ],
+      tools: [
+        {
+          name: "classify_intent",
+          description: "Classify user intent and extract entities",
+          inputSchema: {
+            type: "object",
+            properties: {
+              intent: {
+                type: "string",
+                enum: [
+                  "query",
+                  "instruction",
+                  "correction_dispute",
+                  "approval_response",
+                  "agent_escalation",
+                ],
+                description: "The classified intent type",
+              },
+              confidence: {
+                type: "number",
+                minimum: 0,
+                maximum: 1,
+                description: "Classification confidence (0-1)",
+              },
+              reasoning: {
+                type: "string",
+                description: "Brief explanation of the classification",
+              },
+              entities: {
+                type: "array",
+                items: { type: "string" },
+                description: "Entity names mentioned in the message",
+              },
+              period: {
+                type: "string",
+                description: "Time period in YYYY-MM format if mentioned",
+              },
+              amount: {
+                type: "number",
+                description: "Monetary amount if mentioned",
+              },
+            },
+            required: ["intent", "confidence", "reasoning"],
+          },
+        },
+      ],
+      toolChoice: { type: "tool", name: "classify_intent" },
+      maxTokens: 512,
+    });
+
+    const toolCall = response.toolCalls.find(
+      (tc) => tc.name === "classify_intent",
+    );
+    if (toolCall?.arguments) {
+      const args = toolCall.arguments as Record<string, unknown>;
+      intentType = (args.intent as IntentType) ?? "query";
+      intentConfidence = (args.confidence as number) ?? 0.85;
+      intentReasoning = (args.reasoning as string) ?? "Model classification";
+    }
+  } catch {
+    // Fallback: simple keyword matching if model call fails
+    intentReasoning = "Fallback keyword classification (model call failed)";
+    intentConfidence = 0.6;
+
+    if (/wrong|error|mistake|fix|reopen|incorrect/i.test(lower)) {
+      intentType = "correction_dispute";
+    } else if (
+      /^(yes|no|approve|reject|confirmed|go ahead|proceed)/i.test(lower)
+    ) {
+      intentType = "approval_response";
+    } else if (/escalat|flag|review.*please|need.*help/i.test(lower)) {
+      intentType = "agent_escalation";
+    } else if (
+      /^(run|process|create|post|record|pay|send|transfer|close)/i.test(lower)
+    ) {
+      intentType = "instruction";
+    }
   }
 
-  // Classification: Approval Response
-  else if (
-    /^(yes|no|approve|reject|confirmed|go ahead|proceed|deny|decline)/i.test(
-      lower,
-    )
-  ) {
-    intentType = "approval_response";
-  }
-
-  // Classification: Escalation from agent
-  else if (
-    /escalat|flag|review.*please|need.*help|help.*needed|attention.*required/i.test(
-      lower,
-    )
-  ) {
-    intentType = "agent_escalation";
-  }
-
-  // Classification: Instruction (action-oriented)
-  else if (
-    /^(run|process|create|post|record|enter|register|pay|send|transfer|close|start|begin)/i.test(
-      lower,
-    ) ||
-    /please (run|process|create|post|record|pay|send)/i.test(lower)
-  ) {
-    intentType = "instruction";
-  }
-
-  // Classification: Query (information-seeking)
-  else if (
-    /what|how|when|where|why|who|show|give me|tell me|list|report|summary|view|display|find|search/i.test(
-      lower,
-    )
-  ) {
-    intentType = "query";
-  }
-
-  // Resolve entities/period from message text
-  const entities: string[] = [];
+  // Resolve entities/period from message text (supplement model extraction)
   const periodMatch = input.match(/(\d{4}-\d{2})/);
   const period = periodMatch?.[1] ?? session?.context.periodInFocus ?? null;
 
-  // Resolve amount references
   const amountMatch = input.match(
     /(?:GMD|USD|EUR|GBP|NGN|KES|XAF|XOF)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/,
   );
@@ -463,23 +523,19 @@ export async function resolveIntent(
     ? parseFloat(amountMatch[1].replace(/,/g, ""))
     : null;
 
-  // Map intent → target agents using existing classification
+  // Map intent → target agents
   const taskType = classifyUserMessage(input);
   const targetAgents = await mapIntentToAgents(intentType, input, taskType);
-
-  const reasoning = `Classified as "${intentType}" from ${event.channel} input: "${input.slice(0, 80)}..."`;
-  const confidence =
-    intentType === "query" || intentType === "instruction" ? 0.85 : 0.75;
 
   return {
     type: intentType,
     originalInput: input,
-    resolvedInput: input,
-    entities,
+    resolvedInput,
+    entities: [],
     period,
     amount,
-    confidence,
-    reasoning,
+    confidence: intentConfidence,
+    reasoning: intentReasoning,
     targetAgents,
   };
 }
@@ -1530,6 +1586,10 @@ export async function processChatInput(params: {
   message: string;
   conversationId?: string;
   channel?: InputChannel;
+  /** Callback for streaming tool call events */
+  onToolCall?: (toolName: string, args: Record<string, unknown>) => void;
+  /** Callback for streaming tool result events */
+  onToolResult?: (toolName: string, success: boolean, data?: unknown) => void;
 }): Promise<{
   response: string;
   confidence: number;

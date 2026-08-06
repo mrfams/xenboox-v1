@@ -103,6 +103,13 @@ export async function POST(req: NextRequest) {
 
         // Invoke the real CFO pipeline
         const fullMessage = message + fileContext;
+
+        // Stream tool events as they happen
+        const toolEvents: Array<{
+          type: string;
+          data: Record<string, unknown>;
+        }> = [];
+
         const pipelineResult = await processChatInput({
           userId,
           orgId: entity.organizationId,
@@ -112,6 +119,35 @@ export async function POST(req: NextRequest) {
           message: fullMessage,
           conversationId: convId,
           channel: "web_chat",
+          onToolCall: (toolName, args) => {
+            const event = { type: "tool_call", toolName, args };
+            toolEvents.push(event);
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "tool_call",
+                  toolName,
+                  args,
+                  timestamp: new Date().toISOString(),
+                })}\n\n`,
+              ),
+            );
+          },
+          onToolResult: (toolName, success, data) => {
+            const event = { type: "tool_result", toolName, success, data };
+            toolEvents.push(event);
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "tool_result",
+                  toolName,
+                  success,
+                  data: success ? data : undefined,
+                  timestamp: new Date().toISOString(),
+                })}\n\n`,
+              ),
+            );
+          },
         });
 
         // Emit agent activity event
@@ -179,7 +215,16 @@ export async function POST(req: NextRequest) {
           await new Promise((resolve) => setTimeout(resolve, 15));
         }
 
-        // Save complete AI response
+        // Save complete AI response with tool calls and citations
+        const toolCallsForMessage = toolEvents
+          .filter((e) => e.type === "tool_result")
+          .map((e) => ({
+            toolName: (e.data as any).toolName,
+            args: {},
+            success: (e.data as any).success,
+            result: (e.data as any).data,
+          }));
+
         const [assistantMessage] = await db
           .insert(chatMessages)
           .values({
@@ -189,10 +234,13 @@ export async function POST(req: NextRequest) {
             status: "completed",
             confidence: pipelineResult.confidence,
             agentModel: `cfo-pipeline-v1 (${pipelineResult.agentId})`,
+            toolCalls:
+              toolCallsForMessage.length > 0 ? toolCallsForMessage : undefined,
             metadata: JSON.stringify({
               durationMs: pipelineResult.durationMs,
               decision: pipelineResult.decision,
               agentsInvolved: [pipelineResult.agentId],
+              toolCallsCount: toolCallsForMessage.length,
             }),
           })
           .returning();
