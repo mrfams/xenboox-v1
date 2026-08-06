@@ -9,7 +9,7 @@
  * 1. Rich blocks with JSON:
  *    ```rich:approval
  *    {"title": "...", "items": [...]}
- *    ```​
+ *    ```
  *
  * 2. Markdown tables:
  *    | Header 1 | Header 2 |
@@ -53,7 +53,7 @@ const TABLE_ROW_REGEX = /\|([^|]*)/g;
  */
 export function parseMessage(content: string): ParsedMessage {
   const segments: ParsedMessage["segments"] = [];
-  let remainingText = content;
+  const remainingText = content;
 
   // First, extract rich blocks
   let match;
