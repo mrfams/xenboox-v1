@@ -3,7 +3,7 @@ import { createAuditEntry } from "../../core/state";
 import { getAgentGraph, fanOutToDepartments } from "../../core/orchestrator";
 import { DEPARTMENT_AGENTS, ALL_DEPARTMENTS } from "../../core/registry";
 import type { AgentDepartment } from "../../core/registry";
-import { callLLM } from "../../core/llm/agent-llm";
+import { callLLM, callLLMWithTools } from "../../core/llm/agent-llm";
 import { CFO_SYSTEM_PROMPT, fillPrompt } from "../../core/prompts";
 import {
   routeToDepartments,
@@ -434,8 +434,7 @@ export async function nodeAnswerQuestion(state: CfoStateType) {
     : "No open fiscal period found.";
 
   try {
-    const result = await callLLM({
-      tier: "management",
+    const result = await callLLMWithTools({
       systemPrompt: fillPrompt(CFO_SYSTEM_PROMPT, {
         ENTITY_NAME: state.entityName || "Unknown",
         ENTITY_ID: state.entityId,
@@ -450,20 +449,23 @@ export async function nodeAnswerQuestion(state: CfoStateType) {
       messages: [
         {
           role: "user",
-          content: `Financial data:\n${dataContext}\n\nUser question: "${question}"\n\nAnswer in plain English. Open with the topic and period. Close with a clear next step.`,
+          content: `Financial data:\n${dataContext}\n\nUser question: "${question}"\n\nAnswer in plain English. Open with the topic and period. Close with a clear next step.\n\nYou have access to tools like get_account_balance and get_journal_entry_lines. Use them if you need specific data to answer the question.`,
         },
       ],
       entityId: state.entityId,
-      agentId: "cfo-agent",
+      agentId: "cfo",
     });
 
-    await trace.update({ output: { source: "llm" } });
+    await trace.update({
+      output: { source: "llm", toolCalls: result.toolCalls?.length ?? 0 },
+    });
 
     return {
       livenessState: "RESPONDING" as const,
       result: { type: "question_answered", summary },
       confidence: 0.9,
-      reasoning: "LLM-generated answer from financial summary",
+      reasoning:
+        "LLM-generated answer from financial summary (with tool access)",
       humanResponse: result.content,
     };
   } catch {
@@ -722,8 +724,7 @@ export async function nodeGenerateSummary(state: CfoStateType) {
     : `${state.entityName}: No open fiscal period found.`;
 
   try {
-    const result = await callLLM({
-      tier: "management",
+    const result = await callLLMWithTools({
       systemPrompt: fillPrompt(CFO_SYSTEM_PROMPT, {
         ENTITY_NAME: state.entityName || "Unknown",
         ENTITY_ID: state.entityId,
@@ -738,14 +739,20 @@ export async function nodeGenerateSummary(state: CfoStateType) {
       messages: [
         {
           role: "user",
-          content: `Generate a financial summary for the CFO to present to the human.\n\nData:\n${dataContext}\n\nWrite in plain English. Open with the topic and period. Close with a clear next step.`,
+          content: `Generate a financial summary for the CFO to present to the human.\n\nData:\n${dataContext}\n\nWrite in plain English. Open with the topic and period. Close with a clear next step.\n\nYou have access to tools like get_account_balance and get_recent_journal_entries. Use them if you need specific data to make the summary more accurate.`,
         },
       ],
       entityId: state.entityId,
-      agentId: "cfo-agent",
+      agentId: "cfo",
     });
 
-    await trace.update({ output: { source: "llm", summary } });
+    await trace.update({
+      output: {
+        source: "llm",
+        toolCalls: result.toolCalls?.length ?? 0,
+        summary,
+      },
+    });
 
     return {
       livenessState: "RESPONDING" as const,

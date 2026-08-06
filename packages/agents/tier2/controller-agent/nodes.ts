@@ -1,7 +1,7 @@
 import { langfuse } from "../../core/langfuse";
 import { CONTROLLER_SYSTEM_PROMPT, fillPrompt } from "../../core/prompts";
 import { createAuditEntry } from "../../core/state";
-import { callLLM } from "../../core/llm/agent-llm";
+import { callLLM, callLLMWithTools } from "../../core/llm/agent-llm";
 import { getAgentGraph } from "../../core/orchestrator";
 import type { AgentState, AgentId } from "../../core/orchestrator";
 import {
@@ -456,8 +456,7 @@ export async function nodeRunCloseChecklist(state: ControllerStateType) {
 
   let summaryText: string;
   try {
-    const result = await callLLM({
-      tier: "worker",
+    const result = await callLLMWithTools({
       systemPrompt: fillPrompt(CONTROLLER_SYSTEM_PROMPT, {
         ENTITY_NAME: state.entityName || "Unknown",
         ENTITY_ID: state.entityId,
@@ -466,11 +465,11 @@ export async function nodeRunCloseChecklist(state: ControllerStateType) {
       messages: [
         {
           role: "user",
-          content: `Generate a close checklist summary for the CFO.\n\n${checklistData}\n\nWrite in plain English. State what's complete, what's blocked/pending, and the next step.`,
+          content: `Generate a close checklist summary for the CFO.\n\n${checklistData}\n\nWrite in plain English. State what's complete, what's blocked/pending, and the next step.\n\nYou have access to tools like get_account_balance and validate_double_entry. Use them if you need specific data.`,
         },
       ],
       entityId: state.entityId,
-      agentId: "controller-agent",
+      agentId: "controller",
     });
     summaryText = result.content;
   } catch {
