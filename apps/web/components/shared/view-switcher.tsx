@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { cn } from "@/lib/utils";
 import { Brain, Layout, Table2 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 export type ViewMode = "ai" | "workspace" | "data";
 

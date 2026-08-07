@@ -9,17 +9,14 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Calendar,
-  Clock,
-  Tag,
   ArrowLeft,
   Save,
   X,
   FileText,
   TrendingUp,
-  Users,
   MessageSquare,
 } from "lucide-react";
+
 import { FadeInUp } from "@/components/marketing/reveal";
 import { blogPosts, type BlogPost } from "@/lib/blog-data";
 
@@ -30,7 +27,7 @@ type AdminBlogPost = BlogPost & {
   comments: number;
 };
 
-const initialPosts: AdminBlogPost[] = blogPosts.map((post, index) => ({
+const initialPosts: AdminBlogPost[] = blogPosts.map((post, _index) => ({
   ...post,
   isPublished: true,
   views: Math.floor(Math.random() * 5000) + 500,

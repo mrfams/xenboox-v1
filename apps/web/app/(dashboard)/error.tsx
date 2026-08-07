@@ -1,7 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui";
 import { AlertCircle } from "lucide-react";
+
+import { Button } from "@/components/ui";
 
 export default function DashboardGroupError({
   error,

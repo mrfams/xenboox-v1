@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bot,
-  MoreHorizontal,
   RefreshCw,
   Send,
   Plus,
@@ -18,9 +17,9 @@ import {
   TrendingUp,
   Users,
   Calendar,
-  ArrowRight,
   Download,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -252,7 +251,7 @@ function EmployeeTable({
 
 // ─── Right Panel ───────────────────────────────────────────────────────────
 
-function RightPanel({
+function _RightPanel({
   overview,
   departmentBreakdown,
   insights,
@@ -561,7 +560,7 @@ function BottomChartsRow({
 
         {/* Simple Line Chart */}
         <div className="h-40 flex items-end gap-2">
-          {payrollTrend.map((month, i) => {
+          {payrollTrend.map((month, _i) => {
             const maxAmount = Math.max(...payrollTrend.map((m) => m.amount));
             const height = maxAmount > 0 ? (month.amount / maxAmount) * 100 : 0;
             return (

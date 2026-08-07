@@ -399,8 +399,8 @@ export async function resolveIntent(
   let resolvedInput = input;
   if (session) {
     const resolved = resolveAmbiguousReference(session, input);
-    if (resolved) {
-      resolvedInput = resolved;
+    if (resolved !== null && resolved !== undefined) {
+      resolvedInput = String(resolved);
     }
   }
 

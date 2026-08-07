@@ -1,6 +1,4 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { userEntityAccess, entities } from "@xenboox/db/schema/organization";
 import { orgRoles } from "@xenboox/db/schema/org-roles";
@@ -8,8 +6,11 @@ import { sessions, users } from "@xenboox/db/schema/auth";
 import { adminUsers, adminSessions } from "@xenboox/db/schema";
 import { idempotencyKeys } from "@xenboox/db/schema";
 import { z } from "zod";
-import { logger } from "@/lib/logger";
 import { rolePermissions } from "@xenboox/db/schema/permissions";
+
+import { logger } from "@/lib/logger";
+import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { isSessionActive } from "@/lib/admin/session";
 import {
   hasAdminPermission,
@@ -471,12 +472,123 @@ export const requireAnyPermission = (
     });
   });
 
+const IDEMPOTENCY_HEADER = "x-idempotency-key";
+const LOCK_TIMEOUT_SECONDS = 30;
+const KEY_TTL_HOURS = 24;
+
+/**
+ * Idempotency middleware — dedupes retried mutations via the
+ * `x-idempotency-key` header (24h TTL, 30s lock window, response replay).
+ * Defined ABOVE the procedures that consume it so module evaluation never
+ * hits a temporal-dead-zone reference (a real crash in ESM test loading).
+ */
+const idempotencyMiddleware = t.middleware(async ({ ctx, next, path }) => {
+  const headers = ctx.headers || {};
+  const idempotencyKey = headers[IDEMPOTENCY_HEADER] as string | undefined;
+
+  if (!idempotencyKey) {
+    return next({ ctx });
+  }
+
+  if (idempotencyKey.length > 255) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Idempotency key too long (max 255 characters)",
+    });
+  }
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + KEY_TTL_HOURS * 60 * 60 * 1000);
+
+  const existing = await db.query.idempotencyKeys.findFirst({
+    where: eq(idempotencyKeys.key, idempotencyKey),
+  });
+
+  if (existing) {
+    if (existing.expiresAt < now) {
+      await db
+        .delete(idempotencyKeys)
+        .where(eq(idempotencyKeys.key, idempotencyKey));
+    } else if (existing.lockedAt) {
+      const lockAge = (now.getTime() - existing.lockedAt.getTime()) / 1000;
+      if (lockAge > LOCK_TIMEOUT_SECONDS) {
+        await db
+          .delete(idempotencyKeys)
+          .where(eq(idempotencyKeys.key, idempotencyKey));
+      } else if (existing.responseBody) {
+        return {
+          result: { data: existing.responseBody },
+          ctx,
+        } as unknown as Awaited<ReturnType<typeof next>>;
+      } else {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Request is still being processed",
+        });
+      }
+    } else if (existing.responseBody) {
+      return {
+        result: { data: existing.responseBody },
+        ctx,
+      } as unknown as Awaited<ReturnType<typeof next>>;
+    }
+  }
+
+  await db
+    .insert(idempotencyKeys)
+    .values({
+      key: idempotencyKey,
+      userId: ctx.session?.user?.id || "",
+      entityId: ctx.entityId || "",
+      route: path,
+      expiresAt,
+      lockedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: idempotencyKeys.key,
+      set: {
+        lockedAt: now,
+        responseBody: null,
+      },
+    });
+
+  const result = await next({ ctx });
+
+  try {
+    const data =
+      result && typeof result === "object" && "result" in result
+        ? ((result as { result: { data?: unknown } }).result?.data ?? result)
+        : result;
+
+    await db
+      .update(idempotencyKeys)
+      .set({ responseBody: data as Record<string, unknown> })
+      .where(eq(idempotencyKeys.key, idempotencyKey));
+  } catch {
+    // best effort
+  }
+
+  return result;
+});
+
 // RLS-aware procedure that sets session context before queries.
 // Always sets RLS context — entity scoping is enforced at the DB layer as defense-in-depth.
 export const rlsProtectedProcedure = t.procedure
   .use(loggingMiddleware)
   .use(authMiddleware)
   .use(entityScopingMiddleware)
+  .use(async ({ ctx, next }) => {
+    await setRlsContext(ctx.session!.user!.id!, ctx.entityId!);
+    return next({ ctx });
+  });
+
+// RLS-aware mutation procedure (email verification + idempotency + RLS)
+export const rlsMutateProcedure = t.procedure
+  .use(loggingMiddleware)
+  .use(authMiddleware)
+  .use(requireVerifiedEmail)
+  .use(entityScopingMiddleware)
+  .use(idempotencyMiddleware)
   .use(async ({ ctx, next }) => {
     await setRlsContext(ctx.session!.user!.id!, ctx.entityId!);
     return next({ ctx });
@@ -595,99 +707,6 @@ export const adminPermissionProcedure = (
     }
     return next({ ctx });
   });
-
-const IDEMPOTENCY_HEADER = "x-idempotency-key";
-const LOCK_TIMEOUT_SECONDS = 30;
-const KEY_TTL_HOURS = 24;
-
-const idempotencyMiddleware = t.middleware(async ({ ctx, next, path }) => {
-  const headers = ctx.headers || {};
-  const idempotencyKey = headers[IDEMPOTENCY_HEADER] as string | undefined;
-
-  if (!idempotencyKey) {
-    return next({ ctx });
-  }
-
-  if (idempotencyKey.length > 255) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Idempotency key too long (max 255 characters)",
-    });
-  }
-
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + KEY_TTL_HOURS * 60 * 60 * 1000);
-
-  const existing = await db.query.idempotencyKeys.findFirst({
-    where: eq(idempotencyKeys.key, idempotencyKey),
-  });
-
-  if (existing) {
-    if (existing.expiresAt < now) {
-      await db
-        .delete(idempotencyKeys)
-        .where(eq(idempotencyKeys.key, idempotencyKey));
-    } else if (existing.lockedAt) {
-      const lockAge = (now.getTime() - existing.lockedAt.getTime()) / 1000;
-      if (lockAge > LOCK_TIMEOUT_SECONDS) {
-        await db
-          .delete(idempotencyKeys)
-          .where(eq(idempotencyKeys.key, idempotencyKey));
-      } else if (existing.responseBody) {
-        return {
-          result: { data: existing.responseBody },
-          ctx,
-        } as unknown as Awaited<ReturnType<typeof next>>;
-      } else {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Request is still being processed",
-        });
-      }
-    } else if (existing.responseBody) {
-      return {
-        result: { data: existing.responseBody },
-        ctx,
-      } as unknown as Awaited<ReturnType<typeof next>>;
-    }
-  }
-
-  await db
-    .insert(idempotencyKeys)
-    .values({
-      key: idempotencyKey,
-      userId: ctx.session?.user?.id || "",
-      entityId: ctx.entityId || "",
-      route: path,
-      expiresAt,
-      lockedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: idempotencyKeys.key,
-      set: {
-        lockedAt: now,
-        responseBody: null,
-      },
-    });
-
-  const result = await next({ ctx });
-
-  try {
-    const data =
-      result && typeof result === "object" && "result" in result
-        ? ((result as { result: { data?: unknown } }).result?.data ?? result)
-        : result;
-
-    await db
-      .update(idempotencyKeys)
-      .set({ responseBody: data as Record<string, unknown> })
-      .where(eq(idempotencyKeys.key, idempotencyKey));
-  } catch {
-    // best effort
-  }
-
-  return result;
-});
 
 // Authenticated procedure that DOES NOT require entity scoping.
 // Use for operations like entity creation where no entity exists yet.

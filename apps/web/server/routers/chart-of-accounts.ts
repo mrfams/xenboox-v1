@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, gte } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   chartOfAccounts,
@@ -14,7 +14,7 @@ export const chartOfAccountsRouter = router({
   /**
    * Get COA overview data including summary cards and stats.
    */
-  getOverview: protectedProcedure.query(async ({ ctx }) => {
+  getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get all accounts
@@ -162,7 +162,7 @@ export const chartOfAccountsRouter = router({
   /**
    * Get account hierarchy for tree view.
    */
-  getAccountTree: protectedProcedure.query(async ({ ctx }) => {
+  getAccountTree: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const accounts = await db.query.chartOfAccounts.findMany({
@@ -196,7 +196,7 @@ export const chartOfAccountsRouter = router({
   /**
    * Get AI insights for the COA page.
    */
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const insights: Array<{
       id: string;
@@ -264,7 +264,7 @@ export const chartOfAccountsRouter = router({
   /**
    * Get recent activity for the sidebar.
    */
-  getRecentActivity: protectedProcedure.query(async ({ ctx }) => {
+  getRecentActivity: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const recentActivity = await db.query.auditLog.findMany({

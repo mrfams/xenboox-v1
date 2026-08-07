@@ -2,17 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { trpc } from "@/lib/trpc/client";
-import { Button } from "@/components/ui";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui";
-import { useEntity } from "@/lib/entity-context";
-import { OnboardingLiveness } from "@/components/onboarding/onboarding-liveness";
 import {
   Check,
   Circle,
@@ -26,8 +15,13 @@ import {
   Upload,
   ChevronRight,
   AlertCircle,
-  RefreshCw,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
+import { Button } from "@/components/ui";
+import { Card, CardContent } from "@/components/ui";
+import { useEntity } from "@/lib/entity-context";
+import { OnboardingLiveness } from "@/components/onboarding/onboarding-liveness";
 import { cn } from "@/lib/utils";
 
 type OnboardingStep = {
@@ -288,7 +282,7 @@ export default function OnboardingPage() {
 
         {/* Steps indicator */}
         <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
-          {steps.map((step, i) => (
+          {steps.map((step, _i) => (
             <div
               key={step.id}
               className={cn(

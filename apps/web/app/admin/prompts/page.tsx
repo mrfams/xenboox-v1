@@ -1,15 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Skeleton,
-} from "@xenboox/ui";
+import { Card, CardContent, Badge, Button, Skeleton } from "@xenboox/ui";
 import {
   Search,
   Plus,
@@ -22,9 +14,8 @@ import {
   Play,
   Trash2,
   X,
-  Clock,
-  Tag,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 

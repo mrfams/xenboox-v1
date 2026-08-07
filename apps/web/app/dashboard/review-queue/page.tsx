@@ -1,13 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Badge,
   Button,
   Tabs,
@@ -18,13 +14,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Filter,
   Loader2,
   RefreshCw,
   Search,
   ShieldAlert,
   Inbox,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 type Tab = "all" | "pending" | "escalated" | "resolved";
 

@@ -8,15 +8,17 @@
 // Core constraint: API access is bound by the exact same RBAC and agent-review
 // chain as every other interface — it is never a shortcut.
 
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { eq, and, desc } from "drizzle-orm";
 import crypto from "crypto";
+
+import { eq, and, desc } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 import { apiKeys, apiCallLogs, TIER_RATE_LIMITS } from "@xenboox/db/schema";
 import { journalEntries, chartOfAccounts } from "@xenboox/db/schema/accounting";
 import { salesInvoices, invoicesAp } from "@xenboox/db/schema/ap-ar";
 import { customers, suppliers } from "@xenboox/db/schema/ap-ar";
 import { bankAccounts, bankTransactions } from "@xenboox/db/schema/treasury";
+
+import { db } from "@/lib/db";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -386,7 +388,7 @@ async function handleGet(
       // ── Reports ──────────────────────────────────────────────
       case "reports": {
         const reportType = resource[1] ?? "trial-balance";
-        const period = req.nextUrl.searchParams.get("period");
+        const ____period = req.nextUrl.searchParams.get("period");
 
         if (reportType === "trial-balance") {
           const accounts = await db.query.chartOfAccounts.findMany({
@@ -485,7 +487,7 @@ async function handlePost(
   }
 
   try {
-    const body = await req.json();
+    const ____body = await req.json();
 
     // Write endpoints route through the same agent pipelines as web/chat.
     // For now, we validate and queue — in production this would trigger the
@@ -531,60 +533,102 @@ async function handlePost(
   }
 }
 
-// ─── Main Route Handler ───────────────────────────────────────────────────
+// ─── Shared Auth + Rate-Limit Pipeline ─────────────────────────────────────
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  // Extract resource path from URL
-  const url = new URL(req.url);
-  const resource = url.pathname
-    .replace(/^\/api\/v1\//, "")
-    .split("/")
-    .filter(Boolean);
-  const start = Date.now();
+interface RateLimitInfo {
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+  reset: number;
+}
 
-  // Authenticate
-  const auth = await authenticateRequest(req);
+/**
+ * Authenticate the request, then enforce rate limiting. Returns structured
+ * NextResponse errors on any failure (401/429/500) — never an HTML page —
+ * or the authenticated key + rate-limit info when the request may proceed.
+ */
+async function authenticateAndRateLimit(
+  req: NextRequest,
+  resource: string[],
+  method: "GET" | "POST",
+  start: number,
+): Promise<
+  { key: ApiKeyData; rateLimit: RateLimitInfo } | { response: NextResponse }
+> {
+  let auth: AuthResult;
+  try {
+    auth = await authenticateRequest(req);
+  } catch (err) {
+    // Never leak an HTML error page — DB/auth infra failures return
+    // structured JSON with a 500 so API clients can handle them.
+    console.error("API v1 authentication failed:", err);
+    return {
+      response: errorResponse(
+        "Authentication service unavailable. Please retry.",
+        500,
+      ),
+    };
+  }
   if (!auth.authenticated || !auth.key) {
-    return errorResponse(
-      auth.error ?? "Authentication failed",
-      auth.status ?? 401,
-    );
+    return {
+      response: errorResponse(
+        auth.error ?? "Authentication failed",
+        auth.status ?? 401,
+      ),
+    };
   }
 
-  // Rate limit
-  const rateLimit = await checkRateLimit(auth.key);
+  let rateLimit: RateLimitInfo;
+  try {
+    rateLimit = await checkRateLimit(auth.key);
+  } catch (err) {
+    console.error("API v1 rate-limit check failed:", err);
+    return {
+      response: errorResponse(
+        "Rate limiting service unavailable. Please retry.",
+        500,
+      ),
+    };
+  }
   if (!rateLimit.allowed) {
     await logApiCall({
       keyId: auth.key.id,
       entityId: auth.key.entityScope[0] ?? null,
       endpoint: resource.join("/"),
-      method: "GET",
+      method,
       statusCode: 429,
       durationMs: Date.now() - start,
       rateLimited: true,
     });
 
-    return NextResponse.json(
-      { error: true, message: "Rate limit exceeded. Try again later." },
-      {
-        status: 429,
-        headers: {
-          "X-RateLimit-Limit": rateLimit.limit.toString(),
-          "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": rateLimit.reset.toString(),
-          "Retry-After": Math.max(
-            1,
-            rateLimit.reset - Math.floor(Date.now() / 1000),
-          ).toString(),
-        },
-      },
-    );
+    const headers: Record<string, string> = {
+      "X-RateLimit-Limit": rateLimit.limit.toString(),
+      "X-RateLimit-Remaining": "0",
+      "X-RateLimit-Reset": rateLimit.reset.toString(),
+    };
+    if (method === "GET") {
+      headers["Retry-After"] = Math.max(
+        1,
+        rateLimit.reset - Math.floor(Date.now() / 1000),
+      ).toString();
+    }
+    return {
+      response: NextResponse.json(
+        { error: true, message: "Rate limit exceeded. Try again later." },
+        { status: 429, headers },
+      ),
+    };
   }
 
-  // Process request
-  const response = await handleGet(req, auth.key, resource);
+  return { key: auth.key, rateLimit };
+}
 
-  // Read response body as JSON, add rate limit headers, return
+async function withRateLimitHeaders(
+  response: NextResponse,
+  rateLimit: RateLimitInfo,
+): Promise<NextResponse> {
+  // Re-serialize the handler's JSON body so the response stays a plain JSON
+  // payload while gaining the rate-limit headers.
   const responseData = await response.json();
   return NextResponse.json(responseData, {
     status: response.status,
@@ -597,6 +641,25 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   });
 }
 
+// ─── Main Route Handler ───────────────────────────────────────────────────
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  // Extract resource path from URL
+  const url = new URL(req.url);
+  const resource = url.pathname
+    .replace(/^\/api\/v1\//, "")
+    .split("/")
+    .filter(Boolean);
+  const start = Date.now();
+
+  const gate = await authenticateAndRateLimit(req, resource, "GET", start);
+  if ("response" in gate) return gate.response;
+
+  // Process request
+  const response = await handleGet(req, gate.key, resource);
+  return withRateLimitHeaders(response, gate.rateLimit);
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // Extract resource path from URL
   const url = new URL(req.url);
@@ -606,51 +669,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .filter(Boolean);
   const start = Date.now();
 
-  // Authenticate
-  const auth = await authenticateRequest(req);
-  if (!auth.authenticated || !auth.key) {
-    return errorResponse(
-      auth.error ?? "Authentication failed",
-      auth.status ?? 401,
-    );
-  }
+  const gate = await authenticateAndRateLimit(req, resource, "POST", start);
+  if ("response" in gate) return gate.response;
 
-  // Rate limit
-  const rateLimit = await checkRateLimit(auth.key);
-  if (!rateLimit.allowed) {
-    await logApiCall({
-      keyId: auth.key.id,
-      entityId: auth.key.entityScope[0] ?? null,
-      endpoint: resource.join("/"),
-      method: "POST",
-      statusCode: 429,
-      durationMs: Date.now() - start,
-      rateLimited: true,
-    });
-
-    return NextResponse.json(
-      { error: true, message: "Rate limit exceeded." },
-      {
-        status: 429,
-        headers: {
-          "X-RateLimit-Limit": rateLimit.limit.toString(),
-          "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": rateLimit.reset.toString(),
-        },
-      },
-    );
-  }
-
-  const response = await handlePost(req, auth.key, resource);
-
-  const responseData = await response.json();
-  return NextResponse.json(responseData, {
-    status: response.status,
-    headers: {
-      ...Object.fromEntries(response.headers.entries()),
-      "X-RateLimit-Limit": rateLimit.limit.toString(),
-      "X-RateLimit-Remaining": rateLimit.remaining.toString(),
-      "X-RateLimit-Reset": rateLimit.reset.toString(),
-    },
-  });
+  const response = await handlePost(req, gate.key, resource);
+  return withRateLimitHeaders(response, gate.rateLimit);
 }

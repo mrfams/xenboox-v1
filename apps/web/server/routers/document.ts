@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
@@ -53,7 +53,7 @@ async function getEntityPlan(entityId: string): Promise<string> {
 
 export const documentRouter = router({
   // ── Documents ──
-  listDocuments: protectedProcedure
+  listDocuments: rlsProtectedProcedure
     .input(
       z.object({
         category: z.enum(docTypeEnum.enumValues).optional(),
@@ -73,7 +73,7 @@ export const documentRouter = router({
       });
     }),
 
-  getStatus: protectedProcedure
+  getStatus: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const doc = await db.query.documents.findFirst({
@@ -99,7 +99,7 @@ export const documentRouter = router({
 
   // ── Upload Flow ──
 
-  getUploadUrl: protectedProcedure
+  getUploadUrl: rlsProtectedProcedure
     .input(
       z.object({
         fileName: z.string().min(1).max(255),
@@ -133,7 +133,7 @@ export const documentRouter = router({
       return { uploadUrl, storagePath };
     }),
 
-  confirmUpload: protectedProcedure
+  confirmUpload: rlsProtectedProcedure
     .input(
       z.object({
         r2Key: z.string().min(1),
@@ -203,7 +203,7 @@ export const documentRouter = router({
       }
     }),
 
-  download: protectedProcedure
+  download: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -244,7 +244,7 @@ export const documentRouter = router({
       }
     }),
 
-  delete: protectedProcedure
+  delete: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -279,7 +279,7 @@ export const documentRouter = router({
       }
     }),
 
-  createDocument: protectedProcedure
+  createDocument: rlsProtectedProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -325,7 +325,7 @@ export const documentRouter = router({
       return doc;
     }),
 
-  updateDocument: protectedProcedure
+  updateDocument: rlsProtectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -354,7 +354,7 @@ export const documentRouter = router({
       return updated;
     }),
 
-  getDocumentById: protectedProcedure
+  getDocumentById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const doc = await db.query.documents.findFirst({
@@ -376,7 +376,7 @@ export const documentRouter = router({
     }),
 
   // ── Document Links ──
-  createDocumentLink: protectedProcedure
+  createDocumentLink: rlsProtectedProcedure
     .input(
       z.object({
         documentId: z.string().uuid(),
@@ -404,7 +404,7 @@ export const documentRouter = router({
       return link;
     }),
 
-  removeDocumentLink: protectedProcedure
+  removeDocumentLink: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const [deleted] = await db
@@ -420,7 +420,7 @@ export const documentRouter = router({
     }),
 
   // ── Audit Log ──
-  listAuditLog: protectedProcedure.query(({ ctx }) => {
+  listAuditLog: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.auditLog.findMany({
       where: eq(auditLog.entityId, ctx.entityId!),
       orderBy: [desc(auditLog.createdAt)],
@@ -429,18 +429,18 @@ export const documentRouter = router({
   }),
 
   // ── Currencies (global reference — no entity scoping) ──
-  listCurrencies: protectedProcedure.query(() => {
+  listCurrencies: rlsProtectedProcedure.query(() => {
     return db.query.currencies.findMany();
   }),
 
   // ── Exchange Rates (global reference — no entity scoping) ──
-  listExchangeRates: protectedProcedure.query(() => {
+  listExchangeRates: rlsProtectedProcedure.query(() => {
     return db.query.exchangeRates.findMany({
       orderBy: [desc(exchangeRates.createdAt)],
     });
   }),
 
-  createExchangeRate: protectedProcedure
+  createExchangeRate: rlsProtectedProcedure
     .input(
       z.object({
         fromCurrency: z.string().length(3),
@@ -454,7 +454,7 @@ export const documentRouter = router({
       return rate;
     }),
 
-  getOverview: protectedProcedure.query(async ({ ctx }) => {
+  getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const docs = await db.query.documents.findMany({
@@ -482,7 +482,7 @@ export const documentRouter = router({
     };
   }),
 
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const docs = await db.query.documents.findMany({

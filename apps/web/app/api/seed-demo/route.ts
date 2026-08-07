@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const cashAccountIds = cashRows.map((c) => c.id);
     const inventoryItemIds = invItemRows.map((i) => i.id);
     const warehouseIds = whRows.map((w) => w.id);
-    const employeeIds = empRows.map((e) => e.id);
+    const ____employeeIds = empRows.map((e) => e.id);
     const userId = userRow[0]!.id;
 
     const acctCodes: Record<string, string> = {};
@@ -845,7 +845,11 @@ export async function POST(request: Request) {
                 : inv.amount,
           currency: "GMD",
           status: inv.status as
-            "pending" | "partial" | "paid" | "overdue" | "voided",
+            | "pending"
+            | "partial"
+            | "paid"
+            | "overdue"
+            | "voided",
         })
         .onConflictDoNothing();
 
@@ -889,7 +893,11 @@ export async function POST(request: Request) {
                 : inv.amount,
           currency: "GMD",
           status: inv.status as
-            "pending" | "partial" | "paid" | "overdue" | "voided",
+            | "pending"
+            | "partial"
+            | "paid"
+            | "overdue"
+            | "voided",
         })
         .onConflictDoNothing();
 
@@ -920,7 +928,11 @@ export async function POST(request: Request) {
         bankAccountId: bankAccountIds[tx.aIdx],
         transactionDate: tx.date,
         type: tx.type as
-          "deposit" | "withdrawal" | "transfer" | "fee" | "interest",
+          | "deposit"
+          | "withdrawal"
+          | "transfer"
+          | "fee"
+          | "interest",
         amount: tx.amount,
         description: tx.desc,
         isReconciled: false,
@@ -934,7 +946,11 @@ export async function POST(request: Request) {
         inventoryItemId: inventoryItemIds[tx.item],
         warehouseId: warehouseIds[tx.wh],
         type: tx.type as
-          "receipt" | "issue" | "adjustment" | "transfer" | "return",
+          | "receipt"
+          | "issue"
+          | "adjustment"
+          | "transfer"
+          | "return",
         quantity: tx.qty,
         unitCost: tx.cost,
         totalCost: String(Math.abs(tx.qty) * parseFloat(tx.cost)),

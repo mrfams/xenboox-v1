@@ -3,14 +3,14 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, desc, and, gte, lte, like, sql } from "drizzle-orm";
 import { auditLog } from "@xenboox/db/schema/documents";
 
 export const auditRouter = router({
-  list: protectedProcedure
+  list: rlsProtectedProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),

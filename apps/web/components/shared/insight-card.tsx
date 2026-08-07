@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { cn } from "@/lib/utils";
 import { Brain, ArrowRight } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 type InsightPriority = "high" | "medium" | "low" | "info";
 

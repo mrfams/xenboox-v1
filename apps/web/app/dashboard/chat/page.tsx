@@ -3,19 +3,9 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
-import { useEntity } from "@/lib/entity-context";
-import { trpc } from "@/lib/trpc/client";
-import { cn, formatCurrency } from "@/lib/utils";
-import { Skeleton } from "@/components/shared/loading";
-import { Button } from "@/components/ui";
-import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
-import { StreamingMessage } from "@/components/workspace/streaming-message";
 import {
   ArrowRight,
   Plus,
-  Mic,
-  Paperclip,
   Bot,
   AlertTriangle,
   AlertCircle,
@@ -24,13 +14,10 @@ import {
   TrendingUp,
   ChevronRight,
   CheckCircle2,
-  Clock,
   FileText,
-  Send,
   ThumbsUp,
   ThumbsDown,
   Copy,
-  Expand,
   X,
   Sparkles,
   CreditCard,
@@ -48,18 +35,21 @@ import {
   Download,
   Shield,
   Zap,
-  History,
 } from "lucide-react";
-import { useRealtimeAgentEvents } from "@/lib/hooks/use-realtime-agent-events";
+
+import { useEntity } from "@/lib/entity-context";
+import { trpc } from "@/lib/trpc/client";
+import { cn, formatCurrency } from "@/lib/utils";
+import { Skeleton } from "@/components/shared/loading";
+import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
+import { StreamingMessage } from "@/components/workspace/streaming-message";
 import { AIComposer } from "@/components/workspace/ai-composer";
-import { TaskList } from "@/components/workspace/task-cards";
-import type { AgentTask } from "@/components/workspace/task-cards";
 import { AgentTimeline } from "@/components/workspace/agent-timeline";
 import { RichMessageRenderer } from "@/components/workspace/rich-message-renderer";
 
 // ─── Active AI Tasks Component ────────────────────────────────────────────
 
-function ActiveAITasks({
+function _ActiveAITasks({
   tasks,
 }: {
   tasks: Array<{
@@ -189,7 +179,7 @@ function ActiveAITasks({
 
 // ─── AI Suggestions Component ─────────────────────────────────────────────
 
-function AISuggestions({
+function _AISuggestions({
   suggestions,
 }: {
   suggestions: Array<{
@@ -280,7 +270,7 @@ function AISuggestions({
 
 // ─── Financial Insights Component ─────────────────────────────────────────
 
-function FinancialInsights({
+function _FinancialInsights({
   insights,
 }: {
   insights: Array<{
@@ -374,7 +364,7 @@ function FinancialInsights({
 
 // ─── Cash Flow Overview Component ─────────────────────────────────────────
 
-function CashFlowOverview({
+function _CashFlowOverview({
   data,
 }: {
   data: {
@@ -424,7 +414,7 @@ function CashFlowOverview({
 
       {/* Chart */}
       <div className="h-48 flex items-end gap-1">
-        {data.chartData.slice(-30).map((d, i) => {
+        {data.chartData.slice(-30).map((d, _i) => {
           const cashInHeight = (d.cashIn / maxVal) * 100;
           const cashOutHeight = (d.cashOut / maxVal) * 100;
 
@@ -951,7 +941,7 @@ function RightSidebar({
 
   const pendingApprovals = approvalsData?.approvals ?? [];
   const recentDocuments = documentsData?.documents ?? [];
-  const agentActivity = activityData?.activity ?? [];
+  const _agentActivity = activityData?.activity ?? [];
 
   if (isCollapsed) {
     return (
@@ -1836,7 +1826,7 @@ function AIWorkspaceContent() {
   const { entityId } = useEntity();
   const { data: session } = useSession();
   const [inputValue, setInputValue] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
+  const [_isFocused, _setIsFocused] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
   >(initialConversationId);

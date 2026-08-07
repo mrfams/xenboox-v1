@@ -12,16 +12,14 @@ import {
 } from "@xenboox/ui";
 import {
   DollarSign,
-  TrendingUp,
-  TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
   ChevronRight,
   Filter,
   Download,
-  Lightbulb,
   AlertTriangle,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -144,20 +142,6 @@ function StackedAreaChart({
 
     for (let i = 0; i < data.length; i++) {
       const x = padding.left + xScale(i);
-      let topValue = 0;
-      let bottomValue = 0;
-
-      for (const p of providers) {
-        const val = data[i]![p.key as keyof (typeof data)[0]] as number;
-        if (p.key === providerKey) {
-          topValue += val;
-          break;
-        }
-        topValue += val;
-        bottomValue += val;
-      }
-
-      // Recalculate properly
       let cumulativeTop = 0;
       let cumulativeBottom = 0;
       for (const p of providers) {
@@ -489,7 +473,7 @@ function OptimizationCard({
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 export default function AiCostAnalyticsPage() {
-  const [timeRange, setTimeRange] = useState(7);
+  const [timeRange, _setTimeRange] = useState(7);
   const [chartView, setChartView] = useState<"daily" | "weekly" | "monthly">(
     "daily",
   );

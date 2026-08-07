@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
   requireRole,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -24,7 +24,7 @@ import {
 } from "@xenboox/agents/core/close-pipeline";
 
 export const fiscalRouter = router({
-  list: protectedProcedure
+  list: rlsProtectedProcedure
     .input(z.object({ year: z.number().int().optional() }))
     .query(async ({ ctx, input }) => {
       return db.query.fiscalPeriods.findMany({
@@ -38,7 +38,7 @@ export const fiscalRouter = router({
       });
     }),
 
-  getCurrent: protectedProcedure.query(async ({ ctx }) => {
+  getCurrent: rlsProtectedProcedure.query(async ({ ctx }) => {
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
@@ -52,7 +52,7 @@ export const fiscalRouter = router({
     });
   }),
 
-  create: protectedProcedure
+  create: rlsProtectedProcedure
     .input(
       z.object({
         year: z.number().int().min(2000).max(2100),
@@ -96,7 +96,7 @@ export const fiscalRouter = router({
       }
     }),
 
-  closePeriod: protectedProcedure
+  closePeriod: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ periodId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -208,7 +208,7 @@ export const fiscalRouter = router({
       }
     }),
 
-  lockPeriod: protectedProcedure
+  lockPeriod: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ periodId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -259,7 +259,7 @@ export const fiscalRouter = router({
       }
     }),
 
-  closePeriodAsync: protectedProcedure
+  closePeriodAsync: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ periodId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -304,7 +304,7 @@ export const fiscalRouter = router({
       }
     }),
 
-  delete: protectedProcedure
+  delete: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -367,7 +367,7 @@ export const fiscalRouter = router({
    * Get the real-time close status for the current period.
    * Returns step-by-step status for all 7 close steps.
    */
-  getCloseStatus: protectedProcedure
+  getCloseStatus: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -384,7 +384,7 @@ export const fiscalRouter = router({
    * Runs all 7 close steps with validation, department fan-out,
    * automated adjustments, and period close.
    */
-  initiateClose: protectedProcedure
+  initiateClose: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -439,7 +439,7 @@ export const fiscalRouter = router({
       }
     }),
 
-  createFullYear: protectedProcedure
+  createFullYear: rlsProtectedProcedure
     .input(z.object({ year: z.number().int().min(2000).max(2100) }))
     .mutation(async ({ ctx, input }) => {
       // Fetch all existing periods for this year upfront (N+1 fix)

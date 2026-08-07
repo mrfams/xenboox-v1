@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { Rocket, CheckCircle2, ArrowRight, Clock } from "lucide-react";
+
 import { DocsPageHeader } from "../components/docs-page-header";
 import { RelatedLinks } from "../components/related-links";
-import { Rocket, CheckCircle2, ArrowRight, Clock } from "lucide-react";
 
 const steps = [
   {

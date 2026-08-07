@@ -4,7 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -23,13 +23,13 @@ import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 
 export const inventoryRouter = router({
   // ── Warehouses ──
-  listWarehouses: protectedProcedure.query(({ ctx }) => {
+  listWarehouses: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.warehouses.findMany({
       where: eq(warehouses.entityId, ctx.entityId!),
     });
   }),
 
-  createWarehouse: protectedProcedure
+  createWarehouse: rlsProtectedProcedure
     .use(requirePermission("inventory", "create"))
     .input(
       z.object({
@@ -71,7 +71,7 @@ export const inventoryRouter = router({
       }
     }),
 
-  getWarehouseById: protectedProcedure
+  getWarehouseById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(({ ctx, input }) => {
       return db.query.warehouses.findFirst({
@@ -82,7 +82,7 @@ export const inventoryRouter = router({
       });
     }),
 
-  updateWarehouse: protectedProcedure
+  updateWarehouse: rlsProtectedProcedure
     .use(requirePermission("inventory", "edit"))
     .input(
       z.object({
@@ -110,14 +110,14 @@ export const inventoryRouter = router({
     }),
 
   // ── Inventory Items ──
-  listItems: protectedProcedure.query(({ ctx }) => {
+  listItems: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.inventoryItems.findMany({
       where: eq(inventoryItems.entityId, ctx.entityId!),
       orderBy: [desc(inventoryItems.createdAt)],
     });
   }),
 
-  getItemById: protectedProcedure
+  getItemById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const item = await db.query.inventoryItems.findFirst({
@@ -139,7 +139,7 @@ export const inventoryRouter = router({
       return { ...item, transactions };
     }),
 
-  createItem: protectedProcedure
+  createItem: rlsProtectedProcedure
     .use(requirePermission("inventory", "create"))
     .input(
       z.object({
@@ -199,7 +199,7 @@ export const inventoryRouter = router({
       }
     }),
 
-  updateItem: protectedProcedure
+  updateItem: rlsProtectedProcedure
     .use(requirePermission("inventory", "edit"))
     .input(
       z.object({
@@ -231,7 +231,7 @@ export const inventoryRouter = router({
     }),
 
   // ── Transactions ──
-  listTransactions: protectedProcedure
+  listTransactions: rlsProtectedProcedure
     .input(z.object({ itemId: z.string().uuid().optional() }))
     .query(async ({ ctx, input }) => {
       if (input.itemId) {
@@ -249,7 +249,7 @@ export const inventoryRouter = router({
       });
     }),
 
-  createTransaction: protectedProcedure
+  createTransaction: rlsProtectedProcedure
     .use(requirePermission("inventory", "create"))
     .input(
       z.object({
@@ -372,7 +372,7 @@ export const inventoryRouter = router({
     }),
 
   // ── Valuations ──
-  listValuations: protectedProcedure
+  listValuations: rlsProtectedProcedure
     .input(z.object({ itemId: z.string().uuid().optional() }))
     .query(async ({ ctx, input }) => {
       if (input.itemId) {
@@ -390,7 +390,7 @@ export const inventoryRouter = router({
       });
     }),
 
-  deleteWarehouse: protectedProcedure
+  deleteWarehouse: rlsProtectedProcedure
     .use(requirePermission("inventory", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -421,7 +421,7 @@ export const inventoryRouter = router({
       }
     }),
 
-  deleteItem: protectedProcedure
+  deleteItem: rlsProtectedProcedure
     .use(requirePermission("inventory", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -452,7 +452,7 @@ export const inventoryRouter = router({
       }
     }),
 
-  updateTransaction: protectedProcedure
+  updateTransaction: rlsProtectedProcedure
     .use(requirePermission("inventory", "edit"))
     .input(
       z.object({
@@ -480,7 +480,7 @@ export const inventoryRouter = router({
       }
     }),
 
-  deleteTransaction: protectedProcedure
+  deleteTransaction: rlsProtectedProcedure
     .use(requirePermission("inventory", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

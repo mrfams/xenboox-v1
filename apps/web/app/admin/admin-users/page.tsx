@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import {
   Card,
   CardContent,
@@ -33,6 +32,8 @@ import {
 } from "@xenboox/ui";
 import { Plus, QrCode, Copy } from "lucide-react";
 import { toast } from "sonner";
+
+import { trpc } from "@/lib/trpc/client";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",

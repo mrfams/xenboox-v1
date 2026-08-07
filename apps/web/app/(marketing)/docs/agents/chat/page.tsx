@@ -1,16 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { MessageSquare, FileText, Search, Share2, Zap } from "lucide-react";
+
 import { DocsPageHeader } from "../../components/docs-page-header";
 import { FeatureGrid } from "../../components/feature-grid";
 import { InfoCallout } from "../../components/info-callout";
 import { RelatedLinks } from "../../components/related-links";
-import {
-  MessageSquare,
-  FileText,
-  Mic,
-  Search,
-  Share2,
-  Zap,
-} from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 
 const capabilities = [
   {

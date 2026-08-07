@@ -24,6 +24,7 @@ import {
   Settings,
   ArrowRight,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -550,7 +551,7 @@ function ActivityFeedCard({
 // ─── Main Dashboard Page ────────────────────────────────────────────────────
 
 export default function OpsDashboardPage() {
-  const [timeRange, setTimeRange] = useState(7);
+  const [timeRange, _setTimeRange] = useState(7);
 
   // Fetch all dashboard data
   const { data: overview, isLoading: overviewLoading } =
@@ -780,7 +781,7 @@ export default function OpsDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="h-48 flex items-end gap-1">
-              {(aiRunsData ?? []).map((d, i) => {
+              {(aiRunsData ?? []).map((d, _i) => {
                 const maxRuns = Math.max(
                   ...(aiRunsData ?? []).map((r) => r.runs),
                   1,

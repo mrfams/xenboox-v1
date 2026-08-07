@@ -16,6 +16,7 @@
  */
 
 import type { Provider } from "next-auth/providers";
+
 import { getSsoSettings } from "@/lib/sso-settings";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ function buildAzureAdProvider(config: SsoConfig): Provider[] {
       // callbackUrl tells the IdP where to redirect after authentication
       // This is the URL that must be registered in the Azure AD app's redirect URIs
       callbacks: {
-        async redirectTo({ baseUrl }) {
+        async redirectTo({ baseUrl }: { baseUrl: string }) {
           return config.callbackUrl ?? `${baseUrl}/api/auth/callback/sso`;
         },
       },
@@ -165,7 +166,7 @@ function buildOktaProvider(config: SsoConfig): Provider[] {
       issuer: config.issuer,
       // callbackUrl tells the IdP where to redirect after authentication
       callbacks: {
-        async redirectTo({ baseUrl }) {
+        async redirectTo({ baseUrl }: { baseUrl: string }) {
           return config.callbackUrl ?? `${baseUrl}/api/auth/callback/sso`;
         },
       },

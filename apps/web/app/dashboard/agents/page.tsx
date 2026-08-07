@@ -1,10 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useEntity } from "@/lib/entity-context";
-import { trpc } from "@/lib/trpc/client";
-import { cn } from "@/lib/utils";
 import {
   Bot,
   Activity,
@@ -16,6 +12,10 @@ import {
   RotateCcw,
   Eye,
 } from "lucide-react";
+
+import { useEntity } from "@/lib/entity-context";
+import { trpc } from "@/lib/trpc/client";
+import { cn } from "@/lib/utils";
 import { AgentTimeline } from "@/components/workspace/agent-timeline";
 
 const agentTabs = [

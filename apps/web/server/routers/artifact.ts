@@ -12,7 +12,7 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { artifactRegistry, auditLog } from "@xenboox/db/schema";
@@ -43,7 +43,7 @@ export const artifactRouter = router({
   /**
    * List all artifacts for the current entity, with optional filters.
    */
-  list: protectedProcedure
+  list: rlsProtectedProcedure
     .input(
       z.object({
         kind: z
@@ -88,7 +88,7 @@ export const artifactRouter = router({
   /**
    * Get a single artifact by ID.
    */
-  getById: protectedProcedure
+  getById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const artifact = await db.query.artifactRegistry.findFirst({
@@ -112,7 +112,7 @@ export const artifactRouter = router({
    * Get a presigned download URL for an artifact.
    * Logs the download in the audit trail.
    */
-  download: protectedProcedure
+  download: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const artifact = await db.query.artifactRegistry.findFirst({
@@ -131,7 +131,7 @@ export const artifactRouter = router({
 
       if (artifact.status === "expired") {
         throw new TRPCError({
-          code: "GONE",
+          code: "NOT_FOUND",
           message: "This artifact has expired and is no longer available",
         });
       }
@@ -172,7 +172,7 @@ export const artifactRouter = router({
    * Create an artifact record. Called by agents or jobs after generating a file.
    * The file must already be uploaded to R2 before calling this.
    */
-  create: protectedProcedure
+  create: rlsProtectedProcedure
     .input(
       z.object({
         kind: z.enum([
@@ -247,7 +247,7 @@ export const artifactRouter = router({
   /**
    * Delete an artifact (soft-delete by archiving, or hard-delete with R2 removal).
    */
-  delete: protectedProcedure
+  delete: rlsProtectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -306,7 +306,7 @@ export const artifactRouter = router({
    * Get artifact counts by kind for the current entity.
    * Useful for dashboard summary cards.
    */
-  getSummary: protectedProcedure.query(async ({ ctx }) => {
+  getSummary: rlsProtectedProcedure.query(async ({ ctx }) => {
     const artifacts = await db.query.artifactRegistry.findMany({
       where: eq(artifactRegistry.entityId, ctx.entityId!),
       columns: { kind: true, status: true, sizeBytes: true },

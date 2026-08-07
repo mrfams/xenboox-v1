@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -16,19 +15,18 @@ import {
   SelectContent,
   SelectItem,
   Button,
-  Separator,
 } from "@xenboox/ui";
 import {
   Palette,
   Globe,
-  Clock,
   Save,
   Loader2,
   Sun,
   Moon,
   Monitor,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+
+import { trpc } from "@/lib/trpc/client";
 
 const LANGUAGES = [
   { code: "en", label: "English" },

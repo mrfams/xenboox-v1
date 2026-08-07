@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -12,7 +11,6 @@ import {
   Input,
   Label,
   Button,
-  Separator,
 } from "@xenboox/ui";
 import {
   User,
@@ -23,6 +21,8 @@ import {
   Send,
   Loader2,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 export function ProfileSection() {
   const [name, setName] = useState("");

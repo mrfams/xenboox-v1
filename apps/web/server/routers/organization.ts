@@ -801,4 +801,106 @@ export const organizationRouter = router({
     .mutation(async ({ ctx, input }) => {
       return runOnboardingPipeline(ctx.entityId!, input.entityName);
     }),
+
+  // ─── Last Used Entity ───────────────────────────────────────────────────
+
+  setLastUsedEntity: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify user has access to this entity
+      const access = await db.query.userEntityAccess.findFirst({
+        where: and(
+          eq(userEntityAccess.userId, ctx.session!.user!.id!),
+          eq(userEntityAccess.entityId, input.entityId),
+        ),
+      });
+      if (!access) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have access to this entity",
+        });
+      }
+      await db
+        .update(users)
+        .set({ lastUsedEntityId: input.entityId })
+        .where(eq(users.id, ctx.session!.user!.id!));
+      return { success: true };
+    }),
+
+  // ─── Delete Entity (Soft Delete) ────────────────────────────────────────
+
+  deleteEntity: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const userId = ctx.session!.user!.id!;
+
+        // Only owners can delete entities
+        const access = await db.query.userEntityAccess.findFirst({
+          where: and(
+            eq(userEntityAccess.userId, userId),
+            eq(userEntityAccess.entityId, input.entityId),
+          ),
+        });
+        if (!access || access.role !== "owner") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only the entity owner can delete an entity",
+          });
+        }
+
+        // Check if this is the user's last active entity
+        const userEntities = await db.query.userEntityAccess.findMany({
+          where: eq(userEntityAccess.userId, userId),
+        });
+        const activeEntities = await db.query.entities.findMany({
+          where: inArray(
+            entities.id,
+            userEntities.map((e) => e.entityId),
+          ),
+        });
+        const activeCount = activeEntities.filter((e) => e.isActive).length;
+        if (activeCount <= 1) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Cannot delete your last entity. Create another one first.",
+          });
+        }
+
+        // Soft delete: set isActive = false
+        await db
+          .update(entities)
+          .set({ isActive: false })
+          .where(eq(entities.id, input.entityId));
+
+        // Clear lastUsedEntityId if it pointed to this entity
+        await db
+          .update(users)
+          .set({ lastUsedEntityId: null })
+          .where(eq(users.lastUsedEntityId, input.entityId));
+
+        // Revoke all access
+        await db
+          .delete(userEntityAccess)
+          .where(eq(userEntityAccess.entityId, input.entityId));
+
+        // Log the deletion
+        await db.insert(auditLog).values({
+          entityId: input.entityId,
+          userId,
+          action: "entity_deleted",
+          entityType: "entity",
+          newValues: {
+            deletedBy: userId,
+            entityName: activeEntities.find((e) => e.id === input.entityId)
+              ?.name,
+          },
+        });
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to delete entity");
+      }
+    }),
 });

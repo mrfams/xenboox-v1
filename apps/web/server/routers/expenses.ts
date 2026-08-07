@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   invoicesAp,
@@ -20,7 +20,7 @@ export const expensesRouter = router({
   /**
    * Get overview statistics for the expenses page.
    */
-  getOverview: protectedProcedure
+  getOverview: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -167,7 +167,7 @@ export const expensesRouter = router({
   /**
    * Get tab counts for the expenses page.
    */
-  getTabCounts: protectedProcedure
+  getTabCounts: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -263,7 +263,7 @@ export const expensesRouter = router({
   /**
    * List expenses with filtering, sorting, and pagination.
    */
-  listExpenses: protectedProcedure
+  listExpenses: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -468,7 +468,7 @@ export const expensesRouter = router({
   /**
    * Get expenses by category for donut chart.
    */
-  getExpensesByCategory: protectedProcedure
+  getExpensesByCategory: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -570,7 +570,7 @@ export const expensesRouter = router({
   /**
    * Get monthly trend data for line chart.
    */
-  getMonthlyTrend: protectedProcedure.query(async ({ ctx }) => {
+  getMonthlyTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get last 6 months of data
@@ -605,7 +605,7 @@ export const expensesRouter = router({
   /**
    * Get top vendors by spend.
    */
-  getTopVendors: protectedProcedure
+  getTopVendors: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -654,7 +654,7 @@ export const expensesRouter = router({
   /**
    * Get budget overview data.
    */
-  getBudgetOverview: protectedProcedure.query(async ({ ctx }) => {
+  getBudgetOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get active budget with lines
@@ -735,7 +735,7 @@ export const expensesRouter = router({
   /**
    * Get AI insights for expenses.
    */
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const now = new Date();

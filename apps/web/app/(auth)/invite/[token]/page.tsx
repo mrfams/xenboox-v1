@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Check, XCircle, Loader2, AlertCircle, Clock } from "lucide-react";
+
 import { Button } from "@/components/ui";
 import {
   Card,
@@ -12,7 +14,6 @@ import {
   CardDescription,
 } from "@/components/ui";
 import { trpc } from "@/lib/trpc/client";
-import { Check, XCircle, Loader2, AlertCircle, Clock } from "lucide-react";
 
 export default function InviteAcceptPage() {
   const params = useParams();

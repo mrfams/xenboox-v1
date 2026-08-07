@@ -8,17 +8,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bot,
-  RefreshCw,
   Send,
   Upload,
   Settings,
   ArrowRight,
   Clock,
   Sparkles,
-  Play,
-  Pause,
   FileText,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -649,7 +647,7 @@ export default function ReconciliationCenterPage() {
   >("all");
 
   // Fetch reconciliation center data
-  const { data: centerData, isLoading } =
+  const { data: centerData } =
     trpc.reconciliation.getReconciliationCenter.useQuery({
       bankAccountId: selectedAccountId || undefined,
     });

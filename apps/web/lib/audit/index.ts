@@ -1,6 +1,5 @@
 import { db } from "@xenboox/db";
 import { auditLog, securityAuditLog } from "@xenboox/db/schema";
-import { TRPCError } from "@trpc/server";
 
 type AuditAction =
   | "create"

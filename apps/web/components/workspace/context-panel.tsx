@@ -1,25 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import {
   X,
   Bot,
   FileText,
   Building2,
   Calendar,
-  Users,
-  Database,
   Brain,
   Link,
-  Clock,
   ChevronDown,
   ChevronRight,
   Trash2,
   Plus,
   FolderOpen,
   Paperclip,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 

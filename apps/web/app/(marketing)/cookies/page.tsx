@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+
 import { LegalHero, LegalContent } from "@/components/marketing/legal-hero";
 
 export const metadata: Metadata = {

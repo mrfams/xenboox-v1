@@ -2,24 +2,20 @@
 
 import { useState } from "react";
 import {
-  Search,
-  Filter,
   ChevronDown,
   ChevronRight,
   CheckCircle2,
   AlertTriangle,
   Bot,
-  TrendingUp,
   Clock,
   Sparkles,
   Settings,
   Calendar,
   RefreshCw,
   Send,
-  ArrowRight,
   Shield,
-  Zap,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -521,8 +517,8 @@ function BottomRow({
 
         {/* Simple line chart */}
         <div className="h-32 flex items-end gap-2">
-          {trend.map((d, i) => {
-            const maxValue = 100;
+          {trend.map((d, _i) => {
+            const __maxValue = 100;
             return (
               <div
                 key={d.date}

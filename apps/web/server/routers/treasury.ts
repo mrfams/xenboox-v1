@@ -3,8 +3,8 @@ import { eq, and, desc, notInArray } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -23,14 +23,14 @@ import {
 } from "@xenboox/agents";
 
 export const treasuryRouter = router({
-  listBankAccounts: protectedProcedure.query(({ ctx }) => {
+  listBankAccounts: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.bankAccounts.findMany({
       where: eq(bankAccounts.entityId, ctx.entityId!),
       orderBy: [desc(bankAccounts.createdAt)],
     });
   }),
 
-  getLastSync: protectedProcedure.query(async ({ ctx }) => {
+  getLastSync: rlsProtectedProcedure.query(async ({ ctx }) => {
     const connection = await db.query.bankConnections.findFirst({
       where: eq(bankConnections.entityId, ctx.entityId!),
       orderBy: [desc(bankConnections.lastSyncedAt)],
@@ -58,7 +58,7 @@ export const treasuryRouter = router({
     };
   }),
 
-  createBankAccount: protectedProcedure
+  createBankAccount: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "create"))
     .input(
       z.object({
@@ -103,7 +103,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  updateBankAccount: protectedProcedure
+  updateBankAccount: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
@@ -147,7 +147,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  getBankAccountById: protectedProcedure
+  getBankAccountById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(({ ctx, input }) => {
       return db.query.bankAccounts.findFirst({
@@ -158,7 +158,7 @@ export const treasuryRouter = router({
       });
     }),
 
-  listBankTransactions: protectedProcedure
+  listBankTransactions: rlsProtectedProcedure
     .input(z.object({ bankAccountId: z.string().uuid().optional() }).optional())
     .query(({ ctx, input }) => {
       const conditions = [eq(bankTransactions.entityId, ctx.entityId!)];
@@ -173,7 +173,7 @@ export const treasuryRouter = router({
       });
     }),
 
-  createBankTransaction: mutateProcedure
+  createBankTransaction: rlsMutateProcedure
     .use(requirePermission("bank_reconciliation", "create"))
     .input(
       z.object({
@@ -218,7 +218,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  listReconciliations: protectedProcedure
+  listReconciliations: rlsProtectedProcedure
     .input(z.object({ bankAccountId: z.string().uuid().optional() }).optional())
     .query(({ ctx, input }) => {
       const conditions = [eq(reconciliations.entityId, ctx.entityId!)];
@@ -231,7 +231,7 @@ export const treasuryRouter = router({
       });
     }),
 
-  createReconciliation: mutateProcedure
+  createReconciliation: rlsMutateProcedure
     .use(requirePermission("bank_reconciliation", "create"))
     .input(
       z.object({
@@ -285,7 +285,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  getReconciliationById: protectedProcedure
+  getReconciliationById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const recon = await db.query.reconciliations.findFirst({
@@ -325,7 +325,7 @@ export const treasuryRouter = router({
       return { ...recon, items, unmatchedBankTransactions };
     }),
 
-  matchReconciliationItem: protectedProcedure
+  matchReconciliationItem: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
@@ -405,7 +405,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  closeReconciliation: mutateProcedure
+  closeReconciliation: rlsMutateProcedure
     .use(requirePermission("bank_reconciliation", "approve"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -442,14 +442,14 @@ export const treasuryRouter = router({
       }
     }),
 
-  listBankConnections: protectedProcedure.query(({ ctx }) => {
+  listBankConnections: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.bankConnections.findMany({
       where: eq(bankConnections.entityId, ctx.entityId!),
       orderBy: [desc(bankConnections.createdAt)],
     });
   }),
 
-  updateBankTransaction: protectedProcedure
+  updateBankTransaction: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
@@ -479,7 +479,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  updateReconciliation: protectedProcedure
+  updateReconciliation: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
@@ -508,7 +508,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  deleteReconciliationItem: protectedProcedure
+  deleteReconciliationItem: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -557,7 +557,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  deleteBankAccount: protectedProcedure
+  deleteBankAccount: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -608,7 +608,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  deleteBankTransaction: protectedProcedure
+  deleteBankTransaction: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -649,7 +649,7 @@ export const treasuryRouter = router({
       }
     }),
 
-  deleteReconciliation: protectedProcedure
+  deleteReconciliation: rlsProtectedProcedure
     .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -696,7 +696,7 @@ export const treasuryRouter = router({
    * Run the autonomous reconciliation pipeline.
    * Optionally specify which bank accounts to reconcile.
    */
-  runReconciliation: mutateProcedure
+  runReconciliation: rlsMutateProcedure
     .use(requirePermission("bank_reconciliation", "approve"))
     .input(
       z
@@ -713,7 +713,7 @@ export const treasuryRouter = router({
    * Get reconciliation status summary for all bank accounts.
    * Does NOT run the pipeline — just reads current state.
    */
-  getReconciliationStatus: protectedProcedure.query(async ({ ctx }) => {
+  getReconciliationStatus: rlsProtectedProcedure.query(async ({ ctx }) => {
     return getReconciliationStatus(ctx.entityId!);
   }),
 });

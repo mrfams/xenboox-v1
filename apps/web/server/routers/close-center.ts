@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, gte, lte } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { closePeriods, agents, approvals } from "@xenboox/db/schema";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
@@ -11,7 +11,7 @@ export const closeCenterRouter = router({
   /**
    * Get close center overview data.
    */
-  getOverview: protectedProcedure
+  getOverview: rlsProtectedProcedure
     .input(
       z.object({
         period: z.string().optional(), // YYYY-MM format
@@ -91,7 +91,7 @@ export const closeCenterRouter = router({
   /**
    * Get close checklist with phases and tasks.
    */
-  getChecklist: protectedProcedure
+  getChecklist: rlsProtectedProcedure
     .input(
       z.object({
         period: z.string().optional(),
@@ -222,7 +222,7 @@ export const closeCenterRouter = router({
   /**
    * Get AI Close Assistant recommendations.
    */
-  getAiRecommendations: protectedProcedure.query(async ({ ctx }) => {
+  getAiRecommendations: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // In production, this would analyze actual close progress
@@ -256,7 +256,7 @@ export const closeCenterRouter = router({
   /**
    * Get time saved by AI.
    */
-  getTimeSaved: protectedProcedure
+  getTimeSaved: rlsProtectedProcedure
     .input(
       z.object({
         period: z.string().optional(),
@@ -286,7 +286,7 @@ export const closeCenterRouter = router({
   /**
    * Get close history.
    */
-  getCloseHistory: protectedProcedure.query(async ({ ctx }) => {
+  getCloseHistory: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get historical close periods
@@ -325,7 +325,7 @@ export const closeCenterRouter = router({
   /**
    * Get AI insights for the close center.
    */
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const insights = [
       {
         id: "insight-1",
@@ -363,7 +363,7 @@ export const closeCenterRouter = router({
   /**
    * Get task completion trend data.
    */
-  getTaskCompletionTrend: protectedProcedure.query(async ({ ctx }) => {
+  getTaskCompletionTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     // In production, this would query actual completion data
     const trend = [
       { date: "May 1", thisMonth: 0, lastMonth: 0 },

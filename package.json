@@ -46,5 +46,10 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "nanoid": "^6.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@opentelemetry/api": "1.9.1"
+    }
   }
 }

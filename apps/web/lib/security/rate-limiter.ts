@@ -121,6 +121,10 @@ const webhookLimiter = hasRedis()
   ? createRatelimit("webhook", 100, "60 s")
   : null;
 
+const chatStreamLimiter = hasRedis()
+  ? createRatelimit("chat:stream", 30, "60 s")
+  : null;
+
 export class RateLimiter {
   async checkApiRateLimit(identifier: string): Promise<RateLimitResult> {
     return tryUpstash(
@@ -153,6 +157,10 @@ export class RateLimiter {
 
   async checkAgentRateLimit(identifier: string): Promise<RateLimitResult> {
     return tryUpstash(agentLimiter, identifier, 10, 60);
+  }
+
+  async checkChatStreamRateLimit(identifier: string): Promise<RateLimitResult> {
+    return tryUpstash(chatStreamLimiter, identifier, 30, 60);
   }
 }
 

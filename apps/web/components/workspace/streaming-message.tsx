@@ -1,11 +1,12 @@
 "use client";
 
-import { Bot, ThumbsUp, ThumbsDown, Copy, CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Bot, ThumbsUp, ThumbsDown, Copy } from "lucide-react";
+
 import { RichMessageRenderer } from "./rich-message-renderer";
 import { AgentActivityBlock } from "./agent-activity-block";
 import { DocumentCard } from "./document-card";
 import { ApprovalPrompt } from "./approval-prompt";
+
 interface StreamingMessageProps {
   content: string;
   isStreaming: boolean;

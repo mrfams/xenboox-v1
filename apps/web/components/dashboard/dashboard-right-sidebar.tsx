@@ -1,15 +1,15 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import {
   Calendar,
-  Clock,
   FileText,
   MessageSquare,
   Sparkles,
   ChevronRight,
   ExternalLink,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 type DashboardRightSidebarProps = {
   className?: string;

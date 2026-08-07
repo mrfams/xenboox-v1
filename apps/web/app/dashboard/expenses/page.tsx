@@ -16,13 +16,11 @@ import {
   Upload,
   FileText,
   Clock,
-  Edit3,
-  Trash2,
-  Eye,
   AlertCircle,
   TrendingUp,
   Receipt,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -344,7 +342,7 @@ function ExpenseTable({
 function AiCopilotPanel({
   insights,
   budgetOverview,
-  topVendors,
+  topVendors: _topVendors,
 }: {
   insights: Array<{
     id: string;

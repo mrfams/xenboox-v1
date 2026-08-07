@@ -42,7 +42,7 @@ export default [
         groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
         'newlines-between': 'always',
       }],
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       'react/no-unescaped-entities': 'off',
       'no-control-regex': 'off',

@@ -2,8 +2,9 @@
 
 import React from "react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { Brain, CheckCircle2, XCircle, Edit3, ArrowRight } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 interface ChangeField {
   label: string;

@@ -1,15 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Bot, MessageSquare, Wand2, Search, Copy } from "lucide-react";
+
 import { cn } from "@/lib/utils";
-import {
-  Bot,
-  MessageSquare,
-  Wand2,
-  Search,
-  Copy,
-  ExternalLink,
-} from "lucide-react";
 
 interface TextSelectionMenuProps {
   onAskAI?: (text: string) => void;

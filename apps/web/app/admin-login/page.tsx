@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { trpc } from "@/lib/trpc/client";
 import {
   Card,
   CardContent,
@@ -16,6 +15,8 @@ import {
 } from "@xenboox/ui";
 import { ShieldCheck, Lock, ArrowRight, KeyRound } from "lucide-react";
 import { toast } from "sonner";
+
+import { trpc } from "@/lib/trpc/client";
 
 export default function AdminLoginPage() {
   const router = useRouter();

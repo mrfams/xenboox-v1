@@ -1,18 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { trpc } from "@/lib/trpc/client";
-import {
-  CommandDialog,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandShortcut,
-} from "@/components/ui";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -31,11 +20,20 @@ import {
   ArrowRight,
   Clock,
   Sparkles,
-  Building2,
-  HelpCircle,
   Zap,
   type LucideIcon,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+} from "@/components/ui";
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -451,7 +449,7 @@ export function CommandPalette({
         {!search && recentItems.length > 0 && (
           <CommandGroup heading="Recent">
             {recentItems.map((item) => {
-              const Icon = item.icon;
+              const ____Icon = item.icon;
               return (
                 <CommandItem
                   key={`recent-${item.id}`}

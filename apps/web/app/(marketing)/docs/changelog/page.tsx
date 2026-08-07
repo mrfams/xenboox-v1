@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { Bell, Tag } from "lucide-react";
+
 import { DocsPageHeader } from "../components/docs-page-header";
-import { Bell, Tag, ArrowRight } from "lucide-react";
 
 const releases = [
   {

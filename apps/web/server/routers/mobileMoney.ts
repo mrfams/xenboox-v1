@@ -3,7 +3,7 @@ import { eq, and, desc } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
   requireRole,
   requirePermission,
 } from "@/lib/trpc/server";
@@ -19,14 +19,14 @@ import { TRPCError } from "@trpc/server";
 
 export const mobileMoneyRouter = router({
   // ── Accounts ──
-  listAccounts: protectedProcedure.query(({ ctx }) => {
+  listAccounts: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.mobileMoneyAccounts.findMany({
       where: eq(mobileMoneyAccounts.entityId, ctx.entityId!),
       orderBy: [desc(mobileMoneyAccounts.createdAt)],
     });
   }),
 
-  createAccount: protectedProcedure
+  createAccount: rlsProtectedProcedure
     .use(requirePermission("mobile_money", "create"))
     .input(
       z.object({
@@ -61,7 +61,7 @@ export const mobileMoneyRouter = router({
       return account;
     }),
 
-  updateAccount: protectedProcedure
+  updateAccount: rlsProtectedProcedure
     .use(requirePermission("mobile_money", "edit"))
     .input(
       z.object({
@@ -87,14 +87,14 @@ export const mobileMoneyRouter = router({
     }),
 
   // ── Transactions ──
-  listTransactions: protectedProcedure.query(({ ctx }) => {
+  listTransactions: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.mobileMoneyTransactions.findMany({
       where: eq(mobileMoneyTransactions.entityId, ctx.entityId!),
       orderBy: [desc(mobileMoneyTransactions.createdAt)],
     });
   }),
 
-  createTransaction: protectedProcedure
+  createTransaction: rlsProtectedProcedure
     .use(requirePermission("mobile_money", "create"))
     .input(
       z.object({
@@ -127,7 +127,7 @@ export const mobileMoneyRouter = router({
       return tx;
     }),
 
-  updateTransactionStatus: protectedProcedure
+  updateTransactionStatus: rlsProtectedProcedure
     .use(requirePermission("mobile_money", "edit"))
     .input(
       z.object({
@@ -179,7 +179,7 @@ export const mobileMoneyRouter = router({
       return updated;
     }),
 
-  deleteAccount: protectedProcedure
+  deleteAccount: rlsProtectedProcedure
     .use(requirePermission("mobile_money", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -212,7 +212,7 @@ export const mobileMoneyRouter = router({
       }
     }),
 
-  deleteTransaction: protectedProcedure
+  deleteTransaction: rlsProtectedProcedure
     .use(requirePermission("mobile_money", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

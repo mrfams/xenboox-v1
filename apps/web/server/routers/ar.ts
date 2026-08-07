@@ -3,8 +3,8 @@ import { eq, and, desc } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   paginationSchema,
   requirePermission,
 } from "@/lib/trpc/server";
@@ -19,12 +19,17 @@ import {
 import { TRPCError } from "@trpc/server";
 import { sendPaymentReceivedEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
+import {
+  validateInvoice,
+  logTrustGuardResult,
+  trustGuardToError,
+} from "@xenboox/agents";
 
 // ─── AR Router ───────────────────────────────────────────────────────────────
 
 export const arRouter = router({
   // ── Customers ──
-  listCustomers: protectedProcedure
+  listCustomers: rlsProtectedProcedure
     .input(paginationSchema)
     .query(({ ctx, input }) => {
       return db.query.customers.findMany({
@@ -35,7 +40,7 @@ export const arRouter = router({
       });
     }),
 
-  createCustomer: mutateProcedure
+  createCustomer: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "create"))
     .input(
       z.object({
@@ -77,7 +82,7 @@ export const arRouter = router({
       }
     }),
 
-  updateCustomer: protectedProcedure
+  updateCustomer: rlsProtectedProcedure
     .use(requirePermission("accounts_receivable", "edit"))
     .input(
       z.object({
@@ -108,7 +113,7 @@ export const arRouter = router({
       }
     }),
 
-  getCustomerById: protectedProcedure
+  getCustomerById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(({ ctx, input }) => {
       return db.query.customers.findFirst({
@@ -120,7 +125,7 @@ export const arRouter = router({
     }),
 
   // ── Sales Invoices ──
-  listInvoices: protectedProcedure
+  listInvoices: rlsProtectedProcedure
     .input(paginationSchema)
     .query(({ ctx, input }) => {
       return db.query.salesInvoices.findMany({
@@ -131,7 +136,7 @@ export const arRouter = router({
       });
     }),
 
-  createInvoice: mutateProcedure
+  createInvoice: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "create"))
     .input(
       z.object({
@@ -162,6 +167,36 @@ export const arRouter = router({
           const qty = line.quantity;
           const price = parseFloat(line.unitPrice);
           totalAmount += qty * price;
+        }
+
+        const trustResult = validateInvoice({
+          entityId: ctx.entityId!,
+          customerId: input.customerId,
+          lines: lines.map((l) => ({
+            description: l.description,
+            quantity: l.quantity,
+            unitPrice: parseFloat(l.unitPrice),
+            amount: l.quantity * parseFloat(l.unitPrice),
+          })),
+          subtotal: totalAmount,
+          taxAmount: 0,
+          totalAmount,
+          currency: input.currency,
+        });
+
+        await logTrustGuardResult(
+          ctx.entityId!,
+          ctx.session!.user!.id!,
+          "ar.createInvoice",
+          trustResult,
+        );
+
+        if (!trustResult.passed) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              trustGuardToError(trustResult) ?? "Invoice validation failed",
+          });
         }
 
         return await db.transaction(async (tx) => {
@@ -214,7 +249,7 @@ export const arRouter = router({
       }
     }),
 
-  updateInvoice: protectedProcedure
+  updateInvoice: rlsProtectedProcedure
     .use(requirePermission("accounts_receivable", "edit"))
     .input(
       z.object({
@@ -247,7 +282,7 @@ export const arRouter = router({
       }
     }),
 
-  getInvoiceById: protectedProcedure
+  getInvoiceById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const invoice = await db.query.salesInvoices.findFirst({
@@ -266,7 +301,7 @@ export const arRouter = router({
     }),
 
   // ── AR Payments ──
-  listPayments: protectedProcedure
+  listPayments: rlsProtectedProcedure
     .input(paginationSchema)
     .query(({ ctx, input }) => {
       return db.query.paymentsAr.findMany({
@@ -277,7 +312,7 @@ export const arRouter = router({
       });
     }),
 
-  createPayment: mutateProcedure
+  createPayment: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "create"))
     .input(
       z.object({
@@ -402,7 +437,7 @@ export const arRouter = router({
 
   // ── Delete Procedures ──
 
-  deleteCustomer: protectedProcedure
+  deleteCustomer: rlsProtectedProcedure
     .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -442,7 +477,7 @@ export const arRouter = router({
       }
     }),
 
-  deleteInvoice: protectedProcedure
+  deleteInvoice: rlsProtectedProcedure
     .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -493,7 +528,7 @@ export const arRouter = router({
       }
     }),
 
-  deletePayment: protectedProcedure
+  deletePayment: rlsProtectedProcedure
     .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

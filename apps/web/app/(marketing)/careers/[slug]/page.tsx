@@ -13,9 +13,10 @@ import {
   Sparkles,
   Send,
 } from "lucide-react";
+import type { Metadata } from "next";
+
 import { FadeInUp } from "@/components/marketing/reveal";
 import { jobListings, getJobBySlug, getRelatedJobs } from "@/lib/careers-data";
-import type { Metadata } from "next";
 
 // Generate static paths for all job listings
 export async function generateStaticParams() {

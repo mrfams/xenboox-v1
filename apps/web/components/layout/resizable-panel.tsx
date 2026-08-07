@@ -7,8 +7,9 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { cn } from "@/lib/utils";
 import { GripVertical } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 interface ResizablePanelProps {
   children: ReactNode;

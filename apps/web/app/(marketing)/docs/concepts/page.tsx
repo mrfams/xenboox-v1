@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { BookOpen, ArrowRight } from "lucide-react";
+
 import { DocsPageHeader } from "../components/docs-page-header";
 import { RelatedLinks } from "../components/related-links";
-import { BookOpen, ArrowRight } from "lucide-react";
 
 const concepts = [
   {

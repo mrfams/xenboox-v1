@@ -1,7 +1,7 @@
-import Link from "next/link";
+import { Webhook } from "lucide-react";
+
 import { DocsPageHeader } from "../components/docs-page-header";
 import { RelatedLinks } from "../components/related-links";
-import { Webhook, ArrowRight, ExternalLink } from "lucide-react";
 
 const events = [
   {

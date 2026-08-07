@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import {
   ChevronUp,
   ChevronDown,
@@ -10,6 +9,8 @@ import {
   Square,
   ArrowUpDown,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 export interface ColumnDef<T> {
   key: string;

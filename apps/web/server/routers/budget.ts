@@ -17,8 +17,8 @@ import {
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
 import { entities } from "@xenboox/db/schema/organization";
@@ -29,7 +29,7 @@ import { chartOfAccounts } from "@xenboox/db/schema/accounting";
 export const budgetRouter = router({
   // ── Pipeline Execution ──────────────────────────────────────────────
 
-  runPipeline: mutateProcedure
+  runPipeline: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -86,7 +86,7 @@ export const budgetRouter = router({
 
   // ── Pipeline Status ─────────────────────────────────────────────────
 
-  getStatus: protectedProcedure
+  getStatus: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -108,7 +108,7 @@ export const budgetRouter = router({
 
   // ── Budget CRUD ─────────────────────────────────────────────────────
 
-  listBudgets: protectedProcedure
+  listBudgets: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -129,7 +129,7 @@ export const budgetRouter = router({
       });
     }),
 
-  createBudget: mutateProcedure
+  createBudget: rlsMutateProcedure
     .input(
       z.object({
         name: z.string().min(1).max(200),
@@ -163,7 +163,7 @@ export const budgetRouter = router({
       }
     }),
 
-  approveBudget: mutateProcedure
+  approveBudget: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ budgetId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -198,7 +198,7 @@ export const budgetRouter = router({
 
   // ── Budget Lines ────────────────────────────────────────────────────
 
-  listBudgetLines: protectedProcedure
+  listBudgetLines: rlsProtectedProcedure
     .input(
       z.object({
         budgetId: z.string().uuid(),
@@ -224,7 +224,7 @@ export const budgetRouter = router({
       });
     }),
 
-  upsertBudgetLine: mutateProcedure
+  upsertBudgetLine: rlsMutateProcedure
     .input(
       z.object({
         budgetId: z.string().uuid(),
@@ -288,7 +288,7 @@ export const budgetRouter = router({
 
   // ── Thresholds ──────────────────────────────────────────────────────
 
-  listThresholds: protectedProcedure
+  listThresholds: rlsProtectedProcedure
     .input(z.object({ budgetLineId: z.string().uuid() }).optional())
     .query(async ({ ctx, input }) => {
       if (input?.budgetLineId) {
@@ -304,7 +304,7 @@ export const budgetRouter = router({
       });
     }),
 
-  upsertThreshold: mutateProcedure
+  upsertThreshold: rlsMutateProcedure
     .input(
       z.object({
         budgetLineId: z.string().uuid(),
@@ -350,7 +350,7 @@ export const budgetRouter = router({
 
   // ── Variances ───────────────────────────────────────────────────────
 
-  listVariances: protectedProcedure
+  listVariances: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -377,7 +377,7 @@ export const budgetRouter = router({
 
   // ── Budget Impact Check ─────────────────────────────────────────────
 
-  checkBudgetImpact: protectedProcedure
+  checkBudgetImpact: rlsProtectedProcedure
     .input(
       z.object({
         accountId: z.string().uuid(),
@@ -393,7 +393,7 @@ export const budgetRouter = router({
 
   // ── Versions ────────────────────────────────────────────────────────
 
-  listVersions: protectedProcedure
+  listVersions: rlsProtectedProcedure
     .input(z.object({ budgetId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return db.query.budgetVersions.findMany({

@@ -15,6 +15,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+
 import {
   Button,
   Avatar,
@@ -32,7 +34,6 @@ import { AICommandBar } from "@/components/shared/ai-command-bar";
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { getInitials } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
-import Link from "next/link";
 
 interface TopNavProps {
   onMenuClick: () => void;

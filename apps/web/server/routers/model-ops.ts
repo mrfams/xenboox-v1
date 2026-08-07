@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
   adminProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -65,7 +65,7 @@ const TaskTypeEnum = z.enum([
 
 export const modelOpsRouter = router({
   // ─── List all registered models ──────────────────
-  listModels: protectedProcedure.query(async () => {
+  listModels: rlsProtectedProcedure.query(async () => {
     return db.query.modelRegistry.findMany({
       orderBy: [desc(modelRegistry.createdAt)],
     });
@@ -148,13 +148,13 @@ export const modelOpsRouter = router({
 
   // ─── Model Assignments ───────────────────────────
 
-  listAssignments: protectedProcedure.query(async () => {
+  listAssignments: rlsProtectedProcedure.query(async () => {
     return db.query.modelAssignments.findMany({
       orderBy: [desc(modelAssignments.updatedAt)],
     });
   }),
 
-  getAssignment: protectedProcedure
+  getAssignment: rlsProtectedProcedure
     .input(z.object({ agentName: z.string(), taskType: TaskTypeEnum }))
     .query(async ({ input }) => {
       return db.query.modelAssignments.findFirst({
@@ -242,7 +242,7 @@ export const modelOpsRouter = router({
 
   // ─── Evaluation Pipeline ─────────────────────────
 
-  listEvaluations: protectedProcedure.query(async () => {
+  listEvaluations: rlsProtectedProcedure.query(async () => {
     return db.query.modelEvaluations.findMany({
       orderBy: [desc(modelEvaluations.createdAt)],
       limit: 50,
@@ -326,7 +326,7 @@ export const modelOpsRouter = router({
 
   // ─── Cost Tracking ───────────────────────────────
 
-  listCostTracking: protectedProcedure
+  listCostTracking: rlsProtectedProcedure
     .input(
       z.object({
         entityId: z.string().uuid().optional(),

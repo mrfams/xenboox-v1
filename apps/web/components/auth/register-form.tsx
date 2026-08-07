@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
 import { Button } from "@/components/ui";
 import {
   Input,
@@ -22,7 +23,7 @@ export function RegisterForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [inviteInfo, setInviteInfo] = useState<{
+  const [_inviteInfo, setInviteInfo] = useState<{
     token: string;
     role: string;
   } | null>(null);
@@ -44,7 +45,7 @@ export function RegisterForm() {
     setIsLoading(true);
 
     try {
-      const result = await registerMutation.mutateAsync({
+      const ____result = await registerMutation.mutateAsync({
         name,
         email,
         password,
@@ -114,6 +115,7 @@ export function RegisterForm() {
             <Label htmlFor="name">Full Name</Label>
             <Input
               id="name"
+              name="name"
               placeholder="John Doe"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -126,6 +128,7 @@ export function RegisterForm() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="you@company.com"
               value={email}
@@ -139,6 +142,7 @@ export function RegisterForm() {
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="At least 8 characters"
               value={password}

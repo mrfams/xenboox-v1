@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -21,7 +20,6 @@ import {
 import {
   Building2,
   Save,
-  Plus,
   Pencil,
   X,
   Loader2,
@@ -30,6 +28,8 @@ import {
   Hash,
   Calendar,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 const CURRENCIES = [
   { code: "GMD", name: "Gambian Dalasi" },

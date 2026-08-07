@@ -1,16 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Smartphone, ArrowRightLeft, FileSearch, Zap } from "lucide-react";
+
 import { DocsPageHeader } from "../../components/docs-page-header";
 import { FeatureGrid } from "../../components/feature-grid";
 import { InfoCallout } from "../../components/info-callout";
 import { RelatedLinks } from "../../components/related-links";
-import {
-  Smartphone,
-  ArrowRightLeft,
-  FileSearch,
-  Zap,
-  Users,
-  Shield,
-} from "lucide-react";
+
+import { Card, CardContent } from "@/components/ui";
 
 const features = [
   {

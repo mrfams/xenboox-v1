@@ -2,8 +2,6 @@
 
 import { useState, useRef, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui";
 import {
   ArrowRight,
   BookOpen,
@@ -14,6 +12,9 @@ import {
   RefreshCw,
   Calendar,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui";
 
 type AIChatInputProps = {
   className?: string;

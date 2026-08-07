@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   bankAccounts,
@@ -12,7 +12,7 @@ import {
 
 export const reconciliationRouter = router({
   // ── Reconciliation Center Data ──
-  getReconciliationCenter: protectedProcedure
+  getReconciliationCenter: rlsProtectedProcedure
     .input(
       z.object({
         bankAccountId: z.string().uuid().optional(),
@@ -204,7 +204,7 @@ export const reconciliationRouter = router({
     }),
 
   // ── Match Transaction ──
-  matchTransaction: protectedProcedure
+  matchTransaction: rlsProtectedProcedure
     .input(
       z.object({
         transactionId: z.string().uuid(),
@@ -233,7 +233,7 @@ export const reconciliationRouter = router({
     }),
 
   // ── Auto-Reconcile ──
-  autoReconcile: protectedProcedure
+  autoReconcile: rlsProtectedProcedure
     .input(
       z.object({
         bankAccountId: z.string().uuid(),
@@ -275,7 +275,7 @@ export const reconciliationRouter = router({
     }),
 
   // ── Finalize Reconciliation ──
-  finalizeReconciliation: protectedProcedure
+  finalizeReconciliation: rlsProtectedProcedure
     .input(
       z.object({
         bankAccountId: z.string().uuid(),
@@ -311,7 +311,7 @@ export const reconciliationRouter = router({
   /**
    * Get reconciliation overview data including summary cards and stats.
    */
-  getOverview: protectedProcedure.query(async ({ ctx }) => {
+  getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get all bank accounts
@@ -504,7 +504,7 @@ export const reconciliationRouter = router({
   /**
    * Get AI insights for the reconciliation page.
    */
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const insights: Array<{
       id: string;

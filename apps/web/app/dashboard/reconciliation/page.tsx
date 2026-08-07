@@ -8,7 +8,6 @@ import {
   ChevronDown,
   MoreHorizontal,
   RefreshCw,
-  Clock,
   CheckCircle2,
   AlertTriangle,
   Bot,
@@ -18,11 +17,11 @@ import {
   Filter,
   Settings,
   FileText,
-  Link,
   BarChart3,
   ArrowRight,
   Building2,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -385,7 +384,7 @@ function ReconciliationTrendChart({
         </button>
       </div>
       <div className="h-40 flex items-end gap-2">
-        {trendData.map((d, i) => (
+        {trendData.map((d, _i) => (
           <div
             key={d.month}
             className="flex-1 flex flex-col items-center gap-1"

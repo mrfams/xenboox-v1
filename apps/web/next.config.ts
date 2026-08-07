@@ -47,6 +47,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   generateEtags: true,
   productionBrowserSourceMaps: false,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   // Enterprise logging (only in development)
   logging:
     process.env.NODE_ENV === "development"

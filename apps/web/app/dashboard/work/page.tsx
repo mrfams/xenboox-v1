@@ -1,10 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useEntity } from "@/lib/entity-context";
-import { trpc } from "@/lib/trpc/client";
-import { cn } from "@/lib/utils";
 import {
   Inbox,
   FileCheck,
@@ -13,10 +9,12 @@ import {
   Clock,
   CheckCircle2,
   ChevronRight,
-  Eye,
-  MessageSquare,
   RefreshCw,
 } from "lucide-react";
+
+import { useEntity } from "@/lib/entity-context";
+import { trpc } from "@/lib/trpc/client";
+import { cn } from "@/lib/utils";
 
 // ─── Notifications Tab Component ─────────────────────────────────────────
 

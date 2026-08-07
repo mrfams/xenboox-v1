@@ -53,7 +53,7 @@ const TABLE_ROW_REGEX = /\|([^|]*)/g;
  */
 export function parseMessage(content: string): ParsedMessage {
   const segments: ParsedMessage["segments"] = [];
-  const remainingText = content;
+  const ____remainingText = content;
 
   // First, extract rich blocks
   let match;

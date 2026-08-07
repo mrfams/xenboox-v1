@@ -1,6 +1,7 @@
-import Link from "next/link"
-import { Button } from "@/components/ui"
-import { Search, ArrowLeft, Home } from "lucide-react"
+import Link from "next/link";
+import { Search, Home } from "lucide-react";
+
+import { Button } from "@/components/ui";
 
 export default function DashboardNotFound() {
   return (
@@ -23,5 +24,5 @@ export default function DashboardNotFound() {
         </div>
       </div>
     </div>
-  )
+  );
 }

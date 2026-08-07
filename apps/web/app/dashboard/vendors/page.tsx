@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bot,
-  TrendingUp,
   TrendingDown,
   FileText,
   MoreHorizontal,
@@ -19,8 +18,8 @@ import {
   Upload,
   Users,
   Clock,
-  ArrowRight,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -615,7 +614,7 @@ function BottomRow({
 
         {/* Line Chart */}
         <div className="h-32 flex items-end gap-2">
-          {trendData.map((d, i) => {
+          {trendData.map((d, _i) => {
             const height = maxTrend > 0 ? (d.amount / maxTrend) * 100 : 0;
             return (
               <div
@@ -646,7 +645,7 @@ function BottomRow({
           </button>
         </div>
         <div className="space-y-3">
-          {topVendors.map((vendor, i) => {
+          {topVendors.map((vendor, _i) => {
             const maxAmount = topVendors[0]?.total ?? 1;
             const width = maxAmount > 0 ? (vendor.total / maxAmount) * 100 : 0;
             return (

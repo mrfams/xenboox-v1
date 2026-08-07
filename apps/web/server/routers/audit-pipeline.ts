@@ -11,7 +11,7 @@ import {
   auditorQueries,
 } from "@xenboox/db/schema/audit-pipeline";
 import { runAuditPipeline, getAuditStatus } from "@xenboox/agents";
-import { router, protectedProcedure, requireRole } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure, requireRole } from "@/lib/trpc/server";
 import { entities } from "@xenboox/db/schema/organization";
 
 // ─── Audit Pipeline Router ──────────────────────────────────────────────
@@ -19,7 +19,7 @@ import { entities } from "@xenboox/db/schema/organization";
 export const auditPipelineRouter = router({
   // ── Pipeline Execution ──────────────────────────────────────────────
 
-  runPipeline: protectedProcedure
+  runPipeline: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -97,7 +97,7 @@ export const auditPipelineRouter = router({
 
   // ── Pipeline Status ─────────────────────────────────────────────────
 
-  getStatus: protectedProcedure
+  getStatus: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -117,7 +117,7 @@ export const auditPipelineRouter = router({
 
   // ── Audit Samples ──────────────────────────────────────────────────
 
-  listSamples: protectedProcedure
+  listSamples: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -144,7 +144,7 @@ export const auditPipelineRouter = router({
 
   // ── Drift Scores ───────────────────────────────────────────────────
 
-  listDriftScores: protectedProcedure
+  listDriftScores: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -167,7 +167,7 @@ export const auditPipelineRouter = router({
 
   // ── Golden Dataset ─────────────────────────────────────────────────
 
-  listGoldenScenarios: protectedProcedure
+  listGoldenScenarios: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -188,7 +188,7 @@ export const auditPipelineRouter = router({
 
   // ── Audit Packages ─────────────────────────────────────────────────
 
-  listPackages: protectedProcedure
+  listPackages: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -208,7 +208,7 @@ export const auditPipelineRouter = router({
 
   // ── Portal Sessions ────────────────────────────────────────────────
 
-  listPortalSessions: protectedProcedure
+  listPortalSessions: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .query(async ({ ctx }) => {
       return db.query.auditorPortalSessions.findMany({
@@ -222,7 +222,7 @@ export const auditPipelineRouter = router({
 
   // ── Auditor Queries ────────────────────────────────────────────────
 
-  listQueries: protectedProcedure
+  listQueries: rlsProtectedProcedure
     .input(
       z
         .object({

@@ -1,8 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
-import { buildSsoProviders, loadSsoConfig } from "./sso";
-import { getSsoSettings, isDomainEnforced } from "@/lib/sso-settings";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@xenboox/db";
 import { eq, sql } from "drizzle-orm";
@@ -14,6 +12,10 @@ import {
 } from "@xenboox/db/schema/organization";
 import bcrypt from "bcryptjs";
 import { jwtVerify } from "jose";
+
+import { buildSsoProviders, loadSsoConfig } from "./sso";
+
+import { isDomainEnforced } from "@/lib/sso-settings";
 import { logger } from "@/lib/logger";
 
 const JWT_SECRET = new TextEncoder().encode(process.env.AUTH_SECRET);
@@ -264,6 +266,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         // sid is set by authorize callback and passed through user object
         token.sid = (user as Record<string, unknown>).sid as string | undefined;
+
+        // Fetch lastUsedEntityId for the user
+        if (user.id) {
+          const dbUser = await db.query.users.findFirst({
+            where: eq(users.id, user.id),
+            columns: { lastUsedEntityId: true },
+          });
+          token.lastUsedEntityId = dbUser?.lastUsedEntityId ?? null;
+        }
       }
       return token;
     },
@@ -271,6 +282,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         (session as unknown as Record<string, unknown>).sid = token.sid;
+        (session as unknown as Record<string, unknown>).lastUsedEntityId =
+          token.lastUsedEntityId ?? null;
       }
       return session;
     },

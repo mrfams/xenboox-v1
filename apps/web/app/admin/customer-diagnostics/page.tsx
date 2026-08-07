@@ -22,12 +22,11 @@ import {
   Calendar,
   Filter,
   Download,
-  Activity,
-  CheckCircle2,
   AlertCircle,
   Info,
   ChevronRight,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 

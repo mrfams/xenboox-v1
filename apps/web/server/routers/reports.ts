@@ -3,12 +3,17 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, asc, inArray, desc, sql, count, sum } from "drizzle-orm";
-import { runReportingPipeline, detectReportablePeriods } from "@xenboox/agents";
+import {
+  runReportingPipeline,
+  detectReportablePeriods,
+  generateCashFlow,
+  generateBudgetVsActual,
+} from "@xenboox/agents";
 import {
   chartOfAccounts,
   journalEntries,
@@ -38,7 +43,7 @@ export const reportsRouter = router({
   /**
    * Get overview data for the Reports page.
    */
-  getOverview: protectedProcedure
+  getOverview: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -263,7 +268,7 @@ export const reportsRouter = router({
   /**
    * Get P&L overview for the bar chart comparison.
    */
-  getPnlOverview: protectedProcedure.query(async ({ ctx }) => {
+  getPnlOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const now = new Date();
@@ -333,7 +338,7 @@ export const reportsRouter = router({
   /**
    * Get expense categories for donut chart.
    */
-  getExpenseCategories: protectedProcedure
+  getExpenseCategories: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -413,7 +418,7 @@ export const reportsRouter = router({
   /**
    * Get recent reports.
    */
-  getRecentReports: protectedProcedure.query(async ({ ctx }) => {
+  getRecentReports: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // In production, this would query a reports table
@@ -446,7 +451,7 @@ export const reportsRouter = router({
   /**
    * Get AI insights for the Reports page.
    */
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get current and previous period data
@@ -549,7 +554,7 @@ export const reportsRouter = router({
     return insights;
   }),
 
-  getProfitAndLoss: protectedProcedure
+  getProfitAndLoss: rlsProtectedProcedure
     .input(
       z.object({
         periodId: z.string().uuid().optional(),
@@ -662,7 +667,7 @@ export const reportsRouter = router({
       }
     }),
 
-  getBalanceSheet: protectedProcedure
+  getBalanceSheet: rlsProtectedProcedure
     .input(
       z.object({
         periodId: z.string().uuid().optional(),
@@ -802,20 +807,36 @@ export const reportsRouter = router({
       }
     }),
 
-  listPeriods: protectedProcedure.query(async ({ ctx }) => {
+  listPeriods: rlsProtectedProcedure.query(async ({ ctx }) => {
     return db.query.fiscalPeriods.findMany({
       where: eq(fiscalPeriods.entityId, ctx.entityId!),
       orderBy: [asc(fiscalPeriods.startDate)],
     });
   }),
 
-  getReportablePeriods: protectedProcedure.query(async ({ ctx }) => {
+  getReportablePeriods: rlsProtectedProcedure.query(async ({ ctx }) => {
     return detectReportablePeriods(ctx.entityId!);
   }),
 
+  // ─── Cash Flow Statement ──────────────────────────────────────────────
+
+  getCashFlow: rlsProtectedProcedure
+    .input(z.object({ periodId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return generateCashFlow(ctx.entityId!, input.periodId);
+    }),
+
+  // ─── Budget vs Actual ─────────────────────────────────────────────────
+
+  getBudgetVsActual: rlsProtectedProcedure
+    .input(z.object({ periodId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return generateBudgetVsActual(ctx.entityId!, input.periodId);
+    }),
+
   // ─── Pipeline 5: Autonomous Reporting ──────────────────────────────────
 
-  runReportingPipeline: mutateProcedure
+  runReportingPipeline: rlsMutateProcedure
     .input(
       z
         .object({

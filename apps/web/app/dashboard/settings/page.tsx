@@ -14,9 +14,8 @@ import {
   History,
   Lock,
   Link,
-  ChevronRight,
-  ChevronDown,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { OrganizationSection } from "@/components/settings/organization-section";

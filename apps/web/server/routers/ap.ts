@@ -3,8 +3,8 @@ import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requireRole,
   requirePermission,
 } from "@/lib/trpc/server";
@@ -21,12 +21,17 @@ import {
 import { TRPCError } from "@trpc/server";
 import { sendPaymentSentEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
+import {
+  validateInvoice,
+  logTrustGuardResult,
+  trustGuardToError,
+} from "@xenboox/agents";
 
 // ─── AP Router ───────────────────────────────────────────────────────────────
 
 export const apRouter = router({
   // ── Vendors Overview ──
-  getVendorsOverview: protectedProcedure
+  getVendorsOverview: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -160,7 +165,7 @@ export const apRouter = router({
     }),
 
   // ── Vendor List with Payables ──
-  listVendorsWithPayables: protectedProcedure
+  listVendorsWithPayables: rlsProtectedProcedure
     .input(
       z.object({
         status: z.enum(["all", "active", "inactive", "on_hold"]).default("all"),
@@ -300,7 +305,7 @@ export const apRouter = router({
     }),
 
   // ── Tab Counts ──
-  getVendorTabCounts: protectedProcedure.query(async ({ ctx }) => {
+  getVendorTabCounts: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const allResult = await db
@@ -332,7 +337,7 @@ export const apRouter = router({
   }),
 
   // ── Top Vendors by Payables ──
-  getTopVendors: protectedProcedure
+  getTopVendors: rlsProtectedProcedure
     .input(
       z.object({
         limit: z.number().default(5),
@@ -361,7 +366,7 @@ export const apRouter = router({
     }),
 
   // ── Payment Terms Overview ──
-  getPaymentTermsOverview: protectedProcedure.query(async ({ ctx }) => {
+  getPaymentTermsOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const vendors = await db.query.suppliers.findMany({
@@ -394,7 +399,7 @@ export const apRouter = router({
   }),
 
   // ── Vendor Aging ──
-  getVendorAging: protectedProcedure.query(async ({ ctx }) => {
+  getVendorAging: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const now = new Date();
@@ -465,7 +470,7 @@ export const apRouter = router({
   }),
 
   // ── AI Insights ──
-  getVendorAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getVendorAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const insights: Array<{
@@ -533,14 +538,14 @@ export const apRouter = router({
   }),
 
   // ── Suppliers ──
-  listSuppliers: protectedProcedure.query(({ ctx }) => {
+  listSuppliers: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.suppliers.findMany({
       where: eq(suppliers.entityId, ctx.entityId!),
       orderBy: [desc(suppliers.createdAt)],
     });
   }),
 
-  createSupplier: mutateProcedure
+  createSupplier: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "create"))
     .input(
       z.object({
@@ -580,7 +585,7 @@ export const apRouter = router({
       }
     }),
 
-  updateSupplier: protectedProcedure
+  updateSupplier: rlsProtectedProcedure
     .use(requirePermission("accounts_payable", "edit"))
     .input(
       z.object({
@@ -610,7 +615,7 @@ export const apRouter = router({
       }
     }),
 
-  getSupplierById: protectedProcedure
+  getSupplierById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(({ ctx, input }) => {
       return db.query.suppliers.findFirst({
@@ -622,14 +627,14 @@ export const apRouter = router({
     }),
 
   // ── Purchase Orders ──
-  listPOs: protectedProcedure.query(({ ctx }) => {
+  listPOs: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.purchaseOrders.findMany({
       where: eq(purchaseOrders.entityId, ctx.entityId!),
       orderBy: [desc(purchaseOrders.createdAt)],
     });
   }),
 
-  createPO: mutateProcedure
+  createPO: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "create"))
     .input(
       z.object({
@@ -711,7 +716,7 @@ export const apRouter = router({
       }
     }),
 
-  updatePO: protectedProcedure
+  updatePO: rlsProtectedProcedure
     .use(requirePermission("accounts_payable", "edit"))
     .input(
       z.object({
@@ -750,7 +755,7 @@ export const apRouter = router({
       }
     }),
 
-  getPOById: protectedProcedure
+  getPOById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const po = await db.query.purchaseOrders.findFirst({
@@ -768,7 +773,7 @@ export const apRouter = router({
       return { ...po, lines };
     }),
 
-  approvePO: mutateProcedure
+  approvePO: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -795,14 +800,14 @@ export const apRouter = router({
     }),
 
   // ── AP Invoices ──
-  listInvoices: protectedProcedure.query(({ ctx }) => {
+  listInvoices: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.invoicesAp.findMany({
       where: eq(invoicesAp.entityId, ctx.entityId!),
       orderBy: [desc(invoicesAp.createdAt)],
     });
   }),
 
-  createInvoice: mutateProcedure
+  createInvoice: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director", "accountant"))
     .input(
       z.object({
@@ -834,6 +839,36 @@ export const apRouter = router({
           const qty = line.quantity;
           const price = parseFloat(line.unitPrice);
           totalAmount += qty * price;
+        }
+
+        const trustResult = validateInvoice({
+          entityId: ctx.entityId!,
+          vendorId: input.supplierId,
+          lines: lines.map((l) => ({
+            description: l.description,
+            quantity: l.quantity,
+            unitPrice: parseFloat(l.unitPrice),
+            amount: l.quantity * parseFloat(l.unitPrice),
+          })),
+          subtotal: totalAmount,
+          taxAmount: 0,
+          totalAmount,
+          currency: input.currency,
+        });
+
+        await logTrustGuardResult(
+          ctx.entityId!,
+          ctx.session!.user!.id!,
+          "ap.createInvoice",
+          trustResult,
+        );
+
+        if (!trustResult.passed) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              trustGuardToError(trustResult) ?? "Invoice validation failed",
+          });
         }
 
         return await db.transaction(async (tx) => {
@@ -887,7 +922,7 @@ export const apRouter = router({
       }
     }),
 
-  updateInvoice: protectedProcedure
+  updateInvoice: rlsProtectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -916,7 +951,7 @@ export const apRouter = router({
       }
     }),
 
-  getInvoiceById: protectedProcedure
+  getInvoiceById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const invoice = await db.query.invoicesAp.findFirst({
@@ -935,14 +970,14 @@ export const apRouter = router({
     }),
 
   // ── AP Payments ──
-  listPayments: protectedProcedure.query(({ ctx }) => {
+  listPayments: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.paymentsAp.findMany({
       where: eq(paymentsAp.entityId, ctx.entityId!),
       orderBy: [desc(paymentsAp.createdAt)],
     });
   }),
 
-  createPayment: mutateProcedure
+  createPayment: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -1063,7 +1098,7 @@ export const apRouter = router({
 
   // ── Delete Procedures ──
 
-  deleteSupplier: protectedProcedure
+  deleteSupplier: rlsProtectedProcedure
     .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1101,7 +1136,7 @@ export const apRouter = router({
       }
     }),
 
-  deletePO: protectedProcedure
+  deletePO: rlsProtectedProcedure
     .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1154,7 +1189,7 @@ export const apRouter = router({
       }
     }),
 
-  deleteInvoice: protectedProcedure
+  deleteInvoice: rlsProtectedProcedure
     .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1207,7 +1242,7 @@ export const apRouter = router({
       }
     }),
 
-  deletePayment: protectedProcedure
+  deletePayment: rlsProtectedProcedure
     .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

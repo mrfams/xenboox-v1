@@ -12,9 +12,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bot,
-  TrendingUp,
-  TrendingDown,
-  Eye,
   RefreshCw,
   Send,
   Filter,
@@ -23,8 +20,8 @@ import {
   Layers,
   BarChart3,
   AlertCircle,
-  Link,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 

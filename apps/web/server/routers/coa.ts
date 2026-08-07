@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
   requireRole,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -11,14 +11,14 @@ import { eq, and, asc } from "drizzle-orm";
 import { chartOfAccounts } from "@xenboox/db/schema/accounting";
 
 export const coaRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: rlsProtectedProcedure.query(async ({ ctx }) => {
     return db.query.chartOfAccounts.findMany({
       where: eq(chartOfAccounts.entityId, ctx.entityId!),
       orderBy: [asc(chartOfAccounts.code)],
     });
   }),
 
-  listHierarchy: protectedProcedure.query(async ({ ctx }) => {
+  listHierarchy: rlsProtectedProcedure.query(async ({ ctx }) => {
     const accounts = await db.query.chartOfAccounts.findMany({
       where: eq(chartOfAccounts.entityId, ctx.entityId!),
       orderBy: [asc(chartOfAccounts.code)],
@@ -46,7 +46,7 @@ export const coaRouter = router({
     return roots;
   }),
 
-  getById: protectedProcedure
+  getById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return db.query.chartOfAccounts.findFirst({
@@ -57,7 +57,7 @@ export const coaRouter = router({
       });
     }),
 
-  create: protectedProcedure
+  create: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -130,7 +130,7 @@ export const coaRouter = router({
       }
     }),
 
-  update: protectedProcedure
+  update: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -174,7 +174,7 @@ export const coaRouter = router({
       return updated;
     }),
 
-  delete: protectedProcedure
+  delete: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -216,7 +216,7 @@ export const coaRouter = router({
       }
     }),
 
-  importTemplate: protectedProcedure
+  importTemplate: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({

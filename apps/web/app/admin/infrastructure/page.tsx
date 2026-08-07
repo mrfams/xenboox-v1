@@ -17,10 +17,6 @@ import {
   AlertTriangle,
   AlertCircle,
   Clock,
-  Cpu,
-  HardDrive,
-  MemoryStick,
-  Wifi,
   ArrowUp,
   ArrowDown,
   ArrowRight,
@@ -31,8 +27,8 @@ import {
   Info,
   ChevronRight,
   Search,
-  XCircle,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -186,7 +182,7 @@ function ResourceCard({
 
 // ─── Sparkline Component ────────────────────────────────────────────────────
 
-function Sparkline({
+function _Sparkline({
   data,
   color = "rgb(139, 92, 246)",
   height = 40,

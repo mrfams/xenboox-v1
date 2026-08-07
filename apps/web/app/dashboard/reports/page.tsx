@@ -3,26 +3,19 @@
 import { useState } from "react";
 import {
   Search,
-  Filter,
   Download,
-  ChevronDown,
   CheckCircle2,
   AlertTriangle,
   Bot,
   TrendingUp,
-  TrendingDown,
   FileText,
   BarChart3,
   PieChart,
-  ArrowRight,
-  Clock,
-  Plus,
-  Eye,
   Share2,
   MoreHorizontal,
-  RefreshCw,
   Send,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -722,7 +715,7 @@ function RecentReports({
 
 // ─── AI Report Assistant Panel ─────────────────────────────────────────────
 
-function AiReportAssistantPanel({
+function _AiReportAssistantPanel({
   insights,
 }: {
   insights: Array<{

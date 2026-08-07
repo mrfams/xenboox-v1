@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
-import type { RouterOutputs } from "@/lib/trpc";
 import {
   Card,
   CardContent,
@@ -27,7 +25,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
   Select,
   SelectContent,
   SelectItem,
@@ -46,12 +43,12 @@ import {
   Edit,
   Trash2,
   User,
-  Mail,
-  Shield,
   CheckCircle2,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+
+import { trpc } from "@/lib/trpc/client";
 
 type User = {
   id: string;

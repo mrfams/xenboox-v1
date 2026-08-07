@@ -1,6 +1,11 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
+// CJS Tailwind config.
+//
+// Deliberately NOT a TypeScript module: the config body calls
+// `require("tailwindcss-animate")`, which throws "require is not defined" when
+// Next/Tailwind loads a .ts config through the ESM path. A .cjs config is
+// always loaded via require(), so dev and build are deterministic.
+/** @type {import("tailwindcss").Config} */
+module.exports = {
   darkMode: "class",
   content: [
     "./app/**/*.{ts,tsx}",
@@ -176,5 +181,3 @@ const config: Config = {
   },
   plugins: [require("tailwindcss-animate")],
 };
-
-export default config;

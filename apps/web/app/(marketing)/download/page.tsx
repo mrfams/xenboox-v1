@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ArrowRight,
 } from "lucide-react";
+
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
 

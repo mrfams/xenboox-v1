@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import {
   processChatInput,
@@ -41,7 +41,7 @@ const agentTaskTypeSchema = z.enum([
 ]);
 
 export const agentRouter = router({
-  chat: protectedProcedure
+  chat: rlsProtectedProcedure
     .input(
       z.object({
         message: z.string().min(1).max(10000),
@@ -92,7 +92,7 @@ export const agentRouter = router({
       }
     }),
 
-  invoke: protectedProcedure
+  invoke: rlsProtectedProcedure
     .input(
       z.object({
         taskType: agentTaskTypeSchema,
@@ -147,7 +147,7 @@ export const agentRouter = router({
       }
     }),
 
-  status: protectedProcedure.query(async ({ ctx }) => {
+  status: rlsProtectedProcedure.query(async ({ ctx }) => {
     // In production, this should query the agent registry for deployed/available agents
     // Currently returns the full list of defined agents as a static fallback
     const agentsAvailable = [

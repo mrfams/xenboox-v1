@@ -8,22 +8,17 @@ import {
   AlertTriangle,
   FileText,
   CreditCard,
-  Users,
   Building2,
   Filter,
   ChevronDown,
   RefreshCw,
   MoreHorizontal,
   ExternalLink,
-  ThumbsUp,
-  ThumbsDown,
   Send,
-  Sparkles,
   ChevronRight,
-  Eye,
-  ArrowRight,
   Bot,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -673,7 +668,7 @@ function AiAssistantPanel({
 
 export default function InboxPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [sortBy, setSortBy] = useState<SortType>("newest");
+  const [sortBy, _setSortBy] = useState<SortType>("newest");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedItemType, setSelectedItemType] =
     useState<string>("journal_entry");

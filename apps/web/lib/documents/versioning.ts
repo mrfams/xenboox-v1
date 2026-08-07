@@ -5,10 +5,11 @@
  * Supports creating, retrieving, and comparing document versions.
  */
 
-import { db } from "@/lib/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { documents } from "@xenboox/db/schema/documents";
 import { v4 as uuidv4 } from "uuid";
+
+import { db } from "@/lib/db";
 
 // ─── Types ──────────────────────────────────────────────────────────────
 

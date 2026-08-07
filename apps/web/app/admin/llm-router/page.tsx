@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -28,6 +27,7 @@ import {
   Info,
   Settings,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 

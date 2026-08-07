@@ -1,5 +1,6 @@
-import { LoginForm } from "@/components/auth/login-form";
 import Link from "next/link";
+
+import { LoginForm } from "@/components/auth/login-form";
 import { isSsoEnabled, getSsoDisplayName } from "@/lib/auth/sso";
 
 export default function LoginPage() {

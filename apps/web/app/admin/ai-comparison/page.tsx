@@ -4,18 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui";
 import { Button } from "@xenboox/ui";
 import {
   AlertCircle,
-  CheckCircle2,
-  Shield,
-  TrendingUp,
   Server,
   Cloud,
   Calculator,
   BarChart3,
 } from "lucide-react";
-import { trpc } from "@/lib/trpc/client";
-import { AIComparison } from "@/lib/types";
 import { useState } from "react";
 import { Alert } from "@xenboox/ui";
+
+import { trpc } from "@/lib/trpc/client";
+import { AIComparison } from "@/lib/types";
 
 export default function AIComparisonPage() {
   const [viewMode, setViewMode] = useState<"cards" | "graph">("cards");
@@ -45,7 +43,7 @@ export default function AIComparisonPage() {
     comparison?.reduce((sum, c) => sum + c.monthlyTokens, 0) ?? 0;
   const totalSpend =
     comparison?.reduce((sum, c) => sum + c.monthlySpend, 0) ?? 0;
-  const comparisonLength = comparison?.length ?? 1;
+  const ___comparisonLength = comparison?.length ?? 1;
   const avgLatency =
     comparison?.reduce((sum, c) => sum + c.avgLatencyMs, 0) ?? 0;
   const avgSuccessRate =

@@ -1,11 +1,7 @@
 "use client";
 
-import {
-  createTRPCReact,
-  httpBatchLink,
-  splitLink,
-  unstable_httpBatchStreamLink,
-} from "@trpc/react-query";
+import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
+
 import type { AppRouter } from "@/server/routers/_app";
 
 export const trpc = createTRPCReact<AppRouter>();
@@ -30,7 +26,10 @@ export function createTRPCClient() {
         url: `${getBaseUrl()}/api/trpc`,
         maxURLLength: 2048,
         headers() {
-          const entityId = localStorage.getItem("currentEntityId");
+          const entityId =
+            typeof window !== "undefined" && typeof localStorage !== "undefined"
+              ? localStorage.getItem("currentEntityId")
+              : null;
           return {
             "x-entity-id": entityId || "",
             "x-idempotency-key": generateIdempotencyKey(),

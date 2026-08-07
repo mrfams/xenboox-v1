@@ -1,9 +1,11 @@
+import { eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { conversations, chatMessages } from "@xenboox/db/schema";
-import { eq, and } from "drizzle-orm";
 import { processChatInput } from "@xenboox/agents";
+
+import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { getRateLimiter } from "@/lib/security/rate-limiter";
 
 export const runtime = "nodejs";
 
@@ -47,6 +49,31 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Rate limit: 30 chat messages per minute per user (in-memory fallback when
+  // no Upstash Redis is configured — deterministic per-instance)
+  const rate = await getRateLimiter().checkChatStreamRateLimit(
+    `chat:${userId}`,
+  );
+  if (!rate.success) {
+    return new Response(
+      JSON.stringify({
+        error:
+          "Rate limit exceeded. Please wait a moment before sending another message.",
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(
+            Math.max(1, rate.reset - Math.floor(Date.now() / 1000)),
+          ),
+          "X-RateLimit-Limit": rate.limit.toString(),
+          "X-RateLimit-Remaining": "0",
+        },
+      },
+    );
+  }
+
   // Create or get conversation
   let convId = conversationId;
   if (!convId) {
@@ -82,6 +109,19 @@ export async function POST(req: NextRequest) {
     fileContext = `\n\nUser uploaded files:\n${fileDescriptions}`;
   }
 
+  // Insert a pending assistant message row (status: streaming) so the UI can
+  // render a typing indicator tied to a real DB row, survive reconnects, and
+  // be marked completed/failed when the pipeline finishes.
+  const [pendingAssistant] = await db
+    .insert(chatMessages)
+    .values({
+      conversationId: convId,
+      role: "assistant",
+      content: "",
+      status: "streaming",
+    })
+    .returning();
+
   // Create streaming response
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -107,7 +147,10 @@ export async function POST(req: NextRequest) {
         // Stream tool events as they happen
         const toolEvents: Array<{
           type: string;
-          data: Record<string, unknown>;
+          toolName?: string;
+          args?: Record<string, unknown>;
+          success?: boolean;
+          data?: unknown;
         }> = [];
 
         const pipelineResult = await processChatInput({
@@ -217,19 +260,28 @@ export async function POST(req: NextRequest) {
 
         // Save complete AI response with tool calls and citations
         const toolCallsForMessage = toolEvents
-          .filter((e) => e.type === "tool_result")
+          .filter(
+            (
+              e,
+            ): e is {
+              type: "tool_result";
+              toolName: string;
+              success: boolean;
+              args?: Record<string, unknown>;
+              data?: unknown;
+            } => e.type === "tool_result" && !!e.toolName && !!e.success,
+          )
           .map((e) => ({
-            toolName: (e.data as any).toolName,
-            args: {},
-            success: (e.data as any).success,
-            result: (e.data as any).data,
+            toolName: e.toolName,
+            args: e.args ?? {},
+            success: e.success,
+            result: e.data,
           }));
 
-        const [assistantMessage] = await db
-          .insert(chatMessages)
-          .values({
-            conversationId: convId,
-            role: "assistant",
+        // Complete the pending assistant message with the real response
+        await db
+          .update(chatMessages)
+          .set({
             content: response,
             status: "completed",
             confidence: pipelineResult.confidence,
@@ -243,14 +295,14 @@ export async function POST(req: NextRequest) {
               toolCallsCount: toolCallsForMessage.length,
             }),
           })
-          .returning();
+          .where(eq(chatMessages.id, pendingAssistant.id));
 
         // Emit done event
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({
               type: "done",
-              messageId: assistantMessage.id,
+              messageId: pendingAssistant.id,
               confidence: Math.round(pipelineResult.confidence * 100),
               agentsInvolved: [pipelineResult.agentId],
               durationMs: pipelineResult.durationMs,
@@ -261,6 +313,20 @@ export async function POST(req: NextRequest) {
         controller.close();
       } catch (error) {
         console.error("Streaming error:", error);
+        // Mark the pending assistant message as failed so it never shows as
+        // completed in history
+        await db
+          .update(chatMessages)
+          .set({
+            content:
+              error instanceof Error
+                ? `⚠️ Request failed: ${error.message}`
+                : "⚠️ Request failed",
+            status: "failed",
+          })
+          .where(eq(chatMessages.id, pendingAssistant.id))
+          .catch(() => {});
+
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({

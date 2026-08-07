@@ -3,6 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 const BASE_URL = process.env.BASE_URL || "https://xenboox.vercel.app";
 const TEST_EMAIL = process.env.TEST_EMAIL || "demo@xenboox.com";
 const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo1234";
+// Headless by default in CI/local automation; headed when explicitly requested
+// so humans can watch the browser.
+const HEADLESS = process.env.HEADLESS !== "false";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -27,10 +30,13 @@ export default defineConfig({
     video: "retain-on-failure",
     actionTimeout: 15000,
     navigationTimeout: 30000,
-    headless: false, // Heaed mode so user can see the browser
+    headless: HEADLESS,
     launchOptions: {
-      headless: false, // Force headed mode
+      headless: HEADLESS,
+      // Bypass any system proxy so localhost automation is never intercepted.
+      args: ["--no-proxy-server"],
     },
+    ignoreHTTPSErrors: true,
   },
   projects: [
     {

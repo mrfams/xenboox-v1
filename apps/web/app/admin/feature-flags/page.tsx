@@ -1,19 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Input,
-  Skeleton,
-} from "@xenboox/ui";
+import { useState } from "react";
+import { Card, CardContent, Badge, Button, Input, Skeleton } from "@xenboox/ui";
 import {
   Search,
-  Filter,
   Download,
   Upload,
   Plus,
@@ -25,17 +15,15 @@ import {
   FileText,
   ArrowUp,
   ArrowDown,
-  ChevronRight,
-  ChevronDown,
   X,
-  Copy,
   ExternalLink,
   MoreHorizontal,
   Pencil,
-  Copy as CopyIcon,
   Pause,
   Power,
+  Copy,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -190,7 +178,7 @@ function LineChart({ data }: { data: { date: string; value: number }[] }) {
   const chartHeight = height - padding.top - padding.bottom;
 
   const maxValue = Math.max(...data.map((d) => d.value), 100);
-  const minX = 0;
+  const ___minX = 0;
   const maxX = data.length - 1;
 
   const getX = (index: number) => padding.left + (index / maxX) * chartWidth;
@@ -466,7 +454,7 @@ function FlagDetailPanel({
             <Pencil className="h-4 w-4" /> Edit Flag
           </button>
           <button className="flex items-center gap-2 p-2 border rounded-lg hover:bg-muted text-sm">
-            <CopyIcon className="h-4 w-4" /> Duplicate Flag
+            <Copy className="h-4 w-4" /> Duplicate Flag
           </button>
           <button className="flex items-center gap-2 p-2 border rounded-lg hover:bg-muted text-sm">
             <Pause className="h-4 w-4" /> Pause Rollout

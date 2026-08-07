@@ -4,7 +4,7 @@ import { eq, and, desc, asc } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
   adminProcedure,
   paginationSchema,
 } from "@/lib/trpc/server";
@@ -34,7 +34,7 @@ export const approvalsRouter = router({
    * List pending approval items (journal entries, escalations, etc.).
    * These are surfaced from agent_escalation routing logs and pending journal entries.
    */
-  listPending: protectedProcedure
+  listPending: rlsProtectedProcedure
     .input(
       paginationSchema.extend({
         type: ApprovableEntityTypeEnum.optional(),
@@ -250,7 +250,7 @@ export const approvalsRouter = router({
   /**
    * Get a count of pending items for badge display.
    */
-  getPendingCount: protectedProcedure.query(async ({ ctx }) => {
+  getPendingCount: rlsProtectedProcedure.query(async ({ ctx }) => {
     const escalationCount = (
       await db.query.agentRoutingLogs.findMany({
         where: and(

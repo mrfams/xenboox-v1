@@ -1,21 +1,27 @@
-"use client"
+"use client";
 
-import { useTheme } from "next-themes"
-import { Monitor, Moon, Sun } from "lucide-react"
-import { Button } from "@/components/ui"
-import { cn } from "@/lib/utils"
+import { useTheme } from "next-themes";
+import { Monitor, Moon, Sun } from "lucide-react";
+
+import { Button } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
 export function ThemeToggle({ className }: { className?: string }) {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
 
   const options = [
     { value: "light", icon: Sun, label: "Light" },
     { value: "dark", icon: Moon, label: "Dark" },
     { value: "system", icon: Monitor, label: "System" },
-  ] as const
+  ] as const;
 
   return (
-    <div className={cn("flex items-center gap-0.5 rounded-lg border bg-muted p-0.5", className)}>
+    <div
+      className={cn(
+        "flex items-center gap-0.5 rounded-lg border bg-muted p-0.5",
+        className,
+      )}
+    >
       {options.map(({ value, icon: Icon, label }) => (
         <Button
           key={value}
@@ -23,7 +29,7 @@ export function ThemeToggle({ className }: { className?: string }) {
           size="icon"
           className={cn(
             "h-7 w-7",
-            theme === value && "bg-background text-foreground shadow-sm"
+            theme === value && "bg-background text-foreground shadow-sm",
           )}
           onClick={() => setTheme(value)}
           aria-label={label}
@@ -32,5 +38,5 @@ export function ThemeToggle({ className }: { className?: string }) {
         </Button>
       ))}
     </div>
-  )
+  );
 }

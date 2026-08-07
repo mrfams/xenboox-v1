@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import {
   Crown,
   LayoutDashboard,
@@ -14,6 +13,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 
 const agents = [
   {

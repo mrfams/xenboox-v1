@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useEntity } from "@/lib/entity-context";
-import { trpc } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
 import {
   DollarSign,
   CreditCard,
@@ -19,6 +16,10 @@ import {
   Building2,
   Banknote,
 } from "lucide-react";
+
+import { useEntity } from "@/lib/entity-context";
+import { trpc } from "@/lib/trpc/client";
+import { formatCurrency } from "@/lib/utils";
 
 const moneySections = [
   {
@@ -89,7 +90,7 @@ const moneySections = [
 
 export default function MoneyPage() {
   const { entityId } = useEntity();
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [_expandedSection, _setExpandedSection] = useState<string | null>(null);
 
   // Fetch cash balance
   const { data: cashFlowData } = trpc.aiWorkspace.getCashFlowOverview.useQuery(

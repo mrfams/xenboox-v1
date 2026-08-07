@@ -1,7 +1,8 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { Bot, ChevronRight } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 type AgentItem = {
   id: string;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
+
 import { trpc } from "@/lib/trpc/client";
 
 function getBaseUrl() {
@@ -35,8 +36,11 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
           headers() {
+            // Guard both window AND localStorage — localStorage is not always
+            // present (unit tests, privacy modes, some SSR paths).
             const entityId =
-              typeof window !== "undefined"
+              typeof window !== "undefined" &&
+              typeof localStorage !== "undefined"
                 ? localStorage.getItem("currentEntityId")
                 : null;
             return {

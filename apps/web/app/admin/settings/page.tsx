@@ -11,20 +11,11 @@ import { Button } from "@xenboox/ui";
 import { Input } from "@xenboox/ui";
 import { Label } from "@xenboox/ui";
 import { Switch } from "@xenboox/ui";
-import {
-  Settings,
-  Bell,
-  Shield,
-  Database,
-  Globe,
-  Key,
-  Save,
-  RefreshCw,
-  UserCheck,
-} from "lucide-react";
+import { Key, Save, RefreshCw, UserCheck } from "lucide-react";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
+
+import { trpc } from "@/lib/trpc/client";
 
 export default function AdminSettingsPage() {
   const saveMutation = trpc.admin.updateSettings.useMutation({

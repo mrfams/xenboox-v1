@@ -1,7 +1,8 @@
 import { eq, and, desc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { entities, organizations } from "@xenboox/db/schema/organization";
+import { entities } from "@xenboox/db/schema/organization";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
+
+import { db } from "@/lib/db";
 
 export type EnrichedEntityContext = {
   entityId: string;

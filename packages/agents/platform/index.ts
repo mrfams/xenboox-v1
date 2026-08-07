@@ -5,6 +5,10 @@ export type {
   ProfitAndLoss,
   BalanceSheet,
   TrialBalance,
+  CashFlow,
+  CashFlowLine,
+  BudgetVsActual,
+  BudgetVsActualLine,
   Narrative,
 } from "./reporting-agent/state";
 export { buildReportingSystemPrompt } from "./reporting-agent/prompts";
@@ -12,6 +16,8 @@ export {
   generateProfitLoss,
   generateBalanceSheet,
   generateTrialBalance,
+  generateCashFlow,
+  generateBudgetVsActual,
   generateNarrative,
 } from "./reporting-agent/tools";
 

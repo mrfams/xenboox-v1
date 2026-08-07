@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Activity,
-  Bot,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  TrendingUp,
-} from "lucide-react";
+import { Activity, Bot, Clock, AlertTriangle, TrendingUp } from "lucide-react";
 
 export default function AgentMonitorPage() {
   return (

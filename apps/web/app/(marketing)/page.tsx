@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+
 import { Cta } from "@/components/marketing/cta";
 import { Features } from "@/components/marketing/features";
 import { Hero } from "@/components/marketing/hero-home";

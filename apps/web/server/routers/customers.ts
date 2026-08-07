@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { customers, salesInvoices, paymentsAr } from "@xenboox/db/schema";
 
@@ -10,7 +10,7 @@ export const customersRouter = router({
   /**
    * Get customers overview data including summary cards and stats.
    */
-  getOverview: protectedProcedure.query(async ({ ctx }) => {
+  getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get all customers
@@ -228,7 +228,7 @@ export const customersRouter = router({
   /**
    * List customers with filtering, sorting, and pagination.
    */
-  listCustomers: protectedProcedure
+  listCustomers: rlsProtectedProcedure
     .input(
       z.object({
         status: z
@@ -402,7 +402,7 @@ export const customersRouter = router({
   /**
    * Get receivables trend data for the line chart.
    */
-  getReceivablesTrend: protectedProcedure.query(async ({ ctx }) => {
+  getReceivablesTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get all invoices
@@ -443,7 +443,7 @@ export const customersRouter = router({
   /**
    * Get AI insights for the customers page.
    */
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const insights: Array<{
       id: string;

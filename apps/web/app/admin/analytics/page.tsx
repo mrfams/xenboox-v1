@@ -7,14 +7,13 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  TrendingUp,
   RefreshCw,
   Download,
 } from "lucide-react";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
-import { Progress } from "@/components/shared/progress";
+
+import { trpc } from "@/lib/trpc/client";
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("30d");

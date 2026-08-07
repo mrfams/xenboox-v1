@@ -7,7 +7,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  Users,
   Building,
   Bot,
   CreditCard,
@@ -16,14 +15,12 @@ import {
   Shield,
   AlertCircle,
   Cpu,
-  LogOut,
   Menu,
   ChevronLeft,
   Heart,
   TrendingUp,
   UserCheck,
   UserX,
-  Activity,
   Play,
   DollarSign,
   Key,
@@ -39,11 +36,12 @@ import {
   ChevronDown,
   Clock,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { trpc } from "@/lib/trpc/client";
 import { Avatar, AvatarFallback } from "@xenboox/ui";
 
-async function adminSignOut() {
+import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc/client";
+
+async function _adminSignOut() {
   try {
     const csrfRes = await fetch("/api/admin-auth/csrf");
     const { csrfToken } = (await csrfRes.json()) as { csrfToken: string };

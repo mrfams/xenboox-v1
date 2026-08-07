@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import {
   inboundEmails,
   emailForwardingRules,
 } from "@xenboox/db/schema/integrations";
 import { eq } from "drizzle-orm";
+
+import { db } from "@/lib/db";
 import { triggerClient } from "@/lib/trigger";
 import { verifyWebhookSignature } from "@/lib/webhook-verify";
 

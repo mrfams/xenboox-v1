@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { bankConnections } from "@xenboox/db/schema/integrations";
 import { eq } from "drizzle-orm";
+
+import { db } from "@/lib/db";
 import { verifyMonoSignature } from "@/lib/webhook-verify";
 
 export async function POST(request: NextRequest) {

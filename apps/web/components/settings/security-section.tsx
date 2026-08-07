@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -18,7 +17,6 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Separator,
 } from "@xenboox/ui";
 import {
   Lock,
@@ -30,6 +28,8 @@ import {
   Clock,
   Bell,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 import { MfaSection } from "@/components/settings/mfa-section";
 import { SessionsSection } from "@/components/settings/sessions-section";
 

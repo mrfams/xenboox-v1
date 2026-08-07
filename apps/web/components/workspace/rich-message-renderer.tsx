@@ -1,15 +1,12 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  AlertCircle,
   FileText,
   Download,
   Eye,
-  ExternalLink,
   Clock,
   Bot,
   Info,
@@ -17,10 +14,11 @@ import {
   TrendingDown,
   type LucideIcon,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 import {
   parseMessage,
   renderMarkdownSimple,
-  type ParsedMessage,
   type RichBlock,
 } from "@/lib/chat/message-parser";
 

@@ -12,10 +12,14 @@ import {
   reviewTaxAgentOutput,
   reportRegulatoryStatus,
 } from "@xenboox/agents";
-import { router, protectedProcedure, requireRole } from "../../lib/trpc/server";
+import {
+  router,
+  rlsProtectedProcedure,
+  requireRole,
+} from "../../lib/trpc/server";
 
 export const complianceLivenessRouter = router({
-  listDeadlines: protectedProcedure
+  listDeadlines: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -68,7 +72,7 @@ export const complianceLivenessRouter = router({
       });
     }),
 
-  getDeadlineStats: protectedProcedure.query(async ({ ctx }) => {
+  getDeadlineStats: rlsProtectedProcedure.query(async ({ ctx }) => {
     const where = eq(complianceDeadlines.entityId, ctx.entityId!);
     const all = await db.query.complianceDeadlines.findMany({ where });
 
@@ -104,20 +108,20 @@ export const complianceLivenessRouter = router({
     };
   }),
 
-  runDeadlineMonitor: protectedProcedure
+  runDeadlineMonitor: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .query(async ({ ctx }) => {
       return monitorDeadlines(ctx.entityId!);
     }),
 
-  reviewTaxAgent: protectedProcedure
+  reviewTaxAgent: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ deadlineId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return reviewTaxAgentOutput(ctx.entityId!, input.deadlineId);
     }),
 
-  listRuleChangeProposals: protectedProcedure
+  listRuleChangeProposals: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -157,13 +161,13 @@ export const complianceLivenessRouter = router({
       }));
     }),
 
-  detectRuleChanges: protectedProcedure
+  detectRuleChanges: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .query(async ({ ctx }) => {
       return detectRuleChanges(ctx.entityId!);
     }),
 
-  confirmRuleChange: protectedProcedure
+  confirmRuleChange: rlsProtectedProcedure
     .use(requireRole("owner", "admin"))
     .input(
       z.object({
@@ -175,11 +179,11 @@ export const complianceLivenessRouter = router({
       return confirmRuleUpdate(input.proposalId, input.userId);
     }),
 
-  getRegulatoryStatus: protectedProcedure.query(async ({ ctx }) => {
+  getRegulatoryStatus: rlsProtectedProcedure.query(async ({ ctx }) => {
     return reportRegulatoryStatus(ctx.entityId!);
   }),
 
-  proposeRuleChange: protectedProcedure
+  proposeRuleChange: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({

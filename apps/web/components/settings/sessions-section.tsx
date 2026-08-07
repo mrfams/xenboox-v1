@@ -2,13 +2,6 @@
 
 import { useState } from "react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-} from "@/components/ui";
-import {
   Smartphone,
   Monitor,
   Globe,
@@ -16,9 +9,17 @@ import {
   AlertCircle,
   Clock,
 } from "lucide-react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+
+import { trpc } from "@/lib/trpc/client";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+} from "@/components/ui";
 
 function getDeviceIcon(userAgent: string | null) {
   if (!userAgent) return <Globe className="h-4 w-4" />;

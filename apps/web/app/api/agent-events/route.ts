@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { eq, and, desc, gte } from "drizzle-orm";
 import {
   opsLiveRuns,
   opsLiveRunEvents,
 } from "@xenboox/db/schema/ops-live-runs";
+
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 // In-memory store for active SSE connections per entity
 const activeConnections = new Map<
@@ -32,7 +33,7 @@ function broadcastToEntity(entityId: string, event: AgentEvent) {
 }
 
 // Broadcast to all connections (global events like agent health changes)
-function broadcastToAll(event: AgentEvent) {
+function _broadcastToAll(event: AgentEvent) {
   const encoder = new TextEncoder();
   const data = `data: ${JSON.stringify(event)}\n\n`;
 

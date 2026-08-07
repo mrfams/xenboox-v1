@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   FileText,
   FileSpreadsheet,
-  FileImage,
   File,
   Clock,
   CheckCircle2,
@@ -16,6 +15,7 @@ import {
   Loader2,
   ExternalLink,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 // ─── Types ─────────────────────────────────────────────────────────────────

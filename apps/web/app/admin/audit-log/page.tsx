@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import {
   Card,
   CardContent,
@@ -19,6 +18,8 @@ import {
   TableRow,
 } from "@xenboox/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 const PAGE_SIZE = 25;
 
@@ -53,7 +54,7 @@ export default function AdminAuditLogPage() {
   });
   const { data: stats } = trpc.adminAccess.audit.stats.useQuery();
 
-  const total = data?.total ?? 0;
+  const total = (data?.total as number) ?? 0;
   const rows = data?.rows ?? [];
   const pageStart = offset + 1;
   const pageEnd = Math.min(offset + PAGE_SIZE, total);

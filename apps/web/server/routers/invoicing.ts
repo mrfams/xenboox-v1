@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { salesInvoices, customers, paymentsAr } from "@xenboox/db/schema";
 
@@ -10,7 +10,7 @@ export const invoicingRouter = router({
   /**
    * Get invoicing overview data including summary cards and status counts.
    */
-  getOverview: protectedProcedure.query(async ({ ctx }) => {
+  getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get all invoices
@@ -191,7 +191,7 @@ export const invoicingRouter = router({
   /**
    * List invoices with filtering, sorting, and pagination.
    */
-  listInvoices: protectedProcedure
+  listInvoices: rlsProtectedProcedure
     .input(
       z.object({
         status: z
@@ -341,7 +341,7 @@ export const invoicingRouter = router({
   /**
    * Get invoice detail for the detail panel.
    */
-  getInvoiceDetail: protectedProcedure
+  getInvoiceDetail: rlsProtectedProcedure
     .input(z.object({ invoiceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
@@ -400,7 +400,7 @@ export const invoicingRouter = router({
   /**
    * Get charts data for outstanding trend and invoices by status.
    */
-  getChartsData: protectedProcedure.query(async ({ ctx }) => {
+  getChartsData: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get all invoices
@@ -454,7 +454,7 @@ export const invoicingRouter = router({
   /**
    * Get customers for filter dropdown.
    */
-  getCustomers: protectedProcedure.query(async ({ ctx }) => {
+  getCustomers: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     return db.query.customers.findMany({
@@ -470,7 +470,7 @@ export const invoicingRouter = router({
   /**
    * Get AI insights for the invoicing page.
    */
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const insights: Array<{
       id: string;
@@ -553,7 +553,7 @@ export const invoicingRouter = router({
   /**
    * Get recent activity for the sidebar.
    */
-  getRecentActivity: protectedProcedure.query(async ({ ctx }) => {
+  getRecentActivity: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get recent payments
@@ -587,7 +587,7 @@ export const invoicingRouter = router({
   /**
    * Get invoices trend data for the line chart.
    */
-  getInvoicesTrend: protectedProcedure.query(async ({ ctx }) => {
+  getInvoicesTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get all invoices

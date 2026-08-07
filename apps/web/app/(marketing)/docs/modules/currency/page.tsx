@@ -1,16 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Globe, ArrowRightLeft, RefreshCw, BarChart3 } from "lucide-react";
+
 import { DocsPageHeader } from "../../components/docs-page-header";
 import { FeatureGrid } from "../../components/feature-grid";
 import { InfoCallout } from "../../components/info-callout";
 import { RelatedLinks } from "../../components/related-links";
-import {
-  Globe,
-  ArrowRightLeft,
-  RefreshCw,
-  DollarSign,
-  BarChart3,
-  Settings,
-} from "lucide-react";
+
+import { Card, CardContent } from "@/components/ui";
 
 const features = [
   {

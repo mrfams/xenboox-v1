@@ -1,4 +1,5 @@
-import { t } from "./server"
-import { appRouter } from "@/server/routers/_app"
+import { t } from "./server";
 
-export const createCaller = t.createCallerFactory(appRouter)
+import { appRouter } from "@/server/routers/_app";
+
+export const createCaller = t.createCallerFactory(appRouter);

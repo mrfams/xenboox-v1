@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, gte, lte, count, sum } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   bankAccounts,
@@ -21,7 +21,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Get active AI tasks (agent status, pending reviews, etc.)
    */
-  getActiveTasks: protectedProcedure.query(async ({ ctx }) => {
+  getActiveTasks: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get agent routing logs for active tasks
@@ -141,7 +141,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Get AI suggestions based on current data
    */
-  getSuggestions: protectedProcedure.query(async ({ ctx }) => {
+  getSuggestions: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const now = new Date();
 
@@ -261,7 +261,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Get financial insights (AI-generated analysis)
    */
-  getFinancialInsights: protectedProcedure.query(async ({ ctx }) => {
+  getFinancialInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -396,7 +396,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Get cash flow overview data for chart
    */
-  getCashFlowOverview: protectedProcedure.query(async ({ ctx }) => {
+  getCashFlowOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -457,7 +457,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Send a message to AI and get response
    */
-  sendMessage: protectedProcedure
+  sendMessage: rlsProtectedProcedure
     .input(
       z.object({
         message: z.string().min(1),
@@ -508,7 +508,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Get conversation messages
    */
-  getMessages: protectedProcedure
+  getMessages: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -525,7 +525,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Get pending approvals for the right sidebar
    */
-  getPendingApprovals: protectedProcedure.query(async ({ ctx }) => {
+  getPendingApprovals: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get pending journal entries
@@ -586,7 +586,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Get recent documents for the right sidebar
    */
-  getRecentDocuments: protectedProcedure.query(async ({ ctx }) => {
+  getRecentDocuments: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const recentDocs = await db.query.documents.findMany({
@@ -613,7 +613,7 @@ export const aiWorkspaceRouter = router({
   /**
    * Get agent activity for the right sidebar
    */
-  getAgentActivity: protectedProcedure.query(async ({ ctx }) => {
+  getAgentActivity: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const recentLogs = await db.query.agentRoutingLogs.findMany({

@@ -1,5 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import type { LucideIcon } from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 
 interface Feature {
   title: string;

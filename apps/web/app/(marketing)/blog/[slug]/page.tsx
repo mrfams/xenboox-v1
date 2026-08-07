@@ -6,11 +6,11 @@ import {
   Calendar,
   Clock,
   Tag,
-  Share2,
   Twitter,
   Linkedin,
   LinkIcon,
 } from "lucide-react";
+
 import { FadeInUp } from "@/components/marketing/reveal";
 import { blogPosts, getBlogPostBySlug, getRelatedPosts } from "@/lib/blog-data";
 

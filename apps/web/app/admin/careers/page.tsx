@@ -9,17 +9,14 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  MapPin,
   Briefcase,
-  Clock,
   ArrowLeft,
   Save,
   X,
   Users,
   Building2,
-  DollarSign,
-  BriefcaseBusiness,
 } from "lucide-react";
+
 import { FadeInUp } from "@/components/marketing/reveal";
 import {
   jobListings,

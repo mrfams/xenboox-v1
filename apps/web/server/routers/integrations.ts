@@ -10,7 +10,7 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -337,14 +337,14 @@ function isValidDate(val: string): boolean {
 export const integrationsRouter = router({
   // ── Bank Connections (Mono) ──
 
-  getBankConnections: protectedProcedure.query(({ ctx }) => {
+  getBankConnections: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.bankConnections.findMany({
       where: eq(bankConnections.entityId, ctx.entityId!),
       orderBy: [desc(bankConnections.createdAt)],
     });
   }),
 
-  initiateBankConnection: protectedProcedure
+  initiateBankConnection: rlsProtectedProcedure
     .input(
       z.object({
         institutionName: z.string().min(1),
@@ -372,7 +372,7 @@ export const integrationsRouter = router({
       };
     }),
 
-  completeBankConnection: protectedProcedure
+  completeBankConnection: rlsProtectedProcedure
     .input(
       z.object({
         connectionId: z.string().uuid(),
@@ -410,7 +410,7 @@ export const integrationsRouter = router({
       return { success: true };
     }),
 
-  syncBankTransactions: protectedProcedure
+  syncBankTransactions: rlsProtectedProcedure
     .input(z.object({ connectionId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const connection = await db.query.bankConnections.findFirst({
@@ -443,7 +443,7 @@ export const integrationsRouter = router({
       return { triggered: true };
     }),
 
-  disconnectBank: protectedProcedure
+  disconnectBank: rlsProtectedProcedure
     .input(z.object({ connectionId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await db
@@ -461,14 +461,14 @@ export const integrationsRouter = router({
 
   // ── Email Forwarding Rules ──
 
-  getEmailRules: protectedProcedure.query(({ ctx }) => {
+  getEmailRules: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.emailForwardingRules.findMany({
       where: eq(emailForwardingRules.entityId, ctx.entityId!),
       orderBy: [desc(emailForwardingRules.createdAt)],
     });
   }),
 
-  createEmailRule: protectedProcedure
+  createEmailRule: rlsProtectedProcedure
     .input(
       z.object({
         emailAddress: z.string().email(),
@@ -496,7 +496,7 @@ export const integrationsRouter = router({
       };
     }),
 
-  deleteEmailRule: protectedProcedure
+  deleteEmailRule: rlsProtectedProcedure
     .input(z.object({ ruleId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await db
@@ -514,7 +514,7 @@ export const integrationsRouter = router({
 
   // ── Inbound Emails ──
 
-  getInboundEmails: protectedProcedure.query(({ ctx }) => {
+  getInboundEmails: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.inboundEmails.findMany({
       where: eq(inboundEmails.entityId, ctx.entityId!),
       orderBy: [desc(inboundEmails.createdAt)],
@@ -526,7 +526,7 @@ export const integrationsRouter = router({
   /**
    * Get saved CSV column mappings for an entity, optionally filtered by source.
    */
-  getCsvMappings: protectedProcedure
+  getCsvMappings: rlsProtectedProcedure
     .input(z.object({ sourceName: z.string().optional() }).optional())
     .query(async ({ ctx, input }) => {
       const conditions = [eq(csvMappings.entityId, ctx.entityId!)];
@@ -543,7 +543,7 @@ export const integrationsRouter = router({
    * Detect column headers and auto-guess a mapping from a CSV text sample.
    * Returns detected columns and a best-guess mapping to standard fields.
    */
-  guessCsvMapping: protectedProcedure
+  guessCsvMapping: rlsProtectedProcedure
     .input(
       z.object({
         csvSample: z.string().min(1).max(50000),
@@ -594,7 +594,7 @@ export const integrationsRouter = router({
   /**
    * Save a CSV column mapping for future use.
    */
-  saveCsvMapping: protectedProcedure
+  saveCsvMapping: rlsProtectedProcedure
     .input(
       z.object({
         sourceName: z.string().min(1),
@@ -654,7 +654,7 @@ export const integrationsRouter = router({
       return created;
     }),
 
-  deleteCsvMapping: protectedProcedure
+  deleteCsvMapping: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await db
@@ -670,7 +670,7 @@ export const integrationsRouter = router({
 
   // ── Overview ──
 
-  getOverview: protectedProcedure.query(async ({ ctx }) => {
+  getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const [connections, rules, emails] = await Promise.all([
       db.query.bankConnections.findMany({
         where: eq(bankConnections.entityId, ctx.entityId!),
@@ -700,10 +700,12 @@ export const integrationsRouter = router({
     };
   }),
 
-  triggerMonthlyBankReminders: protectedProcedure.mutation(async ({ ctx }) => {
-    await triggerClient.tasks.trigger("send-monthly-bank-reminders", {
-      entityId: ctx.entityId!,
-    });
-    return { success: true };
-  }),
+  triggerMonthlyBankReminders: rlsProtectedProcedure.mutation(
+    async ({ ctx }) => {
+      await triggerClient.tasks.trigger("send-monthly-bank-reminders", {
+        entityId: ctx.entityId!,
+      });
+      return { success: true };
+    },
+  ),
 });

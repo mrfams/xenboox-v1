@@ -3,11 +3,12 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { CheckCircle, XCircle, Loader2, Mail } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import { Button } from "@/components/ui";
-import { CheckCircle, XCircle, Loader2, Mail } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
-import { useEffect, useState } from "react";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();

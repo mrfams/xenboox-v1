@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { cn } from "@/lib/utils";
 import {
   CheckCircle2,
   XCircle,
@@ -9,18 +7,15 @@ import {
   FileText,
   Download,
   Eye,
-  Copy,
   ExternalLink,
-  ChevronDown,
-  ChevronRight,
-  BarChart3,
   TrendingUp,
   TrendingDown,
   ArrowRight,
   Clock,
   Bot,
-  type LucideIcon,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────
 

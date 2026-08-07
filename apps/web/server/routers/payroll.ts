@@ -4,7 +4,7 @@ import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -27,7 +27,7 @@ import type { ExceptionIntakeItem } from "@xenboox/agents";
 
 export const payrollRouter = router({
   // ── Payroll Overview ──
-  getOverview: protectedProcedure
+  getOverview: rlsProtectedProcedure
     .input(
       z.object({
         period: z.string().optional(),
@@ -120,14 +120,14 @@ export const payrollRouter = router({
     }),
 
   // ── Employees ──
-  listEmployees: protectedProcedure.query(({ ctx }) => {
+  listEmployees: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.employees.findMany({
       where: eq(employees.entityId, ctx.entityId!),
       orderBy: [desc(employees.createdAt)],
     });
   }),
 
-  getEmployeeById: protectedProcedure
+  getEmployeeById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const emp = await db.query.employees.findFirst({
@@ -156,7 +156,7 @@ export const payrollRouter = router({
       return { ...emp, contracts, loans };
     }),
 
-  createEmployee: protectedProcedure
+  createEmployee: rlsProtectedProcedure
     .use(requirePermission("payroll", "create"))
     .input(
       z.object({
@@ -242,7 +242,7 @@ export const payrollRouter = router({
     }),
 
   // ── Employee List with Payroll Data ──
-  listEmployeesWithPayroll: protectedProcedure
+  listEmployeesWithPayroll: rlsProtectedProcedure
     .input(
       z.object({
         period: z.string().optional(),
@@ -397,7 +397,7 @@ export const payrollRouter = router({
     }),
 
   // ── Department Breakdown ──
-  getDepartmentBreakdown: protectedProcedure
+  getDepartmentBreakdown: rlsProtectedProcedure
     .input(
       z.object({
         period: z.string().optional(),
@@ -471,7 +471,7 @@ export const payrollRouter = router({
     }),
 
   // ── Payroll Trend ──
-  getPayrollTrend: protectedProcedure.query(async ({ ctx }) => {
+  getPayrollTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get last 6 months of data
@@ -505,7 +505,7 @@ export const payrollRouter = router({
   }),
 
   // ── Statutory Payments ──
-  getStatutoryPayments: protectedProcedure
+  getStatutoryPayments: rlsProtectedProcedure
     .input(
       z.object({
         period: z.string().optional(),
@@ -596,7 +596,7 @@ export const payrollRouter = router({
     }),
 
   // ── AI Insights ──
-  getAiInsights: protectedProcedure
+  getAiInsights: rlsProtectedProcedure
     .input(
       z.object({
         period: z.string().optional(),
@@ -682,14 +682,14 @@ export const payrollRouter = router({
     }),
 
   // ── Payroll Runs ──
-  listPayrollRuns: protectedProcedure.query(({ ctx }) => {
+  listPayrollRuns: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.payrollRuns.findMany({
       where: eq(payrollRuns.entityId, ctx.entityId!),
       orderBy: [desc(payrollRuns.createdAt)],
     });
   }),
 
-  getPayrollRunById: protectedProcedure
+  getPayrollRunById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const run = await db.query.payrollRuns.findFirst({
@@ -710,7 +710,7 @@ export const payrollRouter = router({
       return { ...run, lineItems };
     }),
 
-  createPayrollRun: protectedProcedure
+  createPayrollRun: rlsProtectedProcedure
     .use(requirePermission("payroll", "create"))
     .input(
       z.object({
@@ -753,14 +753,14 @@ export const payrollRouter = router({
     }),
 
   // ── Deduction Types ──
-  listDeductionTypes: protectedProcedure.query(({ ctx }) => {
+  listDeductionTypes: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.payrollDeductionTypes.findMany({
       where: eq(payrollDeductionTypes.entityId, ctx.entityId!),
     });
   }),
 
   // ── Payslips ──
-  listPayslips: protectedProcedure
+  listPayslips: rlsProtectedProcedure
     .input(z.object({ payrollRunId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return db.query.payslips.findMany({
@@ -772,7 +772,7 @@ export const payrollRouter = router({
     }),
 
   // ── Update ──
-  updateEmployee: protectedProcedure
+  updateEmployee: rlsProtectedProcedure
     .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
@@ -818,7 +818,7 @@ export const payrollRouter = router({
       }
     }),
 
-  updatePayrollRun: protectedProcedure
+  updatePayrollRun: rlsProtectedProcedure
     .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
@@ -860,7 +860,7 @@ export const payrollRouter = router({
     }),
 
   // ── Payslips ──
-  getPayslipById: protectedProcedure
+  getPayslipById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return db.query.payslips.findFirst({
@@ -872,7 +872,7 @@ export const payrollRouter = router({
     }),
 
   // ── Staff Loans ──
-  listStaffLoans: protectedProcedure
+  listStaffLoans: rlsProtectedProcedure
     .input(z.object({ employeeId: z.string().uuid().optional() }))
     .query(async ({ ctx, input }) => {
       const conditions = [eq(staffLoans.entityId, ctx.entityId!)];
@@ -885,7 +885,7 @@ export const payrollRouter = router({
     }),
 
   // ── Deduction Types ──
-  createDeductionType: protectedProcedure
+  createDeductionType: rlsProtectedProcedure
     .use(requirePermission("payroll", "create"))
     .input(
       z.object({
@@ -922,7 +922,7 @@ export const payrollRouter = router({
       }
     }),
 
-  updateDeductionType: protectedProcedure
+  updateDeductionType: rlsProtectedProcedure
     .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
@@ -965,7 +965,7 @@ export const payrollRouter = router({
       }
     }),
 
-  deleteDeductionType: protectedProcedure
+  deleteDeductionType: rlsProtectedProcedure
     .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1001,7 +1001,7 @@ export const payrollRouter = router({
     }),
 
   // ── Delete ──
-  deleteEmployee: protectedProcedure
+  deleteEmployee: rlsProtectedProcedure
     .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1042,7 +1042,7 @@ export const payrollRouter = router({
       }
     }),
 
-  deletePayrollRun: protectedProcedure
+  deletePayrollRun: rlsProtectedProcedure
     .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1091,7 +1091,7 @@ export const payrollRouter = router({
    * Salary data is enforcement at the query layer via entity scoping.
    * Payroll Worker Agent never posts to the ledger directly.
    */
-  runPayrollPipeline: protectedProcedure
+  runPayrollPipeline: rlsProtectedProcedure
     .use(requirePermission("payroll", "approve"))
     .input(
       z.object({
@@ -1164,7 +1164,7 @@ export const payrollRouter = router({
    * Get payroll pipeline status — summary of recent runs and compliance deadlines.
    * Read-only, accessible to any authenticated entity member.
    */
-  getPayrollPipelineStatus: protectedProcedure
+  getPayrollPipelineStatus: rlsProtectedProcedure
     .input(
       z
         .object({

@@ -1,5 +1,3 @@
-import { Skeleton } from "@/components/shared/loading";
-
 export default function MarketingLoading() {
   return (
     <div className="flex min-h-screen items-center justify-center">

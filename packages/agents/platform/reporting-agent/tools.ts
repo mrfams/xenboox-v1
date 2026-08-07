@@ -4,13 +4,422 @@ import {
   chartOfAccounts,
   journalEntries,
   journalEntryLines,
+  fiscalPeriods,
 } from "@xenboox/db/schema/accounting";
+import {
+  budgets,
+  budgetLines,
+  budgetAlertThresholds,
+} from "@xenboox/db/schema/budget";
 import type {
   ProfitAndLoss,
   BalanceSheet,
   TrialBalance,
   Narrative,
+  CashFlow,
+  CashFlowLine,
+  BudgetVsActual,
+  BudgetVsActualLine,
 } from "./state";
+
+// ─── Account Classification (Cash Flow) ────────────────────────────────────
+
+const CASH_SUBTYPES = new Set(["cash", "bank_account"]);
+const REVENUE_SUBTYPES = new Set([
+  "sales_revenue",
+  "service_revenue",
+  "other_income",
+  "interest_income",
+]);
+const EXPENSE_SUBTYPES = new Set([
+  "cost_of_goods_sold",
+  "operating_expense",
+  "payroll_expense",
+  "tax_expense",
+  "depreciation",
+  "interest_expense",
+  "other_expense",
+]);
+const INVESTING_SUBTYPES = new Set(["fixed_asset"]);
+const FINANCING_SUBTYPES = new Set([
+  "current_liability",
+  "long_term_liability",
+  "owner_equity",
+  "retained_earnings",
+  "current_year_earnings",
+]);
+
+// ─── Period Ordering Helper ────────────────────────────────────────────────
+
+interface PeriodOrder {
+  year: number;
+  month: number;
+  order: number;
+}
+
+/** Map every fiscal period of an entity to a chronological order index. */
+async function getPeriodOrderMap(
+  entityId: string,
+): Promise<Map<string, PeriodOrder>> {
+  const periods = await db.query.fiscalPeriods.findMany({
+    where: eq(fiscalPeriods.entityId, entityId),
+  });
+
+  const sorted = periods
+    .map((p) => ({ id: p.id, year: p.year, month: p.month }))
+    .sort((a, b) => a.year - b.year || a.month - b.month);
+
+  const map = new Map<string, PeriodOrder>();
+  sorted.forEach((p, idx) => {
+    map.set(p.id, { year: p.year, month: p.month, order: idx });
+  });
+  return map;
+}
+
+// ─── Cash Flow Statement ───────────────────────────────────────────────────
+
+/**
+ * Direct-method cash flow statement for a fiscal period.
+ *
+ * Classification:
+ *   - Operating: revenue/expense accounts + changes in AR/AP
+ *   - Investing: fixed-asset purchases/disposals
+ *   - Financing: borrowings, equity injections/repayments
+ *   - Cash: opening/closing balances from cash & bank accounts
+ */
+export async function generateCashFlow(
+  entityId: string,
+  periodId: string,
+): Promise<CashFlow> {
+  const targetPeriod = await db.query.fiscalPeriods.findFirst({
+    where: and(
+      eq(fiscalPeriods.id, periodId),
+      eq(fiscalPeriods.entityId, entityId),
+    ),
+  });
+
+  if (!targetPeriod) {
+    throw new Error(`Fiscal period ${periodId} not found for entity`);
+  }
+
+  const periodOrderMap = await getPeriodOrderMap(entityId);
+  const target = periodOrderMap.get(periodId);
+  if (!target) {
+    throw new Error(`Fiscal period ${periodId} has no ordering`);
+  }
+
+  const entries = await db.query.journalEntries.findMany({
+    where: and(
+      eq(journalEntries.entityId, entityId),
+      eq(journalEntries.status, "posted"),
+    ),
+  });
+
+  if (entries.length === 0) {
+    return emptyCashFlow(target);
+  }
+
+  const entryIds = entries.map((e) => e.id);
+  const allLines = await db.query.journalEntryLines.findMany({
+    where: inArray(journalEntryLines.journalEntryId, entryIds),
+  });
+  if (allLines.length === 0) {
+    return emptyCashFlow(target);
+  }
+
+  const accountIds = [...new Set(allLines.map((l) => l.accountId))];
+  const accounts = await db.query.chartOfAccounts.findMany({
+    where: inArray(chartOfAccounts.id, accountIds),
+  });
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+  // Chronological position per entry
+  const entryPeriodOrder = new Map<string, number>();
+  for (const entry of entries) {
+    const p = periodOrderMap.get(entry.periodId);
+    if (p) entryPeriodOrder.set(entry.id, p.order);
+  }
+
+  const operating = new Map<string, CashFlowLine>();
+  const investing = new Map<string, CashFlowLine>();
+  const financing = new Map<string, CashFlowLine>();
+  let openingCash = 0;
+  let closingCash = 0;
+
+  for (const line of allLines) {
+    const account = accountMap.get(line.accountId);
+    if (!account || account.entityId !== entityId) continue;
+
+    const entryOrder = entryPeriodOrder.get(line.journalEntryId);
+    if (entryOrder === undefined) continue;
+
+    const debit = Number(line.debit) || 0;
+    const credit = Number(line.credit) || 0;
+    const net = credit - debit;
+    const isTargetPeriod = entryOrder === target.order;
+
+    // Cash accounts feed opening/closing balances (all periods up to target)
+    if (account.type === "asset" && CASH_SUBTYPES.has(account.subtype)) {
+      if (entryOrder <= target.order) closingCash += debit - credit;
+      if (entryOrder < target.order) openingCash += debit - credit;
+      continue;
+    }
+
+    if (!isTargetPeriod) continue; // flows only count in the target period
+
+    const lineItem = (bucket: Map<string, CashFlowLine>, amount: number) => {
+      const existing = bucket.get(account.id);
+      if (existing) {
+        existing.amount += amount;
+      } else {
+        bucket.set(account.id, {
+          accountId: account.id,
+          accountCode: account.code,
+          accountName: account.name,
+          amount,
+        });
+      }
+    };
+
+    if (REVENUE_SUBTYPES.has(account.subtype)) {
+      lineItem(operating, net); // credits = cash in
+    } else if (EXPENSE_SUBTYPES.has(account.subtype)) {
+      lineItem(operating, net); // debits = cash out (net is negative)
+    } else if (account.subtype === "accounts_receivable") {
+      // Decrease in AR = cash in
+      lineItem(operating, net);
+    } else if (account.subtype === "accounts_payable") {
+      // Increase in AP = cash in
+      lineItem(operating, net);
+    } else if (INVESTING_SUBTYPES.has(account.subtype)) {
+      lineItem(investing, net);
+    } else if (FINANCING_SUBTYPES.has(account.subtype)) {
+      lineItem(financing, net);
+    }
+  }
+
+  const toBucket = (bucket: Map<string, CashFlowLine>) => {
+    const lines = Array.from(bucket.values()).sort(
+      (a, b) => Math.abs(b.amount) - Math.abs(a.amount),
+    );
+    return { lines, total: lines.reduce((s, l) => s + l.amount, 0) };
+  };
+
+  const operatingBucket = toBucket(operating);
+  const investingBucket = toBucket(investing);
+  const financingBucket = toBucket(financing);
+  const netCashChange =
+    operatingBucket.total + investingBucket.total + financingBucket.total;
+
+  return {
+    period: `${target.year}-${String(target.month).padStart(2, "0")}`,
+    openingCash,
+    closingCash,
+    netCashChange,
+    operating: operatingBucket,
+    investing: investingBucket,
+    financing: financingBucket,
+  };
+}
+
+function emptyCashFlow(target: { year: number; month: number }): CashFlow {
+  return {
+    period: `${target.year}-${String(target.month).padStart(2, "0")}`,
+    openingCash: 0,
+    closingCash: 0,
+    netCashChange: 0,
+    operating: { total: 0, lines: [] },
+    investing: { total: 0, lines: [] },
+    financing: { total: 0, lines: [] },
+  };
+}
+
+// ─── Budget vs Actual ──────────────────────────────────────────────────────
+
+const MONTH_COLUMNS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+] as const;
+
+/**
+ * Budget vs Actual variance report for a fiscal period.
+ * Budgeted amounts come from the entity's active budget (monthly columns,
+ * falling back to annual/12). Actuals come from posted journal entries.
+ */
+export async function generateBudgetVsActual(
+  entityId: string,
+  periodId: string,
+): Promise<BudgetVsActual> {
+  const targetPeriod = await db.query.fiscalPeriods.findFirst({
+    where: and(
+      eq(fiscalPeriods.id, periodId),
+      eq(fiscalPeriods.entityId, entityId),
+    ),
+  });
+  if (!targetPeriod) {
+    throw new Error(`Fiscal period ${periodId} not found for entity`);
+  }
+
+  const activeBudget = await db.query.budgets.findFirst({
+    where: and(eq(budgets.entityId, entityId), eq(budgets.status, "active")),
+    orderBy: (budgets: any, { desc }: any) => [desc(budgets.fiscalYear)],
+  });
+
+  const periodLabel = `${targetPeriod.year}-${String(targetPeriod.month).padStart(2, "0")}`;
+  const monthColumn = MONTH_COLUMNS[targetPeriod.month - 1] ?? "jan";
+
+  // ── Actuals from journal entries in the target period ───────────────
+  const entries = await db.query.journalEntries.findMany({
+    where: and(
+      eq(journalEntries.entityId, entityId),
+      eq(journalEntries.periodId, periodId),
+      eq(journalEntries.status, "posted"),
+    ),
+  });
+
+  const actualByAccount = new Map<string, number>();
+  if (entries.length > 0) {
+    const entryIds = entries.map((e) => e.id);
+    const lines = await db.query.journalEntryLines.findMany({
+      where: inArray(journalEntryLines.journalEntryId, entryIds),
+    });
+
+    const accountIds = [...new Set(lines.map((l) => l.accountId))];
+    const accounts = await db.query.chartOfAccounts.findMany({
+      where: inArray(chartOfAccounts.id, accountIds),
+    });
+    const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+    for (const line of lines) {
+      const account = accountMap.get(line.accountId);
+      if (!account || account.entityId !== entityId) continue;
+      const debit = Number(line.debit) || 0;
+      const credit = Number(line.credit) || 0;
+      const current = actualByAccount.get(line.accountId) ?? 0;
+      if (account.type === "expense" || account.type === "asset") {
+        actualByAccount.set(line.accountId, current + debit - credit);
+      } else {
+        actualByAccount.set(line.accountId, current + credit - debit);
+      }
+    }
+  }
+
+  // ── Budget lines with monthly amounts ───────────────────────────────
+  const budgetLinesList =
+    activeBudget && activeBudget.fiscalYear === targetPeriod.year
+      ? await db.query.budgetLines.findMany({
+          where: eq(budgetLines.budgetId, activeBudget.id),
+        })
+      : [];
+
+  const lineAccountIds = [...new Set(budgetLinesList.map((l) => l.accountId))];
+  const lineAccounts =
+    lineAccountIds.length > 0
+      ? await db.query.chartOfAccounts.findMany({
+          where: inArray(chartOfAccounts.id, lineAccountIds),
+        })
+      : [];
+  const lineAccountMap = new Map(lineAccounts.map((a) => [a.id, a]));
+
+  // Alert thresholds (defaults: approach at 80%, exceed at 100%)
+  const thresholds = await db.query.budgetAlertThresholds.findMany({
+    where: eq(budgetAlertThresholds.entityId, entityId),
+  });
+  const thresholdByLine = new Map(thresholds.map((t) => [t.budgetLineId, t]));
+  const approachingPct = Number(thresholds[0]?.approachingPct) || 80;
+  const exceededPct = Number(thresholds[0]?.exceededPct) || 100;
+
+  const lines: BudgetVsActualLine[] = [];
+  const coveredAccounts = new Set<string>();
+
+  for (const line of budgetLinesList) {
+    if (!line.isActive) continue;
+    coveredAccounts.add(line.accountId);
+
+    const account = lineAccountMap.get(line.accountId);
+    const monthlyValue = (line as any)[monthColumn];
+    const budgeted =
+      monthlyValue != null
+        ? Number(monthlyValue)
+        : Number(line.annualAmount) / 12;
+    const actual = actualByAccount.get(line.accountId) ?? 0;
+    const variance = actual - budgeted;
+    const variancePct =
+      budgeted !== 0 ? (variance / budgeted) * 100 : actual !== 0 ? 100 : 0;
+
+    const lineThreshold =
+      thresholdByLine.get(line.id) ??
+      thresholdByLine.get(line.accountId) ??
+      null;
+    const approach = Number(lineThreshold?.approachingPct) || approachingPct;
+    const exceed = Number(lineThreshold?.exceededPct) || exceededPct;
+    const absPct = Math.abs(variancePct);
+    const status: BudgetVsActualLine["status"] =
+      budgeted === 0 && actual === 0
+        ? "on_track"
+        : absPct >= exceed
+          ? "exceeded"
+          : absPct >= approach
+            ? "approaching"
+            : "on_track";
+
+    lines.push({
+      accountId: line.accountId,
+      accountCode: account?.code ?? "???",
+      accountName: account?.name ?? line.lineDescription ?? "Unknown",
+      budgetedAmount: budgeted,
+      actualAmount: actual,
+      variance,
+      variancePct: Math.round(variancePct * 100) / 100,
+      status,
+    });
+  }
+
+  // Accounts with actuals but no budget line → flag as unbudgeted spend
+  for (const [accountId, actual] of actualByAccount) {
+    if (coveredAccounts.has(accountId)) continue;
+    if (Math.abs(actual) < 0.01) continue;
+    const account = lineAccountMap.get(accountId);
+    lines.push({
+      accountId,
+      accountCode: account?.code ?? "???",
+      accountName: account?.name ?? "Unknown",
+      budgetedAmount: 0,
+      actualAmount: actual,
+      variance: actual,
+      variancePct: 0,
+      status: "no_budget",
+    });
+  }
+
+  const totalBudgeted = lines.reduce((s, l) => s + l.budgetedAmount, 0);
+  const totalActual = lines.reduce((s, l) => s + l.actualAmount, 0);
+  const totalVariance = totalActual - totalBudgeted;
+
+  return {
+    period: periodLabel,
+    fiscalYear: targetPeriod.year,
+    budgetName: activeBudget?.name ?? "No active budget",
+    totalBudgeted,
+    totalActual,
+    totalVariance,
+    totalVariancePct:
+      totalBudgeted !== 0
+        ? Math.round((totalVariance / totalBudgeted) * 10000) / 100
+        : 0,
+    lines,
+  };
+}
 
 // ─── Profit & Loss ─────────────────────────────────────────────────────────
 

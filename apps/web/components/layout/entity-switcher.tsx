@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronDown, Check, Building2, Plus, X, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  Check,
+  Building2,
+  Plus,
+  X,
+  Loader2,
+  Trash2,
+} from "lucide-react";
+import { useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
@@ -17,6 +26,7 @@ type Entity = {
 
 export function EntitySwitcher() {
   const { entityId, setEntityId, isLoaded } = useEntity();
+  const { data: session } = useSession();
   const [entities, setEntities] = useState<Entity[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [currentEntity, setCurrentEntity] = useState<Entity | null>(null);
@@ -24,6 +34,8 @@ export function EntitySwitcher() {
   const [newEntityName, setNewEntityName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -37,6 +49,7 @@ export function EntitySwitcher() {
   });
   const createEntityMutation = trpc.organization.createEntity.useMutation();
   const createOrgMutation = trpc.organization.create.useMutation();
+  const deleteEntityMutation = trpc.organization.deleteEntity.useMutation();
 
   // Fetch entities via tRPC
   useEffect(() => {
@@ -44,6 +57,7 @@ export function EntitySwitcher() {
       const result = listUserEntitiesQuery.data;
       if (Array.isArray(result)) {
         setEntities(result);
+        // If no entity selected and we have entities, select the first one
         if (!entityId && result.length > 0) {
           setEntityId(result[0].id, result[0].role);
         }
@@ -115,11 +129,9 @@ export function EntitySwitcher() {
       }
     } catch (error) {
       console.error("Failed to create entity:", error);
-      // Extract a meaningful error message
       let message = "Failed to create entity. Please try again.";
       if (error && typeof error === "object" && "message" in error) {
         const err = error as { message: string };
-        // Don't show generic masked errors to the user
         if (err.message && !err.message.includes("unexpected error occurred")) {
           message = err.message;
         }
@@ -139,6 +151,39 @@ export function EntitySwitcher() {
     listOrgsQuery.data,
   ]);
 
+  // Handle delete entity
+  const handleDeleteEntity = useCallback(
+    async (entityIdToDelete: string) => {
+      setIsDeleting(true);
+      try {
+        await deleteEntityMutation.mutateAsync({
+          entityId: entityIdToDelete,
+        });
+
+        // If we deleted the currently selected entity, switch to another one
+        if (entityId === entityIdToDelete) {
+          const remaining = entities.filter((e) => e.id !== entityIdToDelete);
+          if (remaining.length > 0) {
+            setEntityId(remaining[0].id, remaining[0].role);
+          } else {
+            setEntityId("");
+          }
+        }
+
+        await utils.organization.listUserEntities.invalidate();
+        setDeleteConfirmId(null);
+      } catch (error) {
+        console.error("Failed to delete entity:", error);
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [entityId, entities, setEntityId, deleteEntityMutation, utils],
+  );
+
+  const userRole = currentEntity?.role;
+  const isOwnerOrAdmin = userRole === "owner" || userRole === "admin";
+
   // Loading state
   if (!isLoaded) {
     return (
@@ -149,43 +194,6 @@ export function EntitySwitcher() {
     );
   }
 
-  // No entities - show create button
-  if (entities.length === 0) {
-    return (
-      <>
-        <Button
-          variant="outline"
-          size="sm"
-          className="min-w-[160px] justify-between"
-          onClick={() => setShowCreateDialog(true)}
-        >
-          <span className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            <span className="text-sm">Create Entity</span>
-          </span>
-        </Button>
-
-        {/* Create Entity Dialog */}
-        {showCreateDialog && (
-          <CreateEntityDialog
-            isOpen={showCreateDialog}
-            onClose={() => {
-              setShowCreateDialog(false);
-              setNewEntityName("");
-              setCreateError(null);
-            }}
-            onCreate={handleCreateEntity}
-            name={newEntityName}
-            onNameChange={setNewEntityName}
-            isCreating={isCreating}
-            error={createError}
-          />
-        )}
-      </>
-    );
-  }
-
-  // Has entities - show switcher
   return (
     <>
       <div className="relative">
@@ -218,32 +226,47 @@ export function EntitySwitcher() {
             <div className="absolute right-0 left-0 top-full z-50 mt-1 w-full rounded-md border bg-popover p-1 shadow-md">
               {/* Entity list */}
               {entities.map((entity) => (
-                <button
-                  key={entity.id}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent",
-                    entityId === entity.id && "bg-accent",
-                  )}
-                  onClick={() => handleSelect(entity)}
-                >
-                  <Check
+                <div key={entity.id} className="group relative">
+                  <button
                     className={cn(
-                      "h-4 w-4 shrink-0",
-                      entityId === entity.id ? "opacity-100" : "opacity-0",
+                      "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent",
+                      entityId === entity.id && "bg-accent",
                     )}
-                  />
-                  <div className="flex-1 text-left">
-                    <p className="font-medium truncate">{entity.name}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      {entity.type}
-                      {entity.role && (
-                        <span className="capitalize">
-                          · {entity.role.replace(/_/g, " ")}
-                        </span>
+                    onClick={() => handleSelect(entity)}
+                  >
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        entityId === entity.id ? "opacity-100" : "opacity-0",
                       )}
-                    </p>
-                  </div>
-                </button>
+                    />
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="font-medium truncate">{entity.name}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        {entity.type}
+                        {entity.role && (
+                          <span className="capitalize">
+                            · {entity.role.replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {/* Delete button — owner/admin only */}
+                    {isOwnerOrAdmin && entities.length > 1 && (
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmId(entity.id);
+                        }}
+                        title="Delete entity"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </button>
+                </div>
               ))}
 
               {/* Create new entity button */}
@@ -264,6 +287,18 @@ export function EntitySwitcher() {
         )}
       </div>
 
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmId && (
+        <DeleteEntityDialog
+          entityName={
+            entities.find((e) => e.id === deleteConfirmId)?.name ?? ""
+          }
+          onConfirm={() => handleDeleteEntity(deleteConfirmId)}
+          onCancel={() => setDeleteConfirmId(null)}
+          isDeleting={isDeleting}
+        />
+      )}
+
       {/* Create Entity Dialog */}
       {showCreateDialog && (
         <CreateEntityDialog
@@ -280,6 +315,89 @@ export function EntitySwitcher() {
           error={createError}
         />
       )}
+    </>
+  );
+}
+
+// ─── Delete Entity Dialog ───────────────────────────────────────────────
+
+function DeleteEntityDialog({
+  entityName,
+  onConfirm,
+  onCancel,
+  isDeleting,
+}: {
+  entityName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting: boolean;
+}) {
+  const [confirmText, setConfirmText] = useState("");
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50" onClick={onCancel} />
+      <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-md max-h-[85vh] overflow-y-auto">
+        <div className="rounded-xl border bg-card p-6 shadow-lg">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Delete Entity
+            </h2>
+          </div>
+
+          <p className="text-xs text-muted-foreground mb-2">
+            This will permanently deactivate <strong>{entityName}</strong> and
+            revoke all user access. Journal entries, invoices, and other
+            financial records will be preserved but inaccessible.
+          </p>
+          <p className="text-xs text-muted-foreground mb-4">
+            Type <strong>{entityName}</strong> to confirm.
+          </p>
+
+          <input
+            type="text"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={`Type "${entityName}" to confirm`}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-destructive/30"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && confirmText === entityName) {
+                onConfirm();
+              }
+            }}
+          />
+
+          <div className="flex items-center justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onConfirm}
+              disabled={confirmText !== entityName || isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Entity"
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

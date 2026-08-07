@@ -3,18 +3,17 @@
 import { useState } from "react";
 import {
   FileText,
-  Download,
   BarChart3,
   RefreshCw,
   Search,
-  Filter,
   ArrowLeft,
   Package,
 } from "lucide-react";
+import Link from "next/link";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ArtifactList } from "@/components/documents/artifact-list";
-import Link from "next/link";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 

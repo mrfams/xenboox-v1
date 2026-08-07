@@ -26,8 +26,8 @@ import {
 } from "@xenboox/agents";
 import {
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requireRole,
   handleMutationError,
 } from "@/lib/trpc/server";
@@ -39,7 +39,7 @@ export const benchmarkingRouter = router({
   // Returns the current consent status for this organization.
   // Default is excluded/opted-out.
 
-  getConsentStatus: protectedProcedure.query(async ({ ctx }) => {
+  getConsentStatus: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entity = await db.query.entities.findFirst({
       where: eq(entities.id, ctx.entityId!),
       columns: { organizationId: true },
@@ -69,7 +69,7 @@ export const benchmarkingRouter = router({
   // Explicit opt-IN. Organization owner/admin must actively consent.
   // Default is excluded — this is the explicit action to opt in.
 
-  grantConsent: mutateProcedure
+  grantConsent: rlsMutateProcedure
     .use(requireRole("owner", "admin"))
     .input(
       z.object({
@@ -120,7 +120,7 @@ export const benchmarkingRouter = router({
   // Organization can revoke consent at any time.
   // Removed from future cohorts, historical aggregates preserved.
 
-  revokeConsent: mutateProcedure
+  revokeConsent: rlsMutateProcedure
     .use(requireRole("owner", "admin"))
     .input(
       z.object({
@@ -171,7 +171,7 @@ export const benchmarkingRouter = router({
   // Lists cohorts that this entity can benchmark against.
   // Only shows cohorts where anonymization is verified.
 
-  listAvailableCohorts: protectedProcedure.query(async ({ ctx }) => {
+  listAvailableCohorts: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entity = await db.query.entities.findFirst({
       where: eq(entities.id, ctx.entityId!),
       columns: { organizationId: true, country: true },
@@ -252,7 +252,7 @@ export const benchmarkingRouter = router({
   // ── Run Benchmarking Pipeline ────────────────────────────────────
   // Executes the full 8-step benchmarking pipeline.
 
-  runBenchmarking: mutateProcedure
+  runBenchmarking: rlsMutateProcedure
     .use(requireRole("owner", "admin"))
     .input(
       z.object({
@@ -322,7 +322,7 @@ export const benchmarkingRouter = router({
   // ── Get Benchmarking Availability ─────────────────────────────────
   // Returns whether benchmarking data is available (used by Analytics Pipeline)
 
-  getAvailability: protectedProcedure.query(async ({ ctx }) => {
+  getAvailability: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entity = await db.query.entities.findFirst({
       where: eq(entities.id, ctx.entityId!),
       columns: { organizationId: true, country: true },
@@ -361,7 +361,7 @@ export const benchmarkingRouter = router({
   // Returns aggregate benchmark data for a specific cohort.
   // Only returns median, quartiles — never individual org data.
 
-  getCohortAggregates: protectedProcedure
+  getCohortAggregates: rlsProtectedProcedure
     .input(
       z.object({
         cohortId: z.string(),

@@ -15,20 +15,16 @@ import {
   Settings,
   RefreshCw,
 } from "lucide-react";
-import { toast } from "sonner";
-import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
 import { Alert, AlertDescription } from "@xenboox/ui";
 import { useRouter } from "next/navigation";
 
+import { trpc } from "@/lib/trpc/client";
+
 export default function AlertsPage() {
   const router = useRouter();
-  const [showResolved, setShowResolved] = useState(false);
-  const {
-    data: alerts,
-    isLoading,
-    refetch,
-  } = trpc.admin.getSpendAlerts.useQuery();
+  const [_showResolved, _setShowResolved] = useState(false);
+  const { data: alerts, refetch } = trpc.admin.getSpendAlerts.useQuery();
 
   const criticalAlerts =
     alerts?.filter((a) => a.alertLevel === "critical") || [];

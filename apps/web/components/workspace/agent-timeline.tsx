@@ -1,23 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { cn } from "@/lib/utils";
 import {
   Bot,
   Activity,
-  CheckCircle2,
   AlertTriangle,
-  Clock,
-  Pause,
-  Play,
-  X,
   Zap,
-  ChevronDown,
-  ChevronUp,
   RefreshCw,
   Wifi,
   WifiOff,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 import {
   useRealtimeAgentEvents,
   type AgentEvent,

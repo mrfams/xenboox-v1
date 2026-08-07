@@ -1,35 +1,21 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { Card, CardContent, Button, Skeleton } from "@xenboox/ui";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Skeleton,
-} from "@xenboox/ui";
-import {
-  Users,
-  Bot,
   Activity,
   Clock,
   CheckCircle2,
   XCircle,
-  ArrowUpRight,
-  ArrowDownRight,
   MoreHorizontal,
-  RefreshCw,
   Filter,
   Download,
   X,
-  ChevronLeft,
   ChevronRight,
   Loader2,
   Pause,
-  AlertTriangle,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 

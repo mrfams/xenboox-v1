@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 import {
   Card,
   CardContent,
@@ -18,17 +18,20 @@ import {
   SelectContent,
   SelectItem,
   Switch,
-  Separator,
 } from "@xenboox/ui";
 import {
-  Settings,
   Save,
   Loader2,
   CheckCircle2,
   DollarSign,
   Globe,
   ShieldCheck,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
 
 const MODULES = [
   { id: "payroll_run", label: "Payroll Runs" },
@@ -69,8 +72,33 @@ const THOUSANDS_SEPARATORS = [
 ];
 
 export function EntitySettingsSection() {
-  const { data: entities } = trpc.organization.listEntities.useQuery({});
-  const entityId = entities?.[0]?.id;
+  const { entityId: currentEntityId, setEntityId } = useEntity();
+  const { data: session } = useSession();
+  const { data: entities } = trpc.organization.listUserEntities.useQuery();
+  const entityId = currentEntityId ?? entities?.[0]?.id;
+
+  // Find current entity info for role check
+  const currentEntity = entities?.find((e) => e.id === entityId);
+  const isOwner = currentEntity?.role === "owner";
+
+  // Delete entity state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const deleteEntityMutation = trpc.organization.deleteEntity.useMutation({
+    onSuccess: async () => {
+      toast.success("Entity deleted");
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText("");
+      // Switch to another entity
+      const remaining = entities?.filter((e) => e.id !== entityId) ?? [];
+      if (remaining.length > 0) {
+        setEntityId(remaining[0].id, remaining[0].role);
+      }
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete entity");
+    },
+  });
 
   const { data: settings, isLoading } =
     trpc.settings.getEntitySettings.useQuery(undefined, {
@@ -423,6 +451,87 @@ export function EntitySettingsSection() {
           Save Entity Settings
         </Button>
       </div>
+
+      {/* Danger Zone — Delete Entity (owner only) */}
+      {isOwner && entities && entities.length > 1 && (
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-4 w-4" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Permanently deactivate this entity. Financial records will be
+              preserved but become inaccessible.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!showDeleteConfirm ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Entity
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Type <strong>{currentEntity?.name}</strong> to confirm
+                  deletion.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder={`Type "${currentEntity?.name}" to confirm`}
+                    className="max-w-xs"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        deleteConfirmText === currentEntity?.name
+                      ) {
+                        deleteEntityMutation.mutate({ entityId: entityId! });
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={
+                      deleteConfirmText !== currentEntity?.name ||
+                      deleteEntityMutation.isPending
+                    }
+                    onClick={() =>
+                      deleteEntityMutation.mutate({ entityId: entityId! })
+                    }
+                  >
+                    {deleteEntityMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-1.5" />
+                    )}
+                    Delete
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteConfirmText("");
+                    }}
+                    disabled={deleteEntityMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

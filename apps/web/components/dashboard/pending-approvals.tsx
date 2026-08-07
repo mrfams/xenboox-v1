@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import {
   Clock,
   CheckCircle2,
@@ -8,6 +7,8 @@ import {
   Bot,
   ChevronRight,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 type ApprovalItem = {
   id: string;

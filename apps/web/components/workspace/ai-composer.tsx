@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { trpc } from "@/lib/trpc/client";
-import { cn } from "@/lib/utils";
 import {
   ArrowUp,
   Paperclip,
@@ -14,11 +12,13 @@ import {
   X,
   Loader2,
   Check,
-  Slash,
   Command,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
+import { cn } from "@/lib/utils";
 
 // ─── File Types ──────────────────────────────────────────────────────────
 

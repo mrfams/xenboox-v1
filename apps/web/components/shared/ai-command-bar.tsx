@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useState, useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import {
   MessageSquare,
@@ -23,6 +22,8 @@ import {
   Settings,
   type LucideIcon,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 import { filterNavPages, type NavPage } from "@/lib/nav";
 
 interface AICommandBarProps {

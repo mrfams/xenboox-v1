@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Button } from "@/components/ui";
 import { FileQuestion } from "lucide-react";
+
+import { Button } from "@/components/ui";
 
 export default function DashboardGroupNotFound() {
   return (

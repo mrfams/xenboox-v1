@@ -521,3 +521,21 @@ export type {
   CalculatedPayroll,
   ComplianceDeadline,
 } from "./payroll-pipeline";
+
+// ─── Central TrustGuard (GL Write Validation) ─────
+export {
+  validateJournalEntry,
+  validateForPosting,
+  validateInvoice,
+  trustGuardToError,
+  logTrustGuardResult,
+} from "./central-trust-guard";
+export type {
+  TrustCheck,
+  TrustGuardResult,
+  TrustGuardJournalLine,
+  TrustGuardJournalEntryInput,
+  TrustGuardPostingValidationInput,
+  TrustGuardInvoiceLineInput,
+  TrustGuardInvoiceInput,
+} from "./central-trust-guard";

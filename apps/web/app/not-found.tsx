@@ -3,9 +3,10 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { Button } from "@/components/ui";
 import { Home, Search, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui";
 
 export default function NotFound() {
   const router = useRouter();

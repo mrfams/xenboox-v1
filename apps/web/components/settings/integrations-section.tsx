@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -24,7 +23,6 @@ import {
   CreditCard,
   RefreshCw,
   CheckCircle2,
-  AlertCircle,
   Loader2,
   ExternalLink,
   Shield,

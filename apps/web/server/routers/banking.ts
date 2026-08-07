@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   bankAccounts,
@@ -14,7 +14,7 @@ export const bankingRouter = router({
   /**
    * Get banking overview data including summary cards, accounts, and charts.
    */
-  getOverview: protectedProcedure.query(async ({ ctx }) => {
+  getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     // Get all bank accounts
@@ -146,7 +146,7 @@ export const bankingRouter = router({
   /**
    * Get cash position data for the line chart.
    */
-  getCashPosition: protectedProcedure
+  getCashPosition: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -219,7 +219,7 @@ export const bankingRouter = router({
   /**
    * Get bank account details.
    */
-  getAccountDetails: protectedProcedure
+  getAccountDetails: rlsProtectedProcedure
     .input(z.object({ accountId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
@@ -278,7 +278,7 @@ export const bankingRouter = router({
   /**
    * Get AI insights for the banking page.
    */
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const insights: Array<{
       id: string;
@@ -364,7 +364,7 @@ export const bankingRouter = router({
   /**
    * Get recent activity for the sidebar.
    */
-  getRecentActivity: protectedProcedure.query(async ({ ctx }) => {
+  getRecentActivity: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const recentTransactions = await db.query.bankTransactions.findMany({

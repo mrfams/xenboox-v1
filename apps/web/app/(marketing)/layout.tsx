@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { X, Menu } from "lucide-react";
+
 import { Logo } from "@/components/ui/logo";
 
 const navLinks = [

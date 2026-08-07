@@ -4,32 +4,20 @@ import { useState } from "react";
 import {
   Search,
   Filter,
-  Download,
-  ChevronDown,
-  ChevronRight,
   CheckCircle2,
   AlertTriangle,
   Bot,
-  ArrowUpRight,
-  ArrowDownLeft,
   MoreHorizontal,
   RefreshCw,
-  Send,
   XCircle,
   FileText,
   Clock,
-  Eye,
-  Link2,
-  Star,
   Plus,
-  Upload,
-  Settings,
   Sparkles,
-  MessageSquare,
   Edit3,
-  Trash2,
   StickyNote,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -370,7 +358,7 @@ function TransactionTable({
 
 // ─── Transaction Detail Panel ──────────────────────────────────────────────
 
-function TransactionDetailPanel({
+function _TransactionDetailPanel({
   transactionDetail,
   aiInsights,
   onClose,

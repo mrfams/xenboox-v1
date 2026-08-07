@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Zap, Clock, CheckCircle2, ArrowRight } from "lucide-react";
+import { Boxes, Zap, Clock, CheckCircle2 } from "lucide-react";
 
 export default function AutomationPage() {
   return (

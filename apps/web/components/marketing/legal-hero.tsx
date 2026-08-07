@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Shield, Clock, FileText } from "lucide-react";
+
 import { FadeInUp } from "@/components/marketing/reveal";
 
 type LegalHeroProps = {

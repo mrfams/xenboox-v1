@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import {
   Card,
   CardContent,
@@ -17,8 +16,6 @@ import {
 } from "@xenboox/ui";
 import {
   History,
-  Filter,
-  Download,
   Clock,
   User,
   Shield,
@@ -26,8 +23,9 @@ import {
   CreditCard,
   FileText,
   Bot,
-  Loader2,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 const ACTION_CATEGORIES: Record<
   string,
@@ -79,7 +77,7 @@ export function AuditLogSection() {
   const [limit, setLimit] = useState(25);
   const [offset, setOffset] = useState(0);
 
-  const { data, isLoading, refetch } = trpc.settings.getAuditLogs.useQuery({
+  const { data, isLoading } = trpc.settings.getAuditLogs.useQuery({
     limit,
     offset,
   });

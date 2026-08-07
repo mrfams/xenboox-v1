@@ -1,17 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { trpc } from "@/lib/trpc/client";
+import { useState } from "react";
 import { toast } from "sonner";
-import {
-  Button,
-  Input,
-  Label,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui";
 import {
   Shield,
   ShieldOff,
@@ -22,6 +12,17 @@ import {
   KeyRound,
   Smartphone,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
+import {
+  Button,
+  Input,
+  Label,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui";
 
 type BackupCodesDisplayProps = {
   codes: string[];

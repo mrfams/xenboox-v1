@@ -8,7 +8,6 @@ import {
   Zap,
   Shield,
   Globe,
-  BarChart3,
   Clock,
   Users,
   FileText,
@@ -17,7 +16,6 @@ import {
   Bot,
   Star,
 } from "lucide-react";
-import { FadeInUp } from "@/components/marketing/reveal";
 
 // Animated counter component
 function AnimatedCounter({

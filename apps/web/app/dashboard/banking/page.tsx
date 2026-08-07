@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState } from "react";
 import {
   Search,
   Plus,
   Download,
-  ChevronDown,
   MoreHorizontal,
   Building2,
   Wallet,
@@ -13,17 +12,13 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bot,
-  ArrowUpRight,
-  ArrowDownLeft,
   Clock,
-  Link,
   FileText,
-  Settings,
   Eye,
   Shield,
   TrendingUp,
-  TrendingDown,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import {

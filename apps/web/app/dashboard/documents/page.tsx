@@ -3,9 +3,7 @@
 import { useState } from "react";
 import {
   Search,
-  Plus,
   Download,
-  ChevronDown,
   MoreHorizontal,
   FileText,
   RefreshCw,
@@ -21,6 +19,7 @@ import {
   File,
   FileSpreadsheet,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 

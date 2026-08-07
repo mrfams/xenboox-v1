@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Bot, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { Bot, PanelRightOpen } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
+import { Toaster } from "sonner";
+
 import { EntityProvider, useEntity } from "@/lib/entity-context";
 import { PermissionProvider, serializePermissions } from "@/lib/permissions";
 import { AISidebar } from "@/components/layout/ai-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { ChatPanel } from "@/components/layout/chat-panel";
 import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
-import { Toaster } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +57,7 @@ export default function DashboardLayout({
   ]);
 
   const isPaddedPage = pathname ? PAGE_PADDING_ROUTES.has(pathname) : false;
-  const isDashboardHome = pathname === "/dashboard";
+  const ____isDashboardHome = pathname === "/dashboard";
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -24,15 +23,9 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@xenboox/ui";
-import {
-  UserPlus,
-  Mail,
-  Copy,
-  CheckCircle2,
-  Clock,
-  Loader2,
-  Link,
-} from "lucide-react";
+import { UserPlus, Mail, Copy, CheckCircle2, Clock } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 const ROLES = [
   {
@@ -79,7 +72,7 @@ export function InviteMemberSection() {
   const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   const { data: entities } = trpc.organization.listEntities.useQuery({});
-  const entityId = entities?.[0]?.id;
+  const ___entityId = entities?.[0]?.id;
 
   // Note: This would need an actual invite mutation in the router
   // For now, we'll simulate the flow

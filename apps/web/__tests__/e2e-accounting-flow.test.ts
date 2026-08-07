@@ -158,14 +158,12 @@ vi.mock("@/lib/logger", () => ({
     error: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
-    child: vi
-      .fn()
-      .mockReturnValue({
-        info: vi.fn(),
-        error: vi.fn(),
-        warn: vi.fn(),
-        debug: vi.fn(),
-      }),
+    child: vi.fn().mockReturnValue({
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+    }),
   },
 }));
 
@@ -181,14 +179,163 @@ vi.mock("@xenboox/db/schema/permissions", () => ({
   rbacActionEnum: vi.fn(() => ({ notNull: vi.fn().mockReturnThis() })),
 }));
 
-vi.mock("@xenboox/agents", () => ({
-  runReconciliationPipeline: vi
-    .fn()
-    .mockResolvedValue({ status: "completed", matches: 1, unmatched: 0 }),
-  getReconciliationStatus: vi
-    .fn()
-    .mockResolvedValue({ status: "in_progress", progress: 0.5 }),
-}));
+vi.mock("@xenboox/agents", () => {
+  // Deterministic trust-guard doubles — mirror the real Central TrustGuard's
+  // double-entry rules (balance, non-zero, invoice math) WITHOUT DB access, so
+  // the router flows are exercised against the mocked @/lib/db. The real guard
+  // (DB-backed) has its own unit suite in packages/agents.
+  const buildResult = (
+    checks: Array<{
+      name?: string;
+      passed: boolean;
+      severity: string;
+      message: string;
+    }>,
+  ) => {
+    const errors = checks.filter((c) => !c.passed && c.severity === "error");
+    const warnings = checks.filter(
+      (c) => !c.passed && c.severity === "warning",
+    );
+    return { passed: errors.length === 0, checks, errors, warnings };
+  };
+
+  const validateJournalEntry = vi.fn(
+    async (input: {
+      lines: Array<{ debit: string | number; credit: string | number }>;
+    }) => {
+      const lines = input.lines.map((l) => ({
+        debit: Number(String(l.debit).replace(/,/g, "")) || 0,
+        credit: Number(String(l.credit).replace(/,/g, "")) || 0,
+      }));
+      const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
+      const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
+      const checks = [
+        {
+          name: "min_lines",
+          passed: lines.length >= 2,
+          severity: "error",
+          message: lines.length >= 2 ? "OK" : "Only 1 line(s) — minimum is 2",
+        },
+        {
+          name: "double_entry_balance",
+          passed: Math.abs(totalDebit - totalCredit) < 0.01,
+          severity: "error",
+          message:
+            Math.abs(totalDebit - totalCredit) < 0.01
+              ? "OK"
+              : `Debits (${totalDebit.toFixed(2)}) ≠ credits (${totalCredit.toFixed(2)}) — difference: ${Math.abs(totalDebit - totalCredit).toFixed(2)}`,
+        },
+        {
+          name: "non_zero_total",
+          passed: totalDebit > 0 && totalCredit > 0,
+          severity: "error",
+          message:
+            totalDebit > 0 && totalCredit > 0
+              ? "OK"
+              : `Total debit/credit is zero (${totalDebit.toFixed(2)})`,
+        },
+      ];
+      return buildResult(checks);
+    },
+  );
+
+  const validateForPosting = vi.fn(async () =>
+    buildResult([
+      {
+        name: "posting_status",
+        passed: true,
+        severity: "error",
+        message: "OK",
+      },
+      {
+        name: "posting_balance_check",
+        passed: true,
+        severity: "error",
+        message: "OK",
+      },
+    ]),
+  );
+
+  const validateInvoice = vi.fn(
+    (input: {
+      lines: Array<{
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        amount: number;
+      }>;
+      subtotal: number;
+      taxAmount: number;
+      totalAmount: number;
+      vendorId?: string;
+      customerId?: string;
+    }) => {
+      const checks = [
+        {
+          name: "invoice_min_lines",
+          passed: input.lines.length >= 1,
+          severity: "error",
+          message: input.lines.length >= 1 ? "OK" : "No line items",
+        },
+        {
+          name: "invoice_subtotal",
+          passed:
+            Math.abs(
+              input.subtotal - input.lines.reduce((s, l) => s + l.amount, 0),
+            ) < 0.01,
+          severity: "error",
+          message: "OK",
+        },
+        {
+          name: "invoice_total",
+          passed:
+            Math.abs(input.totalAmount - (input.subtotal + input.taxAmount)) <
+            0.01,
+          severity: "error",
+          message: "OK",
+        },
+        {
+          name: "invoice_positive",
+          passed:
+            input.subtotal >= 0 &&
+            input.taxAmount >= 0 &&
+            input.totalAmount >= 0,
+          severity: "error",
+          message: "OK",
+        },
+        {
+          name: "invoice_party",
+          passed: !!(input.vendorId || input.customerId),
+          severity: "error",
+          message:
+            input.vendorId || input.customerId
+              ? "OK"
+              : "No vendor or customer specified",
+        },
+      ];
+      return buildResult(checks);
+    },
+  );
+
+  return {
+    validateJournalEntry,
+    validateForPosting,
+    validateInvoice,
+    logTrustGuardResult: vi.fn().mockResolvedValue(undefined),
+    trustGuardToError: vi.fn(
+      (result: { passed: boolean; errors: Array<{ message: string }> }) =>
+        result.passed
+          ? null
+          : `Validation failed: ${result.errors.map((e) => e.message).join("; ")}`,
+    ),
+    runReconciliationPipeline: vi
+      .fn()
+      .mockResolvedValue({ status: "completed", matches: 1, unmatched: 0 }),
+    getReconciliationStatus: vi
+      .fn()
+      .mockResolvedValue({ status: "in_progress", progress: 0.5 }),
+  };
+});
 
 vi.mock("@/lib/entity-context-enrichment", () => ({
   getEnrichedEntityContext: vi
@@ -485,16 +632,14 @@ describe("E2E Accounting Flow — 4 Core Agents", () => {
     it("creates a customer", async () => {
       (vi.mocked(db.insert) as any).mockImplementation(() => ({
         values: vi.fn().mockReturnThis(),
-        returning: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: C1,
-              name: "Acme Corp",
-              contactEmail: "billing@acme.com",
-              entityId: EID,
-            },
-          ]),
+        returning: vi.fn().mockResolvedValue([
+          {
+            id: C1,
+            name: "Acme Corp",
+            contactEmail: "billing@acme.com",
+            entityId: EID,
+          },
+        ]),
       }));
       const result = await createCaller().ar.createCustomer({
         name: "Acme Corp",
@@ -510,30 +655,26 @@ describe("E2E Accounting Flow — 4 Core Agents", () => {
           cb({
             insert: vi.fn().mockReturnValue({
               values: vi.fn().mockReturnValue({
-                returning: vi
-                  .fn()
-                  .mockResolvedValue([
-                    {
-                      id: IR1,
-                      invoiceNumber: "INV-001",
-                      customerId: C1,
-                      totalAmount: "2500.00",
-                      balance: "2500.00",
-                      status: "pending",
-                      entityId: EID,
-                    },
-                  ]),
+                returning: vi.fn().mockResolvedValue([
+                  {
+                    id: IR1,
+                    invoiceNumber: "INV-001",
+                    customerId: C1,
+                    totalAmount: "2500.00",
+                    balance: "2500.00",
+                    status: "pending",
+                    entityId: EID,
+                  },
+                ]),
               }),
             }),
             query: {
               customers: {
-                findFirst: vi
-                  .fn()
-                  .mockResolvedValue({
-                    id: C1,
-                    name: "Acme Corp",
-                    entityId: EID,
-                  }),
+                findFirst: vi.fn().mockResolvedValue({
+                  id: C1,
+                  name: "Acme Corp",
+                  entityId: EID,
+                }),
               },
             },
           }),
@@ -563,35 +704,29 @@ describe("E2E Accounting Flow — 4 Core Agents", () => {
           cb({
             insert: vi.fn().mockReturnValue({
               values: vi.fn().mockReturnValue({
-                returning: vi
-                  .fn()
-                  .mockResolvedValue([
-                    {
-                      id: "pay-ar-1",
-                      salesInvoiceId: IR1,
-                      amount: "2500.00",
-                      method: "bank_transfer",
-                      entityId: EID,
-                    },
-                  ]),
+                returning: vi.fn().mockResolvedValue([
+                  {
+                    id: "pay-ar-1",
+                    salesInvoiceId: IR1,
+                    amount: "2500.00",
+                    method: "bank_transfer",
+                    entityId: EID,
+                  },
+                ]),
               }),
             }),
-            update: vi
-              .fn()
-              .mockReturnValue({
-                set: vi.fn().mockReturnThis(),
-                where: vi.fn().mockResolvedValue(undefined),
-              }),
+            update: vi.fn().mockReturnValue({
+              set: vi.fn().mockReturnThis(),
+              where: vi.fn().mockResolvedValue(undefined),
+            }),
             query: {
               customers: {
-                findFirst: vi
-                  .fn()
-                  .mockResolvedValue({
-                    id: C1,
-                    name: "Acme Corp",
-                    contactEmail: "billing@acme.com",
-                    entityId: EID,
-                  }),
+                findFirst: vi.fn().mockResolvedValue({
+                  id: C1,
+                  name: "Acme Corp",
+                  contactEmail: "billing@acme.com",
+                  entityId: EID,
+                }),
               },
             },
           }),
@@ -636,16 +771,14 @@ describe("E2E Accounting Flow — 4 Core Agents", () => {
     it("creates a supplier", async () => {
       (vi.mocked(db.insert) as any).mockImplementation(() => ({
         values: vi.fn().mockReturnThis(),
-        returning: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: S1,
-              name: "Vendor Ltd",
-              contactEmail: "billing@vendor.com",
-              entityId: EID,
-            },
-          ]),
+        returning: vi.fn().mockResolvedValue([
+          {
+            id: S1,
+            name: "Vendor Ltd",
+            contactEmail: "billing@vendor.com",
+            entityId: EID,
+          },
+        ]),
       }));
       const result = await createCaller().ap.createSupplier({
         name: "Vendor Ltd",
@@ -661,19 +794,17 @@ describe("E2E Accounting Flow — 4 Core Agents", () => {
           cb({
             insert: vi.fn().mockReturnValue({
               values: vi.fn().mockReturnValue({
-                returning: vi
-                  .fn()
-                  .mockResolvedValue([
-                    {
-                      id: IA1,
-                      invoiceNumber: "VEN-001",
-                      supplierId: S1,
-                      totalAmount: "1500.00",
-                      balance: "1500.00",
-                      status: "pending",
-                      entityId: EID,
-                    },
-                  ]),
+                returning: vi.fn().mockResolvedValue([
+                  {
+                    id: IA1,
+                    invoiceNumber: "VEN-001",
+                    supplierId: S1,
+                    totalAmount: "1500.00",
+                    balance: "1500.00",
+                    status: "pending",
+                    entityId: EID,
+                  },
+                ]),
               }),
             }),
           }),
@@ -703,35 +834,29 @@ describe("E2E Accounting Flow — 4 Core Agents", () => {
           cb({
             insert: vi.fn().mockReturnValue({
               values: vi.fn().mockReturnValue({
-                returning: vi
-                  .fn()
-                  .mockResolvedValue([
-                    {
-                      id: "pay-ap-1",
-                      invoiceApId: IA1,
-                      amount: "1500.00",
-                      method: "bank_transfer",
-                      entityId: EID,
-                    },
-                  ]),
+                returning: vi.fn().mockResolvedValue([
+                  {
+                    id: "pay-ap-1",
+                    invoiceApId: IA1,
+                    amount: "1500.00",
+                    method: "bank_transfer",
+                    entityId: EID,
+                  },
+                ]),
               }),
             }),
-            update: vi
-              .fn()
-              .mockReturnValue({
-                set: vi.fn().mockReturnThis(),
-                where: vi.fn().mockResolvedValue(undefined),
-              }),
+            update: vi.fn().mockReturnValue({
+              set: vi.fn().mockReturnThis(),
+              where: vi.fn().mockResolvedValue(undefined),
+            }),
             query: {
               suppliers: {
-                findFirst: vi
-                  .fn()
-                  .mockResolvedValue({
-                    id: S1,
-                    name: "Vendor Ltd",
-                    contactEmail: "billing@vendor.com",
-                    entityId: EID,
-                  }),
+                findFirst: vi.fn().mockResolvedValue({
+                  id: S1,
+                  name: "Vendor Ltd",
+                  contactEmail: "billing@vendor.com",
+                  entityId: EID,
+                }),
               },
             },
           }),
@@ -829,17 +954,15 @@ describe("E2E Accounting Flow — 4 Core Agents", () => {
     it("creates a reconciliation", async () => {
       (vi.mocked(db.insert) as any).mockImplementation(() => ({
         values: vi.fn().mockReturnThis(),
-        returning: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: RC1,
-              bankAccountId: BA1,
-              entityId: EID,
-              status: "unmatched",
-              difference: "0.00",
-            },
-          ]),
+        returning: vi.fn().mockResolvedValue([
+          {
+            id: RC1,
+            bankAccountId: BA1,
+            entityId: EID,
+            status: "unmatched",
+            difference: "0.00",
+          },
+        ]),
       }));
       const r = await createCaller().treasury.createReconciliation({
         bankAccountId: BA1,
@@ -853,17 +976,15 @@ describe("E2E Accounting Flow — 4 Core Agents", () => {
     it("matches a bank transaction", async () => {
       (vi.mocked(db.insert) as any).mockImplementation(() => ({
         values: vi.fn().mockReturnThis(),
-        returning: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: "ri1",
-              reconciliationId: RC1,
-              bankTransactionId: BT1,
-              matchedAmount: "2500.00",
-              status: "matched",
-            },
-          ]),
+        returning: vi.fn().mockResolvedValue([
+          {
+            id: "ri1",
+            reconciliationId: RC1,
+            bankTransactionId: BT1,
+            matchedAmount: "2500.00",
+            status: "matched",
+          },
+        ]),
       }));
       const r = await createCaller().treasury.matchReconciliationItem({
         reconciliationId: RC1,

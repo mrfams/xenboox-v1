@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  X,
   Send,
   Bot,
   User,
@@ -17,6 +16,7 @@ import {
   ExternalLink,
   PanelRightClose,
 } from "lucide-react";
+
 import { Button, Badge } from "@/components/ui";
 import { cn, formatCurrency } from "@/lib/utils";
 

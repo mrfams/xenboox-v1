@@ -2,9 +2,10 @@
 
 import React from "react";
 import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
 import { Brain, Send, FileText, Search, X, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+import { cn } from "@/lib/utils";
 
 interface SelectionAction {
   label: string;

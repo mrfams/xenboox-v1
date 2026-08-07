@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ArrowRight, HelpCircle } from "lucide-react";
+import { CheckCircle2, ArrowRight } from "lucide-react";
+
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
 

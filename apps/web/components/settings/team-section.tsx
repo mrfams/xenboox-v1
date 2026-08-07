@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -25,15 +24,9 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@xenboox/ui";
-import {
-  Users,
-  Shield,
-  Trash2,
-  Loader2,
-  UserX,
-  Crown,
-  UserPlus,
-} from "lucide-react";
+import { Users, Shield, Trash2, Loader2, UserX, Crown } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 import { InviteMemberSection } from "@/components/settings/invite-member-section";
 
 const ROLES = [
@@ -84,7 +77,7 @@ const ROLES = [
 export function TeamSection() {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [updatingRoleFor, setUpdatingRoleFor] = useState<string | null>(null);
-  const [showInviteSection, setShowInviteSection] = useState(false);
+  const [_showInviteSection, _setShowInviteSection] = useState(false);
 
   const { data: user } = trpc.organization.getCurrentUser.useQuery();
   const { data: entities } = trpc.organization.listEntities.useQuery({});

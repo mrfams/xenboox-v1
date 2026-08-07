@@ -4,6 +4,15 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import {
+  Shield,
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  KeyRound,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import {
   Button,
   Input,
   Label,
@@ -13,15 +22,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui";
-import {
-  Shield,
-  AlertCircle,
-  ArrowLeft,
-  CheckCircle2,
-  KeyRound,
-} from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
-import { toast } from "sonner";
 
 function MfaChallengeInner() {
   const router = useRouter();

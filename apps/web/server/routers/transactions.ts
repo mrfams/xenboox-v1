@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   bankTransactions,
@@ -16,7 +16,7 @@ export const transactionsRouter = router({
   /**
    * Get summary statistics for the transactions page.
    */
-  getSummary: protectedProcedure
+  getSummary: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -265,7 +265,7 @@ export const transactionsRouter = router({
   /**
    * List transactions with filtering, sorting, and pagination.
    */
-  listTransactions: protectedProcedure
+  listTransactions: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -473,7 +473,7 @@ export const transactionsRouter = router({
   /**
    * Get transaction details for the detail panel.
    */
-  getTransactionDetail: protectedProcedure
+  getTransactionDetail: rlsProtectedProcedure
     .input(z.object({ transactionId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
@@ -645,7 +645,7 @@ export const transactionsRouter = router({
   /**
    * Get AI insights for the transactions page.
    */
-  getAiInsights: protectedProcedure
+  getAiInsights: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -750,7 +750,7 @@ export const transactionsRouter = router({
   /**
    * Get accounts for filter dropdown.
    */
-  getAccounts: protectedProcedure.query(async ({ ctx }) => {
+  getAccounts: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const accounts = await db.query.bankAccounts.findMany({
@@ -769,7 +769,7 @@ export const transactionsRouter = router({
   /**
    * Approve/confirm a transaction categorization.
    */
-  approveTransaction: protectedProcedure
+  approveTransaction: rlsProtectedProcedure
     .input(
       z.object({
         transactionId: z.string().uuid(),
@@ -803,7 +803,7 @@ export const transactionsRouter = router({
   /**
    * Reject/categorize a transaction.
    */
-  rejectTransaction: protectedProcedure
+  rejectTransaction: rlsProtectedProcedure
     .input(
       z.object({
         transactionId: z.string().uuid(),

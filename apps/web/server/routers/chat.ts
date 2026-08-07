@@ -4,7 +4,7 @@ import { eq, and, desc, asc, lte, ilike, or, ne } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -25,7 +25,7 @@ export const chatRouter = router({
   /**
    * Create a new conversation.
    */
-  createConversation: protectedProcedure
+  createConversation: rlsProtectedProcedure
     .input(
       z.object({
         title: z.string().optional(),
@@ -47,7 +47,7 @@ export const chatRouter = router({
   /**
    * List conversations for the current entity.
    */
-  listConversations: protectedProcedure.query(async ({ ctx }) => {
+  listConversations: rlsProtectedProcedure.query(async ({ ctx }) => {
     return db.query.conversations.findMany({
       where: and(
         eq(conversations.entityId, ctx.entityId!),
@@ -61,7 +61,7 @@ export const chatRouter = router({
   /**
    * Get conversations as a tree structure (parent → children).
    */
-  getConversationTree: protectedProcedure.query(async ({ ctx }) => {
+  getConversationTree: rlsProtectedProcedure.query(async ({ ctx }) => {
     // Fetch all active conversations for this entity
     const allConversations = await db.query.conversations.findMany({
       where: and(
@@ -105,7 +105,7 @@ export const chatRouter = router({
   /**
    * Search conversations by title or message content.
    */
-  searchConversations: protectedProcedure
+  searchConversations: rlsProtectedProcedure
     .input(
       z.object({
         query: z.string().min(1).max(200),
@@ -216,7 +216,7 @@ export const chatRouter = router({
   /**
    * Get messages for a conversation.
    */
-  getMessages: protectedProcedure
+  getMessages: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -249,7 +249,7 @@ export const chatRouter = router({
    * Send a message and get a non-streaming response.
    * For streaming, use /api/chat/stream instead.
    */
-  sendMessage: protectedProcedure
+  sendMessage: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -362,7 +362,7 @@ export const chatRouter = router({
   /**
    * Rename a conversation.
    */
-  renameConversation: protectedProcedure
+  renameConversation: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -403,7 +403,7 @@ export const chatRouter = router({
   /**
    * Delete (archive) a conversation.
    */
-  deleteConversation: protectedProcedure
+  deleteConversation: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -444,7 +444,7 @@ export const chatRouter = router({
    * Fork a conversation at a specific message.
    * Creates a new conversation with messages up to and including the fork point.
    */
-  forkConversation: protectedProcedure
+  forkConversation: rlsProtectedProcedure
     .input(
       z.object({
         sourceConversationId: z.string().uuid(),
@@ -590,7 +590,7 @@ export const chatRouter = router({
   /**
    * Update a message's content.
    */
-  updateMessage: protectedProcedure
+  updateMessage: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -652,7 +652,7 @@ export const chatRouter = router({
   /**
    * Delete a message.
    */
-  deleteMessage: protectedProcedure
+  deleteMessage: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -713,7 +713,7 @@ export const chatRouter = router({
   /**
    * Export a conversation as JSON or Markdown.
    */
-  exportConversation: protectedProcedure
+  exportConversation: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -812,7 +812,7 @@ export const chatRouter = router({
   /**
    * Get analytics for a conversation.
    */
-  getConversationAnalytics: protectedProcedure
+  getConversationAnalytics: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -911,7 +911,7 @@ export const chatRouter = router({
   /**
    * Add or toggle a reaction on a message.
    */
-  toggleReaction: protectedProcedure
+  toggleReaction: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -966,7 +966,7 @@ export const chatRouter = router({
   /**
    * Get reactions for a message.
    */
-  getReactions: protectedProcedure
+  getReactions: rlsProtectedProcedure
     .input(
       z.object({
         messageId: z.string().uuid(),
@@ -983,7 +983,7 @@ export const chatRouter = router({
   /**
    * Share a conversation with another user.
    */
-  shareConversation: protectedProcedure
+  shareConversation: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -1062,7 +1062,7 @@ export const chatRouter = router({
   /**
    * Get shares for a conversation.
    */
-  getConversationShares: protectedProcedure
+  getConversationShares: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -1119,7 +1119,7 @@ export const chatRouter = router({
   /**
    * Remove a share.
    */
-  removeShare: protectedProcedure
+  removeShare: rlsProtectedProcedure
     .input(
       z.object({
         shareId: z.string().uuid(),
@@ -1155,7 +1155,7 @@ export const chatRouter = router({
   /**
    * Add an attachment to a message.
    */
-  addAttachment: protectedProcedure
+  addAttachment: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -1216,7 +1216,7 @@ export const chatRouter = router({
   /**
    * Get attachments for a message or conversation.
    */
-  getAttachments: protectedProcedure
+  getAttachments: rlsProtectedProcedure
     .input(
       z.object({
         conversationId: z.string().uuid(),
@@ -1255,7 +1255,7 @@ export const chatRouter = router({
   /**
    * Remove an attachment.
    */
-  removeAttachment: protectedProcedure
+  removeAttachment: rlsProtectedProcedure
     .input(
       z.object({
         attachmentId: z.string().uuid(),

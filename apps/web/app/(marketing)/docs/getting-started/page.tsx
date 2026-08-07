@@ -1,8 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
-import { DocsPageHeader } from "../components/docs-page-header";
-import { InfoCallout } from "../components/info-callout";
-import { FeatureGrid } from "../components/feature-grid";
-import { RelatedLinks } from "../components/related-links";
 import {
   BookOpen,
   UserPlus,
@@ -15,6 +10,13 @@ import {
   Globe,
 } from "lucide-react";
 import Link from "next/link";
+
+import { DocsPageHeader } from "../components/docs-page-header";
+import { InfoCallout } from "../components/info-callout";
+import { FeatureGrid } from "../components/feature-grid";
+import { RelatedLinks } from "../components/related-links";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 
 const steps = [
   {

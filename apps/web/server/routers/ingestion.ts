@@ -11,7 +11,7 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
@@ -232,7 +232,7 @@ export const ingestionRouter = router({
    * These are documents where the ingestion engine marked them as
    * needing human verification before posting.
    */
-  listPendingReviews: protectedProcedure
+  listPendingReviews: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -330,7 +330,7 @@ export const ingestionRouter = router({
   /**
    * Get full details of a pending review, including the proposed journal entry.
    */
-  getReviewDetails: protectedProcedure
+  getReviewDetails: rlsProtectedProcedure
     .input(z.object({ documentId: z.string().uuid() }))
     .query(async ({ ctx, input }): Promise<ReviewDetailResponse> => {
       const doc = await db.query.documents.findFirst({
@@ -402,7 +402,7 @@ export const ingestionRouter = router({
    * Approve a pending review, posting the proposed journal entry.
    * Can optionally edit the proposed entry before posting.
    */
-  approveReview: protectedProcedure
+  approveReview: rlsProtectedProcedure
     .input(
       z.object({
         documentId: z.string().uuid(),
@@ -599,7 +599,7 @@ export const ingestionRouter = router({
   /**
    * Reject a pending review. The document will not be posted.
    */
-  rejectReview: protectedProcedure
+  rejectReview: rlsProtectedProcedure
     .input(
       z.object({
         documentId: z.string().uuid(),
@@ -679,7 +679,7 @@ export const ingestionRouter = router({
    * Re-run the ingestion pipeline for a document. Useful if
    * data was corrected or new accounts were created.
    */
-  rerunIngestion: protectedProcedure
+  rerunIngestion: rlsProtectedProcedure
     .input(z.object({ documentId: z.string().uuid() }))
     .mutation(
       async ({
@@ -743,7 +743,7 @@ export const ingestionRouter = router({
   /**
    * Comprehensive dashboard data: stats, recent entries, confidence distribution, activity feed.
    */
-  getDashboard: protectedProcedure.query(
+  getDashboard: rlsProtectedProcedure.query(
     async ({ ctx }): Promise<DashboardResponse> => {
       // ── Pipeline Stats ──
       const allDocs = await db.query.documents.findMany({
@@ -888,7 +888,7 @@ export const ingestionRouter = router({
    *   - "flag_for_review" | "needs_review" — Agent flagged uncertainty
    *   - "approval_needed" — Explicit approval request
    */
-  listAgentApprovals: protectedProcedure
+  listAgentApprovals: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -1061,7 +1061,7 @@ export const ingestionRouter = router({
       };
     }),
 
-  getStats: protectedProcedure.query(
+  getStats: rlsProtectedProcedure.query(
     async ({ ctx }): Promise<IngestionStatsResponse> => {
       const allDocs = await db.query.documents.findMany({
         where: eq(documents.entityId, ctx.entityId!),
@@ -1103,7 +1103,7 @@ export const ingestionRouter = router({
     },
   ),
 
-  listRecentActivity: protectedProcedure
+  listRecentActivity: rlsProtectedProcedure
     .input(z.object({ limit: z.number().min(1).max(100).default(20) }))
     .query(async ({ ctx, input }) => {
       const activities = await db.query.agentActivity.findMany({

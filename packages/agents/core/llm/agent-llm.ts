@@ -15,7 +15,7 @@
 
 import { callModel } from "@xenboox/models";
 import type { TaskType } from "@xenboox/models";
-import { getToolsForAgent, executeTool } from "../tool-registry";
+import { getToolsForAgent } from "../tool-registry";
 import { executeTool as executeToolWithGrants } from "../tool-executor";
 import type { ToolExecutionContext, ToolCallResult } from "../tool-contract";
 import { langfuse } from "../langfuse";

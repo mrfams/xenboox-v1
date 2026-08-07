@@ -3,8 +3,8 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -28,10 +28,16 @@ import {
   trialBalanceSnapshots,
 } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
+import {
+  validateJournalEntry,
+  validateForPosting,
+  logTrustGuardResult,
+  trustGuardToError,
+} from "@xenboox/agents";
 
 export const journalRouter = router({
   // ── Journal Entries Overview ──
-  getOverview: protectedProcedure
+  getOverview: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -157,7 +163,7 @@ export const journalRouter = router({
     }),
 
   // ── Tab Counts ──
-  getTabCounts: protectedProcedure.query(async ({ ctx }) => {
+  getTabCounts: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const allResult = await db
@@ -226,7 +232,7 @@ export const journalRouter = router({
   }),
 
   // ── Journal Entries List with Details ──
-  listWithDetails: protectedProcedure
+  listWithDetails: rlsProtectedProcedure
     .input(
       z.object({
         status: z
@@ -382,7 +388,7 @@ export const journalRouter = router({
     }),
 
   // ── Top Account Impact ──
-  getTopAccountImpact: protectedProcedure
+  getTopAccountImpact: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -465,7 +471,7 @@ export const journalRouter = router({
     }),
 
   // ── Journal Entry Sources ──
-  getEntrySources: protectedProcedure
+  getEntrySources: rlsProtectedProcedure
     .input(
       z.object({
         startDate: z.string().optional(),
@@ -531,7 +537,7 @@ export const journalRouter = router({
     }),
 
   // ── Recent Activity ──
-  getRecentActivity: protectedProcedure.query(async ({ ctx }) => {
+  getRecentActivity: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const recentEntries = await db
@@ -563,7 +569,7 @@ export const journalRouter = router({
   }),
 
   // ── AI Insights ──
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const insights: Array<{
@@ -640,7 +646,7 @@ export const journalRouter = router({
     return insights;
   }),
 
-  list: protectedProcedure
+  list: rlsProtectedProcedure
     .input(
       z.object({
         periodId: z.string().uuid().optional(),
@@ -666,7 +672,7 @@ export const journalRouter = router({
       });
     }),
 
-  getById: protectedProcedure
+  getById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entry = await db.query.journalEntries.findFirst({
@@ -684,7 +690,7 @@ export const journalRouter = router({
       return { ...entry, lines };
     }),
 
-  create: mutateProcedure
+  create: rlsMutateProcedure
     .use(requirePermission("general_ledger", "create"))
     .input(
       z.object({
@@ -714,44 +720,31 @@ export const journalRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const totalDebit = input.lines.reduce(
-          (sum, l) => sum + Number(l.debit),
-          0,
-        );
-        const totalCredit = input.lines.reduce(
-          (sum, l) => sum + Number(l.credit),
-          0,
-        );
-
-        if (Math.abs(totalDebit - totalCredit) > 0.01) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Debits (${totalDebit}) must equal credits (${totalCredit})`,
-          });
-        }
-
-        if (totalDebit === 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Entry must have non-zero amounts",
-          });
-        }
-
-        const period = await db.query.fiscalPeriods.findFirst({
-          where: and(
-            eq(fiscalPeriods.id, input.periodId),
-            eq(fiscalPeriods.entityId, ctx.entityId!),
-          ),
+        const trustResult = await validateJournalEntry({
+          entityId: ctx.entityId!,
+          periodId: input.periodId,
+          date: input.date,
+          lines: input.lines.map((l) => ({
+            accountId: l.accountId,
+            debit: l.debit,
+            credit: l.credit,
+          })),
+          description: input.description,
         });
-        if (!period)
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Fiscal period not found",
-          });
-        if (period.status !== "open") {
+
+        await logTrustGuardResult(
+          ctx.entityId!,
+          ctx.session!.user!.id!,
+          "journal.create",
+          trustResult,
+        );
+
+        if (!trustResult.passed) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Period is ${period.status}, not open`,
+            message:
+              trustGuardToError(trustResult) ??
+              "Journal entry validation failed",
           });
         }
 
@@ -796,7 +789,7 @@ export const journalRouter = router({
       }
     }),
 
-  post: mutateProcedure
+  post: rlsMutateProcedure
     .use(requirePermission("general_ledger", "post"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -826,6 +819,36 @@ export const journalRouter = router({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Period is not open",
+          });
+        }
+
+        const entryLines = await db.query.journalEntryLines.findMany({
+          where: eq(journalEntryLines.journalEntryId, input.id),
+        });
+
+        const postingCheck = await validateForPosting({
+          entityId: ctx.entityId!,
+          entryId: input.id,
+          entryStatus: entry.status,
+          entryLines: entryLines.map((l) => ({
+            accountId: l.accountId,
+            debit: String(l.debit),
+            credit: String(l.credit),
+          })),
+        });
+
+        await logTrustGuardResult(
+          ctx.entityId!,
+          ctx.session!.user!.id!,
+          "journal.post",
+          postingCheck,
+        );
+
+        if (!postingCheck.passed) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              trustGuardToError(postingCheck) ?? "Posting validation failed",
           });
         }
 
@@ -859,7 +882,7 @@ export const journalRouter = router({
       }
     }),
 
-  reverse: protectedProcedure
+  reverse: rlsProtectedProcedure
     .use(requirePermission("general_ledger", "delete"))
     .input(
       z.object({
@@ -959,7 +982,7 @@ export const journalRouter = router({
       }
     }),
 
-  getTrialBalance: protectedProcedure
+  getTrialBalance: rlsProtectedProcedure
     .input(z.object({ periodId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       try {
@@ -1043,7 +1066,7 @@ export const journalRouter = router({
       }
     }),
 
-  delete: protectedProcedure
+  delete: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {

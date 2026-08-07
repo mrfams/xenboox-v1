@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -29,6 +28,8 @@ import {
   CheckCircle2,
   Loader2,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 export function PrivacySection() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);

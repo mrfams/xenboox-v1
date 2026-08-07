@@ -4,8 +4,8 @@ import { eq, and, desc } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -22,14 +22,14 @@ import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 // ─── Fixed Assets Router ───────────────────────────────────────────────────
 
 export const fixedAssetsRouter = router({
-  listAssets: protectedProcedure.query(({ ctx }) => {
+  listAssets: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.fixedAssets.findMany({
       where: eq(fixedAssets.entityId, ctx.entityId!),
       orderBy: [desc(fixedAssets.createdAt)],
     });
   }),
 
-  getAssetById: protectedProcedure
+  getAssetById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const asset = await db.query.fixedAssets.findFirst({
@@ -51,7 +51,7 @@ export const fixedAssetsRouter = router({
       return { ...asset, depreciationSchedule: schedule };
     }),
 
-  createAsset: mutateProcedure
+  createAsset: rlsMutateProcedure
     .use(requirePermission("fixed_assets", "create"))
     .input(
       z.object({
@@ -145,7 +145,7 @@ export const fixedAssetsRouter = router({
       }
     }),
 
-  updateAsset: protectedProcedure
+  updateAsset: rlsProtectedProcedure
     .use(requirePermission("fixed_assets", "edit"))
     .input(
       z.object({
@@ -184,7 +184,7 @@ export const fixedAssetsRouter = router({
       }
     }),
 
-  disposeAsset: mutateProcedure
+  disposeAsset: rlsMutateProcedure
     .use(requirePermission("fixed_assets", "delete"))
     .input(
       z.object({
@@ -241,7 +241,7 @@ export const fixedAssetsRouter = router({
       }
     }),
 
-  getDepreciationSchedule: protectedProcedure
+  getDepreciationSchedule: rlsProtectedProcedure
     .input(z.object({ assetId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return db.query.depreciationSchedule.findMany({
@@ -253,7 +253,7 @@ export const fixedAssetsRouter = router({
       });
     }),
 
-  deleteAsset: protectedProcedure
+  deleteAsset: rlsProtectedProcedure
     .use(requirePermission("fixed_assets", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -293,7 +293,7 @@ export const fixedAssetsRouter = router({
       }
     }),
 
-  getOverview: protectedProcedure.query(async ({ ctx }) => {
+  getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const assets = await db.query.fixedAssets.findMany({
@@ -330,7 +330,7 @@ export const fixedAssetsRouter = router({
     };
   }),
 
-  getAiInsights: protectedProcedure.query(async ({ ctx }) => {
+  getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
     const assets = await db.query.fixedAssets.findMany({

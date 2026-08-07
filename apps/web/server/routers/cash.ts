@@ -3,8 +3,8 @@ import { eq, and, desc } from "drizzle-orm";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -22,14 +22,14 @@ import { runCashPipeline } from "@xenboox/agents";
 
 export const cashRouter = router({
   // ── Cash Accounts ──
-  listCashAccounts: protectedProcedure.query(({ ctx }) => {
+  listCashAccounts: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.cashAccounts.findMany({
       where: eq(cashAccounts.entityId, ctx.entityId!),
       orderBy: [desc(cashAccounts.createdAt)],
     });
   }),
 
-  createCashAccount: protectedProcedure
+  createCashAccount: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
@@ -70,7 +70,7 @@ export const cashRouter = router({
       }
     }),
 
-  updateCashAccount: protectedProcedure
+  updateCashAccount: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
@@ -98,7 +98,7 @@ export const cashRouter = router({
       }
     }),
 
-  getCashAccountById: protectedProcedure
+  getCashAccountById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(({ ctx, input }) => {
       return db.query.cashAccounts.findFirst({
@@ -110,14 +110,14 @@ export const cashRouter = router({
     }),
 
   // ── Imprest Floats ──
-  listImprestFloats: protectedProcedure.query(({ ctx }) => {
+  listImprestFloats: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.imprestFloats.findMany({
       where: eq(imprestFloats.entityId, ctx.entityId!),
       orderBy: [desc(imprestFloats.createdAt)],
     });
   }),
 
-  createImprestFloat: protectedProcedure
+  createImprestFloat: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
@@ -152,7 +152,7 @@ export const cashRouter = router({
       }
     }),
 
-  getImprestFloatById: protectedProcedure
+  getImprestFloatById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const float = await db.query.imprestFloats.findFirst({
@@ -170,7 +170,7 @@ export const cashRouter = router({
       return { ...float, receipts };
     }),
 
-  updateImprestFloat: protectedProcedure
+  updateImprestFloat: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
@@ -199,7 +199,7 @@ export const cashRouter = router({
       }
     }),
 
-  deleteImprestReceipt: protectedProcedure
+  deleteImprestReceipt: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -249,7 +249,7 @@ export const cashRouter = router({
       }
     }),
 
-  addImprestReceipt: protectedProcedure
+  addImprestReceipt: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
@@ -309,7 +309,7 @@ export const cashRouter = router({
       }
     }),
 
-  settleImprestFloat: protectedProcedure
+  settleImprestFloat: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "approve"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -340,7 +340,7 @@ export const cashRouter = router({
       }
     }),
 
-  getPettyCashEntryById: protectedProcedure
+  getPettyCashEntryById: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(({ ctx, input }) => {
       return db.query.pettyCashLedger.findFirst({
@@ -351,7 +351,7 @@ export const cashRouter = router({
       });
     }),
 
-  updatePettyCashEntry: protectedProcedure
+  updatePettyCashEntry: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
@@ -384,14 +384,14 @@ export const cashRouter = router({
     }),
 
   // ── Petty Cash ──
-  listPettyCash: protectedProcedure.query(({ ctx }) => {
+  listPettyCash: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.pettyCashLedger.findMany({
       where: eq(pettyCashLedger.entityId, ctx.entityId!),
       orderBy: [desc(pettyCashLedger.createdAt)],
     });
   }),
 
-  createPettyCashEntry: protectedProcedure
+  createPettyCashEntry: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
@@ -441,7 +441,7 @@ export const cashRouter = router({
       }
     }),
 
-  deleteCashAccount: protectedProcedure
+  deleteCashAccount: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -472,7 +472,7 @@ export const cashRouter = router({
       }
     }),
 
-  deleteImprestFloat: protectedProcedure
+  deleteImprestFloat: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -508,7 +508,7 @@ export const cashRouter = router({
       }
     }),
 
-  deletePettyCashEntry: protectedProcedure
+  deletePettyCashEntry: rlsProtectedProcedure
     .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -547,7 +547,7 @@ export const cashRouter = router({
 
   // ─── Pipeline 4: Cash & Imprest ────────────────────────────────────────
 
-  runCashPipeline: mutateProcedure
+  runCashPipeline: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "approve"))
     .mutation(async ({ ctx }) => {
       return runCashPipeline(ctx.entityId!);

@@ -3,8 +3,6 @@
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   Badge,
   Button,
   Dialog,
@@ -23,19 +21,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@xenboox/ui";
-import { trpc } from "@/lib/trpc/client";
 import { useState, useCallback } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Activity,
-  RotateCcw,
-  Play,
-  Plus,
-  Pencil,
-  Trash2,
-  RefreshCw,
-} from "lucide-react";
+import { RotateCcw, Play, Plus, Pencil } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -62,9 +51,10 @@ type Model = {
     supportsVision?: boolean;
     supportsStreaming?: boolean;
     maxContextTokens?: number;
-  };
-  costPerMillionInputTokens?: number;
-  costPerMillionOutputTokens?: number;
+    maxOutputTokens?: number;
+  } | null;
+  costPerMillionInputTokens?: string;
+  costPerMillionOutputTokens?: string;
 };
 
 type Evaluation = {
@@ -268,7 +258,7 @@ export default function ModelOpsPage() {
 
   const [rollbackTarget, setRollbackTarget] = useState<Assignment | null>(null);
   const [promoteTarget, setPromoteTarget] = useState<Assignment | null>(null);
-  const [deleteAssignTarget, setDeleteAssignTarget] =
+  const [_deleteAssignTarget, _setDeleteAssignTarget] =
     useState<Assignment | null>(null);
 
   // ─── Handlers ─────────────────────────────────────────────────────

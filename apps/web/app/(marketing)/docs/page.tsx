@@ -7,15 +7,14 @@ import {
   Key,
   Webhook,
   FileCode,
-  CreditCard,
   Shield,
   HelpCircle,
   ArrowRight,
   Search,
   Zap,
   Clock,
-  Users,
 } from "lucide-react";
+
 import { FadeInUp } from "@/components/marketing/reveal";
 
 export const metadata: Metadata = {

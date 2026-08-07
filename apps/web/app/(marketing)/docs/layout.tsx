@@ -2,17 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import {
   BookOpen,
   Rocket,
   Layers,
-  Key,
-  Webhook,
   FileCode,
-  CreditCard,
   Shield,
   HelpCircle,
   Sun,
@@ -22,8 +18,11 @@ import {
   Bell,
   MessageSquare,
 } from "lucide-react";
+
 import { SearchDialog } from "./components/search-dialog";
 import { MobileNav } from "./components/mobile-nav";
+
+import { cn } from "@/lib/utils";
 
 interface NavGroup {
   group: string;

@@ -6,8 +6,11 @@ import {
   useCallback,
   createContext,
   useContext,
+  useRef,
   type ReactNode,
 } from "react";
+import { useSession } from "next-auth/react";
+import { trpc } from "@/lib/trpc/client";
 
 type EntityContextValue = {
   entityId: string | null;
@@ -37,23 +40,49 @@ export function EntityProvider({ children }: { children: ReactNode }) {
   const [entityId, setEntityIdState] = useState<string | null>(null);
   const [entityRole, setEntityRole] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { data: session } = useSession();
+  const hasInitialized = useRef(false);
+  const utils = trpc.useUtils();
+
+  const setLastUsedEntityMutation =
+    trpc.organization.setLastUsedEntity.useMutation();
 
   useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
     const stored = localStorage.getItem("currentEntityId");
     const storedRole = localStorage.getItem("currentEntityRole");
-    if (stored) setEntityIdState(stored);
-    if (storedRole) setEntityRole(storedRole);
-    setIsLoaded(true);
-  }, []);
 
-  const setEntityId = useCallback((id: string, role?: string) => {
-    localStorage.setItem("currentEntityId", id);
-    if (role) {
-      localStorage.setItem("currentEntityRole", role);
-      setEntityRole(role);
+    if (stored) {
+      setEntityIdState(stored);
+      if (storedRole) setEntityRole(storedRole);
+      setIsLoaded(true);
+    } else {
+      // Fallback to server-side lastUsedEntityId from session
+      const serverEntityId = (session as unknown as Record<string, unknown>)
+        ?.lastUsedEntityId as string | null;
+      if (serverEntityId) {
+        localStorage.setItem("currentEntityId", serverEntityId);
+        setEntityIdState(serverEntityId);
+      }
+      setIsLoaded(true);
     }
-    setEntityIdState(id);
-  }, []);
+  }, [session]);
+
+  const setEntityId = useCallback(
+    (id: string, role?: string) => {
+      localStorage.setItem("currentEntityId", id);
+      if (role) {
+        localStorage.setItem("currentEntityRole", role);
+        setEntityRole(role);
+      }
+      setEntityIdState(id);
+      // Persist to server for cross-device sync
+      setLastUsedEntityMutation.mutate({ entityId: id });
+    },
+    [setLastUsedEntityMutation],
+  );
 
   const clearEntityId = useCallback(() => {
     localStorage.removeItem("currentEntityId");

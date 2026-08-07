@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import {
   TrendingUp,
   DollarSign,
@@ -10,6 +9,8 @@ import {
   Shield,
   ChevronRight,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 type BriefingItem = {
   id: string;

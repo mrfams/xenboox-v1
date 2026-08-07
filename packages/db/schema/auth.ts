@@ -33,6 +33,8 @@ export const users = pgTable("users", {
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   twoFactorSecret: text("two_factor_secret"),
   backupCodes: text("backup_codes"),
+  // Last used entity (for cross-device persistence)
+  lastUsedEntityId: uuid("last_used_entity_id"),
   ...timestamps,
 });
 

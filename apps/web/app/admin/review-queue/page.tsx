@@ -1,17 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Input,
-  Skeleton,
-} from "@xenboox/ui";
+import { Card, CardContent, Badge, Button, Input } from "@xenboox/ui";
 import {
   Search,
   Filter,
@@ -28,6 +18,8 @@ import {
   MoreHorizontal,
   ExternalLink,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 // KPI Card Component
 function KpiCard({

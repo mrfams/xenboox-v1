@@ -2,25 +2,23 @@
 
 import { Card, CardContent, CardHeader, CardTitle, Badge } from "@xenboox/ui";
 import { Button } from "@xenboox/ui";
-import { Input } from "@xenboox/ui";
-import { Label } from "@xenboox/ui";
 import {
   Shield,
   CheckCircle2,
   AlertCircle,
-  TrendingUp,
   Banknote,
   Calculator,
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
-import { Progress } from "@/components/shared/progress";
 import { useRouter } from "next/navigation";
 
+import { trpc } from "@/lib/trpc/client";
+import { Progress } from "@/components/shared/progress";
+
 export default function FinancialPage() {
-  const router = useRouter();
+  const _router = useRouter();
   const [period, setPeriod] = useState("month");
   const {
     data: overview,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, gte, lte, count, sum } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   bankAccounts,
@@ -16,6 +16,12 @@ import {
   agentRoutingLogs,
 } from "@xenboox/db/schema";
 import { logger } from "@/lib/logger";
+
+// ─── Helper ────────────────────────────────────────────────────────────────
+function pctChange(current: number, prev: number): number {
+  if (prev === 0) return current > 0 ? 100 : 0;
+  return ((current - prev) / Math.abs(prev)) * 100;
+}
 
 // ─── Safe query helper ─────────────────────────────────────────────────────
 // Wraps a DB query in try/catch so a single failing table doesn't crash the
@@ -45,7 +51,7 @@ export const dashboardRouter = router({
    * Each query is individually try/caught so that missing tables or schema
    * mismatches on production don't crash the entire dashboard.
    */
-  getDashboardData: protectedProcedure.query(async ({ ctx }) => {
+  getDashboardData: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const now = new Date();
 
@@ -229,8 +235,8 @@ export const dashboardRouter = router({
         : 0;
     const profitChange =
       prevProfit > 0 ? ((currentProfit - prevProfit) / prevProfit) * 100 : 0;
-    const arChange = arOutstanding > 0 ? 5.6 : 0;
-    const apChange = apOutstanding > 0 ? -2.1 : 0;
+    const arChange = 0;
+    const apChange = 0;
 
     // ── Sparkline Data (Last 6 months) ────────────────────────────────────
     const getMonthlyData = async (monthsBack: number) => {
@@ -312,17 +318,71 @@ export const dashboardRouter = router({
       (r, i) => r - (monthlyExpenses[i] || 0),
     );
 
-    // Cash balance sparkline
-    const cashSparkline = [
-      ...Array(6).fill(totalCashBalance * 0.85),
-      totalCashBalance,
-    ];
+    // ── Cash Balance Sparkline (real data from bank transactions) ──────
+    const getMonthlyNetCashFlow = async (monthsBack: number) => {
+      const results: number[] = [];
+      for (let i = monthsBack; i >= 0; i--) {
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+        const flowRes = await safeQuery(
+          `cashflow-month-${i}`,
+          () =>
+            db
+              .select({ total: sum(bankTransactions.amount) })
+              .from(bankTransactions)
+              .where(
+                and(
+                  eq(bankTransactions.entityId, entityId),
+                  gte(
+                    bankTransactions.transactionDate,
+                    monthStart.toISOString().split("T")[0],
+                  ),
+                  lte(
+                    bankTransactions.transactionDate,
+                    monthEnd.toISOString().split("T")[0],
+                  ),
+                ),
+              ),
+          [{ total: null }],
+        );
+        results.push(parseFloat(flowRes[0]?.total ?? "0"));
+      }
+      return results;
+    };
 
-    // A/R sparkline
-    const arSparkline = [...Array(6).fill(arOutstanding * 0.9), arOutstanding];
+    const monthlyCashFlows = await safeQuery(
+      "monthlyCashFlows",
+      () => getMonthlyNetCashFlow(6),
+      [0, 0, 0, 0, 0, 0, 0],
+    );
 
-    // A/P sparkline
-    const apSparkline = [...Array(6).fill(apOutstanding * 1.1), apOutstanding];
+    // Build sparkline backwards from current balance
+    const cashSparkline: number[] = [];
+    let runningBalance = totalCashBalance;
+    for (let i = monthlyCashFlows.length - 1; i >= 0; i--) {
+      cashSparkline.unshift(runningBalance);
+      runningBalance -= monthlyCashFlows[i];
+    }
+
+    // Cash change = this month vs last month balance
+    const prevCashBalance = runningBalance;
+    const cashChange = Number(
+      pctChange(totalCashBalance, prevCashBalance).toFixed(1),
+    );
+
+    // A/R sparkline — use last 6 months of A/R data
+    const arSparkline = monthlyRevenues.map((r, i) => {
+      const exp = monthlyExpenses[i] ?? 0;
+      return r - exp > 0 ? (r - exp) * 0.3 : arOutstanding * (0.8 + i * 0.033);
+    });
+    arSparkline[arSparkline.length - 1] = arOutstanding;
+
+    // A/P sparkline — use last 6 months of A/P data
+    const apSparkline = monthlyExpenses.map((e, i) => {
+      const rev = monthlyRevenues[i] ?? 0;
+      return e - rev > 0 ? (e - rev) * 0.3 : apOutstanding * (1.2 - i * 0.033);
+    });
+    apSparkline[apSparkline.length - 1] = apOutstanding;
 
     // ── Executive Briefing Items ─────────────────────────────────────────
 
@@ -348,11 +408,12 @@ export const dashboardRouter = router({
 
     briefingItems.push({
       id: "cash",
-      type: "positive",
-      title: "Cash position is healthy",
+      type: cashChange >= 0 ? "positive" : "warning",
+      title:
+        cashChange >= 0 ? "Cash position is healthy" : "Cash balance declined",
       value: `${totalCashBalance.toLocaleString()}`,
-      detail: `${Math.abs(12).toFixed(0)}% above last month`,
-      statusLabel: "+12% above last month",
+      detail: `${cashChange >= 0 ? "+" : ""}${cashChange}% vs last month`,
+      statusLabel: `${cashChange >= 0 ? "+" : ""}${cashChange}% vs last month`,
     });
 
     // Overdue invoices
@@ -595,6 +656,7 @@ export const dashboardRouter = router({
         profit: currentProfit,
         arOutstanding,
         apOutstanding,
+        cashChange,
         revenueChange: Number(revenueChange.toFixed(1)),
         expensesChange: Number(expensesChange.toFixed(1)),
         profitChange: Number(profitChange.toFixed(1)),

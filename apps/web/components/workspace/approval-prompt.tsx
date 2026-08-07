@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, CheckCircle2, XCircle, Eye } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 interface ApprovalPromptProps {

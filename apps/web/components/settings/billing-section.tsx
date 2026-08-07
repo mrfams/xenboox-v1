@@ -1,6 +1,5 @@
 "use client";
 
-import { trpc } from "@/lib/trpc/client";
 import {
   Card,
   CardContent,
@@ -8,20 +7,19 @@ import {
   CardTitle,
   CardDescription,
   Button,
-  Separator,
 } from "@xenboox/ui";
 import {
   CreditCard,
   ExternalLink,
   Users,
   FileText,
-  Bot,
-  HardDrive,
   Receipt,
   Download,
   Calendar,
   TrendingUp,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 const PLAN_DETAILS = {
   free: {

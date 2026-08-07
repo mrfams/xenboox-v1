@@ -4,33 +4,26 @@ import { useState } from "react";
 import {
   Search,
   Plus,
-  Download,
   ChevronDown,
   MoreHorizontal,
   FileText,
-  Clock,
   CheckCircle2,
   AlertTriangle,
   Bot,
   TrendingUp,
   TrendingDown,
   Eye,
-  Download as DownloadIcon,
   RefreshCw,
   Send,
-  ArrowUpRight,
-  ArrowDownLeft,
   Filter,
-  Settings,
   PlusCircle,
-  Link,
   CreditCard,
-  FileCheck,
   Calendar,
   LayoutGrid,
   Edit,
   MoreVertical,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -517,7 +510,7 @@ function InvoicesTrendChart({
 
       {/* Chart */}
       <div className="h-40 flex items-end gap-2">
-        {trendData.map((d, i) => (
+        {trendData.map((d, _i) => (
           <div
             key={d.month}
             className="flex-1 flex flex-col items-center gap-1"

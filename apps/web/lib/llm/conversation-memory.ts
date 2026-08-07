@@ -6,9 +6,10 @@
  * - Long-term: Persistent memory across sessions
  */
 
-import { db } from "@/lib/db";
-import { eq, and, desc, gte, sql } from "drizzle-orm";
+import { eq, and, desc, gte } from "drizzle-orm";
 import { chatMessages, conversations } from "@xenboox/db/schema";
+
+import { db } from "@/lib/db";
 
 // ─── Types ──────────────────────────────────────────────────────────────
 

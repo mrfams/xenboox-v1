@@ -116,6 +116,11 @@ export {
   recordConsent,
   MIN_COHORT_SIZE,
   RECOMMENDED_COHORT_SIZE,
+  validateJournalEntry,
+  validateForPosting,
+  validateInvoice,
+  trustGuardToError,
+  logTrustGuardResult,
 } from "./core";
 export type {
   ModelTier,
@@ -262,6 +267,13 @@ export type {
   AnonymizedMetric,
   ConsentRecord,
   BenchmarkPipelineParams,
+  TrustCheck,
+  TrustGuardResult,
+  TrustGuardJournalLine,
+  TrustGuardJournalEntryInput,
+  TrustGuardPostingValidationInput,
+  TrustGuardInvoiceLineInput,
+  TrustGuardInvoiceInput,
 } from "./core";
 
 // ─── Eval Harness ────────────────────────────────────────────────────────────
@@ -362,11 +374,21 @@ export {
   documentAgent,
   budgetAgent,
   analyticsAgent,
+  generateProfitLoss,
+  generateBalanceSheet,
+  generateTrialBalance,
+  generateCashFlow,
+  generateBudgetVsActual,
+  generateNarrative,
 } from "./platform";
 export type {
   ReportingStateType,
   ProfitAndLoss,
   BalanceSheet,
+  CashFlow,
+  CashFlowLine,
+  BudgetVsActual,
+  BudgetVsActualLine,
   Narrative,
   DocumentStateType,
   BudgetStateType,

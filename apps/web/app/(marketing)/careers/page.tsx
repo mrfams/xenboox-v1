@@ -18,13 +18,13 @@ import {
   Filter,
   ChevronDown,
 } from "lucide-react";
+
 import { FadeInUp } from "@/components/marketing/reveal";
 import {
   jobListings,
   departments,
   locations,
   jobTypes,
-  type JobListing,
 } from "@/lib/careers-data";
 
 const valueProps = [

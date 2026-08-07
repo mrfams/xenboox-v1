@@ -14,7 +14,6 @@ import {
   Bot,
   TrendingUp,
   TrendingDown,
-  Eye,
   RefreshCw,
   Send,
   Filter,
@@ -23,9 +22,8 @@ import {
   FileText,
   CreditCard,
   BarChart3,
-  UserCheck,
-  UserX,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -352,7 +350,7 @@ function ReceivablesTrendChart({
         </button>
       </div>
       <div className="h-40 flex items-end gap-2">
-        {trendData.map((d, i) => (
+        {trendData.map((d, _i) => (
           <div
             key={d.month}
             className="flex-1 flex flex-col items-center gap-1"

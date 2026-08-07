@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui";
 import {
@@ -102,6 +103,7 @@ export function LoginForm({
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="you@company.com"
               value={email}
@@ -123,6 +125,7 @@ export function LoginForm({
             </div>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="••••••••"
               value={password}

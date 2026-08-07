@@ -7,13 +7,13 @@ import { db } from "@/lib/db";
 import { mapPipelineResultToLiveness } from "@/lib/cfo-liveness";
 import {
   router,
-  protectedProcedure,
+  rlsProtectedProcedure,
   handleMutationError,
 } from "@/lib/trpc/server";
 
 export const cfoLivenessRouter = router({
   /** Run the real CFO pipeline for an instruction and return its liveness payload */
-  run: protectedProcedure
+  run: rlsProtectedProcedure
     .input(
       z.object({
         instruction: z.string().min(1).max(2000),

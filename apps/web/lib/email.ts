@@ -1,5 +1,4 @@
 import { render } from "@react-email/render";
-import { resend, EMAIL_FROM } from "./resend";
 import { CloseCompleteEmail } from "@xenboox/email";
 import { InvoiceOverdueEmail } from "@xenboox/email";
 import { AgentEscalationEmail } from "@xenboox/email";
@@ -11,6 +10,8 @@ import { AssetCreatedEmail } from "@xenboox/email";
 import { InventoryAlertEmail } from "@xenboox/email";
 import { PasswordResetEmail } from "@xenboox/email";
 import { VerificationEmail } from "@xenboox/email";
+
+import { resend, EMAIL_FROM } from "./resend";
 
 // ─── Email Types ────────────────────────────────────────────────────────────
 
@@ -32,10 +33,8 @@ function log(level: "warn" | "error", message: string, data?: unknown) {
     ...(data ? { data } : {}),
   });
   if (level === "error") {
-    // eslint-disable-next-line no-console
     console.error(entry);
   } else {
-    // eslint-disable-next-line no-console
     console.warn(entry);
   }
 }

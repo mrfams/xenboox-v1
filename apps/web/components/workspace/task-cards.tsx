@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import {
   Bot,
-  CreditCard,
   FileText,
   AlertTriangle,
   CheckCircle2,
@@ -20,6 +18,8 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────
 

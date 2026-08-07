@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Button } from "@/components/ui";
 import { ArrowLeft } from "lucide-react";
+
+import { Button } from "@/components/ui";
 
 export default function AuthNotFound() {
   return (

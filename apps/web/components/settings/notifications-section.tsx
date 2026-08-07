@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
   Card,
@@ -12,7 +11,6 @@ import {
   Button,
   Switch,
   Label,
-  Separator,
 } from "@xenboox/ui";
 import {
   Bell,
@@ -27,6 +25,8 @@ import {
   CreditCard,
   TrendingUp,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 export function NotificationsSection() {
   const [prefs, setPrefs] = useState({

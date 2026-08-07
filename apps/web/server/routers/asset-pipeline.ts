@@ -13,8 +13,8 @@ import { runAssetPipeline, getAssetPipelineStatus } from "@xenboox/agents";
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
 import { entities } from "@xenboox/db/schema/organization";
@@ -24,7 +24,7 @@ import { entities } from "@xenboox/db/schema/organization";
 export const assetPipelineRouter = router({
   // ── Pipeline Execution ──────────────────────────────────────────────
 
-  runPipeline: mutateProcedure
+  runPipeline: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -84,7 +84,7 @@ export const assetPipelineRouter = router({
 
   // ── Pipeline Status ─────────────────────────────────────────────────
 
-  getStatus: protectedProcedure
+  getStatus: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -104,7 +104,7 @@ export const assetPipelineRouter = router({
 
   // ── Pipeline Runs ───────────────────────────────────────────────────
 
-  listPipelineRuns: protectedProcedure
+  listPipelineRuns: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -122,7 +122,7 @@ export const assetPipelineRouter = router({
 
   // ── Verifications ───────────────────────────────────────────────────
 
-  listVerifications: protectedProcedure
+  listVerifications: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -144,7 +144,7 @@ export const assetPipelineRouter = router({
       });
     }),
 
-  completeVerification: mutateProcedure
+  completeVerification: rlsMutateProcedure
     .input(
       z.object({
         verificationId: z.string().uuid(),
@@ -190,7 +190,7 @@ export const assetPipelineRouter = router({
 
   // ── Disposal Records ────────────────────────────────────────────────
 
-  listDisposalRecords: protectedProcedure
+  listDisposalRecords: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -207,7 +207,7 @@ export const assetPipelineRouter = router({
       });
     }),
 
-  createDisposalRecord: mutateProcedure
+  createDisposalRecord: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -281,7 +281,7 @@ export const assetPipelineRouter = router({
 
   // ── Depreciation Schedule ───────────────────────────────────────────
 
-  listDepreciationSchedule: protectedProcedure
+  listDepreciationSchedule: rlsProtectedProcedure
     .input(
       z
         .object({

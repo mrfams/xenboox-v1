@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import {
   Truck,
   CreditCard,
@@ -8,15 +7,15 @@ import {
   Package,
   BarChart3,
   FileText,
-  Bot,
   MessageSquare,
   Calendar,
   Settings,
   LayoutDashboard,
   Users,
-  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 
 const modules = [
   {

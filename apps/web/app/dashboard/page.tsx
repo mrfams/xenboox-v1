@@ -1,19 +1,12 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useEntity } from "@/lib/entity-context";
-import { trpc } from "@/lib/trpc/client";
-import { cn, formatCurrency } from "@/lib/utils";
-import { DashboardSkeleton } from "@/components/shared/skeletons";
-import { dashboardQueryOptions } from "@/lib/trpc/query-options";
-import { Button } from "@/components/ui";
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
   Clock,
   FileText,
   AlertTriangle,
@@ -28,11 +21,17 @@ import {
   Wallet,
   BarChart3,
   BookOpen,
-  Shield,
   MessageSquare,
   Activity,
   ArrowUpRight,
 } from "lucide-react";
+
+import { useEntity } from "@/lib/entity-context";
+import { trpc } from "@/lib/trpc/client";
+import { cn, formatCurrency } from "@/lib/utils";
+import { DashboardSkeleton } from "@/components/shared/skeletons";
+import { dashboardQueryOptions } from "@/lib/trpc/query-options";
+import { Button } from "@/components/ui";
 import { TextSelectionMenu } from "@/components/dashboard/text-selection-menu";
 import {
   PageEmptyState,
@@ -198,7 +197,7 @@ function AIChatInput() {
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       setInlineResponse("Sorry, I encountered an error. Please try again.");
     } finally {
       setIsResponding(false);
@@ -561,6 +560,7 @@ function BusinessHealth({
     profit: number;
     arOutstanding: number;
     apOutstanding: number;
+    cashChange: number;
     revenueChange: number;
     expensesChange: number;
     profitChange: number;
@@ -580,7 +580,7 @@ function BusinessHealth({
       id: "cash",
       label: "Cash Balance",
       value: data.cashBalance,
-      change: 12.5,
+      change: data.cashChange,
       sparkline: data.cashSparkline ?? [
         data.cashBalance * 0.85,
         data.cashBalance,
@@ -1367,6 +1367,7 @@ export default function DashboardPage() {
                   profit: 0,
                   arOutstanding: 0,
                   apOutstanding: 0,
+                  cashChange: 0,
                   revenueChange: 0,
                   expensesChange: 0,
                   profitChange: 0,
@@ -1377,6 +1378,7 @@ export default function DashboardPage() {
             />
 
             {/* Row 4: Activity Feed | Pending Approvals | Active Agents */}
+            {/*
             <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <AgentActivityFeed
                 activities={dashboardData?.agentActivity ?? []}
@@ -1384,6 +1386,7 @@ export default function DashboardPage() {
               <PendingApprovals items={dashboardData?.pendingApprovals ?? []} />
               <ActiveAgents activities={dashboardData?.agentActivity ?? []} />
             </div>
+            */}
           </div>
         </div>
 

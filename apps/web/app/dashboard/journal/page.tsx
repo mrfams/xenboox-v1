@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Search,
   Filter,
-  Download,
   ChevronDown,
   CheckCircle2,
   AlertTriangle,
@@ -17,9 +16,9 @@ import {
   Plus,
   Upload,
   Clock,
-  ArrowRight,
   Sparkles,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -614,7 +613,7 @@ function BottomRow({
 
         {/* Line Chart */}
         <div className="h-32 flex items-end gap-2">
-          {trendData.map((d, i) => {
+          {trendData.map((d, _i) => {
             const height = maxTrend > 0 ? (d.count / maxTrend) * 100 : 0;
             return (
               <div

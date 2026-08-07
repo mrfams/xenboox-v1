@@ -2,10 +2,8 @@
 
 import { useState, useMemo } from "react";
 import {
-  Search,
   Plus,
   Download,
-  Play,
   Clock,
   CheckCircle2,
   AlertTriangle,
@@ -28,8 +26,8 @@ import {
   MessageSquare,
   Lightbulb,
   HelpCircle,
-  Eye,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 

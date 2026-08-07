@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { db } from "@/lib/db";
-import { eq, and, desc, count, gte } from "drizzle-orm";
+import { eq, and, desc, count, gte, inArray } from "drizzle-orm";
 import {
   apiKeys,
   apiScopes,
@@ -392,6 +392,68 @@ export const apiPlatformRouter = router({
       } catch (error) {
         handleMutationError(error, "Failed to delete webhook subscription");
       }
+    }),
+
+  // ── List Webhook Delivery Logs ──────────────────────────────────────
+  listDeliveryLogs: protectedProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(100).default(25),
+          subscriptionId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const conditions = [eq(webhookSubscriptions.entityId, ctx.entityId!)];
+      if (input?.subscriptionId) {
+        conditions.push(eq(webhookSubscriptions.id, input.subscriptionId));
+      }
+
+      const subs = await db.query.webhookSubscriptions.findMany({
+        where: and(...conditions),
+        columns: { id: true },
+      });
+      const subIds = subs.map((s) => s.id);
+      if (subIds.length === 0) return [];
+
+      return db.query.webhookDeliveryLogs.findMany({
+        where: inArray(webhookDeliveryLogs.subscriptionId, subIds),
+        orderBy: [desc(webhookDeliveryLogs.deliveredAt)],
+        limit: input?.limit ?? 25,
+        with: { subscription: true },
+      });
+    }),
+
+  // ── Retry a Failed Webhook Delivery ─────────────────────────────────
+  retryDelivery: mutateProcedure
+    .use(requireRole("owner", "admin"))
+    .input(z.object({ logId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const log = await db.query.webhookDeliveryLogs.findFirst({
+        where: eq(webhookDeliveryLogs.id, input.logId),
+        with: { subscription: true },
+      });
+
+      if (!log?.subscription || log.subscription.entityId !== ctx.entityId) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Delivery log not found",
+        });
+      }
+
+      // Reset to a fresh attempt so the next process pass delivers it now.
+      await db
+        .update(webhookDeliveryLogs)
+        .set({
+          success: false,
+          attempt: 1,
+          deliveredAt: new Date(),
+          errorMessage: null,
+        })
+        .where(eq(webhookDeliveryLogs.id, input.logId));
+
+      return { success: true };
     }),
 
   // ── Get API Usage Stats ─────────────────────────────────────────────

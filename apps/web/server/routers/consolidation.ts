@@ -23,15 +23,15 @@ import {
 import {
   handleMutationError,
   router,
-  protectedProcedure,
-  mutateProcedure,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
 
 export const consolidationRouter = router({
   // ── Pipeline Execution ──────────────────────────────────────────────
 
-  runPipeline: mutateProcedure
+  runPipeline: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -88,7 +88,7 @@ export const consolidationRouter = router({
 
   // ── Controller Sign-off ─────────────────────────────────────────────
 
-  approveRun: mutateProcedure
+  approveRun: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -135,7 +135,7 @@ export const consolidationRouter = router({
 
   // ── Pipeline Status ─────────────────────────────────────────────────
 
-  getStatus: protectedProcedure
+  getStatus: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -155,7 +155,7 @@ export const consolidationRouter = router({
 
   // ── Pipeline Runs History ───────────────────────────────────────────
 
-  listRuns: protectedProcedure
+  listRuns: rlsProtectedProcedure
     .input(
       z.object({ limit: z.number().min(1).max(50).default(10) }).optional(),
     )
@@ -169,11 +169,11 @@ export const consolidationRouter = router({
 
   // ── Entity Relationships ────────────────────────────────────────────
 
-  listRelationships: protectedProcedure.query(async ({ ctx }) => {
+  listRelationships: rlsProtectedProcedure.query(async ({ ctx }) => {
     return listEntityRelationships({ entityId: ctx.entityId! });
   }),
 
-  createRelationship: mutateProcedure
+  createRelationship: rlsMutateProcedure
     .use(requireRole("owner", "admin"))
     .input(
       z.object({
@@ -204,7 +204,7 @@ export const consolidationRouter = router({
 
   // ── Available Subsidiaries (entities within same org not yet linked) ─
 
-  listAvailableSubsidiaries: protectedProcedure.query(async ({ ctx }) => {
+  listAvailableSubsidiaries: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityCtx = await db.query.entities.findFirst({
       where: eq(entities.id, ctx.entityId!),
     });
@@ -230,7 +230,7 @@ export const consolidationRouter = router({
 
   // ── Elimination Entries ─────────────────────────────────────────────
 
-  listEliminations: protectedProcedure
+  listEliminations: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -259,7 +259,7 @@ export const consolidationRouter = router({
 
   // ── Minority Interest Records ───────────────────────────────────────
 
-  listMinorityInterests: protectedProcedure
+  listMinorityInterests: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -283,7 +283,7 @@ export const consolidationRouter = router({
 
   // ── Inter-Company Tags ──────────────────────────────────────────────
 
-  listICTags: protectedProcedure
+  listICTags: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -307,7 +307,7 @@ export const consolidationRouter = router({
   // Returns financial data for the parent entity and all subsidiaries side-by-side,
   // plus elimination entries and consolidated totals.
 
-  getConsolidatedView: protectedProcedure
+  getConsolidatedView: rlsProtectedProcedure
     .input(
       z
         .object({

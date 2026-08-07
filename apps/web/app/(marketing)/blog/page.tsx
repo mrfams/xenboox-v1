@@ -2,14 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Calendar,
-  Clock,
-  Search,
-  Tag,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, Calendar, Search, Tag, Sparkles } from "lucide-react";
+
 import { FadeInUp } from "@/components/marketing/reveal";
 import { blogPosts, getFeaturedPosts } from "@/lib/blog-data";
 

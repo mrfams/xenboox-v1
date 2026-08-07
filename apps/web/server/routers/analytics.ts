@@ -11,7 +11,11 @@ import {
   benchmarkCohorts,
 } from "@xenboox/db/schema/analytics";
 import { runAnalyticsPipeline, getAnalyticsStatus } from "@xenboox/agents";
-import { router, protectedProcedure, requireRole } from "../../lib/trpc/server";
+import {
+  router,
+  rlsProtectedProcedure,
+  requireRole,
+} from "../../lib/trpc/server";
 import { entities } from "@xenboox/db/schema/organization";
 
 // ─── Analytics Router ───────────────────────────────────────────────────────
@@ -19,7 +23,7 @@ import { entities } from "@xenboox/db/schema/organization";
 export const analyticsRouter = router({
   // ── Pipeline Execution ──────────────────────────────────────────────
 
-  runPipeline: protectedProcedure
+  runPipeline: rlsProtectedProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -87,7 +91,7 @@ export const analyticsRouter = router({
 
   // ── Pipeline Status ─────────────────────────────────────────────────
 
-  getStatus: protectedProcedure
+  getStatus: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -107,7 +111,7 @@ export const analyticsRouter = router({
 
   // ── Snapshots ───────────────────────────────────────────────────────
 
-  listSnapshots: protectedProcedure
+  listSnapshots: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -133,7 +137,7 @@ export const analyticsRouter = router({
 
   // ── Trends ──────────────────────────────────────────────────────────
 
-  listTrends: protectedProcedure
+  listTrends: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -159,7 +163,7 @@ export const analyticsRouter = router({
 
   // ── Anomaly Flags ───────────────────────────────────────────────────
 
-  listAnomalies: protectedProcedure
+  listAnomalies: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -186,7 +190,7 @@ export const analyticsRouter = router({
       });
     }),
 
-  acknowledgeAnomaly: protectedProcedure
+  acknowledgeAnomaly: rlsProtectedProcedure
     .input(
       z.object({
         anomalyId: z.string(),
@@ -222,7 +226,7 @@ export const analyticsRouter = router({
 
   // ── Health Scores ───────────────────────────────────────────────────
 
-  listHealthScores: protectedProcedure
+  listHealthScores: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -240,7 +244,7 @@ export const analyticsRouter = router({
 
   // ── Forecast Models ─────────────────────────────────────────────────
 
-  listForecasts: protectedProcedure
+  listForecasts: rlsProtectedProcedure
     .input(
       z
         .object({
@@ -266,7 +270,7 @@ export const analyticsRouter = router({
   // ⚠️ CRITICAL RULE: Benchmarking requires verified anonymization and consent.
   // The listCohorts endpoint only returns cohorts where anonymization is verified.
 
-  listCohorts: protectedProcedure.query(async ({ ctx }) => {
+  listCohorts: rlsProtectedProcedure.query(async ({ ctx }) => {
     return db.query.benchmarkCohorts.findMany({
       where: and(
         eq(benchmarkCohorts.entityId, ctx.entityId!),

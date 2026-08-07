@@ -1,6 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
-import { DocsPageHeader } from "../components/docs-page-header";
-import { RelatedLinks } from "../components/related-links";
 import {
   HelpCircle,
   CreditCard,
@@ -10,7 +7,11 @@ import {
   Users,
   Settings,
 } from "lucide-react";
-import Link from "next/link";
+
+import { DocsPageHeader } from "../components/docs-page-header";
+import { RelatedLinks } from "../components/related-links";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 
 const faqCategories = [
   {

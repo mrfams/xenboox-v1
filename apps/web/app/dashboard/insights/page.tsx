@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { useEntity } from "@/lib/entity-context";
-import { trpc } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
 import {
   BarChart3,
   FileText,
@@ -12,14 +8,15 @@ import {
   Users,
   Building2,
   BookOpen,
-  Calculator,
   Calendar,
-  Wallet,
   Package,
   ArrowRight,
   PieChart,
   Activity,
 } from "lucide-react";
+
+import { useEntity } from "@/lib/entity-context";
+import { trpc } from "@/lib/trpc/client";
 
 const insightSections = [
   {
