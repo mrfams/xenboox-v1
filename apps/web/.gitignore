@@ -1,2 +1,5 @@
 .vercel
 .config/
+
+# Playwright auth storage (contains session cookies - never commit)
+e2e/.auth/
