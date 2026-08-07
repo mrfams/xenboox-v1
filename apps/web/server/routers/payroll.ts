@@ -299,7 +299,7 @@ export const payrollRouter = router({
 
       // Get contracts for these employees
       const employeeIds = employeeList.map((e) => e.id);
-      let contractMap = new Map<
+      const contractMap = new Map<
         string,
         { basicSalary: string; payFrequency: string }
       >();
@@ -330,7 +330,7 @@ export const payrollRouter = router({
         orderBy: [desc(payrollRuns.createdAt)],
       });
 
-      let lineItemMap = new Map<
+      const lineItemMap = new Map<
         string,
         { grossPay: string; deductions: string; netPay: string; status: string }
       >();

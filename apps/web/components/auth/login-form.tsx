@@ -36,6 +36,9 @@ export function LoginForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Re-entrancy guard: the submit button is disabled while loading, but a
+    // programmatic/synthetic double activation must not fire a second request.
+    if (isLoading) return;
     setError(null);
     setIsLoading(true);
 

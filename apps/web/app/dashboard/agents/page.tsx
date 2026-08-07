@@ -32,11 +32,12 @@ export default function AgentsPage() {
   // Fetch agent stats
   const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
     { limit: 50 },
-    { refetchInterval: 30000 },
+    { refetchInterval: 30000, enabled: !!entityId },
   );
 
   const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
     refetchInterval: 30000,
+    enabled: !!entityId,
   });
 
   const pendingApprovals = agentApprovals?.items ?? [];

@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
+import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 
 type NavItem = {
@@ -62,6 +63,8 @@ const primaryNavItems: NavItem[] = [
       "/dashboard/expenses",
       "/dashboard/payroll",
       "/dashboard/reconciliation",
+      "/dashboard/estimates",
+      "/dashboard/tax-compliance",
     ],
   },
   {
@@ -147,13 +150,14 @@ function WhiteLabelLogo() {
   );
 }
 
-// ─── Agent Status Bar ───────────────────────────────────────────────────
-
-function AgentStatusBar() {
+function useApprovalCounts() {
+  const { entityId, isLoaded } = useEntity();
+  const enabled = isLoaded && !!entityId;
   const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
     staleTime: 60 * 1000, // 1 minute
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    enabled,
   });
   const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
     { limit: 50 },
@@ -161,12 +165,22 @@ function AgentStatusBar() {
       staleTime: 60 * 1000, // 1 minute
       refetchOnWindowFocus: false,
       refetchOnMount: false,
+      enabled,
     },
   );
+  return {
+    stats,
+    agentApprovals,
+    pendingReview: stats?.pendingReview ?? 0,
+    processing: stats?.processing ?? 0,
+    agentCount: agentApprovals?.items?.length ?? 0,
+  };
+}
 
-  const pendingReview = stats?.pendingReview ?? 0;
-  const processing = stats?.processing ?? 0;
-  const agentCount = agentApprovals?.items?.length ?? 0;
+// ─── Agent Status Bar ───────────────────────────────────────────────────
+
+function AgentStatusBar() {
+  const { pendingReview, processing, agentCount } = useApprovalCounts();
   const totalPending = pendingReview + agentCount;
 
   return (
@@ -200,22 +214,8 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
     );
   }, [isHovered]);
 
-  const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
-    staleTime: 60 * 1000, // 1 minute
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  });
-  const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
-    { limit: 50 },
-    {
-      staleTime: 60 * 1000, // 1 minute
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-    },
-  );
-
-  const pendingReview = stats?.pendingReview ?? 0;
-  const agentCount = agentApprovals?.items?.length ?? 0;
+  const { stats, agentApprovals, pendingReview, agentCount } =
+    useApprovalCounts();
   const approvalCounts = {
     ingestion: pendingReview,
     agent: agentCount,

@@ -49,8 +49,12 @@ export function generateCSP(config: CSPConfig): string {
 
   if (config.styleSrc) {
     const styleSrc = [...config.styleSrc];
-    // Next.js requires 'unsafe-inline' for CSS-in-JS; nonce added alongside for defense-in-depth
-    if (config.nonce) styleSrc.push(`'nonce-${config.nonce}'`);
+    // IMPORTANT: per the CSP spec, 'unsafe-inline' is IGNORED whenever a nonce
+    // or hash is present in the same directive. Adding the nonce here would
+    // therefore block every React inline `style` attribute and styled-jsx tag
+    // that doesn't carry the nonce, breaking the UI. Keep style-src
+    // nonce-free with 'unsafe-inline' (CSS injection is low risk; this is the
+    // configuration Next.js itself recommends for CSS-in-JS apps).
     directives.push(`style-src ${styleSrc.join(" ")}`);
   }
 
@@ -96,13 +100,51 @@ export function buildCSP(nonce: string): string {
   });
 }
 
+/**
+ * Dev-mode CSP. Next.js dev server injects inline HMR/bootstrap scripts and
+ * uses `eval` for fast-refresh source maps. A strict production CSP (no
+ * 'unsafe-inline'/'unsafe-eval') blocks those, so React never hydrates and
+ * every client-side page (login included) degrades to a native form GET.
+ * We relax ONLY script-src in development — and critically, WITHOUT a nonce,
+ * because per the CSP spec 'unsafe-inline' is ignored whenever a nonce or
+ * hash is present in the source list. Production keeps the strict nonce
+ * policy. All other security headers apply identically in both modes.
+ */
+export function buildDevCSP(): string {
+  return generateCSP({
+    defaultSrc: ["'self'"],
+    scriptSrc: [
+      "'self'",
+      "'unsafe-inline'",
+      "'unsafe-eval'",
+      "https://cdn.jsdelivr.net",
+    ],
+    styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+    imgSrc: ["'self'", "data:", "https:", "blob:"],
+    connectSrc: [
+      "'self'",
+      "https://api.anthropic.com",
+      "https://api.openai.com",
+    ],
+    fontSrc: ["'self'", "https://fonts.gstatic.com"],
+    objectSrc: ["'none'"],
+    mediaSrc: ["'self'", "blob:"],
+    frameSrc: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+  });
+}
+
 export function applySecurityHeaders(
   headers: Headers,
   nonce: string,
   config: SecurityHeadersConfig = {},
 ): void {
   if (config.contentSecurityPolicy !== false) {
-    headers.set("Content-Security-Policy", buildCSP(nonce));
+    const csp =
+      process.env.NODE_ENV === "development" ? buildDevCSP() : buildCSP(nonce);
+    headers.set("Content-Security-Policy", csp);
   }
   if (config.strictTransportSecurity !== false) {
     headers.set(

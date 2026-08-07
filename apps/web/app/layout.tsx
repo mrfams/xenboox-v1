@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 
 import { ThemeProvider } from "@/components/layout/theme-provider";
@@ -106,11 +107,15 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // The CSP nonce is generated per-request in middleware and forwarded on the
+  // request headers. next-themes renders its theme-init <script> inline, so it
+  // needs the nonce to survive the strict production script-src policy.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -118,7 +123,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen bg-background font-sans antialiased">
-        <ThemeProvider>
+        <ThemeProvider nonce={nonce}>
           <TRPCProvider>{children}</TRPCProvider>
         </ThemeProvider>
       </body>

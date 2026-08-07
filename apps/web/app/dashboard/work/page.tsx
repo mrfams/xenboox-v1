@@ -99,6 +99,7 @@ export default function WorkPage() {
   // Fetch agent stats for pending items
   const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
     refetchInterval: 60000,
+    enabled: !!entityId,
   });
 
   const pendingApprovals = approvalsData?.approvals ?? [];

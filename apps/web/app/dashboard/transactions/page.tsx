@@ -358,7 +358,7 @@ function TransactionTable({
 
 // ─── Transaction Detail Panel ──────────────────────────────────────────────
 
-function _TransactionDetailPanel({
+function TransactionDetailPanel({
   transactionDetail,
   aiInsights,
   onClose,

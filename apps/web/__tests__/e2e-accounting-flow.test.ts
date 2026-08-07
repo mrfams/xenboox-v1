@@ -30,26 +30,31 @@ vi.mock("@/lib/db", () => ({
       where: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
     }),
-    transaction: vi.fn().mockImplementation(async (cb: Function) => {
-      const tx = new Proxy(
-        {},
-        {
-          get: (_target, prop) => {
-            if (prop === "insert") return vi.fn().mockReturnThis();
-            if (prop === "values") return vi.fn().mockReturnThis();
-            if (prop === "returning")
-              return vi.fn().mockResolvedValue([{ id: "tx-result-id" }]);
-            if (prop === "update") return vi.fn().mockReturnThis();
-            if (prop === "set") return vi.fn().mockReturnThis();
-            if (prop === "where") return vi.fn().mockResolvedValue(undefined);
-            if (prop === "delete") return vi.fn().mockReturnThis();
-            if (prop === "then" || prop === "catch") return undefined;
-            return vi.fn().mockResolvedValue(undefined);
-          },
+    transaction: vi
+      .fn()
+      .mockImplementation(
+        async (cb: (tx: Record<string, unknown>) => Promise<unknown>) => {
+          const tx = new Proxy(
+            {},
+            {
+              get: (_target, prop) => {
+                if (prop === "insert") return vi.fn().mockReturnThis();
+                if (prop === "values") return vi.fn().mockReturnThis();
+                if (prop === "returning")
+                  return vi.fn().mockResolvedValue([{ id: "tx-result-id" }]);
+                if (prop === "update") return vi.fn().mockReturnThis();
+                if (prop === "set") return vi.fn().mockReturnThis();
+                if (prop === "where")
+                  return vi.fn().mockResolvedValue(undefined);
+                if (prop === "delete") return vi.fn().mockReturnThis();
+                if (prop === "then" || prop === "catch") return undefined;
+                return vi.fn().mockResolvedValue(undefined);
+              },
+            },
+          );
+          return cb(tx);
         },
-      );
-      return cb(tx);
-    }),
+      ),
     query: {
       fiscalPeriods: {
         findFirst: vi.fn(),
@@ -390,7 +395,7 @@ function setupBaseMocks(): void {
     returning: vi.fn().mockResolvedValue([]),
   });
   (vi.mocked(db.transaction) as any).mockImplementation(
-    async (cb: Function) => {
+    async (cb: (tx: Record<string, unknown>) => Promise<unknown>) => {
       const tx = new Proxy(
         {},
         {

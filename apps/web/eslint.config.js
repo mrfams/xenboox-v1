@@ -5,10 +5,32 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import importPlugin from 'eslint-plugin-import';
 import unusedImports from 'eslint-plugin-unused-imports';
+import globals from 'globals';
 
 export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  // ── Node / CommonJS config files (Next, Tailwind, PostCSS, scripts) ──
+  {
+    files: ['**/*.cjs', '**/*.mjs', 'postcss.config.js', 'next.config.ts', 'playwright.config.ts', 'vitest.config.*', 'scripts/**/*.{js,mjs,cjs,ts}'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  // ── Generated Next.js type declarations (managed by Next, never edited) ──
+  {
+    files: ['next-env.d.ts', '.next/**/*.d.ts'],
+    rules: {
+      '@typescript-eslint/triple-slash-reference': 'off',
+      'no-undef': 'off',
+    },
+  },
   {
     files: ['**/*.ts', '**/*.tsx'],
     plugins: {

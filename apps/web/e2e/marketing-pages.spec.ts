@@ -26,8 +26,10 @@ test.describe("Marketing Pages — Public Routes", () => {
         if (msg.type() === "error") errors.push(msg.text());
       });
 
+      // domcontentloaded, not networkidle: the RSC streaming shell keeps the
+      // connection open on some pages (e.g. /docs), so networkidle never fires.
       const response = await page.goto(path, {
-        waitUntil: "networkidle",
+        waitUntil: "domcontentloaded",
         timeout: 30000,
       });
 

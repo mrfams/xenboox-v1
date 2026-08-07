@@ -354,7 +354,7 @@ export const expensesRouter = router({
 
       // Get payment method from first payment for each invoice
       const invoiceIds = expenses.map((e) => e.id);
-      let paymentMethodMap = new Map<string, string>();
+      const paymentMethodMap = new Map<string, string>();
 
       if (invoiceIds.length > 0) {
         const payments = await db

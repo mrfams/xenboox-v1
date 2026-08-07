@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { edgeAuth as auth } from "@/lib/auth/edge";
 import { edgeAdminAuth } from "@/lib/auth/admin-edge";
-import { applySecurityHeaders, generateNonce } from "@/lib/security/headers";
+import {
+  applySecurityHeaders,
+  buildCSP,
+  buildDevCSP,
+  generateNonce,
+} from "@/lib/security/headers";
 
 const PUBLIC_ROUTES = [
   "/",
@@ -96,7 +101,22 @@ export default auth(async (req) => {
 
   const isLoggedIn = !!req.auth;
   const nonce = generateNonce();
-  const response = NextResponse.next();
+
+  // Next.js 15.5 reads the CSP nonce from the content-security-policy
+  // REQUEST header (getScriptNonceFromHeader in app-render) and applies it to
+  // its own inline <script>/<style> tags. The Next 14 x-nonce convention is
+  // ignored. Setting the CSP only on the response headers leaves
+  // <script nonce=""> tags, which the strict production CSP then blocks.
+  const csp =
+    process.env.NODE_ENV === "development" ? buildDevCSP() : buildCSP(nonce);
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("content-security-policy", csp);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("x-request-id", requestId);
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
   applySecurityHeaders(response.headers, nonce);
   response.headers.set("x-nonce", nonce);
   response.headers.set("x-request-id", requestId);
@@ -108,9 +128,18 @@ export default auth(async (req) => {
     }
   }
 
-  // Rate limiting — apply only to mutations, not page views or redirects
-  const isAuthCallback = pathname.startsWith("/api/auth/callback/credentials");
-  if (isMutation && (isOnApi || isOnAuthRoute) && !isAuthCallback) {
+  // Rate limiting — apply only to mutations, not page views or redirects.
+  // The credentials callback IS the brute-force surface (login form POSTs
+  // here), so it must be rate limited — the earlier blanket exclusion left
+  // password guessing unbounded when the DB lockout wasn't reachable.
+  // OAuth callbacks (google/azure/okta/sso) are server-to-server redirects
+  // and stay excluded.
+  const isCredentialsCallback = pathname.startsWith(
+    "/api/auth/callback/credentials",
+  );
+  const isOAuthCallback =
+    pathname.startsWith("/api/auth/callback/") && !isCredentialsCallback;
+  if (isMutation && (isOnApi || isOnAuthRoute) && !isOAuthCallback) {
     try {
       const limiter = await getRateLimiter();
       const ip = req.headers.get("x-forwarded-for") ?? "anonymous";
@@ -118,7 +147,7 @@ export default auth(async (req) => {
 
       let result: Awaited<ReturnType<typeof limiter.checkApiRateLimit>>;
 
-      if (pathname === "/login") {
+      if (isCredentialsCallback || pathname === "/login") {
         result = await limiter.checkAuthLoginRateLimit(identifier);
         response.headers.set("X-RateLimit-Category", "auth-login");
       } else if (pathname === "/register") {

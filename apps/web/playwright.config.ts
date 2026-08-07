@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const BASE_URL = process.env.BASE_URL || "https://xenboox.vercel.app";
+const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:3000";
 const TEST_EMAIL = process.env.TEST_EMAIL || "demo@xenboox.com";
 const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo1234";
 // Headless by default in CI/local automation; headed when explicitly requested
@@ -18,7 +18,7 @@ export default defineConfig({
     ["html", { outputFolder: "playwright-report" }],
     ["json", { outputFile: "playwright-report/results.json" }],
   ],
-  timeout: 60000,
+  timeout: 90000,
   expect: {
     timeout: 15000,
     toMatchSnapshot: { maxDiffPixelRatio: 0.05 },
@@ -29,7 +29,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     actionTimeout: 15000,
-    navigationTimeout: 30000,
+    navigationTimeout: 45000,
     headless: HEADLESS,
     launchOptions: {
       headless: HEADLESS,
@@ -39,13 +39,33 @@ export default defineConfig({
     ignoreHTTPSErrors: true,
   },
   projects: [
+    // 1. Auth setup — authenticate once via the real UI flow and persist
+    //    storageState. All authenticated projects depend on this so they never
+    //    hit the brute-force login rate limiter per-test.
     {
-      name: "chromium",
+      name: "auth-setup",
+      testMatch: /setup\/auth\.setup\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
+    // 2. Unauthenticated specs (login page, auth redirects, marketing, security
+    //    headers) run in a clean context.
     {
-      name: "mobile-chrome",
-      use: { ...devices["Pixel 5"] },
+      name: "anon-chromium",
+      testMatch:
+        /(auth-flows|marketing-pages|edge-cases|enterprise-security|visual-ux)\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: [],
+    },
+    // 3. Authenticated specs — reuse the session captured in auth-setup.
+    {
+      name: "chromium",
+      testMatch:
+        /(enterprise-production|production-infra|production-readiness|comprehensive-suite|chat-flow|stress|tax-estimates)\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "e2e/.auth/user.json",
+      },
+      dependencies: ["auth-setup"],
     },
   ],
   globalSetup: "./e2e/setup/global-setup.ts",

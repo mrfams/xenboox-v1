@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
+import { NewsletterForm } from "@/components/marketing/newsletter-form";
 import { blogPosts, getBlogPostBySlug, getRelatedPosts } from "@/lib/blog-data";
 
 // Generate static paths for all blog posts
@@ -274,23 +275,7 @@ export default async function BlogPostPage({
             <p className="mt-2 text-slate-600">
               Subscribe to our newsletter for more insights and updates.
             </p>
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="mx-auto mt-6 flex max-w-md gap-3"
-            >
-              <input
-                type="email"
-                placeholder="you@company.com"
-                required
-                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-blue-400 focus:bg-white"
-              />
-              <button
-                type="submit"
-                className="shrink-0 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:bg-blue-500"
-              >
-                Subscribe
-              </button>
-            </form>
+            <NewsletterForm />
           </FadeInUp>
         </div>
       </section>

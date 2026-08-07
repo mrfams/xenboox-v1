@@ -1920,19 +1920,20 @@ function AIWorkspaceContent() {
   };
 
   const handleCommandSubmit = async (
+    message?: string,
     files?: Array<{ documentId?: string; name: string; type: string }>,
   ) => {
-    if (!inputValue.trim() || isStreaming) return;
+    // Use the message that came from the composer itself — typing directly in
+    // the composer must send that text (inputValue is only populated by the
+    // suggestion cards).
+    const text = (message ?? inputValue).trim();
+    if (!text || isStreaming) return;
     // Filter files to only include those with a documentId
     const validFiles = files?.filter(
       (f): f is { documentId: string; name: string; type: string } =>
         !!f.documentId,
     );
-    sendStreamingMessage(
-      inputValue,
-      activeConversationId ?? undefined,
-      validFiles,
-    );
+    sendStreamingMessage(text, activeConversationId ?? undefined, validFiles);
     setInputValue("");
   };
 
@@ -1989,7 +1990,7 @@ function AIWorkspaceContent() {
           <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4">
             <AIComposer
               onSend={(message, files) => {
-                handleCommandSubmit(files);
+                handleCommandSubmit(message, files);
               }}
               isStreaming={isStreaming}
               placeholder="Ask follow up..."
@@ -2025,7 +2026,7 @@ function AIWorkspaceContent() {
             <div className="mx-auto w-full max-w-3xl">
               <AIComposer
                 onSend={(message, files) => {
-                  handleCommandSubmit(files);
+                  handleCommandSubmit(message, files);
                 }}
                 isStreaming={isStreaming}
                 placeholder="What would you like Xenboox to do?"

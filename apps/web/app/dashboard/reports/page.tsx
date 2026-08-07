@@ -715,7 +715,7 @@ function RecentReports({
 
 // ─── AI Report Assistant Panel ─────────────────────────────────────────────
 
-function _AiReportAssistantPanel({
+function AiReportAssistantPanel({
   insights,
 }: {
   insights: Array<{

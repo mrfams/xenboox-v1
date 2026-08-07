@@ -16,6 +16,7 @@ import {
 import type { Metadata } from "next";
 
 import { FadeInUp } from "@/components/marketing/reveal";
+import { ShareButton } from "@/components/marketing/share-button";
 import { jobListings, getJobBySlug, getRelatedJobs } from "@/lib/careers-data";
 
 // Generate static paths for all job listings
@@ -134,21 +135,7 @@ export default async function JobDetailPage({
                 <Send className="mr-2 h-4 w-4" />
                 Apply Now
               </a>
-              <button
-                onClick={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: job.title,
-                      url: window.location.href,
-                    });
-                  } else {
-                    navigator.clipboard.writeText(window.location.href);
-                  }
-                }}
-                className="inline-flex h-12 items-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50"
-              >
-                Share Role
-              </button>
+              <ShareButton title={job.title} />
             </div>
           </FadeInUp>
         </div>

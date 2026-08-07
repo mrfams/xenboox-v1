@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -65,9 +66,12 @@ export function WhiteLabelProvider({ children }: { children: ReactNode }) {
     },
   );
 
-  // Check if org is Firm tier
+  // Check if org is Firm tier — gated on entity readiness so the
+  // entity-scoped checkAccess never fires before an entity is selected.
+  const { entityId, isLoaded } = useEntity();
   const { data: checkResult } = trpc.branding.checkAccess.useQuery(undefined, {
     retry: false,
+    enabled: isLoaded && !!entityId,
   });
 
   useEffect(() => {

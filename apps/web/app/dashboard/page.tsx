@@ -148,8 +148,8 @@ function AIChatInput() {
 
   const utils = trpc.useUtils();
 
-  const handleInlineSubmit = async () => {
-    const trimmed = inputValue.trim();
+  const handleInlineSubmit = async (value?: string) => {
+    const trimmed = (value ?? inputValue).trim();
     if (!trimmed || isResponding || !entityId) return;
 
     setIsResponding(true);
@@ -212,8 +212,10 @@ function AIChatInput() {
 
   const handleSubmit = (value: string) => {
     setInputValue(value);
-    // Auto-submit on suggestion click
-    setTimeout(() => handleInlineSubmit(), 0);
+    // Auto-submit on suggestion click. Pass the value explicitly: a closure
+    // created before the state flush would otherwise read the stale (empty)
+    // inputValue and drop the suggestion entirely.
+    setTimeout(() => handleInlineSubmit(value), 0);
   };
 
   const suggestions = [

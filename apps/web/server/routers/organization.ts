@@ -36,7 +36,10 @@ export const organizationRouter = router({
     return user;
   }),
 
-  listUserEntities: protectedProcedure.query(async ({ ctx }) => {
+  // Uses authProcedure (NOT protectedProcedure) because it must work BEFORE
+  // any entity is selected — protectedProcedure requires x-entity-id, which
+  // would be a chicken-and-egg problem for the entity switcher.
+  listUserEntities: authProcedure.query(async ({ ctx }) => {
     if (!ctx.session?.user) return [];
     const userId = ctx.session.user.id!;
 

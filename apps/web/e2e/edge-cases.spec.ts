@@ -53,7 +53,6 @@ test.describe("Edge Case & Security Testing", () => {
           .locator('input[id="email"]')
           .fill(`test${Math.random()}@example.com`);
         await page.locator('input[id="password"]').fill("password123");
-        await page.locator('input[id="orgName"]').fill("Test Org");
 
         await page.waitForTimeout(500);
 
@@ -88,18 +87,29 @@ test.describe("Edge Case & Security Testing", () => {
     }) => {
       await page.goto("/login", { waitUntil: "networkidle" });
 
+      // Hold the login request open so the loading/disabled state is observable
+      // and we can prove only ONE request is sent despite two clicks.
+      let loginRequests = 0;
+      await page.route("**/api/trpc/auth.login*", async (route) => {
+        loginRequests++;
+        await new Promise((r) => setTimeout(r, 2500));
+        await route.continue();
+      });
+
       // Fill credentials
       await page.locator('input[type="email"]').fill("test@example.com");
       await page.locator('input[type="password"]').fill("testpassword123");
 
-      // Rapid double-click submit
+      // Rapid double-click submit — the second activation is dispatched
+      // directly so it bypasses Playwright's actionability wait (a disabled
+      // button would otherwise block the click until the request resolves).
       const submitBtn = page.locator('button[type="submit"]');
-      await submitBtn.click({ clickCount: 2 });
+      await submitBtn.click();
+      await expect(submitBtn).toBeDisabled();
+      await submitBtn.dispatchEvent("click");
 
-      // Button should be disabled after first click (loading state)
-      await page.waitForTimeout(1000);
-      const isDisabled = await submitBtn.isDisabled();
-      expect(isDisabled).toBeTruthy();
+      await page.waitForTimeout(800);
+      expect(loginRequests).toBe(1);
     });
 
     test("loading state appears on form submission", async ({ page }) => {
@@ -130,7 +140,6 @@ test.describe("Edge Case & Security Testing", () => {
       await page.locator('input[id="name"]').fill(longName);
       await page.locator('input[id="email"]').fill(longEmail);
       await page.locator('input[id="password"]').fill("password123");
-      await page.locator('input[id="orgName"]').fill("Test Org");
 
       // Submit — should not crash
       await page.locator('button[type="submit"]').click();

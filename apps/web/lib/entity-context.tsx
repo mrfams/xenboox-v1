@@ -40,7 +40,7 @@ export function EntityProvider({ children }: { children: ReactNode }) {
   const [entityId, setEntityIdState] = useState<string | null>(null);
   const [entityRole, setEntityRole] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const hasInitialized = useRef(false);
   const utils = trpc.useUtils();
 
@@ -48,7 +48,11 @@ export function EntityProvider({ children }: { children: ReactNode }) {
     trpc.organization.setLastUsedEntity.useMutation();
 
   useEffect(() => {
+    // Wait for the session to actually load before initializing. Initializing
+    // while `session` is still undefined (auth loading) would permanently
+    // skip the server-side lastUsedEntityId fallback (hasInitialized guard).
     if (hasInitialized.current) return;
+    if (status === "loading" || session === undefined) return;
     hasInitialized.current = true;
 
     const stored = localStorage.getItem("currentEntityId");
@@ -68,7 +72,7 @@ export function EntityProvider({ children }: { children: ReactNode }) {
       }
       setIsLoaded(true);
     }
-  }, [session]);
+  }, [session, status]);
 
   const setEntityId = useCallback(
     (id: string, role?: string) => {

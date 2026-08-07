@@ -217,7 +217,7 @@ export const apRouter = router({
 
       // Get payables for each supplier
       const supplierIds = supplierList.map((s) => s.id);
-      let payablesMap = new Map<string, { total: number; overdue: number }>();
+      const payablesMap = new Map<string, { total: number; overdue: number }>();
 
       if (supplierIds.length > 0) {
         const payables = await db

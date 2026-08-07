@@ -64,7 +64,8 @@ const JURISDICTION_CONFIGS: Record<string, TaxJurisdictionConfig> = {
   },
   GH: {
     country: "GH",
-    standardVatRate: 0.15, // 12.5% VAT + 2.5% NHIL/GETFL
+    // Act 1151 (Jan 1, 2026): unified 20% = 15% VAT + 2.5% NHIL + 2.5% GETFund
+    standardVatRate: 0.2,
     reducedVatRate: 0.05,
     zeroRatedCategories: ["export", "international_travel"],
     exemptCategories: [
@@ -94,6 +95,18 @@ const JURISDICTION_CONFIGS: Record<string, TaxJurisdictionConfig> = {
     exemptCategories: ["education", "healthcare", "financial_services", "rent"],
     withholdingTaxRate: 0.05,
     inputVatRecoverable: true,
+  },
+  US: {
+    country: "US",
+    // No federal VAT/GST — sales tax is levied at the state level (0%–9.5%).
+    // Modeled here as 0% federal rate; state-level rates are configurable per
+    // entity via the sales-tax state map (not part of the federal calculation).
+    standardVatRate: 0,
+    reducedVatRate: 0,
+    zeroRatedCategories: ["export", "food", "prescription_drugs"],
+    exemptCategories: ["education", "healthcare", "rent", "financial_services"],
+    withholdingTaxRate: 0.24, // IRS backup withholding
+    inputVatRecoverable: false,
   },
 };
 

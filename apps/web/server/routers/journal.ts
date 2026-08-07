@@ -297,7 +297,7 @@ export const journalRouter = router({
 
       // Get lines for these entries
       const entryIds = entries.map((e) => e.id);
-      let linesMap = new Map<string, { debit: number; credit: number }>();
+      const linesMap = new Map<string, { debit: number; credit: number }>();
 
       if (entryIds.length > 0) {
         const lines = await db.query.journalEntryLines.findMany({

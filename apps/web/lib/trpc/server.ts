@@ -25,31 +25,6 @@ export const paginationSchema = z.object({
 
 export type PaginationInput = z.infer<typeof paginationSchema>;
 
-const cacheStore = new Map<string, { data: unknown; expiresAt: number }>();
-const CACHE_TTL_MS = 30_000;
-
-function getCacheKey(path: string, ctx: Context): string {
-  return `${ctx.entityId ?? "anon"}:${path}`;
-}
-
-function getFromCache(key: string): unknown | null {
-  const entry = cacheStore.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    cacheStore.delete(key);
-    return null;
-  }
-  return entry.data;
-}
-
-function setInCache(key: string, data: unknown): void {
-  if (cacheStore.size > 500) {
-    const oldest = cacheStore.keys().next().value;
-    if (oldest) cacheStore.delete(oldest);
-  }
-  cacheStore.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
-}
-
 type AuthUser = {
   id?: string | null;
   name?: string | null;
@@ -84,11 +59,16 @@ export const t = initTRPC.context<Context>().create({
       (ctx as { session?: Session })?.session?.user?.id ?? "anonymous";
 
     if (error.code === "INTERNAL_SERVER_ERROR") {
+      const cause = (error as { cause?: unknown }).cause;
       logger.error(
         {
           requestId: reqId,
           userId,
           error: error.message,
+          causeMessage:
+            cause && typeof cause === "object" && "message" in cause
+              ? String((cause as { message: unknown }).message)
+              : undefined,
           stack:
             process.env.NODE_ENV === "development" ? error.stack : undefined,
         },
@@ -115,40 +95,26 @@ export const t = initTRPC.context<Context>().create({
   transformer: undefined,
 });
 
-const queryCacheMiddleware = t.middleware(async ({ ctx, next, path, type }) => {
-  if (type !== "query") return next({ ctx });
-  const cacheKey = getCacheKey(path, ctx as Context);
-  const cached = getFromCache(cacheKey);
-  if (cached !== null) {
-    return { result: { data: cached }, ctx } as unknown as Awaited<
-      ReturnType<typeof next>
-    >;
-  }
-  const result = await next({ ctx });
-  try {
-    const data =
-      result && typeof result === "object" && "result" in result
-        ? (result as { result: { data?: unknown } }).result?.data
-        : result;
-    if (data !== undefined) setInCache(cacheKey, data);
-  } catch {
-    /* best effort */
-  }
-  return result;
-});
-
 // RLS session context setup
 // Uses SET LOCAL so variables persist for the current transaction only.
 // Requires Neon WebSocket mode (Pool-based driver) — HTTP driver cannot use session variables.
+//
+// NOTE: values MUST be single-quoted string literals. JSON.stringify produces
+// double quotes, which Postgres parses as identifiers, not literals — the
+// query then fails with "column ... does not exist".
+function sqlLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 export async function setRlsContext(
   userId: string,
   entityId: string,
 ): Promise<void> {
   await db.execute(
-    `SELECT set_config('app.current_user_id', ${JSON.stringify(userId)}, true)`,
+    `SELECT set_config('app.current_user_id', ${sqlLiteral(userId)}, true)`,
   );
   await db.execute(
-    `SELECT set_config('app.current_entity_id', ${JSON.stringify(entityId)}, true)`,
+    `SELECT set_config('app.current_entity_id', ${sqlLiteral(entityId)}, true)`,
   );
 }
 
@@ -201,6 +167,42 @@ const authMiddleware = t.middleware(async ({ ctx, next }) => {
 
   return next({ ctx: { ...ctx, session, requestId, log: reqLog } });
 });
+
+/**
+ * Entity bootstrap helper — resolves the first entity a user can access.
+ * Used at login time (jwt callback) and by the entity switcher so every
+ * authenticated user gets a usable default entity without requiring an
+ * already-selected entity (chicken-and-egg prevention).
+ */
+export async function resolveFirstEntityId(
+  userId: string,
+): Promise<{ entityId: string | null; role: string | null }> {
+  // Step 1: org_roles (owner/admin) → first entity in the org
+  const userOrgRoles = await db.query.orgRoles.findMany({
+    where: eq(orgRoles.userId, userId),
+    columns: { orgId: true, role: true },
+  });
+  if (userOrgRoles.length > 0) {
+    for (const r of userOrgRoles) {
+      const firstEntity = await db.query.entities.findFirst({
+        where: eq(entities.organizationId, r.orgId),
+        columns: { id: true },
+      });
+      if (firstEntity) {
+        return { entityId: firstEntity.id, role: r.role };
+      }
+    }
+  }
+
+  // Step 2: user_entity_access → first accessible entity
+  const access = await db.query.userEntityAccess.findFirst({
+    where: eq(userEntityAccess.userId, userId),
+    columns: { entityId: true, role: true },
+  });
+  return access
+    ? { entityId: access.entityId, role: access.role }
+    : { entityId: null, role: null };
+}
 
 const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
   const entityId = (ctx as { entityId?: string }).entityId;
@@ -597,8 +599,7 @@ export const rlsMutateProcedure = t.procedure
 export const protectedProcedure = t.procedure
   .use(loggingMiddleware)
   .use(authMiddleware)
-  .use(entityScopingMiddleware)
-  .use(queryCacheMiddleware);
+  .use(entityScopingMiddleware);
 
 export const adminProcedure = t.procedure
   .use(loggingMiddleware)

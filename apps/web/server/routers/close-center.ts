@@ -34,12 +34,17 @@ export const closeCenterRouter = router({
         ),
       });
 
-      // Get fiscal period
+      // Get fiscal period — compute real date boundaries for the period
+      // (YYYY-MM) so the comparison is a proper lexicographic date compare
+      // against the TEXT (YYYY-MM-DD) columns.
+      const [periodYear, periodMonth] = period.split("-").map(Number);
+      const periodStartStr = `${periodYear}-${String(periodMonth).padStart(2, "0")}-01`;
+      const periodEndStr = `${periodYear}-${String(periodMonth).padStart(2, "0")}-${String(new Date(periodYear, periodMonth, 0).getDate()).padStart(2, "0")}`;
       const fiscalPeriod = await db.query.fiscalPeriods.findFirst({
         where: and(
           eq(fiscalPeriods.entityId, entityId),
-          sql`${fiscalPeriods.startDate} <= ${period}-28`,
-          sql`${fiscalPeriods.endDate} >= ${period}-01`,
+          lte(fiscalPeriods.startDate, periodEndStr),
+          gte(fiscalPeriods.endDate, periodStartStr),
         ),
       });
 

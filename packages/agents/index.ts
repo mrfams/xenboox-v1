@@ -90,6 +90,8 @@ export {
   executePayrollPipeline,
   getPayrollStatus,
   STATUTORY_RULES,
+  calculatePayeForJurisdiction,
+  calculateSocialSecurityForJurisdiction,
   runAuditPipeline,
   getAuditStatus,
   runExpensePipeline,

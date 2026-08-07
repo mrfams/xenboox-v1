@@ -58,9 +58,14 @@ export type TaxStepId =
   | "tax_position_summary";
 
 export type TaxStepStatus =
-  "pending" | "in_progress" | "completed" | "failed" | "skipped" | "escalated";
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "skipped"
+  | "escalated";
 
-export type Jurisdiction = "GM" | "NG" | "KE" | "GH";
+export type Jurisdiction = "GM" | "SN" | "GH" | "NG" | "KE" | "US";
 
 export type TaxRuleType = "vat" | "paye" | "withholding" | "corporate";
 
@@ -344,8 +349,10 @@ const JURISDICTION_CONFIGS: Record<Jurisdiction, JurisdictionConfig> = {
     currency: "KES",
   },
   GH: {
-    vatRate: 0.15, // 12.5% standard + 2.5% NHIL = 15%
-    vatThreshold: 200000, // 200K GHS annual threshold
+    // Act 1151 (effective Jan 1, 2026): unified 20% — 15% VAT + 2.5% NHIL
+    // + 2.5% GETFund, calculated on the same taxable base (cascading removed).
+    vatRate: 0.2,
+    vatThreshold: 750000, // GHS 750K (Act 1151 raised threshold for goods dealers)
     corporateTaxRate: 0.25,
     corporateTaxThreshold: 0,
     filingDeadlines: [
@@ -381,6 +388,88 @@ const JURISDICTION_CONFIGS: Record<Jurisdiction, JurisdictionConfig> = {
       },
     ],
     currency: "GHS",
+  },
+  // Senegal — Direction Générale des Impôts et des Domaines (DGID)
+  SN: {
+    vatRate: 0.18, // TVA standard rate
+    vatThreshold: 0, // No fixed monetary threshold — registration by activity
+    corporateTaxRate: 0.3,
+    corporateTaxThreshold: 0,
+    filingDeadlines: [
+      {
+        filingType: "vat",
+        day: 15,
+        name: "DGID TVA Return — Monthly (déclaration mensuelle)",
+        frequency: "monthly",
+      },
+      {
+        filingType: "paye",
+        day: 15,
+        name: "DGID IRSA Filing — Monthly Withholding",
+        frequency: "monthly",
+      },
+      {
+        filingType: "withholding",
+        day: 15,
+        name: "DGID Withholding Tax — Monthly Remittance",
+        frequency: "monthly",
+      },
+      {
+        filingType: "corporate_tax",
+        day: 30,
+        name: "DGID Corporate Tax (IS) — Annual Return",
+        frequency: "annual",
+      },
+      {
+        filingType: "social_security",
+        day: 15,
+        name: "IPRES/CSS Contributions — Monthly Remittance",
+        frequency: "monthly",
+      },
+    ],
+    currency: "XOF",
+  },
+  // United States — IRS + state taxing authorities
+  // No federal VAT/GST; sales tax is levied at the state level. Corporate
+  // income tax is flat 21% federally. Payroll: FICA 7.65% + FUTA.
+  US: {
+    vatRate: 0, // No federal VAT — state-level sales tax varies (0%–9.5%)
+    vatThreshold: 100000, // $100K economic nexus threshold per state
+    corporateTaxRate: 0.21,
+    corporateTaxThreshold: 0,
+    filingDeadlines: [
+      {
+        filingType: "vat",
+        day: 20,
+        name: "State Sales & Use Tax Return (per-state schedule)",
+        frequency: "monthly",
+      },
+      {
+        filingType: "paye",
+        day: 31,
+        name: "IRS Form 941 — Quarterly Payroll Tax Return",
+        frequency: "quarterly",
+      },
+      {
+        filingType: "withholding",
+        day: 31,
+        name: "IRS Form 941 — Federal Withholding Remittance",
+        frequency: "quarterly",
+      },
+      {
+        filingType: "corporate_tax",
+        day: 15,
+        name: "IRS Form 1120 — Corporate Income Tax Return (Apr 15)",
+        frequency: "annual",
+      },
+      {
+        filingType: "social_security",
+        day: 31,
+        name: "FICA/FUTA Deposits (semi-weekly/monthly schedule)",
+        frequency: "monthly",
+      },
+    ],
+    currency: "USD",
   },
 };
 
@@ -531,7 +620,9 @@ export async function executeTaxCompliancePipeline(params: {
       entityId: params.entityId,
       period: params.period,
       triggerSource: params.triggerSource ?? "manual",
-      jurisdictions: params.jurisdictions ?? ["GM", "NG", "KE", "GH"],
+      jurisdictions:
+        params.jurisdictions ??
+        (["GM", "SN", "GH", "NG", "KE", "US"] as Jurisdiction[]),
     },
   });
 
@@ -559,7 +650,8 @@ export async function executeTaxCompliancePipeline(params: {
   };
 
   const activeJurisdictions =
-    params.jurisdictions ?? (["GM", "NG", "KE", "GH"] as Jurisdiction[]);
+    params.jurisdictions ??
+    (["GM", "SN", "GH", "NG", "KE", "US"] as Jurisdiction[]);
 
   try {
     // ── Step 1: Jurisdiction Rule Registry ──────────────────────────────────
@@ -1916,6 +2008,6 @@ export async function getTaxComplianceStatus(params: {
     vatSummary,
     upcomingDeadlines: deadlineItems.filter((d) => d.status === "pending"),
     overdueDeadlines: deadlineItems.filter((d) => d.status === "overdue"),
-    activeJurisdictions: ["GM", "NG", "KE", "GH"] as Jurisdiction[],
+    activeJurisdictions: ["GM", "SN", "GH", "NG", "KE", "US"] as Jurisdiction[],
   };
 }

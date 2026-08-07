@@ -86,6 +86,14 @@ async function main() {
     console.log(`Entity access already exists`);
   }
 
+  // Set last_used_entity_id so the client can bootstrap entity scoping
+  // immediately after sign-in (EntityProvider falls back to this value).
+  await sql`
+    UPDATE users SET last_used_entity_id = ${entityId}, updated_at = NOW()
+    WHERE id = ${userId} AND (last_used_entity_id IS NULL OR last_used_entity_id = ${entityId})
+  `;
+  console.log(`Set last_used_entity_id: ${entityId}`);
+
   const final = await sql`
     SELECT u.id, u.email, u.email_verified, o.id as org_id, e.id as entity_id
     FROM users u

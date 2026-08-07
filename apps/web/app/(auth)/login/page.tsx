@@ -1,9 +1,43 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/components/auth/login-form";
 import { isSsoEnabled, getSsoDisplayName } from "@/lib/auth/sso";
 
-export default function LoginPage() {
+/**
+ * Only allow same-site, relative redirect targets. Anything else (absolute
+ * URLs, protocol-relative //host, backslashes, javascript:/data: schemes) is an
+ * open-redirect vector — strip it by re-rendering /login clean.
+ */
+function isSafeRedirect(value: string): boolean {
+  if (!value.startsWith("/")) return false;
+  if (value.startsWith("//")) return false;
+  if (value.includes("\\")) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f]/.test(value)) return false;
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) return false;
+  return true;
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+
+  // Every redirect-style parameter is validated; the app only ever honors
+  // same-site relative paths, so any suspicious value gets stripped by
+  // re-rendering /login without it.
+  const redirectParams = ["callbackUrl", "callback_url", "redirect", "next"];
+  for (const key of redirectParams) {
+    const value = params[key];
+    const first = Array.isArray(value) ? value[0] : value;
+    if (first && !isSafeRedirect(first)) {
+      redirect("/login");
+    }
+  }
+
   const ssoEnabled = isSsoEnabled();
   const ssoDisplayName = getSsoDisplayName();
 

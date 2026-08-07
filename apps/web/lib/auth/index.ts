@@ -10,6 +10,7 @@ import {
   entities,
   userEntityAccess,
 } from "@xenboox/db/schema/organization";
+import { orgRoles } from "@xenboox/db/schema/org-roles";
 import bcrypt from "bcryptjs";
 import { jwtVerify } from "jose";
 
@@ -22,6 +23,52 @@ const JWT_SECRET = new TextEncoder().encode(process.env.AUTH_SECRET);
 
 const LOCKOUT_THRESHOLD = 5;
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000;
+
+/**
+ * Resolves the first entity a user can access and persists it as
+ * `lastUsedEntityId` when the user has none set. Called from the jwt
+ * callback at sign-in so the client always has a usable default entity
+ * (the EntityProvider falls back to session.lastUsedEntityId).
+ */
+async function ensureLastUsedEntity(userId: string): Promise<string | null> {
+  const dbUser = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { lastUsedEntityId: true },
+  });
+  if (dbUser?.lastUsedEntityId) return dbUser.lastUsedEntityId;
+
+  // Resolve first accessible entity: org_roles → user_entity_access
+  const userOrgRoles = await db.query.orgRoles.findMany({
+    where: eq(orgRoles.userId, userId),
+    columns: { orgId: true, role: true },
+  });
+  let resolvedEntityId: string | null = null;
+  for (const r of userOrgRoles) {
+    const firstEntity = await db.query.entities.findFirst({
+      where: eq(entities.organizationId, r.orgId),
+      columns: { id: true },
+    });
+    if (firstEntity) {
+      resolvedEntityId = firstEntity.id;
+      break;
+    }
+  }
+  if (!resolvedEntityId) {
+    const access = await db.query.userEntityAccess.findFirst({
+      where: eq(userEntityAccess.userId, userId),
+      columns: { entityId: true },
+    });
+    resolvedEntityId = access?.entityId ?? null;
+  }
+
+  if (resolvedEntityId) {
+    await db
+      .update(users)
+      .set({ lastUsedEntityId: resolvedEntityId })
+      .where(eq(users.id, userId));
+  }
+  return resolvedEntityId;
+}
 
 async function ensureUserEntity(userId: string, userName: string) {
   const existingAccess = await db.query.userEntityAccess.findFirst({
@@ -267,13 +314,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // sid is set by authorize callback and passed through user object
         token.sid = (user as Record<string, unknown>).sid as string | undefined;
 
-        // Fetch lastUsedEntityId for the user
+        // Fetch lastUsedEntityId for the user — and resolve + persist a
+        // default entity at sign-in so the client always has one.
         if (user.id) {
-          const dbUser = await db.query.users.findFirst({
-            where: eq(users.id, user.id),
-            columns: { lastUsedEntityId: true },
-          });
-          token.lastUsedEntityId = dbUser?.lastUsedEntityId ?? null;
+          const resolvedEntityId = await ensureLastUsedEntity(user.id);
+          token.lastUsedEntityId = resolvedEntityId;
         }
       }
       return token;

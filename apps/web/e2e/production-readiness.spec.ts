@@ -1,85 +1,69 @@
 import { test, expect } from "@playwright/test";
 
+// Module-level imports run in the Playwright test runner's Node context, not
+// the browser. This is the correct way to verify server-side lib exports —
+// `import("@/lib/...")` inside page.evaluate() can never resolve the `@/`
+// alias in a browser bundle.
+import { getLLMResponseCache, withLLMCache } from "@/lib/llm/response-cache";
+import {
+  getConversationMemory,
+  ConversationMemory,
+} from "@/lib/llm/conversation-memory";
+import {
+  getDocumentVersionManager,
+  DocumentVersionManager,
+} from "@/lib/documents/versioning";
+import {
+  getGracefulDegradation,
+  CircuitBreaker,
+} from "@/lib/resilience/graceful-degradation";
+
 test.describe("Production Readiness Features", () => {
   test.describe("LLM Response Cache", () => {
-    test("cache module exports work correctly", async ({ page }) => {
-      // Test that the cache module can be imported
-      const result = await page.evaluate(async () => {
-        // Dynamic import to test the module
-        try {
-          const cache = await import("@/lib/llm/response-cache");
-          return {
-            hasGetCache: typeof cache.getLLMResponseCache === "function",
-            hasWithCache: typeof cache.withLLMCache === "function",
-          };
-        } catch {
-          return { error: "Failed to import cache module" };
-        }
-      });
+    test("cache module exports work correctly", () => {
+      expect(typeof getLLMResponseCache).toBe("function");
+      expect(typeof withLLMCache).toBe("function");
 
-      expect(result).toHaveProperty("hasGetCache", true);
-      expect(result).toHaveProperty("hasWithCache", true);
+      // Smoke-test the actual cache: set a value keyed by hashed input,
+      // read it back, then clean it up.
+      const cache = getLLMResponseCache();
+      const key = `e2e-cache-smoke-${Date.now()}`;
+      cache.set(key, { value: 42 } as never, { ttlMs: 60_000 });
+      const hit = cache.get<{ value: number }>(key);
+      expect(hit).toEqual({ value: 42 });
+      expect(cache.has(key)).toBe(true);
+      cache.delete(key);
+      expect(cache.has(key)).toBe(false);
     });
   });
 
   test.describe("Conversation Memory", () => {
-    test("memory module exports work correctly", async ({ page }) => {
-      const result = await page.evaluate(async () => {
-        try {
-          const memory = await import("@/lib/llm/conversation-memory");
-          return {
-            hasGetMemory: typeof memory.getConversationMemory === "function",
-            hasClass: typeof memory.ConversationMemory === "function",
-          };
-        } catch {
-          return { error: "Failed to import memory module" };
-        }
-      });
+    test("memory module exports work correctly", () => {
+      expect(typeof getConversationMemory).toBe("function");
+      expect(typeof ConversationMemory).toBe("function");
 
-      expect(result).toHaveProperty("hasGetMemory", true);
-      expect(result).toHaveProperty("hasClass", true);
+      const memory = getConversationMemory();
+      expect(memory).toBeDefined();
     });
   });
 
   test.describe("Document Versioning", () => {
-    test("versioning module exports work correctly", async ({ page }) => {
-      const result = await page.evaluate(async () => {
-        try {
-          const versioning = await import("@/lib/documents/versioning");
-          return {
-            hasGetManager:
-              typeof versioning.getDocumentVersionManager === "function",
-            hasClass: typeof versioning.DocumentVersionManager === "function",
-          };
-        } catch {
-          return { error: "Failed to import versioning module" };
-        }
-      });
+    test("versioning module exports work correctly", () => {
+      expect(typeof getDocumentVersionManager).toBe("function");
+      expect(typeof DocumentVersionManager).toBe("function");
 
-      expect(result).toHaveProperty("hasGetManager", true);
-      expect(result).toHaveProperty("hasClass", true);
+      const manager = getDocumentVersionManager();
+      expect(manager).toBeDefined();
     });
   });
 
   test.describe("Graceful Degradation", () => {
-    test("degradation module exports work correctly", async ({ page }) => {
-      const result = await page.evaluate(async () => {
-        try {
-          const degradation = await import(
-            "@/lib/resilience/graceful-degradation"
-          );
-          return {
-            hasGetDegradation:
-              typeof degradation.getGracefulDegradation === "function",
-            hasCircuitBreaker: typeof degradation.CircuitBreaker === "function",
-          };
-        } catch {
-          return { error: "Failed to import degradation module" };
-        }
-      });
+    test("degradation module exports work correctly", () => {
+      expect(typeof getGracefulDegradation).toBe("function");
+      expect(typeof CircuitBreaker).toBe("function");
 
-      expect(result).toHaveProperty("hasGetDegradation", true);
-      expect(result).toHaveProperty("hasCircuitBreaker", true);
+      const degradation = getGracefulDegradation();
+      expect(degradation).toBeDefined();
     });
   });
 

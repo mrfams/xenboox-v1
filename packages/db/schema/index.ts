@@ -5,6 +5,7 @@ export * from "./auth";
 export * from "./organization";
 export * from "./accounting";
 export * from "./ap-ar";
+export * from "./estimates";
 export * from "./treasury";
 export * from "./cash";
 export * from "./mobile-money";

@@ -59,12 +59,19 @@ export type PayrollStepId =
   | "monthly_summary";
 
 export type PayrollStepStatus =
-  "pending" | "in_progress" | "completed" | "failed" | "skipped";
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "skipped";
 
-export type Jurisdiction = "GM" | "NG" | "KE" | "GH";
+export type Jurisdiction = "GM" | "SN" | "GH" | "NG" | "KE" | "US";
 
 export type EmploymentType =
-  "full_time" | "part_time" | "contractor" | "intern";
+  | "full_time"
+  | "part_time"
+  | "contractor"
+  | "intern";
 
 export interface StatutoryRule {
   id: string;
@@ -117,7 +124,11 @@ export interface EmployeePayrollData {
 
 export interface ExceptionIntakeItem {
   type:
-    "new_starter" | "leaver" | "salary_change" | "bonus" | "allowance_change";
+    | "new_starter"
+    | "leaver"
+    | "salary_change"
+    | "bonus"
+    | "allowance_change";
   employeeId?: string;
   employeeNumber?: string;
   effectiveDate: string;
@@ -373,6 +384,97 @@ export const STATUTORY_RULES: Record<
       name: "GRA-GH Withholding Tax",
       bands: [
         { from: 0, to: null, rate: 0.075, cumulative: false }, // 7.5% for supplies
+      ],
+      effectiveFrom: "2025-01-01",
+      effectiveTo: null,
+    },
+  },
+
+  // Senegal — DGID (Direction Générale des Impôts et des Domaines)
+  // IRSA (impôt sur le revenu des salaires) progressive bands (monthly),
+  // IPRES pension + CSS family/occupational contributions.
+  SN: {
+    paye: {
+      id: "paye-sn",
+      jurisdiction: "SN",
+      ruleType: "paye",
+      name: "DGID IRSA (Senegal)",
+      bands: [
+        { from: 0, to: 52500, rate: 0, cumulative: false }, // 0% up to 52,500 XOF
+        { from: 52501, to: 105000, rate: 0.1, cumulative: false }, // 10%
+        { from: 105001, to: 157500, rate: 0.2, cumulative: false }, // 20%
+        { from: 157501, to: 210000, rate: 0.3, cumulative: false }, // 30%
+        { from: 210001, to: null, rate: 0.4, cumulative: false }, // 40%
+      ],
+      personalRelief: 0,
+      effectiveFrom: "2025-01-01",
+      effectiveTo: null,
+    },
+    socialSecurity: {
+      id: "ss-sn",
+      jurisdiction: "SN",
+      ruleType: "social_security",
+      name: "IPRES + CSS (Senegal)",
+      bands: [{ from: 0, to: null, rate: 0.0625, cumulative: false }],
+      employeeContributionRate: 0.0625, // IPRES 2.8% + CSS 3.45%
+      employerContributionRate: 0.1975, // IPRES 7.5% + CSS 12.25% (family 6% + occupational 2.25% + 4%)
+      effectiveFrom: "2025-01-01",
+      effectiveTo: null,
+    },
+    withholdingTax: {
+      id: "wht-sn",
+      jurisdiction: "SN",
+      ruleType: "withholding_tax",
+      name: "DGID Withholding Tax (Senegal)",
+      bands: [
+        { from: 0, to: null, rate: 0.05, cumulative: false }, // 5% services
+      ],
+      effectiveFrom: "2025-01-01",
+      effectiveTo: null,
+    },
+  },
+
+  // United States — IRS (Internal Revenue Service)
+  // Federal income tax brackets (2025, single filer, monthly), FICA 7.65%
+  // (6.2% SS + 1.45% Medicare), FUTA 6% on first $7,000 (employer only).
+  US: {
+    paye: {
+      id: "paye-us",
+      jurisdiction: "US",
+      ruleType: "paye",
+      name: "IRS Federal Income Tax Withholding (US)",
+      bands: [
+        { from: 0, to: 986, rate: 0.1, cumulative: false }, // 10% up to $11,925/yr
+        { from: 987, to: 4021, rate: 0.12, cumulative: false }, // 12% up to $48,475/yr
+        { from: 4022, to: 8601, rate: 0.22, cumulative: false }, // 22% up to $103,350/yr
+        { from: 8602, to: 16438, rate: 0.24, cumulative: false }, // 24% up to $197,300/yr
+        { from: 16439, to: 20875, rate: 0.32, cumulative: false }, // 32% up to $250,525/yr
+        { from: 20876, to: 52194, rate: 0.35, cumulative: false }, // 35% up to $626,350/yr
+        { from: 52195, to: null, rate: 0.37, cumulative: false }, // 37% above
+      ],
+      personalRelief: 1192, // ~$14,300 standard deduction / 12
+      effectiveFrom: "2025-01-01",
+      effectiveTo: null,
+    },
+    socialSecurity: {
+      id: "ss-us",
+      jurisdiction: "US",
+      ruleType: "social_security",
+      name: "FICA — Social Security + Medicare (US)",
+      bands: [{ from: 0, to: null, rate: 0.0765, cumulative: false }],
+      employeeContributionRate: 0.0765, // 6.2% SS + 1.45% Medicare
+      employerContributionRate: 0.0765,
+      ceiling: 14675, // SS wage base $176,100/yr / 12 ≈ $14,675/mo
+      effectiveFrom: "2025-01-01",
+      effectiveTo: null,
+    },
+    withholdingTax: {
+      id: "wht-us",
+      jurisdiction: "US",
+      ruleType: "withholding_tax",
+      name: "IRS Backup Withholding (US)",
+      bands: [
+        { from: 0, to: null, rate: 0.24, cumulative: false }, // 24% backup withholding
       ],
       effectiveFrom: "2025-01-01",
       effectiveTo: null,
@@ -1772,6 +1874,8 @@ function generateComplianceDeadlines(
     NG: { day: 14, name: "FIRS PAYE Filing — Monthly Schedule" },
     KE: { day: 9, name: "KRA PAYE Filing — Monthly Return" },
     GH: { day: 15, name: "GRA-GH PAYE Filing — Monthly Return" },
+    SN: { day: 15, name: "DGID IRSA Filing — Monthly Withholding" },
+    US: { day: 31, name: "IRS Form 941 — Quarterly Payroll Tax Return" },
   };
 
   // Social security filing deadlines
@@ -1780,6 +1884,8 @@ function generateComplianceDeadlines(
     NG: { day: 14, name: "NSITF/NHF Contributions — Monthly Remittance" },
     KE: { day: 9, name: "NSSF Contributions — Monthly Remittance" },
     GH: { day: 15, name: "SSNIT Contributions — Monthly Remittance" },
+    SN: { day: 15, name: "IPRES/CSS Contributions — Monthly Remittance" },
+    US: { day: 31, name: "FICA/FUTA Deposits — Monthly Schedule" },
   };
 
   // Withholding tax filing (quarterly for most)
@@ -1805,6 +1911,16 @@ function generateComplianceDeadlines(
     GH: {
       day: 15,
       name: "GRA-GH Withholding Tax — Quarterly Return",
+      quarterMonth: 3,
+    },
+    SN: {
+      day: 15,
+      name: "DGID Withholding Tax — Monthly Remittance",
+      quarterMonth: 1,
+    },
+    US: {
+      day: 31,
+      name: "IRS Form 941 — Federal Withholding Remittance",
       quarterMonth: 3,
     },
   };

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { db } from "@xenboox/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import {
   jurisdictionTaxRules,
   vatCalculations,
@@ -13,9 +13,10 @@ import {
   runTaxCompliancePipeline,
   getTaxComplianceStatus,
 } from "@xenboox/agents";
-import type { Jurisdiction } from "@xenboox/agents";
-import { router, protectedProcedure, requireRole } from "../../lib/trpc/server";
+import { aggregate1099 } from "@/lib/accounting/estimates";
 import { entities } from "@xenboox/db/schema/organization";
+
+import { router, protectedProcedure, requireRole } from "../../lib/trpc/server";
 
 // ─── Tax & Compliance Router ────────────────────────────────────────────
 
@@ -30,7 +31,9 @@ export const taxComplianceRouter = router({
         triggerSource: z
           .enum(["manual", "scheduled", "agent"])
           .default("manual"),
-        jurisdictions: z.array(z.enum(["GM", "NG", "KE", "GH"])).optional(),
+        jurisdictions: z
+          .array(z.enum(["GM", "SN", "GH", "NG", "KE", "US"]))
+          .optional(),
         includeCorporateTax: z.boolean().optional(),
         simulateRules: z.boolean().optional(),
       }),
@@ -171,7 +174,7 @@ export const taxComplianceRouter = router({
       z
         .object({
           status: z.enum(["pending", "filed", "overdue", "waived"]).optional(),
-          jurisdiction: z.enum(["GM", "NG", "KE", "GH"]).optional(),
+          jurisdiction: z.enum(["GM", "SN", "GH", "NG", "KE", "US"]).optional(),
         })
         .optional(),
     )
@@ -194,7 +197,7 @@ export const taxComplianceRouter = router({
     .input(
       z
         .object({
-          country: z.enum(["GM", "NG", "KE", "GH"]).optional(),
+          country: z.enum(["GM", "SN", "GH", "NG", "KE", "US"]).optional(),
           ruleType: z
             .enum(["vat", "paye", "withholding", "corporate"])
             .optional(),
@@ -212,6 +215,48 @@ export const taxComplianceRouter = router({
         where: and(...where),
         orderBy: [desc(jurisdictionTaxRules.createdAt)],
       });
+    }),
+
+  // ── 1099 Contractor Summary (US) ────────────────────────────────────
+  //
+  // Aggregates annual payments to US contractors from withholding records
+  // and vendors with 1099 eligibility. Powers the 1099-NEC/1099-MISC
+  // preparation surface (filing threshold: $600).
+
+  list1099Summary: protectedProcedure
+    .input(
+      z
+        .object({
+          year: z
+            .string()
+            .regex(/^\d{4}$/)
+            .optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const year = input?.year ?? String(new Date().getFullYear());
+      const where = [eq(withholdingRecords.entityId, ctx.entityId!)];
+      where.push(
+        sql`${withholdingRecords.jurisdiction} = 'US'`,
+        sql`extract(year from ${withholdingRecords.createdAt}) = ${year}`,
+      );
+
+      const records = await db.query.withholdingRecords.findMany({
+        where: and(...where),
+      });
+
+      // Aggregate per payee (pure logic — unit tested)
+      const contractors = aggregate1099(records);
+
+      return {
+        year,
+        contractors,
+        totalContractors: contractors.length,
+        totalPayments: contractors.reduce((s, c) => s + c.totalPayments, 0),
+        totalWithheld: contractors.reduce((s, c) => s + c.totalWithheld, 0),
+        formsRequired: contractors.filter((c) => c.thresholdMet).length,
+      };
     }),
 
   // ── Tax Packages ──────────────────────────────────────────────────

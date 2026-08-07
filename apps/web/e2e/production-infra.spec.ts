@@ -13,11 +13,13 @@ const TEST_EMAIL = process.env.TEST_EMAIL || "demo@xenboox.com";
 const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo1234";
 
 async function login(page: Page): Promise<boolean> {
-  await page.goto("/login");
-  await page.fill('input[name="email"]', TEST_EMAIL);
-  await page.fill('input[name="password"]', TEST_PASSWORD);
-  await page.click('button[type="submit"]');
   try {
+    await page.goto("/login");
+    // storageState contexts are already authenticated — /login 302s to /dashboard
+    if (page.url().includes("/dashboard")) return true;
+    await page.fill('input[name="email"]', TEST_EMAIL);
+    await page.fill('input[name="password"]', TEST_PASSWORD);
+    await page.click('button[type="submit"]');
     await page.waitForURL("**/dashboard", { timeout: 20000 });
     return true;
   } catch {

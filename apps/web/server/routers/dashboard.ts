@@ -88,7 +88,10 @@ export const dashboardRouter = router({
     );
     const totalCashBalance = cashBalance + pettyCashBalance;
 
-    // A/R outstanding — sum of unpaid sales invoices
+    // A/R outstanding — sum of unpaid sales invoices.
+    // NOTE: ar_status enum only contains pending/partial/paid/overdue/voided.
+    // "draft" = pending without sentAt, "sent" = pending with sentAt,
+    // "viewed" = partial — so unpaid invoices are pending/partial/overdue.
     const arResult = await safeQuery(
       "arOutstanding",
       () =>
@@ -98,7 +101,7 @@ export const dashboardRouter = router({
           .where(
             and(
               eq(salesInvoices.entityId, entityId),
-              sql`${salesInvoices.status} IN ('sent', 'viewed', 'overdue')`,
+              sql`${salesInvoices.status} IN ('pending', 'partial', 'overdue')`,
             ),
           ),
       [{ total: null }],

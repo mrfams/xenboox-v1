@@ -31,12 +31,14 @@ test.describe("W.F08 Auth & Security Edge Cases", () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
   });
 
-  test("08.03 admin route redirects to login", async ({ page }) => {
+  test("08.03 admin route redirects to admin login", async ({ page }) => {
+    // Admin routes are gated by a separate admin session and redirect to
+    // /admin-login (never the customer login) by design.
     await page.goto("/admin", {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });
-    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/admin-login/, { timeout: 10000 });
   });
 
   test("08.04 health endpoint returns 200", async ({ page }) => {
@@ -61,7 +63,7 @@ test.describe("W.F08 Auth & Security Edge Cases", () => {
     await page.goto("/login", { waitUntil: "domcontentloaded" });
     const payloads = [
       '<script>alert("xss")</script>',
-      '\"><script>alert(1)</script>',
+      '"><script>alert(1)</script>',
       "'; DROP TABLE users; --",
     ];
     for (const payload of payloads) {

@@ -48,18 +48,11 @@ export const chartOfAccountsRouter = router({
     twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
     const twelveMonthsAgoStr = `${twelveMonthsAgo.getFullYear()}-${String(twelveMonthsAgo.getMonth() + 1).padStart(2, "0")}-01`;
 
-    const usedAccountIds = new Set(
-      (
-        await db
-          .select({ accountId: journalEntryLines.accountId })
-          .from(journalEntryLines)
-          .innerJoin(
-            journalEntryLines,
-            sql`${journalEntryLines.journalEntryId} = ${journalEntryLines.journalEntryId}`,
-          )
-          .where(gte(journalEntryLines.createdAt, twelveMonthsAgo))
-      ).map((r) => r.accountId),
-    );
+    const usedAccountRows = await db
+      .select({ accountId: journalEntryLines.accountId })
+      .from(journalEntryLines)
+      .where(gte(journalEntryLines.createdAt, twelveMonthsAgo));
+    const usedAccountIds = new Set(usedAccountRows.map((r) => r.accountId));
 
     const unusedAccounts = allAccounts.filter(
       (a) => !usedAccountIds.has(a.id),

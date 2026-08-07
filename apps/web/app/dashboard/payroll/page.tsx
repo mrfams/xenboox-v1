@@ -251,7 +251,7 @@ function EmployeeTable({
 
 // ─── Right Panel ───────────────────────────────────────────────────────────
 
-function _RightPanel({
+function RightPanel({
   overview,
   departmentBreakdown,
   insights,

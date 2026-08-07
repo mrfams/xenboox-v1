@@ -32,6 +32,7 @@ import {
 } from "@/components/ui";
 import { AICommandBar } from "@/components/shared/ai-command-bar";
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
+import { useEntity } from "@/lib/entity-context";
 import { getInitials } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
 
@@ -61,6 +62,8 @@ export function TopNav({
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { entityId, isLoaded } = useEntity();
+  const notifEnabled = isLoaded && !!entityId;
 
   const { data: notifications } = trpc.notifications.list.useQuery(
     { limit: 20, onlyUnread: true },
@@ -68,6 +71,7 @@ export function TopNav({
       staleTime: 60 * 1000, // 1 minute
       refetchOnWindowFocus: false,
       refetchOnMount: false,
+      enabled: notifEnabled,
     },
   );
 
@@ -77,6 +81,7 @@ export function TopNav({
       staleTime: 60 * 1000, // 1 minute
       refetchOnWindowFocus: false,
       refetchOnMount: false,
+      enabled: notifEnabled,
     },
   );
   const markRead = trpc.notifications.markAsRead.useMutation();
@@ -120,6 +125,7 @@ export function TopNav({
   const utils = trpc.useUtils();
 
   useEffect(() => {
+    if (!notifEnabled) return;
     async function loadCommands() {
       try {
         const invoices = await utils.ar.listInvoices.fetch({});
@@ -158,7 +164,7 @@ export function TopNav({
       }
     }
     loadCommands();
-  }, [utils]);
+  }, [utils, notifEnabled]);
 
   const user = session?.user;
   const initials = getInitials(user?.name || user?.email || "User");
