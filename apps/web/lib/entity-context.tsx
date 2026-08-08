@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useSession } from "next-auth/react";
+
 import { trpc } from "@/lib/trpc/client";
 
 type EntityContextValue = {
@@ -19,6 +20,50 @@ type EntityContextValue = {
   isLoaded: boolean;
   entityRole: string | null;
 };
+
+type AccessibleEntity = { id: string; role?: string };
+
+/**
+ * Resolves the initial entity for a user — pure, unit-testable.
+ *
+ * Order of preference (all validated against the user's CURRENTLY
+ * accessible entities so a stale localStorage id can never lock the
+ * dashboard out of its data):
+ *
+ *   1. localStorage `currentEntityId` — but ONLY if it is still in the
+ *      accessible list. A stale id (deleted entity, revoked access, or
+ *      an id from a different account/DB) is rejected here.
+ *   2. Server `lastUsedEntityId` from the session — again validated.
+ *   3. First accessible entity.
+ *   4. null (no accessible entities).
+ *
+ * Returns the resolved id + role, or null when nothing is usable.
+ */
+export function resolveInitialEntityId(
+  storedId: string | null,
+  storedRole: string | null,
+  serverEntityId: string | null,
+  accessible: AccessibleEntity[],
+): { id: string; role: string | null } | null {
+  if (!Array.isArray(accessible)) accessible = [];
+  const byId = new Map(accessible.map((e) => [e.id, e]));
+
+  if (storedId && byId.has(storedId)) {
+    const match = byId.get(storedId)!;
+    return { id: storedId, role: storedRole ?? match.role ?? null };
+  }
+
+  if (serverEntityId && byId.has(serverEntityId)) {
+    const match = byId.get(serverEntityId)!;
+    return { id: serverEntityId, role: match.role ?? null };
+  }
+
+  if (accessible.length > 0) {
+    return { id: accessible[0].id, role: accessible[0].role ?? null };
+  }
+
+  return null;
+}
 
 const EntityContext = createContext<EntityContextValue>({
   entityId: null,
@@ -42,10 +87,23 @@ export function EntityProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const { data: session, status } = useSession();
   const hasInitialized = useRef(false);
-  const utils = trpc.useUtils();
 
   const setLastUsedEntityMutation =
     trpc.organization.setLastUsedEntity.useMutation();
+
+  // The user's CURRENTLY accessible entities — used to validate the
+  // stored entity id so a stale localStorage id can never 403 every
+  // entity-scoped query on the dashboard (see resolveInitialEntityId).
+  // `listUserEntities` is an authProcedure, so it works BEFORE any entity
+  // is selected (no chicken-and-egg).
+  const listEntitiesQuery = trpc.organization.listUserEntities.useQuery(
+    undefined,
+    {
+      enabled: status === "authenticated",
+      staleTime: 60_000,
+      retry: 1,
+    },
+  );
 
   useEffect(() => {
     // Wait for the session to actually load before initializing. Initializing
@@ -53,29 +111,73 @@ export function EntityProvider({ children }: { children: ReactNode }) {
     // skip the server-side lastUsedEntityId fallback (hasInitialized guard).
     if (hasInitialized.current) return;
     if (status === "loading" || session === undefined) return;
+
+    // If the user is authenticated but their entity list hasn't resolved
+    // yet (first paint / slow network), wait for it so we never pick a
+    // stale id. The query is enabled only when authenticated, so this
+    // settles quickly. Unauthenticated users fall straight through.
+    if (status === "authenticated" && listEntitiesQuery.isLoading) return;
     hasInitialized.current = true;
 
     const stored = localStorage.getItem("currentEntityId");
     const storedRole = localStorage.getItem("currentEntityRole");
+    const serverEntityId = (session as unknown as Record<string, unknown>)
+      ?.lastUsedEntityId as string | null;
 
-    if (stored) {
-      setEntityIdState(stored);
-      if (storedRole) setEntityRole(storedRole);
-      setIsLoaded(true);
+    // If the accessibility query itself failed (offline / server error),
+    // fall back to the server-side lastUsedEntityId — it was validated at
+    // sign-in by ensureLastUsedEntity — rather than locking the user out.
+    let resolved: ReturnType<typeof resolveInitialEntityId>;
+    if (listEntitiesQuery.isError) {
+      resolved = serverEntityId
+        ? { id: serverEntityId, role: storedRole }
+        : stored
+          ? { id: stored, role: storedRole }
+          : null;
     } else {
-      // Fallback to server-side lastUsedEntityId from session
-      const serverEntityId = (session as unknown as Record<string, unknown>)
-        ?.lastUsedEntityId as string | null;
-      if (serverEntityId) {
-        localStorage.setItem("currentEntityId", serverEntityId);
-        setEntityIdState(serverEntityId);
-      }
-      setIsLoaded(true);
+      resolved = resolveInitialEntityId(
+        stored,
+        storedRole,
+        serverEntityId,
+        listEntitiesQuery.data ?? [],
+      );
     }
-  }, [session, status]);
+
+    if (resolved) {
+      localStorage.setItem("currentEntityId", resolved.id);
+      if (resolved.role) {
+        localStorage.setItem("currentEntityRole", resolved.role);
+        setEntityRole(resolved.role);
+      }
+      setEntityIdState(resolved.id);
+    } else {
+      // No accessible entity — clear any stale selection so downstream
+      // entity-scoped queries fail cleanly instead of 403ing on a ghost id.
+      localStorage.removeItem("currentEntityId");
+      localStorage.removeItem("currentEntityRole");
+      setEntityIdState(null);
+      setEntityRole(null);
+    }
+    setIsLoaded(true);
+  }, [
+    session,
+    status,
+    listEntitiesQuery.data,
+    listEntitiesQuery.isLoading,
+    listEntitiesQuery.isError,
+  ]);
 
   const setEntityId = useCallback(
     (id: string, role?: string) => {
+      if (!id) {
+        // Empty id = "no entity selected". Mirror clearEntityId semantics
+        // without touching localStorage keys other callers may rely on.
+        localStorage.removeItem("currentEntityId");
+        localStorage.removeItem("currentEntityRole");
+        setEntityIdState(null);
+        setEntityRole(null);
+        return;
+      }
       localStorage.setItem("currentEntityId", id);
       if (role) {
         localStorage.setItem("currentEntityRole", role);

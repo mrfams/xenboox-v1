@@ -1,12 +1,4 @@
 import { z } from "zod";
-import {
-  handleMutationError,
-  router,
-  protectedProcedure,
-  authProcedure,
-  mutateProcedure,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import {
   organizations,
@@ -15,13 +7,21 @@ import {
 } from "@xenboox/db/schema/organization";
 import { users } from "@xenboox/db/schema/auth";
 import { orgRoles } from "@xenboox/db/schema/org-roles";
-import { pendingInvites } from "@xenboox/db/schema/invitations";
 import { bankAccounts } from "@xenboox/db/schema/treasury";
 import { invoicesAp, salesInvoices } from "@xenboox/db/schema/ap-ar";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { TRPCError } from "@trpc/server";
 import { runOnboardingPipeline } from "@xenboox/agents";
 import { auditLog } from "@xenboox/db/schema/documents";
+
+import { db } from "@/lib/db";
+import {
+  handleMutationError,
+  router,
+  protectedProcedure,
+  authProcedure,
+  mutateProcedure,
+} from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
 
 export const organizationRouter = router({
@@ -159,15 +159,37 @@ export const organizationRouter = router({
 
   list: authProcedure.query(async ({ ctx }) => {
     const userId = ctx.session!.user!.id!;
-    // Get orgs where user has an org_roles entry (owner/admin)
+    // Orgs where user has an org_roles entry (owner/admin)
     const userRoles = await db.query.orgRoles.findMany({
       where: eq(orgRoles.userId, userId),
       columns: { orgId: true },
     });
-    if (userRoles.length === 0) return [];
-    const orgIds = userRoles.map((r) => r.orgId);
+    const orgIds = new Set(userRoles.map((r) => r.orgId));
+
+    // Also include orgs the user can reach through entity-level access
+    // (user_entity_access → entities.organizationId). An entity owner who
+    // was never granted an org-level role must still see their org so the
+    // entity switcher can create additional entities under it.
+    const access = await db.query.userEntityAccess.findMany({
+      where: eq(userEntityAccess.userId, userId),
+      columns: { entityId: true },
+    });
+    if (access.length > 0) {
+      const accessEntities = await db.query.entities.findMany({
+        where: inArray(
+          entities.id,
+          access.map((a) => a.entityId),
+        ),
+        columns: { organizationId: true },
+      });
+      for (const e of accessEntities) {
+        if (e.organizationId) orgIds.add(e.organizationId);
+      }
+    }
+
+    if (orgIds.size === 0) return [];
     return db.query.organizations.findMany({
-      where: inArray(organizations.id, orgIds),
+      where: inArray(organizations.id, [...orgIds]),
     });
   }),
 
@@ -382,11 +404,42 @@ export const organizationRouter = router({
             eq(orgRoles.orgId, input.organizationId),
           ),
         });
-        if (!role) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Only org owners and admins can create entities",
+        if (role) {
+          if (!["owner", "admin"].includes(role.role)) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Only org owners and admins can create entities",
+            });
+          }
+        } else {
+          // Fallback: allow if the user is an entity-level owner/admin of
+          // any entity that already belongs to this org. This covers
+          // entity owners who were never granted an org-level role.
+          const orgEntities = await db.query.entities.findMany({
+            where: eq(entities.organizationId, input.organizationId),
+            columns: { id: true },
           });
+          // Guard the empty-array case explicitly — inArray over an empty
+          // list is version-dependent in Drizzle, and an org with no
+          // entities can never grant entity-level permission anyway.
+          const entityLevel =
+            orgEntities.length === 0
+              ? null
+              : await db.query.userEntityAccess.findFirst({
+                  where: and(
+                    eq(userEntityAccess.userId, userId),
+                    inArray(
+                      userEntityAccess.entityId,
+                      orgEntities.map((e) => e.id),
+                    ),
+                  ),
+                });
+          if (!entityLevel || !["owner", "admin"].includes(entityLevel.role)) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Only org owners and admins can create entities",
+            });
+          }
         }
 
         const [entity] = await db

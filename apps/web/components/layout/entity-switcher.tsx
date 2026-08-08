@@ -10,7 +10,6 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
@@ -26,7 +25,6 @@ type Entity = {
 
 export function EntitySwitcher() {
   const { entityId, setEntityId, isLoaded } = useEntity();
-  const { data: session } = useSession();
   const [entities, setEntities] = useState<Entity[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [currentEntity, setCurrentEntity] = useState<Entity | null>(null);
@@ -88,8 +86,13 @@ export function EntitySwitcher() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      // Get existing orgs from tRPC query
-      const orgs = listOrgsQuery.data;
+      // Ensure the org list has resolved before deciding whether we need to
+      // create a new organization (the query is only enabled once the dialog
+      // is open, so it can still be loading on the very first submit).
+      let orgs = listOrgsQuery.data;
+      if (orgs === undefined && listOrgsQuery.isLoading) {
+        orgs = await listOrgsQuery.refetch().then((r) => r.data);
+      }
       let orgId: string;
 
       if (Array.isArray(orgs) && orgs.length > 0) {
@@ -148,7 +151,7 @@ export function EntitySwitcher() {
     utils,
     createOrgMutation,
     createEntityMutation,
-    listOrgsQuery.data,
+    listOrgsQuery,
   ]);
 
   // Handle delete entity

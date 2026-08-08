@@ -63,6 +63,30 @@
 
 ## Session Log
 
+### 2026-08-08 — Session 6: Entity stale-ID recovery fix ("entities not showing / creation broken")
+
+**Symptom reported by user:** entities not showing in the switcher and entity creation failing.
+
+**Diagnosis (reproduced with Playwright + direct tRPC calls, not guesses):**
+
+1. The tRPC backend was healthy — `listUserEntities`, `list`, `create`, `createEntity` all returned 200 when called directly against both local and production builds. Fresh-browser sessions worked too.
+2. **Root cause:** `EntityProvider` blindly trusted `localStorage.currentEntityId`. When that stored id is stale (deleted entity / revoked access / id from another account or DB), every entity-scoped query sent `x-entity-id: <ghost>` → `entityScopingMiddleware` → **403 FORBIDDEN on the entire dashboard** (ar.listInvoices, notifications, dashboard.getDashboardData, …) → switcher showed "Select entity" and creation appeared broken. Reproduced with a Playwright test injecting a ghost id: full 403 storm, zero data.
+3. Secondary defect: an entity-level owner/admin (orgRole-less) saw `organization.list` → `[]` (it only looked at `org_roles`), so the switcher created a brand-new org on every entity create — polluting orgs.
+
+**Fixes (all tested):**
+
+| #   | Item                                                                                                                                                                                                                                                                                                                                                                                                                            | Tests                                          | Status  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------- |
+| 1   | `resolveInitialEntityId` (pure, unit-tested) — validates localStorage id against the user's CURRENTLY accessible entities; falls back to validated server `lastUsedEntityId`, then first accessible entity, then null. EntityProvider fetches `listUserEntities` (authProcedure — no chicken-and-egg) and only selects an id the user can actually access. Ghost ids are rejected and cleared instead of 403-ing the dashboard. | ✅ 8 new unit tests (`entity-context.test.ts`) | ✅ 100% |
+| 2   | `organization.list` now also returns orgs reachable via `user_entity_access` → the switcher reuses the user's real org instead of creating duplicate orgs.                                                                                                                                                                                                                                                                      | ✅ E2E                                         | ✅ 100% |
+| 3   | `createEntity` fallback — entity-level owner/admin of any entity in the org may create another entity under the same org (empty-org guarded; no escalation; no IDOR — gated on the user's own access rows).                                                                                                                                                                                                                     | ✅ E2E create flow                             | ✅ 100% |
+| 4   | Switcher race fix — awaits `listOrgsQuery.refetch()` when the org list is still loading before deciding to create a new org.                                                                                                                                                                                                                                                                                                    | ✅ existing switcher unit tests                | ✅ 100% |
+| 5   | E2E regression suite `e2e/entity-recovery-stress.spec.ts` — (a) stale id heals to a real entity with **0 tRPC 4xx**, (b) create-entity flow works even with a stale localStorage id. Seed-data-independent assertions.                                                                                                                                                                                                          | ✅ 2 E2E tests                                 | ✅ 100% |
+
+**Verification (all green):** typecheck ✅ · eslint ✅ 0 errors · unit **317 passed / 1 skipped** (was 308, +9) · anon-chromium **61 passed / 1 skipped** · chromium **164 passed / 1 skipped** · production build ✅.
+
+---
+
 ### 2026-08-07 — Session 1: Autoplan review + gap verification + Phase 6 + webhooks + rate limits
 
 **Verified as already complete** (with evidence): Masterplan Phases 1–5, 7; RAG/vector infra; model router; tool system; SSO; API keys + REST v1; reporting agent.
