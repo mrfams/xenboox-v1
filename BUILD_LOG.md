@@ -6,6 +6,33 @@
 
 ---
 
+### [2026-08-08] — Entity switcher: direct Create entity button for no-entity users
+
+**Agent:** opencode
+**Files Modified:** 3
+
+**Request:** Run a local build, commit on success, push to GitHub.
+
+**What was built:**
+
+- `apps/web/components/layout/entity-switcher.tsx` — empty-state branch: when the user has zero entities (`entities.length === 0 && !loading`), the header renders a single direct "Create entity" button (`data-testid="create-entity-empty-state"`) that opens the create dialog immediately — no "Select entity" dropdown hop. The create dialog submit button now carries `data-testid="create-entity-dialog-submit"`.
+- `apps/web/__tests__/entity-switcher.test.tsx` — updated + expanded: added no-entity direct-button test and entities-present dropdown test; updated existing create/duplicate-slug tests to walk the direct path via testids.
+- `apps/web/e2e/entity-recovery-stress.spec.ts` — added a no-entity-user E2E: seeds a throwaway user with no org/entity/access rows via raw SQL (DATABASE_URL from `.env.local`), logs in through the UI, asserts the header shows "Create entity" and the dialog opens directly, then cleans up the user.
+
+**Verification:**
+
+- `pnpm typecheck --filter=@xenboox/web` — passed
+- `pnpm test --filter=@xenboox/web -- entity-switcher` — 4/4 passed
+- `pnpm build --filter=@xenboox/web` — passed (Next.js production build)
+- `pnpm lint --filter=@xenboox/web` — passed (warnings only, pre-existing)
+- Full `pnpm build` and full `pnpm typecheck`: blocked on pre-existing, unrelated failures — `@xenboox/mobile` (`eas` CLI not installed) and `@xenboox/db` seed files (`packages/db/seed/4month-expansion.ts`, `seed/get-admin-totp.ts` — no uncommitted changes in packages/db).
+
+**Commit/Push:** `378900c` — `feat(entities): direct Create entity button for no-entity users — no dropdown hop` — pushed to `origin/master`.
+
+**Next Steps:** Fix pre-existing `@xenboox/db` seed typecheck errors and add `eas` to mobile build path (or exclude mobile from default `pnpm build`).
+
+---
+
 ### [2026-08-06] — P5: Evaluations & Hardening
 
 **Agent:** Buffy (Autonomous Engineer)
