@@ -4,6 +4,7 @@ import {
   organizations,
   entities,
   userEntityAccess,
+  entityTypeEnum,
 } from "@xenboox/db/schema/organization";
 import { users } from "@xenboox/db/schema/auth";
 import { orgRoles } from "@xenboox/db/schema/org-roles";
@@ -273,6 +274,13 @@ export const organizationRouter = router({
       z.object({
         id: z.string().uuid(),
         name: z.string().min(1).max(200).optional(),
+        type: z
+          .enum(["business", "nonprofit", "government", "accounting_firm"])
+          .optional(),
+        website: z.string().max(200).optional(),
+        phone: z.string().max(30).optional(),
+        address: z.string().max(300).optional(),
+        industry: z.string().max(100).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -289,9 +297,28 @@ export const organizationRouter = router({
           message: "Only the organization owner can update it",
         });
       }
+
+      const current = await db.query.organizations.findFirst({
+        where: eq(organizations.id, input.id),
+      });
+      const currentSettings = (current?.settings ?? {}) as Record<
+        string,
+        unknown
+      >;
+
       const [updated] = await db
         .update(organizations)
-        .set({ name: input.name })
+        .set({
+          ...(input.name && { name: input.name }),
+          ...(input.type && { type: input.type }),
+          settings: {
+            ...currentSettings,
+            ...(input.website !== undefined && { website: input.website }),
+            ...(input.phone !== undefined && { phone: input.phone }),
+            ...(input.address !== undefined && { address: input.address }),
+            ...(input.industry !== undefined && { industry: input.industry }),
+          },
+        })
         .where(eq(organizations.id, input.id))
         .returning();
       return updated;
@@ -476,7 +503,14 @@ export const organizationRouter = router({
       z.object({
         id: z.string().uuid(),
         name: z.string().min(1).max(200).optional(),
+        type: z.enum(entityTypeEnum.enumValues).optional(),
         currency: z.string().length(3).optional(),
+        country: z.string().length(2).optional(),
+        taxId: z.string().max(50).optional(),
+        fiscalYearEnd: z
+          .string()
+          .regex(/^\d{1,2}$/)
+          .optional(),
         isActive: z.boolean().optional(),
       }),
     )
@@ -497,7 +531,11 @@ export const organizationRouter = router({
         .update(entities)
         .set({
           ...(input.name && { name: input.name }),
+          ...(input.type && { type: input.type }),
           ...(input.currency && { currency: input.currency }),
+          ...(input.country && { country: input.country }),
+          ...(input.taxId !== undefined && { taxId: input.taxId }),
+          ...(input.fiscalYearEnd && { fiscalYearEnd: input.fiscalYearEnd }),
           ...(input.isActive !== undefined && { isActive: input.isActive }),
         })
         .where(eq(entities.id, input.id))
@@ -848,6 +886,49 @@ export const organizationRouter = router({
         )
         .returning();
       return updated;
+    }),
+
+  // ─── TEAM MEMBERS (names/emails joined from users) ──────────────────────
+
+  /** Returns entity members with their real name + email (not raw UUIDs). */
+  listMembers: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const access = await db.query.userEntityAccess.findFirst({
+        where: and(
+          eq(userEntityAccess.userId, ctx.session!.user!.id!),
+          eq(userEntityAccess.entityId, input.entityId),
+        ),
+      });
+      if (!access) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+      }
+
+      const memberAccess = await db.query.userEntityAccess.findMany({
+        where: eq(userEntityAccess.entityId, input.entityId),
+      });
+      const userIds = memberAccess.map((a) => a.userId);
+
+      const memberUsers =
+        userIds.length > 0
+          ? await db.query.users.findMany({
+              where: inArray(users.id, userIds),
+              columns: { id: true, name: true, email: true, image: true },
+            })
+          : [];
+
+      const userMap = new Map(memberUsers.map((u) => [u.id, u]));
+
+      return memberAccess.map((a) => ({
+        id: a.id,
+        userId: a.userId,
+        name: userMap.get(a.userId)?.name ?? "Unknown user",
+        email: userMap.get(a.userId)?.email ?? null,
+        image: userMap.get(a.userId)?.image ?? null,
+        role: a.role,
+        grantedBy: a.grantedBy,
+        createdAt: a.createdAt,
+      }));
     }),
 
   // ─── Pipeline 6: Autonomous Onboarding ─────────────────────────────────

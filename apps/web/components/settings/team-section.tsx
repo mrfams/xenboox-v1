@@ -23,10 +23,23 @@ import {
   AlertDialogDescription,
   AlertDialogCancel,
   AlertDialogAction,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Badge,
 } from "@xenboox/ui";
-import { Users, Shield, Trash2, Loader2, UserX, Crown } from "lucide-react";
+import {
+  Users,
+  Shield,
+  Trash2,
+  Loader2,
+  UserX,
+  Crown,
+  Mail,
+} from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
 import { InviteMemberSection } from "@/components/settings/invite-member-section";
 
 const ROLES = [
@@ -77,17 +90,17 @@ const ROLES = [
 export function TeamSection() {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [updatingRoleFor, setUpdatingRoleFor] = useState<string | null>(null);
-  const [_showInviteSection, _setShowInviteSection] = useState(false);
 
   const { data: user } = trpc.organization.getCurrentUser.useQuery();
   const { data: entities } = trpc.organization.listEntities.useQuery({});
-  const entityId = entities?.[0]?.id;
+  const { entityId: currentEntityId } = useEntity();
+  const entityId = currentEntityId ?? entities?.[0]?.id;
 
   const {
-    data: accessList,
+    data: members,
     isLoading,
     refetch,
-  } = trpc.organization.listAccess.useQuery(
+  } = trpc.organization.listMembers.useQuery(
     { entityId: entityId ?? "" },
     { enabled: !!entityId },
   );
@@ -137,49 +150,64 @@ export function TeamSection() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {accessList && accessList.length > 0 ? (
-            accessList.map((access) => {
-              const isCurrentUser = access.userId === user?.id;
-              const isOwner = access.role === "owner";
+          {members && members.length > 0 ? (
+            members.map((member) => {
+              const isCurrentUser = member.userId === user?.id;
+              const isOwner = member.role === "owner";
+              const initials =
+                (member.name ?? "?")
+                  .split(" ")
+                  .map((s) => s[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase() || "?";
 
               return (
                 <div
-                  key={access.id}
+                  key={member.id}
                   className="flex items-center justify-between rounded-lg border p-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                      {access.userId?.[0]?.toUpperCase() ?? "?"}
-                    </div>
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage
+                        src={member.image ?? undefined}
+                        alt={member.name}
+                      />
+                      <AvatarFallback className="bg-muted text-sm font-medium">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium truncate">
-                          User {access.userId.slice(0, 8)}...
+                          {member.name}
                         </span>
                         {isCurrentUser && (
-                          <span className="text-xs text-muted-foreground">
-                            (You)
-                          </span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            You
+                          </Badge>
                         )}
                         {isOwner && (
                           <Crown className="h-3.5 w-3.5 text-amber-500" />
                         )}
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        ID: {access.userId.slice(0, 8)}...
-                      </span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        {member.email ?? "No email"}
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {updatingRoleFor === access.id ? (
+                    {updatingRoleFor === member.id ? (
                       <div className="flex items-center gap-1">
                         <Select
-                          value={access.role}
+                          value={member.role}
                           onValueChange={(v) =>
                             updateRole.mutate({
                               entityId: entityId!,
-                              userId: access.userId,
+                              userId: member.userId,
                               role: v as (typeof ROLES)[number]["value"],
                             })
                           }
@@ -207,12 +235,12 @@ export function TeamSection() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setUpdatingRoleFor(access.id)}
+                        onClick={() => setUpdatingRoleFor(member.id)}
                         disabled={isOwner && !isCurrentUser}
                       >
                         <Shield className="h-4 w-4 mr-1" />
                         <span className="capitalize">
-                          {access.role.replace("_", " ")}
+                          {member.role.replaceAll("_", " ")}
                         </span>
                       </Button>
                     )}
@@ -232,24 +260,24 @@ export function TeamSection() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Revoke Access</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will remove this user&apos;s access to this
-                              entity. They will no longer be able to view or
-                              edit any data.
+                              This will remove {member.name}&apos;s access to
+                              this entity. They will no longer be able to view
+                              or edit any data.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => {
-                                setRevokingId(access.id);
+                                setRevokingId(member.id);
                                 revokeAccess.mutate({
                                   entityId: entityId!,
-                                  userId: access.userId,
+                                  userId: member.userId,
                                 });
                               }}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              {revokingId === access.id ? (
+                              {revokingId === member.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
                               ) : (
                                 <UserX className="h-4 w-4 mr-1" />

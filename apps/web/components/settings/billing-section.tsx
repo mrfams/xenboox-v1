@@ -108,26 +108,37 @@ const PLAN_DETAILS = {
 } as const;
 
 export function BillingSection() {
+  const { data: billing, isLoading } = trpc.settings.getBillingInfo.useQuery();
   const { data: orgs } = trpc.organization.list.useQuery();
   const { data: entitySummary } = trpc.organization.getEntitySummary.useQuery();
   const { data: entities } = trpc.organization.listEntities.useQuery({});
-  const { data: accessList } = trpc.organization.listAccess.useQuery(
+  const { data: members } = trpc.organization.listMembers.useQuery(
     { entityId: entities?.[0]?.id ?? "" },
     { enabled: !!entities?.[0]?.id },
   );
 
   const org = orgs?.[0];
-  const plan = org?.plan ?? "free";
+  const plan = billing?.plan ?? org?.plan ?? "free";
   const planInfo = PLAN_DETAILS[plan] ?? PLAN_DETAILS.free;
 
   const usage = {
-    users: accessList?.length ?? 0,
-    entities: entities?.length ?? 0,
+    users: members?.length ?? 0,
+    entities: billing?.entityCount ?? entities?.length ?? 0,
     cashBalance: entitySummary?.cashBalance ?? 0,
     apOutstanding: entitySummary?.apOutstanding ?? 0,
     arOutstanding: entitySummary?.arOutstanding ?? 0,
     currentPeriod: entitySummary?.currentPeriod ?? "No period",
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="h-32 rounded-lg bg-muted animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

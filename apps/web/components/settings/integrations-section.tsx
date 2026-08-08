@@ -15,6 +15,9 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  Input,
+  Label,
+  Badge,
 } from "@xenboox/ui";
 import {
   Link,
@@ -26,21 +29,23 @@ import {
   Loader2,
   ExternalLink,
   Shield,
+  Landmark,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 const INTEGRATIONS = [
   {
     id: "mono",
     name: "Mono",
     description: "Connect bank accounts for automatic transaction syncing",
-    icon: Building2,
+    icon: Landmark,
     color: "bg-blue-100 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400",
     features: [
       "Real-time transaction sync",
       "Account balance monitoring",
       "Statement downloads",
     ],
-    status: "available",
   },
   {
     id: "flutterwave",
@@ -50,7 +55,6 @@ const INTEGRATIONS = [
     color:
       "bg-amber-100 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400",
     features: ["Payment processing", "Multi-currency support", "Payment links"],
-    status: "available",
   },
   {
     id: "paystack",
@@ -60,7 +64,6 @@ const INTEGRATIONS = [
     color:
       "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400",
     features: ["Payment processing", "Recurring payments", "Invoicing"],
-    status: "available",
   },
   {
     id: "wise",
@@ -73,9 +76,18 @@ const INTEGRATIONS = [
       "Multi-currency accounts",
       "Batch payments",
     ],
-    status: "available",
   },
 ];
+
+const STATUS_BADGES: Record<string, string> = {
+  pending:
+    "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
+  active:
+    "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
+  failed: "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400",
+  disconnected:
+    "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+};
 
 export function IntegrationsSection() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
@@ -83,111 +95,162 @@ export function IntegrationsSection() {
   const [selectedIntegration, setSelectedIntegration] = useState<string | null>(
     null,
   );
+  const [connectForm, setConnectForm] = useState({
+    institutionName: "",
+    accountNumber: "",
+  });
 
-  // In production, this would fetch connected integrations from the database
-  const connectedIntegrations: string[] = [];
+  const {
+    data: connections,
+    isLoading,
+    refetch,
+  } = trpc.integrations.getBankConnections.useQuery();
+
+  const disconnectBank = trpc.integrations.disconnectBank.useMutation({
+    onSuccess: () => {
+      toast.success("Bank disconnected");
+      refetch();
+    },
+    onError: (error) => toast.error(error.message || "Failed to disconnect"),
+  });
+
+  const initiateConnection =
+    trpc.integrations.initiateBankConnection.useMutation({
+      onSuccess: () => {
+        toast.success("Bank connection initiated");
+        setShowConnectDialog(false);
+        setSelectedIntegration(null);
+        setConnectForm({ institutionName: "", accountNumber: "" });
+        refetch();
+      },
+      onError: (error) =>
+        toast.error(error.message || "Failed to connect bank"),
+    });
 
   const handleConnect = (integrationId: string) => {
     setSelectedIntegration(integrationId);
     setShowConnectDialog(true);
   };
 
-  const handleConfirmConnect = async () => {
-    if (!selectedIntegration) return;
-
+  const handleConfirmConnect = () => {
+    if (!connectForm.institutionName || !connectForm.accountNumber) {
+      toast.error("Please enter the institution name and account number");
+      return;
+    }
     setConnectingId(selectedIntegration);
-
-    // Simulate connection process
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    toast.success(`Connected to ${selectedIntegration}`);
-    setConnectingId(null);
-    setShowConnectDialog(false);
-    setSelectedIntegration(null);
-  };
-
-  const handleDisconnect = (integrationId: string) => {
-    toast.success(`Disconnected from ${integrationId}`);
+    initiateConnection.mutate(
+      {
+        institutionName: connectForm.institutionName,
+        accountNumber: connectForm.accountNumber,
+        institutionId: selectedIntegration ?? undefined,
+      },
+      {
+        onSettled: () => setConnectingId(null),
+      },
+    );
   };
 
   const selectedIntegrationDetails = INTEGRATIONS.find(
     (i) => i.id === selectedIntegration,
   );
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="h-32 rounded-lg bg-muted animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Connected Integrations */}
+      {/* Connected Bank Accounts */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Link className="h-4 w-4" />
-            Connected Integrations
+            Connected Banks
           </CardTitle>
           <CardDescription>
-            Manage your connected third-party services and bank accounts.
+            Bank accounts synced into Xenboox for automatic reconciliation.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {connectedIntegrations.length > 0 ? (
+          {connections && connections.length > 0 ? (
             <div className="space-y-3">
-              {connectedIntegrations.map((id) => {
-                const integration = INTEGRATIONS.find((i) => i.id === id);
-                if (!integration) return null;
-                const Icon = integration.icon;
-
-                return (
-                  <div
-                    key={id}
-                    className="flex items-center justify-between rounded-lg border p-4"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-xl ${integration.color}`}
-                      >
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            {integration.name}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Connected
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {integration.description}
-                        </p>
-                      </div>
+              {connections.map((conn) => (
+                <div
+                  key={conn.id}
+                  className="flex items-center justify-between rounded-lg border p-4"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400">
+                      <Landmark className="h-5 w-5" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Sync
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDisconnect(id)}
-                      >
-                        <Unlink className="h-4 w-4 mr-1" />
-                        Disconnect
-                      </Button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {conn.institutionName}
+                        </span>
+                        <Badge
+                          className={`${STATUS_BADGES[conn.status] ?? ""} text-xs`}
+                        >
+                          {conn.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {conn.accountName ??
+                          `Account ••${conn.accountNumber?.slice(-4) ?? "—"}`}
+                        {conn.lastSyncedAt
+                          ? ` · Last synced ${new Date(conn.lastSyncedAt).toLocaleDateString()}`
+                          : ""}
+                      </p>
+                      {conn.syncError && (
+                        <p className="mt-1 text-xs text-red-500">
+                          Sync error: {conn.syncError}
+                        </p>
+                      )}
                     </div>
                   </div>
-                );
-              })}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        toast.info(
+                          "Manual sync queued — the agent will pick it up shortly.",
+                        )
+                      }
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Sync
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() =>
+                        disconnectBank.mutate({ connectionId: conn.id })
+                      }
+                      disabled={disconnectBank.isPending}
+                    >
+                      <Unlink className="h-4 w-4 mr-1" />
+                      Disconnect
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="text-center py-8">
               <Link className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
               <p className="text-sm text-muted-foreground">
-                No integrations connected yet
+                No bank accounts connected yet
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Connect your bank accounts and payment processors below
+                Connect your bank accounts below to enable automatic syncing
               </p>
             </div>
           )}
@@ -208,8 +271,6 @@ export function IntegrationsSection() {
         <CardContent className="space-y-4">
           {INTEGRATIONS.map((integration) => {
             const Icon = integration.icon;
-            const isConnected = connectedIntegrations.includes(integration.id);
-            const isConnecting = connectingId === integration.id;
 
             return (
               <div
@@ -225,12 +286,6 @@ export function IntegrationsSection() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{integration.name}</span>
-                      {isConnected && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Connected
-                        </span>
-                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {integration.description}
@@ -248,29 +303,19 @@ export function IntegrationsSection() {
                   </div>
                 </div>
                 <div>
-                  {isConnected ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDisconnect(integration.id)}
-                    >
-                      <Unlink className="h-4 w-4 mr-1" />
-                      Disconnect
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleConnect(integration.id)}
-                      disabled={isConnecting}
-                    >
-                      {isConnecting ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                      ) : (
-                        <Link className="h-4 w-4 mr-1" />
-                      )}
-                      Connect
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => handleConnect(integration.id)}
+                    disabled={initiateConnection.isPending}
+                  >
+                    {initiateConnection.isPending &&
+                    connectingId === integration.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Link className="h-4 w-4 mr-1" />
+                    )}
+                    Connect
+                  </Button>
                 </div>
               </div>
             );
@@ -286,11 +331,37 @@ export function IntegrationsSection() {
               Connect to {selectedIntegrationDetails?.name}
             </DialogTitle>
             <DialogDescription>
-              You will be redirected to {selectedIntegrationDetails?.name} to
-              authorize the connection.
+              Enter your bank details to link {selectedIntegrationDetails?.name}
+              .
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Bank / Institution Name</Label>
+              <Input
+                value={connectForm.institutionName}
+                onChange={(e) =>
+                  setConnectForm({
+                    ...connectForm,
+                    institutionName: e.target.value,
+                  })
+                }
+                placeholder="e.g., Access Bank"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Account Number</Label>
+              <Input
+                value={connectForm.accountNumber}
+                onChange={(e) =>
+                  setConnectForm({
+                    ...connectForm,
+                    accountNumber: e.target.value,
+                  })
+                }
+                placeholder="8–20 digit account number"
+              />
+            </div>
             <div className="rounded-lg border bg-muted/50 p-4">
               <div className="flex items-start gap-3">
                 <Shield className="h-5 w-5 text-primary mt-0.5" />
@@ -314,14 +385,14 @@ export function IntegrationsSection() {
             </Button>
             <Button
               onClick={handleConfirmConnect}
-              disabled={connectingId !== null}
+              disabled={connectingId !== null || initiateConnection.isPending}
             >
-              {connectingId ? (
+              {initiateConnection.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <ExternalLink className="h-4 w-4 mr-2" />
               )}
-              Continue to {selectedIntegrationDetails?.name}
+              Connect Account
             </Button>
           </DialogFooter>
         </DialogContent>

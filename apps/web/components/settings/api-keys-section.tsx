@@ -54,12 +54,29 @@ const PROVIDERS = [
   { id: "custom", name: "Custom", description: "Custom API integration" },
 ];
 
+const SCOPES = [
+  { id: "read:transactions", label: "Read transactions" },
+  { id: "write:transactions", label: "Write transactions" },
+  { id: "read:invoices", label: "Read invoices" },
+  { id: "write:invoices", label: "Write invoices" },
+  { id: "read:reports", label: "Read reports" },
+  { id: "write:ledger", label: "Post to ledger" },
+];
+
+const EXPIRY_OPTIONS = [
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
+  { value: "365", label: "1 year" },
+  { value: "0", label: "Never expires" },
+];
+
 export function ApiKeysSection() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newKey, setNewKey] = useState({
     name: "",
     provider: "",
     scopes: [] as string[],
+    expiresInDays: "0",
   });
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [showCreatedKey, setShowCreatedKey] = useState(false);
@@ -75,7 +92,7 @@ export function ApiKeysSection() {
       setCreatedKey(data.key);
       setShowCreatedKey(true);
       setShowCreateDialog(false);
-      setNewKey({ name: "", provider: "", scopes: [] });
+      setNewKey({ name: "", provider: "", scopes: [], expiresInDays: "0" });
       refetch();
       toast.success("API key created successfully");
     },
@@ -108,6 +125,7 @@ export function ApiKeysSection() {
       name: newKey.name,
       provider: newKey.provider,
       scopes: newKey.scopes,
+      expiresInDays: parseInt(newKey.expiresInDays, 10) || undefined,
     });
   };
 
@@ -292,6 +310,55 @@ export function ApiKeysSection() {
                           {p.description}
                         </span>
                       </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Scopes</Label>
+              <div className="space-y-1.5">
+                {SCOPES.map((s) => {
+                  const isSelected = newKey.scopes.includes(s.id);
+                  return (
+                    <label
+                      key={s.id}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() =>
+                          setNewKey({
+                            ...newKey,
+                            scopes: isSelected
+                              ? newKey.scopes.filter((x) => x !== s.id)
+                              : [...newKey.scopes, s.id],
+                          })
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                      <span>{s.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Expiration</Label>
+              <Select
+                value={newKey.expiresInDays}
+                onValueChange={(v) =>
+                  setNewKey({ ...newKey, expiresInDays: v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPIRY_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -14,6 +14,7 @@ import {
   History,
   Lock,
   Link,
+  Fingerprint,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -30,6 +31,8 @@ import { ApiKeysSection } from "@/components/settings/api-keys-section";
 import { AuditLogSection } from "@/components/settings/audit-log-section";
 import { PrivacySection } from "@/components/settings/privacy-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
+import { WebhooksSection } from "@/components/settings/webhooks-section";
+import { SsoSection } from "@/components/settings/sso-section";
 
 interface TabGroup {
   label: string;
@@ -86,6 +89,18 @@ const TAB_GROUPS: TabGroup[] = [
         label: "API Keys",
         icon: Key,
         description: "Manage API keys for integrations",
+      },
+      {
+        id: "webhooks",
+        label: "Webhooks",
+        icon: Link,
+        description: "Real-time event notifications to your systems",
+      },
+      {
+        id: "sso",
+        label: "SSO",
+        icon: Fingerprint,
+        description: "Single sign-on with your identity provider",
       },
       {
         id: "audit-log",
@@ -152,6 +167,8 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   appearance: AppearanceSection,
   billing: BillingSection,
   "api-keys": ApiKeysSection,
+  webhooks: WebhooksSection,
+  sso: SsoSection,
   "audit-log": AuditLogSection,
   privacy: PrivacySection,
   integrations: IntegrationsSection,

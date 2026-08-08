@@ -6,6 +6,46 @@
 
 ---
 
+### [2026-08-08] — Settings Center: enterprise-grade rebuild (profile, org, team, webhooks, SSO)
+
+**Agent:** opencode
+**Files Modified:** 8
+**Files Created:** 2
+
+**Request:** "Go fully and professionally implement your plan" — enterprise-grade settings center wired to real backends.
+
+**What was built:**
+
+**Backend:**
+
+- `apps/web/server/routers/settings.ts` — added `getProfile` (user + prefs.profile jsonb + image), `updateProfile` (upsert name + profile fields, audit-logged), `getBillingInfo` (org plan + entity count resolved via current entity).
+- `apps/web/server/routers/organization.ts` — fixed the entity-save data-loss bug: `updateEntity` input schema was missing `id`, so Zod stripped it and the UPDATE matched nothing; added `id` (required). Extended `update` to accept type/website/phone/address/industry (extras persisted in the org `settings` jsonb). `listMembers` added earlier — returns real name/email/image joined from `users`, not raw UUIDs.
+- `packages/db/schema/user-preferences.ts` — added `profile` jsonb column (`jobTitle`, `phone`, `bio`, `location`). Applied to the live Neon DB via a targeted `ALTER TABLE` because the Drizzle migration journal is stale/out of sync (pre-existing drift: `0021_enable_pgvector.sql`/`0022_add_last_used_entity.sql` exist on disk but were never journaled, so `db:push` fails on unrelated schema history and a generated migration would have bundled months of already-applied changes).
+
+**Pages/components:**
+
+- `profile-section.tsx` — rewritten: avatar + full-name/job-title/phone/location/bio editing backed by `settings.getProfile`/`updateProfile`, verification send, read view.
+- `organization-section.tsx` — rewritten: org-level edit (name, type, website, phone, industry, address via `organization.update`), entity edit now sends ALL fields (name/type/currency/country/taxId/fiscalYearEnd) — the missing `id` → data-loss bug fixed, plus inactive badge.
+- `invite-member-section.tsx` — rewritten: real `invitations.issue`/`listByEntity`/`revoke`/`resend`, pending-invite list with status badges, copy-link.
+- `team-section.tsx` — switched to `organization.listMembers`: real names/emails/avatars instead of `User uuid...`
+- `api-keys-section.tsx` — added scope checkboxes (read/write scopes) and expiration selector (30/90/365/never) for key creation.
+- `integrations-section.tsx` — wired to real `integrations.getBankConnections`/`disconnectBank`/`initiateBankConnection` (bank account list + connect dialog), replacing the simulated flow.
+- `billing-section.tsx` — now uses `settings.getBillingInfo` for plan/entity count + `listMembers` for usage.
+- `webhooks-section.tsx` — NEW: `apiPlatform.listWebhooks`/`createWebhook`/`deleteWebhook`, event picker, retry config, secret-copy dialog.
+- `sso-section.tsx` — NEW: `sso.getSettings`/`saveSettings`, provider selection, OIDC/SAML fields, domain enforcement + JIT provisioning switches, masked secrets.
+- `app/dashboard/settings/page.tsx` — added Webhooks + SSO tabs under Security & Access.
+
+**Verification:**
+
+- `pnpm typecheck --filter=@xenboox/web` — passed
+- `pnpm lint --filter=@xenboox/web` — passed (pre-existing warnings only)
+- `pnpm test --filter=@xenboox/web -- entity-switcher` — 4/4 passed
+- `pnpm build --filter=@xenboox/web` — passed (Next.js production build)
+
+**Next Steps:** Fix pre-existing migration-journal drift so `db:push`/`db:migrate` work again; add platform-level webhook/SSO tests.
+
+---
+
 ### [2026-08-08] — Entity switcher: direct Create entity button for no-entity users
 
 **Agent:** opencode

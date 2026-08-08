@@ -56,5 +56,15 @@ export const userPreferences = pgTable("user_preferences", {
       loginNotifications: true,
     }),
 
+  // Extended profile fields (job title, phone, bio, location)
+  profile: jsonb("profile")
+    .$type<{
+      jobTitle?: string;
+      phone?: string;
+      bio?: string;
+      location?: string;
+    }>()
+    .default({}),
+
   ...timestamps,
 });

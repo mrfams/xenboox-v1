@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Card,
@@ -16,6 +16,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Separator,
 } from "@xenboox/ui";
 import {
   Building2,
@@ -27,6 +28,10 @@ import {
   DollarSign,
   Hash,
   Calendar,
+  Globe,
+  Phone,
+  Briefcase,
+  Shield,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -52,6 +57,13 @@ const COUNTRIES = [
   { code: "GB", name: "United Kingdom" },
 ];
 
+const ORG_TYPES = [
+  { value: "business", label: "Business" },
+  { value: "nonprofit", label: "Nonprofit" },
+  { value: "government", label: "Government" },
+  { value: "accounting_firm", label: "Accounting Firm" },
+];
+
 const FISCAL_MONTHS = [
   "January",
   "February",
@@ -69,10 +81,16 @@ const FISCAL_MONTHS = [
 
 export function OrganizationSection() {
   const [orgName, setOrgName] = useState("");
+  const [orgType, setOrgType] = useState("business");
+  const [orgWebsite, setOrgWebsite] = useState("");
+  const [orgPhone, setOrgPhone] = useState("");
+  const [orgAddress, setOrgAddress] = useState("");
+  const [orgIndustry, setOrgIndustry] = useState("");
   const [isEditingOrg, setIsEditingOrg] = useState(false);
   const [editingEntity, setEditingEntity] = useState<string | null>(null);
   const [entityForm, setEntityForm] = useState({
     name: "",
+    type: "company" as "company" | "subsidiary" | "branch" | "client",
     currency: "GMD",
     country: "GM",
     fiscalYearEnd: "12",
@@ -105,10 +123,40 @@ export function OrganizationSection() {
   });
 
   const org = orgs?.[0];
+  const orgSettings = (org?.settings ?? {}) as Record<string, unknown>;
+
+  useEffect(() => {
+    if (!org) return;
+    setOrgName(org.name ?? "");
+    setOrgType(org.type ?? "business");
+    setOrgWebsite(String(orgSettings.website ?? ""));
+    setOrgPhone(String(orgSettings.phone ?? ""));
+    setOrgAddress(String(orgSettings.address ?? ""));
+    setOrgIndustry(String(orgSettings.industry ?? ""));
+  }, [
+    org,
+    orgSettings.website,
+    orgSettings.phone,
+    orgSettings.address,
+    orgSettings.industry,
+    isEditingOrg,
+  ]);
 
   const handleSaveOrg = () => {
     if (!org || !orgName.trim()) return;
-    updateOrg.mutate({ id: org.id, name: orgName.trim() });
+    updateOrg.mutate({
+      id: org.id,
+      name: orgName.trim(),
+      type: orgType as
+        | "business"
+        | "nonprofit"
+        | "government"
+        | "accounting_firm",
+      website: orgWebsite.trim() || undefined,
+      phone: orgPhone.trim() || undefined,
+      address: orgAddress.trim() || undefined,
+      industry: orgIndustry.trim() || undefined,
+    });
   };
 
   const handleEditEntity = (
@@ -117,6 +165,7 @@ export function OrganizationSection() {
     setEditingEntity(entity.id);
     setEntityForm({
       name: entity.name,
+      type: entity.type,
       currency: entity.currency ?? "GMD",
       country: entity.country ?? "GM",
       fiscalYearEnd: entity.fiscalYearEnd ?? "12",
@@ -128,7 +177,11 @@ export function OrganizationSection() {
     updateEntity.mutate({
       id: entityId,
       name: entityForm.name,
+      type: entityForm.type,
       currency: entityForm.currency,
+      country: entityForm.country,
+      taxId: entityForm.taxId || undefined,
+      fiscalYearEnd: entityForm.fiscalYearEnd,
     });
   };
 
@@ -152,20 +205,91 @@ export function OrganizationSection() {
             Organization
           </CardTitle>
           <CardDescription>
-            Manage your organization name and branding.
+            Company details, branding, and industry information.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Organization Name</Label>
-            {isEditingOrg ? (
-              <div className="flex gap-2">
-                <Input
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  className="flex-1"
-                  autoFocus
-                />
+          {isEditingOrg ? (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Organization Name</Label>
+                  <Input
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Organization Type</Label>
+                  <Select value={orgType} onValueChange={setOrgType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORG_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Globe className="h-3 w-3" />
+                    Website
+                  </Label>
+                  <Input
+                    value={orgWebsite}
+                    onChange={(e) => setOrgWebsite(e.target.value)}
+                    placeholder="https://example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Phone className="h-3 w-3" />
+                    Phone
+                  </Label>
+                  <Input
+                    value={orgPhone}
+                    onChange={(e) => setOrgPhone(e.target.value)}
+                    placeholder="+220 ..."
+                    type="tel"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Briefcase className="h-3 w-3" />
+                    Industry
+                  </Label>
+                  <Input
+                    value={orgIndustry}
+                    onChange={(e) => setOrgIndustry(e.target.value)}
+                    placeholder="e.g., Agriculture"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <MapPin className="h-3 w-3" />
+                    Address
+                  </Label>
+                  <Input
+                    value={orgAddress}
+                    onChange={(e) => setOrgAddress(e.target.value)}
+                    placeholder="Street, City, Country"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingOrg(false)}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
                 <Button
                   onClick={handleSaveOrg}
                   disabled={updateOrg.isPending || !orgName.trim()}
@@ -176,41 +300,82 @@ export function OrganizationSection() {
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsEditingOrg(false)}
-                  size="sm"
-                >
-                  <X className="h-4 w-4" />
+                  Save Changes
                 </Button>
               </div>
-            ) : (
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <span className="text-sm">{org?.name ?? "Not set"}</span>
+            </>
+          ) : (
+            <>
+              <div className="flex items-start justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                      <Building2 className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">{org?.name ?? "Not set"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {ORG_TYPES.find((t) => t.value === org?.type)?.label ??
+                          org?.type}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary capitalize">
+                      {org?.plan ?? "free"} plan
+                    </span>
+                  </div>
+                </div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setOrgName(org?.name ?? "");
-                    setIsEditingOrg(true);
-                  }}
+                  onClick={() => setIsEditingOrg(true)}
                 >
                   <Pencil className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
               </div>
-            )}
-          </div>
 
-          <div className="space-y-2">
-            <Label>Plan</Label>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary capitalize">
-                {org?.plan ?? "free"}
-              </span>
-            </div>
-          </div>
+              {(orgWebsite || orgPhone || orgAddress || orgIndustry) && (
+                <>
+                  <Separator />
+                  <div className="grid gap-2 text-sm sm:grid-cols-2">
+                    {orgIndustry && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Briefcase className="h-4 w-4" />
+                        {orgIndustry}
+                      </div>
+                    )}
+                    {orgWebsite && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Globe className="h-4 w-4" />
+                        <a
+                          href={orgWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {orgWebsite.replace(/^https?:\/\//, "")}
+                        </a>
+                      </div>
+                    )}
+                    {orgPhone && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        {orgPhone}
+                      </div>
+                    )}
+                    {orgAddress && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        {orgAddress}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -244,6 +409,36 @@ export function OrganizationSection() {
                           }
                           className="h-8 text-sm"
                         />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Entity Type</Label>
+                        <Select
+                          value={entityForm.type}
+                          onValueChange={(v) =>
+                            setEntityForm({
+                              ...entityForm,
+                              type: v as (typeof entityForm)["type"],
+                            })
+                          }
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(
+                              [
+                                { value: "company", label: "Company" },
+                                { value: "subsidiary", label: "Subsidiary" },
+                                { value: "branch", label: "Branch" },
+                                { value: "client", label: "Client" },
+                              ] as const
+                            ).map((t) => (
+                              <SelectItem key={t.value} value={t.value}>
+                                {t.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Currency</Label>
@@ -299,6 +494,26 @@ export function OrganizationSection() {
                           className="h-8 text-sm"
                         />
                       </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Fiscal Year End</Label>
+                        <Select
+                          value={entityForm.fiscalYearEnd}
+                          onValueChange={(v) =>
+                            setEntityForm({ ...entityForm, fiscalYearEnd: v })
+                          }
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FISCAL_MONTHS.map((m, i) => (
+                              <SelectItem key={i + 1} value={String(i + 1)}>
+                                {m}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <div className="flex gap-2 justify-end">
                       <Button
@@ -329,7 +544,7 @@ export function OrganizationSection() {
                         <span className="text-sm font-medium">
                           {entity.name}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground capitalize">
                           {entity.type}
                         </span>
                       </div>
@@ -357,6 +572,12 @@ export function OrganizationSection() {
                             ]
                           }
                         </span>
+                        {!entity.isActive && (
+                          <span className="flex items-center gap-1 text-red-500">
+                            <Shield className="h-3 w-3" />
+                            Inactive
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Button

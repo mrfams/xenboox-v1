@@ -6,11 +6,153 @@ import { entitySettings } from "@xenboox/db/schema/entity-settings";
 import { users } from "@xenboox/db/schema/auth";
 import { userPreferences } from "@xenboox/db/schema/user-preferences";
 import { entityApiKeys } from "@xenboox/db/schema/api-keys";
+import { entities, organizations } from "@xenboox/db/schema/organization";
 import { auditLog } from "@xenboox/db/schema/documents";
 import { handleMutationError } from "@/lib/trpc/server";
 import { createHash, randomBytes } from "crypto";
 
 export const settingsRouter = router({
+  // ─── Profile ──────────────────────────────────────────────────────────────
+
+  /** Returns the signed-in user plus their extended profile fields. */
+  getProfile: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.session?.user) return null;
+    const userId = ctx.session.user.id!;
+
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: {
+        id: true,
+        name: true,
+        email: true,
+        emailVerified: true,
+        image: true,
+      },
+    });
+    const prefs = await db.query.userPreferences.findFirst({
+      where: eq(userPreferences.userId, userId),
+    });
+
+    return {
+      id: user?.id,
+      name: user?.name ?? "",
+      email: user?.email ?? "",
+      emailVerified: user?.emailVerified ?? null,
+      image: user?.image ?? null,
+      profile: prefs?.profile ?? {},
+    };
+  }),
+
+  /** Updates the user's name + extended profile fields (upsert). */
+  updateProfile: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(2, "Name must be at least 2 characters").max(100),
+        jobTitle: z.string().max(100).optional(),
+        phone: z.string().max(30).optional(),
+        bio: z.string().max(500).optional(),
+        location: z.string().max(100).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const userId = ctx.session!.user!.id!;
+
+        // Update the core name on the users table
+        await db
+          .update(users)
+          .set({ name: input.name })
+          .where(eq(users.id, userId));
+
+        const prefsToSave = {
+          jobTitle: input.jobTitle ?? undefined,
+          phone: input.phone ?? undefined,
+          bio: input.bio ?? undefined,
+          location: input.location ?? undefined,
+        };
+
+        const existing = await db.query.userPreferences.findFirst({
+          where: eq(userPreferences.userId, userId),
+        });
+
+        if (existing) {
+          await db
+            .update(userPreferences)
+            .set({
+              profile: {
+                ...existing.profile,
+                ...prefsToSave,
+              },
+              updatedAt: new Date(),
+            })
+            .where(eq(userPreferences.userId, userId));
+        } else {
+          await db.insert(userPreferences).values({
+            userId,
+            profile: {
+              jobTitle: input.jobTitle,
+              phone: input.phone,
+              bio: input.bio,
+              location: input.location,
+            },
+          });
+        }
+
+        if (ctx.entityId) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId,
+            userId,
+            action: "settings.updateProfile",
+            entityType: "user",
+            entityIdRef: userId,
+            newValues: {
+              name: input.name,
+              ...(input.jobTitle !== undefined && { jobTitle: input.jobTitle }),
+              ...(input.location !== undefined && { location: input.location }),
+            },
+          });
+        }
+
+        return { success: true, message: "Profile updated successfully" };
+      } catch (error) {
+        handleMutationError(error, "Failed to update profile");
+      }
+    }),
+
+  // ─── Billing Summary ──────────────────────────────────────────────────────
+
+  /** Returns org plan + usage so the Billing tab renders real data. */
+  getBillingInfo: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.entityId) return null;
+
+    // Resolve the organization from the currently selected entity
+    const entity = await db.query.entities.findFirst({
+      where: eq(entities.id, ctx.entityId),
+      columns: { id: true, organizationId: true },
+    });
+    if (!entity) return null;
+
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, entity.organizationId),
+    });
+    if (!org) return null;
+
+    const entityList = await db.query.entities.findMany({
+      where: eq(entities.organizationId, org.id),
+      columns: { id: true, name: true, currency: true },
+    });
+
+    return {
+      orgId: org.id,
+      plan: org.plan,
+      name: org.name,
+      slug: org.slug,
+      entityCount: entityList.length,
+      entities: entityList,
+      updatedAt: org.updatedAt,
+    };
+  }),
+
   // ─── Entity Settings ──────────────────────────────────────────────────────
 
   getEntitySettings: protectedProcedure.query(async ({ ctx }) => {
