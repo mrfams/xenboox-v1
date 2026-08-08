@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronRight,
@@ -179,6 +180,7 @@ function CloseChecklist({
   checklist,
 }: {
   checklist: {
+    period: string;
     phases: Array<{
       id: string;
       name: string;
@@ -202,6 +204,59 @@ function CloseChecklist({
 }) {
   const [expandedPhases, setExpandedPhases] = useState<string[]>(["pre-close"]);
 
+  const utils = trpc.useUtils();
+  const updateStatus = trpc.closeCenter.updateTaskStatus.useMutation({
+    onSuccess: (res) => {
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    },
+    onError: () => toast.error("Failed to update task"),
+    onSettled: () => {
+      utils.closeCenter.getChecklist.invalidate({ period: checklist.period });
+      utils.closeCenter.getOverview.invalidate({ period: checklist.period });
+    },
+  });
+
+  const changeTaskStatus = (taskId: string, status: string) => {
+    // Optimistic update
+    utils.closeCenter.getChecklist.setData(
+      { period: checklist.period },
+      (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          completedTasks:
+            status === "completed"
+              ? old.completedTasks + 1
+              : Math.max(0, old.completedTasks - 1),
+          phases: old.phases.map((p) =>
+            p.tasks
+              ? {
+                  ...p,
+                  tasks: p.tasks.map((t) =>
+                    t.id === taskId ? { ...t, status } : t,
+                  ),
+                }
+              : p,
+          ),
+        };
+      },
+    );
+    updateStatus.mutate({
+      id: taskId,
+      status: status as
+        | "pending"
+        | "in_progress"
+        | "in_review"
+        | "completed"
+        | "blocked"
+        | "skipped",
+    });
+  };
+
   const togglePhase = (phaseId: string) => {
     setExpandedPhases((prev) =>
       prev.includes(phaseId)
@@ -220,6 +275,17 @@ function CloseChecklist({
       bg: "bg-emerald-100",
     },
     in_review: { icon: Clock, color: "text-amber-600", bg: "bg-amber-100" },
+    in_progress: {
+      icon: RefreshCw,
+      color: "text-blue-600",
+      bg: "bg-blue-100",
+    },
+    blocked: {
+      icon: AlertTriangle,
+      color: "text-red-600",
+      bg: "bg-red-100",
+    },
+    skipped: { icon: Clock, color: "text-slate-400", bg: "bg-slate-100" },
     pending: { icon: RefreshCw, color: "text-slate-400", bg: "bg-slate-100" },
   };
 
@@ -329,7 +395,13 @@ function CloseChecklist({
                             ? "Completed"
                             : task.status === "in_review"
                               ? "In Review"
-                              : "Pending"}
+                              : task.status === "in_progress"
+                                ? "In Progress"
+                                : task.status === "blocked"
+                                  ? "Blocked"
+                                  : task.status === "skipped"
+                                    ? "Skipped"
+                                    : "Pending"}
                         </span>
                       </div>
                       <div className="col-span-1 text-sm text-slate-600">
@@ -339,9 +411,22 @@ function CloseChecklist({
                         {task.dueDate}
                       </div>
                       <div className="col-span-2 flex items-center justify-end gap-2">
-                        <button className="p-1 hover:bg-slate-100 rounded">
-                          <span className="text-slate-400">···</span>
-                        </button>
+                        <select
+                          value={task.status}
+                          onChange={(e) =>
+                            changeTaskStatus(task.id, e.target.value)
+                          }
+                          disabled={updateStatus.isPending}
+                          title="Update task status"
+                          className="text-xs border border-slate-200 rounded px-1.5 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="in_review">In Review</option>
+                          <option value="completed">Completed</option>
+                          <option value="blocked">Blocked</option>
+                          <option value="skipped">Skipped</option>
+                        </select>
                       </div>
                     </div>
                   );
@@ -868,6 +953,9 @@ function AiCopilotPanel({
 export default function CloseCenterPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
 
+  // Real periods from the entity's fiscal calendar
+  const { data: periods } = trpc.closeCenter.listPeriods.useQuery();
+
   // Fetch overview
   const { data: overview } = trpc.closeCenter.getOverview.useQuery({
     period: selectedPeriod || undefined,
@@ -880,7 +968,9 @@ export default function CloseCenterPage() {
 
   // Fetch AI recommendations
   const { data: recommendations } =
-    trpc.closeCenter.getAiRecommendations.useQuery();
+    trpc.closeCenter.getAiRecommendations.useQuery({
+      period: selectedPeriod || undefined,
+    });
 
   // Fetch time saved
   const { data: timeSaved } = trpc.closeCenter.getTimeSaved.useQuery({
@@ -891,7 +981,9 @@ export default function CloseCenterPage() {
   const { data: history } = trpc.closeCenter.getCloseHistory.useQuery();
 
   // Fetch AI insights
-  const { data: insights } = trpc.closeCenter.getAiInsights.useQuery();
+  const { data: insights } = trpc.closeCenter.getAiInsights.useQuery({
+    period: selectedPeriod || undefined,
+  });
 
   // Fetch task completion trend
   const { data: trend } = trpc.closeCenter.getTaskCompletionTrend.useQuery();
@@ -931,13 +1023,16 @@ export default function CloseCenterPage() {
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-slate-400" />
                 <select
-                  value={selectedPeriod}
+                  value={selectedPeriod || (periods?.[0]?.value ?? "")}
                   onChange={(e) => setSelectedPeriod(e.target.value)}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="2025-05">May 2025</option>
-                  <option value="2025-04">Apr 2025</option>
-                  <option value="2025-03">Mar 2025</option>
+                  {(periods ?? []).map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                      {p.status === "closed" ? " (Closed)" : ""}
+                    </option>
+                  ))}
                 </select>
               </div>
               <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">

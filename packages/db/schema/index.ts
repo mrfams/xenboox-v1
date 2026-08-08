@@ -64,3 +64,4 @@ export * from "./api-keys";
 export * from "./artifacts";
 export * from "./tool-grants";
 export * from "./knowledge-rag";
+export * from "./fx";

@@ -12,15 +12,18 @@ import {
   text,
   numeric,
   boolean,
+  integer,
   timestamp,
   jsonb,
   pgEnum,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { uuidId, entityId, timestamps } from "./helpers";
 import { entities } from "./organization";
 import { fiscalPeriods } from "./accounting";
+import { closePeriods } from "./agents";
 
 // ─── ENUMS ────────────────────────────────────────────────────────────────
 
@@ -236,5 +239,99 @@ export const reopenRequestsRelations = relations(reopenRequests, ({ one }) => ({
   session: one(closeSessions, {
     fields: [reopenRequests.closeSessionId],
     references: [closeSessions.id],
+  }),
+}));
+
+// ─── CLOSE TASKS ──────────────────────────────────────────────────────────
+//
+// Individual checklist tasks for a close period. One row per task per
+// entity + period (unique on entity_id, period, task_key so seeding is
+// idempotent). This is the real DB home of the close checklist that the
+// Close Center UI renders — previously the checklist was hardcoded mock
+// data in the close-center router.
+
+/** Which close phase a task belongs to */
+export const closeTaskPhaseEnum = pgEnum("close_task_phase", [
+  "pre_close",
+  "closing_entries",
+  "reconciliations",
+  "reviews_approvals",
+  "reporting_finalization",
+]);
+
+/** Lifecycle of a close task */
+export const closeTaskStatusEnum = pgEnum("close_task_status", [
+  "pending",
+  "in_progress",
+  "in_review",
+  "completed",
+  "blocked",
+  "skipped",
+]);
+
+export const closeTasks = pgTable(
+  "close_tasks",
+  {
+    id: uuidId(),
+    entityId: entityId
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    closeSessionId: uuid("close_session_id").references(
+      () => closeSessions.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
+    closePeriodId: uuid("close_period_id").references(() => closePeriods.id, {
+      onDelete: "cascade",
+    }),
+    period: text("period").notNull(), // "2026-07" — denormalized for fast filtering
+    taskKey: text("task_key").notNull(), // stable slug, e.g. "reconcile_bank_accounts"
+    name: text("name").notNull(),
+    description: text("description"),
+    phase: closeTaskPhaseEnum("phase").notNull().default("pre_close"),
+    phaseOrder: integer("phase_order").notNull().default(1),
+    sortOrder: integer("sort_order").notNull().default(0),
+    ownerAgent: text("owner_agent").notNull(),
+    ownerInitials: text("owner_initials"),
+    ownerColor: text("owner_color"),
+    status: closeTaskStatusEnum("status").notNull().default("pending"),
+    confidence: numeric("confidence", { precision: 5, scale: 4 }),
+    dueDate: text("due_date"), // display string, e.g. "Jul 24"
+    isAutoCompletable: boolean("is_auto_completable").notNull().default(true),
+    autoCompleted: boolean("auto_completed").notNull().default(false),
+    completedByUserId: text("completed_by_user_id"),
+    completedAt: timestamp("completed_at"),
+    blockedReason: text("blocked_reason"),
+    resultDetails: jsonb("result_details")
+      .default({})
+      .$type<Record<string, unknown>>(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("close_tasks_entity_period_key").on(
+      t.entityId,
+      t.period,
+      t.taskKey,
+    ),
+    index("close_tasks_entity_period").on(t.entityId, t.period),
+    index("close_tasks_status").on(t.entityId, t.period, t.status),
+    index("close_tasks_session").on(t.closeSessionId),
+    index("close_tasks_phase").on(t.entityId, t.period, t.phase),
+  ],
+);
+
+export const closeTasksRelations = relations(closeTasks, ({ one }) => ({
+  entity: one(entities, {
+    fields: [closeTasks.entityId],
+    references: [entities.id],
+  }),
+  session: one(closeSessions, {
+    fields: [closeTasks.closeSessionId],
+    references: [closeSessions.id],
+  }),
+  closePeriod: one(closePeriods, {
+    fields: [closeTasks.closePeriodId],
+    references: [closePeriods.id],
   }),
 }));

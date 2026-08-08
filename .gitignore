@@ -61,3 +61,8 @@ langfuse-data/
 
 .vercel
 .env*
+
+# Debug/seed scripts with local DB credentials (never commit)
+packages/db/seed/test-db.js
+nullability-drift.tmp.mjs
+apps/web/scripts/investigate-drift.mjs

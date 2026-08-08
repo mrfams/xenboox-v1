@@ -18,6 +18,7 @@ import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../index";
 import { users } from "../schema/auth";
+import { chartOfAccounts } from "../schema/accounting";
 import {
   budgets,
   budgetLines,
@@ -32,24 +33,9 @@ function seedUuid(type: string, n: number): string {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
-// ─── Account reference IDs (must match the main seed) ───────────────────
-const A = (code: string) => {
-  const hash = crypto.createHash("sha256").update(`acct-${code}`).digest("hex");
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
-};
-
-const ACCT = {
-  salaryExpense: A("6010"),
-  rentExpense: A("6020"),
-  utilitiesExpense: A("6030"),
-  officeExpense: A("6050"),
-  travelExpense: A("6060"),
-  marketingExpense: A("6070"),
-  insuranceExpense: A("6080"),
-  cogs: A("5010"),
-  depreciation: A("6040"),
-  interestExpense: A("7010"),
-};
+// Account reference IDs are resolved from the live chart_of_accounts table by
+// COA *code* (see accountIdByCode below) — never from hardcoded hashes, which
+// drift from the main seed's internal ACCT keying.
 
 // ─── Budget Header Definitions ──────────────────────────────────────────
 interface BudgetDef {
@@ -629,6 +615,20 @@ export async function seedBudget(entityId: string): Promise<void> {
     .where(eq(users.email, "demo@xenboox.com"));
   const userId = userRows[0]?.id ?? "00000000-0000-0000-0000-000000000000";
 
+  // Resolve COA code → account id from the entity's live chart of accounts.
+  const coaRows = await db
+    .select({ id: chartOfAccounts.id, code: chartOfAccounts.code })
+    .from(chartOfAccounts)
+    .where(eq(chartOfAccounts.entityId, entityId));
+  const accountIdByCode = new Map(coaRows.map((r) => [r.code, r.id]));
+  const acctId = (code: string): string =>
+    accountIdByCode.get(code) ??
+    (() => {
+      throw new Error(
+        `seedBudget: account code ${code} not found in chart_of_accounts for entity ${entityId}`,
+      );
+    })();
+
   // ── 1. Budgets ────────────────────────────────────────────────────────
   console.log(`  Creating ${BUDGETS.length} budgets...`);
   const budgetIds: string[] = [];
@@ -661,7 +661,7 @@ export async function seedBudget(entityId: string): Promise<void> {
   for (let i = 0; i < BUDGET_LINES.length; i++) {
     const l = BUDGET_LINES[i];
     const budgetId = budgetIds[l.budgetIdx];
-    const accountId = ACCT[l.accountCode as keyof typeof ACCT];
+    const accountId = acctId(l.accountCode);
     const lineId = seedUuid("budget-line", i + 1);
     lineIds.push(lineId);
 
@@ -700,7 +700,7 @@ export async function seedBudget(entityId: string): Promise<void> {
   const budget0Lines = BUDGET_LINES.filter((l) => l.budgetIdx === 0);
   const lineSnapshot = budget0Lines.map((l) => ({
     lineId: seedUuid("budget-line", BUDGET_LINES.indexOf(l) + 1),
-    accountId: ACCT[l.accountCode as keyof typeof ACCT],
+    accountId: acctId(l.accountCode),
     annualAmount: l.annualAmount,
     dimensionType: l.dimensionType ?? undefined,
     dimensionId: l.dimensionId ?? undefined,
@@ -728,7 +728,7 @@ export async function seedBudget(entityId: string): Promise<void> {
 
   for (let i = 0; i < VARIANCES.length; i++) {
     const v = VARIANCES[i];
-    const accountId = ACCT[v.accountCode as keyof typeof ACCT];
+    const accountId = acctId(v.accountCode);
 
     // Find matching budget line
     const lineMatch = BUDGET_LINES.findIndex(
@@ -770,7 +770,7 @@ export async function seedBudget(entityId: string): Promise<void> {
 
   for (let i = 0; i < THRESHOLDS.length; i++) {
     const t = THRESHOLDS[i];
-    const accountId = ACCT[t.accountCode as keyof typeof ACCT];
+    const accountId = acctId(t.accountCode);
 
     // Find matching budget line
     const lineMatch = BUDGET_LINES.findIndex(

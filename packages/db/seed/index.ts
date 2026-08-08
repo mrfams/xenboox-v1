@@ -1,12 +1,6 @@
 import crypto from "node:crypto";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "../index";
-import { users } from "../schema/auth";
-import {
-  organizations,
-  entities,
-  userEntityAccess,
-} from "../schema/organization";
 import {
   chartOfAccounts,
   fiscalPeriods,
@@ -79,10 +73,21 @@ import { seedAgents } from "./agents";
 import { seedApprovals } from "./approvals";
 import { seedGoldenEvals } from "./golden-evals";
 import { seedComprehensiveData } from "./comprehensive-data";
+import {
+  findOrCreateUser,
+  findOrCreateOrg,
+  resetEntity,
+  grantAccess,
+  setLastUsedEntity,
+  removeOtherEntities,
+  shouldRunDirect,
+} from "./seed-lib";
 
-const USER_ID = crypto.randomUUID();
-const ORG_ID = crypto.randomUUID();
-const ENTITY_ID = crypto.randomUUID();
+// Resolved inside seed() via idempotent find-or-create (never random),
+// so re-running the seed reuses the live account instead of duplicating it.
+let USER_ID = "";
+let ORG_ID = "";
+let ENTITY_ID = "";
 
 function seedUuid(type: string, n: number): string {
   const hash = crypto.createHash("sha256").update(`${type}-${n}`).digest("hex");
@@ -344,68 +349,44 @@ const coa = [
 // ─── Seed Function ───────────────────────────────────────────────
 
 export async function seed() {
-  console.log("Seeding database...");
+  console.log("Seeding database (demo@xenboox.com — Kerr Jula Trading Co.)...");
 
-  // Clear existing seed data for clean re-seed
-  await db.execute(sql`TRUNCATE TABLE users, organizations, entities CASCADE`);
-
-  // 1. User
-  console.log("  Creating user...");
-  await db
-    .insert(users)
-    .values({
-      id: USER_ID,
-      name: "Demo User",
-      email: "demo@xenboox.com",
-      passwordHash:
-        "$2a$12$QrxmI9v0MpLRsg6gWTH7F./KZOQl3fOoJDHGI4VzjOV0LHcpMED/2",
-      emailVerified: new Date("2026-01-01"),
-    })
-    .onConflictDoNothing();
-
-  // 2. Organization
-  console.log("  Creating organization...");
-  await db
-    .insert(organizations)
-    .values({
-      id: ORG_ID,
-      name: "Kerr Jula Trading Co.",
-      slug: "kerr-jula-trading",
-      type: "business",
-      plan: "starter",
-      ownerId: USER_ID,
-      settings: { timezone: "Africa/Banjul", locale: "en-GM" },
-    })
-    .onConflictDoNothing();
-
-  // 3. Entity
-  console.log("  Creating entity...");
-  await db
-    .insert(entities)
-    .values({
-      id: ENTITY_ID,
-      organizationId: ORG_ID,
-      name: "Kerr Jula Trading Co.",
-      type: "company",
-      currency: "GMD",
-      country: "GM",
-      fiscalYearEnd: "12",
-      taxId: "GD123456789",
-      settings: { vatRate: 0.15, defaultPaymentTerms: "net30" },
-    })
-    .onConflictDoNothing();
-
-  // 4. User entity access
-  console.log("  Granting entity access...");
-  await db
-    .insert(userEntityAccess)
-    .values({
-      userId: USER_ID,
-      entityId: ENTITY_ID,
-      role: "owner",
-      grantedBy: USER_ID,
-    })
-    .onConflictDoNothing();
+  // Idempotent bootstrap — finds the live account, never truncates anything.
+  console.log("  Bootstrapping account...");
+  USER_ID = await findOrCreateUser({
+    email: "demo@xenboox.com",
+    name: "Demo User",
+  });
+  ORG_ID = await findOrCreateOrg({
+    userId: USER_ID,
+    name: "Kerr Jula Trading Co.",
+    slug: "kerr-jula-trading",
+    plan: "starter",
+    settings: { timezone: "Africa/Banjul", locale: "en-GM" },
+  });
+  // Deleting + recreating the entity cascades ALL its child data (COA, journal
+  // entries, invoices, payroll, …) so re-seeding is clean but never touches
+  // other accounts.
+  ENTITY_ID = await resetEntity({
+    orgId: ORG_ID,
+    name: "Kerr Jula Trading Co.",
+    currency: "GMD",
+    country: "GM",
+    fiscalYearEnd: "12",
+    taxId: "GD123456789",
+    settings: { vatRate: 0.15, defaultPaymentTerms: "net30" },
+  });
+  await grantAccess({
+    userId: USER_ID,
+    entityId: ENTITY_ID,
+    role: "owner",
+    grantedBy: USER_ID,
+  });
+  await setLastUsedEntity(USER_ID, ENTITY_ID);
+  // Sweep junk test entities (e.g. leftover "HealTest …") out of the org.
+  const removed = await removeOtherEntities(ORG_ID);
+  if (removed > 0)
+    console.log(`  Removed ${removed} stale entity(ies) from org`);
 
   // 5. Chart of Accounts
   console.log("  Creating chart of accounts...");
@@ -2923,9 +2904,11 @@ export async function seed() {
   await seedConsolidation(ENTITY_ID);
 }
 
-seed()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("Seed failed:", err);
-    process.exit(1);
-  });
+if (shouldRunDirect()) {
+  seed()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Seed failed:", err);
+      process.exit(1);
+    });
+}

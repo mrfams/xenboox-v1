@@ -15,6 +15,7 @@
 
 import crypto from "node:crypto";
 import { db } from "../index";
+import { users } from "../schema/auth";
 import { entities } from "../schema/organization";
 import {
   entityRelationships,
@@ -58,6 +59,14 @@ export async function seedConsolidation(entityId: string): Promise<void> {
     .from(entities)
     .where(eq(entities.id, entityId))
     .limit(1);
+
+  // audit_log.user_id is a uuid FK — resolve the demo user's real id.
+  const [userRow] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, "demo@xenboox.com"))
+    .limit(1);
+  const auditUserId = userRow?.id ?? "00000000-0000-0000-0000-000000000000";
 
   const orgId = entityRow?.organizationId ?? seedUuid("org", 1);
 
@@ -481,7 +490,7 @@ export async function seedConsolidation(entityId: string): Promise<void> {
       .insert(auditLog)
       .values({
         entityId,
-        userId: "demo@xenboox.com",
+        userId: auditUserId,
         action: "consolidationPipeline.run",
         entityType: "consolidation_run",
         entityIdRef: runIds[i],

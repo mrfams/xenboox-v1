@@ -199,6 +199,12 @@ export const journalEntryLines = pgTable(
     debit: numeric("debit", { precision: 15, scale: 2 }).default("0"),
     credit: numeric("credit", { precision: 15, scale: 2 }).default("0"),
     description: text("description"),
+    // Multi-currency "3-value recording": original currency amount, the rate
+    // used at transaction date, and the base-currency equivalent.
+    currency: text("currency").notNull().default("GMD"),
+    exchangeRate: numeric("exchange_rate", { precision: 15, scale: 6 }),
+    baseCurrency: text("base_currency"),
+    baseAmount: numeric("base_amount", { precision: 15, scale: 2 }),
     ...timestamps,
   },
   (t) => [

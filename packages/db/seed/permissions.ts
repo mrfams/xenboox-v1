@@ -2002,6 +2002,74 @@ const PERMISSIONS: PermEntry[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════
+  // MULTI-CURRENCY & FX
+  // ═══════════════════════════════════════════════════════════════
+  { role: "owner", module: "multi_currency", action: "view", scope: "full" },
+  { role: "owner", module: "multi_currency", action: "edit", scope: "full" },
+  {
+    role: "owner",
+    module: "multi_currency",
+    action: "configure",
+    scope: "full",
+  },
+  {
+    role: "admin",
+    module: "multi_currency",
+    action: "view",
+    scope: "full",
+  },
+  {
+    role: "admin",
+    module: "multi_currency",
+    action: "edit",
+    scope: "full",
+  },
+  {
+    role: "finance_director",
+    module: "multi_currency",
+    action: "view",
+    scope: "full",
+  },
+  {
+    role: "finance_director",
+    module: "multi_currency",
+    action: "edit",
+    scope: "full",
+  },
+  {
+    role: "finance_director",
+    module: "multi_currency",
+    action: "approve",
+    scope: "full",
+  },
+  {
+    role: "accountant",
+    module: "multi_currency",
+    action: "view",
+    scope: "full",
+  },
+  {
+    role: "accountant",
+    module: "multi_currency",
+    action: "edit",
+    scope: "scoped",
+    description: "Draft FX adjustments only",
+  },
+  {
+    role: "external_accountant",
+    module: "multi_currency",
+    action: "view",
+    scope: "full",
+  },
+  {
+    role: "external_auditor",
+    module: "multi_currency",
+    action: "view",
+    scope: "scoped",
+    description: "Read-only historical FX data",
+  },
+
+  // ═══════════════════════════════════════════════════════════════
   // ANALYTICS & INSIGHTS
   // ═══════════════════════════════════════════════════════════════
   {

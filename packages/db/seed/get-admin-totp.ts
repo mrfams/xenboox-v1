@@ -3,7 +3,9 @@
  * Run: npx tsx packages/db/seed/get-admin-totp.ts
  */
 import { neon } from "@neondatabase/serverless";
-import { authenticator } from "otplib";
+import { OTP } from "otplib";
+
+const otp = new OTP({ strategy: "totp" });
 
 const DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -41,7 +43,7 @@ async function main() {
   }
 
   // Generate current TOTP code
-  const code = authenticator.generate(secret);
+  const code = otp.generateSync({ secret });
 
   console.log("\n🔐 Admin Login Credentials");
   console.log("==========================");

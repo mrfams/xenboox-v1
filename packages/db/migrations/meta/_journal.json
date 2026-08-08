@@ -148,6 +148,20 @@
       "when": 1785937760948,
       "tag": "0020_abandoned_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786206529934,
+      "tag": "0021_giant_mister_sinister",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1786208626282,
+      "tag": "0022_supreme_wolfpack",
+      "breakpoints": true
     }
   ]
 }
