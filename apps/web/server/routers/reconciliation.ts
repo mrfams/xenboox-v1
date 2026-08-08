@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lte, inArray } from "drizzle-orm";
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -7,6 +7,140 @@ import {
   bankTransactions,
   reconciliations,
 } from "@xenboox/db/schema";
+import {
+  journalEntries,
+  journalEntryLines,
+} from "@xenboox/db/schema/accounting";
+
+// ─── Match Candidate Scoring ──────────────────────────────────────────────
+//
+// Real, DB-backed candidate matching for a single unmatched bank transaction.
+// A journal entry is a candidate when its posted date falls within a window
+// around the bank transaction date and its debit/credit total is close to the
+// transaction amount. Confidence combines amount proximity, date proximity,
+// and reference/description token overlap — deterministic, no randomness.
+
+type JournalCandidate = {
+  journalEntryId: string;
+  confidence: number;
+  reason: string;
+};
+
+const tokenize = (value: string): Set<string> =>
+  new Set(
+    value
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length > 0),
+  );
+
+/**
+ * Find candidate journal entries for a bank transaction using amount + date
+ * proximity and reference/description overlap scoring.
+ */
+async function findCandidateMatches(
+  entityId: string,
+  tx: {
+    transactionDate: string;
+    amount: string;
+    description: string;
+    reference: string | null;
+  },
+): Promise<JournalCandidate[]> {
+  const amount = Math.abs(parseFloat(tx.amount));
+  const txDate = new Date(`${tx.transactionDate}T00:00:00Z`);
+  const windowDays = 31;
+
+  const candidates = await db.query.journalEntries.findMany({
+    where: and(
+      eq(journalEntries.entityId, entityId),
+      eq(journalEntries.status, "posted"),
+      sql`${journalEntries.date} >= ${dayOffset(txDate, -windowDays)}`,
+      sql`${journalEntries.date} <= ${dayOffset(txDate, windowDays)}`,
+    ),
+    columns: { id: true, date: true, description: true, reference: true },
+  });
+
+  if (candidates.length === 0) return [];
+
+  const entryIds = candidates.map((c) => c.id);
+  const lineTotals = await db
+    .select({
+      journalEntryId: journalEntryLines.journalEntryId,
+      debit: sql<string>`COALESCE(SUM(${journalEntryLines.debit}), 0)`,
+      credit: sql<string>`COALESCE(SUM(${journalEntryLines.credit}), 0)`,
+    })
+    .from(journalEntryLines)
+    .where(
+      and(
+        inArray(journalEntryLines.journalEntryId, entryIds),
+        sql`${journalEntryLines.debit} IS NOT NULL`,
+      ),
+    )
+    .groupBy(journalEntryLines.journalEntryId);
+
+  const totalByEntry = new Map<string, number>();
+  for (const row of lineTotals) {
+    const debit = parseFloat(row.debit ?? "0");
+    const credit = parseFloat(row.credit ?? "0");
+    totalByEntry.set(row.journalEntryId, Math.abs(debit - credit));
+  }
+
+  const txTokens = tokenize(tx.description);
+  const txReference = tokenize(tx.reference ?? "");
+  const allTokens = new Set([...txTokens, ...txReference]);
+
+  const result: JournalCandidate[] = [];
+  for (const entry of candidates) {
+    const entryTotal = totalByEntry.get(entry.id) ?? 0;
+    const entryDate = new Date(`${entry.date}T00:00:00`);
+    const dateDiff =
+      Math.abs(entryDate.getTime() - txDate.getTime()) / 86400000;
+
+    // Amount match — the strongest signal.
+    const amountDiff = Math.abs(entryTotal - amount);
+    if (amountDiff > 5 || (amount > 0 && entryTotal === 0)) continue;
+
+    // Date proximity signal: closer dates score higher (max 0.9).
+    const dateScore = Math.max(0, 0.9 - dateDiff * 0.1);
+
+    // Token overlap signal: shared tokens between the bank description /
+    // reference and the journal description / reference (max boost 0.5).
+    const entryTokens = tokenize(
+      `${entry.description ?? ""} ${entry.reference ?? ""}`,
+    );
+    let overlap = 0;
+    for (const t of allTokens) {
+      if (entryTokens.has(t)) overlap++;
+    }
+    const tokenScore = Math.min(
+      0.5,
+      (overlap / Math.max(allTokens.size, 1)) * 2,
+    );
+
+    const confidence = Math.round((dateScore + tokenScore) * 100);
+
+    // Only surface plausible matches.
+    if (confidence >= 55) {
+      result.push({
+        journalEntryId: entry.id,
+        confidence: Math.min(confidence, 95),
+        reason:
+          overlap > 0
+            ? `Amount GMD ${entryTotal.toLocaleString()} & reference overlap`
+            : `Amount GMD ${entryTotal.toLocaleString()}`,
+      });
+    }
+  }
+
+  return result.sort((a, b) => b.confidence - a.confidence);
+}
+
+function dayOffset(date: Date, days: number): string {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 // ─── Reconciliation Router ─────────────────────────────────────────────────
 
@@ -113,11 +247,7 @@ export const reconciliationRouter = router({
             : "—",
           matchStatus,
           matchColor,
-          confidence: isMatched
-            ? 100
-            : hasJournal
-              ? Math.floor(Math.random() * 10) + 90
-              : 0,
+          confidence: isMatched ? 100 : hasJournal ? 95 : 0,
           isMatched,
           hasJournal,
         };
@@ -132,20 +262,28 @@ export const reconciliationRouter = router({
         (t) => t.hasJournal && !t.isMatched,
       );
 
-      // AI match suggestions for unmatched
-      const suggestions = unmatched.slice(0, 3).map((t) => ({
-        ...t,
-        suggestedMatches: [
-          {
-            id: "match-1",
-            description: "Payment to Supplier - ABC Ltd",
-            reference: "CHQ-002583",
-            date: t.date,
-            amount: t.statementAmount,
-            confidence: 97,
-          },
-        ],
-      }));
+      // AI match suggestions for unmatched — real candidates from the journal
+      const suggestions = await Promise.all(
+        unmatched.slice(0, 3).map(async (t) => {
+          const matches = await findCandidateMatches(entityId, {
+            transactionDate: t.date,
+            amount: String(t.statementAmount),
+            description: t.description,
+            reference: t.reference,
+          });
+          return {
+            ...t,
+            suggestedMatches: matches.slice(0, 3).map((m) => ({
+              id: m.journalEntryId,
+              description: `Journal entry ${m.journalEntryId.slice(0, 8)}`,
+              reference: "",
+              date: t.date,
+              amount: t.statementAmount,
+              confidence: m.confidence,
+            })),
+          };
+        }),
+      );
 
       return {
         accounts: accounts.map((a) => ({
@@ -256,14 +394,40 @@ export const reconciliationRouter = router({
         ),
       });
 
-      // Simple matching logic (in production, use AI)
+      // Real matching: score each unmatched transaction against the journal
+      // and persist the best high-confidence match.
       let matchedCount = 0;
+      const matchedLinks: Array<{
+        transactionId: string;
+        journalEntryId: string;
+        confidence: number;
+        reason: string;
+      }> = [];
+
       for (const tx of unmatched) {
-        // Try to find matching journal entry by amount and date
-        // This is simplified - real implementation would use AI matching
-        const amount = parseFloat(tx.amount);
-        if (Math.abs(amount) > 0) {
+        const matches = await findCandidateMatches(entityId, tx);
+        const best = matches[0];
+        if (!best || best.confidence < 75) continue;
+
+        const [updated] = await db
+          .update(bankTransactions)
+          .set({ journalEntryId: best.journalEntryId })
+          .where(
+            and(
+              eq(bankTransactions.id, tx.id),
+              eq(bankTransactions.entityId, entityId),
+            ),
+          )
+          .returning({ id: bankTransactions.id });
+
+        if (updated) {
           matchedCount++;
+          matchedLinks.push({
+            transactionId: tx.id,
+            journalEntryId: best.journalEntryId,
+            confidence: best.confidence,
+            reason: best.reason,
+          });
         }
       }
 
@@ -271,6 +435,7 @@ export const reconciliationRouter = router({
         success: true,
         matchedCount,
         totalProcessed: unmatched.length,
+        matches: matchedLinks,
       };
     }),
 
@@ -472,11 +637,38 @@ export const reconciliationRouter = router({
         ),
       );
 
-    const totalTransactions = 231; // Would be calculated from actual data
+    const totalTxResult = await db
+      .select({ total: count() })
+      .from(bankTransactions)
+      .where(eq(bankTransactions.entityId, entityId));
+
+    const unmatchedTxResult = await db
+      .select({ total: count() })
+      .from(bankTransactions)
+      .where(
+        and(
+          eq(bankTransactions.entityId, entityId),
+          eq(bankTransactions.isReconciled, false),
+          sql`${bankTransactions.journalEntryId} IS NULL`,
+        ),
+      );
+
+    const autoMatchedTxResult = await db
+      .select({ total: count() })
+      .from(bankTransactions)
+      .where(
+        and(
+          eq(bankTransactions.entityId, entityId),
+          eq(bankTransactions.isReconciled, false),
+          sql`${bankTransactions.journalEntryId} IS NOT NULL`,
+        ),
+      );
+
+    const totalTransactions = totalTxResult[0]?.total ?? 0;
     const matchedCount = currentMonthTxResult[0]?.matched ?? 0;
-    const unmatchedCount = Math.round(totalTransactions * 0.06);
-    const partialMatchCount = Math.round(totalTransactions * 0.04);
-    const duplicatesCount = Math.round(totalTransactions * 0.02);
+    const unmatchedCount = unmatchedTxResult[0]?.total ?? 0;
+    const partialMatchCount = autoMatchedTxResult[0]?.total ?? 0;
+    const duplicatesCount = 0;
 
     return {
       summary: {
@@ -539,29 +731,70 @@ export const reconciliationRouter = router({
       });
     }
 
-    // Auto-matched percentage
-    const totalRecons = allReconciliations.length || 1;
-    const closedRecons = allReconciliations.filter(
-      (r) => r.status === "closed",
-    ).length;
-    const autoMatchedPercent = Math.round((closedRecons / totalRecons) * 100);
+    // Auto-matched percentage — real, from current bank transactions
+    const autoMatchedTxResult = await db
+      .select({ total: count() })
+      .from(bankTransactions)
+      .where(
+        and(
+          eq(bankTransactions.entityId, entityId),
+          eq(bankTransactions.isReconciled, false),
+          sql`${bankTransactions.journalEntryId} IS NOT NULL`,
+        ),
+      );
+    const reconciledTxResult = await db
+      .select({ total: count() })
+      .from(bankTransactions)
+      .where(
+        and(
+          eq(bankTransactions.entityId, entityId),
+          eq(bankTransactions.isReconciled, true),
+        ),
+      );
+    const totalTxResult = await db
+      .select({ total: count() })
+      .from(bankTransactions)
+      .where(eq(bankTransactions.entityId, entityId));
+
+    const autoMatchedTx = autoMatchedTxResult[0]?.total ?? 0;
+    const reconciledTx = reconciledTxResult[0]?.total ?? 0;
+    const totalTx = totalTxResult[0]?.total ?? 0;
+    const autoMatchedPercent =
+      totalTx > 0 ? Math.round((autoMatchedTx / totalTx) * 100) : 0;
+    const reconciledPercent =
+      totalTx > 0 ? Math.round((reconciledTx / totalTx) * 100) : 0;
 
     insights.push({
       id: "auto-matched",
-      type: "success",
+      type: reconciledPercent >= 90 ? "success" : "info",
       title: `${autoMatchedPercent}% auto-matched`,
-      description: `AI matched ${closedRecons} reconciliations`,
+      description: `${autoMatchedTx} of ${totalTx} transactions matched by amount & date`,
       actionLabel: "View matched transactions →",
     });
 
-    // Rules improvement suggestion
-    insights.push({
-      id: "rules-improvement",
-      type: "info",
-      title: "2 rules can improve matching",
-      description: "Update rules to increase accuracy",
-      actionLabel: "Review rules →",
-    });
+    // Unmatched transactions insight — real count
+    const unmatchedTxResult = await db
+      .select({ total: count() })
+      .from(bankTransactions)
+      .where(
+        and(
+          eq(bankTransactions.entityId, entityId),
+          eq(bankTransactions.isReconciled, false),
+          sql`${bankTransactions.journalEntryId} IS NULL`,
+        ),
+      );
+    const unmatchedTx = unmatchedTxResult[0]?.total ?? 0;
+
+    if (unmatchedTx > 0) {
+      insights.push({
+        id: "unmatched",
+        type: "warning",
+        title: `${unmatchedTx} unmatched transactions`,
+        description:
+          "Review and link these to journal entries to complete reconciliation",
+        actionLabel: "Review unmatched →",
+      });
+    }
 
     return insights;
   }),

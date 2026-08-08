@@ -20,6 +20,8 @@ import {
   journalEntryLines,
   fiscalPeriods,
 } from "@xenboox/db/schema/accounting";
+import { reportSnapshots } from "@xenboox/db/schema/reporting";
+import { artifactRegistry } from "@xenboox/db/schema/artifacts";
 import { entities } from "@xenboox/db/schema/organization";
 
 type AccountRow = {
@@ -421,30 +423,47 @@ export const reportsRouter = router({
   getRecentReports: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 
-    // In production, this would query a reports table
-    // For now, return mock data based on journal entries
-    const recentEntries = await db.query.journalEntries.findMany({
-      where: and(
-        eq(journalEntries.entityId, entityId),
-        eq(journalEntries.status, "posted"),
-      ),
-      orderBy: [desc(journalEntries.createdAt)],
+    // Real source: report snapshots written by the reporting pipeline
+    // (see packages/agents/core/reporting-pipeline.ts). When none exist yet,
+    // fall back to the artifact registry for generated reports, then an
+    // honest empty array — never fabricated rows.
+    const snapshots = await db.query.reportSnapshots.findMany({
+      where: eq(reportSnapshots.entityId, entityId),
+      orderBy: [desc(reportSnapshots.generatedAt)],
       limit: 5,
     });
 
-    return recentEntries.map((entry, i) => ({
-      id: entry.id,
-      name: [
-        "Profit & Loss Statement",
-        "Cash Flow Statement",
-        "Aged Receivables",
-        "Expense Analysis",
-        "Balance Sheet",
-      ][i % 5],
-      type: i < 2 ? "Financial Statement" : "Management Report",
-      dateGenerated: entry.createdAt?.toISOString() ?? new Date().toISOString(),
-      generatedBy: i % 2 === 0 ? "Xenboox AI" : "Famara Touray",
-      format: i % 2 === 0 ? "PDF" : "Excel",
+    if (snapshots.length === 0) {
+      const artifacts = await db.query.artifactRegistry.findMany({
+        where: and(
+          eq(artifactRegistry.entityId, entityId),
+          eq(artifactRegistry.kind, "report"),
+        ),
+        orderBy: [desc(artifactRegistry.createdAt)],
+        limit: 5,
+      });
+
+      if (artifacts.length === 0) return [];
+
+      return artifacts.map((artifact) => ({
+        id: artifact.id,
+        name: artifact.name,
+        type: "Management Report",
+        dateGenerated:
+          artifact.createdAt?.toISOString() ?? new Date().toISOString(),
+        generatedBy:
+          artifact.agentName ?? artifact.createdByName ?? "Xenboox AI",
+        format: artifact.mimeType.includes("pdf") ? "PDF" : "Excel",
+      }));
+    }
+
+    return snapshots.map((snapshot) => ({
+      id: snapshot.id,
+      name: snapshot.periodLabel ?? "Financial Statement",
+      type: "Financial Statement",
+      dateGenerated: snapshot.generatedAt.toISOString(),
+      generatedBy: snapshot.generatedBy ?? "Xenboox AI",
+      format: "Dashboard",
     }));
   }),
 

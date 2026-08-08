@@ -373,7 +373,8 @@ export const journalRouter = router({
           statusColor,
           source: sourceDisplay,
           sourceColor,
-          createdBy: "Famara T.", // Would come from user table in production
+          createdBy:
+            ctx.session!.user!.name ?? ctx.session!.user!.email ?? "System",
           isAiGenerated: e.source === "agent" || e.source === "automation",
         };
       });

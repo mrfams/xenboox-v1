@@ -6,6 +6,126 @@
 
 ---
 
+### [2026-08-08] — Migration journal repair: re-add role_permissions_unique + fix drift ending at 0020
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Deleted:** 3 (`0021_enable_pgvector.sql`, `0022_add_last_used_entity.sql` via git rm; `0023_multicurrency.sql`)
+**Files Created:** 2 (`0021_giant_mister_sinister.sql`, `meta/0021_snapshot.json` — drizzle-generated catch-up)
+**Files Modified:** 1 (`meta/_journal.json`)
+
+**Request:** Re-add the missing `role_permissions_unique` index and fix the migration journal drift ending at 0020.
+
+**Diagnosis (live Neon DB vs migrations journal vs schema):**
+
+- `drizzle.__drizzle_migrations` was **empty** — `db:migrate` would have re-run everything from 0000.
+- Journal ended at `0020_abandoned_patriot` but 3 hand-written orphans existed unregistered: `0021_enable_pgvector` (never applied — and contradicts the schema, where `document_chunks.embedding_vector` is `text` not `vector`), `0022_add_last_used_entity`, `0023_multicurrency` (both superseded by the generated catch-up).
+- Live DB was actually at the post-drift schema state (all 9 extra tables + multi-currency columns present), so a full re-migrate would have failed.
+- `role_permissions` had only `pkey` — the `role_permissions_unique` / `role` / `module` indexes from migration 0015 were **missing** (no duplicate rows, so safe to add).
+- Extra drift found: `fx_revaluation_runs.status` was `text` (hand-written 0023) but the schema wants the `fx_revaluation_status` enum (missing on live); 12 columns in 4 core accounting tables were nullable on live but `NOT NULL` in schema.
+
+**What was done:**
+
+- **Generated a proper catch-up migration** — `drizzle-kit generate` produced `0021_giant_mister_sinister.sql` from the real schema↔0020-snapshot diff. Verified purely additive: 0 DROPs, 9 CREATE TABLEs (the 9 extra tables), 30 indexes, ADD COLUMNs covering exactly what the hand-written orphans did. Registered in `_journal.json` with a new snapshot (22 entries total). Deleted the 3 orphaned hand-written migrations.
+- **Live DB reconciliation:**
+  - Created `role_permissions_unique` (`role,module,action`) + `role_permissions_role` + `role_permissions_module` indexes ✓
+  - Created `fx_revaluation_status` enum (`draft`,`completed`) and converted `fx_revaluation_runs.status` text → enum (dropped default, altered type, re-added default) ✓
+  - Tightened 12 columns to `NOT NULL` (all had zero NULLs): `chart_of_accounts.entity_id/code/created_at`, `fiscal_periods.entity_id/end_date/created_at`, `journal_entries.entity_id/entry_number/description/date/created_at`, `journal_entry_sources.created_at` ✓
+  - Populated `drizzle.__drizzle_migrations` with sha256 hashes + created_at for all 22 journal entries (0000→0021) so `db:migrate` is now a no-op ✓
+
+**Verification (live Neon DB):**
+
+- `drizzle-kit generate` → "No schema changes, nothing to migrate" ✓
+- `drizzle-kit migrate` → no-op, no re-application ✓
+- `role_permissions` now has all 3 indexes + pkey ✓
+- `fx_revaluation_runs.status` is `fx_revaluation_status` enum ✓
+- 22 migration rows recorded, no duplicates ✓
+
+**Known remaining quirk (not addressed):** `drizzle-kit push` still fails — pre-existing mismatch where migration `0006_enable_rls` turned RLS **on** in the DB but the drizzle schema doesn't declare `isRLSEnabled`, so push generates a destructive full-rebuild (drop/re-add NOT NULL + disable RLS on every table). Canonical production path is `db:migrate`, which now works.
+
+**Next Steps:** Slice 3 (`close_tasks` table) per prior BUILD_LOG. Optionally add an RLS-declaration pass to the schema so `push` works too.
+
+---
+
+### [2026-08-08] — Production-grade seeds: demo@xenboox.com (Gambia) + yc@xenboox.com (US), idempotent + verified
+
+**Agent:** opencode
+**Files Created:** 3 (`seed-lib.ts`, `seed-all.ts`, `yc-3months.ts` rewrite)
+**Files Modified:** 6 (`index.ts`, `budget.ts`, `consolidation.ts`, `get-admin-totp.ts`, `package.json`, `seed-credentials.md`)
+**Files Deleted:** 1 (`4month-expansion.ts` — orphaned, stale hardcoded entity id + nonexistent column)
+
+**Request:** High-quality realistic seeds for demo@xenboox.com and yc@xenboox.com, both verified; yc as a US account.
+
+**What was built:**
+
+**Shared seed library (`seed-lib.ts`):**
+
+- Idempotent find-or-create for user/org/entity/access; entity reset with **FK-aware ordered deletes** — computes the transitive closure of all tables referencing `entities` from `pg_constraint`, topologically sorts them (handles self-FKs like `chart_of_accounts.parent_id`), and deletes children-before-parents with per-table predicates (entity_id direct OR via parent subquery for line-item tables). Append-only audit triggers preserved (no cascade-violating TRUNCATE).
+- Junk-entity sweep (removes HealTest/test entities), `grantAccess`, `setLastUsedEntity`, direct-run guard.
+
+**Demo seed (`index.ts`):** idempotent bootstrap replacing TRUNCATE; full Gambian GMD data + 3 consolidation subsidiaries.
+
+**YC seed (`yc-3months.ts` rewrite):** Northwind Labs Inc. — US SaaS startup, Austin TX, May–Jul 2026 books: USD, EIN tax id, TX taxMode, US payroll (FIT, FICA SS, Medicare, 401(k), health), no fake sales tax on services, realistic SaaS revenue (MRR), AWS COGS, WeWork rent, VC funding round, Chase bank, Wise transfers, 22 JEs / 4 suppliers / 4 customers / 8 AP / 7 AR / 4 employees / 3 payroll runs / 4 fixed assets / 5 inventory / 2 bank accts / 22 bank txs / reconciliation.
+
+**Bug fixes found & fixed during seeding:**
+
+- `budget.ts` — `ACCT[l.accountCode]` looked up by name key but BUDGET_LINES store codes → account_id was always NULL; now resolves from the real chart_of_accounts.
+- `consolidation.ts` — hardcoded `demo@xenboox.com` (email) into a uuid `audit_log.userId` column; now resolves real user id.
+- `get-admin-totp.ts` — otplib v13 API (`authenticator` singleton removed); rewritten for v13.
+- **Cross-entity ID collision (critical):** yc seed reused the demo seed's deterministic `acct-{code}`/`{type}-{n}` IDs. Since `chart_of_accounts.id`/`fiscal_periods.id` are global PKs, yc's inserts silently skipped via `onConflictDoNothing()` → Northwind had 0 accounts and its journal lines referenced the demo's COA. Fixed by namespacing all yc IDs (`yc-acct-`, `yc-{type}-`). Verified: both entities now have 28 accounts each, 0 cross-entity journal lines.
+
+**Verification (live Neon DB):**
+
+- `pnpm typecheck` (db) — passed
+- `pnpm seed:all` — both accounts seeded, verified, **idempotent** (ran 3×, identical result)
+- demo@xenboox.com ✅ verified — Kerr Jula Trading Co. (GMD) + 3 subsidiaries
+- yc@xenboox.com ✅ verified — Northwind Labs Inc. (USD, US)
+- Both users have `email_verified` set and correct `last_used_entity_id`; no junk entities remain.
+
+**Next Steps:** Slice 3 (`close_tasks` table) + re-add missing `role_permissions_unique` index via migration. Note: seed scripts are for dev/demo accounts; never ship `demo1234` to production.
+
+---
+
+### [2026-08-08] — Slice 2: Multi-Currency module (FX rates, conversion, revaluation, RBAC Settings UI)
+
+**Agent:** opencode
+**Files Created:** 3
+**Files Modified:** 5
+
+**Request:** Research production-grade accounting features, then build whatever the platform lacks. Approved: Slice 2 — multi-currency (entity-scoped FX rates, conversion, FX revaluation, per-line GL currency recording, RBAC-gated Settings UI).
+
+**What was built:**
+
+**Database (Drizzle schema + live migration):**
+
+- `packages/db/schema/fx.ts` — NEW: `fx_rates` (entity-scoped override rates keyed by pair + as-of date; unique per entity/pair/date, cascades on entity delete) and `fx_revaluation_runs` (point-in-time snapshot per entity + period with `totals` jsonb holding per-currency balance/rateUsed/baseAmount/gainLoss).
+- `packages/db/schema/accounting.ts` — added opt-in multi-currency "3-value recording" columns to `journal_entry_lines`: `currency` (default `GMD`), `exchange_rate`, `base_currency`, `base_amount`.
+- `packages/db/migrations/0023_multicurrency.sql` — NEW, hand-authored. Applied to the live Neon DB via targeted SQL (split per-statement because the neon HTTP client can't batch; `db:push` remains broken due to pre-existing journal drift ending at `0020_abandoned_patriot`). Verified live: both tables + all 4 GL columns present.
+
+**API (tRPC):**
+
+- `apps/web/server/routers/currency.ts` — NEW router: `getSettings` (base currency + rate count + recent revaluation runs), `listCurrencies`, `listRates`, `upsertRate`/`deleteRate` (entity-scoped, audit-logged), `convert` (rate resolution: entity override → global ECB pool → inverse fallbacks), `getRevaluation`, `runRevaluation` (aggregates posted foreign-currency journal lines for a period, converts at period-end rates, computes unrealized gain/loss vs recorded base amounts, persists a run). Every procedure is `rlsProtectedProcedure`/`rlsMutateProcedure` + `requirePermission("multi_currency", …)` and entity-scoped.
+- `apps/web/server/routers/_app.ts` — registered `currency: currencyRouter`.
+
+**RBAC:**
+
+- `packages/db/seed/permissions.ts` — added the multi-currency grants block (owner/admin/finance_director full; accountant scoped edit; external view). Seeded to the live Neon DB via targeted `INSERT … WHERE NOT EXISTS` (12 rows) because the `role_permissions_unique` index is missing in production (pre-existing drift) so `ON CONFLICT` fails.
+
+**Frontend:**
+
+- `apps/web/components/settings/currency-section.tsx` — NEW: base-currency card, quick conversion tool, entity FX rates table with add-rate dialog + delete confirmation, FX revaluation panel (period picker + run + recent runs table with gain/loss coloring).
+- `apps/web/app/dashboard/settings/page.tsx` — added the Currency tab under Finance & Billing.
+
+**Verification:**
+
+- `pnpm typecheck --filter=@xenboox/web` — passed
+- `pnpm build --filter=@xenboox/web` — passed (Next.js production build, `/dashboard/settings` resolves)
+- `pnpm lint --filter=@xenboox/web` — passed (pre-existing warnings only, none in new files)
+- `pnpm test --filter=@xenboox/web` — 319 passed, 1 skipped
+
+**Next Steps:** Slice 3 (`close_tasks` table). Note: `ai-chat-input.tsx` remains orphaned; `role_permissions_unique` index missing in production (re-add via migration) and the migration journal drift ending at `0020` both need a proper fix.
+
+---
+
 ### [2026-08-08] — Settings Center: enterprise-grade rebuild (profile, org, team, webhooks, SSO)
 
 **Agent:** opencode
@@ -7763,3 +7883,28 @@ Each entity includes: user + org + entity + owner access, 25 COA accounts, 3 fis
 - Files modified: approvals page (unified agent + ingestion queue), notifications page (ingestion result actions), sidebar, jobs package, notifications schema, tsconfig
 
 Note: pnpm typecheck failed with OOM on this machine � not a code issue.
+
+### [2026-08-08] - Slice 1: Mock-data fidelity fixes (reconciliation, reports, deadlines, orphaned widgets)
+
+**Agent:** opencode
+**Files Modified:** 4
+**Files Deleted:** 5
+
+**Request:** Research production-grade accounting features, then build whatever the platform lacks. Approved: Slice 1 - replace fabricated/hardcoded data with real DB-backed data. No schema changes.
+
+**What was built:**
+
+- `apps/web/server/routers/reconciliation.ts` - real auto-match: replaced the no-op `autoReconcile` (counted every non-zero line as "matched", never linked anything) with real scoring against posted journal entries (amount proximity + date window + description/reference token overlap). High-confidence matches persist `journalEntryId` on the bank transaction and return per-match details. Also: real AI suggestions (was hardcoded "Payment to Supplier - ABC Ltd"), deterministic confidence (was `Math.random()`), and honest `getOverview` transaction counts (was fabricated `231 / 6% / 4% / 2%`).
+- `apps/web/server/routers/reports.ts` - `getRecentReports` now returns real `report_snapshots` written by the reporting pipeline, falling back to `artifact_registry` (kind=report), then an honest empty array. Was fabricating P&L/Cash Flow/Aged Receivables names/dates from journal entries.
+- `apps/web/server/routers/dashboard.ts` - real Upcoming & Deadlines: compliance/filing deadlines (due >= today), unpaid AP invoices, and in-progress payroll runs (period-end). Was a hardcoded "Payroll Payment / VAT Return Due" array.
+- `apps/web/server/routers/journal.ts` - `createdBy` now uses the real session user name/email instead of hardcoded "Famara T."
+- Deleted 5 orphaned hardcoded widgets: `active-agents.tsx`, `executive-briefing.tsx`, `dashboard-right-sidebar.tsx`, `pending-approvals.tsx`, `ai-greeting.tsx` - all unreferenced (only `text-selection-menu` is imported; the dashboard page defines its own local real-data versions).
+
+**Verification:**
+
+- `pnpm typecheck --filter=@xenboox/web` - passed
+- `pnpm build --filter=@xenboox/web` - passed
+- `pnpm lint --filter=@xenboox/web` - passed (pre-existing warnings only)
+- `pnpm test --filter=@xenboox/web` - 319 passed, 1 skipped
+
+**Next Steps:** Slice 2 (multi-currency module) and Slice 3 (close_tasks table). Note: `ai-chat-input.tsx` is also orphaned/unreferenced.

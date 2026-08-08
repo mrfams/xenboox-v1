@@ -73,6 +73,7 @@ import { automationStudioRouter } from "./automation-studio";
 import { settingsRouter } from "./settings";
 import { artifactRouter } from "./artifact";
 import { ssoRouter } from "./sso";
+import { currencyRouter } from "./currency";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),
@@ -150,6 +151,7 @@ export const appRouter = router({
   settings: settingsRouter,
   artifact: artifactRouter,
   sso: ssoRouter,
+  currency: currencyRouter,
 });
 
 export type AppRouter = typeof appRouter;

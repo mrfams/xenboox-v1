@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, gte, lte, count, sum } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, count, sum, asc } from "drizzle-orm";
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -14,6 +14,8 @@ import {
   chatMessages,
   auditLog,
   agentRoutingLogs,
+  complianceDeadlines,
+  payrollRuns,
 } from "@xenboox/db/schema";
 import { logger } from "@/lib/logger";
 
@@ -22,6 +24,14 @@ function pctChange(current: number, prev: number): number {
   if (prev === 0) return current > 0 ? 100 : 0;
   return ((current - prev) / Math.abs(prev)) * 100;
 }
+
+const filingTypeLabels: Record<string, string> = {
+  vat: "VAT Return Due",
+  paye: "PAYE Return Due",
+  withholding: "Withholding Tax Due",
+  corporate_tax: "Corporate Tax Due",
+  social_security: "SSNIT Due",
+};
 
 // ─── Safe query helper ─────────────────────────────────────────────────────
 // Wraps a DB query in try/catch so a single failing table doesn't crash the
@@ -633,22 +643,114 @@ export const dashboardRouter = router({
       suggestedActions.push("Upload your first document");
     }
 
-    // ── Upcoming Deadlines (simplified) ──────────────────────────────────
+    // ── Upcoming Deadlines (real, entity-scoped) ─────────────────────────
+    // Combines compliance/filing deadlines, unresolved AP invoices, and
+    // in-progress payroll runs. No hardcoded dates.
 
-    const deadlines = [
-      {
-        id: "payroll",
-        label: "Payroll Payment",
-        date: "End of month",
-        urgency: "upcoming" as const,
-      },
-      {
-        id: "vat",
-        label: "VAT Return Due",
-        date: "15th of month",
-        urgency: "normal" as const,
-      },
-    ];
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const deadlines: Array<{
+      id: string;
+      label: string;
+      date: string;
+      urgency: string;
+    }> = [];
+
+    // 1. Compliance / filing deadlines due from today onwards
+    const upcomingFilings = await safeQuery(
+      "upcomingFilings",
+      () =>
+        db.query.complianceDeadlines.findMany({
+          where: and(
+            eq(complianceDeadlines.entityId, entityId),
+            gte(complianceDeadlines.dueDate, new Date()),
+          ),
+          orderBy: [asc(complianceDeadlines.dueDate)],
+          limit: 2,
+        }),
+      [],
+    );
+
+    for (const filing of upcomingFilings) {
+      const due = new Date(filing.dueDate);
+      const daysLeft = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+      deadlines.push({
+        id: `filing-${filing.id}`,
+        label: filingTypeLabels[filing.filingType] ?? filing.name,
+        date: due.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+        urgency: daysLeft <= 7 ? "upcoming" : "normal",
+      });
+    }
+
+    // 2. Unpaid AP invoices due in the future (open balances).
+    const upcomingApInvoices = await safeQuery(
+      "upcomingApInvoices",
+      () =>
+        db.query.invoicesAp.findMany({
+          where: and(
+            eq(invoicesAp.entityId, entityId),
+            sql`${invoicesAp.status} IN ('pending', 'partial', 'overdue')`,
+            gte(invoicesAp.dueDate, todayStr),
+          ),
+          orderBy: [asc(invoicesAp.dueDate)],
+          limit: 2,
+        }),
+      [],
+    );
+
+    for (const invoice of upcomingApInvoices) {
+      deadlines.push({
+        id: `ap-${invoice.id}`,
+        label: `Invoice ${invoice.invoiceNumber} due`,
+        date: invoice.dueDate,
+        urgency: "normal",
+      });
+    }
+
+    // 3. In-progress payroll runs — the next payment is due at period end.
+    const inProgressPayroll = await safeQuery(
+      "inProgressPayroll",
+      () =>
+        db.query.payrollRuns.findFirst({
+          where: and(
+            eq(payrollRuns.entityId, entityId),
+            sql`${payrollRuns.status} IN ('draft', 'validated', 'approved')`,
+          ),
+          orderBy: [desc(payrollRuns.period)],
+        }),
+      null,
+    );
+
+    if (inProgressPayroll) {
+      const periodParts = (inProgressPayroll.period || "").split("-");
+      const periodYear = parseInt(
+        periodParts[0] ?? String(today.getFullYear()),
+        10,
+      );
+      const periodMonth =
+        parseInt(periodParts[1] ?? String(today.getMonth() + 1), 10) - 1;
+      const runEnd = new Date(periodYear, periodMonth + 1, 0);
+      const daysLeft = Math.ceil(
+        (runEnd.getTime() - today.getTime()) / 86400000,
+      );
+      if (daysLeft >= 0) {
+        deadlines.push({
+          id: "payroll",
+          label: "Payroll Payment",
+          date: runEnd.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+          urgency: daysLeft <= 7 ? "upcoming" : "normal",
+        });
+      }
+    }
+
+    deadlines.sort((a, b) => a.date.localeCompare(b.date));
 
     return {
       // Business health
