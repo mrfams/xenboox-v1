@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Bot,
   TrendingUp,
-  TrendingDown,
   Eye,
   RefreshCw,
   Send,

@@ -21,10 +21,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
-import type {
-  SummaryCardItem,
-  TabItem,
-} from "@/components/module/module-page-shell.types";
+import type { TabItem } from "@/components/module/module-page-shell.types";
 
 type TabFilter =
   | "all"

@@ -145,45 +145,53 @@ export function ModulePageShell({
         </div>
 
         {/* Underline tab bar */}
-        {hasTabs && !tabsCollapsed && (
+        {hasTabs && (
           <div className="flex items-center justify-between gap-4 px-4">
-            <div className="flex items-center gap-5 overflow-x-auto">
-              {tabs!.map((tab) => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => {
-                      tab.onClick?.();
-                      onTabChange?.(tab.key);
-                    }}
-                    className={cn(
-                      "relative flex items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "border-indigo-600 text-indigo-600"
-                        : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800",
-                    )}
-                    aria-selected={isActive}
-                    role="tab"
-                  >
-                    {tab.label}
-                    {tab.count !== undefined && (
-                      <span
-                        className={cn(
-                          "inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums",
-                          isActive
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-slate-100 text-slate-500",
-                        )}
-                      >
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {!tabsCollapsed ? (
+              <div className="flex items-center gap-5 overflow-x-auto">
+                {tabs!.map((tab) => {
+                  const isActive = activeTab === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => {
+                        tab.onClick?.();
+                        onTabChange?.(tab.key);
+                      }}
+                      className={cn(
+                        "relative flex items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "border-indigo-600 text-indigo-600"
+                          : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800",
+                      )}
+                      aria-selected={isActive}
+                      role="tab"
+                    >
+                      {tab.label}
+                      {tab.count !== undefined && (
+                        <span
+                          className={cn(
+                            "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums",
+                            isActive
+                              ? "bg-indigo-100 text-indigo-700"
+                              : "bg-slate-100 text-slate-500",
+                          )}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Tabs collapsed
+                </span>
+              </div>
+            )}
             <SectionToggle
               collapsed={tabsCollapsed}
               onToggle={() => setTabsCollapsed((v) => !v)}
@@ -261,18 +269,31 @@ export function ModulePageShell({
       )}
 
       {/* ── Filters (compact, collapsible) ───────────────────────── */}
-      {hasFilters && !filtersCollapsed && (
+      {hasFilters && (
         <div className="border-b border-slate-200 bg-white px-4 py-2.5">
-          <div className="flex items-center gap-3">
-            <div className="flex flex-1 items-center gap-2 overflow-x-auto">
-              {filters}
+          {!filtersCollapsed ? (
+            <div className="flex items-center gap-3">
+              <div className="flex flex-1 items-center gap-2 overflow-x-auto">
+                {filters}
+              </div>
+              <SectionToggle
+                collapsed={filtersCollapsed}
+                onToggle={() => setFiltersCollapsed((v) => !v)}
+                label="filters"
+              />
             </div>
-            <SectionToggle
-              collapsed={filtersCollapsed}
-              onToggle={() => setFiltersCollapsed((v) => !v)}
-              label="filters"
-            />
-          </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Filters hidden
+              </span>
+              <SectionToggle
+                collapsed={filtersCollapsed}
+                onToggle={() => setFiltersCollapsed((v) => !v)}
+                label="filters"
+              />
+            </div>
+          )}
         </div>
       )}
 
