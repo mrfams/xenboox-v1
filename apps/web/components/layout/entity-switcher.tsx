@@ -197,6 +197,46 @@ export function EntitySwitcher() {
     );
   }
 
+  // Empty state: the user has no entities yet. Instead of forcing them to
+  // open a dropdown and pick "Create new entity", show a single, direct
+  // create button right in the header — one click straight into the dialog.
+  const hasNoEntities =
+    entities.length === 0 && !listUserEntitiesQuery.isLoading;
+
+  if (hasNoEntities) {
+    return (
+      <>
+        <Button
+          variant="default"
+          size="sm"
+          className="min-w-[180px]"
+          data-testid="create-entity-empty-state"
+          onClick={() => setShowCreateDialog(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Create entity
+        </Button>
+
+        {/* Create Entity Dialog */}
+        {showCreateDialog && (
+          <CreateEntityDialog
+            isOpen={showCreateDialog}
+            onClose={() => {
+              setShowCreateDialog(false);
+              setNewEntityName("");
+              setCreateError(null);
+            }}
+            onCreate={handleCreateEntity}
+            name={newEntityName}
+            onNameChange={setNewEntityName}
+            isCreating={isCreating}
+            error={createError}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="relative">
@@ -504,6 +544,7 @@ function CreateEntityDialog({
             </Button>
             <Button
               size="sm"
+              data-testid="create-entity-dialog-submit"
               onClick={onCreate}
               disabled={!name.trim() || isCreating}
             >

@@ -1,12 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { TRPCProvider } from "@/lib/trpc/provider";
 
@@ -111,6 +106,98 @@ describe("EntitySwitcher — create entity flow", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
+  it("shows a DIRECT create button (no dropdown) when the user has no entities", async () => {
+    render(
+      <TRPCProvider>
+        <EntitySwitcher />
+      </TRPCProvider>,
+    );
+
+    // Zero entities → the header must NOT render a "Select entity" dropdown
+    // trigger. It shows one prominent "Create entity" button instead.
+    const directCreate = await screen.findByRole("button", {
+      name: /create entity/i,
+    });
+    expect(directCreate).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /select entity/i }),
+    ).not.toBeInTheDocument();
+
+    // Clicking it opens the create dialog immediately — no dropdown hop.
+    fireEvent.click(directCreate);
+    expect(
+      await screen.findByPlaceholderText(/acme corp/i),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the dropdown switcher when entities exist", async () => {
+    // Override the GET response so listUserEntities returns one entity.
+    fetchMock.mockImplementation(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (init?.method !== "POST") {
+          return {
+            ok: true,
+            json: async () => [
+              {
+                result: {
+                  data: [{ id: "entity-1", name: "Kerr Jula", role: "owner" }],
+                },
+              },
+            ],
+          };
+        }
+        if (url.includes("organization.createEntity")) {
+          return {
+            ok: true,
+            json: async () => [
+              {
+                result: {
+                  data: { id: "entity-2", name: "Branch" },
+                },
+              },
+            ],
+          };
+        }
+        if (url.includes("organization.create")) {
+          return {
+            ok: true,
+            json: async () => [
+              {
+                result: {
+                  data: {
+                    organization: { id: "org-1" },
+                    entity: { id: "entity-0" },
+                  },
+                },
+              },
+            ],
+          };
+        }
+        return { ok: true, json: async () => [{ result: { data: [] } }] };
+      },
+    );
+
+    render(
+      <TRPCProvider>
+        <EntitySwitcher />
+      </TRPCProvider>,
+    );
+
+    // With entities present, the switcher dropdown renders (the trigger shows
+    // the current entity name when one is selected; the test mock leaves
+    // entityId null, so it falls back to "Select entity"). The entity itself
+    // and the "Create new entity" action live inside the dropdown.
+    const trigger = await screen.findByRole("button", {
+      name: /select entity/i,
+    });
+    fireEvent.click(trigger);
+    expect(
+      await screen.findByRole("button", { name: /create new entity/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Kerr Jula")).toBeInTheDocument();
+  });
+
   it("creates the entity through the tRPC v11 client and switches to it", async () => {
     render(
       <TRPCProvider>
@@ -118,19 +205,15 @@ describe("EntitySwitcher — create entity flow", () => {
       </TRPCProvider>,
     );
 
-    // Open the dropdown, then the create dialog
-    const trigger = await screen.findByRole("button", {
-      name: /select entity/i,
+    // No entities → direct create button in the header, no dropdown hop.
+    const directCreate = await screen.findByRole("button", {
+      name: /create entity/i,
     });
-    fireEvent.click(trigger);
-    const createItem = await screen.findByRole("button", {
-      name: /create new entity/i,
-    });
-    fireEvent.click(createItem);
+    fireEvent.click(directCreate);
 
     const nameInput = await screen.findByPlaceholderText(/acme corp/i);
     fireEvent.change(nameInput, { target: { value: "My Business" } });
-    fireEvent.click(screen.getByRole("button", { name: /^create entity$/i }));
+    fireEvent.click(screen.getByTestId("create-entity-dialog-submit"));
 
     await waitFor(() => {
       expect(entityCtx.setEntityId).toHaveBeenCalledWith("entity-1", "admin");
@@ -205,18 +288,15 @@ describe("EntitySwitcher — create entity flow", () => {
       </TRPCProvider>,
     );
 
-    const trigger = await screen.findByRole("button", {
-      name: /select entity/i,
+    // Empty state → direct create button opens the dialog immediately.
+    const directCreate = await screen.findByRole("button", {
+      name: /create entity/i,
     });
-    fireEvent.click(trigger);
-    const createItem = await screen.findByRole("button", {
-      name: /create new entity/i,
-    });
-    fireEvent.click(createItem);
+    fireEvent.click(directCreate);
 
     const nameInput = await screen.findByPlaceholderText(/acme corp/i);
     fireEvent.change(nameInput, { target: { value: "Duplicate" } });
-    fireEvent.click(screen.getByRole("button", { name: /^create entity$/i }));
+    fireEvent.click(screen.getByTestId("create-entity-dialog-submit"));
 
     await waitFor(() => {
       expect(screen.getByText("Slug already taken")).toBeInTheDocument();
