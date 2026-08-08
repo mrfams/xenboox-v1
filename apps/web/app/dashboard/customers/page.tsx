@@ -26,6 +26,8 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -39,30 +41,26 @@ type StatusFilter =
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
-function SummaryCards({
-  summary,
-}: {
-  summary: {
-    totalReceivables: number;
-    receivablesChange: number;
-    overdueAmount: number;
-    overdueChange: number;
-    currentAmount: number;
-    currentChange: number;
-    totalCustomers: number;
-    activeCustomers: number;
-    avgDaysToPay: number;
-    avgDaysToPayChange: number;
-  };
-}) {
-  const cards = [
+function buildSummaryCards(summary: {
+  totalReceivables: number;
+  receivablesChange: number;
+  overdueAmount: number;
+  overdueChange: number;
+  currentAmount: number;
+  currentChange: number;
+  totalCustomers: number;
+  activeCustomers: number;
+  avgDaysToPay: number;
+  avgDaysToPayChange: number;
+}): SummaryCardItem[] {
+  return [
     {
       label: "Total Receivables",
       value: `GMD ${summary.totalReceivables.toLocaleString()}`,
       change: summary.receivablesChange,
       icon: CreditCard,
       color: "text-indigo-600",
-      iconBg: "bg-indigo-100",
+      bgColor: "bg-indigo-50",
     },
     {
       label: "Overdue Amount",
@@ -70,7 +68,7 @@ function SummaryCards({
       change: summary.overdueChange,
       icon: AlertTriangle,
       color: "text-red-600",
-      iconBg: "bg-red-100",
+      bgColor: "bg-red-50",
     },
     {
       label: "Current (Not Due)",
@@ -78,7 +76,7 @@ function SummaryCards({
       change: summary.currentChange,
       icon: CheckCircle2,
       color: "text-emerald-600",
-      iconBg: "bg-emerald-100",
+      bgColor: "bg-emerald-50",
     },
     {
       label: "Customers",
@@ -86,7 +84,7 @@ function SummaryCards({
       subtitle: `${summary.activeCustomers} Active customers`,
       icon: Users,
       color: "text-blue-600",
-      iconBg: "bg-blue-100",
+      bgColor: "bg-blue-50",
     },
     {
       label: "Avg. Days to Pay",
@@ -94,50 +92,9 @@ function SummaryCards({
       change: summary.avgDaysToPayChange,
       icon: Clock,
       color: "text-purple-600",
-      iconBg: "bg-purple-100",
+      bgColor: "bg-purple-50",
     },
   ];
-
-  return (
-    <div className="grid grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.iconBg)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-          {card.change !== undefined && (
-            <div className="flex items-center gap-1 mt-1">
-              {card.change >= 0 ? (
-                <TrendingUp className="h-3 w-3 text-emerald-500" />
-              ) : (
-                <TrendingDown className="h-3 w-3 text-emerald-500" />
-              )}
-              <span
-                className={cn(
-                  "text-sm",
-                  card.change >= 0 ? "text-emerald-600" : "text-emerald-600",
-                )}
-              >
-                {card.change >= 0 ? "+" : ""}
-                {card.change}%
-              </span>
-              <span className="text-xs text-slate-400">vs last month</span>
-            </div>
-          )}
-          {card.subtitle && (
-            <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
 }
 
 // ─── Customer Table ────────────────────────────────────────────────────────
@@ -871,229 +828,154 @@ export default function CustomersPage() {
     !customersLoading && (!overviewData || overviewData.statusCounts.all === 0);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                <Users className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
-                <p className="text-sm text-slate-500">
-                  Manage your customer relationships, credit, and receivables
-                  with AI.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                <Plus className="h-4 w-4" />
-                New Customer
-                <ChevronDown className="h-4 w-4" />
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Download className="h-4 w-4" />
-                Import
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                More
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </div>
+    <ModulePageShell
+      title="Customers"
+      description="Manage your customer relationships, credit, and receivables with AI."
+      icon={Users}
+      iconBgClassName="bg-gradient-to-br from-indigo-500 to-purple-500"
+      actions={
+        <>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+            <Plus className="h-4 w-4" />
+            New Customer
+            <ChevronDown className="h-4 w-4" />
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Download className="h-4 w-4" />
+            Import
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            More
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </>
+      }
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(key) => setActiveTab(key as StatusFilter)}
+      summaryCards={
+        overviewData?.summary ? buildSummaryCards(overviewData.summary) : []
+      }
+      filters={
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search customers..."
+              className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-slate-200 -mb-px">
-            {tabs.map((tab) => (
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Statuses</option>
+            <option>Active</option>
+            <option>Inactive</option>
+            <option>Overdue</option>
+            <option>At Risk</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Customer Groups</option>
+            {overviewData?.customerGroups &&
+              Object.keys(overviewData.customerGroups).map((group) => (
+                <option key={group} value={group}>
+                  {group}
+                </option>
+              ))}
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Sales Reps</option>
+          </select>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Filter className="h-4 w-4" />
+            Filters
+          </button>
+        </div>
+      }
+      pagination={
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            Showing 1 to {customersData?.customers.length ?? 0} of{" "}
+            {(customersData?.totalCount ?? 0).toLocaleString()} customers
+          </p>
+          <div className="flex items-center gap-2">
+            {[1, 2, 3, 4, 5, "...", 16].map((p, i) => (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                key={i}
                 className={cn(
-                  "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
-                  activeTab === tab.key
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700",
+                  "px-3 py-1.5 text-sm rounded",
+                  p === 1
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50",
                 )}
               >
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span
-                    className={cn(
-                      "ml-2 px-2 py-0.5 rounded-full text-xs",
-                      activeTab === tab.key
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-slate-100 text-slate-600",
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                )}
+                {p}
               </button>
             ))}
+            <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value={10}>10 / page</option>
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
+            </select>
           </div>
         </div>
-
-        {/* Summary Cards */}
-        {overviewData?.summary && (
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <SummaryCards summary={overviewData.summary} />
-          </div>
-        )}
-
-        {/* Empty State for New Users */}
-        {isEmpty && (
-          <div className="flex-1 flex items-center justify-center bg-white">
-            <div className="max-w-lg text-center space-y-6 p-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-indigo-100">
-                <Users className="h-10 w-10 text-indigo-600" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">
-                  Add your first customer
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Start tracking invoices, payments, and customer relationships.
-                  You can add customers manually or import from a spreadsheet.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-                  <Plus className="h-4 w-4" />
-                  Add Customer
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                  <Download className="h-4 w-4" />
-                  Import Customers
-                </button>
-              </div>
-              <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
-                <span>✓ Track receivables</span>
-                <span>✓ Auto-reminders</span>
-                <span>✓ Credit limits</span>
-              </div>
+      }
+      bottomCharts={
+        <div className="grid grid-cols-3 gap-6">
+          {receivablesTrend && (
+            <ReceivablesTrendChart trendData={receivablesTrend} />
+          )}
+          {overviewData?.topCustomers && (
+            <TopCustomersChart customers={overviewData.topCustomers} />
+          )}
+          {overviewData?.agingSummary && (
+            <AgingSummary
+              agingSummary={overviewData.agingSummary}
+              totalReceivables={overviewData.summary.totalReceivables}
+            />
+          )}
+        </div>
+      }
+    >
+      {isEmpty ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="max-w-lg text-center space-y-6 p-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-indigo-100">
+              <Users className="h-10 w-10 text-indigo-600" />
             </div>
-          </div>
-        )}
-
-        {/* Search and Filters */}
-        <div className="p-4 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search customers..."
-                className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-slate-900">
+                Add your first customer
+              </h2>
+              <p className="text-sm text-slate-500">
+                Start tracking invoices, payments, and customer relationships.
+                You can add customers manually or import from a spreadsheet.
+              </p>
             </div>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Statuses</option>
-              <option>Active</option>
-              <option>Inactive</option>
-              <option>Overdue</option>
-              <option>At Risk</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Customer Groups</option>
-              {overviewData?.customerGroups &&
-                Object.keys(overviewData.customerGroups).map((group) => (
-                  <option key={group} value={group}>
-                    {group}
-                  </option>
-                ))}
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Sales Reps</option>
-            </select>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Filter className="h-4 w-4" />
-              Filters
-            </button>
-            <button className="rounded-lg border border-slate-200 bg-white p-2 hover:bg-slate-50">
-              <Settings className="h-4 w-4 text-slate-600" />
-            </button>
-          </div>
-        </div>
-
-        {/* Customer Table */}
-        <div className="flex-1 overflow-auto bg-white">
-          <CustomerTable
-            customers={customersData?.customers ?? []}
-            selectedId={selectedCustomerId}
-            onSelect={setSelectedCustomerId}
-            isLoading={customersLoading}
-          />
-        </div>
-
-        {/* Pagination */}
-        <div className="border-t border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing 1 to {customersData?.customers.length ?? 0} of{" "}
-              {(customersData?.totalCount ?? 0).toLocaleString()} customers
-            </p>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5, "...", 16].map((p, i) => (
-                <button
-                  key={i}
-                  className={cn(
-                    "px-3 py-1.5 text-sm rounded",
-                    p === 1
-                      ? "bg-indigo-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50",
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-              <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value={10}>10 / page</option>
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-              </select>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                <Plus className="h-4 w-4" />
+                Add Customer
+              </button>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                <Download className="h-4 w-4" />
+                Import Customers
+              </button>
+            </div>
+            <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
+              <span>✓ Track receivables</span>
+              <span>✓ Auto-reminders</span>
+              <span>✓ Credit limits</span>
             </div>
           </div>
         </div>
-
-        {/* Bottom Charts Row */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200">
-          <div className="grid grid-cols-3 gap-6">
-            {receivablesTrend && (
-              <ReceivablesTrendChart trendData={receivablesTrend} />
-            )}
-            {overviewData?.topCustomers && (
-              <TopCustomersChart customers={overviewData.topCustomers} />
-            )}
-            {overviewData?.agingSummary && (
-              <AgingSummary
-                agingSummary={overviewData.agingSummary}
-                totalReceivables={overviewData.summary.totalReceivables}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/*
-        Right AI Copilot Panel - DISABLED
-        <div className="w-[360px]">
-          <AiCopilotPanel
-            insights={aiInsights ?? []}
-            customerHealth={
-              overviewData?.customerHealth ?? {
-                healthy: 0,
-                atRisk: 0,
-                overdue: 0,
-                inactive: 0,
-              }
-            }
-          />
-        </div>
-      */}
-    </div>
+      ) : (
+        <CustomerTable
+          customers={customersData?.customers ?? []}
+          selectedId={selectedCustomerId}
+          onSelect={setSelectedCustomerId}
+          isLoading={customersLoading}
+        />
+      )}
+    </ModulePageShell>
   );
 }

@@ -15,6 +15,7 @@ import {
   Lock,
   Link,
   Fingerprint,
+  Coins,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ import { PrivacySection } from "@/components/settings/privacy-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { WebhooksSection } from "@/components/settings/webhooks-section";
 import { SsoSection } from "@/components/settings/sso-section";
+import { CurrencySection } from "@/components/settings/currency-section";
 
 interface TabGroup {
   label: string;
@@ -131,6 +133,12 @@ const TAB_GROUPS: TabGroup[] = [
         icon: Link,
         description: "Bank connections and third-party services",
       },
+      {
+        id: "currency",
+        label: "Currency",
+        icon: Coins,
+        description: "Exchange rates and multi-currency settings",
+      },
     ],
   },
   {
@@ -172,6 +180,7 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   "audit-log": AuditLogSection,
   privacy: PrivacySection,
   integrations: IntegrationsSection,
+  currency: CurrencySection,
 };
 
 export default function SettingsPage() {

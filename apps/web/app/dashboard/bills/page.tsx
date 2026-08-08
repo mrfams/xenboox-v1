@@ -27,6 +27,8 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -41,30 +43,26 @@ type StatusFilter =
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
-function SummaryCards({
-  summary,
-}: {
-  summary: {
-    totalOutstanding: number;
-    outstandingChange: number;
-    overdueAmount: number;
-    overdueCount: number;
-    dueThisWeek: number;
-    dueThisWeekCount: number;
-    paidThisMonth: number;
-    paidThisMonthCount: number;
-    avgDaysToPay: number;
-    avgDaysToPayChange: number;
-  };
-}) {
-  const cards = [
+function buildSummaryCards(summary: {
+  totalOutstanding: number;
+  outstandingChange: number;
+  overdueAmount: number;
+  overdueCount: number;
+  dueThisWeek: number;
+  dueThisWeekCount: number;
+  paidThisMonth: number;
+  paidThisMonthCount: number;
+  avgDaysToPay: number;
+  avgDaysToPayChange: number;
+}): SummaryCardItem[] {
+  return [
     {
       label: "Total Outstanding",
       value: `GMD ${summary.totalOutstanding.toLocaleString()}`,
       change: summary.outstandingChange,
       icon: CreditCard,
       color: "text-indigo-600",
-      iconBg: "bg-indigo-100",
+      bgColor: "bg-indigo-50",
     },
     {
       label: "Overdue Amount",
@@ -72,7 +70,7 @@ function SummaryCards({
       subtitle: `${summary.overdueCount} bills overdue`,
       icon: AlertTriangle,
       color: "text-red-600",
-      iconBg: "bg-red-100",
+      bgColor: "bg-red-50",
     },
     {
       label: "Due This Week",
@@ -80,7 +78,7 @@ function SummaryCards({
       subtitle: `${summary.dueThisWeekCount} bills`,
       icon: Calendar,
       color: "text-amber-600",
-      iconBg: "bg-amber-100",
+      bgColor: "bg-amber-50",
     },
     {
       label: "Paid This Month",
@@ -88,7 +86,7 @@ function SummaryCards({
       subtitle: `${summary.paidThisMonthCount} bills`,
       icon: CheckCircle2,
       color: "text-emerald-600",
-      iconBg: "bg-emerald-100",
+      bgColor: "bg-emerald-50",
     },
     {
       label: "Average Days to Pay",
@@ -96,50 +94,9 @@ function SummaryCards({
       change: summary.avgDaysToPayChange,
       icon: Clock,
       color: "text-blue-600",
-      iconBg: "bg-blue-100",
+      bgColor: "bg-blue-50",
     },
   ];
-
-  return (
-    <div className="grid grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.iconBg)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-          {card.change !== undefined && (
-            <div className="flex items-center gap-1 mt-1">
-              {card.change >= 0 ? (
-                <TrendingUp className="h-3 w-3 text-emerald-500" />
-              ) : (
-                <TrendingDown className="h-3 w-3 text-emerald-500" />
-              )}
-              <span
-                className={cn(
-                  "text-sm",
-                  card.change >= 0 ? "text-emerald-600" : "text-emerald-600",
-                )}
-              >
-                {card.change >= 0 ? "+" : ""}
-                {card.change}%
-              </span>
-              <span className="text-xs text-slate-400">vs last month</span>
-            </div>
-          )}
-          {card.subtitle && (
-            <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
 }
 
 // ─── Bills Table ───────────────────────────────────────────────────────────
@@ -849,183 +806,108 @@ export default function BillsPage() {
   ];
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Bills</h1>
-                <p className="text-sm text-slate-500">
-                  Manage your vendor bills and payables. Extract, review and pay
-                  with confidence.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                <Plus className="h-4 w-4" />
-                New Bill
-                <ChevronDown className="h-4 w-4" />
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Download className="h-4 w-4" />
-                Import
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                More
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </div>
+    <ModulePageShell
+      title="Bills"
+      description="Manage your vendor bills and payables. Extract, review and pay with confidence."
+      icon={FileText}
+      iconBgClassName="bg-gradient-to-br from-indigo-500 to-purple-500"
+      actions={
+        <>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+            <Plus className="h-4 w-4" />
+            New Bill
+            <ChevronDown className="h-4 w-4" />
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Download className="h-4 w-4" />
+            Import
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            More
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </>
+      }
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(key) => setActiveTab(key as StatusFilter)}
+      summaryCards={
+        overviewData?.summary ? buildSummaryCards(overviewData.summary) : []
+      }
+      filters={
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search bills..."
+              className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-slate-200 -mb-px">
-            {tabs.map((tab) => (
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Vendors</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Statuses</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Due Dates</option>
+          </select>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Filter className="h-4 w-4" />
+            Filters
+          </button>
+        </div>
+      }
+      pagination={
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            Showing 1 to {billsData?.bills.length ?? 0} of{" "}
+            {(billsData?.totalCount ?? 0).toLocaleString()} bills
+          </p>
+          <div className="flex items-center gap-2">
+            {[1, 2, 3, 4, 5, "...", 13].map((p, i) => (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                key={i}
                 className={cn(
-                  "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
-                  activeTab === tab.key
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700",
+                  "px-3 py-1.5 text-sm rounded",
+                  p === 1
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50",
                 )}
               >
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span
-                    className={cn(
-                      "ml-2 px-2 py-0.5 rounded-full text-xs",
-                      activeTab === tab.key
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-slate-100 text-slate-600",
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                )}
+                {p}
               </button>
             ))}
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        {overviewData?.summary && (
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <SummaryCards summary={overviewData.summary} />
-          </div>
-        )}
-
-        {/* Search and Filters */}
-        <div className="p-4 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search bills..."
-                className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Vendors</option>
+            <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value={10}>10 / page</option>
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
             </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Statuses</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Due Dates</option>
-            </select>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Filter className="h-4 w-4" />
-              Filters
-            </button>
-            <button className="rounded-lg border border-slate-200 bg-white p-2 hover:bg-slate-50">
-              <Settings className="h-4 w-4 text-slate-600" />
-            </button>
           </div>
         </div>
-
-        {/* Bills Table */}
-        <div className="flex-1 overflow-auto bg-white">
-          <BillsTable
-            bills={billsData?.bills ?? []}
-            selectedId={selectedBillId}
-            onSelect={setSelectedBillId}
-            isLoading={billsLoading}
-          />
+      }
+      bottomCharts={
+        <div className="grid grid-cols-3 gap-6">
+          {billsTrend && <BillsTrendChart trendData={billsTrend} />}
+          {overviewData?.topVendors && (
+            <TopVendorsChart vendors={overviewData.topVendors} />
+          )}
+          {overviewData?.billsByStatus && (
+            <BillsByStatusDonut
+              data={overviewData.billsByStatus}
+              total={overviewData.totalBills}
+            />
+          )}
         </div>
-
-        {/* Pagination */}
-        <div className="border-t border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing 1 to {billsData?.bills.length ?? 0} of{" "}
-              {(billsData?.totalCount ?? 0).toLocaleString()} bills
-            </p>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5, "...", 13].map((p, i) => (
-                <button
-                  key={i}
-                  className={cn(
-                    "px-3 py-1.5 text-sm rounded",
-                    p === 1
-                      ? "bg-indigo-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50",
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-              <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value={10}>10 / page</option>
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Charts Row */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200">
-          <div className="grid grid-cols-3 gap-6">
-            {billsTrend && <BillsTrendChart trendData={billsTrend} />}
-            {overviewData?.topVendors && (
-              <TopVendorsChart vendors={overviewData.topVendors} />
-            )}
-            {overviewData?.billsByStatus && (
-              <BillsByStatusDonut
-                data={overviewData.billsByStatus}
-                total={overviewData.totalBills}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/*
-        Right AI Copilot Panel - DISABLED
-        <div className="w-[360px]">
-          <AiCopilotPanel
-            insights={aiInsights ?? []}
-            agingSummary={
-              overviewData?.agingSummary ?? {
-                "0_30": 0,
-                "31_60": 0,
-                "61_90": 0,
-                "90_plus": 0,
-              }
-            }
-            totalOutstanding={overviewData?.summary.totalOutstanding ?? 0}
-          />
-        </div>
-      */}
-    </div>
+      }
+    >
+      <BillsTable
+        bills={billsData?.bills ?? []}
+        selectedId={selectedBillId}
+        onSelect={setSelectedBillId}
+        isLoading={billsLoading}
+      />
+    </ModulePageShell>
   );
 }

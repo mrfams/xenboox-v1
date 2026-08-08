@@ -26,6 +26,8 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -40,25 +42,21 @@ type StatusFilter =
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
-function SummaryCards({
-  summary,
-}: {
-  summary: {
-    totalOutstanding: number;
-    outstandingChange: number;
-    overdueAmount: number;
-    overdueCount: number;
-    overdueChange: number;
-    paidThisMonth: number;
-    paidChange: number;
-    avgCollectionDays: number;
-    avgCollectionChange: number;
-    conversionRate: number;
-    conversionChange: number;
-    draftCount: number;
-  };
-}) {
-  const cards = [
+function buildSummaryCards(summary: {
+  totalOutstanding: number;
+  outstandingChange: number;
+  overdueAmount: number;
+  overdueCount: number;
+  overdueChange: number;
+  paidThisMonth: number;
+  paidChange: number;
+  avgCollectionDays: number;
+  avgCollectionChange: number;
+  conversionRate: number;
+  conversionChange: number;
+  draftCount: number;
+}): SummaryCardItem[] {
+  return [
     {
       label: "Total Outstanding",
       value: `GMD ${summary.totalOutstanding.toLocaleString()}`,
@@ -66,7 +64,6 @@ function SummaryCards({
       icon: CreditCard,
       color: "text-indigo-600",
       bgColor: "bg-indigo-50",
-      iconBg: "bg-indigo-100",
     },
     {
       label: "Overdue",
@@ -75,7 +72,6 @@ function SummaryCards({
       icon: AlertTriangle,
       color: "text-red-600",
       bgColor: "bg-red-50",
-      iconBg: "bg-red-100",
     },
     {
       label: "Paid (This Month)",
@@ -84,7 +80,6 @@ function SummaryCards({
       icon: CheckCircle2,
       color: "text-emerald-600",
       bgColor: "bg-emerald-50",
-      iconBg: "bg-emerald-100",
     },
     {
       label: "Draft",
@@ -93,7 +88,6 @@ function SummaryCards({
       icon: FileText,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
-      iconBg: "bg-blue-100",
     },
     {
       label: "Conversion Rate",
@@ -102,47 +96,8 @@ function SummaryCards({
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
-      iconBg: "bg-purple-100",
     },
   ];
-
-  return (
-    <div className="grid grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.iconBg)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-          {card.change !== 0 && (
-            <div className="flex items-center gap-1 mt-1">
-              {card.change >= 0 ? (
-                <TrendingUp className="h-3 w-3 text-emerald-500" />
-              ) : (
-                <TrendingDown className="h-3 w-3 text-red-500" />
-              )}
-              <span
-                className={cn(
-                  "text-sm",
-                  card.change >= 0 ? "text-emerald-600" : "text-red-600",
-                )}
-              >
-                {card.change >= 0 ? "+" : ""}
-                {card.change}%
-              </span>
-              <span className="text-xs text-slate-400">vs last 30 days</span>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
 }
 
 // ─── Invoice Table ─────────────────────────────────────────────────────────
@@ -892,207 +847,162 @@ export default function InvoicingPage() {
     !invoicesLoading && (!overviewData || overviewData.totalInvoices === 0);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
-              <p className="text-sm text-slate-500">
-                Create, send and track your customer invoices.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Upload className="h-4 w-4" />
-                Upload Invoice
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                More actions
-                <ChevronDown className="h-4 w-4" />
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                <Plus className="h-4 w-4" />
-                New Invoice
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-slate-200 -mb-px">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
-                  activeTab === tab.key
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700",
-                )}
-              >
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span
-                    className={cn(
-                      "ml-2 px-2 py-0.5 rounded-full text-xs",
-                      activeTab === tab.key
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-slate-100 text-slate-600",
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        {summaryWithDraft && (
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <SummaryCards summary={summaryWithDraft} />
-          </div>
-        )}
-
-        {/* Empty State for New Users */}
-        {isEmpty && (
-          <div className="flex-1 flex items-center justify-center bg-white">
-            <div className="max-w-lg text-center space-y-6 p-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-indigo-100">
-                <FileText className="h-10 w-10 text-indigo-600" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">
-                  Create your first invoice
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Start billing your customers by creating your first invoice.
-                  You can also upload existing invoices or let AI help you.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-                  <Plus className="h-4 w-4" />
-                  Create Invoice
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                  <Upload className="h-4 w-4" />
-                  Upload Invoice
-                </button>
-              </div>
-              <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
-                <span>✓ Auto-reminders for overdue</span>
-                <span>✓ Track payments automatically</span>
-                <span>✓ AI-powered insights</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Search and Filters */}
-        <div className="p-4 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search invoices..."
-                className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-              <Calendar className="h-4 w-4" />
-              Date: Last 30 days
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Customers</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Statuses</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Types</option>
-            </select>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Filter className="h-4 w-4" />
-              Filters
-            </button>
-            <button className="rounded-lg border border-slate-200 bg-white p-2 hover:bg-slate-50">
-              <LayoutGrid className="h-4 w-4 text-slate-600" />
-            </button>
-          </div>
-        </div>
-
-        {/* Invoice Table */}
-        <div className="flex-1 overflow-auto bg-white">
-          <InvoiceTable
-            invoices={invoicesData?.invoices ?? []}
-            selectedId={selectedInvoiceId}
-            onSelect={setSelectedInvoiceId}
-            isLoading={invoicesLoading}
-          />
-        </div>
-
-        {/* Pagination */}
-        <div className="border-t border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing 1 to {invoicesData?.invoices.length ?? 0} of{" "}
-              {(invoicesData?.totalCount ?? 0).toLocaleString()} invoices
-            </p>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5, "...", 16].map((p, i) => (
-                <button
-                  key={i}
-                  className={cn(
-                    "px-3 py-1.5 text-sm rounded",
-                    p === 1
-                      ? "bg-indigo-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50",
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-              <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value={10}>10 per page</option>
-                <option value={25}>25 per page</option>
-                <option value={50}>50 per page</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Charts Row */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200">
-          <div className="grid grid-cols-3 gap-6">
-            {overviewData?.agingSummary && (
-              <AgingSummaryChart
-                agingSummary={overviewData.agingSummary}
-                totalOutstanding={overviewData.summary.totalOutstanding}
-              />
-            )}
-            {invoicesTrend && <InvoicesTrendChart trendData={invoicesTrend} />}
-            {overviewData?.topCustomers && (
-              <TopCustomers customers={overviewData.topCustomers} />
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className="flex min-h-full">
       {/* Left Shortcuts Sidebar */}
       <div className="w-[200px] border-r border-slate-200 bg-white hidden lg:block">
         <ShortcutsSidebar />
       </div>
 
+      {/* Main Content */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <ModulePageShell
+          noOuterWrapper
+          title="Invoices"
+          description="Create, send and track your customer invoices."
+          icon={FileText}
+          actions={
+            <>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Upload className="h-4 w-4" />
+                Upload Invoice
+              </button>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                More actions
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                <Plus className="h-4 w-4" />
+                New Invoice
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </>
+          }
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={(key) => setActiveTab(key as StatusFilter)}
+          summaryCards={
+            summaryWithDraft ? buildSummaryCards(summaryWithDraft) : []
+          }
+          filters={
+            <div className="flex items-center gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search invoices..."
+                  className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                <Calendar className="h-4 w-4" />
+                Date: Last 30 days
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option>All Customers</option>
+              </select>
+              <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option>All Statuses</option>
+              </select>
+              <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option>All Types</option>
+              </select>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Filter className="h-4 w-4" />
+                Filters
+              </button>
+            </div>
+          }
+          pagination={
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">
+                Showing 1 to {invoicesData?.invoices.length ?? 0} of{" "}
+                {(invoicesData?.totalCount ?? 0).toLocaleString()} invoices
+              </p>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5, "...", 16].map((p, i) => (
+                  <button
+                    key={i}
+                    className={cn(
+                      "px-3 py-1.5 text-sm rounded",
+                      p === 1
+                        ? "bg-indigo-600 text-white"
+                        : "text-slate-600 hover:bg-slate-50",
+                    )}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value={10}>10 per page</option>
+                  <option value={25}>25 per page</option>
+                  <option value={50}>50 per page</option>
+                </select>
+              </div>
+            </div>
+          }
+          bottomCharts={
+            <div className="grid grid-cols-3 gap-6">
+              {overviewData?.agingSummary && (
+                <AgingSummaryChart
+                  agingSummary={overviewData.agingSummary}
+                  totalOutstanding={overviewData.summary.totalOutstanding}
+                />
+              )}
+              {invoicesTrend && (
+                <InvoicesTrendChart trendData={invoicesTrend} />
+              )}
+              {overviewData?.topCustomers && (
+                <TopCustomers customers={overviewData.topCustomers} />
+              )}
+            </div>
+          }
+        >
+          {isEmpty ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="max-w-lg text-center space-y-6 p-8">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-indigo-100">
+                  <FileText className="h-10 w-10 text-indigo-600" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Create your first invoice
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    Start billing your customers by creating your first invoice.
+                    You can also upload existing invoices or let AI help you.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                    <Plus className="h-4 w-4" />
+                    Create Invoice
+                  </button>
+                  <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                    <Upload className="h-4 w-4" />
+                    Upload Invoice
+                  </button>
+                </div>
+                <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
+                  <span>✓ Auto-reminders for overdue</span>
+                  <span>✓ Track payments automatically</span>
+                  <span>✓ AI-powered insights</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <InvoiceTable
+              invoices={invoicesData?.invoices ?? []}
+              selectedId={selectedInvoiceId}
+              onSelect={setSelectedInvoiceId}
+              isLoading={invoicesLoading}
+            />
+          )}
+        </ModulePageShell>
+      </div>
+
       {/* Right AI Assistant Panel */}
-      <div className="w-[360px]">
+      <div className="w-[360px] hidden xl:block">
         <AiInvoiceAssistantPanel
           insights={aiInsights ?? []}
           recentActivity={recentActivity ?? []}

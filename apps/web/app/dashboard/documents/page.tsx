@@ -22,6 +22,8 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -35,19 +37,15 @@ type TabFilter =
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
-function SummaryCards({
-  summary,
-}: {
-  summary: {
-    totalDocuments: number;
-    totalDocumentsChange: number;
-    storageUsed: number;
-    storageLimit: number;
-    recentUploads: number;
-    pendingReview: number;
-  };
-}) {
-  const cards = [
+function buildSummaryCards(summary: {
+  totalDocuments: number;
+  totalDocumentsChange: number;
+  storageUsed: number;
+  storageLimit: number;
+  recentUploads: number;
+  pendingReview: number;
+}): SummaryCardItem[] {
+  const cards: SummaryCardItem[] = [
     {
       label: "Total Documents",
       value: summary.totalDocuments.toLocaleString(),
@@ -81,33 +79,7 @@ function SummaryCards({
     },
   ];
 
-  return (
-    <div className="grid grid-cols-4 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.bgColor)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-          {card.change !== undefined && (
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-sm text-emerald-600">+{card.change}%</span>
-              <span className="text-xs text-slate-400">vs last month</span>
-            </div>
-          )}
-          {card.subtitle && (
-            <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+  return cards;
 }
 
 // ─── Documents Table ───────────────────────────────────────────────────────
@@ -442,135 +414,100 @@ export default function DocumentsPage() {
     !documentsLoading && (!documentsData || documentsData.length === 0);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Documents</h1>
-              <p className="text-sm text-slate-500">
-                Store, organize, and manage all your financial documents.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Download className="h-4 w-4" />
-                Export
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                <Upload className="h-4 w-4" />
-                Upload Document
-              </button>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-slate-200 -mb-px">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
-                  activeTab === tab.key
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700",
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50">
-          {/* Summary Cards */}
-          {overviewData?.summary && (
-            <SummaryCards summary={overviewData.summary} />
-          )}
-
-          {/* Empty State for New Users */}
-          {isEmpty && (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12">
-              <div className="max-w-md text-center space-y-4 mx-auto">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100">
-                  <FolderOpen className="h-8 w-8 text-indigo-600" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-slate-900">
-                    Upload your first document
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Store invoices, receipts, contracts, and reports. AI will
-                    automatically categorize and extract data from your
-                    documents.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-                    <Upload className="h-4 w-4" />
-                    Upload Document
-                  </button>
-                  <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                    <FileText className="h-4 w-4" />
-                    Scan with AI
-                  </button>
-                </div>
-                <div className="flex items-center justify-center gap-4 text-xs text-slate-400 pt-2">
-                  <span>✓ PDF, images, spreadsheets</span>
-                  <span>✓ Auto-categorization</span>
-                  <span>✓ OCR extraction</span>
-                </div>
+    <ModulePageShell
+      title="Documents"
+      description="Store, organize, and manage all your financial documents."
+      icon={FolderOpen}
+      actions={
+        <>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Download className="h-4 w-4" />
+            Export
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+            <Upload className="h-4 w-4" />
+            Upload Document
+          </button>
+        </>
+      }
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(key) => setActiveTab(key as TabFilter)}
+      summaryCards={
+        overviewData?.summary ? buildSummaryCards(overviewData.summary) : []
+      }
+    >
+      <div className="min-h-full space-y-6 bg-slate-50 p-4">
+        {/* Empty State for New Users */}
+        {isEmpty && (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12">
+            <div className="max-w-md text-center space-y-4 mx-auto">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100">
+                <FolderOpen className="h-8 w-8 text-indigo-600" />
               </div>
-            </div>
-          )}
-
-          {/* Documents Table */}
-          <div className="rounded-xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <h3 className="font-medium text-slate-900">
-                Documents ({documentsData?.length ?? 0})
-              </h3>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search documents..."
-                    className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-                  <Filter className="h-4 w-4" />
-                  Filters
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Upload your first document
+                </h3>
+                <p className="text-sm text-slate-500">
+                  Store invoices, receipts, contracts, and reports. AI will
+                  automatically categorize and extract data from your documents.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                  <Upload className="h-4 w-4" />
+                  Upload Document
+                </button>
+                <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                  <FileText className="h-4 w-4" />
+                  Scan with AI
                 </button>
               </div>
+              <div className="flex items-center justify-center gap-4 text-xs text-slate-400 pt-2">
+                <span>✓ PDF, images, spreadsheets</span>
+                <span>✓ Auto-categorization</span>
+                <span>✓ OCR extraction</span>
+              </div>
             </div>
-            <DocumentsTable
-              documents={(documentsData ?? []).map((doc) => ({
-                id: doc.id,
-                name: doc.name,
-                type: doc.type,
-                category: doc.type,
-                uploadedBy: doc.uploadedBy ?? "—",
-                uploadedAt: doc.createdAt ?? new Date().toISOString(),
-                size: doc.sizeBytes ?? 0,
-              }))}
-              isLoading={documentsLoading}
-            />
           </div>
+        )}
+
+        {/* Documents Table */}
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <div className="flex items-center justify-between p-4 border-b border-slate-200">
+            <h3 className="font-medium text-slate-900">
+              Documents ({documentsData?.length ?? 0})
+            </h3>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search documents..."
+                  className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                <Filter className="h-4 w-4" />
+                Filters
+              </button>
+            </div>
+          </div>
+          <DocumentsTable
+            documents={(documentsData ?? []).map((doc) => ({
+              id: doc.id,
+              name: doc.name,
+              type: doc.type,
+              category: doc.type,
+              uploadedBy: doc.uploadedBy ?? "—",
+              uploadedAt: doc.createdAt ?? new Date().toISOString(),
+              size: doc.sizeBytes ?? 0,
+            }))}
+            isLoading={documentsLoading}
+          />
         </div>
       </div>
-
-      {/*
-        AI Copilot Panel - DISABLED
-        <div className="w-[360px]">
-          <AiCopilotPanel insights={aiInsights ?? []} />
-        </div>
-      */}
-    </div>
+    </ModulePageShell>
   );
 }

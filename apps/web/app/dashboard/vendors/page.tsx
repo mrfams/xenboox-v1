@@ -22,24 +22,22 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
-function SummaryCards({
-  overview,
-}: {
-  overview: {
-    totalPayables: number;
-    totalPayablesChange: number;
-    overdueAmount: number;
-    overdueChange: number;
-    dueWithin7: number;
-    dueWithin7Count: number;
-    totalVendors: number;
-    avgDaysToPay: number;
-  };
-}) {
-  const cards = [
+function buildSummaryCards(overview: {
+  totalPayables: number;
+  totalPayablesChange: number;
+  overdueAmount: number;
+  overdueChange: number;
+  dueWithin7: number;
+  dueWithin7Count: number;
+  totalVendors: number;
+  avgDaysToPay: number;
+}): SummaryCardItem[] {
+  return [
     {
       label: "Total Payables (All)",
       value: `GMD ${overview.totalPayables.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -81,41 +79,6 @@ function SummaryCards({
       bgColor: "bg-emerald-50",
     },
   ];
-
-  return (
-    <div className="grid grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.bgColor)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-xl font-bold text-slate-900">{card.value}</p>
-          {card.change !== undefined && (
-            <div className="flex items-center gap-2 mt-1">
-              <span
-                className={cn(
-                  "text-sm font-medium",
-                  card.change >= 0 ? "text-emerald-600" : "text-red-600",
-                )}
-              >
-                {card.change >= 0 ? "↑" : "↓"} {Math.abs(card.change)}%
-              </span>
-              <p className="text-xs text-slate-400">vs last month</p>
-            </div>
-          )}
-          {card.subtitle && card.change === undefined && (
-            <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
 }
 
 // ─── Vendor Table ──────────────────────────────────────────────────────────
@@ -806,231 +769,166 @@ export default function VendorsPage() {
   const isEmpty = !vendorsLoading && (!overview || overview.totalVendors === 0);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                <span className="text-2xl">👥</span>
-                Vendors
-              </h1>
-              <p className="text-sm text-slate-500 mt-1">
-                Manage your vendors, payments, and relationships.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                <Plus className="h-4 w-4" />
-                New Vendor
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Upload className="h-4 w-4" />
-                Import
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                More
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </div>
+    <ModulePageShell
+      title="Vendors"
+      description="Manage your vendors, payments, and relationships."
+      icon={Users}
+      actions={
+        <>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+            <Plus className="h-4 w-4" />
+            New Vendor
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Upload className="h-4 w-4" />
+            Import
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            More
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </>
+      }
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(key) => setActiveTab(key as typeof activeTab)}
+      summaryCards={overview ? buildSummaryCards(overview) : []}
+      filters={
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search vendors..."
+              className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1">
-            {tabs.map((tab) => (
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Statuses</option>
+            <option>Active</option>
+            <option>Inactive</option>
+            <option>On Hold</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Vendor Types</option>
+            <option>Supplier</option>
+            <option>Bank</option>
+            <option>Service Provider</option>
+            <option>Logistics</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Payment Terms</option>
+            <option>Net 0</option>
+            <option>Net 7</option>
+            <option>Net 15</option>
+            <option>Net 30</option>
+          </select>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Filter className="h-4 w-4" />
+            Filters
+          </button>
+        </div>
+      }
+      pagination={
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            Showing {(page - 1) * pageSize + 1} to{" "}
+            {Math.min(page * pageSize, vendorsData?.totalCount ?? 0)} of{" "}
+            {vendorsData?.totalCount ?? 0} vendors
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+            >
+              ←
+            </button>
+            {Array.from(
+              { length: Math.min(5, vendorsData?.totalPages ?? 1) },
+              (_, i) => i + 1,
+            ).map((p) => (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                key={p}
+                onClick={() => setPage(p)}
                 className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                  activeTab === tab.key
-                    ? "bg-indigo-50 text-indigo-600"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
+                  "px-3 py-1.5 text-sm rounded",
+                  page === p
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50",
                 )}
               >
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span
-                    className={cn(
-                      "ml-2 px-2 py-0.5 rounded-full text-xs",
-                      activeTab === tab.key
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-slate-100 text-slate-600",
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                )}
+                {p}
               </button>
             ))}
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        {overview && (
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <SummaryCards overview={overview} />
-          </div>
-        )}
-
-        {/* Empty State for New Users */}
-        {isEmpty && (
-          <div className="flex-1 flex items-center justify-center bg-white">
-            <div className="max-w-lg text-center space-y-6 p-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-indigo-100">
-                <Users className="h-10 w-10 text-indigo-600" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">
-                  Add your first vendor
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Track your suppliers, payments, and purchase orders. You can
-                  add vendors manually or import from a spreadsheet.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-                  <Plus className="h-4 w-4" />
-                  Add Vendor
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                  <Upload className="h-4 w-4" />
-                  Import Vendors
-                </button>
-              </div>
-              <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
-                <span>✓ Track payables</span>
-                <span>✓ Payment reminders</span>
-                <span>✓ 1099 tracking</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="p-4 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search vendors..."
-                className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Statuses</option>
-              <option>Active</option>
-              <option>Inactive</option>
-              <option>On Hold</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Vendor Types</option>
-              <option>Supplier</option>
-              <option>Bank</option>
-              <option>Service Provider</option>
-              <option>Logistics</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Payment Terms</option>
-              <option>Net 0</option>
-              <option>Net 7</option>
-              <option>Net 15</option>
-              <option>Net 30</option>
-            </select>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Filter className="h-4 w-4" />
-              Filters
+            <button
+              onClick={() =>
+                setPage(Math.min(vendorsData?.totalPages ?? 1, page + 1))
+              }
+              disabled={page === (vendorsData?.totalPages ?? 1)}
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+            >
+              →
             </button>
+            <select
+              value={pageSize}
+              onChange={() => setPage(1)}
+              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value={10}>10 / page</option>
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
+            </select>
           </div>
         </div>
-
-        {/* Vendor Table */}
-        <div className="flex-1 overflow-auto bg-white">
-          <VendorTable
-            vendors={vendorsData?.vendors ?? []}
-            isLoading={vendorsLoading}
-          />
-        </div>
-
-        {/* Pagination */}
-        <div className="border-t border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {(page - 1) * pageSize + 1} to{" "}
-              {Math.min(page * pageSize, vendorsData?.totalCount ?? 0)} of{" "}
-              {vendorsData?.totalCount ?? 0} vendors
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-              >
-                ←
+      }
+      bottomCharts={
+        <BottomRow
+          topVendors={topVendors ?? []}
+          paymentTerms={paymentTerms ?? { terms: [], totalVendors: 0 }}
+        />
+      }
+    >
+      {isEmpty ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="max-w-lg text-center space-y-6 p-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-indigo-100">
+              <Users className="h-10 w-10 text-indigo-600" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-slate-900">
+                Add your first vendor
+              </h2>
+              <p className="text-sm text-slate-500">
+                Track your suppliers, payments, and purchase orders. You can add
+                vendors manually or import from a spreadsheet.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                <Plus className="h-4 w-4" />
+                Add Vendor
               </button>
-              {Array.from(
-                { length: Math.min(5, vendorsData?.totalPages ?? 1) },
-                (_, i) => i + 1,
-              ).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={cn(
-                    "px-3 py-1.5 text-sm rounded",
-                    page === p
-                      ? "bg-indigo-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50",
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                onClick={() =>
-                  setPage(Math.min(vendorsData?.totalPages ?? 1, page + 1))
-                }
-                disabled={page === (vendorsData?.totalPages ?? 1)}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-              >
-                →
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                <Upload className="h-4 w-4" />
+                Import Vendors
               </button>
-              <select
-                value={pageSize}
-                onChange={() => setPage(1)}
-                className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value={10}>10 / page</option>
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-              </select>
+            </div>
+            <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
+              <span>✓ Track payables</span>
+              <span>✓ Payment reminders</span>
+              <span>✓ 1099 tracking</span>
             </div>
           </div>
         </div>
-
-        {/* Bottom Row */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200">
-          <BottomRow
-            topVendors={topVendors ?? []}
-            paymentTerms={paymentTerms ?? { terms: [], totalVendors: 0 }}
-          />
-        </div>
-      </div>
-
-      {/*
-        AI Copilot Panel - DISABLED
-        <div className="w-[360px]">
-          <AiCopilotPanel
-            insights={insights ?? []}
-            aging={aging ?? { aging: [], total: 0, totalFormatted: "GMD 0" }}
-          />
-        </div>
-      */}
-    </div>
+      ) : (
+        <VendorTable
+          vendors={vendorsData?.vendors ?? []}
+          isLoading={vendorsLoading}
+        />
+      )}
+    </ModulePageShell>
   );
 }

@@ -29,6 +29,11 @@ import {
   realtimeQueryOptions,
   analyticsQueryOptions,
 } from "@/lib/trpc/query-options";
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type {
+  SummaryCardItem,
+  TabItem,
+} from "@/components/module/module-page-shell.types";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -46,7 +51,7 @@ function SummaryCards({
     lastSyncAt: string | null;
   };
 }) {
-  const cards = [
+  const cards: SummaryCardItem[] = [
     {
       label: "Total Cash Balance",
       value: `GMD ${summary.totalBalance.toLocaleString("en-US", {
@@ -322,7 +327,6 @@ function CashPositionChart({
     netChange: number;
   };
 }) {
-  // Simple bar chart representation
   const maxBalance = Math.max(
     ...Object.values(data.dailyBalances),
     data.currentBalance,
@@ -602,102 +606,83 @@ function AiCopilotPanel({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* AI Insights */}
+        {/* Greeting */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-slate-900">AI Insights</h4>
-            <span className="text-xs text-slate-400">Generated 2 mins ago</span>
-          </div>
-          <div className="space-y-3">
-            {insights.map((insight) => (
-              <div
-                key={insight.id}
-                className={cn(
-                  "rounded-lg border p-3",
-                  insight.type === "warning"
-                    ? "border-amber-200 bg-amber-50"
-                    : insight.type === "success"
-                      ? "border-emerald-200 bg-emerald-50"
-                      : "border-blue-200 bg-blue-50",
-                )}
-              >
-                <div className="flex items-start gap-2">
-                  <div
-                    className={cn(
-                      "h-5 w-5 rounded-full flex items-center justify-center mt-0.5",
-                      insight.type === "warning"
-                        ? "bg-amber-100"
-                        : insight.type === "success"
-                          ? "bg-emerald-100"
-                          : "bg-blue-100",
-                    )}
-                  >
-                    {insight.type === "warning" ? (
-                      <AlertTriangle className="h-3 w-3 text-amber-600" />
-                    ) : insight.type === "success" ? (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                    ) : (
-                      <Bot className="h-3 w-3 text-blue-600" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900">
-                      {insight.title}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      {insight.description}
-                    </p>
-                    <button className="text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-2">
-                      {insight.actionLabel}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="text-lg font-medium text-slate-900">
+            Good morning, Famara 👋
+          </p>
+          <p className="text-sm text-slate-600 mt-1">
+            Here&apos;s your banking overview for today.
+          </p>
         </div>
 
-        {/* Ask AI */}
-        <div>
-          <h4 className="font-medium text-slate-900 mb-3">
-            Ask AI about your banks
-          </h4>
-          <div className="space-y-2">
-            {quickQuestions.map((question, i) => (
-              <button
-                key={i}
-                className="w-full text-left rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                {question}
-              </button>
-            ))}
-          </div>
+        {/* AI Insights */}
+        <div className="space-y-3">
+          {insights.map((insight) => (
+            <div
+              key={insight.id}
+              className={cn(
+                "rounded-xl border p-4",
+                insight.type === "warning"
+                  ? "border-amber-200 bg-amber-50"
+                  : insight.type === "success"
+                    ? "border-emerald-200 bg-emerald-50"
+                    : "border-blue-200 bg-blue-50",
+              )}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    "h-6 w-6 rounded-full flex items-center justify-center mt-0.5",
+                    insight.type === "warning"
+                      ? "bg-amber-100"
+                      : insight.type === "success"
+                        ? "bg-emerald-100"
+                        : "bg-blue-100",
+                  )}
+                >
+                  {insight.type === "warning" ? (
+                    <AlertTriangle className="h-3 w-3 text-amber-600" />
+                  ) : insight.type === "success" ? (
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                  ) : (
+                    <Clock className="h-3 w-3 text-blue-600" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-slate-900">
+                    {insight.title}
+                  </p>
+                  <p className="text-xs text-slate-600 mt-1">
+                    {insight.description}
+                  </p>
+                  <button className="text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-2">
+                    {insight.actionLabel} →
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Recent Activity */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-slate-900">Recent Activity</h4>
-            <button className="text-xs font-medium text-indigo-600 hover:text-indigo-700">
-              View all →
-            </button>
-          </div>
+          <h4 className="text-sm font-medium text-slate-900 mb-3">
+            Recent Activity
+          </h4>
           <div className="space-y-3">
             {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "h-8 w-8 rounded-lg flex items-center justify-center",
-                    bankColors[activity.bankName] ?? "bg-slate-400",
-                  )}
-                >
-                  <Building2 className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
+              <div
+                key={activity.id}
+                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+              >
+                <div>
                   <p className="text-sm font-medium text-slate-900">
-                    {activity.bankName}
+                    {activity.action}
                   </p>
-                  <p className="text-xs text-slate-500">{activity.action}</p>
+                  <p className="text-xs text-slate-500">
+                    {activity.bankName} · {activity.accountName}
+                  </p>
                 </div>
                 <span className="text-xs text-slate-400">
                   {formatTimeAgo(activity.date)}
@@ -776,29 +761,25 @@ export default function BankingPage() {
     null,
   );
 
-  // Fetch overview data with optimized caching
   const { data: overviewData, isLoading: overviewLoading } =
     trpc.banking.getOverview.useQuery(undefined, realtimeQueryOptions);
 
-  // Fetch cash position - realtime data
   const { data: cashPosition } = trpc.banking.getCashPosition.useQuery(
     {},
     realtimeQueryOptions,
   );
 
-  // Fetch AI insights - cache aggressively
   const { data: aiInsights } = trpc.banking.getAiInsights.useQuery(
     undefined,
     analyticsQueryOptions,
   );
 
-  // Fetch recent activity
   const { data: recentActivity } = trpc.banking.getRecentActivity.useQuery(
     undefined,
     realtimeQueryOptions,
   );
 
-  const tabs = [
+  const tabs: TabItem[] = [
     { key: "overview", label: "Overview" },
     { key: "accounts", label: "Accounts" },
     { key: "transactions", label: "Transactions" },
@@ -810,149 +791,154 @@ export default function BankingPage() {
     { key: "settings", label: "Settings" },
   ];
 
-  return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-slate-900">Banking</h1>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                    <Shield className="h-3 w-3" />
-                    Secure
-                  </span>
-                </div>
-                <p className="text-sm text-slate-500">
-                  Connect, monitor, and manage all your bank accounts in one
-                  place.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                <Plus className="h-4 w-4" />
-                Connect Bank
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Download className="h-4 w-4" />
-                Import Statement
-              </button>
-              <button className="rounded-lg border border-slate-200 bg-white p-2 hover:bg-slate-50">
-                <MoreHorizontal className="h-4 w-4 text-slate-600" />
-              </button>
-            </div>
-          </div>
+  const summaryCards = overviewData?.summary
+    ? [
+        {
+          label: "Total Cash Balance",
+          value: `GMD ${overviewData.summary.totalBalance.toLocaleString(
+            "en-US",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            },
+          )}`,
+          change: overviewData.summary.totalBalanceChange,
+          subtitle: `Across ${overviewData.summary.accountCount} accounts`,
+          icon: Wallet,
+          color: "text-indigo-600",
+          bgColor: "bg-indigo-50",
+        },
+        {
+          label: "Accounts",
+          value: overviewData.summary.accountCount.toString(),
+          subtitle: `${overviewData.summary.activeAccounts} active · ${overviewData.summary.inactiveAccounts} inactive`,
+          icon: Building2,
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-50",
+        },
+        {
+          label: "Unreconciled Balance",
+          value: `GMD ${overviewData.summary.unreconciledBalance.toLocaleString(
+            "en-US",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            },
+          )}`,
+          subtitle: `${overviewData.summary.unreconciledAccounts} accounts`,
+          icon: AlertTriangle,
+          color: "text-amber-600",
+          bgColor: "bg-amber-50",
+        },
+        {
+          label: "Last Updated",
+          value: formatTimeAgo(overviewData.summary.lastSyncAt),
+          subtitle: overviewData.summary.lastSyncAt
+            ? new Date(overviewData.summary.lastSyncAt).toLocaleString(
+                "en-US",
+                {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                },
+              )
+            : "No sync yet",
+          icon: Clock,
+          color: "text-blue-600",
+          bgColor: "bg-blue-50",
+        },
+      ]
+    : [];
 
-          {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-slate-200 -mb-px">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
-                  activeTab === tab.key
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700",
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50">
-          {/* Empty State */}
-          {overviewData &&
-            overviewData.accounts.length === 0 &&
-            !overviewLoading && (
-              <PageEmptyState
-                icon={getPageEmptyState("banking").icon}
-                iconColor={getPageEmptyState("banking").iconColor}
-                iconBg={getPageEmptyState("banking").iconBg}
-                title={getPageEmptyState("banking").title}
-                description={getPageEmptyState("banking").description}
-                actions={getPageEmptyState("banking").actions}
-                tips={getPageEmptyState("banking").tips}
-              />
-            )}
-
-          {/* Summary Cards */}
-          {overviewData?.summary && (
-            <SummaryCards summary={overviewData.summary} />
-          )}
-
-          {/* Bank Accounts Table */}
-          <div className="rounded-xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <h3 className="font-medium text-slate-900">
-                Bank Accounts ({overviewData?.accounts.length ?? 0})
-              </h3>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search accounts..."
-                    className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>All Status</option>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-                <div className="flex items-center gap-1 border border-slate-200 rounded-lg">
-                  <button className="p-2 hover:bg-slate-50 rounded-l-lg">
-                    <Eye className="h-4 w-4 text-slate-600" />
-                  </button>
-                  <button className="p-2 hover:bg-slate-50 rounded-r-lg border-l border-slate-200">
-                    <FileText className="h-4 w-4 text-slate-400" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <BankAccountsTable
-              accounts={overviewData?.accounts ?? []}
-              selectedId={selectedAccountId}
-              onSelect={setSelectedAccountId}
-              isLoading={overviewLoading}
-            />
-            <div className="p-4 border-t border-slate-200 text-sm text-slate-500">
-              Showing 1 to {overviewData?.accounts.length ?? 0} of{" "}
-              {overviewData?.accounts.length ?? 0} accounts
-            </div>
-          </div>
-
-          {/* Charts Row */}
-          <div className="grid grid-cols-2 gap-6">
-            {cashPosition && <CashPositionChart data={cashPosition} />}
-            {overviewData?.currencyBreakdown && (
-              <BalanceByCurrency data={overviewData.currencyBreakdown} />
-            )}
-          </div>
-        </div>
+  const filters = (
+    <div className="flex items-center gap-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Search accounts..."
+          className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
       </div>
-
-      {/*
-        AI Copilot Panel - DISABLED
-        <div className="w-[360px]">
-          <AiCopilotPanel
-            insights={aiInsights ?? []}
-            recentActivity={recentActivity ?? []}
-            connections={overviewData?.connections ?? []}
-          />
-        </div>
-      */}
+      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option>All Status</option>
+        <option>Active</option>
+        <option>Inactive</option>
+      </select>
+      <div className="flex items-center gap-1 border border-slate-200 rounded-lg">
+        <button className="p-2 hover:bg-slate-50 rounded-l-lg">
+          <Eye className="h-4 w-4 text-slate-600" />
+        </button>
+        <button className="p-2 hover:bg-slate-50 rounded-r-lg border-l border-slate-200">
+          <FileText className="h-4 w-4 text-slate-400" />
+        </button>
+      </div>
     </div>
+  );
+
+  const pagination = (
+    <div className="flex items-center justify-between">
+      <p className="text-sm text-slate-500">
+        Showing 1 to {overviewData?.accounts.length ?? 0} of{" "}
+        {overviewData?.accounts.length ?? 0} accounts
+      </p>
+    </div>
+  );
+
+  const badge = (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+      <Shield className="h-3 w-3" />
+      Secure
+    </span>
+  );
+
+  const actions = (
+    <>
+      <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <Plus className="h-4 w-4" />
+        Connect Bank
+      </button>
+      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+        <Download className="h-4 w-4" />
+        Import Statement
+      </button>
+      <button className="rounded-lg border border-slate-200 bg-white p-2 hover:bg-slate-50">
+        <MoreHorizontal className="h-4 w-4 text-slate-600" />
+      </button>
+    </>
+  );
+
+  return (
+    <ModulePageShell
+      title="Banking"
+      description="Connect, monitor, and manage all your bank accounts in one place."
+      icon={Building2}
+      iconBgClassName="bg-gradient-to-br from-indigo-500 to-purple-500"
+      badge={badge}
+      actions={actions}
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      summaryCards={summaryCards}
+      filters={filters}
+      pagination={pagination}
+      bottomCharts={
+        <div className="grid grid-cols-2 gap-6">
+          {cashPosition && <CashPositionChart data={cashPosition} />}
+          {overviewData?.currencyBreakdown && (
+            <BalanceByCurrency data={overviewData.currencyBreakdown} />
+          )}
+        </div>
+      }
+    >
+      <BankAccountsTable
+        accounts={overviewData?.accounts ?? []}
+        selectedId={selectedAccountId}
+        onSelect={setSelectedAccountId}
+        isLoading={overviewLoading}
+      />
+    </ModulePageShell>
   );
 }

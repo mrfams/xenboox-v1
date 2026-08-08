@@ -23,6 +23,8 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -30,22 +32,18 @@ type TabFilter = "all" | "draft" | "pending" | "approved" | "reimbursed";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
-function SummaryCards({
-  overview,
-}: {
-  overview: {
-    totalExpenses: number;
-    totalExpensesChange: number;
-    totalReimbursed: number;
-    totalReimbursedChange: number;
-    pendingApproval: number;
-    pendingCount: number;
-    averageExpense: number;
-    budgetPercent: number;
-    budgetRemaining: number;
-  };
-}) {
-  const cards = [
+function buildSummaryCards(overview: {
+  totalExpenses: number;
+  totalExpensesChange: number;
+  totalReimbursed: number;
+  totalReimbursedChange: number;
+  pendingApproval: number;
+  pendingCount: number;
+  averageExpense: number;
+  budgetPercent: number;
+  budgetRemaining: number;
+}): SummaryCardItem[] {
+  const cards: SummaryCardItem[] = [
     {
       label: "Total Expenses (MTD)",
       value: `GMD ${overview.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -85,58 +83,10 @@ function SummaryCards({
       icon: Receipt,
       color: overview.budgetPercent > 90 ? "text-red-600" : "text-emerald-600",
       bgColor: overview.budgetPercent > 90 ? "bg-red-50" : "bg-emerald-50",
-      isProgress: true,
-      progressPercent: overview.budgetPercent,
     },
   ];
 
-  return (
-    <div className="grid grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.bgColor)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-          {card.change !== undefined && (
-            <div className="flex items-center gap-2 mt-1">
-              <span
-                className={cn(
-                  "text-sm font-medium",
-                  card.change >= 0 ? "text-emerald-600" : "text-red-600",
-                )}
-              >
-                {card.change >= 0 ? "↑" : "↓"} {Math.abs(card.change)}%
-              </span>
-              <p className="text-xs text-slate-400">vs last month</p>
-            </div>
-          )}
-          {card.subtitle && !card.change && (
-            <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
-          )}
-          {card.isProgress && (
-            <div className="mt-2">
-              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={cn(
-                    "h-full rounded-full",
-                    card.progressPercent > 90 ? "bg-red-500" : "bg-emerald-500",
-                  )}
-                  style={{ width: `${Math.min(card.progressPercent, 100)}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+  return cards;
 }
 
 // ─── Expense Table ─────────────────────────────────────────────────────────
@@ -626,203 +576,130 @@ export default function ExpensesPage() {
   ];
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                <span className="text-2xl">📋</span>
-                Expenses
-              </h1>
-              <p className="text-sm text-slate-500 mt-1">
-                Track, categorize and manage business expenses with AI.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                <Plus className="h-4 w-4" />
-                New Expense
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Upload className="h-4 w-4" />
-                Import
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                More
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </div>
+    <ModulePageShell
+      title="Expenses"
+      description="Track, categorize and manage business expenses with AI."
+      icon={Receipt}
+      actions={
+        <>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+            <Plus className="h-4 w-4" />
+            New Expense
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Upload className="h-4 w-4" />
+            Import
+          </button>
+        </>
+      }
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(key) => setActiveTab(key as TabFilter)}
+      summaryCards={overview ? buildSummaryCards(overview) : []}
+      filters={
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search expenses..."
+              className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1">
-            {tabs.map((tab) => (
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Categories</option>
+            <option>Meals & Entertainment</option>
+            <option>Utilities</option>
+            <option>Travel</option>
+            <option>Office Supplies</option>
+            <option>Software</option>
+            <option>Marketing</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Payment Methods</option>
+            <option>Card</option>
+            <option>Bank Transfer</option>
+            <option>Cash</option>
+            <option>Mobile Money</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option>All Statuses</option>
+            <option>Draft</option>
+            <option>Pending Approval</option>
+            <option>Approved</option>
+            <option>Reimbursed</option>
+          </select>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Filter className="h-4 w-4" />
+            Filters
+          </button>
+        </div>
+      }
+      pagination={
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            Showing {(page - 1) * pageSize + 1} to{" "}
+            {Math.min(page * pageSize, expensesData?.totalCount ?? 0)} of{" "}
+            {expensesData?.totalCount ?? 0} expenses
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+            >
+              ←
+            </button>
+            {Array.from(
+              { length: Math.min(5, expensesData?.totalPages ?? 1) },
+              (_, i) => i + 1,
+            ).map((p) => (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                key={p}
+                onClick={() => setPage(p)}
                 className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                  activeTab === tab.key
-                    ? "bg-indigo-50 text-indigo-600"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
+                  "px-3 py-1.5 text-sm rounded",
+                  page === p
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50",
                 )}
               >
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span
-                    className={cn(
-                      "ml-2 px-2 py-0.5 rounded-full text-xs",
-                      activeTab === tab.key
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-slate-100 text-slate-600",
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                )}
+                {p}
               </button>
             ))}
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        {overview && (
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <SummaryCards overview={overview} />
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="p-4 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search expenses..."
-                className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Categories</option>
-              <option>Meals & Entertainment</option>
-              <option>Utilities</option>
-              <option>Travel</option>
-              <option>Office Supplies</option>
-              <option>Software</option>
-              <option>Marketing</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Payment Methods</option>
-              <option>Card</option>
-              <option>Bank Transfer</option>
-              <option>Cash</option>
-              <option>Mobile Money</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Statuses</option>
-              <option>Draft</option>
-              <option>Pending Approval</option>
-              <option>Approved</option>
-              <option>Reimbursed</option>
-            </select>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Filter className="h-4 w-4" />
-              Filters
+            <button className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded">
+              ...
             </button>
-          </div>
-        </div>
-
-        {/* Expense Table */}
-        <div className="flex-1 overflow-auto bg-white">
-          <ExpenseTable
-            expenses={expensesData?.expenses ?? []}
-            selectedId={selectedExpenseId}
-            onSelect={setSelectedExpenseId}
-            isLoading={expensesLoading}
-          />
-        </div>
-
-        {/* Pagination */}
-        <div className="border-t border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {(page - 1) * pageSize + 1} to{" "}
-              {Math.min(page * pageSize, expensesData?.totalCount ?? 0)} of{" "}
-              {expensesData?.totalCount ?? 0} expenses
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-              >
-                ←
-              </button>
-              {Array.from(
-                { length: Math.min(5, expensesData?.totalPages ?? 1) },
-                (_, i) => i + 1,
-              ).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={cn(
-                    "px-3 py-1.5 text-sm rounded",
-                    page === p
-                      ? "bg-indigo-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50",
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-              <button className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded">
-                ...
-              </button>
-              <button
-                onClick={() =>
-                  setPage(Math.min(expensesData?.totalPages ?? 1, page + 1))
-                }
-                disabled={page === (expensesData?.totalPages ?? 1)}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-              >
-                →
-              </button>
-              <select
-                value={pageSize}
-                onChange={() => setPage(1)}
-                className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value={10}>10 / page</option>
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/*
-        AI Copilot Panel - DISABLED
-        <div className="w-[360px]">
-          <AiCopilotPanel
-            insights={insights ?? []}
-            budgetOverview={
-              budgetOverview ?? {
-                hasBudget: false,
-                categories: [],
-                overallPercent: 0,
+            <button
+              onClick={() =>
+                setPage(Math.min(expensesData?.totalPages ?? 1, page + 1))
               }
-            }
-            topVendors={topVendors ?? []}
-          />
+              disabled={page === (expensesData?.totalPages ?? 1)}
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+            >
+              →
+            </button>
+            <select
+              value={pageSize}
+              onChange={() => setPage(1)}
+              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value={10}>10 / page</option>
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
+            </select>
+          </div>
         </div>
-      */}
-    </div>
+      }
+    >
+      <ExpenseTable
+        expenses={expensesData?.expenses ?? []}
+        selectedId={selectedExpenseId}
+        onSelect={setSelectedExpenseId}
+        isLoading={expensesLoading}
+      />
+    </ModulePageShell>
   );
 }

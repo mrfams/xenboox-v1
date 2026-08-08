@@ -18,26 +18,24 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
-function SummaryCards({
-  overview,
-}: {
-  overview: {
-    revenue: number;
-    revenueChange: number;
-    netProfit: number;
-    netProfitChange: number;
-    totalAssets: number;
-    totalLiabilities: number;
-    totalEquity: number;
-    assetsChange?: number;
-    liabilitiesChange?: number;
-    equityChange?: number;
-  };
-}) {
-  const cards = [
+function buildSummaryCards(overview: {
+  revenue: number;
+  revenueChange: number;
+  netProfit: number;
+  netProfitChange: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  assetsChange?: number;
+  liabilitiesChange?: number;
+  equityChange?: number;
+}): SummaryCardItem[] {
+  return [
     {
       label: "Revenue (MTD)",
       value: `GMD ${overview.revenue.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
@@ -79,36 +77,6 @@ function SummaryCards({
       bgColor: "bg-indigo-50",
     },
   ];
-
-  return (
-    <div className="grid grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.bgColor)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-xl font-bold text-slate-900">{card.value}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <span
-              className={cn(
-                "text-sm font-medium",
-                card.change >= 0 ? "text-emerald-600" : "text-red-600",
-              )}
-            >
-              {card.change >= 0 ? "↑" : "↓"} {Math.abs(card.change)}%
-            </span>
-            <p className="text-xs text-slate-400">vs last month</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 // ─── Profit & Loss Overview ────────────────────────────────────────────────
@@ -901,92 +869,49 @@ export default function ReportsPage() {
   const { data: insights } = trpc.reports.getAiInsights.useQuery();
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                <span className="text-2xl">📊</span>
-                Reports
-              </h1>
-              <p className="text-sm text-slate-500 mt-1">
-                Financial insights and analytics for smarter decisions.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search reports..."
-                  className="w-64 rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1">
-            {[
-              "Overview",
-              "Financial Statements",
-              "Trial Balance",
-              "Consolidation",
-              "Budget",
-              "Tax & Compliance",
-              "Custom Reports",
-            ].map((tab, i) => (
-              <button
-                key={tab}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                  i === 0
-                    ? "bg-indigo-50 text-indigo-600"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+    <ModulePageShell
+      title="Reports"
+      description="Financial insights and analytics for smarter decisions."
+      icon={BarChart3}
+      tabs={[
+        { key: "overview", label: "Overview" },
+        { key: "statements", label: "Financial Statements" },
+        { key: "trial-balance", label: "Trial Balance" },
+        { key: "consolidation", label: "Consolidation" },
+        { key: "budget", label: "Budget" },
+        { key: "tax", label: "Tax & Compliance" },
+        { key: "custom", label: "Custom Reports" },
+      ]}
+      activeTab="overview"
+      summaryCards={overview ? buildSummaryCards(overview) : []}
+      filters={
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search reports..."
+            className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
         </div>
-
-        {/* Summary Cards */}
-        {overview && (
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <SummaryCards overview={overview} />
-          </div>
+      }
+    >
+      <div className="p-4 space-y-6">
+        {/* P&L Overview */}
+        {pnlData && overview && (
+          <ProfitLossOverview pnlData={pnlData} overview={overview} />
         )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* P&L Overview */}
-          {pnlData && overview && (
-            <ProfitLossOverview pnlData={pnlData} overview={overview} />
-          )}
+        {/* Bottom Row */}
+        {overview && expenseCategories && (
+          <BottomRow
+            overview={overview}
+            expenseCategories={expenseCategories}
+          />
+        )}
 
-          {/* Bottom Row */}
-          {overview && expenseCategories && (
-            <BottomRow
-              overview={overview}
-              expenseCategories={expenseCategories}
-            />
-          )}
-
-          {/* Recent Reports */}
-          {recentReports && <RecentReports reports={recentReports} />}
-        </div>
+        {/* Recent Reports */}
+        {recentReports && <RecentReports reports={recentReports} />}
       </div>
-
-      {/*
-        AI Report Assistant Panel - DISABLED
-        <div className="w-[340px]">
-          <AiReportAssistantPanel insights={insights ?? []} />
-        </div>
-      */}
-    </div>
+    </ModulePageShell>
   );
 }

@@ -3,25 +3,28 @@
 import { useState } from "react";
 import {
   Search,
-  Filter,
+  Plus,
+  MoreHorizontal,
+  FileText,
   CheckCircle2,
   AlertTriangle,
   Bot,
-  MoreHorizontal,
   RefreshCw,
   XCircle,
-  FileText,
-  Clock,
-  Plus,
-  Sparkles,
   Edit3,
   StickyNote,
+  Sparkles,
+  Clock,
+  Filter,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
-
-// ─── Types ─────────────────────────────────────────────────────────────────
+import { ModulePageShell } from "@/components/module/module-page-shell";
+import type {
+  SummaryCardItem,
+  TabItem,
+} from "@/components/module/module-page-shell.types";
 
 type TabFilter =
   | "all"
@@ -30,99 +33,6 @@ type TabFilter =
   | "matched"
   | "excluded";
 type DetailTab = "details" | "ai_insights" | "history";
-
-// ─── Summary Cards ─────────────────────────────────────────────────────────
-
-function SummaryCards({
-  summary,
-}: {
-  summary: {
-    totalTransactions: number;
-    totalTransactionsChange: number;
-    aiCategorized: number;
-    aiCategorizedPercent: number;
-    aiChange: number;
-    needsReview: number;
-    needsReviewChange: number;
-    excluded: number;
-    excludedChange: number;
-    excludedPercent: number;
-  };
-}) {
-  const cards = [
-    {
-      label: "Total transactions",
-      value: summary.totalTransactions.toLocaleString(),
-      change: summary.totalTransactionsChange,
-      icon: FileText,
-      color: "text-indigo-600",
-      bgColor: "bg-indigo-50",
-    },
-    {
-      label: "Auto-categorized",
-      value: summary.aiCategorized.toLocaleString(),
-      change: summary.aiChange,
-      percent: summary.aiCategorizedPercent,
-      icon: Bot,
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-50",
-    },
-    {
-      label: "Needs review",
-      value: summary.needsReview.toLocaleString(),
-      change: summary.needsReviewChange,
-      percent:
-        summary.needsReview > 0
-          ? Math.round((summary.needsReview / summary.totalTransactions) * 100)
-          : 0,
-      icon: AlertTriangle,
-      color: "text-amber-600",
-      bgColor: "bg-amber-50",
-    },
-    {
-      label: "Excluded",
-      value: summary.excluded.toLocaleString(),
-      change: summary.excludedChange,
-      percent: summary.excludedPercent,
-      icon: XCircle,
-      color: "text-red-600",
-      bgColor: "bg-red-50",
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-4 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.bgColor)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <span
-              className={cn(
-                "text-sm font-medium",
-                card.change >= 0 ? "text-emerald-600" : "text-red-600",
-              )}
-            >
-              {card.change >= 0 ? "↑" : "↓"} {Math.abs(card.change)}%
-            </span>
-            {card.percent !== undefined && (
-              <span className="text-sm text-slate-500">({card.percent}%)</span>
-            )}
-          </div>
-          <p className="text-xs text-slate-400 mt-1">vs last month</p>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ─── Transaction Table ─────────────────────────────────────────────────────
 
@@ -791,10 +701,8 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
 
-  // Fetch summary
   const { data: summary } = trpc.transactions.getSummary.useQuery({});
 
-  // Fetch transactions
   const { data: transactionsData, isLoading: transactionsLoading } =
     trpc.transactions.listTransactions.useQuery({
       status: activeTab,
@@ -803,20 +711,17 @@ export default function TransactionsPage() {
       offset: (page - 1) * pageSize,
     });
 
-  // Fetch selected transaction detail
   const { data: transactionDetail } =
     trpc.transactions.getTransactionDetail.useQuery(
       { transactionId: selectedTransactionId ?? "" },
       { enabled: !!selectedTransactionId },
     );
 
-  // Fetch AI insights
   const { data: aiInsights } = trpc.transactions.getAiInsights.useQuery({});
 
-  // Fetch accounts for filters
   const { data: accounts } = trpc.transactions.getAccounts.useQuery();
 
-  const tabs = [
+  const tabs: TabItem[] = [
     { key: "all" as TabFilter, label: "All" },
     {
       key: "uncategorized" as TabFilter,
@@ -832,207 +737,184 @@ export default function TransactionsPage() {
     { key: "excluded" as TabFilter, label: "Excluded" },
   ];
 
-  return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                Transactions
-              </h1>
-              <p className="text-sm text-slate-500 mt-1">
-                All your transactions, intelligently categorized by Xenboox.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Ask anything about transactions..."
-                  className="w-80 rounded-lg border border-slate-200 pl-10 pr-12 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-slate-400">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px]">
-                    ⌘
-                  </kbd>
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px]">
-                    K
-                  </kbd>
-                </div>
-              </div>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Plus className="h-4 w-4" />
-                New transaction
-              </button>
-            </div>
-          </div>
+  const summaryCards = summary
+    ? [
+        {
+          label: "Total transactions",
+          value: summary.totalTransactions.toLocaleString(),
+          change: summary.totalTransactionsChange,
+          icon: FileText,
+          color: "text-indigo-600",
+          bgColor: "bg-indigo-50",
+        },
+        {
+          label: "Auto-categorized",
+          value: summary.aiCategorized.toLocaleString(),
+          change: summary.aiChange,
+          icon: Bot,
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-50",
+        },
+        {
+          label: "Needs review",
+          value: summary.needsReview.toLocaleString(),
+          change: summary.needsReviewChange,
+          icon: AlertTriangle,
+          color: "text-amber-600",
+          bgColor: "bg-amber-50",
+        },
+        {
+          label: "Excluded",
+          value: summary.excluded.toLocaleString(),
+          change: summary.excludedChange,
+          icon: XCircle,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+        },
+      ]
+    : [];
 
-          {/* Tabs */}
-          <div className="flex items-center gap-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                  activeTab === tab.key
-                    ? "bg-indigo-50 text-indigo-600"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
-                )}
-              >
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span
-                    className={cn(
-                      "ml-2 px-2 py-0.5 rounded-full text-xs",
-                      activeTab === tab.key
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-slate-100 text-slate-600",
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        {summary && (
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <SummaryCards summary={summary} />
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="p-4 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search transactions..."
-                className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All accounts</option>
-              {accounts?.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name}
-                </option>
-              ))}
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All types</option>
-              <option>Deposit</option>
-              <option>Withdrawal</option>
-              <option>Transfer</option>
-            </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All dates</option>
-              <option>Today</option>
-              <option>This week</option>
-              <option>This month</option>
-              <option>Custom range</option>
-            </select>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Filter className="h-4 w-4" />
-              More filters
-            </button>
-          </div>
-        </div>
-
-        {/* Transaction Table */}
-        <div className="flex-1 overflow-auto bg-white">
-          <TransactionTable
-            transactions={transactionsData?.transactions ?? []}
-            selectedId={selectedTransactionId}
-            onSelect={setSelectedTransactionId}
-            isLoading={transactionsLoading}
-          />
-        </div>
-
-        {/* Pagination */}
-        <div className="border-t border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {(page - 1) * pageSize + 1} to{" "}
-              {Math.min(page * pageSize, transactionsData?.totalCount ?? 0)} of{" "}
-              {(transactionsData?.totalCount ?? 0).toLocaleString()}{" "}
-              transactions
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-              >
-                ←
-              </button>
-              {Array.from(
-                { length: Math.min(5, transactionsData?.totalPages ?? 1) },
-                (_, i) => i + 1,
-              ).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={cn(
-                    "px-3 py-1.5 text-sm rounded",
-                    page === p
-                      ? "bg-indigo-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50",
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-              <button className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded">
-                ...
-              </button>
-              <button
-                onClick={() =>
-                  setPage(Math.min(transactionsData?.totalPages ?? 1, page + 1))
-                }
-                disabled={page === (transactionsData?.totalPages ?? 1)}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-              >
-                →
-              </button>
-              <select
-                value={pageSize}
-                onChange={() => setPage(1)}
-                className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value={10}>10 / page</option>
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-              </select>
-            </div>
-          </div>
-        </div>
+  const filters = (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search transactions..."
+          className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
       </div>
-
-      {/*
-        Transaction Detail Panel - DISABLED
-        <div className="w-[380px]">
-          <TransactionDetailPanel
-            transactionDetail={transactionDetail ?? null}
-            aiInsights={aiInsights ?? []}
-            onClose={() => setSelectedTransactionId(null)}
-          />
-        </div>
-      */}
+      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option>All accounts</option>
+        {accounts?.map((acc) => (
+          <option key={acc.id} value={acc.id}>
+            {acc.name}
+          </option>
+        ))}
+      </select>
+      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option>All types</option>
+        <option>Deposit</option>
+        <option>Withdrawal</option>
+        <option>Transfer</option>
+      </select>
+      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option>All dates</option>
+        <option>Today</option>
+        <option>This week</option>
+        <option>This month</option>
+        <option>Custom range</option>
+      </select>
+      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+        <Filter className="h-4 w-4" />
+        More filters
+      </button>
     </div>
+  );
+
+  const pagination = (
+    <div className="flex items-center justify-between">
+      <p className="text-sm text-slate-500">
+        Showing {(page - 1) * pageSize + 1} to{" "}
+        {Math.min(page * pageSize, transactionsData?.totalCount ?? 0)} of{" "}
+        {(transactionsData?.totalCount ?? 0).toLocaleString()} transactions
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          ←
+        </button>
+        {Array.from(
+          { length: Math.min(5, transactionsData?.totalPages ?? 1) },
+          (_, i) => i + 1,
+        ).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            className={cn(
+              "px-3 py-1.5 text-sm rounded",
+              page === p
+                ? "bg-indigo-600 text-white"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            {p}
+          </button>
+        ))}
+        <button className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded">
+          ...
+        </button>
+        <button
+          onClick={() =>
+            setPage(Math.min(transactionsData?.totalPages ?? 1, page + 1))
+          }
+          disabled={page === (transactionsData?.totalPages ?? 1)}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          →
+        </button>
+        <select
+          value={pageSize}
+          onChange={() => setPage(1)}
+          className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value={10}>10 / page</option>
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
+        </select>
+      </div>
+    </div>
+  );
+
+  const headerSearch = (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Ask anything about transactions..."
+        className="w-80 rounded-lg border border-slate-200 pl-10 pr-12 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+      />
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-slate-400">
+        <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px]">⌘</kbd>
+        <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px]">K</kbd>
+      </div>
+    </div>
+  );
+
+  const actions = (
+    <>
+      {headerSearch}
+      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+        <Plus className="h-4 w-4" />
+        New transaction
+      </button>
+    </>
+  );
+
+  return (
+    <ModulePageShell
+      title="Transactions"
+      description="All your transactions, intelligently categorized by Xenboox."
+      actions={actions}
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(key) => setActiveTab(key as TabFilter)}
+      summaryCards={summaryCards}
+      filters={filters}
+    >
+      <TransactionTable
+        transactions={transactionsData?.transactions ?? []}
+        selectedId={selectedTransactionId}
+        onSelect={setSelectedTransactionId}
+        isLoading={transactionsLoading}
+      />
+    </ModulePageShell>
   );
 }
