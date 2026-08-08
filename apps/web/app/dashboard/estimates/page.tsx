@@ -19,6 +19,9 @@ import {
   Clock,
   FileCheck2,
   Ban,
+  Sparkles,
+  User,
+  Loader2,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -334,9 +337,11 @@ function EstimatesTable({
 function CreateEstimateModal({
   onClose,
   onCreated,
+  initialDraft,
 }: {
   onClose: () => void;
   onCreated: () => void;
+  initialDraft?: AiDraftPayload;
 }) {
   const { data: customers } = trpc.invoicing.getCustomers.useQuery();
   const { data: accounts } = trpc.chartOfAccounts.getOverview.useQuery();
@@ -366,7 +371,7 @@ function CreateEstimateModal({
     },
   });
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(initialDraft?.customerId ?? "");
   const [estimateNumber, setEstimateNumber] = useState(
     `EST-${Date.now().toString().slice(-6)}`,
   );
@@ -375,14 +380,25 @@ function CreateEstimateModal({
   );
   const [expiryDate, setExpiryDate] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() + 30);
+    if (initialDraft?.expiryDays) {
+      d.setDate(d.getDate() + initialDraft.expiryDays);
+    } else {
+      d.setDate(d.getDate() + 30);
+    }
     return d.toISOString().slice(0, 10);
   });
   const [notes, setNotes] = useState("");
-  const [terms, setTerms] = useState("");
-  const [lines, setLines] = useState([
-    { description: "", accountId: "", quantity: 1, unitPrice: "0" },
-  ]);
+  const [terms, setTerms] = useState(initialDraft?.terms ?? "");
+  const [lines, setLines] = useState(
+    initialDraft && initialDraft.lines.length > 0
+      ? initialDraft.lines.map((l) => ({
+          description: l.description,
+          accountId: "",
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+        }))
+      : [{ description: "", accountId: "", quantity: 1, unitPrice: "0" }],
+  );
 
   const total = lines.reduce(
     (sum, l) => sum + l.quantity * parseFloat(l.unitPrice || "0"),
@@ -653,8 +669,14 @@ function CreateEstimateModal({
 
         <div className="flex items-center justify-between border-t border-slate-200 p-4">
           <p className="text-xs text-slate-400">
-            AI can draft estimates via the command center — this form is for
-            manual entry.
+            {initialDraft ? (
+              <span className="inline-flex items-center gap-1 text-purple-600">
+                <Sparkles className="h-3 w-3" /> Pre-filled by the CFO agent —
+                review before creating
+              </span>
+            ) : (
+              "Manual entry — or use Ask AI to draft from the estimates page."
+            )}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -691,6 +713,226 @@ function CreateEstimateModal({
               Create Estimate
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── AI Draft Modal ────────────────────────────────────────────────────────
+//
+// User types a request ("5 days consulting at $500/day for Acme"), the CFO
+// agent parses it into a structured draft (LLM extraction with deterministic
+// fallback), and the user reviews + edits before creating the estimate.
+
+function AiDraftModal({
+  onClose,
+  onApplyDraft,
+}: {
+  onClose: () => void;
+  onApplyDraft: (draft: {
+    customerId: string | null;
+    lines: Array<{ description: string; quantity: number; unitPrice: string }>;
+    terms: string | null;
+    expiryDays: number | null;
+    currency: string;
+    source: "llm" | "deterministic";
+    confidence: number;
+  }) => void;
+}) {
+  const [prompt, setPrompt] = useState(
+    "5 days of consulting at $500 per day for the customer, net 30, valid 30 days",
+  );
+  const [draft, setDraft] = useState<
+    (typeof onApplyDraft extends (d: infer T) => void ? T : never) | null
+  >(null);
+  const aiDraft = trpc.estimates.aiDraftEstimate.useQuery(
+    { prompt },
+    { enabled: false, retry: false },
+  );
+
+  const runDraft = async () => {
+    if (prompt.trim().length < 3) return;
+    const res = await aiDraft.refetch();
+    if (res.data) setDraft(res.data);
+  };
+
+  const examples = [
+    "3 days of training at $400 per day for Acme, net 30",
+    "10 hours of support at $100 per hour, valid 14 days",
+    "Monthly retainer at $2,500 per month, net 15",
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+      <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-slate-200 p-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Ask AI to Draft a Quote
+              </h2>
+              <p className="text-xs text-slate-500">
+                Describe what to quote — the CFO agent drafts it for you.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-100 rounded-lg"
+          >
+            <X className="h-5 w-5 text-slate-500" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Prompt input */}
+          <div>
+            <label className="text-xs font-medium text-slate-600">
+              Describe the quote
+            </label>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={3}
+              placeholder="e.g. 5 days of consulting at $500 per day for Acme, net 30"
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {examples.map((ex) => (
+                <button
+                  key={ex}
+                  onClick={() => setPrompt(ex)}
+                  className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={runDraft}
+            disabled={prompt.trim().length < 3 || aiDraft.isFetching}
+            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-sm font-medium text-white hover:from-purple-700 hover:to-indigo-700 disabled:opacity-60 w-full justify-center"
+          >
+            {aiDraft.isFetching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Bot className="h-4 w-4" />
+            )}
+            {aiDraft.isFetching ? "CFO agent drafting..." : "Draft with AI"}
+          </button>
+
+          {aiDraft.isError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {aiDraft.error.message}
+            </div>
+          )}
+
+          {/* Draft preview */}
+          {draft && (
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-indigo-600" />
+                  <h3 className="font-medium text-slate-900">Draft ready</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  {draft.source === "llm" ? (
+                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                      AI parsed
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                      Auto-parsed
+                    </span>
+                  )}
+                  <span className="text-[10px] text-slate-500">
+                    {(draft.confidence * 100).toFixed(0)}% confidence
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-lg bg-white border border-slate-200 px-3 py-2">
+                <User className="h-4 w-4 text-slate-400" />
+                <span className="text-sm text-slate-700">
+                  {draft.customerId
+                    ? "Customer matched from your contacts"
+                    : "No customer matched — pick one when saving"}
+                </span>
+              </div>
+
+              <div className="rounded-lg bg-white border border-slate-200 divide-y divide-slate-100">
+                {draft.lines.map((line, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {line.description}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {line.quantity} × {draft.currency}{" "}
+                        {Number(line.unitPrice).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {draft.currency}{" "}
+                      {(line.quantity * Number(line.unitPrice)).toLocaleString(
+                        "en-US",
+                        { minimumFractionDigits: 2 },
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {(draft.terms || draft.expiryDays) && (
+                <div className="flex gap-4 text-xs text-slate-600">
+                  {draft.terms && (
+                    <span>
+                      Terms:{" "}
+                      <span className="font-medium text-slate-800">
+                        {draft.terms}
+                      </span>
+                    </span>
+                  )}
+                  {draft.expiryDays && (
+                    <span>
+                      Valid for{" "}
+                      <span className="font-medium text-slate-800">
+                        {draft.expiryDays} days
+                      </span>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 p-4">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => draft && onApplyDraft(draft)}
+            disabled={!draft}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
+          >
+            <ArrowRight className="h-4 w-4" />
+            Review &amp; Create Estimate
+          </button>
         </div>
       </div>
     </div>
@@ -962,9 +1204,23 @@ function DetailDrawer({
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
+type AiDraftPayload = {
+  customerId: string | null;
+  lines: Array<{ description: string; quantity: number; unitPrice: string }>;
+  terms: string | null;
+  expiryDays: number | null;
+  currency: string;
+  source: "llm" | "deterministic";
+  confidence: number;
+};
+
 export default function EstimatesPage() {
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [showAiDraft, setShowAiDraft] = useState(false);
+  const [aiDraftPrefill, setAiDraftPrefill] = useState<AiDraftPayload | null>(
+    null,
+  );
   const [showConvert, setShowConvert] = useState<Estimate | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -1022,8 +1278,11 @@ export default function EstimatesPage() {
             >
               <Plus className="h-4 w-4" /> New Estimate
             </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Bot className="h-4 w-4" /> Ask AI to draft
+            <button
+              onClick={() => setShowAiDraft(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-purple-200 hover:text-purple-700 transition-colors"
+            >
+              <Sparkles className="h-4 w-4 text-purple-500" /> Ask AI to draft
             </button>
           </div>
         </div>
@@ -1097,10 +1356,27 @@ export default function EstimatesPage() {
         </div>
       </div>
 
+      {showAiDraft && (
+        <AiDraftModal
+          onClose={() => setShowAiDraft(false)}
+          onApplyDraft={(draft) => {
+            setAiDraftPrefill(draft);
+            setShowAiDraft(false);
+            setShowCreate(true);
+          }}
+        />
+      )}
       {showCreate && (
         <CreateEstimateModal
-          onClose={() => setShowCreate(false)}
-          onCreated={refresh}
+          initialDraft={aiDraftPrefill ?? undefined}
+          onClose={() => {
+            setShowCreate(false);
+            setAiDraftPrefill(null);
+          }}
+          onCreated={() => {
+            refresh();
+            setAiDraftPrefill(null);
+          }}
         />
       )}
       {showConvert && (

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { callModel } from "@xenboox/models";
 import {
   validateInvoice,
   logTrustGuardResult,
@@ -13,12 +14,15 @@ import {
   salesInvoices,
   salesInvoiceLines,
   auditLog,
+  entities,
 } from "@xenboox/db/schema";
 
 import {
   computeEstimateTotal,
   validateConvertible,
   validateStatusTransition,
+  parseEstimateRequest,
+  type AiEstimateDraft,
 } from "@/lib/accounting/estimates";
 import { db } from "@/lib/db";
 import {
@@ -36,7 +40,164 @@ import {
 // Every mutation is entity-scoped, permission-gated, trust-guarded, and
 // recorded in the audit log.
 
+/**
+ * Strict schema for the LLM's draft_estimate tool arguments.
+ * Used to validate model output before it reaches the UI — malformed or
+ * out-of-range LLM responses are rejected and fall back to the
+ * deterministic parser instead of surfacing garbage.
+ */
+const toolArgsSchema = z.object({
+  customerMatch: z.string().max(200).nullable().optional(),
+  lines: z
+    .array(
+      z.object({
+        description: z.string().min(1).max(500),
+        quantity: z.number().positive().max(1_000_000),
+        unitPrice: z.union([z.string().min(1).max(100), z.number().min(0)]),
+      }),
+    )
+    .min(1)
+    .max(50),
+  terms: z.string().max(100).nullable().optional(),
+  expiryDays: z.number().int().min(1).max(3650).nullable().optional(),
+  currency: z.string().max(10).optional(),
+});
+
 export const estimatesRouter = router({
+  // ── AI Draft ──────────────────────────────────────────────────────────
+  //
+  // Turns a natural-language request ("5 days consulting at $500/day for
+  // Acme") into a structured estimate draft the user reviews before saving.
+  // Tries LLM extraction first (via the model router), falls back to the
+  // deterministic parser when no model is configured or the call fails.
+
+  aiDraftEstimate: rlsProtectedProcedure
+    .input(
+      z.object({
+        prompt: z.string().min(3).max(2000),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const customerRows = await db.query.customers.findMany({
+        where: eq(customers.entityId, entityId),
+        columns: { id: true, name: true },
+      });
+      const customerNames = customerRows.map((c) => c.name);
+
+      const entity = await db.query.entities.findFirst({
+        where: eq(entities.id, entityId),
+        columns: { currency: true },
+      });
+      const entityCurrency = entity?.currency ?? "GMD";
+
+      // Try LLM structured extraction
+      try {
+        const response = await callModel({
+          agentName: "cfo",
+          taskType: "structured_extraction",
+          entityId,
+          systemPrompt: `You are Xenboox's quote-drafting assistant. Parse the user's request into a structured estimate draft. Use the draft_estimate tool.\n\nKnown customers: ${customerNames.join(", ") || "(none — leave customerMatch null)"}\nDefault currency: ${entityCurrency}. Amounts like "$500/day" mean quantity 1, unitPrice 500. If the request mentions "5 days of X at $200/day", produce one line: description X, quantity 5, unitPrice 200.`,
+          messages: [
+            {
+              role: "user",
+              content: input.prompt,
+            },
+          ],
+          tools: [
+            {
+              name: "draft_estimate",
+              description: "Extract estimate fields from the user request",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  customerMatch: {
+                    type: "string",
+                    description:
+                      "Exact known customer name from the list, or null if none clearly matches",
+                  },
+                  lines: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        description: { type: "string" },
+                        quantity: { type: "number" },
+                        unitPrice: { type: "string" },
+                      },
+                      required: ["description", "quantity", "unitPrice"],
+                    },
+                  },
+                  terms: {
+                    type: "string",
+                    description: "Payment terms e.g. net30, or null",
+                  },
+                  expiryDays: {
+                    type: "number",
+                    description: "Offer validity in days, or null",
+                  },
+                  currency: { type: "string" },
+                },
+                required: ["lines"],
+              },
+            },
+          ],
+          toolChoice: { type: "tool", name: "draft_estimate" },
+          maxTokens: 600,
+        });
+
+        const toolCall = response.toolCalls.find(
+          (tc) => tc.name === "draft_estimate",
+        );
+        const args = toolCall?.arguments;
+
+        // Strict validation of LLM output before it touches the UI/DB.
+        // Any malformed shape falls back to the deterministic parser.
+        const parsedArgs = toolArgsSchema.safeParse(args);
+        if (parsedArgs.success) {
+          const a = parsedArgs.data;
+          const matched =
+            customerRows.find((c) => c.name === a.customerMatch) ?? null;
+          const lines = a.lines
+            .map((l) => ({
+              description: l.description.trim(),
+              quantity: l.quantity,
+              unitPrice: String(l.unitPrice).replace(/,/g, ""),
+            }))
+            .filter((l) => l.description && l.quantity > 0);
+
+          if (lines.length > 0) {
+            const draft: AiEstimateDraft = {
+              customerMatch: matched?.name ?? a.customerMatch ?? null,
+              customerId: matched?.id ?? null,
+              lines,
+              terms: a.terms ?? null,
+              expiryDays: a.expiryDays ?? null,
+              currency: a.currency ?? entityCurrency,
+              confidence: 0.9,
+              source: "llm",
+            };
+            return draft;
+          }
+        }
+      } catch {
+        // LLM unavailable or failed — fall through to deterministic parser
+      }
+
+      // Deterministic fallback
+      const fallback = parseEstimateRequest(
+        input.prompt,
+        customerNames,
+        entityCurrency,
+      );
+      const fallbackCustomer =
+        customerRows.find((c) => c.name === fallback.customerMatch) ?? null;
+      return {
+        ...fallback,
+        customerId: fallbackCustomer?.id ?? null,
+      };
+    }),
+
   // ── Overview ──────────────────────────────────────────────────────────
 
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {

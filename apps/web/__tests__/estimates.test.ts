@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+
 import {
   computeEstimateTotal,
   validateStatusTransition,
@@ -8,6 +9,8 @@ import {
   TERMINAL_STATUSES,
   CONVERTIBLE_STATUSES,
   US_1099_THRESHOLD,
+  parseEstimateRequest,
+  matchCustomer,
 } from "@/lib/accounting/estimates";
 
 describe("computeEstimateTotal", () => {
@@ -174,5 +177,110 @@ describe("lifecycle constants", () => {
     expect(TERMINAL_STATUSES.has("voided")).toBe(true);
     expect(CONVERTIBLE_STATUSES.has("accepted")).toBe(true);
     expect(CONVERTIBLE_STATUSES.has("declined")).toBe(false);
+  });
+});
+
+describe("parseEstimateRequest (deterministic AI fallback)", () => {
+  const CUSTOMERS = ["Acme Corp", "Fatou's Boutique", "Global Health Ltd"];
+
+  it("parses quantity, description, unit price and matches customer", () => {
+    const draft = parseEstimateRequest(
+      "5 days of consulting at $500 per day for Acme Corp, net 30, valid 30 days",
+      CUSTOMERS,
+    );
+    expect(draft.lines).toHaveLength(1);
+    expect(draft.lines[0].description.toLowerCase()).toContain("consulting");
+    expect(draft.lines[0].quantity).toBe(5);
+    expect(draft.lines[0].unitPrice).toBe("500");
+    expect(draft.customerMatch).toBe("Acme Corp");
+    expect(draft.terms).toBe("net30");
+    expect(draft.expiryDays).toBe(30);
+    expect(draft.source).toBe("deterministic");
+    // $ symbol implies USD unless an explicit code or default is given
+    expect(draft.currency).toBe("USD");
+  });
+
+  it("parses multiple comma-separated lines", () => {
+    const draft = parseEstimateRequest(
+      "2 laptops at 1500 each, 1 printer at 300 each",
+      CUSTOMERS,
+      "USD",
+    );
+    expect(draft.lines).toHaveLength(2);
+    expect(draft.lines[0].description.toLowerCase()).toContain("laptop");
+    expect(draft.lines[0].quantity).toBe(2);
+    expect(draft.lines[0].unitPrice).toBe("1500");
+    expect(draft.lines[1].unitPrice).toBe("300");
+    expect(draft.currency).toBe("USD");
+  });
+
+  it("detects currency from the prompt", () => {
+    const draft = parseEstimateRequest(
+      "3 days at $400/day for Fatou's Boutique",
+      CUSTOMERS,
+    );
+    expect(draft.currency).toBe("USD");
+    expect(draft.customerMatch).toBe("Fatou's Boutique");
+  });
+
+  it("parses 'for' as a price connector (5 days for $500)", () => {
+    const draft = parseEstimateRequest(
+      "5 days of consulting for $500 per day, Acme Corp",
+      CUSTOMERS,
+    );
+    expect(draft.lines).toHaveLength(1);
+    expect(draft.lines[0].quantity).toBe(5);
+    expect(draft.lines[0].unitPrice).toBe("500");
+    expect(draft.lines[0].description.toLowerCase()).toContain("consulting");
+    expect(draft.customerMatch).toBe("Acme Corp");
+  });
+
+  it("falls back to a single line when nothing structured parses", () => {
+    const draft = parseEstimateRequest("quote for new client onboarding", []);
+    expect(draft.lines).toHaveLength(1);
+    expect(draft.lines[0].quantity).toBe(1);
+    expect(draft.customerMatch).toBeNull();
+  });
+
+  it("leaves customer null when no known customer matches", () => {
+    const draft = parseEstimateRequest(
+      "5 days consulting at $500/day for Unknown Ltd",
+      CUSTOMERS,
+    );
+    expect(draft.customerMatch).toBeNull();
+  });
+
+  it("handles per-hour pricing and expiry", () => {
+    const draft = parseEstimateRequest(
+      "10 hours of support at $100 per hour, valid 14 days",
+      CUSTOMERS,
+    );
+    expect(draft.lines[0].quantity).toBe(10);
+    expect(draft.lines[0].unitPrice).toBe("100");
+    expect(draft.expiryDays).toBe(14);
+  });
+});
+
+describe("matchCustomer", () => {
+  it("matches exact and partial customer names", () => {
+    expect(matchCustomer("Send quote to Acme Corp please", ["Acme Corp"])).toBe(
+      "Acme Corp",
+    );
+    expect(matchCustomer("for global health ltd", ["Global Health Ltd"])).toBe(
+      "Global Health Ltd",
+    );
+  });
+
+  it("returns null when no customer is mentioned", () => {
+    expect(matchCustomer("5 days consulting at $500/day", ["Acme Corp"])).toBe(
+      null,
+    );
+  });
+
+  it("prefers the more distinctive match", () => {
+    const customers = ["The Shop", "The Shop Downtown"];
+    expect(matchCustomer("quote for The Shop Downtown", customers)).toBe(
+      "The Shop Downtown",
+    );
   });
 });
