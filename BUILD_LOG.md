@@ -6,6 +6,28 @@
 
 ---
 
+### [2026-08-09] — In-viewer AI document editing: highlight any passage and ask the AI to change or redo it (ChatGPT/Claude style)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** 2 (`apps/web/lib/chat/artifact-edit.ts`, `apps/web/__tests__/artifact-edit.test.ts`)
+**Files Modified:** 3 (`apps/web/server/routers/artifact.ts`, `apps/web/components/workspace/artifact-viewer.tsx`, `apps/web/__tests__/artifact-viewer.test.tsx`, `apps/web/lib/chat/artifact-service.ts`) + `BUILD_LOG.md`
+
+**Request:** When a document is generated from the entity's data (report file), let the user view it like in ChatGPT/Claude — and while viewing, highlight any text and ask the AI to redo or change that part however they want.
+
+**What was built:**
+
+- **Selection → AI edit flow:** the artifact viewer now captures text selections from both the sandboxed HTML iframe (same-origin `contentWindow`) and the parent document (CSV table / plain text), with a debounced `selectionchange`/`mouseup` hook. A floating chip appears over the selection with an "Ask AI" button that opens a prompt bar (quick chips + free-text instruction). A header "Ask AI" button covers whole-document redos without a selection.
+- **`artifact.editContent` (tRPC):** entity-scoped; HTML reports get a full-document LLM rewrite via `callModel` (cfo / `report_generation`) with a strict data-fidelity system prompt (never invent/round/change figures unless the instruction targets them), sanitized (`stripCodeFences` → `sanitizeEditedHtml` strips scripts, iframes, objects, embeds, remote stylesheets, `<base>`, `@import`, event handlers, `javascript:` URLs). CSV/plain-text get a splice edit — the model returns only the replacement text, which is spliced into the full content (with a line-level fallback). Oversized HTML (>100 KB) is refused rather than silently truncated. Every edit versions metadata (`editCount`, `previousContent`, `lastEdit`), updates `sizeBytes`, refreshes the R2 object (best effort via `rewriteR2Object`), and writes an audit log entry.
+- **`artifact.undoEdit`:** one-level undo — swaps `previousContent` back and clears it.
+- **Viewer UX:** edited content re-renders instantly, download uses the edited content, "Edited ×N" badge + Undo button in the header, "Document updated" flash, edit-hint pill, error/loading states in the bar, iframe-rect offset translation so the floating bar lands exactly over the selection, scroll clears the selection chip, `editingRef` avoids stale-closure captures mid-edit.
+- **Tests:** 14 helper unit tests (fences, sanitizer incl. `@import`/`<base>`, HTML-likeness, context window, splice + line fallback) and 11 viewer tests (edit via Ask AI re-renders content, undo restores original, toolbar submit/close/disabled/error states).
+
+**Verification:** `pnpm typecheck` ✓ · lint clean on all changed files ✓ · full web suite 39 files / 435 passed, 1 skipped ✓ · `pnpm build` (Next.js production) ✓ · code review applied (iframe rect offset, oversized-HTML guard, JSON/XML excluded from splice, sanitizer hardening).
+
+**Next Steps:** Optional: multi-level undo history; streaming edit progress; editing PDF/image artifacts via regeneration from the original generation inputs.
+
+---
+
 ### [2026-08-09] — Dashboard conversations persist to the backend and surface in the /chat conversation panel
 
 **Agent:** Buffy (Autonomous Engineer)
@@ -8134,6 +8156,31 @@ Each entity includes: user + org + entity + owner access, 25 COA accounts, 3 fis
 - Files modified: approvals page (unified agent + ingestion queue), notifications page (ingestion result actions), sidebar, jobs package, notifications schema, tsconfig
 
 Note: pnpm typecheck failed with OOM on this machine � not a code issue.
+
+### [2026-08-09] - Chat presents generated documents like ChatGPT/Claude
+
+**Agent:** Buffy (Autonomous Engineer)
+
+**Request:** "On the /chat page, when a user requests a doc/file, present it like you can open documents in ChatGPT and Claude — dynamic and professional."
+
+**What was built (end-to-end artifact path):**
+
+- `apps/web/lib/chat/artifact-service.ts` (new) — deterministic, LLM-free detection of document requests (reports, statements, CSV/Excel exports, summary docs) + real generation from posted ledger data via the reporting agent's helpers (P&L, balance sheet, trial balance, cash flow, budget vs actual, narrative). Produces a styled self-contained HTML report or CSV export, uploads to R2 (graceful inline fallback when R2 env is missing), and registers it in `artifact_registry` with inline content in metadata. Failure never breaks the chat response.
+- `apps/web/app/api/chat/stream/route.ts` — generates artifacts after the pipeline (gated on non-rejected decisions), emits `document_created` SSE events, and persists artifact refs in the assistant message metadata (now a proper jsonb object) so documents reappear from history.
+- `apps/web/components/workspace/artifact-viewer.tsx` (new) — ChatGPT/Claude-style overlay: blurred backdrop, glass header (kind icon, name, badge, size), toolbar (Download via inline blob or presigned URL, Open in Documents, Close), inline rendering by mime type (HTML iframe srcDoc, CSV table, images/PDF via presigned URL, text pre), loading + error states, Escape/backdrop close, body scroll lock, focus trap, `role="dialog"`.
+- `apps/web/components/workspace/document-card.tsx` — upgraded to a clickable artifact card (View affordance, colored kind tile, size, keyboard-activatable), case-normalized style lookup.
+- `streaming-message.tsx` + chat page — `onOpenDocument` passthrough; history messages parse `metadata.artifacts` and render the same cards; viewer wired into both the /chat page and the dashboard inline chat screen.
+- `apps/web/lib/chat/artifact-types.ts` (new) — shared client-safe types + tolerant parser for legacy double-encoded jsonb metadata.
+
+**Verification:**
+
+- `pnpm typecheck` — passed
+- lint on changed files — 0 warnings/errors (3 pre-existing `any` warnings in the route remain)
+- full suite — 415 passed, 1 skipped (38 files)
+- `pnpm build` — passed
+- Code review hardening applied: card case-normalization, real budget-vs-actual report, pipeline-decision gating, single-fire presigned requests, focus trap, dashboard viewer wiring
+
+**Note:** PDF output is a natural follow-up (HTML docs are already print-ready); legacy conversations' artifacts only apply to new generations.
 
 ### [2026-08-09] - Conversations get readable auto-generated names
 

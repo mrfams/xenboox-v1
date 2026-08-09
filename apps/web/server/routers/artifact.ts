@@ -12,11 +12,22 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
-import { db } from "@/lib/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { artifactRegistry, auditLog } from "@xenboox/db/schema";
+import { callModel } from "@xenboox/models";
+
+import {
+  applySpliceEdit,
+  applySpliceEditByLine,
+  extractSelectionContext,
+  looksLikeHtmlDocument,
+  sanitizeEditedHtml,
+  stripCodeFences,
+} from "@/lib/chat/artifact-edit";
+import { rewriteR2Object } from "@/lib/chat/artifact-service";
+import { db } from "@/lib/db";
 import { getPresignedDownloadUrl, deleteObject } from "@/lib/r2";
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -329,4 +340,363 @@ export const artifactRouter = router({
       byStatus,
     };
   }),
+
+  /**
+   * In-viewer AI editing: the user selects a passage of a generated document
+   * and asks the model to change/redo it. HTML reports are rewritten as a
+   * complete document (strict data-fidelity prompt); CSV/plain-text files get
+   * a splice edit. Every edit is versioned in metadata, written back to R2
+   * (best effort), and audit-logged.
+   */
+  editContent: rlsProtectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        instruction: z.string().min(2).max(600),
+        mode: z.enum(["selection", "whole"]).default("selection"),
+        selection: z.string().max(4000).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const artifact = await db.query.artifactRegistry.findFirst({
+        where: and(
+          eq(artifactRegistry.id, input.id),
+          eq(artifactRegistry.entityId, ctx.entityId!),
+        ),
+      });
+      if (!artifact) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Artifact not found",
+        });
+      }
+
+      const meta = (artifact.metadata ?? {}) as Record<string, unknown>;
+      const oldContent =
+        typeof meta.content === "string" && meta.content.length > 0
+          ? meta.content
+          : null;
+      if (!oldContent) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "This document has no inline content and can't be edited here",
+        });
+      }
+
+      const name = artifact.name.toLowerCase();
+      const mime = (artifact.mimeType ?? "").toLowerCase();
+      const isHtml = mime === "text/html" || name.endsWith(".html");
+      // Only CSV / plain text are splice-editable — JSON/XML get excluded
+      // because splicing raw replacement text would corrupt their structure.
+      const isInlineText =
+        mime === "text/csv" ||
+        name.endsWith(".csv") ||
+        mime === "text/plain" ||
+        name.endsWith(".txt");
+      if (!isHtml && !isInlineText) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This file type can't be edited with AI",
+        });
+      }
+
+      if (input.mode === "selection" && !input.selection?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Select a passage in the document first",
+        });
+      }
+
+      const selection = input.selection?.trim() ?? "";
+
+      try {
+        let newContent: string;
+        const modelParams = {
+          entityId: ctx.entityId!,
+          selection,
+          instruction: input.instruction,
+        };
+        if (isHtml) {
+          newContent = await rewriteHtmlDocument({
+            ...modelParams,
+            content: oldContent,
+          });
+        } else {
+          newContent = await spliceInlineDocument({
+            ...modelParams,
+            content: oldContent,
+          });
+        }
+
+        const editCount = ((meta.editCount as number) ?? 0) + 1;
+        const updatedMeta = {
+          ...meta,
+          content: newContent,
+          previousContent: oldContent,
+          editCount,
+          editedAt: new Date().toISOString(),
+          lastEdit: {
+            instruction: input.instruction,
+            selection: selection || null,
+            mode: input.mode,
+            at: new Date().toISOString(),
+          },
+        };
+
+        await db
+          .update(artifactRegistry)
+          .set({
+            metadata: updatedMeta,
+            sizeBytes: Buffer.byteLength(newContent, "utf8"),
+          })
+          .where(
+            and(
+              eq(artifactRegistry.id, artifact.id),
+              eq(artifactRegistry.entityId, ctx.entityId!),
+            ),
+          );
+
+        // Keep the R2 copy in sync (best effort — inline-only is fine).
+        await rewriteR2Object({
+          r2Key: artifact.r2Key,
+          r2Bucket: artifact.r2Bucket,
+          mimeType: artifact.mimeType,
+          content: newContent,
+        });
+
+        await writeAudit({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "artifact.edit_content",
+          entityIdRef: artifact.id,
+          newValues: {
+            name: artifact.name,
+            mode: input.mode,
+            instruction: input.instruction,
+            editCount,
+          },
+        });
+
+        return { content: newContent, editCount };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[artifact.editContent] failed:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            "The AI couldn't edit this document right now. Try a different instruction or check your model connection.",
+        });
+      }
+    }),
+
+  /**
+   * Revert the last AI edit (one level). previousContent is swapped back
+   * into content and cleared, so the Undo affordance disappears.
+   */
+  undoEdit: rlsProtectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const artifact = await db.query.artifactRegistry.findFirst({
+        where: and(
+          eq(artifactRegistry.id, input.id),
+          eq(artifactRegistry.entityId, ctx.entityId!),
+        ),
+      });
+      if (!artifact) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Artifact not found",
+        });
+      }
+
+      const meta = (artifact.metadata ?? {}) as Record<string, unknown>;
+      const current =
+        typeof meta.content === "string" && meta.content.length > 0
+          ? meta.content
+          : null;
+      const previous =
+        typeof meta.previousContent === "string" &&
+        meta.previousContent.length > 0
+          ? meta.previousContent
+          : null;
+      if (!current || !previous) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Nothing to undo",
+        });
+      }
+
+      const editCount = Math.max(0, ((meta.editCount as number) ?? 1) - 1);
+      const updatedMeta = {
+        ...meta,
+        content: previous,
+        previousContent: null,
+        editCount,
+        editedAt: new Date().toISOString(),
+        lastEdit: {
+          ...((meta.lastEdit as Record<string, unknown>) ?? {}),
+          undoneAt: new Date().toISOString(),
+        },
+      };
+
+      await db
+        .update(artifactRegistry)
+        .set({
+          metadata: updatedMeta,
+          sizeBytes: Buffer.byteLength(previous, "utf8"),
+        })
+        .where(
+          and(
+            eq(artifactRegistry.id, artifact.id),
+            eq(artifactRegistry.entityId, ctx.entityId!),
+          ),
+        );
+
+      await rewriteR2Object({
+        r2Key: artifact.r2Key,
+        r2Bucket: artifact.r2Bucket,
+        mimeType: artifact.mimeType,
+        content: previous,
+      });
+
+      await writeAudit({
+        entityId: ctx.entityId!,
+        userId: ctx.session!.user!.id!,
+        action: "artifact.undo_edit",
+        entityIdRef: artifact.id,
+        newValues: { name: artifact.name, editCount },
+      });
+
+      return { content: previous, editCount };
+    }),
 });
+
+// ─── AI Document Editing ────────────────────────────────────────────────────
+
+/**
+ * Full-document rewrite for HTML reports. The model receives the document
+ * (or a context window for very large ones) plus the selection and the
+ * user's instruction, and returns a complete, sanitized HTML document.
+ */
+async function rewriteHtmlDocument(params: {
+  entityId: string;
+  content: string;
+  selection: string;
+  instruction: string;
+}): Promise<string> {
+  const { entityId, content, selection, instruction } = params;
+  // Full-document rewrite requires the whole document in the prompt. Refuse
+  // oversized documents rather than silently letting the model return a
+  // partial rewrite that overwrites the artifact.
+  if (content.length > 100_000) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        "This document is too large to edit with AI in place. Try downloading it and editing it directly instead.",
+    });
+  }
+  const docWindow = content;
+
+  const response = await callModel({
+    agentName: "cfo",
+    taskType: "report_generation",
+    entityId,
+    systemPrompt: `You are Xenboox's in-chat document editor for financial reports. The user is viewing a document generated from their real accounting ledger, selected a passage, and asked for a change.
+
+Your job: rewrite the ENTIRE document as complete, self-contained HTML (keep the <!DOCTYPE html>, the <head> with its <style> block, and every existing section), applying ONLY the requested change.
+
+RULES (non-negotiable):
+- NEVER invent, round, change, add, or remove any financial figure, account name, currency, date, or total unless the user's instruction explicitly targets that exact value.
+- Preserve the document's structure, headings, and styling.
+- Output ONLY the HTML document. No explanations. No markdown code fences.`,
+    messages: [
+      {
+        role: "user",
+        content: `SELECTED PASSAGE:
+"""${selection || "(no selection — apply to the whole document)"}"""
+
+USER INSTRUCTION:
+"""${instruction}"""
+
+DOCUMENT (rewrite it completely with the change applied):
+"""${docWindow}"""`,
+      },
+    ],
+    maxTokens: 5000,
+    temperature: 0.2,
+  });
+
+  const cleaned = sanitizeEditedHtml(stripCodeFences(response.content));
+  if (cleaned.length < 100 || !looksLikeHtmlDocument(cleaned)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        "The AI didn't return a valid document — please try a different instruction.",
+    });
+  }
+  return cleaned;
+}
+
+/**
+ * Splice edit for CSV/plain-text files: the model returns only the
+ * replacement text, which is spliced into the original around the selection.
+ */
+async function spliceInlineDocument(params: {
+  entityId: string;
+  content: string;
+  selection: string;
+  instruction: string;
+}): Promise<string> {
+  const { entityId, content, selection, instruction } = params;
+  const window = extractSelectionContext(content, selection);
+
+  const response = await callModel({
+    agentName: "cfo",
+    taskType: "report_generation",
+    entityId,
+    systemPrompt: `You are editing a data file (CSV or plain text) inside a finance app. The user selected a passage and gave an instruction.
+
+Return ONLY the replacement text for the selected passage — a single continuous string. No explanations, no markdown, no surrounding quotes.
+
+RULES:
+- Preserve the file format exactly (CSV columns, line breaks, quoting of commas/quotes).
+- Do not change any figure or label unless the instruction explicitly targets it.
+- The replacement replaces exactly the selected text, so make it self-contained.`,
+    messages: [
+      {
+        role: "user",
+        content: `SELECTED PASSAGE:
+"""${selection}"""
+
+INSTRUCTION:
+"""${instruction}"""
+
+CONTEXT (the file around the selection):
+"""${window}"""`,
+      },
+    ],
+    maxTokens: 1500,
+    temperature: 0.2,
+  });
+
+  const replacement = stripCodeFences(response.content);
+  if (!replacement) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "The AI returned an empty replacement — please try again.",
+    });
+  }
+
+  const spliced =
+    applySpliceEdit(content, selection, replacement) ??
+    applySpliceEditByLine(content, selection, replacement);
+  if (spliced === null) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        "Couldn't locate the selected text in the document — please try again.",
+    });
+  }
+  return spliced;
+}
