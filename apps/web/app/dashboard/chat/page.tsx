@@ -46,6 +46,12 @@ import { StreamingMessage } from "@/components/workspace/streaming-message";
 import { AIComposer } from "@/components/workspace/ai-composer";
 import { AgentTimeline } from "@/components/workspace/agent-timeline";
 import { RichMessageRenderer } from "@/components/workspace/rich-message-renderer";
+import { ArtifactViewer } from "@/components/workspace/artifact-viewer";
+import { DocumentCard } from "@/components/workspace/document-card";
+import {
+  parseChatArtifacts,
+  type ChatArtifactRef,
+} from "@/lib/chat/artifact-types";
 
 // ─── Active AI Tasks Component ────────────────────────────────────────────
 
@@ -1192,6 +1198,7 @@ function ChatMessages({
   streamingDelegations = [],
   streamingApprovals = [],
   streamingDocuments = [],
+  onOpenDocument,
 }: {
   conversationId: string | null;
   streamedContent?: string;
@@ -1210,11 +1217,14 @@ function ChatMessages({
     amount?: string;
   }>;
   streamingDocuments?: Array<{
-    documentId: string;
+    artifactId?: string;
     name: string;
     docType: string;
+    mimeType?: string;
+    sizeBytes?: number;
     url?: string;
   }>;
+  onOpenDocument?: (doc: ChatArtifactRef) => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -1244,23 +1254,51 @@ function ChatMessages({
   return (
     <div className="space-y-4">
       {messages && messages.length > 0 ? (
-        messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={cn(
-              "flex flex-col gap-1",
-              msg.role === "user" ? "items-end" : "items-start",
-            )}
-          >
-            {msg.role === "assistant" && (
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
-                  <Bot className="h-3 w-3 text-primary" />
+        messages.map((msg) => {
+          const artifacts = parseChatArtifacts(msg.metadata);
+          return (
+            <div
+              key={msg.id}
+              className={cn(
+                "flex flex-col gap-1",
+                msg.role === "user" ? "items-end" : "items-start",
+              )}
+            >
+              {msg.role === "assistant" && (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
+                    <Bot className="h-3 w-3 text-primary" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    Xenboox AI
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(msg.createdAt ?? Date.now()).toLocaleTimeString(
+                      [],
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                    )}
+                  </span>
                 </div>
-                <span className="text-[10px] text-muted-foreground">
-                  Xenboox AI
-                </span>
-                <span className="text-[10px] text-muted-foreground">
+              )}
+              <div
+                className={cn(
+                  "max-w-[80%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed",
+                  msg.role === "user"
+                    ? "bg-primary text-white rounded-br-md"
+                    : "bg-accent text-foreground rounded-bl-md",
+                )}
+              >
+                {msg.role === "assistant" && msg.content ? (
+                  <RichMessageRenderer content={msg.content} />
+                ) : (
+                  msg.content
+                )}
+              </div>
+              {msg.role === "user" && (
+                <span className="text-[10px] text-muted-foreground mt-1">
                   {new Date(msg.createdAt ?? Date.now()).toLocaleTimeString(
                     [],
                     {
@@ -1269,54 +1307,52 @@ function ChatMessages({
                     },
                   )}
                 </span>
-              </div>
-            )}
-            <div
-              className={cn(
-                "max-w-[80%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed",
-                msg.role === "user"
-                  ? "bg-primary text-white rounded-br-md"
-                  : "bg-accent text-foreground rounded-bl-md",
               )}
-            >
-              {msg.role === "assistant" && msg.content ? (
-                <RichMessageRenderer content={msg.content} />
-              ) : (
-                msg.content
+              {msg.role === "assistant" && (
+                <div className="flex items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+                  >
+                    <ThumbsUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+                  >
+                    <ThumbsDown className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {/* Generated documents surface in history like the streaming cards */}
+              {msg.role === "assistant" && artifacts.length > 0 && (
+                <div className="w-full max-w-[80%] space-y-2">
+                  {artifacts.map((a) => (
+                    <DocumentCard
+                      key={a.artifactId}
+                      name={a.name}
+                      docType={a.docType}
+                      artifactId={a.artifactId}
+                      mimeType={a.mimeType}
+                      sizeBytes={a.sizeBytes}
+                      onOpen={
+                        onOpenDocument
+                          ? (item) => onOpenDocument(item)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
               )}
             </div>
-            {msg.role === "user" && (
-              <span className="text-[10px] text-muted-foreground mt-1">
-                {new Date(msg.createdAt ?? Date.now()).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            )}
-            {msg.role === "assistant" && (
-              <div className="flex items-center gap-2 mt-1">
-                <button
-                  type="button"
-                  className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
-                >
-                  <ThumbsUp className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
-                >
-                  <ThumbsDown className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
-                >
-                  <Copy className="h-3 w-3" />
-                </button>
-              </div>
-            )}
-          </div>
-        ))
+          );
+        })
       ) : (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 mb-3">
@@ -1337,6 +1373,7 @@ function ChatMessages({
           delegations={streamingDelegations}
           documents={streamingDocuments as any}
           approvals={streamingApprovals as any}
+          onOpenDocument={onOpenDocument}
         />
       )}
       <div ref={messagesEndRef} />
@@ -1859,12 +1896,19 @@ function AIWorkspaceContent() {
   const [streamingDocuments, setStreamingDocuments] = useState<
     Array<{
       type: "document_created";
-      documentId: string;
+      artifactId: string;
       name: string;
       docType: string;
+      mimeType: string;
+      sizeBytes?: number;
       url?: string;
     }>
   >([]);
+
+  // Currently open artifact in the inline document viewer (ChatGPT/Claude
+  // style) — clicking any generated document card opens it here.
+  const [viewingArtifact, setViewingArtifact] =
+    useState<ChatArtifactRef | null>(null);
 
   // Streaming chat hook
   const {
@@ -1983,6 +2027,7 @@ function AIWorkspaceContent() {
               streamingDelegations={streamingDelegations}
               streamingApprovals={streamingApprovals}
               streamingDocuments={streamingDocuments}
+              onOpenDocument={(doc) => setViewingArtifact(doc)}
             />
           </div>
 
@@ -2038,6 +2083,14 @@ function AIWorkspaceContent() {
 
       {/* Right Sidebar - Approvals, Documents, Activity */}
       <RightSidebar entityId={entityId} isChatMode={isChatMode} />
+
+      {/* Inline document viewer — opens when a generated artifact is clicked */}
+      {viewingArtifact && (
+        <ArtifactViewer
+          artifact={viewingArtifact}
+          onClose={() => setViewingArtifact(null)}
+        />
+      )}
     </div>
   );
 }

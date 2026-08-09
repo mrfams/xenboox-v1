@@ -1,8 +1,27 @@
 "use client";
 
-import { FileText, Download, ExternalLink } from "lucide-react";
+import {
+  FileText,
+  FileSpreadsheet,
+  FileImage,
+  FileBarChart,
+  Download,
+  ExternalLink,
+  Eye,
+  Loader2,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { formatFileSize } from "@/lib/chat/artifact-types";
+
+export interface ArtifactCardItem {
+  artifactId: string;
+  name: string;
+  docType: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  url?: string;
+}
 
 interface DocumentCardProps {
   name: string;
@@ -10,7 +29,70 @@ interface DocumentCardProps {
   documentId?: string;
   url?: string;
   status?: "processing" | "completed" | "failed";
+  /** Artifact registry id — when set, the card opens the inline viewer. */
+  artifactId?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  /** Called when the user clicks the card to open the document viewer. */
+  onOpen?: (item: ArtifactCardItem) => void;
 }
+
+const KIND_STYLES: Record<
+  string,
+  { tile: string; badge: string; Icon: typeof FileText }
+> = {
+  report: {
+    tile: "bg-cyan-50 text-cyan-600",
+    badge: "bg-cyan-100 text-cyan-700",
+    Icon: FileBarChart,
+  },
+  export: {
+    tile: "bg-emerald-50 text-emerald-600",
+    badge: "bg-emerald-100 text-emerald-700",
+    Icon: FileSpreadsheet,
+  },
+  pdf: {
+    tile: "bg-red-50 text-red-600",
+    badge: "bg-red-100 text-red-700",
+    Icon: FileText,
+  },
+  image: {
+    tile: "bg-blue-50 text-blue-600",
+    badge: "bg-blue-100 text-blue-700",
+    Icon: FileImage,
+  },
+  spreadsheet: {
+    tile: "bg-emerald-50 text-emerald-600",
+    badge: "bg-emerald-100 text-emerald-700",
+    Icon: FileSpreadsheet,
+  },
+  document: {
+    tile: "bg-purple-50 text-purple-600",
+    badge: "bg-purple-100 text-purple-700",
+    Icon: FileText,
+  },
+  journal_entry: {
+    tile: "bg-indigo-50 text-indigo-600",
+    badge: "bg-indigo-100 text-indigo-700",
+    Icon: FileText,
+  },
+  invoice: {
+    tile: "bg-amber-50 text-amber-600",
+    badge: "bg-amber-100 text-amber-700",
+    Icon: FileText,
+  },
+};
+
+const KIND_LABELS: Record<string, string> = {
+  report: "Report",
+  export: "Export",
+  pdf: "PDF",
+  image: "Image",
+  spreadsheet: "Spreadsheet",
+  document: "Document",
+  journal_entry: "Journal Entry",
+  invoice: "Invoice",
+};
 
 export function DocumentCard({
   name,
@@ -18,75 +100,117 @@ export function DocumentCard({
   documentId,
   url,
   status = "completed",
+  artifactId,
+  mimeType,
+  sizeBytes,
+  onOpen,
 }: DocumentCardProps) {
-  const typeColors: Record<string, string> = {
-    pdf: "bg-red-100 text-red-600",
-    image: "bg-blue-100 text-blue-600",
-    spreadsheet: "bg-emerald-100 text-emerald-600",
-    document: "bg-purple-100 text-purple-600",
-    journal_entry: "bg-indigo-100 text-indigo-600",
-    invoice: "bg-amber-100 text-amber-600",
-    report: "bg-cyan-100 text-cyan-600",
+  // Styles are keyed lowercase; the chat artifact service emits display labels
+  // like "Report"/"Export", so normalize before lookup.
+  const styleKey = docType.toLowerCase();
+  const style = KIND_STYLES[styleKey] ?? {
+    tile: "bg-muted text-muted-foreground",
+    badge: "bg-muted text-muted-foreground",
+    Icon: FileText,
   };
-
-  const typeLabels: Record<string, string> = {
-    pdf: "PDF",
-    image: "Image",
-    spreadsheet: "Spreadsheet",
-    document: "Document",
-    journal_entry: "Journal Entry",
-    invoice: "Invoice",
-    report: "Report",
-  };
+  const Icon = style.Icon;
+  const label = KIND_LABELS[styleKey] ?? docType;
+  const clickable = !!artifactId && !!onOpen;
+  const sizeLabel = formatFileSize(sizeBytes);
 
   return (
-    <div className="rounded-lg border border-border/50 bg-card p-3 hover:shadow-sm transition-all">
+    <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={
+        clickable
+          ? () =>
+              onOpen!({ artifactId, name, docType, mimeType, sizeBytes, url })
+          : undefined
+      }
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpen!({
+                  artifactId,
+                  name,
+                  docType,
+                  mimeType,
+                  sizeBytes,
+                  url,
+                });
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "group rounded-xl border border-border/50 bg-card p-3 transition-all duration-200",
+        clickable
+          ? "cursor-pointer hover:border-primary/40 hover:shadow-md hover:shadow-primary/5"
+          : "hover:shadow-sm",
+      )}
+    >
       <div className="flex items-start gap-3">
         <div
           className={cn(
-            "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-            typeColors[docType] || "bg-muted",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-transform duration-200",
+            style.tile,
+            clickable && "group-hover:scale-105",
           )}
         >
-          <FileText className="h-5 w-5" />
+          {status === "processing" ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Icon className="h-5 w-5" />
+          )}
         </div>
-        <div className="flex-1 min-w-0">
+
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-foreground truncate">
+            <p className="truncate text-sm font-medium text-foreground">
               {name}
             </p>
             <span
               className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
-                typeColors[docType] || "bg-muted",
+                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                style.badge,
               )}
             >
-              {typeLabels[docType] || docType}
+              {label}
             </span>
           </div>
-          {status === "processing" && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Processing...
-            </p>
-          )}
-          {status === "completed" && (
-            <p className="text-[10px] text-emerald-600 mt-0.5">
-              ✓ Created successfully
-            </p>
-          )}
-          {status === "failed" && (
-            <p className="text-[10px] text-red-600 mt-0.5">
-              ✗ Processing failed
-            </p>
-          )}
+          <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+            {status === "processing" && <span>Processing...</span>}
+            {status === "completed" && (
+              <span className="flex items-center gap-1 text-emerald-600">
+                <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                Ready
+              </span>
+            )}
+            {status === "failed" && (
+              <span className="text-red-600">Generation failed</span>
+            )}
+            {sizeLabel && <span>{sizeLabel}</span>}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+
+        <div className="flex shrink-0 items-center gap-1">
+          {clickable && (
+            <span className="mr-1 hidden items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary sm:flex">
+              <Eye className="h-3 w-3" />
+              View
+            </span>
+          )}
           {url && (
             <a
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="h-7 w-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+              onClick={(e) => e.stopPropagation()}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title="Download"
             >
               <Download className="h-3.5 w-3.5" />
             </a>
@@ -94,7 +218,9 @@ export function DocumentCard({
           {documentId && (
             <a
               href={`/dashboard/documents?id=${documentId}`}
-              className="h-7 w-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+              onClick={(e) => e.stopPropagation()}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title="Open in Documents"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>

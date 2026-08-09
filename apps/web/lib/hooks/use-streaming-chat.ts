@@ -22,9 +22,13 @@ export interface DelegationEvent {
 
 export interface DocumentCreatedEvent {
   type: "document_created";
-  documentId: string;
+  /** Artifact registry ID of the generated file. */
+  artifactId: string;
   name: string;
+  /** Display label, e.g. "Report", "Export". */
   docType: string;
+  mimeType: string;
+  sizeBytes?: number;
   url?: string;
 }
 

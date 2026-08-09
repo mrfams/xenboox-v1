@@ -4,7 +4,7 @@ import { Bot, ThumbsUp, ThumbsDown, Copy } from "lucide-react";
 
 import { RichMessageRenderer } from "./rich-message-renderer";
 import { AgentActivityBlock } from "./agent-activity-block";
-import { DocumentCard } from "./document-card";
+import { DocumentCard, type ArtifactCardItem } from "./document-card";
 import { ApprovalPrompt } from "./approval-prompt";
 
 interface StreamingMessageProps {
@@ -19,14 +19,19 @@ interface StreamingMessageProps {
   }>;
   delegations?: Array<{ from: string; to: string; reason: string }>;
   documents?: Array<{
-    documentId: string;
+    artifactId?: string;
+    documentId?: string;
     name: string;
     docType: string;
+    mimeType?: string;
+    sizeBytes?: number;
     url?: string;
   }>;
   approvals?: Array<{ title: string; description: string; amount?: string }>;
   confidence?: number;
   durationMs?: number;
+  /** Opens a generated artifact in the inline document viewer. */
+  onOpenDocument?: (doc: ArtifactCardItem) => void;
   onApprove?: (index: number) => void;
   onReject?: (index: number) => void;
 }
@@ -40,6 +45,7 @@ export function StreamingMessage({
   approvals = [],
   confidence,
   durationMs,
+  onOpenDocument,
   onApprove,
   onReject,
 }: StreamingMessageProps) {
@@ -112,11 +118,19 @@ export function StreamingMessage({
         <div className="space-y-2 w-full max-w-[80%]">
           {documents.map((doc, i) => (
             <DocumentCard
-              key={i}
+              key={doc.artifactId ?? doc.documentId ?? i}
               name={doc.name}
               docType={doc.docType}
               documentId={doc.documentId}
               url={doc.url}
+              artifactId={doc.artifactId}
+              mimeType={doc.mimeType}
+              sizeBytes={doc.sizeBytes}
+              onOpen={
+                onOpenDocument && doc.artifactId
+                  ? (item) => onOpenDocument(item)
+                  : undefined
+              }
             />
           ))}
         </div>

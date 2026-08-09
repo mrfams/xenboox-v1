@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   setSpies: [] as Array<ReturnType<typeof vi.fn>>,
   insertValues: [] as unknown[],
   existingMessageCount: 0,
+  // Artifacts returned by the mocked chat-artifact service.
+  artifacts: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -37,6 +39,13 @@ vi.mock("@xenboox/agents", () => ({
     escalationItems: [],
     errors: [],
   })),
+}));
+
+// The stream route generates document artifacts when the user asks for one;
+// those descriptors come back as document_created SSE events and are stored
+// in the assistant message metadata for history.
+vi.mock("@/lib/chat/artifact-service", () => ({
+  generateChatArtifacts: vi.fn(async () => mocks.artifacts),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -104,6 +113,7 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     mocks.setSpies.length = 0;
     mocks.insertValues.length = 0;
     mocks.existingMessageCount = 0;
+    mocks.artifacts = [];
   });
 
   it("creates a conversation and writes lastMessageAt + messageCount so it surfaces in the /chat panel", async () => {
@@ -195,6 +205,33 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     });
 
     await res.text(); // drain the stream
+  });
+
+  it("emits document_created events and persists artifact refs when a document is generated", async () => {
+    mocks.artifacts = [
+      {
+        artifactId: "art-1",
+        name: "Profit & Loss - 2026-07.csv",
+        docType: "Export",
+        mimeType: "text/csv",
+        sizeBytes: 512,
+      },
+    ];
+
+    const res = await POST(makeRequest({ message: "Export my P&L to CSV" }));
+    expect(res.status).toBe(200);
+
+    const body = await res.text();
+    expect(body).toContain('"type":"document_created"');
+    expect(body).toContain('"artifactId":"art-1"');
+    expect(body).toContain('"name":"Profit & Loss - 2026-07.csv"');
+
+    // The refs are persisted on the assistant message so history re-renders
+    // the document card without another generation run.
+    const assistantSet = mocks.setSpies[1]?.mock.calls[0]?.[0];
+    expect(assistantSet?.metadata).toMatchObject({
+      artifacts: mocks.artifacts,
+    });
   });
 
   it("saves a completed response even when the client disconnects before the stream starts", async () => {

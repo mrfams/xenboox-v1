@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, Bot, Plus, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { StreamingMessage } from "@/components/workspace/streaming-message";
+import { ArtifactViewer } from "@/components/workspace/artifact-viewer";
+import type { ChatArtifactRef } from "@/lib/chat/artifact-types";
 import type { DashboardChatMessage } from "@/lib/hooks/use-dashboard-chat";
 import type {
   AgentActivityEvent,
@@ -54,6 +56,9 @@ export function DashboardChatScreen({
   onNewChat,
 }: DashboardChatScreenProps) {
   const endRef = useRef<HTMLDivElement>(null);
+  // Currently open generated document in the inline viewer.
+  const [viewingArtifact, setViewingArtifact] =
+    useState<ChatArtifactRef | null>(null);
 
   // Keep the newest message in view as content streams in.
   useEffect(() => {
@@ -220,6 +225,7 @@ export function DashboardChatScreen({
                   approvals={message.approvals}
                   confidence={message.confidence}
                   durationMs={message.durationMs}
+                  onOpenDocument={(doc) => setViewingArtifact(doc)}
                 />
               </div>
             );
@@ -234,6 +240,7 @@ export function DashboardChatScreen({
               delegations={delegations}
               documents={documents}
               approvals={approvals}
+              onOpenDocument={(doc) => setViewingArtifact(doc)}
             />
           )}
 
@@ -259,6 +266,14 @@ export function DashboardChatScreen({
             : "Your messages are saved to this entity's audit trail."}
         </p>
       </div>
+
+      {/* Inline document viewer for generated artifacts */}
+      {viewingArtifact && (
+        <ArtifactViewer
+          artifact={viewingArtifact}
+          onClose={() => setViewingArtifact(null)}
+        />
+      )}
     </div>
   );
 }

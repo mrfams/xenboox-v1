@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 import { generateConversationTitle } from "@/lib/chat/conversation-title";
+import { generateChatArtifacts } from "@/lib/chat/artifact-service";
 
 export const runtime = "nodejs";
 
@@ -243,6 +244,22 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        // If the user asked for a document/file, generate it from real ledger
+        // data while the response streams. The resulting artifact is presented
+        // in the conversation as a clickable card (ChatGPT/Claude style).
+        // Gated on the pipeline actually accepting the request — a rejected
+        // or refused turn must not produce a file from the same data.
+        const artifactsPromise =
+          pipelineResult.decision === "rejected"
+            ? Promise.resolve([])
+            : generateChatArtifacts({
+                entityId,
+                entityName: entity.name,
+                currency: entity.currency || "GMD",
+                userId,
+                message,
+              });
+
         // Emit agent activity event
         enqueue({
           type: "agent_activity",
@@ -293,6 +310,19 @@ export async function POST(req: NextRequest) {
           await new Promise((resolve) => setTimeout(resolve, 15));
         }
 
+        // Present generated documents in the conversation once the text is out.
+        const artifacts = await artifactsPromise;
+        for (const artifact of artifacts) {
+          enqueue({
+            type: "document_created",
+            artifactId: artifact.artifactId,
+            name: artifact.name,
+            docType: artifact.docType,
+            mimeType: artifact.mimeType,
+            sizeBytes: artifact.sizeBytes,
+          });
+        }
+
         // Save complete AI response with tool calls and citations — even when
         // the client left mid-stream, so the conversation is fully usable
         // later in /dashboard/chat.
@@ -325,12 +355,15 @@ export async function POST(req: NextRequest) {
             agentModel: `cfo-pipeline-v1 (${pipelineResult.agentId})`,
             toolCalls:
               toolCallsForMessage.length > 0 ? toolCallsForMessage : undefined,
-            metadata: JSON.stringify({
+            metadata: {
               durationMs: pipelineResult.durationMs,
               decision: pipelineResult.decision,
               agentsInvolved: [pipelineResult.agentId],
               toolCallsCount: toolCallsForMessage.length,
-            }),
+              // Persist generated documents so they reappear when the
+              // conversation is reopened from history.
+              artifacts,
+            },
           })
           .where(eq(chatMessages.id, pendingAssistant.id));
 
