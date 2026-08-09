@@ -1,11 +1,20 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { eq, and, asc, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+  requirePermission,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   bankAccounts,
   bankTransactions,
   bankConnections,
+  bankRules,
+  bankTxTypeEnum,
+  statementLines,
+  auditLog,
 } from "@xenboox/db/schema";
 
 // ─── Banking Router ────────────────────────────────────────────────────────
@@ -396,4 +405,394 @@ export const bankingRouter = router({
 
     return activities;
   }),
+
+  // ── Transactions tab ──
+  /**
+   * Paginated bank transactions for the Banking → Transactions panel.
+   * Entity-scoped, optional account/status/type/search filters.
+   */
+  listTransactions: rlsProtectedProcedure
+    .input(
+      z.object({
+        accountId: z.string().uuid().optional(),
+        status: z.enum(["all", "reconciled", "unreconciled"]).default("all"),
+        type: z.enum(bankTxTypeEnum.enumValues).optional(),
+        search: z.string().optional(),
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const conditions = [eq(bankTransactions.entityId, entityId)];
+
+      if (input.accountId) {
+        conditions.push(eq(bankTransactions.bankAccountId, input.accountId));
+      }
+      if (input.status === "reconciled") {
+        conditions.push(eq(bankTransactions.isReconciled, true));
+      } else if (input.status === "unreconciled") {
+        conditions.push(eq(bankTransactions.isReconciled, false));
+      }
+      if (input.type) {
+        conditions.push(eq(bankTransactions.type, input.type));
+      }
+      if (input.search) {
+        conditions.push(
+          sql`${bankTransactions.description} ILIKE ${`%${input.search}%`}`,
+        );
+      }
+
+      const totalCountResult = await db
+        .select({ count: count() })
+        .from(bankTransactions)
+        .where(and(...conditions));
+      const totalCount = totalCountResult[0]?.count ?? 0;
+
+      const rows = await db.query.bankTransactions.findMany({
+        where: and(...conditions),
+        orderBy: [desc(bankTransactions.transactionDate)],
+        limit: input.limit,
+        offset: input.offset,
+        with: {
+          bankAccount: {
+            columns: { name: true, bankName: true, currency: true },
+          },
+        },
+      });
+
+      return {
+        transactions: rows.map((tx) => ({
+          id: tx.id,
+          date: tx.transactionDate,
+          description: tx.description,
+          reference: tx.reference,
+          type: tx.type,
+          amount: parseFloat(tx.amount),
+          balance: tx.balance ? parseFloat(tx.balance) : null,
+          isReconciled: tx.isReconciled,
+          accountName: tx.bankAccount?.name ?? "Unknown Account",
+          bankName: tx.bankAccount?.bankName ?? "",
+          currency: tx.bankAccount?.currency ?? "GMD",
+        })),
+        totalCount,
+        totalPages: Math.ceil(totalCount / input.limit),
+      };
+    }),
+
+  // ── Connections tab ──
+  /**
+   * Bank connections with sync status (tokens never exposed).
+   */
+  listConnections: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const rows = await db.query.bankConnections.findMany({
+      where: eq(bankConnections.entityId, ctx.entityId!),
+      orderBy: [desc(bankConnections.createdAt)],
+    });
+
+    return rows.map((conn) => ({
+      id: conn.id,
+      provider: conn.provider,
+      institutionName: conn.institutionName,
+      accountName: conn.accountName,
+      accountNumber: conn.accountNumber
+        ? `**** ${conn.accountNumber.slice(-4)}`
+        : null,
+      accountType: conn.accountType,
+      currency: conn.currency,
+      status: conn.status,
+      lastSyncedAt: conn.lastSyncedAt,
+      syncError: conn.syncError,
+      createdAt: conn.createdAt,
+    }));
+  }),
+
+  // ── Statements tab ──
+  /**
+   * Imported statement lines (normalized from any provider), newest first.
+   */
+  listStatementLines: rlsProtectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(200).default(50),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const conditions = [eq(statementLines.entityId, entityId)];
+
+      const totalCountResult = await db
+        .select({ count: count() })
+        .from(statementLines)
+        .where(and(...conditions));
+      const totalCount = totalCountResult[0]?.count ?? 0;
+
+      const rows = await db.query.statementLines.findMany({
+        where: and(...conditions),
+        orderBy: [desc(statementLines.date)],
+        limit: input.limit,
+        offset: input.offset,
+        with: {
+          bankAccount: {
+            columns: { name: true, bankName: true },
+          },
+        },
+      });
+
+      return {
+        lines: rows.map((l) => ({
+          id: l.id,
+          providerName: l.providerName,
+          date: l.date,
+          description: l.description,
+          reference: l.reference,
+          amount: parseFloat(l.amount),
+          currency: l.currency,
+          status: l.status,
+          matchTier: l.matchTier,
+          accountName: l.bankAccount?.name ?? null,
+        })),
+        totalCount,
+      };
+    }),
+
+  // ── Account management (Settings tab) ──
+  updateAccount: rlsProtectedProcedure
+    .use(requirePermission("bank_reconciliation", "edit"))
+    .input(
+      z.object({
+        accountId: z.string().uuid(),
+        isActive: z.boolean().optional(),
+        name: z.string().min(1).optional(),
+        notes: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const [updated] = await db
+          .update(bankAccounts)
+          .set({
+            isActive: input.isActive,
+            name: input.name,
+            notes: input.notes,
+          })
+          .where(
+            and(
+              eq(bankAccounts.id, input.accountId),
+              eq(bankAccounts.entityId, ctx.entityId!),
+            ),
+          )
+          .returning();
+
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "banking.updateAccount",
+            entityType: "bank_account",
+            entityIdRef: updated.id,
+            newValues: { isActive: input.isActive, name: input.name },
+          });
+        }
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update bank account");
+      }
+    }),
+
+  // ── Rules tab ──
+  listRules: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const rules = await db.query.bankRules.findMany({
+      where: eq(bankRules.entityId, entityId),
+      orderBy: [asc(bankRules.priority), asc(bankRules.createdAt)],
+    });
+
+    // Live match stats — how many current transactions each rule would match.
+    // Explicit column projection: never spread the full row (entityId,
+    // timestamps) to the client.
+    const withStats = await Promise.all(
+      rules.map(async (rule) => ({
+        id: rule.id,
+        name: rule.name,
+        matchType: rule.matchType,
+        matchValue: rule.matchValue,
+        category: rule.category,
+        glAccountId: rule.glAccountId,
+        isActive: rule.isActive,
+        priority: rule.priority,
+        matchCount: await countRuleMatches(entityId, rule),
+      })),
+    );
+    return withStats;
+  }),
+
+  createRule: rlsProtectedProcedure
+    .use(requirePermission("bank_reconciliation", "create"))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        matchType: z.enum([
+          "description_contains",
+          "description_equals",
+          "reference_contains",
+          "amount_equals",
+          "amount_above",
+          "amount_below",
+        ]),
+        matchValue: z.string().min(1),
+        category: z.string().min(1).default("Uncategorized"),
+        glAccountId: z.string().uuid().optional(),
+        isActive: z.boolean().default(true),
+        priority: z.number().int().min(0).default(0),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const [rule] = await db
+          .insert(bankRules)
+          .values({ ...input, entityId: ctx.entityId! })
+          .returning();
+
+        if (rule) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "banking.createRule",
+            entityType: "bank_rule",
+            entityIdRef: rule.id,
+            newValues: {
+              name: rule.name,
+              matchType: rule.matchType,
+              category: rule.category,
+              priority: rule.priority,
+            },
+          });
+        }
+        return rule;
+      } catch (error) {
+        handleMutationError(error, "Failed to create bank rule");
+      }
+    }),
+
+  updateRule: rlsProtectedProcedure
+    .use(requirePermission("bank_reconciliation", "edit"))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        matchType: z
+          .enum([
+            "description_contains",
+            "description_equals",
+            "reference_contains",
+            "amount_equals",
+            "amount_above",
+            "amount_below",
+          ])
+          .optional(),
+        matchValue: z.string().min(1).optional(),
+        category: z.string().min(1).optional(),
+        isActive: z.boolean().optional(),
+        priority: z.number().int().min(0).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(bankRules)
+          .set(data)
+          .where(
+            and(eq(bankRules.id, id), eq(bankRules.entityId, ctx.entityId!)),
+          )
+          .returning();
+
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "banking.updateRule",
+            entityType: "bank_rule",
+            entityIdRef: updated.id,
+            newValues: data,
+          });
+        }
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update bank rule");
+      }
+    }),
+
+  deleteRule: rlsProtectedProcedure
+    .use(requirePermission("bank_reconciliation", "delete"))
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const existing = await db.query.bankRules.findFirst({
+          where: and(
+            eq(bankRules.id, input.id),
+            eq(bankRules.entityId, ctx.entityId!),
+          ),
+        });
+        if (!existing) {
+          throw new Error("Bank rule not found");
+        }
+
+        await db.delete(bankRules).where(eq(bankRules.id, input.id));
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "banking.deleteRule",
+          entityType: "bank_rule",
+          entityIdRef: input.id,
+          oldValues: { name: existing.name },
+        });
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to delete bank rule");
+      }
+    }),
 });
+
+// ─── Rule match helpers ────────────────────────────────────────────────────
+
+function countRuleMatches(
+  entityId: string,
+  rule: { matchType: string; matchValue: string },
+) {
+  const conditions = [eq(bankTransactions.entityId, entityId)];
+  switch (rule.matchType) {
+    case "description_contains":
+      conditions.push(
+        sql`${bankTransactions.description} ILIKE ${`%${rule.matchValue}%`}`,
+      );
+      break;
+    case "description_equals":
+      conditions.push(
+        sql`${bankTransactions.description} = ${rule.matchValue}`,
+      );
+      break;
+    case "reference_contains":
+      conditions.push(
+        sql`${bankTransactions.reference} ILIKE ${`%${rule.matchValue}%`}`,
+      );
+      break;
+    case "amount_equals":
+      conditions.push(sql`${bankTransactions.amount} = ${rule.matchValue}`);
+      break;
+    case "amount_above":
+      conditions.push(sql`${bankTransactions.amount} > ${rule.matchValue}`);
+      break;
+    case "amount_below":
+      conditions.push(sql`${bankTransactions.amount} < ${rule.matchValue}`);
+      break;
+  }
+  return db
+    .select({ count: count() })
+    .from(bankTransactions)
+    .where(and(...conditions))
+    .then((r) => r[0]?.count ?? 0);
+}

@@ -6,7 +6,7 @@ import {
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import {
   documents,
   documentLinks,
@@ -57,15 +57,23 @@ export const documentRouter = router({
     .input(
       z.object({
         category: z.enum(docTypeEnum.enumValues).optional(),
+        categories: z.array(z.enum(docTypeEnum.enumValues)).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const whereClause = input.category
-        ? and(
-            eq(documents.entityId, ctx.entityId!),
-            eq(documents.type, input.category),
-          )
-        : eq(documents.entityId, ctx.entityId!);
+      const entityId = ctx.entityId!;
+      const whereClause =
+        input.categories && input.categories.length > 0
+          ? and(
+              eq(documents.entityId, entityId),
+              inArray(documents.type, input.categories),
+            )
+          : input.category
+            ? and(
+                eq(documents.entityId, entityId),
+                eq(documents.type, input.category),
+              )
+            : eq(documents.entityId, entityId);
 
       return db.query.documents.findMany({
         where: whereClause,

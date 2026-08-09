@@ -736,6 +736,7 @@ export default function VendorsPage() {
   const { data: vendorsData, isLoading: vendorsLoading } =
     trpc.ap.listVendorsWithPayables.useQuery({
       status: activeTab === "1099" ? "all" : activeTab,
+      is1099: activeTab === "1099" ? true : undefined,
       search: searchQuery || undefined,
       limit: pageSize,
       offset: (page - 1) * pageSize,
@@ -791,7 +792,10 @@ export default function VendorsPage() {
       }
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={(key) => setActiveTab(key as typeof activeTab)}
+      onTabChange={(key) => {
+        setActiveTab(key as typeof activeTab);
+        setPage(1);
+      }}
       summaryCards={overview ? buildSummaryCards(overview) : []}
       filters={
         <div className="flex items-center gap-3">

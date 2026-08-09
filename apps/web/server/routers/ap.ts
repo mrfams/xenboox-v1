@@ -172,6 +172,7 @@ export const apRouter = router({
         search: z.string().optional(),
         vendorType: z.string().optional(),
         paymentTerms: z.string().optional(),
+        is1099: z.boolean().optional(),
         limit: z.number().min(1).max(100).default(10),
         offset: z.number().min(0).default(0),
       }),
@@ -186,6 +187,31 @@ export const apRouter = router({
         conditions.push(eq(suppliers.isActive, true));
       } else if (input.status === "inactive") {
         conditions.push(eq(suppliers.isActive, false));
+      } else if (input.status === "on_hold") {
+        // On Hold = active vendor with an outstanding balance on AP invoices.
+        conditions.push(eq(suppliers.isActive, true));
+        conditions.push(
+          sql`EXISTS (SELECT 1 FROM ${invoicesAp} WHERE ${invoicesAp.supplierId} = ${suppliers.id} AND ${invoicesAp.entityId} = ${entityId} AND ${invoicesAp.balance} > 0)`,
+        );
+      }
+
+      if (input.is1099) {
+        conditions.push(eq(suppliers.is1099, true));
+      }
+
+      if (input.paymentTerms) {
+        conditions.push(eq(suppliers.paymentTerms, input.paymentTerms));
+      }
+
+      if (input.vendorType && input.vendorType !== "Supplier") {
+        // vendorType mirrors the response heuristic (name-based) so filter
+        // and result stay consistent.
+        const patterns = vendorTypePatterns(input.vendorType);
+        if (patterns) {
+          conditions.push(
+            sql`(${patterns.map((p) => sql`${suppliers.name} ILIKE ${`%${p}%`}`).join(" OR ")})`,
+          );
+        }
       }
 
       if (input.search) {
@@ -208,6 +234,7 @@ export const apRouter = router({
           contactPhone: suppliers.contactPhone,
           paymentTerms: suppliers.paymentTerms,
           isActive: suppliers.isActive,
+          is1099: suppliers.is1099,
         })
         .from(suppliers)
         .where(and(...conditions))
@@ -289,6 +316,7 @@ export const apRouter = router({
               ? `GMD ${payables.overdue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : "0.00",
           paymentTerms: s.paymentTerms ?? "Net 30",
+          is1099: s.is1099,
           status,
           statusColor,
           initials,
@@ -327,14 +355,71 @@ export const apRouter = router({
         and(eq(suppliers.entityId, entityId), eq(suppliers.isActive, false)),
       );
 
+    const onHoldResult = await db
+      .select({ count: count() })
+      .from(suppliers)
+      .where(
+        and(
+          eq(suppliers.entityId, entityId),
+          eq(suppliers.isActive, true),
+          sql`EXISTS (SELECT 1 FROM ${invoicesAp} WHERE ${invoicesAp.supplierId} = ${suppliers.id} AND ${invoicesAp.entityId} = ${entityId} AND ${invoicesAp.balance} > 0)`,
+        ),
+      );
+
+    const v1099Result = await db
+      .select({ count: count() })
+      .from(suppliers)
+      .where(and(eq(suppliers.entityId, entityId), eq(suppliers.is1099, true)));
+
     return {
       all: allResult[0]?.count ?? 0,
       active: activeResult[0]?.count ?? 0,
       inactive: inactiveResult[0]?.count ?? 0,
-      onHold: 0,
-      vendors1099: Math.round((allResult[0]?.count ?? 0) * 0.36),
+      onHold: onHoldResult[0]?.count ?? 0,
+      vendors1099: v1099Result[0]?.count ?? 0,
     };
   }),
+
+  // ── Vendor updates (status / 1099 / terms) ──
+  updateVendor: rlsProtectedProcedure
+    .use(requirePermission("accounts_payable", "edit"))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        contactEmail: z.string().optional(),
+        contactPhone: z.string().optional(),
+        paymentTerms: z.string().optional(),
+        isActive: z.boolean().optional(),
+        is1099: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(suppliers)
+          .set(data)
+          .where(
+            and(eq(suppliers.id, id), eq(suppliers.entityId, ctx.entityId!)),
+          )
+          .returning();
+
+        if (updated) {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "ap.updateVendor",
+            entityType: "supplier",
+            entityIdRef: updated.id,
+            newValues: data,
+          });
+        }
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update vendor");
+      }
+    }),
 
   // ── Top Vendors by Payables ──
   getTopVendors: rlsProtectedProcedure
@@ -492,7 +577,7 @@ export const apRouter = router({
         ),
       );
 
-    if (overdueResult[0]?.count ?? 0 > 0) {
+    if ((overdueResult[0]?.count ?? 0) > 0) {
       insights.push({
         id: "overdue-vendors",
         type: "warning",
@@ -515,7 +600,7 @@ export const apRouter = router({
         ),
       );
 
-    if (dueSoonResult[0]?.count ?? 0 > 0) {
+    if ((dueSoonResult[0]?.count ?? 0) > 0) {
       insights.push({
         id: "due-soon",
         type: "info",
@@ -1283,3 +1368,22 @@ export const apRouter = router({
       }
     }),
 });
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Name-keyword patterns used both to derive vendorType in the response and
+ * to filter by it, so the filter and the badge always agree.
+ */
+function vendorTypePatterns(vendorType: string): string[] | null {
+  switch (vendorType) {
+    case "Bank":
+      return ["bank"];
+    case "Service Provider":
+      return ["service", "consult"];
+    case "Logistics":
+      return ["transport", "logistics"];
+    default:
+      return null;
+  }
+}

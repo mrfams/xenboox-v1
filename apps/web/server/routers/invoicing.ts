@@ -231,15 +231,22 @@ export const invoicingRouter = router({
           conditions.push(eq(salesInvoices.status, "pending"));
           conditions.push(sql`${salesInvoices.sentAt} IS NOT NULL`);
         } else {
-          const statusMap: Record<string, string> = {
+          // Map the public tab value to the stored invoice status.
+          const statusMap: Partial<
+            Record<
+              Exclude<typeof input.status, "all" | "draft" | "sent">,
+              typeof salesInvoices.$inferSelect.status
+            >
+          > = {
             viewed: "partial",
             overdue: "overdue",
             paid: "paid",
             cancelled: "voided",
           };
-          conditions.push(
-            eq(salesInvoices.status, statusMap[input.status] as any),
-          );
+          const mapped = statusMap[input.status];
+          if (mapped) {
+            conditions.push(eq(salesInvoices.status, mapped));
+          }
         }
       }
 

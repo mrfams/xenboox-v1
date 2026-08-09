@@ -718,20 +718,27 @@ export default function TransactionsPage() {
 
   const { data: accounts } = trpc.transactions.getAccounts.useQuery();
 
+  // Real counts only — no hardcoded fallbacks. The summary router doesn't
+  // expose an uncategorized count, so that tab carries no badge rather than
+  // a fabricated number.
   const tabs: TabItem[] = [
     { key: "all" as TabFilter, label: "All" },
-    {
-      key: "uncategorized" as TabFilter,
-      label: "Uncategorized",
-      count: summary?.needsReview ?? 12,
-    },
+    { key: "uncategorized" as TabFilter, label: "Uncategorized" },
     {
       key: "needs_review" as TabFilter,
       label: "Needs review",
-      count: summary?.needsReview ?? 8,
+      count: summary?.needsReview,
     },
-    { key: "matched" as TabFilter, label: "Matched" },
-    { key: "excluded" as TabFilter, label: "Excluded" },
+    {
+      key: "matched" as TabFilter,
+      label: "Matched",
+      count: summary?.matched,
+    },
+    {
+      key: "excluded" as TabFilter,
+      label: "Excluded",
+      count: summary?.excluded,
+    },
   ];
 
   const summaryCards = summary
@@ -902,7 +909,10 @@ export default function TransactionsPage() {
       actions={actions}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={(key) => setActiveTab(key as TabFilter)}
+      onTabChange={(key) => {
+        setActiveTab(key as TabFilter);
+        setPage(1);
+      }}
       summaryCards={summaryCards}
       filters={filters}
     >

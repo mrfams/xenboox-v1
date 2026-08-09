@@ -594,7 +594,10 @@ export default function ExpensesPage() {
       }
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={(key) => setActiveTab(key as TabFilter)}
+      onTabChange={(key) => {
+        setActiveTab(key as TabFilter);
+        setPage(1);
+      }}
       summaryCards={overview ? buildSummaryCards(overview) : []}
       filters={
         <div className="flex items-center gap-3">

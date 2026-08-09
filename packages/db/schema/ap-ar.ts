@@ -71,6 +71,7 @@ export const suppliers = pgTable(
     taxId: text("tax_id"),
     paymentTerms: text("payment_terms").default("net30"),
     isActive: boolean("is_active").notNull().default(true),
+    is1099: boolean("is_1099").notNull().default(false),
     metadata: jsonb("metadata").default({}).$type<Record<string, unknown>>(),
     ...timestamps,
   },

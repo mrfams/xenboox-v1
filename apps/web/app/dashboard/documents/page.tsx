@@ -35,6 +35,18 @@ type TabFilter =
   | "reports"
   | "other";
 
+type DocCategory =
+  | "invoice"
+  | "receipt"
+  | "contract"
+  | "voucher"
+  | "bank_statement"
+  | "tax_return"
+  | "payroll_report"
+  | "journal_entry"
+  | "po"
+  | "supporting";
+
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
 function buildSummaryCards(summary: {
@@ -367,6 +379,39 @@ function AiCopilotPanel({
   );
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function fileTypeFromMime(mimeType: string | null | undefined): string {
+  if (!mimeType) return "document";
+  if (mimeType.startsWith("image/")) return "image";
+  if (
+    mimeType.includes("spreadsheet") ||
+    mimeType.includes("excel") ||
+    mimeType.includes("csv")
+  ) {
+    return "spreadsheet";
+  }
+  if (mimeType === "application/pdf") return "pdf";
+  return "document";
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  invoice: "Invoice",
+  receipt: "Receipt",
+  contract: "Contract",
+  voucher: "Voucher",
+  bank_statement: "Bank Statement",
+  tax_return: "Tax Return",
+  payroll_report: "Payroll Report",
+  journal_entry: "Journal Entry",
+  po: "Purchase Order",
+  supporting: "Supporting",
+};
+
+function categoryLabel(category: string): string {
+  return CATEGORY_LABELS[category] ?? category;
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function DocumentsPage() {
@@ -379,18 +424,34 @@ export default function DocumentsPage() {
       isLoading: false,
     };
 
-  // Fetch documents list
-  const categoryFilter: "invoice" | "receipt" | "contract" | undefined =
+  // Fetch documents list — every tab maps to real doc types so the list
+  // always reflects the selected category (never an unfiltered fallback).
+  const categoryFilter: {
+    category?: DocCategory;
+    categories?: DocCategory[];
+  } =
     activeTab === "invoices"
-      ? "invoice"
+      ? { category: "invoice" }
       : activeTab === "receipts"
-        ? "receipt"
+        ? { category: "receipt" }
         : activeTab === "contracts"
-          ? "contract"
-          : undefined;
+          ? { category: "contract" }
+          : activeTab === "reports"
+            ? { categories: ["tax_return", "payroll_report"] }
+            : activeTab === "other"
+              ? {
+                  categories: [
+                    "voucher",
+                    "bank_statement",
+                    "journal_entry",
+                    "po",
+                    "supporting",
+                  ],
+                }
+              : {};
 
   const { data: documentsData, isLoading: documentsLoading } =
-    trpc.document?.listDocuments?.useQuery?.({ category: categoryFilter }) ?? {
+    trpc.document?.listDocuments?.useQuery?.(categoryFilter) ?? {
       data: undefined,
       isLoading: false,
     };
@@ -498,8 +559,10 @@ export default function DocumentsPage() {
             documents={(documentsData ?? []).map((doc) => ({
               id: doc.id,
               name: doc.name,
-              type: doc.type,
-              category: doc.type,
+              // File-type icon comes from the MIME type (pdf/image/…) while
+              // the category stays the document kind (invoice/receipt/…).
+              type: fileTypeFromMime(doc.mimeType),
+              category: categoryLabel(doc.type),
               uploadedBy: doc.uploadedBy ?? "—",
               uploadedAt: doc.createdAt ?? new Date().toISOString(),
               size: doc.sizeBytes ?? 0,

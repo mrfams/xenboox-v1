@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Search,
   Download,
   CheckCircle2,
   AlertTriangle,
@@ -14,12 +13,23 @@ import {
   Share2,
   MoreHorizontal,
   Send,
+  Network,
+  Settings,
+  Calculator,
+  Link2,
+  Wallet,
+  ArrowRight,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import {
+  ModulePanel,
+  ModulePanelEmpty,
+  ModulePanelLoading,
+} from "@/components/module/module-tab-panel";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -319,11 +329,657 @@ function InfoTooltip() {
   );
 }
 
+// ─── Financial statement panels (period-scoped, real ledger data) ──────────
+
+function fmtGmd(v: number) {
+  return `${v < 0 ? "−" : ""}GMD ${Math.abs(v).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function PeriodPicker({
+  periods,
+  value,
+  onChange,
+}: {
+  periods: Array<{ id: string; year: number; month: number; status: string }>;
+  value: string | null;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        Period
+      </span>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      >
+        {periods.length === 0 && <option value="">No fiscal periods</option>}
+        {periods.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.year}-{String(p.month).padStart(2, "0")} ·{" "}
+            {p.status === "open" ? "Open" : "Closed"}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function StatementSection({
+  title,
+  accounts,
+  total,
+}: {
+  title: string;
+  accounts: Array<{
+    code?: string | null;
+    name?: string | null;
+    displayAmount: number;
+  }>;
+  total: number;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between border-b border-slate-200 py-2.5">
+        <h4 className="text-[13px] font-semibold text-slate-900">{title}</h4>
+        <span className="text-[13px] font-semibold tabular-nums text-slate-900">
+          {fmtGmd(total)}
+        </span>
+      </div>
+      {accounts.length === 0 && (
+        <p className="py-2.5 text-sm text-slate-400">
+          No activity in this period.
+        </p>
+      )}
+      {accounts.map((acc, i) => (
+        <div
+          key={acc.code ?? acc.name ?? i}
+          className="flex items-center justify-between border-b border-slate-100 py-2"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="w-16 shrink-0 text-xs tabular-nums text-slate-400">
+              {acc.code ?? ""}
+            </span>
+            <span className="truncate text-sm text-slate-700">
+              {acc.name ?? "Unknown"}
+            </span>
+          </div>
+          <span className="text-sm tabular-nums text-slate-900">
+            {fmtGmd(acc.displayAmount)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProfitAndLossPanel({
+  data,
+  isLoading,
+}: {
+  data: {
+    revenue: {
+      accounts: Array<{
+        code?: string | null;
+        name?: string | null;
+        displayAmount: number;
+      }>;
+      total: number;
+    };
+    expenses: {
+      accounts: Array<{
+        code?: string | null;
+        name?: string | null;
+        displayAmount: number;
+      }>;
+      total: number;
+    };
+    netIncome: number;
+  } | null;
+  isLoading: boolean;
+}) {
+  if (isLoading) return <ModulePanelLoading rows={7} />;
+  if (!data) {
+    return (
+      <ModulePanelEmpty
+        icon={BarChart3}
+        title="No posted entries for this period"
+        description="The profit & loss statement is built from posted journal entries. Post entries or pick another period."
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+        <h4 className="text-[13px] font-semibold text-slate-900">
+          Profit & Loss
+        </h4>
+        <span className="text-[11px] text-slate-400">Posted entries</span>
+      </div>
+      <div className="px-4 pb-3">
+        <StatementSection
+          title="Revenue"
+          accounts={data.revenue.accounts}
+          total={data.revenue.total}
+        />
+        <StatementSection
+          title="Expenses"
+          accounts={data.expenses.accounts}
+          total={data.expenses.total}
+        />
+        <div className="flex items-center justify-between py-3">
+          <span className="text-sm font-semibold text-slate-900">
+            Net Income
+          </span>
+          <span
+            className={cn(
+              "text-sm font-bold tabular-nums",
+              data.netIncome >= 0 ? "text-emerald-600" : "text-red-600",
+            )}
+          >
+            {fmtGmd(data.netIncome)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BalanceSheetPanel({
+  data,
+  isLoading,
+}: {
+  data: {
+    assets: {
+      accounts: Array<{
+        code?: string | null;
+        name?: string | null;
+        displayAmount: number;
+      }>;
+      total: number;
+    };
+    liabilities: {
+      accounts: Array<{
+        code?: string | null;
+        name?: string | null;
+        displayAmount: number;
+      }>;
+      total: number;
+    };
+    equity: {
+      accounts: Array<{
+        code?: string | null;
+        name?: string | null;
+        displayAmount: number;
+      }>;
+      total: number;
+    };
+    isBalanced: boolean;
+  } | null;
+  isLoading: boolean;
+}) {
+  if (isLoading) return <ModulePanelLoading rows={7} />;
+  if (!data) {
+    return (
+      <ModulePanelEmpty
+        icon={PieChart}
+        title="No posted entries for this period"
+        description="The balance sheet is built from posted journal entries. Post entries or pick another period."
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+        <h4 className="text-[13px] font-semibold text-slate-900">
+          Balance Sheet
+        </h4>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+            data.isBalanced
+              ? "bg-emerald-100 text-emerald-700"
+              : "bg-red-100 text-red-700",
+          )}
+        >
+          {data.isBalanced ? "Balanced" : "Out of balance"}
+        </span>
+      </div>
+      <div className="px-4 pb-3">
+        <StatementSection
+          title="Assets"
+          accounts={data.assets.accounts}
+          total={data.assets.total}
+        />
+        <StatementSection
+          title="Liabilities"
+          accounts={data.liabilities.accounts}
+          total={data.liabilities.total}
+        />
+        <StatementSection
+          title="Equity"
+          accounts={data.equity.accounts}
+          total={data.equity.total}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CashFlowPanel({
+  data,
+  isLoading,
+}: {
+  data: {
+    period: string;
+    openingCash: number;
+    closingCash: number;
+    netCashChange: number;
+    operating: {
+      lines: Array<{ accountName: string; amount: number }>;
+      total: number;
+    };
+    investing: {
+      lines: Array<{ accountName: string; amount: number }>;
+      total: number;
+    };
+    financing: {
+      lines: Array<{ accountName: string; amount: number }>;
+      total: number;
+    };
+  } | null;
+  isLoading: boolean;
+}) {
+  if (isLoading) return <ModulePanelLoading rows={6} />;
+  if (!data) {
+    return (
+      <ModulePanelEmpty
+        icon={Wallet}
+        title="No cash flow data for this period"
+        description="The cash flow statement is derived from posted journal entries for the selected period."
+      />
+    );
+  }
+
+  const section = (
+    title: string,
+    bucket: {
+      lines: Array<{ accountName: string; amount: number }>;
+      total: number;
+    },
+  ) => (
+    <div>
+      <div className="flex items-center justify-between border-b border-slate-200 py-2.5">
+        <h4 className="text-[13px] font-semibold text-slate-900">{title}</h4>
+        <span className="text-[13px] font-semibold tabular-nums text-slate-900">
+          {fmtGmd(bucket.total)}
+        </span>
+      </div>
+      {bucket.lines.length === 0 && (
+        <p className="py-2 text-sm text-slate-400">No activity.</p>
+      )}
+      {bucket.lines.map((line, i) => (
+        <div
+          key={line.accountName + i}
+          className="flex items-center justify-between border-b border-slate-100 py-1.5"
+        >
+          <span className="truncate text-sm text-slate-700">
+            {line.accountName}
+          </span>
+          <span className="text-sm tabular-nums text-slate-900">
+            {fmtGmd(line.amount)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+        <h4 className="text-[13px] font-semibold text-slate-900">
+          Cash Flow Statement
+        </h4>
+        <span className="text-[11px] tabular-nums text-slate-400">
+          {data.period}
+        </span>
+      </div>
+      <div className="px-4 pb-3">
+        <div className="grid grid-cols-3 gap-3 border-b border-slate-200 py-3">
+          <div>
+            <p className="text-[11px] text-slate-400">Opening Cash</p>
+            <p className="text-sm font-medium tabular-nums text-slate-900">
+              {fmtGmd(data.openingCash)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-slate-400">Net Change</p>
+            <p
+              className={cn(
+                "text-sm font-medium tabular-nums",
+                data.netCashChange >= 0 ? "text-emerald-600" : "text-red-600",
+              )}
+            >
+              {fmtGmd(data.netCashChange)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-slate-400">Closing Cash</p>
+            <p className="text-sm font-medium tabular-nums text-slate-900">
+              {fmtGmd(data.closingCash)}
+            </p>
+          </div>
+        </div>
+        {section("Operating Activities", data.operating)}
+        {section("Investing Activities", data.investing)}
+        {section("Financing Activities", data.financing)}
+      </div>
+    </div>
+  );
+}
+
+function TrialBalancePanel({
+  data,
+  isLoading,
+}: {
+  data: {
+    accounts: Array<{
+      code?: string | null;
+      name?: string | null;
+      type?: string | null;
+      debit: number;
+      credit: number;
+      balance: number;
+    }>;
+    totalDebit: number;
+    totalCredit: number;
+    isBalanced: boolean;
+  } | null;
+  isLoading: boolean;
+}) {
+  if (isLoading) return <ModulePanelLoading rows={7} />;
+  if (!data || data.accounts.length === 0) {
+    return (
+      <ModulePanelEmpty
+        icon={Calculator}
+        title="No posted entries for this period"
+        description="The trial balance lists every account with posted activity for the selected period."
+      />
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+        <h4 className="text-[13px] font-semibold text-slate-900">
+          Trial Balance
+        </h4>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+            data.isBalanced
+              ? "bg-emerald-100 text-emerald-700"
+              : "bg-red-100 text-red-700",
+          )}
+        >
+          {data.isBalanced ? "Balanced" : "Out of balance"}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="text-left py-2.5 px-4 text-xs font-medium text-slate-500">
+                Account
+              </th>
+              <th className="text-left py-2.5 px-4 text-xs font-medium text-slate-500">
+                Type
+              </th>
+              <th className="text-right py-2.5 px-4 text-xs font-medium text-slate-500">
+                Debit
+              </th>
+              <th className="text-right py-2.5 px-4 text-xs font-medium text-slate-500">
+                Credit
+              </th>
+              <th className="text-right py-2.5 px-4 text-xs font-medium text-slate-500">
+                Balance
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.accounts.map((acc) => (
+              <tr
+                key={acc.code ?? acc.name ?? ""}
+                className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+              >
+                <td className="py-2.5 px-4">
+                  <span className="mr-2 text-xs tabular-nums text-slate-400">
+                    {acc.code ?? ""}
+                  </span>
+                  <span className="text-sm text-slate-800">
+                    {acc.name ?? "Unknown"}
+                  </span>
+                </td>
+                <td className="py-2.5 px-4 text-sm capitalize text-slate-600">
+                  {acc.type ?? "—"}
+                </td>
+                <td className="py-2.5 px-4 text-right text-sm tabular-nums text-slate-900">
+                  {acc.debit.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </td>
+                <td className="py-2.5 px-4 text-right text-sm tabular-nums text-slate-900">
+                  {acc.credit.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </td>
+                <td className="py-2.5 px-4 text-right text-sm tabular-nums text-slate-700">
+                  {acc.balance.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </td>
+              </tr>
+            ))}
+            <tr className="bg-slate-50">
+              <td className="py-2.5 px-4 text-sm font-semibold text-slate-900">
+                Total
+              </td>
+              <td />
+              <td className="py-2.5 px-4 text-right text-sm font-semibold tabular-nums text-slate-900">
+                {data.totalDebit.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </td>
+              <td className="py-2.5 px-4 text-right text-sm font-semibold tabular-nums text-slate-900">
+                {data.totalCredit.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </td>
+              <td />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function BudgetVsActualPanel({
+  data,
+  isLoading,
+}: {
+  data: {
+    period: string;
+    budgetName: string;
+    totalBudgeted: number;
+    totalActual: number;
+    totalVariance: number;
+    totalVariancePct: number;
+    lines: Array<{
+      accountCode: string;
+      accountName: string;
+      budgetedAmount: number;
+      actualAmount: number;
+      variance: number;
+      variancePct: number;
+      status: string;
+    }>;
+  } | null;
+  isLoading: boolean;
+}) {
+  const statusColors: Record<string, string> = {
+    on_track: "bg-emerald-100 text-emerald-700",
+    approaching: "bg-amber-100 text-amber-700",
+    exceeded: "bg-red-100 text-red-700",
+    no_budget: "bg-slate-100 text-slate-600",
+  };
+
+  if (isLoading) return <ModulePanelLoading rows={6} />;
+  if (!data || data.lines.length === 0) {
+    return (
+      <ModulePanelEmpty
+        icon={TrendingUp}
+        title="No budget lines for this period"
+        description="Create a budget to compare planned amounts against actual spend per account."
+      />
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+        <div>
+          <h4 className="text-[13px] font-semibold text-slate-900">
+            Budget vs Actual
+          </h4>
+          <p className="text-[11px] text-slate-400">
+            {data.budgetName} · {data.period}
+          </p>
+        </div>
+        <span
+          className={cn(
+            "text-sm font-semibold tabular-nums",
+            data.totalVariance <= 0 ? "text-emerald-600" : "text-red-600",
+          )}
+        >
+          {data.totalVariance >= 0 ? "+" : ""}
+          {fmtGmd(data.totalVariance)} ({data.totalVariancePct}%)
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="text-left py-2.5 px-4 text-xs font-medium text-slate-500">
+                Account
+              </th>
+              <th className="text-right py-2.5 px-4 text-xs font-medium text-slate-500">
+                Budgeted
+              </th>
+              <th className="text-right py-2.5 px-4 text-xs font-medium text-slate-500">
+                Actual
+              </th>
+              <th className="text-right py-2.5 px-4 text-xs font-medium text-slate-500">
+                Variance
+              </th>
+              <th className="text-left py-2.5 px-4 text-xs font-medium text-slate-500">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.lines.map((line, i) => (
+              <tr
+                key={line.accountCode + i}
+                className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+              >
+                <td className="py-2.5 px-4">
+                  <span className="mr-2 text-xs tabular-nums text-slate-400">
+                    {line.accountCode}
+                  </span>
+                  <span className="text-sm text-slate-800">
+                    {line.accountName}
+                  </span>
+                </td>
+                <td className="py-2.5 px-4 text-right text-sm tabular-nums text-slate-700">
+                  {fmtGmd(line.budgetedAmount)}
+                </td>
+                <td className="py-2.5 px-4 text-right text-sm tabular-nums text-slate-700">
+                  {fmtGmd(line.actualAmount)}
+                </td>
+                <td
+                  className={cn(
+                    "py-2.5 px-4 text-right text-sm font-medium tabular-nums",
+                    line.variance > 0 ? "text-red-600" : "text-emerald-600",
+                  )}
+                >
+                  {line.variance > 0 ? "+" : ""}
+                  {fmtGmd(line.variance)} ({line.variancePct}%)
+                </td>
+                <td className="py-2.5 px-4">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize",
+                      statusColors[line.status] ?? statusColors.on_track,
+                    )}
+                  >
+                    {line.status.replace("_", " ")}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TaxComplianceCard({
+  onNavigate,
+}: {
+  onNavigate: (tab: string) => void;
+}) {
+  return (
+    <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+        <Link2 className="h-7 w-7 text-slate-400" />
+      </div>
+      <h3 className="text-sm font-semibold text-slate-900">
+        Tax & Compliance Reporting
+      </h3>
+      <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-5 text-slate-500">
+        Track filing obligations, deadlines and tax positions for your
+        jurisdiction in the dedicated Tax & Compliance workspace.
+      </p>
+      <button
+        onClick={() => onNavigate("tax")}
+        className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      >
+        Open Tax & Compliance
+        <ArrowRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 // ─── Bottom Row ────────────────────────────────────────────────────────────
 
 function BottomRow({
   overview,
   expenseCategories,
+  onNavigate,
 }: {
   overview: {
     revenue: number;
@@ -344,21 +1000,8 @@ function BottomRow({
     totalExpenses: number;
     totalExpensesFormatted: string;
   };
+  onNavigate: (tab: string) => void;
 }) {
-  // Derive balance sheet breakdowns from totals
-  // Current assets ≈ 60% of total (typical SME split)
-  const currentAssets = Math.round(overview.totalAssets * 0.6);
-  const nonCurrentAssets = overview.totalAssets - currentAssets;
-  const currentLiabilities = Math.round(overview.totalLiabilities * 0.6);
-  const nonCurrentLiabilities = overview.totalLiabilities - currentLiabilities;
-
-  // Cash flow from operations ≈ net profit + depreciation (simplified)
-  const cashFromOperations =
-    overview.netProfit + Math.round(overview.totalAssets * 0.05);
-  const cashFromInvesting = -Math.round(overview.totalAssets * 0.02);
-  const cashFromFinancing = -Math.round(overview.totalLiabilities * 0.03);
-  const netCashFlow =
-    cashFromOperations + cashFromInvesting + cashFromFinancing;
   const categoryColors = [
     "bg-indigo-500",
     "bg-emerald-500",
@@ -370,68 +1013,38 @@ function BottomRow({
 
   return (
     <div className="grid grid-cols-3 gap-6">
-      {/* Cash Flow Summary */}
+      {/* Financial Statements — honest navigation into the real statements */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <h4 className="text-sm font-medium text-slate-900">
-            Cash Flow Summary
+            Financial Statements
           </h4>
-          <select className="text-xs text-slate-500 border border-slate-200 rounded px-2 py-1">
-            <option>This month</option>
-          </select>
         </div>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">
-              Cash from Operating Activities
-            </span>
-            <span
-              className={`text-sm font-medium ${cashFromOperations >= 0 ? "text-slate-900" : "text-red-600"}`}
+        <p className="text-xs text-slate-500 mb-3">
+          Generated from your posted general ledger entries.
+        </p>
+        <div className="space-y-1">
+          {[
+            { tab: "statements", label: "Profit & Loss", icon: BarChart3 },
+            { tab: "statements", label: "Balance Sheet", icon: PieChart },
+            {
+              tab: "statements",
+              label: "Cash Flow Statement",
+              icon: Wallet,
+            },
+            { tab: "trial-balance", label: "Trial Balance", icon: Calculator },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={() => onNavigate(item.tab)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
             >
-              {cashFromOperations >= 0 ? "" : "-"}GMD{" "}
-              {Math.abs(cashFromOperations).toLocaleString()}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">
-              Cash from Investing Activities
-            </span>
-            <span className="text-sm font-medium text-red-600">
-              -GMD {Math.abs(cashFromInvesting).toLocaleString()}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">
-              Cash from Financing Activities
-            </span>
-            <span className="text-sm font-medium text-red-600">
-              -GMD {Math.abs(cashFromFinancing).toLocaleString()}
-            </span>
-          </div>
-          <div className="border-t border-slate-200 pt-3 mt-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-900">
-                Net Cash Flow
+              <span className="flex items-center gap-2">
+                <item.icon className="h-4 w-4 text-slate-400" />
+                {item.label}
               </span>
-              <span
-                className={`text-sm font-bold ${netCashFlow >= 0 ? "text-emerald-600" : "text-red-600"}`}
-              >
-                {netCashFlow >= 0 ? "" : "-"}GMD{" "}
-                {Math.abs(netCashFlow).toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </div>
-        {/* Mini bar chart - derived from expense categories */}
-        <div className="mt-4 h-16 flex items-end gap-1">
-          {expenseCategories.categories.slice(0, 12).map((cat, i) => (
-            <div
-              key={i}
-              className="flex-1 bg-indigo-200 rounded-t"
-              style={{
-                height: `${expenseCategories.totalExpenses > 0 ? (cat.amount / expenseCategories.totalExpenses) * 100 : 0}%`,
-              }}
-            />
+              <ArrowRight className="h-3.5 w-3.5 text-slate-300" />
+            </button>
           ))}
         </div>
       </div>
@@ -520,68 +1133,43 @@ function BottomRow({
         </button>
       </div>
 
-      {/* Balance Sheet Snapshot */}
+      {/* Balance Sheet Snapshot — real totals only */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-sm font-medium text-slate-900">
             Balance Sheet Snapshot
           </h4>
-          <select className="text-xs text-slate-500 border border-slate-200 rounded px-2 py-1">
-            <option>As of today</option>
-          </select>
         </div>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">Current Assets</span>
-            <span className="text-sm text-slate-900">
-              GMD {currentAssets.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">Non-current Assets</span>
-            <span className="text-sm text-slate-900">
-              GMD {nonCurrentAssets.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="text-sm font-medium text-slate-900">
               Total Assets
             </span>
-            <span className="text-sm font-bold text-slate-900">
+            <span className="text-sm font-bold tabular-nums text-slate-900">
               GMD {overview.totalAssets.toLocaleString()}
             </span>
           </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm text-slate-600">Current Liabilities</span>
-            <span className="text-sm text-slate-900">
-              GMD {currentLiabilities.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">
-              Non-current Liabilities
-            </span>
-            <span className="text-sm text-slate-900">
-              GMD {nonCurrentLiabilities.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="text-sm font-medium text-slate-900">
               Total Liabilities
             </span>
-            <span className="text-sm font-bold text-red-600">
+            <span className="text-sm font-bold tabular-nums text-red-600">
               GMD {overview.totalLiabilities.toLocaleString()}
             </span>
           </div>
-          <div className="flex items-center justify-between mt-2 border-t border-slate-200 pt-2">
+          <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-900">Equity</span>
-            <span className="text-sm font-bold text-emerald-600">
+            <span className="text-sm font-bold tabular-nums text-emerald-600">
               GMD {overview.totalEquity.toLocaleString()}
             </span>
           </div>
         </div>
-        <button className="mt-4 text-xs font-medium text-indigo-600 hover:text-indigo-700">
-          View balance sheet →
+        <button
+          onClick={() => onNavigate("statements")}
+          className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+        >
+          View full balance sheet
+          <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -852,6 +1440,9 @@ function AiReportAssistantPanel({
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
+
   // Fetch overview
   const { data: overview } = trpc.reports.getOverview.useQuery({});
 
@@ -868,6 +1459,180 @@ export default function ReportsPage() {
   // Fetch AI insights
   const { data: insights } = trpc.reports.getAiInsights.useQuery();
 
+  // Fetch fiscal periods for the statement period picker
+  const { data: periods } = trpc.reports.listPeriods.useQuery();
+
+  // Default to the latest period (preferring open ones) once loaded.
+  useEffect(() => {
+    if (!selectedPeriodId && periods && periods.length > 0) {
+      const open = periods.filter((p) => p.status === "open");
+      const latest = [...(open.length > 0 ? open : periods)].sort((a, b) =>
+        a.startDate < b.startDate ? 1 : -1,
+      )[0];
+      if (latest) setSelectedPeriodId(latest.id);
+    }
+  }, [periods, selectedPeriodId]);
+
+  const statementsEnabled = activeTab === "statements" && !!selectedPeriodId;
+  const { data: pnl, isLoading: pnlLoading } =
+    trpc.reports.getProfitAndLoss.useQuery(
+      { periodId: selectedPeriodId ?? undefined },
+      { enabled: statementsEnabled },
+    );
+  const { data: balanceSheet, isLoading: bsLoading } =
+    trpc.reports.getBalanceSheet.useQuery(
+      { periodId: selectedPeriodId ?? undefined },
+      { enabled: statementsEnabled },
+    );
+  const { data: cashFlow, isLoading: cashFlowLoading } =
+    trpc.reports.getCashFlow.useQuery(
+      { periodId: selectedPeriodId ?? "" },
+      { enabled: statementsEnabled },
+    );
+
+  const { data: trialBalance, isLoading: tbLoading } =
+    trpc.journal.getTrialBalance.useQuery(
+      { periodId: selectedPeriodId ?? "" },
+      { enabled: activeTab === "trial-balance" && !!selectedPeriodId },
+    );
+
+  const { data: budgetVsActual, isLoading: budgetLoading } =
+    trpc.reports.getBudgetVsActual.useQuery(
+      { periodId: selectedPeriodId ?? "" },
+      { enabled: activeTab === "budget" && !!selectedPeriodId },
+    );
+
+  const handleNavigate = (tab: string) => setActiveTab(tab);
+
+  const renderPanel = () => {
+    switch (activeTab) {
+      case "statements":
+        return (
+          <ModulePanel
+            title="Financial Statements"
+            description="Profit & loss, balance sheet and cash flow from posted entries."
+            action={
+              <PeriodPicker
+                periods={periods ?? []}
+                value={selectedPeriodId}
+                onChange={setSelectedPeriodId}
+              />
+            }
+          >
+            <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+              <ProfitAndLossPanel data={pnl ?? null} isLoading={pnlLoading} />
+              <BalanceSheetPanel
+                data={balanceSheet ?? null}
+                isLoading={bsLoading}
+              />
+              <div className="lg:col-span-2">
+                <CashFlowPanel
+                  data={cashFlow ?? null}
+                  isLoading={cashFlowLoading}
+                />
+              </div>
+            </div>
+          </ModulePanel>
+        );
+      case "trial-balance":
+        return (
+          <ModulePanel
+            title="Trial Balance"
+            description="Debits and credits per account for the selected period."
+            action={
+              <PeriodPicker
+                periods={periods ?? []}
+                value={selectedPeriodId}
+                onChange={setSelectedPeriodId}
+              />
+            }
+          >
+            <div className="p-4">
+              <TrialBalancePanel
+                data={trialBalance ?? null}
+                isLoading={tbLoading}
+              />
+            </div>
+          </ModulePanel>
+        );
+      case "budget":
+        return (
+          <ModulePanel
+            title="Budget vs Actual"
+            description="Planned spend compared against actuals for the selected period."
+            action={
+              <PeriodPicker
+                periods={periods ?? []}
+                value={selectedPeriodId}
+                onChange={setSelectedPeriodId}
+              />
+            }
+          >
+            <div className="p-4">
+              <BudgetVsActualPanel
+                data={budgetVsActual ?? null}
+                isLoading={budgetLoading}
+              />
+            </div>
+          </ModulePanel>
+        );
+      case "consolidation":
+        return (
+          <ModulePanel
+            title="Consolidation"
+            description="Combined financials across multiple entities."
+          >
+            <ModulePanelEmpty
+              icon={Network}
+              title="Consolidation is coming"
+              description="Combine financial statements across entities for group-level reporting. Single-entity books are fully supported today."
+            />
+          </ModulePanel>
+        );
+      case "tax":
+        return (
+          <ModulePanel
+            title="Tax & Compliance"
+            description="Filing obligations and tax positions."
+          >
+            <div className="p-4">
+              <TaxComplianceCard onNavigate={handleNavigate} />
+            </div>
+          </ModulePanel>
+        );
+      case "custom":
+        return (
+          <ModulePanel
+            title="Custom Reports"
+            description="Build your own report layouts."
+          >
+            <ModulePanelEmpty
+              icon={Settings}
+              title="Custom reports are coming"
+              description="Design bespoke reports from your chart of accounts and journal data."
+            />
+          </ModulePanel>
+        );
+      default:
+        // Overview
+        return (
+          <div className="space-y-6 p-4">
+            {pnlData && overview && (
+              <ProfitLossOverview pnlData={pnlData} overview={overview} />
+            )}
+            {overview && expenseCategories && (
+              <BottomRow
+                overview={overview}
+                expenseCategories={expenseCategories}
+                onNavigate={handleNavigate}
+              />
+            )}
+            {recentReports && <RecentReports reports={recentReports} />}
+          </div>
+        );
+    }
+  };
+
   return (
     <ModulePageShell
       title="Reports"
@@ -882,36 +1647,11 @@ export default function ReportsPage() {
         { key: "tax", label: "Tax & Compliance" },
         { key: "custom", label: "Custom Reports" },
       ]}
-      activeTab="overview"
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
       summaryCards={overview ? buildSummaryCards(overview) : []}
-      filters={
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search reports..."
-            className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-      }
     >
-      <div className="p-4 space-y-6">
-        {/* P&L Overview */}
-        {pnlData && overview && (
-          <ProfitLossOverview pnlData={pnlData} overview={overview} />
-        )}
-
-        {/* Bottom Row */}
-        {overview && expenseCategories && (
-          <BottomRow
-            overview={overview}
-            expenseCategories={expenseCategories}
-          />
-        )}
-
-        {/* Recent Reports */}
-        {recentReports && <RecentReports reports={recentReports} />}
-      </div>
+      {renderPanel()}
     </ModulePageShell>
   );
 }

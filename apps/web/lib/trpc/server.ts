@@ -59,7 +59,18 @@ export const t = initTRPC.context<Context>().create({
       (ctx as { session?: Session })?.session?.user?.id ?? "anonymous";
 
     if (error.code === "INTERNAL_SERVER_ERROR") {
-      const cause = (error as { cause?: unknown }).cause;
+      // Walk the full cause chain — nested driver errors (e.g. drizzle
+      // wrapping the underlying neon/postgres error) otherwise stay hidden.
+      const chain: string[] = [];
+      let cause: unknown = (error as { cause?: unknown }).cause;
+      for (let i = 0; i < 4 && cause !== undefined && cause !== null; i++) {
+        chain.push(
+          typeof cause === "object" && "message" in cause
+            ? String((cause as { message: unknown }).message)
+            : String(cause),
+        );
+        cause = (cause as { cause?: unknown })?.cause;
+      }
       logger.error(
         {
           requestId: reqId,
@@ -69,6 +80,7 @@ export const t = initTRPC.context<Context>().create({
             cause && typeof cause === "object" && "message" in cause
               ? String((cause as { message: unknown }).message)
               : undefined,
+          causeChain: chain,
           stack:
             process.env.NODE_ENV === "development" ? error.stack : undefined,
         },
@@ -737,6 +749,9 @@ export function handleMutationError(error: unknown, message: string): never {
   throw new TRPCError({
     code: "INTERNAL_SERVER_ERROR",
     message,
+    // Preserve the original error so the errorFormatter's causeMessage
+    // logging can surface the real failure instead of hiding it.
+    cause: error,
   });
 }
 

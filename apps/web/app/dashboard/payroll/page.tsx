@@ -16,113 +16,23 @@ import {
   Clock,
   TrendingUp,
   Users,
-  Calendar,
-  Download,
+  Receipt,
+  Gift,
+  BarChart3,
+  Settings,
+  ShieldCheck,
+  Calculator,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
-import type {
-  SummaryCardItem,
-  TabItem,
-} from "@/components/module/module-page-shell.types";
-
-// ─── Summary Cards ─────────────────────────────────────────────────────────
-
-function SummaryCards({
-  overview,
-}: {
-  overview: {
-    totalPayroll: number;
-    totalPayrollChange: number;
-    netPay: number;
-    netPayPercent: number;
-    totalDeductions: number;
-    deductionsPercent: number;
-    employerContributions: number;
-    employerContribPercent: number;
-    activeEmployees: number;
-  };
-}) {
-  const cards: SummaryCardItem[] = [
-    {
-      label: "Total Payroll (This Month)",
-      value: `GMD ${overview.totalPayroll.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: overview.totalPayrollChange,
-      icon: FileText,
-      color: "text-indigo-600",
-      bgColor: "bg-indigo-50",
-    },
-    {
-      label: "Net Pay",
-      value: `GMD ${overview.netPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      subtitle: `${overview.netPayPercent}% of total payroll`,
-      icon: CheckCircle2,
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-50",
-    },
-    {
-      label: "Taxes & Statutory",
-      value: `GMD ${overview.totalDeductions.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      subtitle: `${overview.deductionsPercent}% of total payroll`,
-      icon: AlertTriangle,
-      color: "text-amber-600",
-      bgColor: "bg-amber-50",
-    },
-    {
-      label: "Employer Contributions",
-      value: `GMD ${overview.employerContributions.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      subtitle: `${overview.employerContribPercent}% of total payroll`,
-      icon: TrendingUp,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
-    },
-    {
-      label: "Employees",
-      value: overview.activeEmployees.toString(),
-      subtitle: "Active employees",
-      icon: Users,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <div className={cn("rounded-lg p-2", card.bgColor)}>
-              <card.icon className={cn("h-4 w-4", card.color)} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-          {card.change !== undefined && (
-            <div className="flex items-center gap-2 mt-1">
-              <span
-                className={cn(
-                  "text-sm font-medium",
-                  card.change >= 0 ? "text-emerald-600" : "text-red-600",
-                )}
-              >
-                {card.change >= 0 ? "↑" : "↓"} {Math.abs(card.change)}%
-              </span>
-              <p className="text-xs text-slate-400">vs last month</p>
-            </div>
-          )}
-          {card.subtitle && card.change === undefined && (
-            <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+import type { TabItem } from "@/components/module/module-page-shell.types";
+import {
+  ModulePanel,
+  ModulePanelEmpty,
+  ModulePanelLoading,
+} from "@/components/module/module-tab-panel";
 
 // ─── Employee Table ────────────────────────────────────────────────────────
 
@@ -250,6 +160,490 @@ function EmployeeTable({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ─── Payroll Runs Table ───────────────────────────────────────────────────
+
+function PayrollRunsTable({
+  runs,
+  isLoading,
+}: {
+  runs: Array<{
+    id: string;
+    period: string;
+    status: string;
+    employeeCount: number;
+    grossPay: string;
+    totalDeductions: string;
+    netPay: string;
+    processedBy: string | null;
+    createdAt: string | null;
+  }>;
+  isLoading: boolean;
+}) {
+  const statusColors: Record<string, string> = {
+    draft: "bg-slate-100 text-slate-600",
+    validated: "bg-blue-100 text-blue-700",
+    approved: "bg-emerald-100 text-emerald-700",
+    paid: "bg-indigo-100 text-indigo-700",
+    closed: "bg-purple-100 text-purple-700",
+  };
+
+  if (isLoading) {
+    return <ModulePanelLoading rows={5} />;
+  }
+
+  if (runs.length === 0) {
+    return (
+      <ModulePanelEmpty
+        icon={FileText}
+        title="No payroll runs yet"
+        description="Run payroll for a period and the run history will appear here — with gross pay, deductions and net pay per run."
+      />
+    );
+  }
+
+  const fmt = (v: string) =>
+    Number(v).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50">
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Period
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Status
+            </th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+              Employees
+            </th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+              Gross Pay (GMD)
+            </th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+              Deductions
+            </th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+              Net Pay (GMD)
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Created
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {runs.map((run) => (
+            <tr
+              key={run.id}
+              className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+            >
+              <td className="py-3 px-4 text-sm font-medium text-slate-900">
+                {run.period}
+              </td>
+              <td className="py-3 px-4">
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize",
+                    statusColors[run.status] ?? statusColors.draft,
+                  )}
+                >
+                  {run.status}
+                </span>
+              </td>
+              <td className="py-3 px-4 text-right text-sm tabular-nums text-slate-700">
+                {run.employeeCount}
+              </td>
+              <td className="py-3 px-4 text-right text-sm font-medium tabular-nums text-slate-900">
+                GMD {fmt(run.grossPay)}
+              </td>
+              <td className="py-3 px-4 text-right text-sm tabular-nums text-slate-600">
+                GMD {fmt(run.totalDeductions)}
+              </td>
+              <td className="py-3 px-4 text-right text-sm font-medium tabular-nums text-slate-900">
+                GMD {fmt(run.netPay)}
+              </td>
+              <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
+                {run.createdAt
+                  ? new Date(run.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── Deduction Types Table ─────────────────────────────────────────────────
+
+function DeductionTypesTable({
+  deductionTypes,
+  isLoading,
+}: {
+  deductionTypes: Array<{
+    id: string;
+    name: string;
+    code: string;
+    type: string;
+    rateType: string;
+    rate: string;
+    ceiling: string | null;
+    isStatutory: boolean;
+    isActive: boolean;
+  }>;
+  isLoading: boolean;
+}) {
+  const typeColors: Record<string, string> = {
+    tax: "bg-red-100 text-red-700",
+    social_security: "bg-blue-100 text-blue-700",
+    benefit: "bg-emerald-100 text-emerald-700",
+    loan: "bg-purple-100 text-purple-700",
+    other: "bg-slate-100 text-slate-600",
+  };
+
+  if (isLoading) {
+    return <ModulePanelLoading rows={4} />;
+  }
+
+  if (deductionTypes.length === 0) {
+    return (
+      <ModulePanelEmpty
+        icon={Calculator}
+        title="No deduction types configured"
+        description="Deduction types — PAYE, NASSIT, SDL and loans — are configured when payroll is set up."
+      />
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50">
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Deduction
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Type
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Rate
+            </th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+              Ceiling
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Statutory
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {deductionTypes.map((d) => (
+            <tr
+              key={d.id}
+              className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+            >
+              <td className="py-3 px-4">
+                <p className="text-sm font-medium text-slate-900">{d.name}</p>
+                <p className="text-xs text-slate-400 uppercase">{d.code}</p>
+              </td>
+              <td className="py-3 px-4">
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize",
+                    typeColors[d.type] ?? typeColors.other,
+                  )}
+                >
+                  {d.type.replace("_", " ")}
+                </span>
+              </td>
+              <td className="py-3 px-4 text-sm text-slate-700">
+                {d.rateType === "fixed"
+                  ? `GMD ${Number(d.rate).toLocaleString()}`
+                  : `${Number(d.rate)}%`}
+              </td>
+              <td className="py-3 px-4 text-right text-sm tabular-nums text-slate-600">
+                {d.ceiling ? `GMD ${Number(d.ceiling).toLocaleString()}` : "—"}
+              </td>
+              <td className="py-3 px-4">
+                {d.isStatutory ? (
+                  <span className="text-sm font-medium text-indigo-600">
+                    Statutory
+                  </span>
+                ) : (
+                  <span className="text-sm text-slate-400">—</span>
+                )}
+              </td>
+              <td className="py-3 px-4">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 text-xs",
+                    d.isActive ? "text-emerald-600" : "text-slate-400",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      d.isActive ? "bg-emerald-500" : "bg-slate-300",
+                    )}
+                  />
+                  {d.isActive ? "Active" : "Inactive"}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── Statutory Payments Table ──────────────────────────────────────────────
+
+function StatutoryPaymentsTable({
+  payments,
+  isLoading,
+}: {
+  payments: Array<{
+    name: string;
+    dueDate: string;
+    amountFormatted: string;
+    daysLeft: number;
+    status: string;
+  }>;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return <ModulePanelLoading rows={3} />;
+  }
+
+  if (payments.length === 0) {
+    return (
+      <ModulePanelEmpty
+        icon={ShieldCheck}
+        title="No statutory payments due"
+        description="NASSIT, PAYE and SDL obligations for the current payroll period will appear here once payroll runs."
+      />
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50">
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Obligation
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              Due Date
+            </th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+              Amount
+            </th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+              Days Left
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {payments.map((p) => (
+            <tr
+              key={p.name}
+              className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+            >
+              <td className="py-3 px-4">
+                <p className="text-sm font-medium text-slate-900">{p.name}</p>
+                {p.status && (
+                  <span
+                    className={cn(
+                      "mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize",
+                      p.status === "overdue"
+                        ? "bg-red-100 text-red-700"
+                        : p.status === "urgent"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-slate-100 text-slate-600",
+                    )}
+                  >
+                    {p.status}
+                  </span>
+                )}
+              </td>
+              <td className="py-3 px-4 text-sm text-slate-600 whitespace-nowrap">
+                {new Date(p.dueDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </td>
+              <td className="py-3 px-4 text-right text-sm font-medium tabular-nums text-slate-900">
+                {p.amountFormatted}
+              </td>
+              <td className="py-3 px-4 text-right">
+                <span
+                  className={cn(
+                    "text-sm font-medium tabular-nums",
+                    p.daysLeft < 0
+                      ? "text-red-600"
+                      : p.daysLeft <= 7
+                        ? "text-amber-600"
+                        : "text-slate-700",
+                  )}
+                >
+                  {p.daysLeft < 0 ? "Overdue" : `${p.daysLeft} days`}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── Compliance Panel ──────────────────────────────────────────────────────
+
+function CompliancePanel({
+  status,
+  isLoading,
+}: {
+  status: {
+    currentPeriod: string | null;
+    recentRuns: Array<{
+      id: string;
+      period: string;
+      status: string;
+      employeeCount: number;
+      grossPay: string;
+      netPay: string;
+      createdAt: string;
+    }>;
+    totalPayslipsGenerated: number;
+    upcomingDeadlines: Array<unknown>;
+  } | null;
+  isLoading: boolean;
+}) {
+  const runStatusColors: Record<string, string> = {
+    draft: "bg-slate-100 text-slate-600",
+    validated: "bg-blue-100 text-blue-700",
+    approved: "bg-emerald-100 text-emerald-700",
+    paid: "bg-indigo-100 text-indigo-700",
+    closed: "bg-purple-100 text-purple-700",
+  };
+
+  if (isLoading) {
+    return <ModulePanelLoading rows={4} />;
+  }
+
+  if (!status) {
+    return (
+      <ModulePanelEmpty
+        icon={ShieldCheck}
+        title="No compliance data yet"
+        description="Payroll compliance status — statutory obligations, payslips and deadlines — will appear here after your first payroll run."
+      />
+    );
+  }
+
+  return (
+    <div className="p-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+            Current Period
+          </p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+            {status.currentPeriod ?? "—"}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+            Payslips Generated
+          </p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+            {status.totalPayslipsGenerated.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+            Recent Runs
+          </p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+            {status.recentRuns.length.toLocaleString()}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="text-left py-2.5 px-4 text-sm font-medium text-slate-600">
+                Period
+              </th>
+              <th className="text-left py-2.5 px-4 text-sm font-medium text-slate-600">
+                Status
+              </th>
+              <th className="text-right py-2.5 px-4 text-sm font-medium text-slate-600">
+                Employees
+              </th>
+              <th className="text-right py-2.5 px-4 text-sm font-medium text-slate-600">
+                Gross Pay
+              </th>
+              <th className="text-right py-2.5 px-4 text-sm font-medium text-slate-600">
+                Net Pay
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {status.recentRuns.map((run) => (
+              <tr
+                key={run.id}
+                className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+              >
+                <td className="py-2.5 px-4 text-sm text-slate-700">
+                  {run.period}
+                </td>
+                <td className="py-2.5 px-4">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+                      runStatusColors[run.status] ?? runStatusColors.draft,
+                    )}
+                  >
+                    {run.status}
+                  </span>
+                </td>
+                <td className="py-2.5 px-4 text-right text-sm tabular-nums text-slate-700">
+                  {run.employeeCount}
+                </td>
+                <td className="py-2.5 px-4 text-right text-sm tabular-nums text-slate-600">
+                  GMD {Number(run.grossPay).toLocaleString()}
+                </td>
+                <td className="py-2.5 px-4 text-right text-sm font-medium tabular-nums text-slate-900">
+                  GMD {Number(run.netPay).toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -433,6 +827,7 @@ function RightPanel({
 function BottomChartsRow({
   payrollTrend,
   statutoryPayments,
+  overview,
 }: {
   payrollTrend: Array<{ month: string; amount: number }>;
   statutoryPayments: Array<{
@@ -442,7 +837,24 @@ function BottomChartsRow({
     daysLeft: number;
     status: string;
   }>;
+  overview: {
+    totalPayroll: number;
+    netPay: number;
+    totalDeductions: number;
+    employerContributions: number;
+  } | null;
 }) {
+  const total = overview?.totalPayroll ?? 0;
+  const netPct = total > 0 ? (overview!.netPay / total) * 100 : 0;
+  const taxPct = total > 0 ? (overview!.totalDeductions / total) * 100 : 0;
+  const employerPct =
+    total > 0 ? (overview!.employerContributions / total) * 100 : 0;
+  const CIRC = 251.2;
+  const fmtGmd = (v: number) =>
+    v.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   return (
     <div className="grid grid-cols-3 gap-6">
       {/* Payroll Trend */}
@@ -487,7 +899,7 @@ function BottomChartsRow({
 
         <div className="flex items-center justify-center">
           <div className="relative">
-            {/* Donut Chart */}
+            {/* Donut Chart — real split of total payroll */}
             <svg className="h-32 w-32" viewBox="0 0 100 100">
               <circle
                 cx="50"
@@ -504,8 +916,8 @@ function BottomChartsRow({
                 fill="none"
                 stroke="#10b981"
                 strokeWidth="12"
-                strokeDasharray="251.2"
-                strokeDashoffset="77.8"
+                strokeDasharray={CIRC}
+                strokeDashoffset={CIRC * (1 - netPct / 100)}
                 transform="rotate(-90 50 50)"
               />
               <circle
@@ -515,8 +927,8 @@ function BottomChartsRow({
                 fill="none"
                 stroke="#f59e0b"
                 strokeWidth="12"
-                strokeDasharray="251.2"
-                strokeDashoffset="193.4"
+                strokeDasharray={CIRC}
+                strokeDashoffset={CIRC * (1 - (netPct + taxPct) / 100)}
                 transform="rotate(-90 50 50)"
               />
               <circle
@@ -526,14 +938,18 @@ function BottomChartsRow({
                 fill="none"
                 stroke="#3b82f6"
                 strokeWidth="12"
-                strokeDasharray="251.2"
-                strokeDashoffset="231.1"
+                strokeDasharray={CIRC}
+                strokeDashoffset={
+                  CIRC * (1 - (netPct + taxPct + employerPct) / 100)
+                }
                 transform="rotate(-90 50 50)"
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-lg font-bold text-slate-900">GMD 318,750</p>
+                <p className="text-base font-bold tabular-nums text-slate-900">
+                  GMD {total.toLocaleString()}
+                </p>
                 <p className="text-[10px] text-slate-500">Total</p>
               </div>
             </div>
@@ -547,14 +963,19 @@ function BottomChartsRow({
               <div className="h-3 w-3 rounded-full bg-emerald-500" />
               <span className="text-xs text-slate-600">Net Pay</span>
             </div>
-            <span className="text-xs text-slate-500">GMD 220,450 (69.1%)</span>
+            <span className="text-xs tabular-nums text-slate-500">
+              GMD {fmtGmd(overview?.netPay ?? 0)} ({netPct.toFixed(1)}%)
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-amber-500" />
               <span className="text-xs text-slate-600">Taxes & Statutory</span>
             </div>
-            <span className="text-xs text-slate-500">GMD 72,840 (22.8%)</span>
+            <span className="text-xs tabular-nums text-slate-500">
+              GMD {fmtGmd(overview?.totalDeductions ?? 0)} ({taxPct.toFixed(1)}
+              %)
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -563,7 +984,10 @@ function BottomChartsRow({
                 Employer Contributions
               </span>
             </div>
-            <span className="text-xs text-slate-500">GMD 25,460 (8.0%)</span>
+            <span className="text-xs tabular-nums text-slate-500">
+              GMD {fmtGmd(overview?.employerContributions ?? 0)} (
+              {employerPct.toFixed(1)}%)
+            </span>
           </div>
         </div>
       </div>
@@ -653,10 +1077,36 @@ export default function PayrollPage() {
 
   const { data: insights } = trpc.payroll.getAiInsights.useQuery({});
 
+  const { data: runs, isLoading: runsLoading } =
+    trpc.payroll.listPayrollRuns.useQuery(undefined, {
+      enabled: activeTab === "Runs" || activeTab === "Compliance",
+    });
+
+  const { data: deductionTypes, isLoading: deductionsLoading } =
+    trpc.payroll.listDeductionTypes.useQuery(undefined, {
+      enabled: activeTab === "Deductions",
+    });
+
+  const { data: pipelineStatus, isLoading: pipelineLoading } =
+    trpc.payroll.getPayrollPipelineStatus.useQuery(
+      {},
+      {
+        enabled: activeTab === "Compliance",
+      },
+    );
+
   const tabs: TabItem[] = [
     { key: "Overview", label: "Overview" },
-    { key: "Runs", label: "Runs" },
-    { key: "Employees", label: "Employees" },
+    {
+      key: "Runs",
+      label: "Runs",
+      count: runs?.length || undefined,
+    },
+    {
+      key: "Employees",
+      label: "Employees",
+      count: overview?.activeEmployees,
+    },
     { key: "Pay Items", label: "Pay Items" },
     { key: "Deductions", label: "Deductions" },
     { key: "Benefits", label: "Benefits" },
@@ -665,6 +1115,169 @@ export default function PayrollPage() {
     { key: "Reports", label: "Reports" },
     { key: "Settings", label: "Settings" },
   ];
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    setPage(1);
+  };
+
+  const renderPanel = () => {
+    switch (activeTab) {
+      case "Runs":
+        return (
+          <ModulePanel
+            title="Payroll Runs"
+            description="History of payroll runs with gross, deductions and net totals."
+          >
+            <PayrollRunsTable
+              runs={
+                runs?.map((run) => ({
+                  id: run.id,
+                  period: run.period,
+                  status: run.status,
+                  employeeCount: run.employeeCount,
+                  grossPay: run.grossPay,
+                  totalDeductions: run.totalDeductions,
+                  netPay: run.netPay,
+                  processedBy: run.processedBy ?? null,
+                  createdAt: run.createdAt,
+                })) ?? []
+              }
+              isLoading={runsLoading}
+            />
+          </ModulePanel>
+        );
+      case "Employees":
+        return (
+          <ModulePanel
+            title="Employees"
+            description="Your payroll register with gross, deductions and net pay."
+          >
+            <EmployeeTable
+              employees={employeesData?.employees ?? []}
+              isLoading={employeesLoading}
+            />
+          </ModulePanel>
+        );
+      case "Pay Items":
+        return (
+          <ModulePanel
+            title="Pay Items"
+            description="Earnings components used when building payroll runs."
+          >
+            <ModulePanelEmpty
+              icon={Receipt}
+              title="Pay items are not set up yet"
+              description="Pay items — basic salary, allowances, overtime — are configured during payroll setup. Runs are built from employee contracts today."
+            />
+          </ModulePanel>
+        );
+      case "Deductions":
+        return (
+          <ModulePanel
+            title="Deduction Types"
+            description="Statutory and voluntary deductions applied to payroll."
+          >
+            <DeductionTypesTable
+              deductionTypes={
+                deductionTypes?.map((d) => ({
+                  id: d.id,
+                  name: d.name,
+                  code: d.code,
+                  type: d.type,
+                  rateType: d.rateType,
+                  rate: d.rate,
+                  ceiling: d.ceiling ?? null,
+                  isStatutory: d.isStatutory,
+                  isActive: d.isActive,
+                })) ?? []
+              }
+              isLoading={deductionsLoading}
+            />
+          </ModulePanel>
+        );
+      case "Benefits":
+        return (
+          <ModulePanel
+            title="Benefits"
+            description="Employee benefits and non-cash compensation."
+          >
+            <ModulePanelEmpty
+              icon={Gift}
+              title="Benefits administration is coming"
+              description="Health, transport and other benefits will be managed here. Benefits-related deductions already flow through payroll runs."
+            />
+          </ModulePanel>
+        );
+      case "Taxes":
+        return (
+          <ModulePanel
+            title="Statutory Payments"
+            description="NASSIT, PAYE and SDL obligations for the current period."
+          >
+            <StatutoryPaymentsTable
+              payments={statutoryData?.payments ?? []}
+              isLoading={!statutoryData}
+            />
+          </ModulePanel>
+        );
+      case "Compliance":
+        return (
+          <ModulePanel
+            title="Compliance"
+            description="Payroll compliance status and filing readiness."
+          >
+            <CompliancePanel
+              status={pipelineStatus ?? null}
+              isLoading={pipelineLoading}
+            />
+          </ModulePanel>
+        );
+      case "Reports":
+        return (
+          <ModulePanel
+            title="Payroll Reports"
+            description="Payslips and statutory reports."
+          >
+            <ModulePanelEmpty
+              icon={BarChart3}
+              title="Payroll reports are coming"
+              description="Payslips, P10/P11 summaries and statutory filing reports will be generated from this tab."
+            />
+          </ModulePanel>
+        );
+      case "Settings":
+        return (
+          <ModulePanel
+            title="Payroll Settings"
+            description="Company payroll configuration."
+          >
+            <ModulePanelEmpty
+              icon={Settings}
+              title="Payroll settings are coming"
+              description="Company tax IDs, statutory rates and payroll preferences will be configured here."
+            />
+          </ModulePanel>
+        );
+      default:
+        // Overview — employee register with trend + statutory charts below.
+        return (
+          <>
+            <EmployeeTable
+              employees={employeesData?.employees ?? []}
+              isLoading={employeesLoading}
+            />
+            <div className="border-t border-slate-200 bg-slate-50/70 p-4">
+              <BottomChartsRow
+                payrollTrend={payrollTrend ?? []}
+                statutoryPayments={statutoryData?.payments ?? []}
+                overview={overview ?? null}
+              />
+            </div>
+          </>
+        );
+    }
+  };
 
   const summaryCards = overview
     ? [
@@ -711,7 +1324,10 @@ export default function PayrollPage() {
       ]
     : [];
 
-  const filters = (
+  const showEmployeesList =
+    activeTab === "Overview" || activeTab === "Employees";
+
+  const filters = showEmployeesList ? (
     <div className="flex items-center gap-3">
       <div className="flex-1 relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -736,30 +1352,14 @@ export default function PayrollPage() {
         <option value="HR">HR</option>
         <option value="Customer Support">Customer Support</option>
       </select>
-      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <option>All Statuses</option>
-        <option>Paid</option>
-        <option>Pending</option>
-        <option>Draft</option>
-      </select>
-      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <option>All Pay Types</option>
-        <option>Monthly</option>
-        <option>Bi-Weekly</option>
-        <option>Weekly</option>
-      </select>
-      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-        <Calendar className="h-4 w-4" />
-        May 2025
-      </button>
       <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
         <Filter className="h-4 w-4" />
         Filters
       </button>
     </div>
-  );
+  ) : undefined;
 
-  const pagination = (
+  const pagination = showEmployeesList ? (
     <div className="flex items-center justify-between">
       <p className="text-sm text-slate-500">
         Showing {(page - 1) * pageSize + 1} to{" "}
@@ -811,7 +1411,7 @@ export default function PayrollPage() {
         </select>
       </div>
     </div>
-  );
+  ) : undefined;
 
   const actions = (
     <>
@@ -839,21 +1439,12 @@ export default function PayrollPage() {
       actions={actions}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       summaryCards={summaryCards}
       filters={filters}
       pagination={pagination}
-      bottomCharts={
-        <BottomChartsRow
-          payrollTrend={payrollTrend ?? []}
-          statutoryPayments={statutoryData?.payments ?? []}
-        />
-      }
     >
-      <EmployeeTable
-        employees={employeesData?.employees ?? []}
-        isLoading={employeesLoading}
-      />
+      {renderPanel()}
     </ModulePageShell>
   );
 }

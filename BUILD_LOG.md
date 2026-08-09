@@ -6,6 +6,155 @@
 
 ---
 
+### [2026-08-09] — Every dashboard tab works: banking/payroll/reports view-tab panels + filter-tab correctness fixes, shipped to production grade
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** 2 (`apps/web/components/module/module-tab-panel.tsx`, `apps/web/__tests__/module-tab-panel.test.tsx`) + plan artifact
+**Files Modified:** 8 pages (banking, payroll, reports, transactions, vendors, documents, expenses, journal) + routers (`banking.ts`, `ap.ts`, `document.ts`) + `BUILD_LOG.md`
+
+**Request:** Make every tab on the 11 dashboard module pages (transactions, banking, invoicing, customers, vendors, bills, payroll, expenses, reports, documents, journal) work — each switching to correct, relevant data, professionally designed. Execute /autoplan first (gstack binaries absent → CEO → Design → Eng → DX pipeline run in-context per BUILD_LOG precedent; full review in `.kilo/plans/1786248000000-tabs-working-everywhere.md`), then build to production grade. Web only.
+
+**What was built:**
+
+**View tabs (Banking 9 / Payroll 10 / Reports 7) — real `renderPanel(activeTab)` switches, no more decorative tabs:**
+
+- **Banking:** Overview (accounts table + cash-position/currency charts) · Accounts (searchable/filterable) · Transactions (NEW `banking.listTransactions` — search/status/type filters + pagination) · Cash Management (cash position + balance-by-currency with REAL totals — the donut's "1.24M" placeholder is gone) · Mobile Money (real `mobileMoney` queries) · Rules (NEW `listRules` with live match counts) · Connections (NEW `listConnections`, tokens never exposed) · Statements (NEW `listStatementLines`, real provider rows) · Settings (designed empty state, honest).
+- **Payroll:** Overview (employee register + trend/statutory charts) · Runs (NEW `listPayrollRuns`) · Employees · Pay Items (designed empty) · Deductions (NEW `listDeductionTypes`) · Benefits (designed empty) · Taxes (real `getStatutoryPayments`) · Compliance (real `getPayrollPipelineStatus`) · Reports/Settings (designed empties).
+- **Reports:** Overview · Financial Statements (P&L + Balance Sheet + Cash Flow with **period picker** seeded from `listPeriods`, defaulting to latest open period) · Trial Balance (real `journal.getTrialBalance` + period picker) · Budget (real `getBudgetVsActual` + period picker) · Tax & Compliance (navigation card → /dashboard/tax-compliance) · Consolidation/Custom (designed empties).
+
+**Filter-tab correctness fixes:**
+
+- **Vendors:** 1099 tab now filters server-side (`ap.listVendorsWithPayables` gains `is1099` input → `eq(suppliers.is1099, true)`); counts (`getVendorTabCounts.vendors1099`) and rows come from the same source. Previously the 1099 tab leaked every vendor.
+- **Documents:** `categoryFilter` now maps ALL 5 tabs — invoices→`invoice`, receipts→`receipt`, contracts→`contract`, reports→`[tax_return, payroll_report]`, other→`[voucher, bank_statement, journal_entry, po, supporting]` — via new `categories[]` array support in `document.listDocuments` (was: reports/other fell through to an unfiltered list).
+- **Transactions:** counts are real (`summary.needsReview/matched/excluded`) — the hardcoded `?? 12` / `?? 8` fallbacks are gone; uncategorized tab carries no badge (no count endpoint) rather than a fabricated number.
+- **Invoicing:** added the Cancelled tab (router maps `cancelled`→`voided`); **Bills:** added the Overdue tab (router enum includes `overdue`).
+- Expenses / Journal / Customers tab keys verified against their routers' zod enums — all align.
+
+**Shared primitives + a11y:**
+
+- NEW `ModulePanel` (consistent compact header), `ModulePanelEmpty` (honest icon+title+description+optional single CTA — never fabricated data), `ModulePanelLoading` (skeleton) in `components/module/module-tab-panel.tsx`; used by banking/payroll/reports panels.
+- Banking/payroll/reports wrap panel content in `role="tabpanel"` (shell already had `role="tab"`/`aria-selected`).
+- Pagination/selection reset on every tab switch (banking `setTxPage(1)` + `setSelectedAccountId(null)`, payroll `setPage(1)`).
+
+**Type fixes (3 errors caught at the final gate):** `banking.listStatementLines` referenced an undefined `totalCount` shorthand (fixed); `ConnectionsTable.lastSyncedAt` + `PayrollRunsTable.createdAt` typed `Date | null` but tRPC serializes to string (relaxed to `string | null` — wire type is the truth).
+
+**Verification:**
+
+- `pnpm typecheck --filter=@xenboox/web` ✓ · `pnpm lint --filter=@xenboox/web` ✓ (pre-existing warnings only, none in changed files)
+- `pnpm test --filter=@xenboox/web` — 340 passed / 1 skipped ✓ (336 prior + new `module-tab-panel.test.tsx` 4 tests: header/content, empty state, skeleton rows)
+- Shell regression suite still green: `module-page-shell.test.tsx` 6/6 ✓
+
+**Post-review hardening (code-reviewer pass → 7 fixes):**
+
+- **Banking Overview tab filter bug:** the search/status filters rendered on both Overview and Accounts, but Overview rendered `allAccounts` while only Accounts used `visibleAccounts` — typing in the search box on Overview did nothing. Now both use the same filtered list.
+- **ap.ts operator-precedence bug (latent):** `overdueResult[0]?.count ?? 0 > 0` parsed as `count ?? (0 > 0)` — worked by accident; now `(count ?? 0) > 0` (both overdue and due-soon checks).
+- **invoicing.ts `as any` cast:** statusMap lookup for `cancelled`/`viewed`/etc. cast to `any`; now a typed `Partial<Record<…, $inferSelect.status>>` with a guarded push.
+- **banking.listTransactions.type:** loose `z.string()` → `z.enum(bankTxTypeEnum.enumValues)` (deposit/withdrawal/transfer/fee/interest); the `as` cast is gone and the UI filter gained Fee/Interest options.
+- **banking.listRules:** was spreading the full DB row (`...rule` incl. entityId/timestamps) to the client; now explicit column projection + live match count.
+- **A11y tab wiring (shell-level):** tab buttons get `id`/`aria-controls`; the shell renders the content area as `role="tabpanel"` with matching `id`/`aria-labelledby` — so all 11 tabbed pages get proper pairing with zero per-page duplication. Removed the now-redundant inner `role="tabpanel"` wrappers in banking/payroll/reports.
+- **documents table:** icon lookup keys (pdf/image/…) never matched doc-type enum values so every icon fell back to `File`; now the file-type icon derives from `mimeType` (`fileTypeFromMime`) and the Category column shows a human label (`categoryLabel`).
+
+**Notes:** `AiCopilotPanel` remains defined-but-unrendered dead code in banking/bills/customers/documents/expenses/journal/vendors (pre-existing, deferred — bigger cleanup). Reports router `getOverview` still returns a few static deltas (e.g. `overdueChange: 8.3`) — real period-over-period deltas are a follow-up, not a blocker.
+
+---
+
+### [2026-08-08] — Investigation: login 500 is NOT RLS/schema-drift — it's the env var; full RLS audit closes the "known quirk"
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** none (probes cleaned up) + `BUILD_LOG.md`
+
+**Request:** Investigate why `auth.login` returns 500 on its first DB query (the "known RLS/schema-drift quirk").
+
+**Verdict: the RLS/schema-drift hypothesis is DISPROVEN as the cause of the login 500.**
+
+- **The 500's real cause (confirmed again):** the stale OS/shell-level `DATABASE_URL` (`ep-fragrant-hall-…`) overrides `apps/web/.env`'s working `ep-crimson-lake-…` (Next.js env precedence). The app authenticated as `neondb_owner` against the wrong Neon project → `password authentication failed`. Not RLS, not schema drift. The env var is injected into the agent shell env (not found in Windows registry `HKCU/HKLM` or bash profiles) — the user must purge it from their environment for login to survive future `pnpm dev` restarts.
+
+**Full RLS audit (250 tables, live DB via pg over TCP):**
+
+- All 23 migrations ARE recorded applied in `drizzle.__drizzle_migrations`; `set_app_context` (created by 0006) **exists** → 0006/0010 did execute.
+- **58 RLS policies exist** (e.g., `users`: 2 policies, `organizations`: 2, `entities`: 2, `user_entity_access`: 1).
+- **BUT `relrowsecurity = false` on every table** — RLS is _disabled_ everywhere while the policies sit orphaned.
+- Cause: the Drizzle schema declares no `rowLevelSecurity`, and `pnpm db:push` (`drizzle-kit push`, a supported dev command) diffs schema → disables RLS on tables the schema doesn't declare, leaving policies behind.
+- **Landmine:** the 0006 header itself notes Neon's HTTP driver does not support session variables (`SET LOCAL`), so the policies (which read `current_setting('app.current_user_id')`) **cannot work over the app's neon HTTP driver anyway**. App-layer entity scoping in tRPC routers is the real enforcement today. If someone ever re-enables RLS via `db:migrate`, login itself would break over the HTTP driver.
+
+**Implication:** the "known quirk" is real but benign — a migration-vs-push drift artifact (policies present, RLS off). It was never the login blocker. No code changed; probes deleted.
+
+---
+
+### [2026-08-08] — Dev server restart + browser verification of compact chrome; fixed hidden login 500 (stale OS-level DATABASE_URL)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** 1 (`apps/web/lib/trpc/server.ts` — error observability) + `BUILD_LOG.md`
+
+**Request:** Restart the dev server and run a browser check of `/dashboard/payroll` to visually confirm the new metric strip.
+
+**What happened:**
+
+- **Restarted the dev server** (old PID had been running since before the chrome changes; new instance compiles on demand).
+- **Login was still 500ing after restart** — dug into it: every DB query (pg TCP AND neon HTTP, both tagged-template and params-array forms), bcrypt, and jose all worked in isolation against the `.env` DB. The app was hitting a DIFFERENT database.
+- **Root cause:** the shell/OS environment has a stale `DATABASE_URL` pointing at a different Neon project (`ep-fragrant-hall-…`, `pwlen 16`) that **overrides** the correct `.env` one (`ep-crimson-lake-…-pooler`, which holds all seeded data). Next.js gives real env vars precedence over `.env` files → the app authenticated as `neondb_owner` against the wrong project → `password authentication failed`. Local login has likely been broken for a while (previous sessions verified via typecheck/tests only; e2e runs against Vercel prod).
+- **Fix applied:** restarted the dev server with `DATABASE_URL` unset so `.env` wins. **Login now works** (tRPC login returns 200 + JWT, redirect lands on `/dashboard`). ⚠️ The stale OS-level `DATABASE_URL` still exists — the user must remove/fix it in their shell/OS env, or every future `pnpm dev` will break login again.
+- **Error observability fix (kept):** `handleMutationError` now attaches the original error as `cause`, and the tRPC `errorFormatter` logs the full `causeChain` (4 levels). This is what surfaced the hidden `password authentication failed` message — previously the generic wrapper swallowed it entirely. Client-facing responses unchanged.
+
+**Browser verification (Playwright, 1440×900, authenticated as demo@xenboox.com):**
+
+| Page                      | Chrome before table | Metric strip       | Table starts |
+| ------------------------- | ------------------- | ------------------ | ------------ |
+| `/dashboard/payroll`      | 198px (was ~264px)  | 53px tall, 5 cells | y=262        |
+| `/dashboard/banking`      | 198px               | 53px, 4 cells      | y=262        |
+| `/dashboard/transactions` | 198px               | 53px, 4 cells      | y=262        |
+
+No console errors on any page. The compact-chrome redesign is confirmed live: ~25% less chrome, metric strip ~53px (vs ~120px card grid + label row).
+
+**Verification:** `pnpm typecheck --filter=@xenboox/web` ✓ · `pnpm lint --filter=@xenboox/web` ✓.
+
+---
+
+### [2026-08-08] — Dead-code cleanup: remove unused local SummaryCards from payroll + banking
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** 2 (`apps/web/app/dashboard/payroll/page.tsx`, `apps/web/app/dashboard/banking/page.tsx`) + `BUILD_LOG.md`
+
+**Request:** Remove the now-unused local `SummaryCards` components left over from the standardization session (they were superseded when pages began passing `summaryCards` data arrays to `ModulePageShell`, which now renders the KPI metric strip).
+
+**What was removed:**
+
+- `payroll/page.tsx` — dead `SummaryCards` component (~66 lines), the now-unused `SummaryCardItem` type import, and the pre-existing unused `Download` lucide import (was silently dead, now gone). Kept: `TrendingUp` (still used by the live summaryCards array), all other icons, `cn`.
+- `banking/page.tsx` — dead `SummaryCards` component (~90 lines), the now-unused `SummaryCardItem` type import, and `TrendingUp` (was used only inside the dead component). Kept: `Download` (used in the Connect Bank actions row at line ~904), `Wallet`/`Clock`/`AlertTriangle` (used by the live summaryCards array).
+- No behavior change — the metric strip renders from the same `summaryCards` arrays as before.
+
+**Verification:** `pnpm typecheck --filter=@xenboox/web` ✓ · `pnpm lint --filter=@xenboox/web` ✓ (payroll now warning-free; banking keeps one pre-existing unrelated `_error` unused-var warning).
+
+**Note (still dead, out of scope):** `AiCopilotPanel` is defined but never rendered in banking, bills, customers, documents, expenses, journal, and vendors pages — a bigger cleanup if wanted later.
+
+---
+
+### [2026-08-08] — Compact chrome for ModulePageShell: metric strip replaces card grid (~250px → ~180px of chrome)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** 2 (`apps/web/__tests__/module-page-shell.test.tsx`, `.kilo/plans/1786217000000-module-page-shell-compact-chrome.md`)
+**Files Modified:** 1 production file (`apps/web/components/module/module-page-shell.tsx`) + `BUILD_LOG.md`
+
+**Request:** Module pages still took too much vertical space — header + tabs + "Overview" label row + tall summary-card grid + filters stacked to ~250px of fixed chrome before content. Fix once in the parent component all 11 pages inherit (DRY), not per-page. Web only. Execute /autoplan first (gstack binaries not installed on this machine → ran the same CEO → Design → Eng pipeline in-context with the 6 auto-decision principles; plan + decision audit trail in `.kilo/plans/1786217000000-module-page-shell-compact-chrome.md`).
+
+**What was built:**
+
+- **Slimmer header band** — `py-2` (was `py-3`), icon `h-7 w-7` (was `h-8 w-8`), title `text-[15px]` (was `text-base`), description `text-[11px]` single line.
+- **Tighter underline tabs** — `py-1.5 text-[13px]` (was `py-2.5 text-sm`), count pill `h-4` (was `h-5`).
+- **Summary cards → compact KPI metric strip** (the main win, ~120px → ~56px): removed the "Overview" label row; cards now render as a hairline-divided strip (`grid gap-px bg-slate-200/70`, white `px-3 py-2` cells). Two-line cells: icon chip + label/subtitle on line 1, `text-[15px] tabular-nums` value + delta arrow on line 2. Collapse toggle floats at the strip's top-right (always visible); top-right corner cell gets clearance padding at each breakpoint (`nth-child(2)` mobile / `(3)` md / `(5)` xl + `last-child`) so content never runs under it even when cards wrap. Collapsed state = slim "Overview" band.
+- **Slimmer filters** (`py-2`) and pagination (`py-2.5`) bands.
+- **Preserved:** sticky header+tabs, localStorage collapse persistence (`xb:shell:*` keys), `noOuterWrapper`, `defaultCollapsed`, unchanged props API — zero page edits.
+- **New regression test** `__tests__/module-page-shell.test.tsx` (6 tests): strip renders without the Overview label row, collapse toggles hide bands + persist, toggles stay visible when collapsed, negative deltas render `↓`, `defaultCollapsed` honored, `noOuterWrapper` fragment mode.
+
+**Verification:**
+
+- `pnpm typecheck --filter=@xenboox/web` ✓ · `pnpm lint --filter=@xenboox/web` ✓ (pre-existing warnings only) · new shell suite 6/6 ✓ · full suite 318 passed / 1 skipped (the only failures are pre-existing environment issues: `auth.test.ts` can't load due to a broken `@s2-dev/streamstore` module in node_modules, and live login 500s at `auth.login`'s first DB query — the Neon host is reachable, so it's the known RLS/schema-drift quirk, not this change).
+- Browser visual verification was attempted via Playwright (login flow + chrome-height measurement) but blocked by the pre-existing login 500; covered instead by the render-level test suite.
+
+**Note:** `payroll/page.tsx` and `banking/page.tsx` still carry unused local `SummaryCards` components from the previous standardization session (dead code, lint doesn't flag module-level functions) — safe to remove in a follow-up. Not touched here per the no-page-edits constraint.
+
+---
+
 ### [2026-08-08] — ModulePageShell standardization: natural-flow layout for all dashboard module pages
 
 **Agent:** Buffy (Autonomous Engineer)
