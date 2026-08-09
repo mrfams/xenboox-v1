@@ -972,6 +972,7 @@ export default function DashboardPage() {
               documents={chat.documents}
               approvals={chat.approvals}
               conversationId={chat.conversationId}
+              title={chat.conversationTitle}
               onExit={chat.exitChat}
               onNewChat={chat.newChat}
             />

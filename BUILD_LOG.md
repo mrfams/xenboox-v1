@@ -8135,6 +8135,30 @@ Each entity includes: user + org + entity + owner access, 25 COA accounts, 3 fis
 
 Note: pnpm typecheck failed with OOM on this machine � not a code issue.
 
+### [2026-08-09] - Conversations get readable auto-generated names
+
+**Agent:** Buffy (Autonomous Engineer)
+
+**Request:** "Conversations should be named appropriately." — stop persisting the raw 80-char first-message fragment as the conversation title.
+
+**What was built:**
+
+- `apps/web/lib/chat/conversation-title.ts` (new) — deterministic `generateConversationTitle()`: strips leading conversational filler ("can you ", "please help me ", "tell me about ", greetings, …), drops a leftover leading article, trims trailing punctuation, capitalizes, caps at 60 chars on a word boundary.
+- `apps/web/app/api/chat/stream/route.ts` — new conversations are inserted with the generated title; the title is selected back and emitted in the SSE `conversation` event so the dashboard header shows it immediately. Follow-ups keep the existing title.
+- `apps/web/lib/hooks/use-streaming-chat.ts` — `onConversationCreated` now passes `title` through.
+- `apps/web/lib/hooks/use-dashboard-chat.ts` — tracks `conversationTitle` (reset on new chat).
+- `apps/web/components/dashboard/dashboard-chat-screen.tsx` — header prefers the server title over the raw first-message preview.
+- `apps/web/server/routers/chat.ts` — `sendMessage` fallback now uses the helper instead of `message.slice(0, 80)`.
+
+**Verification:**
+
+- `pnpm typecheck` — passed
+- lint on changed files — 0 warnings/errors
+- full suite — 396 passed, 1 skipped (35 files)
+- `pnpm build` — passed
+
+**Note:** existing conversations already in the DB keep their old raw titles — a one-off backfill (rewrite `conversations.title` through `generateConversationTitle`) is a possible follow-up.
+
 ### [2026-08-08] - Slice 1: Mock-data fidelity fixes (reconciliation, reports, deadlines, orphaned widgets)
 
 **Agent:** opencode

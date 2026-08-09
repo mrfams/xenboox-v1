@@ -25,6 +25,8 @@ interface DashboardChatScreenProps {
   documents: DocumentCreatedEvent[];
   approvals: ApprovalEvent[];
   conversationId: string | null;
+  /** Server-generated readable name for this conversation, if known. */
+  title?: string | null;
   onExit: () => void;
   onNewChat: () => void;
 }
@@ -47,6 +49,7 @@ export function DashboardChatScreen({
   documents,
   approvals,
   conversationId,
+  title,
   onExit,
   onNewChat,
 }: DashboardChatScreenProps) {
@@ -60,12 +63,15 @@ export function DashboardChatScreen({
     });
   }, [messages, streamedContent, isStreaming]);
 
+  // Prefer the server-generated readable name; fall back to a preview of the
+  // first user message until the conversation event arrives.
   const firstUserMessage = messages.find((m) => m.role === "user");
-  const conversationTitle = firstUserMessage
+  const firstMessagePreview = firstUserMessage
     ? firstUserMessage.content.length > 48
       ? `${firstUserMessage.content.slice(0, 48)}…`
       : firstUserMessage.content
     : null;
+  const displayTitle = title ?? firstMessagePreview;
 
   const isEmpty = messages.length === 0 && !isStreaming;
 
@@ -103,8 +109,8 @@ export function DashboardChatScreen({
                 </span>
               </div>
               <p className="truncate text-[11px] text-muted-foreground">
-                {conversationTitle
-                  ? `“${conversationTitle}”`
+                {displayTitle
+                  ? `“${displayTitle}”`
                   : "Your AI CFO — every action is logged, entity-scoped & auditable"}
               </p>
             </div>

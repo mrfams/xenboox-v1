@@ -20,6 +20,7 @@ import {
   seedDefaultThresholds,
 } from "@xenboox/agents/core/pipeline";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
+import { generateConversationTitle } from "@/lib/chat/conversation-title";
 
 export const chatRouter = router({
   /**
@@ -290,7 +291,8 @@ export const chatRouter = router({
             lastMessageAt: new Date(),
             updatedAt: new Date(),
             messageCount: (conversation.messageCount ?? 0) + 1,
-            title: conversation.title ?? input.message.slice(0, 80),
+            title:
+              conversation.title ?? generateConversationTitle(input.message),
           })
           .where(eq(conversations.id, input.conversationId));
 

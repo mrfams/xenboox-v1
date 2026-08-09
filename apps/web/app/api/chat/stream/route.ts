@@ -6,6 +6,7 @@ import { processChatInput } from "@xenboox/agents";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
+import { generateConversationTitle } from "@/lib/chat/conversation-title";
 
 export const runtime = "nodejs";
 
@@ -74,7 +75,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Create or get conversation
+  // Create or get conversation. New conversations get a short, readable name
+  // derived from the first message (not the raw 80-char fragment).
   let convId = conversationId;
   if (!convId) {
     const [conv] = await db
@@ -82,11 +84,13 @@ export async function POST(req: NextRequest) {
       .values({
         entityId,
         userId: session.user.id!,
-        title: message.slice(0, 80),
+        title: generateConversationTitle(message),
       })
       .returning();
     convId = conv.id;
-  } // Save user message
+  }
+
+  // Save user message
   await db
     .insert(chatMessages)
     .values({
@@ -127,10 +131,19 @@ export async function POST(req: NextRequest) {
   // must surface in /dashboard/chat with a real timestamp and message count
   // — otherwise it sinks to the bottom of the panel with "0 messages".
   const [convRow] = await db
-    .select({ messageCount: conversations.messageCount })
+    .select({
+      messageCount: conversations.messageCount,
+      title: conversations.title,
+    })
     .from(conversations)
     .where(eq(conversations.id, convId))
     .limit(1);
+
+  // The name shown to the client (and persisted above). Follow-ups keep the
+  // existing title; a conversation created without one falls back to a
+  // generated name from this message.
+  const conversationTitle =
+    convRow?.title ?? generateConversationTitle(message);
   await db
     .update(conversations)
     .set({
@@ -171,8 +184,12 @@ export async function POST(req: NextRequest) {
       };
 
       try {
-        // Send conversation ID first
-        enqueue({ type: "conversation", conversationId: convId });
+        // Send conversation ID first (with its name for immediate display)
+        enqueue({
+          type: "conversation",
+          conversationId: convId,
+          title: conversationTitle,
+        });
 
         // Emit thinking indicator
         enqueue({

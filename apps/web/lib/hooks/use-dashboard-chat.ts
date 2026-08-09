@@ -46,6 +46,9 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
 
   const [messages, setMessages] = useState<DashboardChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationTitle, setConversationTitle] = useState<string | null>(
+    null,
+  );
   const [isChatActive, setIsChatActive] = useState(false);
 
   // Refs mirror the streaming-session state so a completed message can be
@@ -118,9 +121,10 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     approvals,
   } = useStreamingChat({
     entityId: entityId ?? "",
-    onConversationCreated: (id) => {
+    onConversationCreated: (id, title) => {
       conversationIdRef.current = id;
       setConversationId(id);
+      setConversationTitle(title ?? null);
     },
     onAgentActivity: (activity) => {
       activitiesRef.current = [...activitiesRef.current, activity];
@@ -169,6 +173,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     conversationIdRef.current = null;
     clearActivityRefs();
     setConversationId(null);
+    setConversationTitle(null);
     setMessages([]);
   }, [clearActivityRefs]);
 
@@ -189,6 +194,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
   return {
     messages,
     conversationId,
+    conversationTitle,
     isChatActive,
     isStreaming,
     streamedContent,

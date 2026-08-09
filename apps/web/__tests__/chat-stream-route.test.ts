@@ -13,6 +13,7 @@ import { POST } from "@/app/api/chat/stream/route";
 
 const mocks = vi.hoisted(() => ({
   setSpies: [] as Array<ReturnType<typeof vi.fn>>,
+  insertValues: [] as unknown[],
   existingMessageCount: 0,
 }));
 
@@ -51,9 +52,10 @@ vi.mock("@/lib/db", () => {
       },
     },
     insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        returning: vi.fn(async () => [{ id: "conv-1" }]),
-      })),
+      values: vi.fn((values: unknown) => {
+        mocks.insertValues.push(values);
+        return { returning: vi.fn(async () => [{ id: "conv-1" }]) };
+      }),
     })),
     select: vi.fn(() => ({
       from: vi.fn(() => ({
@@ -100,6 +102,7 @@ describe("POST /api/chat/stream — conversation persistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.setSpies.length = 0;
+    mocks.insertValues.length = 0;
     mocks.existingMessageCount = 0;
   });
 
@@ -109,6 +112,12 @@ describe("POST /api/chat/stream — conversation persistence", () => {
 
     // New conversation inserted, then user + assistant messages.
     expect(db.insert).toHaveBeenCalledTimes(3);
+
+    // The new conversation is named with a readable generated title — not the
+    // raw message fragment (the "hello " greeting is stripped).
+    expect(mocks.insertValues[0]).toMatchObject({
+      title: "Xenboox",
+    });
 
     // Conversations row updated: timestamp set, count = 0 + 2.
     const conversationSet = mocks.setSpies[0]?.mock.calls[0]?.[0];
@@ -135,12 +144,30 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     expect(body).toContain('"type":"token"');
     expect(body).toContain('"content":"12,500."');
 
+    // The conversation event carries the generated name so the UI can show it
+    // immediately.
+    expect(body).toContain('"title":"Xenboox"');
+
     // Assistant message finalized as completed with the pipeline response.
     const assistantSet = mocks.setSpies[1]?.mock.calls[0]?.[0];
     expect(assistantSet).toMatchObject({
       status: "completed",
       content: "Your cash balance is GMD 12,500.",
     });
+  });
+
+  it("strips filler from the first message when naming a new conversation", async () => {
+    const res = await POST(
+      makeRequest({ message: "Can you explain my cash flow for last month?" }),
+    );
+    expect(res.status).toBe(200);
+
+    expect(mocks.insertValues[0]).toMatchObject({
+      title: "Explain my cash flow for last month",
+    });
+
+    const body = await res.text();
+    expect(body).toContain('"title":"Explain my cash flow for last month"');
   });
 
   it("follow-ups reuse the existing conversation and increment its message count", async () => {

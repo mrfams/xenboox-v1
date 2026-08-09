@@ -78,6 +78,26 @@ describe("DashboardChatScreen", () => {
     ).toBeInTheDocument();
   });
 
+  it("prefers the server-generated title over the first-message preview", () => {
+    renderScreen({
+      title: "June bank reconciliation",
+      messages: [
+        makeMessage({
+          id: "u1",
+          role: "user",
+          content: "Please help me reconcile my bank account for June",
+        }),
+      ],
+    });
+
+    expect(screen.getByText(/“June bank reconciliation”/)).toBeInTheDocument();
+    // The header must not show the raw first-message preview (it is quoted in
+    // the title line, unlike the unquoted message bubble).
+    expect(
+      screen.queryByText(/“Please help me reconcile my bank account for June”/),
+    ).not.toBeInTheDocument();
+  });
+
   it("calls onExit when the exit button is clicked", () => {
     const onExit = vi.fn();
     renderScreen({ onExit });
