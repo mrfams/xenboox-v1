@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ArrowLeft, Bot, MessageSquare, Plus, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, ArrowUpRight, Bot, Plus, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { StreamingMessage } from "@/components/workspace/streaming-message";
@@ -235,11 +236,20 @@ export function DashboardChatScreen({
       </div>
 
       {/* Footer hint */}
-      <div className="flex items-center justify-center gap-1.5 border-t border-border/50 px-6 py-2">
-        <MessageSquare className="h-3 w-3 text-muted-foreground/70" />
+      <div className="flex items-center justify-center gap-3 border-t border-border/50 px-6 py-2">
+        {conversationId && (
+          <Link
+            href={`/dashboard/chat?c=${conversationId}`}
+            className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-card px-2.5 py-1 text-[10px] font-medium text-primary transition-all hover:border-primary/30 hover:bg-primary/5"
+            title="Open this conversation in the full chat workspace"
+          >
+            <ArrowUpRight className="h-3 w-3" />
+            Open in Chat
+          </Link>
+        )}
         <p className="text-[10px] text-muted-foreground/70">
           {conversationId
-            ? "This conversation is saved — find it in Recent Conversations anytime."
+            ? "Saved — continue it anytime in your conversations."
             : "Your messages are saved to this entity's audit trail."}
         </p>
       </div>

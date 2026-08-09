@@ -6,6 +6,28 @@
 
 ---
 
+### [2026-08-09] — Dashboard conversations persist to the backend and surface in the /chat conversation panel
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** 1 (`apps/web/__tests__/chat-stream-route.test.ts`)
+**Files Modified:** 2 (`apps/web/app/api/chat/stream/route.ts`, `apps/web/components/dashboard/dashboard-chat-screen.tsx`, `apps/web/__tests__/dashboard-chat-screen.test.tsx`) + `BUILD_LOG.md`
+
+**Request:** When a conversation happens on /dashboard, make the backend persist it for later use — it should appear in the /chat page's conversation panel.
+
+**What was found & fixed:**
+
+- **Root gap (backend):** the stream route already created `conversations` + `chat_messages` rows, but never updated the `conversations` row — `lastMessageAt` stayed NULL and `messageCount` stayed 0. Since `chat.listConversations` orders by `lastMessageAt desc`, dashboard conversations sank to the bottom of the /chat panel with no time and "0 messages".
+- **Fix in `/api/chat/stream/route.ts`:** every turn now updates the conversation (`lastMessageAt`, `messageCount = existing + 2`, `updatedAt`) so conversations started (or continued) on the dashboard appear in /chat with correct metadata and ordering.
+- **Client-disconnect handling:** the route now listens to `req.signal` abort. On a mid-stream exit it stops streaming immediately but still lets the CFO pipeline finish and saves the full response as `completed` — so the conversation is complete and usable later. A genuine pipeline failure after abort marks the pending message `cancelled` (clean) instead of the old "⚠️ Request failed" garbage. All `controller.enqueue` calls are guarded (no double-close / enqueue-after-close throws).
+- **Frontend:** `DashboardChatScreen` footer gained an "Open in Chat" link (`/dashboard/chat?c=<id>`) — the /chat page already preselects that conversation via the `?c=` param, so one click jumps from the dashboard chat straight into the full conversation workspace.
+- **Tests:** new `chat-stream-route.test.ts` (3 tests, mocked db/auth/agents/pipeline): new conversation gets `messageCount 2` + `lastMessageAt`, follow-ups reuse the conversation and increment to `existing + 2`, and a pre-aborted client still yields a `completed` saved response. `dashboard-chat-screen.test.tsx` gained an "Open in Chat" href test (8 tests total).
+
+**Verification:** `pnpm typecheck` ✓ · lint on changed files ✓ (only pre-existing `any` casts in the route remain) · full web suite 34 files / 388 passed, 1 skipped ✓ · `pnpm build` (Next.js production) ✓.
+
+**Next Steps:** Optional: cross-tab `messageCount` race hardening via a `sql` increment (pre-existing read-modify-write pattern, acceptable).
+
+---
+
 ### [2026-08-09] — Dashboard inline chat screen: messaging swaps the overview cards for a full-screen conversation with exit
 
 **Agent:** Buffy (Autonomous Engineer)

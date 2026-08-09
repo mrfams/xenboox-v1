@@ -86,6 +86,16 @@ describe("DashboardChatScreen", () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
+  it("links a saved conversation to the full chat workspace", () => {
+    renderScreen({
+      conversationId: "c1",
+      messages: [makeMessage({ id: "u1", role: "user", content: "Hi there" })],
+    });
+
+    const link = screen.getByRole("link", { name: /Open in Chat/i });
+    expect(link).toHaveAttribute("href", "/dashboard/chat?c=c1");
+  });
+
   it("calls onNewChat from the New chat button", () => {
     const onNewChat = vi.fn();
     renderScreen({ onNewChat });

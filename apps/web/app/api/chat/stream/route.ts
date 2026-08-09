@@ -122,24 +122,65 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
+  // Keep the conversation panel accurate. The stream route is also used by
+  // the dashboard inline chat, so a conversation started (or continued) here
+  // must surface in /dashboard/chat with a real timestamp and message count
+  // — otherwise it sinks to the bottom of the panel with "0 messages".
+  const [convRow] = await db
+    .select({ messageCount: conversations.messageCount })
+    .from(conversations)
+    .where(eq(conversations.id, convId))
+    .limit(1);
+  await db
+    .update(conversations)
+    .set({
+      lastMessageAt: new Date(),
+      messageCount: (convRow?.messageCount ?? 0) + 2,
+      updatedAt: new Date(),
+    })
+    .where(eq(conversations.id, convId));
+
   // Create streaming response
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      // Tracks a client disconnect (user exits the dashboard chat / navigates
+      // away). We stop streaming to the closed connection immediately, but
+      // still let the pipeline finish so the conversation is saved whole for
+      // later use in /dashboard/chat.
+      let aborted = req.signal.aborted;
+      const onAbort = () => {
+        aborted = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      };
+      req.signal.addEventListener("abort", onAbort, { once: true });
+
+      const enqueue = (payload: unknown) => {
+        if (aborted) return;
+        try {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(payload)}\n\n`),
+          );
+        } catch {
+          // connection already closed — ignore
+        }
+      };
+
       try {
         // Send conversation ID first
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "conversation", conversationId: convId })}\n\n`,
-          ),
-        );
+        enqueue({ type: "conversation", conversationId: convId });
 
         // Emit thinking indicator
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "agent_activity", agent: "CFO Agent", status: "started", action: "Processing your request" })}\n\n`,
-          ),
-        );
+        enqueue({
+          type: "agent_activity",
+          agent: "CFO Agent",
+          status: "started",
+          action: "Processing your request",
+        });
 
         // Invoke the real CFO pipeline
         const fullMessage = message + fileContext;
@@ -165,60 +206,44 @@ export async function POST(req: NextRequest) {
           onToolCall: (toolName, args) => {
             const event = { type: "tool_call", toolName, args };
             toolEvents.push(event);
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "tool_call",
-                  toolName,
-                  args,
-                  timestamp: new Date().toISOString(),
-                })}\n\n`,
-              ),
-            );
+            enqueue({
+              type: "tool_call",
+              toolName,
+              args,
+              timestamp: new Date().toISOString(),
+            });
           },
           onToolResult: (toolName, success, data) => {
             const event = { type: "tool_result", toolName, success, data };
             toolEvents.push(event);
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "tool_result",
-                  toolName,
-                  success,
-                  data: success ? data : undefined,
-                  timestamp: new Date().toISOString(),
-                })}\n\n`,
-              ),
-            );
+            enqueue({
+              type: "tool_result",
+              toolName,
+              success,
+              data: success ? data : undefined,
+              timestamp: new Date().toISOString(),
+            });
           },
         });
 
         // Emit agent activity event
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              type: "agent_activity",
-              agent: "CFO Agent",
-              status: "completed",
-              action: "Response generated",
-              confidence: Math.round(pipelineResult.confidence * 100),
-              durationMs: pipelineResult.durationMs,
-            })}\n\n`,
-          ),
-        );
+        enqueue({
+          type: "agent_activity",
+          agent: "CFO Agent",
+          status: "completed",
+          action: "Response generated",
+          confidence: Math.round(pipelineResult.confidence * 100),
+          durationMs: pipelineResult.durationMs,
+        });
 
         // Emit delegation events if agents were involved
         if (pipelineResult.agentId && pipelineResult.agentId !== "cfo") {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                type: "delegation",
-                from: "CFO Agent",
-                to: pipelineResult.agentId,
-                reason: `Delegated to ${pipelineResult.agentId} for specialized processing`,
-              })}\n\n`,
-            ),
-          );
+          enqueue({
+            type: "delegation",
+            from: "CFO Agent",
+            to: pipelineResult.agentId,
+            reason: `Delegated to ${pipelineResult.agentId} for specialized processing`,
+          });
         }
 
         // Emit approval needed if escalation
@@ -227,21 +252,17 @@ export async function POST(req: NextRequest) {
           pipelineResult.escalationItems.length > 0
         ) {
           for (const item of pipelineResult.escalationItems) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "approval_needed",
-                  title: item.what || "Approval Required",
-                  description:
-                    item.why ||
-                    item.recommendedAction ||
-                    "This action requires your approval",
-                  amount: item.amount
-                    ? `GMD ${item.amount.toLocaleString()}`
-                    : undefined,
-                })}\n\n`,
-              ),
-            );
+            enqueue({
+              type: "approval_needed",
+              title: item.what || "Approval Required",
+              description:
+                item.why ||
+                item.recommendedAction ||
+                "This action requires your approval",
+              amount: item.amount
+                ? `GMD ${item.amount.toLocaleString()}`
+                : undefined,
+            });
           }
         }
 
@@ -249,16 +270,15 @@ export async function POST(req: NextRequest) {
         const response = pipelineResult.response;
         const words = response.split(/(\s+)/);
         for (const word of words) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: "token", content: word })}\n\n`,
-            ),
-          );
+          if (aborted) break;
+          enqueue({ type: "token", content: word });
           // Small delay for natural streaming feel
           await new Promise((resolve) => setTimeout(resolve, 15));
         }
 
-        // Save complete AI response with tool calls and citations
+        // Save complete AI response with tool calls and citations — even when
+        // the client left mid-stream, so the conversation is fully usable
+        // later in /dashboard/chat.
         const toolCallsForMessage = toolEvents
           .filter(
             (
@@ -298,48 +318,64 @@ export async function POST(req: NextRequest) {
           .where(eq(chatMessages.id, pendingAssistant.id));
 
         // Emit done event
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              type: "done",
-              messageId: pendingAssistant.id,
-              confidence: Math.round(pipelineResult.confidence * 100),
-              agentsInvolved: [pipelineResult.agentId],
-              durationMs: pipelineResult.durationMs,
-            })}\n\n`,
-          ),
-        );
+        enqueue({
+          type: "done",
+          messageId: pendingAssistant.id,
+          confidence: Math.round(pipelineResult.confidence * 100),
+          agentsInvolved: [pipelineResult.agentId],
+          durationMs: pipelineResult.durationMs,
+        });
 
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // already closed by the abort handler
+        }
       } catch (error) {
         console.error("Streaming error:", error);
-        // Mark the pending assistant message as failed so it never shows as
-        // completed in history
-        await db
-          .update(chatMessages)
-          .set({
-            content:
-              error instanceof Error
-                ? `⚠️ Request failed: ${error.message}`
-                : "⚠️ Request failed",
-            status: "failed",
-          })
-          .where(eq(chatMessages.id, pendingAssistant.id))
-          .catch(() => {});
-
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              type: "error",
-              code: "PIPELINE_ERROR",
-              message:
+        if (aborted) {
+          // The user left before the pipeline finished — mark the pending
+          // message as cancelled instead of a scary "failed".
+          await db
+            .update(chatMessages)
+            .set({
+              content:
+                "⏹️ Response cancelled — you exited this conversation before Xenboox finished.",
+              status: "cancelled",
+            })
+            .where(eq(chatMessages.id, pendingAssistant.id))
+            .catch(() => {});
+        } else {
+          // Mark the pending assistant message as failed so it never shows as
+          // completed in history
+          await db
+            .update(chatMessages)
+            .set({
+              content:
                 error instanceof Error
-                  ? error.message
-                  : "Failed to process request",
-            })}\n\n`,
-          ),
-        );
-        controller.close();
+                  ? `⚠️ Request failed: ${error.message}`
+                  : "⚠️ Request failed",
+              status: "failed",
+            })
+            .where(eq(chatMessages.id, pendingAssistant.id))
+            .catch(() => {});
+
+          enqueue({
+            type: "error",
+            code: "PIPELINE_ERROR",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to process request",
+          });
+        }
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      } finally {
+        req.signal.removeEventListener("abort", onAbort);
       }
     },
   });
