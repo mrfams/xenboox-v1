@@ -24,6 +24,7 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { CreateAccountDialog } from "@/components/dashboard/create-account-dialog";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -685,6 +686,7 @@ function AiCopilotPanel({
 
 export default function ChartOfAccountsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [showCreate, setShowCreate] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     new Set(["1", "1.1", "1.2"]),
   );
@@ -743,7 +745,10 @@ export default function ChartOfAccountsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
                 <Plus className="h-4 w-4" />
                 New Account
               </button>
@@ -889,6 +894,10 @@ export default function ChartOfAccountsPage() {
           }
         />
       </div>
+      <CreateAccountDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </div>
   );
 }

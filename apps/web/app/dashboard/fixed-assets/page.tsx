@@ -19,6 +19,7 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { CreateAssetDialog } from "@/components/dashboard/create-asset-dialog";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -413,6 +414,7 @@ function AiCopilotPanel({
 
 export default function FixedAssetsPage() {
   const [activeTab, setActiveTab] = useState<TabFilter>("overview");
+  const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -459,7 +461,10 @@ export default function FixedAssetsPage() {
                 <Download className="h-4 w-4" />
                 Export
               </button>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
                 <Plus className="h-4 w-4" />
                 Add Asset
               </button>
@@ -539,6 +544,10 @@ export default function FixedAssetsPage() {
           <AiCopilotPanel insights={aiInsights ?? []} />
         </div>
       */}
+      <CreateAssetDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </div>
   );
 }

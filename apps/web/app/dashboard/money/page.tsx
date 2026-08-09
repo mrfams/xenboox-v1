@@ -20,6 +20,9 @@ import {
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+import { CreateInvoiceDialog } from "@/components/dashboard/create-invoice-dialog";
+import { CreateBillDialog } from "@/components/dashboard/create-bill-dialog";
+import { CreateExpenseDialog } from "@/components/dashboard/create-expense-dialog";
 
 const moneySections = [
   {
@@ -91,6 +94,9 @@ const moneySections = [
 export default function MoneyPage() {
   const { entityId } = useEntity();
   const [_expandedSection, _setExpandedSection] = useState<string | null>(null);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [showBill, setShowBill] = useState(false);
+  const [showExpense, setShowExpense] = useState(false);
 
   // Fetch cash balance
   const { data: cashFlowData } = trpc.aiWorkspace.getCashFlowOverview.useQuery(
@@ -191,27 +197,27 @@ export default function MoneyPage() {
           Quick Actions
         </h3>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href="/dashboard/invoicing"
+          <button
+            onClick={() => setShowInvoice(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
           >
             <Receipt className="h-4 w-4" />
             Create Invoice
-          </Link>
-          <Link
-            href="/dashboard/bills"
+          </button>
+          <button
+            onClick={() => setShowBill(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
           >
             <CreditCard className="h-4 w-4" />
             Record Bill
-          </Link>
-          <Link
-            href="/dashboard/expenses"
+          </button>
+          <button
+            onClick={() => setShowExpense(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
           >
             <Wallet className="h-4 w-4" />
             Log Expense
-          </Link>
+          </button>
           <Link
             href="/dashboard/reconciliation/center"
             className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
@@ -221,6 +227,15 @@ export default function MoneyPage() {
           </Link>
         </div>
       </div>
+      <CreateInvoiceDialog
+        open={showInvoice}
+        onClose={() => setShowInvoice(false)}
+      />
+      <CreateBillDialog open={showBill} onClose={() => setShowBill(false)} />
+      <CreateExpenseDialog
+        open={showExpense}
+        onClose={() => setShowExpense(false)}
+      />
     </div>
   );
 }

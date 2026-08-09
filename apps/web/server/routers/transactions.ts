@@ -767,6 +767,40 @@ export const transactionsRouter = router({
   }),
 
   /**
+   * Manually record a bank transaction (the "New transaction" flow).
+   * Stores it against a bank account, unreconciled by default so the AI
+   * categorization/review flow still applies to it.
+   */
+  createTransaction: rlsProtectedProcedure
+    .input(
+      z.object({
+        bankAccountId: z.string().uuid(),
+        type: z.enum(["deposit", "withdrawal", "transfer", "fee", "interest"]),
+        amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
+        description: z.string().min(1).max(300),
+        transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        reference: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [transaction] = await db
+        .insert(bankTransactions)
+        .values({
+          entityId: ctx.entityId!,
+          bankAccountId: input.bankAccountId,
+          type: input.type,
+          amount: input.amount,
+          description: input.description,
+          transactionDate: input.transactionDate,
+          reference: input.reference,
+          isReconciled: false,
+        })
+        .returning();
+
+      return transaction;
+    }),
+
+  /**
    * Approve/confirm a transaction categorization.
    */
   approveTransaction: rlsProtectedProcedure

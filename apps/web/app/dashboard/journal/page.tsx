@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { BookOpen } from "lucide-react";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { CreateJournalEntryDialog } from "@/components/dashboard/create-journal-entry-dialog";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -678,6 +679,7 @@ export default function JournalEntriesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+  const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview
   const { data: overview } = trpc.journal.getOverview.useQuery({});
@@ -728,7 +730,10 @@ export default function JournalEntriesPage() {
       icon={BookOpen}
       actions={
         <>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          >
             <Plus className="h-4 w-4" />
             New Journal Entry
           </button>
@@ -851,6 +856,10 @@ export default function JournalEntriesPage() {
       <JournalTable
         entries={entriesData?.entries ?? []}
         isLoading={entriesLoading}
+      />
+      <CreateJournalEntryDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
       />
     </ModulePageShell>
   );

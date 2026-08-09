@@ -25,6 +25,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -767,6 +768,7 @@ export default function CustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     null,
   );
+  const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -832,7 +834,10 @@ export default function CustomersPage() {
       iconBgClassName="bg-gradient-to-br from-indigo-500 to-purple-500"
       actions={
         <>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          >
             <Plus className="h-4 w-4" />
             New Customer
             <ChevronDown className="h-4 w-4" />
@@ -949,7 +954,10 @@ export default function CustomersPage() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+              >
                 <Plus className="h-4 w-4" />
                 Add Customer
               </button>
@@ -973,6 +981,10 @@ export default function CustomersPage() {
           isLoading={customersLoading}
         />
       )}
+      <CreateCustomerDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </ModulePageShell>
   );
 }

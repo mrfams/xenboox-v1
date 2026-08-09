@@ -26,6 +26,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { CreateBillDialog } from "@/components/dashboard/create-bill-dialog";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -745,6 +746,7 @@ function AiCopilotPanel({
 export default function BillsPage() {
   const [activeTab, setActiveTab] = useState<StatusFilter>("all");
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -810,7 +812,10 @@ export default function BillsPage() {
       iconBgClassName="bg-gradient-to-br from-indigo-500 to-purple-500"
       actions={
         <>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          >
             <Plus className="h-4 w-4" />
             New Bill
             <ChevronDown className="h-4 w-4" />
@@ -904,6 +909,10 @@ export default function BillsPage() {
         selectedId={selectedBillId}
         onSelect={setSelectedBillId}
         isLoading={billsLoading}
+      />
+      <CreateBillDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
       />
     </ModulePageShell>
   );

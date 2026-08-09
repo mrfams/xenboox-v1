@@ -24,6 +24,7 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { CreateReconciliationDialog } from "@/components/dashboard/create-reconciliation-dialog";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -867,6 +868,7 @@ export default function ReconciliationPage() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null,
   );
+  const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -907,10 +909,12 @@ export default function ReconciliationPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
                 <Plus className="h-4 w-4" />
                 New Reconciliation
-                <ChevronDown className="h-4 w-4" />
               </button>
               <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                 <Download className="h-4 w-4" />
@@ -1048,6 +1052,10 @@ export default function ReconciliationPage() {
           />
         </div>
       */}
+      <CreateReconciliationDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </div>
   );
 }

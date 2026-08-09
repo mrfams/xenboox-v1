@@ -12,11 +12,82 @@ import {
   journalEntryLines,
   budgets,
   budgetLines,
+  auditLog,
 } from "@xenboox/db/schema";
 
 // ─── Expenses Router ───────────────────────────────────────────────────────
 
 export const expensesRouter = router({
+  /**
+   * Manually record an expense. Expenses are stored as AP invoice rows (the
+   * same table the expenses page reads), pending by default so they can be
+   * reviewed before approval. Requires a payee (supplier) and a balance.
+   */
+  createExpense: rlsProtectedProcedure
+    .input(
+      z.object({
+        supplierId: z.string().uuid(),
+        description: z.string().min(1).max(500),
+        amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
+        expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        category: z.string().optional(),
+        paymentMethod: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const now = new Date();
+        const stamp =
+          `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}` +
+          `${String(now.getDate()).padStart(2, "0")}` +
+          `${String(now.getHours()).padStart(2, "0")}` +
+          `${String(now.getMinutes()).padStart(2, "0")}` +
+          `${String(now.getSeconds()).padStart(2, "0")}`;
+
+        const [expense] = await db
+          .insert(invoicesAp)
+          .values({
+            entityId: ctx.entityId!,
+            supplierId: input.supplierId,
+            invoiceNumber: `EXP-${stamp}`,
+            invoiceDate: input.expenseDate,
+            dueDate: input.dueDate,
+            totalAmount: input.amount,
+            paidAmount: "0",
+            balance: input.amount,
+            currency: "GMD",
+            status: "pending",
+            notes: input.description,
+            receivedDate: input.expenseDate,
+          })
+          .returning();
+
+        if (!expense) {
+          throw new Error("Failed to create expense");
+        }
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "expenses.createExpense",
+          entityType: "invoice_ap",
+          entityIdRef: expense.id,
+          newValues: {
+            amount: input.amount,
+            description: input.description,
+            category: input.category,
+            paymentMethod: input.paymentMethod,
+          },
+        });
+
+        return expense;
+      } catch (error) {
+        console.error("[expenses.createExpense] failed:", error);
+        throw error;
+      }
+    }),
+
   /**
    * Get overview statistics for the expenses page.
    */

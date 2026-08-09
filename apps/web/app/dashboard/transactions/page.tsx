@@ -22,6 +22,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { TabItem } from "@/components/module/module-page-shell.types";
+import { CreateTransactionDialog } from "@/components/dashboard/create-transaction-dialog";
 
 type TabFilter =
   | "all"
@@ -697,6 +698,7 @@ export default function TransactionsPage() {
   >(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+  const [showCreate, setShowCreate] = useState(false);
 
   const { data: summary } = trpc.transactions.getSummary.useQuery({});
 
@@ -895,7 +897,10 @@ export default function TransactionsPage() {
   const actions = (
     <>
       {headerSearch}
-      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+      <button
+        onClick={() => setShowCreate(true)}
+        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+      >
         <Plus className="h-4 w-4" />
         New transaction
       </button>
@@ -921,6 +926,10 @@ export default function TransactionsPage() {
         selectedId={selectedTransactionId}
         onSelect={setSelectedTransactionId}
         isLoading={transactionsLoading}
+      />
+      <CreateTransactionDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
       />
     </ModulePageShell>
   );

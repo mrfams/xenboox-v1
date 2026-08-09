@@ -34,6 +34,7 @@ import {
 } from "@/lib/trpc/query-options";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { TabItem } from "@/components/module/module-page-shell.types";
+import { CreateBankAccountDialog } from "@/components/dashboard/create-bank-account-dialog";
 import {
   ModulePanel,
   ModulePanelEmpty,
@@ -1410,6 +1411,7 @@ export default function BankingPage() {
   >("all");
   const [txPage, setTxPage] = useState(1);
   const [txPageSize] = useState(15);
+  const [showCreate, setShowCreate] = useState(false);
 
   const { data: overviewData, isLoading: overviewLoading } =
     trpc.banking.getOverview.useQuery(undefined, realtimeQueryOptions);
@@ -1819,9 +1821,12 @@ export default function BankingPage() {
 
   const actions = (
     <>
-      <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+      <button
+        onClick={() => setShowCreate(true)}
+        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+      >
         <Plus className="h-4 w-4" />
-        Connect Bank
+        Add Account
       </button>
       <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
         <Download className="h-4 w-4" />
@@ -1849,6 +1854,10 @@ export default function BankingPage() {
       pagination={pagination}
     >
       {renderPanel()}
+      <CreateBankAccountDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </ModulePageShell>
   );
 }

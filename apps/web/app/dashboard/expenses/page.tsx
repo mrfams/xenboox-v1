@@ -25,6 +25,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { CreateExpenseDialog } from "@/components/dashboard/create-expense-dialog";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -530,6 +531,7 @@ export default function ExpensesPage() {
   );
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+  const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview
   const { data: overview } = trpc.expenses.getOverview.useQuery({});
@@ -582,7 +584,10 @@ export default function ExpensesPage() {
       icon={Receipt}
       actions={
         <>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          >
             <Plus className="h-4 w-4" />
             New Expense
           </button>
@@ -702,6 +707,10 @@ export default function ExpensesPage() {
         selectedId={selectedExpenseId}
         onSelect={setSelectedExpenseId}
         isLoading={expensesLoading}
+      />
+      <CreateExpenseDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
       />
     </ModulePageShell>
   );

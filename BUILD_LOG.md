@@ -6,6 +6,30 @@
 
 ---
 
+### [2026-08-09] — Manual "create" flows across all dashboard module pages (13 pages, 13 dialogs, 2 new mutations)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** 15 (`apps/web/components/dashboard/create-record-modal.tsx`, `invoice-lines-editor.tsx`, `create-transaction-dialog.tsx`, `create-bank-account-dialog.tsx`, `create-customer-dialog.tsx`, `create-vendor-dialog.tsx`, `create-invoice-dialog.tsx`, `create-bill-dialog.tsx`, `create-expense-dialog.tsx`, `create-employee-dialog.tsx`, `create-payroll-run-dialog.tsx`, `create-journal-entry-dialog.tsx`, `create-asset-dialog.tsx`, `create-account-dialog.tsx`, `create-reconciliation-dialog.tsx`, `apps/web/__tests__/create-record-modal.test.tsx`, `apps/web/__tests__/create-transaction-router.test.ts`) — 17 total
+**Files Modified:** 13 pages (`apps/web/app/dashboard/{transactions,banking,bills,vendors,customers,expenses,journal,invoicing,payroll,fixed-assets,chart-of-accounts,reconciliation,money}/page.tsx`) + 2 routers (`transactions.ts`, `expenses.ts`) + `BUILD_LOG.md`
+
+**Request:** On the /transactions, /banking, invoicing, /bills, /vendors, /customers, /payroll and other module pages, the manual "create something" options exist but do nothing — make them work, dynamically and professionally.
+
+**What was built:**
+
+- **Root cause:** most "New/Add/Create" header + empty-state buttons were plain `<button>` with no `onClick` at all. Only estimates had a working flow.
+- **Shared shell:** `CreateRecordModal` — one professional dialog shell (slate overlay, white rounded panel, icon header, footer slot, Escape-to-close, body scroll lock) + shared field styles, so every create dialog looks identical. `InvoiceLinesEditor` — shared line-item editor used by the invoice/bill dialogs.
+- **13 dialogs:** transaction, bank account, customer, vendor, invoice, bill, expense, employee, payroll run, journal entry, fixed asset, chart-of-accounts account, reconciliation — each wired to the existing (previously orphaned) mutations: `ar.createCustomer/Invoice`, `ap.createSupplier/Invoice`, `payroll.createEmployee/createPayrollRun`, `journal.create`, `coa.create`, `fixedAssets.createAsset`, `treasury.createBankAccount/createReconciliation`.
+- **2 new mutations:** `transactions.createTransaction` (inserts into `bank_transactions`, entity-scoped, zod-validated uuid/enum/amount regex/date regex) and `expenses.createExpense` (AP invoice with generated `EXP-` number, `balance` set, entity-scoped, audit-logged, date-validated).
+- **Wiring:** every dead button across 13 pages now opens its dialog — header actions, empty-state CTAs (e.g. vendors/customers "Add" hero buttons, invoicing "Create Invoice"), quick-action grids, the payroll Employees tab gains an "Add Employee" action, and the money hub's "Create Invoice / Record Bill / Log Expense" quick actions open dialogs inline instead of just navigating.
+- **UX details:** loading spinners, disabled states until valid, inline error banners, post-create invalidation of the correct namespaces (plus related ones like dashboard/transactions), "no bank accounts yet" / "no vendors yet" guided hints, dialog state reset on success.
+- **Tests:** 8 new (4 shared-modal shell: title/footer/Escape/scroll-lock; 4 router: createTransaction insert + entity scoping + uuid/amount/description validation).
+
+**Verification:** `pnpm typecheck` ✓ · lint clean (no new errors) ✓ · full web suite 41 files / 443 passed, 1 skipped ✓ · `pnpm build` (Next.js production) ✓ · code review applied (dead AiCopilotPanel buttons reverted, subtype union aligned with `coa.create` enum, `fiscal.list` input fix, date validation on new mutations).
+
+**Next Steps:** Optional: edit/delete flows for the same modules; bank-connect integration so "Add Account" can link live feeds; drag-and-drop document import wiring for the Import/Upload buttons.
+
+---
+
 ### [2026-08-09] — In-viewer AI document editing: highlight any passage and ask the AI to change or redo it (ChatGPT/Claude style)
 
 **Agent:** Buffy (Autonomous Engineer)

@@ -24,6 +24,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { CreateVendorDialog } from "@/components/dashboard/create-vendor-dialog";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -725,6 +726,7 @@ export default function VendorsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+  const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview
   const { data: overview } = trpc.ap.getVendorsOverview.useQuery({});
@@ -776,7 +778,10 @@ export default function VendorsPage() {
       icon={Users}
       actions={
         <>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          >
             <Plus className="h-4 w-4" />
             New Vendor
           </button>
@@ -911,7 +916,10 @@ export default function VendorsPage() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+              >
                 <Plus className="h-4 w-4" />
                 Add Vendor
               </button>
@@ -933,6 +941,10 @@ export default function VendorsPage() {
           isLoading={vendorsLoading}
         />
       )}
+      <CreateVendorDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </ModulePageShell>
   );
 }

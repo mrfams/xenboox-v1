@@ -28,6 +28,8 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { TabItem } from "@/components/module/module-page-shell.types";
+import { CreatePayrollRunDialog } from "@/components/dashboard/create-payroll-run-dialog";
+import { CreateEmployeeDialog } from "@/components/dashboard/create-employee-dialog";
 import {
   ModulePanel,
   ModulePanelEmpty,
@@ -1055,6 +1057,8 @@ export default function PayrollPage() {
   const [pageSize] = useState(10);
 
   const [activeTab, setActiveTab] = useState("Overview");
+  const [showRun, setShowRun] = useState(false);
+  const [showEmployee, setShowEmployee] = useState(false);
 
   const { data: overview } = trpc.payroll.getOverview.useQuery({});
 
@@ -1152,6 +1156,15 @@ export default function PayrollPage() {
           <ModulePanel
             title="Employees"
             description="Your payroll register with gross, deductions and net pay."
+            action={
+              <button
+                onClick={() => setShowEmployee(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Employee
+              </button>
+            }
           >
             <EmployeeTable
               employees={employeesData?.employees ?? []}
@@ -1415,7 +1428,10 @@ export default function PayrollPage() {
 
   const actions = (
     <>
-      <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+      <button
+        onClick={() => setShowRun(true)}
+        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+      >
         <Plus className="h-4 w-4" />
         Run Payroll
       </button>
@@ -1445,6 +1461,14 @@ export default function PayrollPage() {
       pagination={pagination}
     >
       {renderPanel()}
+      <CreatePayrollRunDialog
+        open={showRun}
+        onClose={() => setShowRun(false)}
+      />
+      <CreateEmployeeDialog
+        open={showEmployee}
+        onClose={() => setShowEmployee(false)}
+      />
     </ModulePageShell>
   );
 }
