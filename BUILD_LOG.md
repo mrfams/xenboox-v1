@@ -6,6 +6,26 @@
 
 ---
 
+### [2026-08-09] — Dashboard sidebar: "Continue conversation" opens a past chat thread inline instead of navigating to /chat
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** 2 (`apps/web/lib/hooks/use-dashboard-chat.ts`, `apps/web/app/dashboard/page.tsx`) + 1 test created (`apps/web/__tests__/use-dashboard-chat.test.ts`) + `BUILD_LOG.md`
+
+**Request:** Show a "continue conversation" shortcut on the dashboard sidebar's Recent Conversations that opens a past dashboard chat thread inline instead of navigating to /chat.
+
+**What was built:**
+
+- **`useDashboardChat.loadConversation(id, title)`:** fetches the persisted thread via `chat.getMessages` (entity-scoped), maps each row through the new pure `mapHistoryRowToMessage` helper (role user/assistant, `failed`→`error`, confidence/durationMs, documents rehydrated from message metadata via `parseChatArtifacts` so the inline viewer can open them again), sets the conversation id/title, activates the inline chat screen, and points follow-ups at the same conversation — the stream route reuses a provided `conversationId`, so the thread keeps growing inline.
+- **Sidebar UI:** each Recent Conversations item is now a button that reveals a "Continue →" affordance on hover (replacing the timestamp inline, no layout shift) and calls the new `onContinueConversation` callback. Wired from `DashboardPage` straight into the existing inline chat screen — no navigation.
+- **Reliability:** a stale-response guard ignores a slower fetch if the user clicks two different conversations in quick succession; a failed load keeps the dashboard overview instead of leaving a blank chat screen.
+- **Tests:** 6 for the pure mapper (roles, failed→error, null content, document rehydration from metadata, malformed metadata).
+
+**Verification:** `pnpm typecheck` ✓ · lint clean on changed files ✓ · full web suite 42 files / 449 passed, 1 skipped ✓ · `pnpm build` (Next.js production) ✓ · code review applied (blank-screen-on-failure, hover layout shift, async race guard).
+
+**Next Steps:** Optional: also surface Continue affordances in the inbox page's Recent Conversations list; invalidate sidebar data after "New chat" without needing to exit.
+
+---
+
 ### [2026-08-09] — Header dropdown stacking fix: notifications / avatar / command bar / entity switcher now render above module content
 
 **Agent:** Buffy (Autonomous Engineer)

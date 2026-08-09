@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { trpc } from "@/lib/trpc/client";
+import { parseChatArtifacts } from "@/lib/chat/artifact-types";
 import {
   useStreamingChat,
   type AgentActivityEvent,
@@ -32,6 +33,49 @@ interface UseDashboardChatOptions {
   entityId: string | null;
 }
 
+// ─── Pure mapping (exported for tests) ─────────────────────────────────────
+
+/**
+ * Maps a persisted chat message row into the dashboard's in-memory message
+ * shape. Historical rows carry no live agent-activity/delegation/approval
+ * events, so those arrays start empty; generated documents are rehydrated
+ * from the message metadata so the inline viewer can open them again.
+ */
+export function mapHistoryRowToMessage(row: {
+  id: string;
+  role: string;
+  content: string | null;
+  status: string;
+  confidence: number | null;
+  latencyMs: number | null;
+  metadata?: unknown;
+  createdAt: Date | string;
+}): DashboardChatMessage {
+  return {
+    id: row.id,
+    role: row.role === "user" ? "user" : "assistant",
+    content: row.content ?? "",
+    status: row.status === "failed" ? "error" : "completed",
+    activities: [],
+    delegations: [],
+    documents: parseChatArtifacts(row.metadata).map(
+      (a): DocumentCreatedEvent => ({
+        type: "document_created",
+        artifactId: a.artifactId,
+        name: a.name,
+        docType: a.docType,
+        mimeType: a.mimeType ?? "application/octet-stream",
+        sizeBytes: a.sizeBytes,
+        url: a.url,
+      }),
+    ),
+    approvals: [],
+    confidence: row.confidence ?? undefined,
+    durationMs: row.latencyMs ?? undefined,
+    createdAt: new Date(row.createdAt).getTime(),
+  };
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────
 
 /**
@@ -50,6 +94,9 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     null,
   );
   const [isChatActive, setIsChatActive] = useState(false);
+  // Guards against a stale response overwriting a newer load when the user
+  // clicks two different conversations in quick succession.
+  const loadRequestRef = useRef(0);
 
   // Refs mirror the streaming-session state so a completed message can be
   // committed with a snapshot of everything that happened while it streamed.
@@ -177,6 +224,39 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     setMessages([]);
   }, [clearActivityRefs]);
 
+  /**
+   * Resume a past conversation inline on the dashboard. Loads the persisted
+   * thread from the chat router, swaps the overview for the chat screen, and
+   * points follow-ups at the same conversation so the thread keeps growing
+   * here instead of forcing a jump to /dashboard/chat.
+   */
+  const loadConversation = useCallback(
+    async (conversationId: string, title?: string | null) => {
+      if (!entityId) return;
+      const requestId = ++loadRequestRef.current;
+      try {
+        const rows =
+          (await utils.chat.getMessages.fetch({ conversationId })) ?? [];
+        // A newer click may have superseded this one while we were fetching.
+        if (requestId !== loadRequestRef.current) return;
+        const history: DashboardChatMessage[] = rows.map(
+          mapHistoryRowToMessage,
+        );
+
+        conversationIdRef.current = conversationId;
+        setConversationId(conversationId);
+        setConversationTitle(title ?? null);
+        setMessages(history);
+        setIsChatActive(true);
+      } catch {
+        // The sidebar list already came from the dashboard router, so a
+        // failure here is unexpected — keep the overview rather than leave a
+        // blank chat screen.
+      }
+    },
+    [entityId, utils],
+  );
+
   const exitChat = useCallback(() => {
     if (isStreaming) cancelStream();
     newChat();
@@ -205,5 +285,6 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     sendMessage,
     newChat,
     exitChat,
+    loadConversation,
   };
 }

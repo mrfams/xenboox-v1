@@ -685,6 +685,7 @@ function DashboardRightSidebar({
   recentDocuments,
   recentConversations,
   suggestedActions,
+  onContinueConversation,
 }: {
   deadlines: Array<{
     id: string;
@@ -704,6 +705,10 @@ function DashboardRightSidebar({
     lastMessageAt: string | null;
   }>;
   suggestedActions: string[];
+  onContinueConversation?: (conversation: {
+    id: string;
+    title: string | null;
+  }) => void;
 }) {
   function formatDocTime(date: string | null): string {
     if (!date) return "";
@@ -807,20 +812,27 @@ function DashboardRightSidebar({
             </p>
           ) : (
             recentConversations.map((c) => (
-              <div
+              <button
                 key={c.id}
-                className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
+                type="button"
+                onClick={() => onContinueConversation?.(c)}
+                title="Continue this conversation"
+                className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-accent/50 cursor-pointer transition-colors"
               >
-                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-foreground truncate">
                     {c.title ?? "Untitled conversation"}
                   </p>
                 </div>
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap group-hover:hidden">
                   {formatDocTime(c.lastMessageAt)}
                 </span>
-              </div>
+                <span className="hidden group-hover:inline-flex items-center gap-1 text-[10px] font-medium text-primary whitespace-nowrap">
+                  Continue
+                  <ChevronRight className="h-3 w-3" />
+                </span>
+              </button>
             ))
           )}
         </div>
@@ -935,6 +947,13 @@ export default function DashboardPage() {
     );
   }
 
+  const handleContinueConversation = (conversation: {
+    id: string;
+    title: string | null;
+  }) => {
+    void chat.loadConversation(conversation.id, conversation.title);
+  };
+
   const handleAskAI = (text: string) => {
     console.log("Ask AI about:", text);
   };
@@ -1032,6 +1051,7 @@ export default function DashboardPage() {
           recentDocuments={dashboardData?.recentDocuments ?? []}
           recentConversations={dashboardData?.recentConversations ?? []}
           suggestedActions={dashboardData?.suggestedActions ?? []}
+          onContinueConversation={handleContinueConversation}
         />
       </div>
     </div>
