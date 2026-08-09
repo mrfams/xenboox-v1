@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-09] — Header dropdown stacking fix: notifications / avatar / command bar / entity switcher now render above module content
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** 1 (`apps/web/components/layout/top-nav.tsx`) + `BUILD_LOG.md`
+
+**Request:** On dashboard pages, clicking the notification bell, avatar, search/command bar, or entity switcher in the header shows the dropdown below elements in the main content on some pages — it must always render over them.
+
+**What was built:**
+
+- **Root cause:** the dashboard `<header>` uses `backdrop-blur-sm`, which creates a CSS stacking context at `z-index: auto` (0). Every dropdown inside it (notifications, user menu, entity switcher, AI command bar — all `z-50`) was trapped inside that z-0 context, while module pages render `sticky top-0 z-20` chrome (ModulePageShell) and `z-30` floating buttons in the root context — so they painted above the header dropdowns.
+- **Fix:** added `relative z-[45]` to the header — lifting the whole header context above module content (`z-20`/`z-30`) and the mobile sidebar backdrop (`z-40`), while staying below the sidebar panel (`z-[49]`) and global overlays (`z-50` modals, Radix-portaled command dialog). One change covers all four header widgets.
+- **Bonus reliability fix:** the notifications dropdown's `fixed inset-0` click-away backdrop never actually covered the viewport (backdrop-filter makes the header the containing block for fixed descendants), so clicking main content couldn't dismiss it. Added a document-level `mousedown` outside-click handler (guarded by `notifRef.contains`), mirroring the existing user-menu handler.
+
+**Verification:** `pnpm typecheck` ✓ · lint clean on changed file ✓ · `entity-switcher` tests 4/4 ✓ · `pnpm build` (Next.js production) ✓ · code review applied ✓.
+
+**Next Steps:** Optional: portal the entity create/delete dialogs to `document.body` so they stack above the sidebar too; apply the same `z-index` treatment to the admin layout header if it ever hosts dropdowns.
+
+---
+
 ### [2026-08-09] — Manual "create" flows across all dashboard module pages (13 pages, 13 dialogs, 2 new mutations)
 
 **Agent:** Buffy (Autonomous Engineer)
