@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
@@ -12,7 +11,6 @@ import {
   AlertTriangle,
   Bot,
   Calendar,
-  CheckCircle2,
   ChevronRight,
   ArrowRight,
   Sparkles,
@@ -33,6 +31,8 @@ import { DashboardSkeleton } from "@/components/shared/skeletons";
 import { dashboardQueryOptions } from "@/lib/trpc/query-options";
 import { Button } from "@/components/ui";
 import { TextSelectionMenu } from "@/components/dashboard/text-selection-menu";
+import { DashboardChatScreen } from "@/components/dashboard/dashboard-chat-screen";
+import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import {
   PageEmptyState,
   getPageEmptyState,
@@ -133,89 +133,27 @@ function AIGreeting({ firstName }: { firstName?: string }) {
   );
 }
 
-// ─── AI Chat Input Component (Text Only) ──────────────────────────────────────
+// ─── AI Chat Input Component (Controlled) ───────────────────────────────────
 
-function AIChatInput() {
-  const router = useRouter();
-  const { entityId } = useEntity();
+function AIChatInput({
+  onSubmit,
+  isResponding,
+  isChatActive,
+  onExit,
+}: {
+  onSubmit: (value: string) => void;
+  isResponding: boolean;
+  isChatActive: boolean;
+  onExit: () => void;
+}) {
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [inlineResponse, setInlineResponse] = useState("");
-  const [isResponding, setIsResponding] = useState(false);
-  const [responseConversationId, setResponseConversationId] = useState<
-    string | null
-  >(null);
 
-  const utils = trpc.useUtils();
-
-  const handleInlineSubmit = async (value?: string) => {
+  const handleSubmit = (value?: string) => {
     const trimmed = (value ?? inputValue).trim();
-    if (!trimmed || isResponding || !entityId) return;
-
-    setIsResponding(true);
-    setInlineResponse("");
+    if (!trimmed || isResponding) return;
+    onSubmit(trimmed);
     setInputValue("");
-
-    try {
-      const response = await fetch("/api/chat/stream", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, entityId }),
-      });
-
-      if (!response.ok) throw new Error("Failed to send message");
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response body");
-
-      const decoder = new TextDecoder();
-      let fullResponse = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === "conversation") {
-                setResponseConversationId(data.conversationId);
-              } else if (data.type === "token" && data.content) {
-                fullResponse += data.content;
-                setInlineResponse(fullResponse);
-              } else if (data.type === "done") {
-                // Refresh conversation list
-                utils.chat.listConversations.invalidate();
-              }
-            } catch {
-              // Skip invalid JSON
-            }
-          }
-        }
-      }
-    } catch (_error) {
-      setInlineResponse("Sorry, I encountered an error. Please try again.");
-    } finally {
-      setIsResponding(false);
-    }
-  };
-
-  const handleGoToChat = () => {
-    if (responseConversationId) {
-      router.push(`/dashboard/chat?c=${responseConversationId}`);
-    }
-  };
-
-  const handleSubmit = (value: string) => {
-    setInputValue(value);
-    // Auto-submit on suggestion click. Pass the value explicitly: a closure
-    // created before the state flush would otherwise read the stale (empty)
-    // inputValue and drop the suggestion entirely.
-    setTimeout(() => handleInlineSubmit(value), 0);
   };
 
   const suggestions = [
@@ -259,43 +197,6 @@ function AIChatInput() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-3">
-      {/* Inline response area */}
-      {(inlineResponse || isResponding) && (
-        <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="h-3 w-3 text-primary" />
-            </div>
-            <span className="text-xs font-medium text-foreground">
-              Xenboox AI
-            </span>
-            {isResponding && !inlineResponse && (
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                <span className="text-[10px] text-primary">Thinking...</span>
-              </span>
-            )}
-          </div>
-          {inlineResponse && (
-            <div className="text-sm text-foreground leading-relaxed">
-              {inlineResponse}
-              {isResponding && (
-                <span className="inline-block w-0.5 h-3 bg-primary ml-0.5 animate-pulse" />
-              )}
-            </div>
-          )}
-          {responseConversationId && !isResponding && (
-            <button
-              type="button"
-              onClick={handleGoToChat}
-              className="text-xs text-primary hover:underline"
-            >
-              Open in chat →
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Suggestions */}
       <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
         {suggestions.map((suggestion) => {
@@ -352,16 +253,20 @@ function AIChatInput() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleInlineSubmit();
+                handleSubmit();
               }
             }}
-            placeholder="Ask anything about your accounting..."
+            placeholder={
+              isChatActive
+                ? "Follow up with Xenboox AI..."
+                : "Ask anything about your accounting..."
+            }
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
           />
           <Button
             type="button"
             size="icon"
-            onClick={() => handleInlineSubmit()}
+            onClick={() => handleSubmit()}
             disabled={!inputValue.trim() || isResponding}
             className={cn(
               "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
@@ -392,6 +297,21 @@ function AIChatInput() {
           </div>
         )}
       </div>
+
+      {/* Chat session indicator */}
+      {isChatActive && (
+        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
+          <MessageSquare className="h-3 w-3 text-primary" />
+          <span>In conversation with Xenboox AI</span>
+          <button
+            type="button"
+            onClick={onExit}
+            className="font-medium text-primary transition-colors hover:underline"
+          >
+            Exit chat
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -709,324 +629,6 @@ function BusinessHealth({
   );
 }
 
-// ─── AI Activity Feed Component ───────────────────────────────────────────
-
-function AgentActivityFeed({
-  activities,
-}: {
-  activities: Array<{
-    id: string;
-    action: string;
-    entityType: string;
-    createdAt: string | null;
-  }>;
-}) {
-  const colorMap: Record<string, { color: string; bgColor: string }> = {
-    document: { color: "text-primary", bgColor: "bg-primary/10" },
-    bank_account: { color: "text-emerald-500", bgColor: "bg-emerald-50" },
-    journal_entry: { color: "text-blue-500", bgColor: "bg-blue-50" },
-    invoice_ap: { color: "text-amber-500", bgColor: "bg-amber-50" },
-    invoice_ar: { color: "text-purple-500", bgColor: "bg-purple-50" },
-    default: { color: "text-primary", bgColor: "bg-primary/10" },
-  };
-
-  function formatTimeAgo(date: string | null): string {
-    if (!date) return "Unknown";
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    if (minutes < 1) return "Just now";
-    if (minutes < 60) return `${minutes} min ago`;
-    if (hours < 24) return `${hours} hr ago`;
-    return `${Math.floor(hours / 24)} days ago`;
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">
-          AI Activity Feed
-        </h2>
-        <span className="text-[10px] text-muted-foreground">
-          Live updates from your AI agents
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {activities.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            No recent activity
-          </p>
-        ) : (
-          activities.map((activity) => {
-            const colors = colorMap[activity.entityType] ?? colorMap.default;
-            return (
-              <div
-                key={activity.id}
-                className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-sm"
-              >
-                <div
-                  className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                    colors.bgColor,
-                  )}
-                >
-                  <Bot className={cn("h-4 w-4", colors.color)} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-foreground capitalize">
-                    {activity.entityType?.replace(/_/g, " ") ?? "Agent"}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {activity.action}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatTimeAgo(activity.createdAt)}
-                  </span>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
-                    Completed
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      <Link
-        href="/dashboard/agent-monitor"
-        className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
-      >
-        View all activity
-        <ChevronRight className="h-3 w-3" />
-      </Link>
-    </div>
-  );
-}
-
-// ─── Pending Approvals Component ──────────────────────────────────────────
-
-function PendingApprovals({
-  items,
-}: {
-  items: Array<{
-    id: string;
-    type: string;
-    title: string;
-    subtitle: string;
-    amount: string;
-    status: "pending" | "review";
-  }>;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">
-          Pending Approvals
-        </h2>
-        <span className="text-[10px] text-muted-foreground">
-          Your attention is required
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {items.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            No pending approvals
-          </p>
-        ) : (
-          items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-sm"
-            >
-              <div
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                  item.status === "pending"
-                    ? "bg-balanced-green-bg"
-                    : item.type === "agent_escalation"
-                      ? "bg-primary/10"
-                      : "bg-attention-amber-bg",
-                )}
-              >
-                {item.status === "pending" ? (
-                  <CheckCircle2 className="h-4 w-4 text-balanced-green" />
-                ) : item.type === "agent_escalation" ? (
-                  <Bot className="h-4 w-4 text-primary" />
-                ) : (
-                  <AlertTriangle className="h-4 w-4 text-attention-amber" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {item.title}
-                </p>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {item.subtitle}
-                </p>
-              </div>
-              {item.amount !== "—" && (
-                <span className="text-xs font-bold tabular-nums text-foreground whitespace-nowrap">
-                  {item.amount}
-                </span>
-              )}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-border/50 bg-background px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent"
-                >
-                  Review
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <Link
-        href="/dashboard/inbox"
-        className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
-      >
-        View all approvals
-        <ChevronRight className="h-3 w-3" />
-      </Link>
-    </div>
-  );
-}
-
-// ─── Active Agents Component ──────────────────────────────────────────────
-
-function ActiveAgents({
-  activities,
-}: {
-  activities: Array<{
-    id: string;
-    action: string;
-    entityType: string;
-    createdAt: string | null;
-  }>;
-}) {
-  // Map activity entity types to agent display info
-  const agentDisplayMap: Record<string, { name: string; color: string }> = {
-    document: { name: "Document Agent", color: "from-primary to-blue-500" },
-    bank_account: {
-      name: "Treasury Agent",
-      color: "from-emerald-500 to-teal-500",
-    },
-    journal_entry: {
-      name: "Controller Agent",
-      color: "from-blue-500 to-indigo-500",
-    },
-    invoice_ap: { name: "AP Agent", color: "from-amber-500 to-orange-500" },
-    invoice_ar: {
-      name: "AR Agent",
-      color: "from-purple-500 to-indigo-500",
-    },
-  };
-
-  const defaultAgent = { name: "AI Agent", color: "from-sky-500 to-cyan-500" };
-
-  // Deduplicate by entityType and show most recent per type
-  const recentByType = new Map<string, (typeof activities)[0]>();
-  for (const activity of activities) {
-    const key = activity.entityType ?? "default";
-    if (!recentByType.has(key)) {
-      recentByType.set(key, activity);
-    }
-  }
-
-  const agentItems = Array.from(recentByType.entries())
-    .slice(0, 5)
-    .map(([type, activity]) => {
-      const display = agentDisplayMap[type] ?? defaultAgent;
-      return {
-        id: activity.id,
-        name: display.name,
-        detail: activity.action,
-        color: display.color,
-        createdAt: activity.createdAt,
-      };
-    });
-
-  function formatTimeAgo(date: string | null): string {
-    if (!date) return "";
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    if (minutes < 1) return "Just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">
-          Recent Agent Activity
-        </h2>
-        <span className="text-[10px] text-muted-foreground">
-          {agentItems.length} agents active today
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {agentItems.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            No recent agent activity
-          </p>
-        ) : (
-          agentItems.map((agent) => (
-            <div
-              key={agent.id}
-              className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-sm"
-            >
-              <div
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white",
-                  agent.color,
-                )}
-              >
-                <Bot className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {agent.name}
-                </p>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {agent.detail}
-                </p>
-              </div>
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                {formatTimeAgo(agent.createdAt)}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
-
-      <Link
-        href="/dashboard/agent-monitor"
-        className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
-      >
-        View all agents
-        <ChevronRight className="h-3 w-3" />
-      </Link>
-    </div>
-  );
-}
-
 // ─── Collapsible Section Component ─────────────────────────────────────────
 
 function CollapsibleSection({
@@ -1263,6 +865,9 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(" ")[0];
 
+  // Inline AI chat session — activates a full chat screen when messaging.
+  const chat = useDashboardChat({ entityId });
+
   // Fetch dashboard data with optimized caching
   const { data: dashboardData, isLoading } =
     trpc.dashboard.getDashboardData.useQuery(undefined, {
@@ -1351,50 +956,71 @@ export default function DashboardPage() {
       />
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          <div className="space-y-6 px-6 pt-6">
-            {/* Row 1: Greeting */}
-            <AIGreeting firstName={firstName} />
-
-            {/* Row 2: Executive Briefing */}
-            <ExecutiveBriefing items={dashboardData?.briefingItems ?? []} />
-
-            {/* Row 3: Business Health KPI Cards */}
-            <BusinessHealth
-              data={
-                dashboardData?.businessHealth ?? {
-                  cashBalance: 0,
-                  revenue: 0,
-                  expenses: 0,
-                  profit: 0,
-                  arOutstanding: 0,
-                  apOutstanding: 0,
-                  cashChange: 0,
-                  revenueChange: 0,
-                  expensesChange: 0,
-                  profitChange: 0,
-                  arChange: 0,
-                  apChange: 0,
-                }
-              }
+        <div
+          className={cn(
+            "flex-1",
+            chat.isChatActive ? "overflow-hidden" : "overflow-y-auto",
+          )}
+        >
+          {chat.isChatActive ? (
+            <DashboardChatScreen
+              messages={chat.messages}
+              streamedContent={chat.streamedContent}
+              isStreaming={chat.isStreaming}
+              agentActivities={chat.agentActivities}
+              delegations={chat.delegations}
+              documents={chat.documents}
+              approvals={chat.approvals}
+              conversationId={chat.conversationId}
+              onExit={chat.exitChat}
+              onNewChat={chat.newChat}
             />
+          ) : (
+            <div className="space-y-6 px-6 pt-6">
+              {/* Row 1: Greeting */}
+              <AIGreeting firstName={firstName} />
 
-            {/* Row 4: Activity Feed | Pending Approvals | Active Agents */}
-            {/*
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              <AgentActivityFeed
-                activities={dashboardData?.agentActivity ?? []}
+              {/* Row 2: Executive Briefing */}
+              <ExecutiveBriefing items={dashboardData?.briefingItems ?? []} />
+
+              {/* Row 3: Business Health KPI Cards */}
+              <BusinessHealth
+                data={
+                  dashboardData?.businessHealth ?? {
+                    cashBalance: 0,
+                    revenue: 0,
+                    expenses: 0,
+                    profit: 0,
+                    arOutstanding: 0,
+                    apOutstanding: 0,
+                    cashChange: 0,
+                    revenueChange: 0,
+                    expensesChange: 0,
+                    profitChange: 0,
+                    arChange: 0,
+                    apChange: 0,
+                  }
+                }
               />
-              <PendingApprovals items={dashboardData?.pendingApprovals ?? []} />
-              <ActiveAgents activities={dashboardData?.agentActivity ?? []} />
             </div>
-            */}
-          </div>
+          )}
         </div>
 
         {/* Pinned AI Command Bar */}
-        <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4 flex-shrink-0">
-          <AIChatInput />
+        <div
+          className={cn(
+            "border-t p-4 flex-shrink-0",
+            chat.isChatActive
+              ? "border-primary/20 bg-background"
+              : "border-border/50 bg-background/80 backdrop-blur-sm",
+          )}
+        >
+          <AIChatInput
+            onSubmit={chat.sendMessage}
+            isResponding={chat.isStreaming}
+            isChatActive={chat.isChatActive}
+            onExit={chat.exitChat}
+          />
         </div>
       </div>
 

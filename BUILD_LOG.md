@@ -6,6 +6,32 @@
 
 ---
 
+### [2026-08-09] — Dashboard inline chat screen: messaging swaps the overview cards for a full-screen conversation with exit
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** 3 (`apps/web/lib/hooks/use-dashboard-chat.ts`, `apps/web/components/dashboard/dashboard-chat-screen.tsx`, `apps/web/__tests__/dashboard-chat-screen.test.tsx`)
+**Files Modified:** 1 (`apps/web/app/dashboard/page.tsx`) + `BUILD_LOG.md`
+
+**Request:** On `/dashboard`, when a user messages, the section above the input + suggestions should become a full chat screen instead of the cards/greeting — with an exit so the user can return to the normal start view. Must be dynamic and professional. Execute /autoplan (gstack binaries absent → CEO → Design → Eng pipeline run in-context per precedent), then typecheck, build, commit, push.
+
+**What was built:**
+
+- **`useDashboardChat` hook** — owns the inline chat session: message history (single source of truth), conversationId for follow-ups, isChatActive flag, streaming wiring via the existing `useStreamingChat` hook (reused — DRY), activity/delegation/document/approval event snapshots committed with each completed assistant message, error-message commit, new-chat/exit lifecycle, dashboard + conversation-list invalidation on exit, unmount abort cleanup.
+- **`DashboardChatScreen` component** — full-height chat UI replacing the cards: glass header (AI identity, live Online/Working status, conversation title from the first user message, New chat + Back to dashboard buttons), scrollable message list (user bubbles right/primary, assistant messages via the existing `StreamingMessage` — agent activity blocks, confidence, docs, approvals — error bubbles in clay), in-flight streaming indicator with typing dots, empty state after New chat, footer with conversation-saved hint, `role="log"`/`aria-live="polite"` for screen readers, fade-in-up entrance animation.
+- **`page.tsx` refactor** — `AIChatInput` became controlled (onSubmit/isResponding/isChatActive/onExit props); the page swaps the Greeting + Executive Briefing + Business Health cards for the chat screen when `chat.isChatActive`; pinned command bar gets a primary-tinted border + "In conversation with Xenboox AI · Exit chat" indicator while active. Follow-up messages reuse the same conversation. Removed the 3 now-fully-dead components (`AgentActivityFeed`, `PendingApprovals`, `ActiveAgents`) that were only referenced by a deleted comment block — this cleared the pre-existing lint warnings in the file.
+
+**Verification:**
+
+- `pnpm typecheck` (web) ✓ · `npx next lint` on changed files — **zero warnings or errors** ✓
+- `pnpm vitest run` — 33 files / 384 passed, 1 skipped ✓ (new `dashboard-chat-screen.test.tsx` 7/7: message rendering, conversation title, exit/new-chat callbacks, typing indicator, empty state, error bubble)
+- `pnpm build` (web) ✓ — Next.js production build compiles clean.
+
+**Review hardening applied (code-reviewer pass):** `onError` stabilized via `useCallback` (no identity churn), unmount abort cleanup added, dead `cancelStream` export dropped, dead `sticky` on chat header removed, `aria-live` region added, dead components removed.
+
+**Next Steps:** Optional: server-side `request.signal` handling in `/api/chat/stream` so a client abort mid-stream deterministically marks the pending assistant row failed (currently gets a terminal status via the disconnect throw — acceptable).
+
+---
+
 ### [2026-08-09] — Every dashboard tab works: banking/payroll/reports view-tab panels + filter-tab correctness fixes, shipped to production grade
 
 **Agent:** Buffy (Autonomous Engineer)
