@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
+  Compass,
   MessageSquare,
   Wallet,
   Receipt,
@@ -49,6 +50,12 @@ type ApprovalCounts = {
 
 const primaryNavItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  {
+    label: "Explore",
+    href: "/dashboard/explore",
+    icon: Compass,
+    match: ["/dashboard/explore"],
+  },
   {
     label: "AI Command Center",
     href: "/dashboard/chat",

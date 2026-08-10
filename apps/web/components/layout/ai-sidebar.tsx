@@ -15,6 +15,7 @@ import { useSession } from "next-auth/react";
 // import { useEffect, useState } from "react";
 import {
   Home,
+  Compass,
   Sparkles,
   Inbox,
   DollarSign,
@@ -43,6 +44,12 @@ type NavItem = {
 
 const primaryNavItems: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: Home },
+  {
+    label: "Explore",
+    href: "/dashboard/explore",
+    icon: Compass,
+    match: ["/dashboard/explore"],
+  },
   {
     label: "Ask Xenboox",
     href: "/dashboard/chat",
