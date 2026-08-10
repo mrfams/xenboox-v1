@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, asc, lte, ilike, or, ne } from "drizzle-orm";
+import { eq, and, desc, asc, lte, ilike, or, ne, sql } from "drizzle-orm";
 import {
   handleMutationError,
   router,
@@ -284,13 +284,15 @@ export const chatRouter = router({
           status: "completed",
         });
 
-        // Update conversation timestamp
+        // Update conversation timestamp. The count is bumped atomically in
+        // SQL — read-modify-write here would lose increments when two tabs
+        // send to the same thread concurrently.
         await db
           .update(conversations)
           .set({
             lastMessageAt: new Date(),
             updatedAt: new Date(),
-            messageCount: (conversation.messageCount ?? 0) + 1,
+            messageCount: sql`coalesce(${conversations.messageCount}, 0) + 1`,
             title:
               conversation.title ?? generateConversationTitle(input.message),
           })
@@ -339,12 +341,13 @@ export const chatRouter = router({
           })
           .returning();
 
-        // Update conversation timestamp again
+        // Update conversation timestamp again. +1 here on top of the +1 above
+        // keeps the total +2 per exchange while both writes stay atomic.
         await db
           .update(conversations)
           .set({
             lastMessageAt: new Date(),
-            messageCount: (conversation.messageCount ?? 0) + 2,
+            messageCount: sql`coalesce(${conversations.messageCount}, 0) + 1`,
           })
           .where(eq(conversations.id, input.conversationId));
 
@@ -698,11 +701,12 @@ export const chatRouter = router({
         .where(eq(chatMessages.id, input.messageId))
         .returning();
 
-      // Update conversation message count
+      // Update conversation message count — atomic SQL decrement with a
+      // zero floor, so concurrent deletes can't undercount either.
       await db
         .update(conversations)
         .set({
-          messageCount: Math.max(0, (conversation.messageCount ?? 1) - 1),
+          messageCount: sql`greatest(0, coalesce(${conversations.messageCount}, 0) - 1)`,
           updatedAt: new Date(),
         })
         .where(eq(conversations.id, input.conversationId));

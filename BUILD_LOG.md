@@ -6,6 +6,28 @@
 
 ---
 
+### [2026-08-10] — Harden `messageCount` increment against cross-tab races (atomic SQL increment)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** 3 (`apps/web/app/api/chat/stream/route.ts`, `apps/web/server/routers/chat.ts`, `apps/web/__tests__/chat-stream-route.test.ts`) + `BUILD_LOG.md`
+
+**Request:** Harden the messageCount increment against cross-tab races with a SQL increment instead of read-modify-write.
+
+**What was built:**
+
+- **`chat/stream/route.ts`:** the conversation metadata update now bumps `messageCount` with `sql\`coalesce(${conversations.messageCount}, 0) + 2\``— an atomic DB-side increment — instead of`(readValue ?? 0) + 2`computed in JS. Dropped the now-unneeded`messageCount`read from the pre-select (only`title` is fetched for the client-facing name). Two tabs streaming to the same thread can no longer lose an increment.
+- **`server/routers/chat.ts`:**
+  - `sendMessage` first update: atomic `+ 1`.
+  - `sendMessage` second update: changed from `+ 2` (recomputed from the stale pre-request read, overwriting the first update) to atomic `+ 1` — so the pair still totals `+2` per exchange while both writes are race-free.
+  - `deleteMessage`: atomic decrement `sql\`greatest(0, coalesce(${conversations.messageCount}, 0) - 1)\``, preserving the zero floor.
+- **Test:** `chat-stream-route.test.ts` now asserts the atomic increment by flattening the Drizzle SQL expression chunks (helper `sqlText`) rather than asserting a JS-computed number, and drains the response stream up front so a failed assertion can't leave a pending stream running that pollutes later tests.
+
+**Verification:** `pnpm typecheck` ✓ · lint clean on changed files (only pre-existing warnings) ✓ · full web suite 42 files / 449 passed, 1 skipped ✓ · `pnpm build` (Next.js production) ✓ · code review applied (semantics of +1/+1 pair confirmed correct; no remaining read-modify-write on messageCount anywhere).
+
+**Next Steps:** Optional: a router-level unit test locking in the `sendMessage` +1/+1 and `deleteMessage` decrement semantics.
+
+---
+
 ### [2026-08-09] — Dashboard sidebar: "Continue conversation" opens a past chat thread inline instead of navigating to /chat
 
 **Agent:** Buffy (Autonomous Engineer)

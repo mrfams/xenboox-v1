@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { conversations, chatMessages } from "@xenboox/db/schema";
 import { processChatInput } from "@xenboox/agents";
@@ -133,7 +133,6 @@ export async function POST(req: NextRequest) {
   // — otherwise it sinks to the bottom of the panel with "0 messages".
   const [convRow] = await db
     .select({
-      messageCount: conversations.messageCount,
       title: conversations.title,
     })
     .from(conversations)
@@ -145,11 +144,15 @@ export async function POST(req: NextRequest) {
   // generated name from this message.
   const conversationTitle =
     convRow?.title ?? generateConversationTitle(message);
+
+  // Bump the message count with an atomic SQL increment rather than a
+  // read-modify-write: two tabs streaming to the same thread concurrently
+  // could otherwise both read the same count and lose an increment.
   await db
     .update(conversations)
     .set({
       lastMessageAt: new Date(),
-      messageCount: (convRow?.messageCount ?? 0) + 2,
+      messageCount: sql`coalesce(${conversations.messageCount}, 0) + 2`,
       updatedAt: new Date(),
     })
     .where(eq(conversations.id, convId));

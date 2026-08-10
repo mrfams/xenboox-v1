@@ -86,6 +86,21 @@ vi.mock("@/lib/db", () => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
+/**
+ * Flatten a Drizzle SQL expression object into its text. The hardening makes
+ * messageCount an atomic `+ 2` in SQL instead of a JS-computed value, so we
+ * assert on the expression fragments rather than a number. Drizzle SQL
+ * objects are composed of chunks (StringChunk.value: string[]); flattening
+ * them yields the expression text without needing a real driver.
+ */
+type SqlChunk = { value?: string[] };
+
+function sqlText(expr: unknown): string {
+  const chunks = (expr as { queryChunks?: SqlChunk[] })?.queryChunks;
+  if (!chunks) return String(expr);
+  return chunks.map((c) => c.value?.join("") ?? "").join(" ");
+}
+
 function makeRequest(
   overrides: {
     message?: string;
@@ -120,6 +135,13 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     const res = await POST(makeRequest());
     expect(res.status).toBe(200);
 
+    // Drain the stream up front: the assistant message is finalized inside
+    // it, and draining before asserting keeps a failed assertion from
+    // leaving a pending stream running that would pollute later tests. The
+    // response streams word-by-word as token events, so assertions below use
+    // the events rather than the contiguous sentence.
+    const body = await res.text();
+
     // New conversation inserted, then user + assistant messages.
     expect(db.insert).toHaveBeenCalledTimes(3);
 
@@ -129,12 +151,15 @@ describe("POST /api/chat/stream — conversation persistence", () => {
       title: "Xenboox",
     });
 
-    // Conversations row updated: timestamp set, count = 0 + 2.
+    // Conversations row updated: timestamp set, count bumped by an atomic
+    // SQL increment (+2) — not a JS-computed read-modify-write — so two
+    // tabs streaming to the same thread can't lose an increment.
     const conversationSet = mocks.setSpies[0]?.mock.calls[0]?.[0];
     expect(conversationSet).toMatchObject({
       lastMessageAt: expect.any(Date),
-      messageCount: 2,
     });
+    expect(sqlText(conversationSet.messageCount)).toContain("coalesce");
+    expect(sqlText(conversationSet.messageCount)).toContain("+ 2");
 
     // Pipeline invoked for the right conversation.
     expect(processChatInput).toHaveBeenCalledWith(
@@ -145,10 +170,6 @@ describe("POST /api/chat/stream — conversation persistence", () => {
       }),
     );
 
-    // Drain the stream — the assistant message is finalized inside it. The
-    // response streams word-by-word as token events, so assert on the events
-    // rather than the contiguous sentence.
-    const body = await res.text();
     expect(body).toContain('"type":"conversation"');
     expect(body).toContain('"type":"done"');
     expect(body).toContain('"type":"token"');
@@ -192,6 +213,9 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     );
     expect(res.status).toBe(200);
 
+    // Drain up front (see the first test for why).
+    await res.text();
+
     // No new conversation row — only user + assistant messages.
     expect(db.insert).toHaveBeenCalledTimes(2);
     expect(processChatInput).toHaveBeenCalledWith(
@@ -200,11 +224,13 @@ describe("POST /api/chat/stream — conversation persistence", () => {
 
     const conversationSet = mocks.setSpies[0]?.mock.calls[0]?.[0];
     expect(conversationSet).toMatchObject({
-      messageCount: 6, // 4 existing + 2 new
       lastMessageAt: expect.any(Date),
     });
-
-    await res.text(); // drain the stream
+    // The increment is the same unconditional atomic `+ 2` regardless of the
+    // existing count — it no longer depends on a client-side read (previously
+    // this computed `4 + 2` in JS, which is exactly the race being hardened).
+    expect(sqlText(conversationSet.messageCount)).toContain("+ 2");
+    expect(sqlText(conversationSet.messageCount)).not.toContain("4");
   });
 
   it("emits document_created events and persists artifact refs when a document is generated", async () => {
