@@ -99,6 +99,7 @@ function buildSummaryCards(summary: {
 function DocumentsTable({
   documents,
   isLoading,
+  onViewDocument,
 }: {
   documents: Array<{
     id: string;
@@ -111,6 +112,8 @@ function DocumentsTable({
     linkedTo?: string;
   }>;
   isLoading: boolean;
+  /** Opens the document (presigned URL) and records the per-user view. */
+  onViewDocument?: (documentId: string) => void;
 }) {
   const typeIcons: Record<string, typeof FileText> = {
     pdf: FileText,
@@ -171,6 +174,7 @@ function DocumentsTable({
             return (
               <tr
                 key={doc.id}
+                onClick={() => onViewDocument?.(doc.id)}
                 className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
               >
                 <td className="py-3 px-4">
@@ -222,13 +226,33 @@ function DocumentsTable({
                 </td>
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-1">
-                    <button className="p-1 hover:bg-slate-100 rounded">
+                    <button
+                      type="button"
+                      title="Open document"
+                      aria-label={`Open ${doc.name}`}
+                      onClick={(e) => {
+                        // Stop the row click from double-firing the handler.
+                        e.stopPropagation();
+                        onViewDocument?.(doc.id);
+                      }}
+                      className="p-1 hover:bg-slate-100 rounded transition-colors"
+                    >
                       <Eye className="h-4 w-4 text-slate-400" />
                     </button>
-                    <button className="p-1 hover:bg-slate-100 rounded">
+                    <button
+                      type="button"
+                      title="Download"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1 hover:bg-slate-100 rounded transition-colors"
+                    >
                       <Download className="h-4 w-4 text-slate-400" />
                     </button>
-                    <button className="p-1 hover:bg-slate-100 rounded">
+                    <button
+                      type="button"
+                      title="More options"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1 hover:bg-slate-100 rounded transition-colors"
+                    >
                       <MoreHorizontal className="h-4 w-4 text-slate-400" />
                     </button>
                   </div>
@@ -461,6 +485,27 @@ export default function DocumentsPage() {
     data: undefined,
   };
 
+  // Record a document view (clears the dashboard's "New" badge for this
+  // user) and open the file through a presigned URL.
+  const markViewed = trpc.document?.markDocumentViewed?.useMutation?.();
+  const downloadDoc = trpc.document?.download?.useMutation?.();
+
+  const handleOpenDocument = (documentId: string) => {
+    // Fire-and-forget: a failed view record must never block opening the file.
+    markViewed?.mutate({ documentId }, { onError: () => undefined });
+    downloadDoc?.mutate(
+      { id: documentId },
+      {
+        onSuccess: (res) => {
+          if (res?.downloadUrl) {
+            window.open(res.downloadUrl, "_blank", "noopener,noreferrer");
+          }
+        },
+        onError: () => undefined,
+      },
+    );
+  };
+
   const tabs = [
     { key: "all" as TabFilter, label: "All Documents" },
     { key: "invoices" as TabFilter, label: "Invoices" },
@@ -568,6 +613,7 @@ export default function DocumentsPage() {
               size: doc.sizeBytes ?? 0,
             }))}
             isLoading={documentsLoading}
+            onViewDocument={handleOpenDocument}
           />
         </div>
       </div>
