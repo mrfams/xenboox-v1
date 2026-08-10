@@ -24,10 +24,13 @@ import {
   Trash2,
   ArrowUpRight,
   ArrowDownLeft,
+  Eye,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { DocumentUploadButton } from "@/components/module/document-upload-button";
 import {
   realtimeQueryOptions,
   analyticsQueryOptions,
@@ -213,9 +216,15 @@ function BankAccountsTable({
                   </span>
                 </td>
                 <td className="py-3 px-4">
-                  <button className="p-1 hover:bg-slate-100 rounded">
-                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                  </button>
+                  <RowActionsMenu
+                    items={[
+                      {
+                        label: "View details",
+                        icon: <Eye className="h-3.5 w-3.5" />,
+                        onSelect: () => onSelect(account.id),
+                      },
+                    ]}
+                  />
                 </td>
               </tr>
             );
@@ -1233,9 +1242,9 @@ function AiCopilotPanel({
             <button className="text-slate-400 hover:text-slate-600">
               <RefreshCw className="h-4 w-4" />
             </button>
-            <button className="text-slate-400 hover:text-slate-600">
-              <MoreHorizontal className="h-5 w-5" />
-            </button>
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+              Live
+            </span>
           </div>
         </div>
       </div>
@@ -1828,13 +1837,11 @@ export default function BankingPage() {
         <Plus className="h-4 w-4" />
         Add Account
       </button>
-      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-        <Download className="h-4 w-4" />
-        Import Statement
-      </button>
-      <button className="rounded-lg border border-slate-200 bg-white p-2 hover:bg-slate-50">
-        <MoreHorizontal className="h-4 w-4 text-slate-600" />
-      </button>
+      <DocumentUploadButton
+        docType="bank_statement"
+        label="Import Statement"
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      />
     </>
   );
 

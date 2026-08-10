@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -16,6 +16,9 @@ import {
   Sparkles,
   Clock,
   Filter,
+  Eye,
+  Check,
+  Ban,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -23,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { TabItem } from "@/components/module/module-page-shell.types";
 import { CreateTransactionDialog } from "@/components/dashboard/create-transaction-dialog";
+import { RowActionsMenu } from "@/components/module/row-actions-menu";
 
 type TabFilter =
   | "all"
@@ -38,6 +42,8 @@ function TransactionTable({
   transactions,
   selectedId,
   onSelect,
+  onApprove,
+  onReject,
   isLoading,
 }: {
   transactions: Array<{
@@ -60,6 +66,8 @@ function TransactionTable({
   }>;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
   isLoading: boolean;
 }) {
   const statusColors: Record<string, string> = {
@@ -252,9 +260,28 @@ function TransactionTable({
                 </span>
               </td>
               <td className="py-3 px-4">
-                <button className="p-1 hover:bg-slate-100 rounded">
-                  <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                </button>
+                <RowActionsMenu
+                  items={[
+                    {
+                      label: "View details",
+                      icon: <Eye className="h-3.5 w-3.5" />,
+                      onSelect: () => onSelect(tx.id),
+                    },
+                    {
+                      label: "Approve",
+                      icon: <Check className="h-3.5 w-3.5" />,
+                      disabled: tx.status === "matched",
+                      onSelect: () => onApprove(tx.id),
+                    },
+                    {
+                      label: "Reject",
+                      icon: <Ban className="h-3.5 w-3.5" />,
+                      destructive: true,
+                      disabled: tx.status === "excluded",
+                      onSelect: () => onReject(tx.id),
+                    },
+                  ]}
+                />
               </td>
             </tr>
           ))}
@@ -693,6 +720,9 @@ function TransactionDetailPanel({
 export default function TransactionsPage() {
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [accountFilter, setAccountFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("this_month");
   const [selectedTransactionId, setSelectedTransactionId] = useState<
     string | null
   >(null);
@@ -700,12 +730,37 @@ export default function TransactionsPage() {
   const [pageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
 
+  // Map the date filter select to real start/end dates.
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    switch (dateFilter) {
+      case "today": {
+        return { startDate: iso(now), endDate: iso(now) };
+      }
+      case "this_week": {
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay());
+        return { startDate: iso(start), endDate: iso(now) };
+      }
+      case "this_month":
+      default: {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { startDate: iso(start), endDate: iso(now) };
+      }
+    }
+  }, [dateFilter]);
+
   const { data: summary } = trpc.transactions.getSummary.useQuery({});
 
   const { data: transactionsData, isLoading: transactionsLoading } =
     trpc.transactions.listTransactions.useQuery({
       status: activeTab,
       search: searchQuery || undefined,
+      accountId: accountFilter || undefined,
+      type: typeFilter || undefined,
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -719,6 +774,36 @@ export default function TransactionsPage() {
   const { data: aiInsights } = trpc.transactions.getAiInsights.useQuery({});
 
   const { data: accounts } = trpc.transactions.getAccounts.useQuery();
+
+  const utils = trpc.useUtils();
+  const approveMutation = trpc.transactions.approveTransaction.useMutation();
+  const rejectMutation = trpc.transactions.rejectTransaction.useMutation();
+
+  const handleApprove = (transactionId: string) => {
+    approveMutation.mutate(
+      { transactionId },
+      {
+        onSuccess: () => {
+          utils.transactions.listTransactions.invalidate();
+          utils.transactions.getSummary.invalidate();
+        },
+        onError: () => undefined,
+      },
+    );
+  };
+
+  const handleReject = (transactionId: string) => {
+    rejectMutation.mutate(
+      { transactionId, reason: "Rejected from transactions list" },
+      {
+        onSuccess: () => {
+          utils.transactions.listTransactions.invalidate();
+          utils.transactions.getSummary.invalidate();
+        },
+        onError: () => undefined,
+      },
+    );
+  };
 
   // Real counts only — no hardcoded fallbacks. The summary router doesn't
   // expose an uncategorized count, so that tab carries no badge rather than
@@ -792,31 +877,64 @@ export default function TransactionsPage() {
           className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         />
       </div>
-      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <option>All accounts</option>
+      <select
+        value={accountFilter}
+        onChange={(e) => {
+          setAccountFilter(e.target.value);
+          setPage(1);
+        }}
+        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      >
+        <option value="">All accounts</option>
         {accounts?.map((acc) => (
           <option key={acc.id} value={acc.id}>
             {acc.name}
           </option>
         ))}
       </select>
-      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <option>All types</option>
-        <option>Deposit</option>
-        <option>Withdrawal</option>
-        <option>Transfer</option>
+      <select
+        value={typeFilter}
+        onChange={(e) => {
+          setTypeFilter(e.target.value);
+          setPage(1);
+        }}
+        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      >
+        <option value="">All types</option>
+        <option value="deposit">Deposit</option>
+        <option value="withdrawal">Withdrawal</option>
+        <option value="transfer">Transfer</option>
       </select>
-      <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <option>All dates</option>
-        <option>Today</option>
-        <option>This week</option>
-        <option>This month</option>
-        <option>Custom range</option>
+      <select
+        value={dateFilter}
+        onChange={(e) => {
+          setDateFilter(e.target.value);
+          setPage(1);
+        }}
+        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      >
+        <option value="this_month">This month</option>
+        <option value="today">Today</option>
+        <option value="this_week">This week</option>
       </select>
-      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-        <Filter className="h-4 w-4" />
-        More filters
-      </button>
+      {dateFilter === "today" && (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
+          <Filter className="h-3 w-3" />
+          {accountFilter || typeFilter ? "Filtered" : "Today"}
+        </span>
+      )}
+      {(accountFilter || typeFilter) && (
+        <button
+          onClick={() => {
+            setAccountFilter("");
+            setTypeFilter("");
+            setPage(1);
+          }}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+        >
+          Clear filters
+        </button>
+      )}
     </div>
   );
 
@@ -935,6 +1053,8 @@ export default function TransactionsPage() {
         transactions={transactionsData?.transactions ?? []}
         selectedId={selectedTransactionId}
         onSelect={setSelectedTransactionId}
+        onApprove={handleApprove}
+        onReject={handleReject}
         isLoading={transactionsLoading}
       />
       <CreateTransactionDialog

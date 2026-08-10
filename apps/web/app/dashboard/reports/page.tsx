@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  Download,
   CheckCircle2,
   AlertTriangle,
   Bot,
@@ -10,8 +9,6 @@ import {
   FileText,
   BarChart3,
   PieChart,
-  Share2,
-  MoreHorizontal,
   Send,
   Network,
   Settings,
@@ -1248,19 +1245,7 @@ function RecentReports({
                   {report.format}
                 </span>
               </td>
-              <td className="py-3">
-                <div className="flex items-center gap-2">
-                  <button className="p-1 hover:bg-slate-100 rounded">
-                    <Download className="h-4 w-4 text-slate-400" />
-                  </button>
-                  <button className="p-1 hover:bg-slate-100 rounded">
-                    <Share2 className="h-4 w-4 text-slate-400" />
-                  </button>
-                  <button className="p-1 hover:bg-slate-100 rounded">
-                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                  </button>
-                </div>
-              </td>
+              <td className="py-3" />
             </tr>
           ))}
         </tbody>

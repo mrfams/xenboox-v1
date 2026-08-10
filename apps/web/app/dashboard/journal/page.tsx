@@ -10,7 +10,6 @@ import {
   Bot,
   TrendingUp,
   FileText,
-  MoreHorizontal,
   RefreshCw,
   Send,
   Plus,
@@ -242,11 +241,7 @@ function JournalTable({
                   )}
                 </div>
               </td>
-              <td className="py-3 px-4">
-                <button className="p-1 hover:bg-slate-100 rounded">
-                  <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                </button>
-              </td>
+              <td className="py-3 px-4" />
             </tr>
           ))}
         </tbody>

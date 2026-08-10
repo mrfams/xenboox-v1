@@ -18,12 +18,15 @@ import {
   Image,
   File,
   FileSpreadsheet,
+  Trash2,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { DocumentUploadButton } from "@/components/module/document-upload-button";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -100,6 +103,8 @@ function DocumentsTable({
   documents,
   isLoading,
   onViewDocument,
+  onDownload,
+  onDelete,
 }: {
   documents: Array<{
     id: string;
@@ -114,6 +119,10 @@ function DocumentsTable({
   isLoading: boolean;
   /** Opens the document (presigned URL) and records the per-user view. */
   onViewDocument?: (documentId: string) => void;
+  /** Downloads the document without recording a view. */
+  onDownload?: (documentId: string) => void;
+  /** Deletes the document after confirmation. */
+  onDelete?: (documentId: string) => void;
 }) {
   const typeIcons: Record<string, typeof FileText> = {
     pdf: FileText,
@@ -242,19 +251,34 @@ function DocumentsTable({
                     <button
                       type="button"
                       title="Download"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDownload?.(doc.id);
+                      }}
                       className="p-1 hover:bg-slate-100 rounded transition-colors"
                     >
                       <Download className="h-4 w-4 text-slate-400" />
                     </button>
-                    <button
-                      type="button"
-                      title="More options"
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-1 hover:bg-slate-100 rounded transition-colors"
-                    >
-                      <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                    </button>
+                    <RowActionsMenu
+                      items={[
+                        {
+                          label: "Open document",
+                          icon: <Eye className="h-3.5 w-3.5" />,
+                          onSelect: () => onViewDocument?.(doc.id),
+                        },
+                        {
+                          label: "Download",
+                          icon: <Download className="h-3.5 w-3.5" />,
+                          onSelect: () => onDownload?.(doc.id),
+                        },
+                        {
+                          label: "Delete",
+                          icon: <Trash2 className="h-3.5 w-3.5" />,
+                          destructive: true,
+                          onSelect: () => onDelete?.(doc.id),
+                        },
+                      ]}
+                    />
                   </div>
                 </td>
               </tr>
@@ -305,9 +329,9 @@ function AiCopilotPanel({
               </span>
             </div>
           </div>
-          <button className="text-slate-400 hover:text-slate-600">
-            <MoreHorizontal className="h-5 w-5" />
-          </button>
+          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            Live
+          </span>
         </div>
       </div>
 
@@ -489,6 +513,8 @@ export default function DocumentsPage() {
   // user) and open the file through a presigned URL.
   const markViewed = trpc.document?.markDocumentViewed?.useMutation?.();
   const downloadDoc = trpc.document?.download?.useMutation?.();
+  const deleteDoc = trpc.document?.delete?.useMutation?.();
+  const utils = trpc.useUtils();
 
   const handleOpenDocument = (documentId: string) => {
     // Fire-and-forget: a failed view record must never block opening the file.
@@ -504,6 +530,67 @@ export default function DocumentsPage() {
         onError: () => undefined,
       },
     );
+  };
+
+  const handleDownloadDocument = (documentId: string) => {
+    downloadDoc?.mutate(
+      { id: documentId },
+      {
+        onSuccess: (res) => {
+          if (res?.downloadUrl) {
+            window.open(res.downloadUrl, "_blank", "noopener,noreferrer");
+          }
+        },
+        onError: () => undefined,
+      },
+    );
+  };
+
+  const handleDeleteDocument = (documentId: string) => {
+    deleteDoc?.mutate(
+      { id: documentId },
+      {
+        onSuccess: () => {
+          utils.document?.listDocuments?.invalidate?.();
+          utils.document?.getOverview?.invalidate?.();
+        },
+        onError: () => undefined,
+      },
+    );
+  };
+
+  const handleExport = () => {
+    const rows = documentsData ?? [];
+    const header = [
+      "Name",
+      "Type",
+      "Uploaded By",
+      "Uploaded At",
+      "Size (MB)",
+      "Status",
+    ];
+    const csv = [
+      header.join(","),
+      ...rows.map((doc) =>
+        [
+          `"${doc.name.replace(/"/g, '""')}"`,
+          `"${doc.type}"`,
+          `"${doc.uploadedBy ?? ""}"`,
+          `"${doc.createdAt ?? ""}"`,
+          ((doc.sizeBytes ?? 0) / 1024).toFixed(2),
+          `"${doc.status}"`,
+        ].join(","),
+      ),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `xenboox-documents-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const tabs = [
@@ -526,14 +613,21 @@ export default function DocumentsPage() {
       icon={FolderOpen}
       actions={
         <>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
             <Download className="h-4 w-4" />
             Export
           </button>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-            <Upload className="h-4 w-4" />
-            Upload Document
-          </button>
+          <DocumentUploadButton
+            docType="supporting"
+            label="Upload Document"
+            onUploaded={() => {
+              utils.document?.listDocuments?.invalidate?.();
+              utils.document?.getOverview?.invalidate?.();
+            }}
+          />
         </>
       }
       tabs={tabs}
@@ -614,6 +708,8 @@ export default function DocumentsPage() {
             }))}
             isLoading={documentsLoading}
             onViewDocument={handleOpenDocument}
+            onDownload={handleDownloadDocument}
+            onDelete={handleDeleteDocument}
           />
         </div>
       </div>

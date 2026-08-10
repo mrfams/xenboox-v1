@@ -19,6 +19,7 @@ import {
   FileText,
   CreditCard,
   BarChart3,
+  Eye,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
+import { RowActionsMenu } from "@/components/module/row-actions-menu";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -274,9 +276,15 @@ function CustomerTable({
                   </span>
                 </td>
                 <td className="py-3 px-4">
-                  <button className="p-1 hover:bg-slate-100 rounded">
-                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                  </button>
+                  <RowActionsMenu
+                    items={[
+                      {
+                        label: "View details",
+                        icon: <Eye className="h-3.5 w-3.5" />,
+                        onSelect: () => onSelect(customer.id),
+                      },
+                    ]}
+                  />
                 </td>
               </tr>
             );
@@ -525,9 +533,9 @@ function AiCopilotPanel({
               </span>
             </div>
           </div>
-          <button className="text-slate-400 hover:text-slate-600">
-            <MoreHorizontal className="h-5 w-5" />
-          </button>
+          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            Live
+          </span>
         </div>
       </div>
 

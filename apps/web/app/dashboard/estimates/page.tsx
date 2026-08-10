@@ -22,10 +22,12 @@ import {
   Sparkles,
   User,
   Loader2,
+  Trash2,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { RowActionsMenu } from "@/components/module/row-actions-menu";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -147,6 +149,7 @@ function EstimatesTable({
   onSelect,
   onConvert,
   onStatusChange,
+  onDelete,
 }: {
   estimates: Estimate[];
   isLoading: boolean;
@@ -163,6 +166,7 @@ function EstimatesTable({
       | "expired"
       | "voided",
   ) => void;
+  onDelete: (id: string) => void;
 }) {
   if (isLoading) {
     return (
@@ -319,9 +323,41 @@ function EstimatesTable({
                         <Ban className="h-4 w-4 text-red-400" />
                       </button>
                     )}
-                  <button className="p-1.5 hover:bg-slate-100 rounded">
-                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                  </button>
+                  <RowActionsMenu
+                    items={[
+                      {
+                        label: "View details",
+                        icon: <Eye className="h-3.5 w-3.5" />,
+                        onSelect: () => onSelect(e.id),
+                      },
+                      {
+                        label: "Mark as sent",
+                        icon: <Send className="h-3.5 w-3.5" />,
+                        disabled:
+                          e.status === "sent" ||
+                          e.status === "accepted" ||
+                          e.status === "converted" ||
+                          e.status === "voided",
+                        onSelect: () => onStatusChange(e, "sent"),
+                      },
+                      {
+                        label: "Mark as declined",
+                        icon: <Ban className="h-3.5 w-3.5" />,
+                        destructive: true,
+                        disabled:
+                          e.status === "declined" ||
+                          e.status === "voided" ||
+                          e.status === "converted",
+                        onSelect: () => onStatusChange(e, "declined"),
+                      },
+                      {
+                        label: "Delete",
+                        icon: <Trash2 className="h-3.5 w-3.5" />,
+                        destructive: true,
+                        onSelect: () => onDelete(e.id),
+                      },
+                    ]}
+                  />
                 </div>
               </td>
             </tr>
@@ -1236,6 +1272,12 @@ export default function EstimatesPage() {
       overview.refetch();
     },
   });
+  const deleteMutation = trpc.estimates.deleteEstimate.useMutation({
+    onSuccess: () => {
+      list.refetch();
+      overview.refetch();
+    },
+  });
 
   const refresh = () => {
     list.refetch();
@@ -1342,6 +1384,7 @@ export default function EstimatesPage() {
             onStatusChange={(e, status) =>
               statusMutation.mutate({ id: e.id, status })
             }
+            onDelete={(id) => deleteMutation.mutate({ id })}
           />
           <div className="flex items-center justify-between border-t border-slate-200 p-3">
             <p className="text-sm text-slate-500">

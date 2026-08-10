@@ -12,7 +12,6 @@ import {
   Filter,
   ChevronDown,
   RefreshCw,
-  MoreHorizontal,
   ExternalLink,
   Send,
   ChevronRight,
@@ -312,15 +311,9 @@ function ApprovalDetail({
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="rounded-lg border border-slate-200 p-2 hover:bg-slate-50">
-              <MoreHorizontal className="h-4 w-4 text-slate-600" />
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-              <Bot className="h-4 w-4" />
-              Ask AI
-            </button>
-          </div>
+          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            Live
+          </span>
         </div>
       </div>
 
@@ -433,14 +426,6 @@ function ApprovalDetail({
           >
             <XCircle className="h-4 w-4" />
             Reject
-          </button>
-          <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <Bot className="h-4 w-4" />
-            Ask AI to Explain
-          </button>
-          <button className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            More Actions
-            <ChevronDown className="h-4 w-4 ml-1 inline" />
           </button>
         </div>
       </div>

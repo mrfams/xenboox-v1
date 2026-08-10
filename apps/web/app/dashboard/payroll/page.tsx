@@ -27,6 +27,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { DocumentUploadButton } from "@/components/module/document-upload-button";
 import type { TabItem } from "@/components/module/module-page-shell.types";
 import { CreatePayrollRunDialog } from "@/components/dashboard/create-payroll-run-dialog";
 import { CreateEmployeeDialog } from "@/components/dashboard/create-employee-dialog";
@@ -1435,14 +1436,11 @@ export default function PayrollPage() {
         <Plus className="h-4 w-4" />
         Run Payroll
       </button>
-      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-        <Upload className="h-4 w-4" />
-        Import
-      </button>
-      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-        More
-        <ChevronDown className="h-4 w-4" />
-      </button>
+      <DocumentUploadButton
+        docType="payroll_report"
+        label="Import"
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      />
     </>
   );
 

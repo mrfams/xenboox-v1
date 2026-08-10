@@ -18,6 +18,7 @@ import {
   Upload,
   Users,
   Clock,
+  Trash2,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -25,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateVendorDialog } from "@/components/dashboard/create-vendor-dialog";
+import { RowActionsMenu } from "@/components/module/row-actions-menu";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -87,6 +89,7 @@ function buildSummaryCards(overview: {
 function VendorTable({
   vendors,
   isLoading,
+  onDelete,
 }: {
   vendors: Array<{
     id: string;
@@ -105,6 +108,7 @@ function VendorTable({
     initials: string;
   }>;
   isLoading: boolean;
+  onDelete?: (id: string) => void;
 }) {
   const vendorTypeColors: Record<string, string> = {
     Supplier: "bg-blue-100 text-blue-700",
@@ -249,9 +253,16 @@ function VendorTable({
                 </span>
               </td>
               <td className="py-3 px-4">
-                <button className="p-1 hover:bg-slate-100 rounded">
-                  <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                </button>
+                <RowActionsMenu
+                  items={[
+                    {
+                      label: "Delete vendor",
+                      icon: <Trash2 className="h-3.5 w-3.5" />,
+                      destructive: true,
+                      onSelect: () => onDelete?.(vendor.id),
+                    },
+                  ]}
+                />
               </td>
             </tr>
           ))}
@@ -756,6 +767,15 @@ export default function VendorsPage() {
   // Fetch AI insights
   const { data: insights } = trpc.ap.getVendorAiInsights.useQuery();
 
+  const utils = trpc.useUtils();
+  const deleteVendor = trpc.ap.deleteSupplier.useMutation({
+    onSuccess: () => {
+      utils.ap.listVendorsWithPayables.invalidate();
+      utils.ap.getVendorsOverview.invalidate();
+    },
+    onError: () => undefined,
+  });
+
   const tabs = [
     { key: "all" as const, label: "All Vendors", count: tabCounts?.all },
     { key: "active" as const, label: "Active", count: tabCounts?.active },
@@ -939,6 +959,7 @@ export default function VendorsPage() {
         <VendorTable
           vendors={vendorsData?.vendors ?? []}
           isLoading={vendorsLoading}
+          onDelete={(id) => deleteVendor.mutate({ id })}
         />
       )}
       <CreateVendorDialog

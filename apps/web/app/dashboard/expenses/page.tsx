@@ -19,6 +19,8 @@ import {
   AlertCircle,
   TrendingUp,
   Receipt,
+  Eye,
+  Trash2,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -26,6 +28,8 @@ import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateExpenseDialog } from "@/components/dashboard/create-expense-dialog";
+import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { DocumentUploadButton } from "@/components/module/document-upload-button";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -276,9 +280,15 @@ function ExpenseTable({
                 )}
               </td>
               <td className="py-3 px-4">
-                <button className="p-1 hover:bg-slate-100 rounded">
-                  <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                </button>
+                <RowActionsMenu
+                  items={[
+                    {
+                      label: "View details",
+                      icon: <Eye className="h-3.5 w-3.5" />,
+                      onSelect: () => onSelect(expense.id),
+                    },
+                  ]}
+                />
               </td>
             </tr>
           ))}
@@ -486,14 +496,16 @@ function AiCopilotPanel({
               <Plus className="h-4 w-4 text-indigo-600" />
               New Expense
             </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200">
-              <Upload className="h-4 w-4 text-emerald-600" />
-              Upload Receipt
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200">
-              <FileText className="h-4 w-4 text-blue-600" />
-              Bulk Import
-            </button>
+            <DocumentUploadButton
+              docType="receipt"
+              label="Upload Receipt"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200"
+            />
+            <DocumentUploadButton
+              docType="supporting"
+              label="Bulk Import"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200"
+            />
             <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200">
               <Download className="h-4 w-4 text-purple-600" />
               Expense Report
@@ -591,10 +603,11 @@ export default function ExpensesPage() {
             <Plus className="h-4 w-4" />
             New Expense
           </button>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <Upload className="h-4 w-4" />
-            Import
-          </button>
+          <DocumentUploadButton
+            docType="receipt"
+            label="Import"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          />
         </>
       }
       tabs={tabs}

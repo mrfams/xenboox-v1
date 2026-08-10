@@ -15,11 +15,13 @@ import {
   Send,
   Package,
   BarChart3,
+  Trash2,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { CreateAssetDialog } from "@/components/dashboard/create-asset-dialog";
+import { RowActionsMenu } from "@/components/module/row-actions-menu";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -122,6 +124,7 @@ function SummaryCards({
 function AssetsTable({
   assets,
   isLoading,
+  onDelete,
 }: {
   assets: Array<{
     id: string;
@@ -136,6 +139,7 @@ function AssetsTable({
     status: string;
   }>;
   isLoading: boolean;
+  onDelete?: (id: string) => void;
 }) {
   const statusColors: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-700",
@@ -260,9 +264,16 @@ function AssetsTable({
                   </span>
                 </td>
                 <td className="py-3 px-4">
-                  <button className="p-1 hover:bg-slate-100 rounded">
-                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                  </button>
+                  <RowActionsMenu
+                    items={[
+                      {
+                        label: "Delete asset",
+                        icon: <Trash2 className="h-3.5 w-3.5" />,
+                        destructive: true,
+                        onSelect: () => onDelete?.(asset.id),
+                      },
+                    ]}
+                  />
                 </td>
               </tr>
             );
@@ -312,9 +323,9 @@ function AiCopilotPanel({
               </span>
             </div>
           </div>
-          <button className="text-slate-400 hover:text-slate-600">
-            <MoreHorizontal className="h-5 w-5" />
-          </button>
+          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            Live
+          </span>
         </div>
       </div>
 
@@ -434,6 +445,15 @@ export default function FixedAssetsPage() {
   const { data: aiInsights } =
     trpc.fixedAssets?.getAiInsights?.useQuery?.() ?? { data: undefined };
 
+  const utils = trpc.useUtils();
+  const deleteAsset = trpc.fixedAssets?.deleteAsset?.useMutation?.({
+    onSuccess: () => {
+      utils.fixedAssets.listAssets.invalidate();
+      utils.fixedAssets.getOverview.invalidate();
+    },
+    onError: () => undefined,
+  });
+
   const tabs = [
     { key: "overview" as TabFilter, label: "Overview" },
     { key: "assets" as TabFilter, label: "Assets" },
@@ -533,6 +553,7 @@ export default function FixedAssetsPage() {
                 status: asset.status,
               }))}
               isLoading={assetsLoading}
+              onDelete={(id) => deleteAsset.mutate({ id })}
             />
           </div>
         </div>
