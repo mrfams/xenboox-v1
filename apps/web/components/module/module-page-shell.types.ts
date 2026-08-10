@@ -1,5 +1,7 @@
 import { ReactNode } from "react";
 
+import type { PageContextPayload } from "@/lib/chat/page-context";
+
 export type TabItem = {
   key: string;
   label: string;
@@ -38,4 +40,14 @@ export type ModulePageShellProps = {
     filters?: boolean;
   };
   noOuterWrapper?: boolean;
+  /**
+   * Optional page snapshot for the AI copilot — the agent answers about the
+   * data actually in view (page, tab, filters, visible KPIs, record count).
+   * When omitted, the shell derives a safe baseline from title/tab/KPIs.
+   */
+  aiContext?: Partial<PageContextPayload>;
+  /** Override the copilot's suggestion chips. */
+  aiSuggestions?: Array<{ label: string; prompt: string }>;
+  /** Hide the page AI copilot entirely (e.g. sensitive admin surfaces). */
+  disableAiCopilot?: boolean;
 };

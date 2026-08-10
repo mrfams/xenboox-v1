@@ -920,6 +920,16 @@ export default function TransactionsPage() {
       }}
       summaryCards={summaryCards}
       filters={filters}
+      aiContext={{
+        page: "Transactions",
+        module: "transactions",
+        view: tabs.find((t) => t.key === activeTab)?.label ?? activeTab,
+        filters: searchQuery ? [`search: ${searchQuery}`] : undefined,
+        count: transactionsData?.totalCount,
+        notes: searchQuery
+          ? `The user has an active search: "${searchQuery}".`
+          : undefined,
+      }}
     >
       <TransactionTable
         transactions={transactionsData?.transactions ?? []}

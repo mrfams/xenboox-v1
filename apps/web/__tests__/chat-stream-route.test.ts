@@ -106,6 +106,7 @@ function makeRequest(
     message?: string;
     conversationId?: string;
     signal?: AbortSignal;
+    pageContext?: Record<string, unknown>;
   } = {},
 ) {
   return new NextRequest("http://localhost/api/chat/stream", {
@@ -117,6 +118,7 @@ function makeRequest(
       ...(overrides.conversationId
         ? { conversationId: overrides.conversationId }
         : {}),
+      ...(overrides.pageContext ? { pageContext: overrides.pageContext } : {}),
     }),
     signal: overrides.signal,
   });
@@ -282,5 +284,43 @@ describe("POST /api/chat/stream — conversation persistence", () => {
       status: "completed",
       content: "Your cash balance is GMD 12,500.",
     });
+  });
+
+  it("weaves pageContext into the pipeline message so the agent answers about the page in view", async () => {
+    const res = await POST(
+      makeRequest({
+        message: "How many are uncategorized?",
+        pageContext: {
+          page: "Transactions",
+          module: "transactions",
+          view: "Uncategorized",
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    await res.text();
+
+    // The pipeline receives the user message with the page-context block
+    // appended (same seam as fileContext), so the CFO agent knows the user is
+    // asking about the Transactions page's Uncategorized tab.
+    expect(processChatInput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("[CURRENT PAGE CONTEXT]"),
+      }),
+    );
+    expect(processChatInput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("Page: Transactions"),
+      }),
+    );
+    // The persisted user message stays clean — context only augments the
+    // pipeline input, never the conversation history.
+    expect(
+      mocks.insertValues.some(
+        (v) =>
+          (v as { content?: string }).content === "How many are uncategorized?",
+      ),
+    ).toBe(true);
   });
 });

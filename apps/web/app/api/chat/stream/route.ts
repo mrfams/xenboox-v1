@@ -9,6 +9,10 @@ import { getRateLimiter } from "@/lib/security/rate-limiter";
 import { generateConversationTitle } from "@/lib/chat/conversation-title";
 import { generateConversationSummary } from "@/lib/chat/conversation-summary";
 import { generateChatArtifacts } from "@/lib/chat/artifact-service";
+import {
+  buildPageContextBlock,
+  type PageContextPayload,
+} from "@/lib/chat/page-context";
 
 export const runtime = "nodejs";
 
@@ -30,7 +34,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { message, conversationId, entityId, files } = body;
+  const { message, conversationId, entityId, files, pageContext } = body as {
+    message?: string;
+    conversationId?: string;
+    entityId?: string;
+    files?: Array<{ documentId: string; name: string; type: string }>;
+    pageContext?: PageContextPayload;
+  };
 
   if (!message || !entityId) {
     return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -120,6 +130,11 @@ export async function POST(req: NextRequest) {
       .join("\n");
     fileContext = `\n\nUser uploaded files:\n${fileDescriptions}`;
   }
+
+  // Build page context so the agent answers about the page the user is on
+  // (module copilot). Bounded + sanitized by the builder; omitted entirely
+  // when the client sent nothing.
+  const pageContextBlock = buildPageContextBlock(pageContext);
 
   // Insert a pending assistant message row (status: streaming) so the UI can
   // render a typing indicator tied to a real DB row, survive reconnects, and
@@ -213,8 +228,12 @@ export async function POST(req: NextRequest) {
           action: "Processing your request",
         });
 
-        // Invoke the real CFO pipeline
-        const fullMessage = message + fileContext;
+        // Invoke the real CFO pipeline — page context rides the same seam as
+        // file context, so the agent knows what the user is looking at.
+        const fullMessage =
+          message +
+          fileContext +
+          (pageContextBlock ? `\n\n${pageContextBlock}` : "");
 
         // Stream tool events as they happen
         const toolEvents: Array<{

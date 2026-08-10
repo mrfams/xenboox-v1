@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+import { ModulePageCopilot } from "./module-page-copilot";
 import type { ModulePageShellProps } from "./module-page-shell.types";
+
+import type { PageContextPayload } from "@/lib/chat/page-context";
+import { cn } from "@/lib/utils";
 
 /**
  * Persistent collapse state (localStorage) so the user's preference
@@ -94,6 +98,9 @@ export function ModulePageShell({
   bottomCharts,
   defaultCollapsed,
   noOuterWrapper,
+  aiContext,
+  aiSuggestions,
+  disableAiCopilot = false,
 }: ModulePageShellProps) {
   const [tabsCollapsed, setTabsCollapsed] = useCollapsed(
     "tabs",
@@ -111,6 +118,22 @@ export function ModulePageShell({
   const hasTabs = tabs && tabs.length > 0;
   const hasSummaryCards = summaryCards && summaryCards.length > 0;
   const hasFilters = !!filters;
+
+  // Baseline page context derived from the shell itself, so every module page
+  // gets a meaningful copilot even before a page passes explicit aiContext.
+  const derivedAiContext: Partial<PageContextPayload> = useMemo(() => {
+    const activeTabLabel =
+      tabs?.find((t) => t.key === activeTab)?.label ?? activeTab;
+    return {
+      page: title,
+      view: activeTabLabel,
+      summary: (summaryCards ?? []).map((c) => ({
+        label: c.label,
+        value: c.value,
+      })),
+      ...aiContext,
+    };
+  }, [title, tabs, activeTab, summaryCards, aiContext]);
 
   const shell = (
     <>
@@ -148,9 +171,16 @@ export function ModulePageShell({
               )}
             </div>
           </div>
-          {actions && (
-            <div className="flex shrink-0 items-center gap-2">{actions}</div>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {actions}
+            {!disableAiCopilot && (
+              <ModulePageCopilot
+                title={title}
+                pageContext={derivedAiContext}
+                suggestions={aiSuggestions}
+              />
+            )}
+          </div>
         </div>
 
         {/* Underline tab bar */}

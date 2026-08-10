@@ -5,6 +5,24 @@ import { FileText, Users } from "lucide-react";
 
 import { ModulePageShell } from "@/components/module/module-page-shell";
 
+// The shell now renders the page AI copilot, which reads the entity context.
+vi.mock("@/lib/entity-context", () => ({
+  useEntity: () => ({ entityId: "entity-1", isLoaded: true }),
+}));
+
+vi.mock("@/lib/hooks/use-streaming-chat", () => ({
+  useStreamingChat: () => ({
+    sendMessage: vi.fn(),
+    cancelStream: vi.fn(),
+    isStreaming: false,
+    streamedContent: "",
+    agentActivities: [],
+    delegations: [],
+    documents: [],
+    approvals: [],
+  }),
+}));
+
 // happy-dom here does not provide window.localStorage — stub an in-memory
 // one so the shell's SSR-safe persistence hook is exercised for real.
 const storage = new Map<string, string>();

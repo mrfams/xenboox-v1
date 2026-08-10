@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef } from "react";
 
+import type { PageContextPayload } from "@/lib/chat/page-context";
+
 // ─── Event Types ───────────────────────────────────────────────────────────
 
 export interface AgentActivityEvent {
@@ -117,6 +119,7 @@ export function useStreamingChat({
       message: string,
       conversationId?: string,
       files?: Array<{ documentId: string; name: string; type: string }>,
+      pageContext?: PageContextPayload,
     ) => {
       if (isStreaming) return;
 
@@ -140,6 +143,7 @@ export function useStreamingChat({
             conversationId,
             entityId,
             files,
+            pageContext,
           }),
           signal: abortControllerRef.current.signal,
         });
