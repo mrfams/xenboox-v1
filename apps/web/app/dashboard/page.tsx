@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   TrendingUp,
   TrendingDown,
@@ -49,6 +50,10 @@ function MiniSparkline({
   color: string;
   className?: string;
 }) {
+  // No data (or a single flat point) → render nothing rather than a bogus
+  // line; real figures come from the server, never fabricated client-side.
+  if (data.length < 2) return null;
+
   const max = Math.max(...data);
   const min = Math.min(...data);
   const range = max - min || 1;
@@ -328,6 +333,7 @@ function ExecutiveBriefing({
     value: string;
     detail: string;
     statusLabel: string;
+    href?: string;
   }>;
 }) {
   const statusConfig: Record<
@@ -384,16 +390,14 @@ function ExecutiveBriefing({
         </Link>
       </div>
 
-      {/* Desktop: horizontal scroll, Mobile/Tablet: grid layout */}
+      {/* Desktop: horizontal scroll, Mobile/Tablet: grid layout. Every card
+          links to the module page that owns its metric (no dead cards). */}
       <div className="hidden md:scrollbar-hide md:flex md:items-center md:gap-3 md:overflow-x-auto md:pb-1">
         {items.map((item) => {
           const config = statusConfig[item.type] ?? statusConfig.neutral;
           const Icon = config.icon;
-          return (
-            <div
-              key={item.id}
-              className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md hover:border-border/80 min-w-[200px]"
-            >
+          const inner = (
+            <>
               <div
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
@@ -421,6 +425,21 @@ function ExecutiveBriefing({
               >
                 {item.statusLabel}
               </span>
+            </>
+          );
+          const cardClass =
+            "flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md hover:border-border/80 min-w-[200px]";
+          return item.href ? (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={cn(cardClass, "hover:-translate-y-0.5 group")}
+            >
+              {inner}
+            </Link>
+          ) : (
+            <div key={item.id} className={cardClass}>
+              {inner}
             </div>
           );
         })}
@@ -430,11 +449,8 @@ function ExecutiveBriefing({
         {items.map((item) => {
           const config = statusConfig[item.type] ?? statusConfig.neutral;
           const Icon = config.icon;
-          return (
-            <div
-              key={item.id}
-              className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md hover:border-border/80"
-            >
+          const inner = (
+            <>
               <div
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
@@ -462,6 +478,21 @@ function ExecutiveBriefing({
               >
                 {item.statusLabel}
               </span>
+            </>
+          );
+          const cardClass =
+            "flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md hover:border-border/80";
+          return item.href ? (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={cn(cardClass, "hover:-translate-y-0.5")}
+            >
+              {inner}
+            </Link>
+          ) : (
+            <div key={item.id} className={cardClass}>
+              {inner}
             </div>
           );
         })}
@@ -497,60 +528,51 @@ function BusinessHealth({
     apSparkline?: number[];
   };
 }) {
+  // Sparklines come from the server (real per-month aggregates from the DB).
+  // If the server ever returns nothing, show a flat line rather than fabricate
+  // data — never hardcode chart figures on the client.
   const metrics = [
     {
       id: "cash",
       label: "Cash Balance",
       value: data.cashBalance,
       change: data.cashChange,
-      sparkline: data.cashSparkline ?? [
-        data.cashBalance * 0.85,
-        data.cashBalance,
-      ],
+      sparkline: data.cashSparkline ?? [],
     },
     {
       id: "revenue",
       label: "Revenue",
       value: data.revenue,
       change: data.revenueChange,
-      sparkline: data.revenueSparkline ?? [data.revenue * 0.9, data.revenue],
+      sparkline: data.revenueSparkline ?? [],
     },
     {
       id: "expenses",
       label: "Expenses",
       value: data.expenses,
       change: data.expensesChange,
-      sparkline: data.expensesSparkline ?? [
-        data.expenses * 1.05,
-        data.expenses,
-      ],
+      sparkline: data.expensesSparkline ?? [],
     },
     {
       id: "profit",
       label: "Profit",
       value: data.profit,
       change: data.profitChange,
-      sparkline: data.profitSparkline ?? [data.profit * 0.9, data.profit],
+      sparkline: data.profitSparkline ?? [],
     },
     {
       id: "ar",
       label: "A/R",
       value: data.arOutstanding,
       change: data.arChange,
-      sparkline: data.arSparkline ?? [
-        data.arOutstanding * 0.95,
-        data.arOutstanding,
-      ],
+      sparkline: data.arSparkline ?? [],
     },
     {
       id: "ap",
       label: "A/P",
       value: data.apOutstanding,
       change: data.apChange,
-      sparkline: data.apSparkline ?? [
-        data.apOutstanding * 1.05,
-        data.apOutstanding,
-      ],
+      sparkline: data.apSparkline ?? [],
     },
   ];
 
@@ -678,6 +700,28 @@ function CollapsibleSection({
   );
 }
 
+// Maps a suggested action to the module page that resolves it — every
+// suggested action leads somewhere real.
+function actionHref(action: string): string | null {
+  const lower = action.toLowerCase();
+  if (lower.includes("overdue") || lower.includes("invoice")) {
+    return "/dashboard/bills";
+  }
+  if (lower.includes("journal")) {
+    return "/dashboard/journal";
+  }
+  if (lower.includes("flagged") || lower.includes("review")) {
+    return "/dashboard/review-queue";
+  }
+  if (lower.includes("document")) {
+    return "/dashboard/documents";
+  }
+  if (lower.includes("payroll")) {
+    return "/dashboard/payroll";
+  }
+  return null;
+}
+
 // ─── Dashboard Right Sidebar ──────────────────────────────────────────────
 
 function DashboardRightSidebar({
@@ -685,6 +729,7 @@ function DashboardRightSidebar({
   recentDocuments,
   recentConversations,
   suggestedActions,
+  onNavigate,
   onContinueConversation,
 }: {
   deadlines: Array<{
@@ -706,6 +751,7 @@ function DashboardRightSidebar({
     lastMessageAt: string | null;
   }>;
   suggestedActions: string[];
+  onNavigate?: (href: string) => void;
   onContinueConversation?: (conversation: {
     id: string;
     title: string | null;
@@ -781,9 +827,11 @@ function DashboardRightSidebar({
             </p>
           ) : (
             recentDocuments.map((doc) => (
-              <div
+              <button
                 key={doc.id}
-                className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
+                type="button"
+                onClick={() => onNavigate?.("/dashboard/documents")}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 cursor-pointer transition-colors text-left"
               >
                 <FileText
                   className={cn("h-4 w-4 shrink-0", getDocColor(doc.type))}
@@ -794,7 +842,7 @@ function DashboardRightSidebar({
                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                   {formatDocTime(doc.createdAt)}
                 </span>
-              </div>
+              </button>
             ))
           )}
         </div>
@@ -856,19 +904,23 @@ function DashboardRightSidebar({
               All caught up!
             </p>
           ) : (
-            suggestedActions.map((action, i) => (
-              <button
-                key={i}
-                type="button"
-                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 text-left transition-colors group"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-                <span className="flex-1 text-xs text-foreground truncate">
-                  {action}
-                </span>
-                <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
-              </button>
-            ))
+            suggestedActions.map((action, i) => {
+              const href = actionHref(action);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => href && onNavigate?.(href)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 text-left transition-colors group"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="flex-1 text-xs text-foreground truncate">
+                    {action}
+                  </span>
+                  <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
+                </button>
+              );
+            })
           )}
         </div>
       </CollapsibleSection>
@@ -881,6 +933,7 @@ function DashboardRightSidebar({
 export default function DashboardPage() {
   const { entityId } = useEntity();
   const { data: session } = useSession();
+  const router = useRouter();
   const firstName = session?.user?.name?.split(" ")[0];
 
   // Inline AI chat session — activates a full chat screen when messaging.
@@ -919,12 +972,19 @@ export default function DashboardPage() {
     );
   }
 
-  // Empty state - no data yet
+  // Empty state - no data yet. The briefing always renders its core cards,
+  // so gate on actual business activity, not card count.
+  const bh = dashboardData?.businessHealth;
   const hasData =
     dashboardData &&
-    (dashboardData.briefingItems.length > 0 ||
-      dashboardData.businessHealth.cashBalance > 0 ||
-      dashboardData.agentActivity.length > 0);
+    ((bh &&
+      (bh.cashBalance > 0 ||
+        bh.revenue > 0 ||
+        bh.expenses > 0 ||
+        bh.arOutstanding > 0 ||
+        bh.apOutstanding > 0)) ||
+      dashboardData.agentActivity.length > 0 ||
+      dashboardData.recentDocuments.length > 0);
 
   if (!hasData) {
     const emptyState = getPageEmptyState("dashboard");
@@ -1057,6 +1117,7 @@ export default function DashboardPage() {
           recentDocuments={dashboardData?.recentDocuments ?? []}
           recentConversations={dashboardData?.recentConversations ?? []}
           suggestedActions={dashboardData?.suggestedActions ?? []}
+          onNavigate={(href) => router.push(href)}
           onContinueConversation={handleContinueConversation}
         />
       </div>

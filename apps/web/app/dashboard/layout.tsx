@@ -44,7 +44,9 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(true);
+  // The CFO Agent panel stays closed until the user explicitly opens it
+  // (toggle in the header, the floating CFO Agent button, or the edge tab).
+  const [chatOpen, setChatOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [panelWidth, setPanelWidth] = useState(400);
 

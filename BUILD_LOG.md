@@ -6,6 +6,22 @@
 
 ---
 
+### [2026-08-10] — Dashboard UX fixes: CFO panel default-closed, mutually-exclusive header menus, fuller briefing, real DB charts
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/app/dashboard/layout.tsx`, `apps/web/components/layout/top-nav.tsx`, `apps/web/server/routers/dashboard.ts`, `apps/web/app/dashboard/page.tsx`, `BUILD_LOG.md`
+
+**What:**
+
+- **CFO Agent panel now starts closed** — only opens when the user clicks the floating button, edge tab, or toggle.
+- **Header menus are mutually exclusive** — hovering/clicking notifications closes the user menu and vice versa (timers cleared, Escape closes both). No more first-hovered menu lingering.
+- **Executive Briefing always shows a full set of cards** — 6 core metrics (revenue, expenses, profit, A/R, A/P, cash) plus attention cards, each **linking to a working module page** (invoicing, expenses, reports, customers, bills, banking, journal, review-queue). Suggested Actions + Recent Documents in the right sidebar now navigate too.
+- **Business Health graphs are DB-backed** — replaced fabricated A/R/A/P sparkline formulas with real monthly open-balance queries (last 6 months); removed hardcoded client-side fallbacks (MiniSparkline renders nothing without data). Empty-state gating now checks real activity, not card count (review fix).
+
+**Verification:** 502 tests passed · typecheck ✓ · lint ✓ · production build ✓ · code review applied (sparkline month-window + empty-state regressions fixed)
+
+---
+
 ### [2026-08-10] — Audit trail: tiered access control (ADR-0007)
 
 **Agent:** Buffy (Autonomous Engineer)

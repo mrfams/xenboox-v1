@@ -139,11 +139,33 @@ export function TopNav({
     };
   }, []);
 
+  // Close both menus immediately and cancel any pending close timers.
+  const closeAllMenus = () => {
+    if (closeMenuTimer.current !== null) {
+      window.clearTimeout(closeMenuTimer.current);
+      closeMenuTimer.current = null;
+    }
+    if (closeNotifTimer.current !== null) {
+      window.clearTimeout(closeNotifTimer.current);
+      closeNotifTimer.current = null;
+    }
+    setUserMenuOpen(false);
+    setNotifOpen(false);
+  };
+
   const openNotif = () => {
     if (closeNotifTimer.current !== null) {
       window.clearTimeout(closeNotifTimer.current);
       closeNotifTimer.current = null;
     }
+    // Hovering one menu dismisses the other immediately — moving from the
+    // notifications to the avatar (or vice versa) must not leave the first
+    // one hanging open.
+    if (closeMenuTimer.current !== null) {
+      window.clearTimeout(closeMenuTimer.current);
+      closeMenuTimer.current = null;
+    }
+    setUserMenuOpen(false);
     setNotifOpen(true);
   };
 
@@ -163,6 +185,12 @@ export function TopNav({
       window.clearTimeout(closeMenuTimer.current);
       closeMenuTimer.current = null;
     }
+    // Mutually exclusive with notifications — see openNotif.
+    if (closeNotifTimer.current !== null) {
+      window.clearTimeout(closeNotifTimer.current);
+      closeNotifTimer.current = null;
+    }
+    setNotifOpen(false);
     setUserMenuOpen(true);
   };
 
@@ -177,13 +205,32 @@ export function TopNav({
     }, 150);
   };
 
+  // Click-toggles are mutually exclusive too: toggling one always closes the
+  // other, so no combination of clicks/hovers leaves two menus stacked open.
+  const toggleNotif = () => {
+    if (closeMenuTimer.current !== null) {
+      window.clearTimeout(closeMenuTimer.current);
+      closeMenuTimer.current = null;
+    }
+    setUserMenuOpen(false);
+    setNotifOpen((o) => !o);
+  };
+
+  const toggleUserMenu = () => {
+    if (closeNotifTimer.current !== null) {
+      window.clearTimeout(closeNotifTimer.current);
+      closeNotifTimer.current = null;
+    }
+    setNotifOpen(false);
+    setUserMenuOpen((o) => !o);
+  };
+
   // Escape dismisses the hover-revealed menus without moving the pointer
   // (WCAG 1.4.13 — hover content should be dismissible).
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        setUserMenuOpen(false);
-        setNotifOpen(false);
+        closeAllMenus();
       }
     }
     document.addEventListener("keydown", handleKeyDown);
@@ -296,7 +343,7 @@ export function TopNav({
             size="icon"
             aria-label="Notifications"
             aria-expanded={notifOpen}
-            onClick={() => setNotifOpen(!notifOpen)}
+            onClick={toggleNotif}
           >
             <Bell className="h-5 w-5" />
             {showBadge ? (
@@ -404,7 +451,7 @@ export function TopNav({
         >
           <button
             type="button"
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            onClick={toggleUserMenu}
             aria-label="Open user menu"
             aria-expanded={userMenuOpen}
             className="flex items-center gap-1.5 rounded-full p-1 pr-2 hover:bg-accent transition-colors"
