@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -146,6 +146,10 @@ function AIGreeting({ firstName }: { firstName?: string }) {
 
 // ─── AI Chat Input Component (Controlled) ───────────────────────────────────
 
+// Max composer height in px (~5 lines) — shared by the auto-grow effect and
+// the CSS cap so they can never drift apart.
+const COMPOSER_MAX_HEIGHT = 120;
+
 function AIChatInput({
   onSubmit,
   isResponding,
@@ -159,6 +163,17 @@ function AIChatInput({
 }) {
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow the composer: text wraps onto new lines (like ChatGPT/Claude)
+  // instead of scrolling sideways out of view. Grows up to ~5 lines, then
+  // scrolls internally.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT)}px`;
+  }, [inputValue]);
 
   const handleSubmit = (value?: string) => {
     const trimmed = (value ?? inputValue).trim();
@@ -212,7 +227,7 @@ function AIChatInput({
         "mx-auto w-full max-w-3xl",
         // While a chat is active the composer is in-conversation — the
         // suggestion row is secondary, so it gets tighter spacing.
-        isChatActive ? "space-y-2" : "space-y-3",
+        isChatActive ? "space-y-1.5" : "space-y-2",
       )}
     >
       {/* Suggestions */}
@@ -264,12 +279,13 @@ function AIChatInput({
             : "border-border/50 hover:border-border/80 hover:shadow-md",
         )}
       >
-        <div className="relative flex items-center gap-3 px-4 py-3.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="relative flex items-end gap-3 px-4 py-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg bg-primary/10 text-primary">
             <Bot className="h-4 w-4" />
           </div>
-          <input
-            type="text"
+          <textarea
+            ref={textareaRef}
+            rows={1}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onFocus={() => setIsFocused(true)}
@@ -285,7 +301,7 @@ function AIChatInput({
                 ? "Follow up with Xenboox AI..."
                 : "Ask anything about your accounting..."
             }
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
+            className="max-h-[120px] min-h-[24px] flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm leading-normal text-foreground placeholder:text-muted-foreground/50 outline-none"
           />
           <Button
             type="button"
@@ -1467,13 +1483,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Pinned AI Command Bar — tighter padding while in a chat so the
-            composer doesn't crowd the conversation view */}
+            composer doesn't crowd the conversation view; reduced top padding
+            so suggestions sit close to the content above */}
         <div
           className={cn(
             "border-t flex-shrink-0",
             chat.isChatActive
-              ? "border-primary/20 bg-background px-4 py-2.5"
-              : "border-border/50 bg-background/80 backdrop-blur-sm p-4",
+              ? "border-primary/20 bg-background px-4 py-2"
+              : "border-border/50 bg-background/80 backdrop-blur-sm px-4 pb-3 pt-2",
           )}
         >
           <AIChatInput
