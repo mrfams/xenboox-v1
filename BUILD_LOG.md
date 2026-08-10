@@ -6,7 +6,45 @@
 
 ---
 
-### [2026-08-10] — Explore hub: pages directory + AI feature catalog; tax engine, logo, documents fix
+### [2026-08-10] — Onboarding 5-category source types, opening balances, AI document editing, row copilot, module AI context
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `packages/db/migrations/0024_mean_zaran.sql`, `packages/db/schema/onboarding.ts`, `packages/db/schema/organization.ts`, `packages/agents/core/onboarding-pipeline.ts`, `packages/agents/core/__tests__/pipelines.test.ts`, `packages/agents/__tests__/onboarding-pipeline.test.ts`, `apps/web/server/routers/onboarding.ts`, `apps/web/app/api/chat/stream/route.ts`, `apps/web/app/(auth)/register/onboarding/page.tsx`, `apps/web/components/onboarding/onboarding-liveness.tsx`, `apps/web/components/module/module-page-shell.tsx`, `apps/web/components/module/module-page-copilot.tsx`, `apps/web/components/module/module-ai-context.tsx`, `apps/web/components/module/row-ai-action.tsx`, `apps/web/components/documents/document-viewer.tsx`, `apps/web/server/routers/document.ts`, `apps/web/lib/chat/page-context.ts`, `apps/web/components/layout/sidebar.tsx`, `apps/web/components/layout/ai-sidebar.tsx`, `apps/web/app/dashboard/{banking,bills,customers,documents,expenses,invoicing,journal,payroll,transactions,vendors}/page.tsx`, `apps/web/__tests__/{module-page-copilot,page-context,document-edit-router,onboarding-liveness,onboarding-router,onboarding-wizard}.test.{ts,tsx}`, `BUILD_LOG.md`
+
+**What:**
+
+- **Onboarding / Historical Data Migration** — replaced the legacy binary routing answer with a five-category source type system (`brand_new`, `professional_software`, `manual_records`, `statements_only`, `no_records`) aligned to the Historical Data Migration spec.
+
+  - New `opening_balances` table with `(entity_id, account_id)` unique index for idempotent upserts, source enum (`reconstructed`, `owner_confirmed`, `migrated_from_source_system`).
+  - New enums: `onboarding_source_type`, `opening_balance_source`, `reconstruction_detail_depth`.
+  - New entity columns: `onboarding_source_type`, `business_start_date`, `pre_incorporation_activity`.
+  - New `historical_pull_jobs` columns: `source_type`, `detail_depth`, `opening_balance_cutoff_date`, `model_tier_used`.
+  - New onboarding pipeline functions: `legacyRoutingToSourceType`, `setBusinessStart`, `setDetailDepth`, `confirmOpeningBalance`, `confirmOpeningBalanceEscape`, `getOpeningBalanceSummary`, `getFirstMessage`.
+  - `updateRoutingAnswer` now writes `sourceType` and mirrors it to the entity; legacy `routingAnswer` retained read-only.
+  - New onboarding tRPC mutations: source type, business start, detail depth, opening balance confirm/escape/summary.
+  - New onboarding page UI with 5-category routing, business start date picker, and detail depth selector.
+  - New `OnboardingLiveness` component with source-type-aware first messages.
+  - Tests: onboarding pipeline, router, wizard, liveness, document edit router.
+
+- **AI Document Editing** — ChatGPT/Claude-style inline editing of document text.
+
+  - New `DocumentViewer` component with preview/text tabs, selection-based AI toolbar, inline chat, undo support, and keyboard shortcuts.
+  - New `editDocumentText` mutation (selection/whole modes) — edits are versioned in document metadata, original `ocrText` is never mutated, every edit is audit-trailed.
+  - New `undoDocumentEdit` mutation.
+  - `getDocumentById` now returns `uploadedByName` via uploader join.
+
+- **Module Page AI Context / Row Copilot** — Cursor/VSCode-style "ask about this row" pattern.
+
+  - New `ModuleAiContext` (`module-ai-context.tsx`): React context channel between row AI actions and the page copilot, with nonce-based focus requests so re-clicking the same row still re-opens.
+  - `ModulePageShell` now wraps children in `ModuleAiProvider` and forwards `focusRequest` to `ModulePageCopilot`.
+  - `ModulePageCopilot` accepts `focusRequest`, resets thread on new focus, merges focused record into page context, and shows focus-aware suggestion chips.
+  - New `RowAiAction` component: hover-reveal floating ✨ button that opens the copilot targeted at a specific record.
+
+- **Dashboard / Module Pages** — wired all 13 dashboard module pages into the new module page shell, copilot, and row AI actions; updated sidebars to reflect new module chrome.
+
+**Verification:** 580 web tests passed (57 files) · typecheck ✓ · lint ✓ (pre-existing warnings only) · production build ✓ · code review applied
+
+---
 
 **Agent:** Buffy (Autonomous Engineer)
 **Files Modified:** `apps/web/app/dashboard/explore/`, `apps/web/lib/explore/`, `apps/web/components/layout/sidebar.tsx`, `apps/web/components/layout/ai-sidebar.tsx`, `apps/web/server/routers/tax-config.ts`, `apps/web/components/settings/taxes-section.tsx`, `packages/agents/core/tax-engine.ts`, `packages/agents/core/statutory-rule-resolver.ts`, `packages/db/schema/tax-compliance.ts`, `packages/db/migrations/0027_wandering_cardiac.sql`, `apps/web/server/routers/document.ts`, `apps/web/components/ui/logo.tsx`, `apps/web/public/favicon.svg`, `BUILD_LOG.md`
