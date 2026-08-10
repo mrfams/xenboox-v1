@@ -296,9 +296,6 @@ export const dashboardRouter = router({
       );
       const prevExpenses = parseFloat(prevExpensesResult[0]?.total ?? "0");
 
-      const currentProfit = currentRevenue - currentExpenses;
-      const prevProfit = prevRevenue - prevExpenses;
-
       // Calculate percentage changes
       const revenueChange =
         prevRevenue > 0
@@ -308,10 +305,6 @@ export const dashboardRouter = router({
         prevExpenses > 0
           ? ((currentExpenses - prevExpenses) / prevExpenses) * 100
           : 0;
-      const profitChange =
-        prevProfit > 0 ? ((currentProfit - prevProfit) / prevProfit) * 100 : 0;
-      const arChange = 0;
-      const apChange = 0;
 
       // ── Sparkline Data (Last 6 months) ────────────────────────────────────
       const getMonthlyData = async (monthsBack: number) => {
@@ -397,9 +390,6 @@ export const dashboardRouter = router({
         () => getMonthlyExpenses(6),
         [0, 0, 0, 0, 0, 0, 0],
       );
-      const monthlyProfits = monthlyRevenues.map(
-        (r, i) => r - (monthlyExpenses[i] || 0),
-      );
 
       // ── Cash Balance Sparkline (real data from bank transactions) ──────
       const getMonthlyNetCashFlow = async (monthsBack: number) => {
@@ -457,75 +447,28 @@ export const dashboardRouter = router({
         pctChange(totalCashBalance, prevCashBalance).toFixed(1),
       );
 
-      // A/R sparkline — REAL open balances: outstanding customer invoices
-      // (pending/partial/overdue) grouped by invoice month, across the last six
-      // months (NOT just the current month, which would zero out 5 of 6 points).
-      const sparklineStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-      const arMonthlyResult = await safeQuery(
-        "arMonthlyBalances",
-        () =>
-          db
-            .select({
-              month: sql<string>`substr(${salesInvoices.invoiceDate}, 1, 7)`,
-              openBalance: sql<string>`sum(${salesInvoices.balance})`,
-            })
-            .from(salesInvoices)
-            .where(
-              and(
-                eq(salesInvoices.entityId, entityId),
-                sql`${salesInvoices.status} IN ('pending', 'partial', 'overdue')`,
-                gte(
-                  salesInvoices.invoiceDate,
-                  sparklineStart.toISOString().split("T")[0],
-                ),
-              ),
-            )
-            .groupBy(sql`substr(${salesInvoices.invoiceDate}, 1, 7)`),
-        [],
+      // ── Cash Runway (months of cash at the current burn rate) ────────────
+      // Burn = average net (expenses − revenue) across the last three
+      // completed months. If the business is cash-flow positive (burn ≤ 0),
+      // runway is effectively unbounded — surfaced as "sustainable" rather
+      // than a misleading finite number.
+      const burnMonthIndexes = [3, 4, 5]; // 3, 2, 1 months back (0 = current)
+      const burnValues = burnMonthIndexes.map(
+        (i) => (monthlyExpenses[i] ?? 0) - (monthlyRevenues[i] ?? 0),
       );
-      const arByMonth = new Map(
-        arMonthlyResult.map((r) => [r.month, parseFloat(r.openBalance ?? "0")]),
-      );
-      const monthKeyFor = (i: number): string => {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      };
-      const arSparkline = monthlyRevenues.map((_, i) => {
-        return arByMonth.get(monthKeyFor(i)) ?? 0;
-      });
-      arSparkline[arSparkline.length - 1] = arOutstanding;
-
-      // A/P sparkline — REAL open balances: outstanding vendor bills
-      // (pending/partial/overdue) grouped by invoice month, last six months.
-      const apMonthlyResult = await safeQuery(
-        "apMonthlyBalances",
-        () =>
-          db
-            .select({
-              month: sql<string>`substr(${invoicesAp.invoiceDate}, 1, 7)`,
-              openBalance: sql<string>`sum(${invoicesAp.balance})`,
-            })
-            .from(invoicesAp)
-            .where(
-              and(
-                eq(invoicesAp.entityId, entityId),
-                sql`${invoicesAp.status} IN ('pending', 'partial', 'overdue')`,
-                gte(
-                  invoicesAp.invoiceDate,
-                  sparklineStart.toISOString().split("T")[0],
-                ),
-              ),
-            )
-            .groupBy(sql`substr(${invoicesAp.invoiceDate}, 1, 7)`),
-        [],
-      );
-      const apByMonth = new Map(
-        apMonthlyResult.map((r) => [r.month, parseFloat(r.openBalance ?? "0")]),
-      );
-      const apSparkline = monthlyExpenses.map((_, i) => {
-        return apByMonth.get(monthKeyFor(i)) ?? 0;
-      });
-      apSparkline[apSparkline.length - 1] = apOutstanding;
+      const avgMonthlyBurn =
+        burnValues.reduce((sum, v) => sum + v, 0) / burnValues.length;
+      // No cash on hand is always critical — never masked as "sustainable".
+      // Otherwise, runway is unbounded only when the business is cash-flow
+      // positive (burn ≤ 0); a positive burn produces a real month count.
+      const runwayMonths: number | null =
+        totalCashBalance <= 0
+          ? 0
+          : avgMonthlyBurn > 0
+            ? totalCashBalance / avgMonthlyBurn
+            : null;
+      const runwaySparkline =
+        avgMonthlyBurn > 0 ? cashSparkline.map((c) => c / avgMonthlyBurn) : [];
 
       // ── Executive Briefing Items ─────────────────────────────────────────
 
@@ -543,93 +486,47 @@ export const dashboardRouter = router({
         audience: Array<"decision" | "operations" | "oversight">;
       }> = [];
 
-      // Core metrics — always shown so the briefing is never a single lonely
-      // card. Each card links to the module page that owns that metric.
+      // Runway — the one forward-looking number an executive acts on. It
+      // replaces the KPI-duplicate cards (revenue/expenses/profit/AR/AP/cash)
+      // which now live in Business Health; the briefing stays attention-first.
       briefingItems.push({
-        id: "revenue",
-        type: currentRevenue > 0 && revenueChange >= 0 ? "positive" : "neutral",
-        title:
-          currentRevenue > 0
-            ? `Revenue ${revenueChange >= 0 ? "up" : "down"} ${Math.abs(revenueChange).toFixed(0)}%`
-            : `No revenue ${cfg.label}`,
-        value: `${currentRevenue.toLocaleString()}`,
-        detail: cfg.compareLabel,
-        statusLabel:
-          currentRevenue > 0
-            ? revenueChange >= 0
-              ? "Strong performance"
-              : "Declining"
-            : "—",
-        href: "/dashboard/invoicing",
-        audience: ["decision", "oversight"],
-      });
-
-      briefingItems.push({
-        id: "expenses",
+        id: "runway",
         type:
-          currentExpenses > 0 && expensesChange <= 0 ? "positive" : "neutral",
+          runwayMonths === null || runwayMonths >= 6
+            ? "positive"
+            : runwayMonths >= 3
+              ? "warning"
+              : "negative",
         title:
-          currentExpenses > 0
-            ? `Expenses ${expensesChange <= 0 ? "down" : "up"} ${Math.abs(expensesChange).toFixed(0)}%`
-            : `No expenses ${cfg.label}`,
-        value: `${currentExpenses.toLocaleString()}`,
-        detail: cfg.compareLabel,
+          runwayMonths === 0
+            ? "No cash on hand"
+            : runwayMonths === null || runwayMonths >= 6
+              ? "Cash runway is healthy"
+              : runwayMonths >= 3
+                ? "Cash runway running low"
+                : "Cash runway is critical",
+        value:
+          runwayMonths === null
+            ? "12+ months"
+            : runwayMonths === 0
+              ? "No cash"
+              : `${runwayMonths < 10 ? runwayMonths.toFixed(1) : Math.round(runwayMonths)} months`,
+        detail:
+          runwayMonths === 0
+            ? "Cash balance is zero or negative"
+            : avgMonthlyBurn > 0
+              ? `At a burn of ${avgMonthlyBurn.toLocaleString()}/mo`
+              : "Cash-flow positive",
         statusLabel:
-          currentExpenses > 0
-            ? expensesChange <= 0
-              ? "Under control"
-              : "Increasing"
-            : "—",
-        href: "/dashboard/expenses",
-        audience: ["decision", "oversight"],
-      });
-
-      briefingItems.push({
-        id: "profit",
-        type: currentProfit >= 0 ? "positive" : "negative",
-        title:
-          currentProfit >= 0
-            ? `Profitable ${cfg.label}`
-            : "Operating at a loss",
-        value: `${currentProfit.toLocaleString()}`,
-        detail: "Revenue minus expenses",
-        statusLabel: currentProfit >= 0 ? "Profitable" : "Loss",
-        href: "/dashboard/reports",
-        audience: ["decision", "oversight"],
-      });
-
-      briefingItems.push({
-        id: "ar",
-        type: arOutstanding > 0 ? "warning" : "positive",
-        title: arOutstanding > 0 ? "Money owed to you" : "No outstanding A/R",
-        value: `${arOutstanding.toLocaleString()}`,
-        detail: "Unpaid customer invoices",
-        statusLabel: arOutstanding > 0 ? "Collect soon" : "All collected",
-        href: "/dashboard/customers",
-        audience: ["decision", "operations"],
-      });
-
-      briefingItems.push({
-        id: "ap",
-        type: apOutstanding > 0 ? "warning" : "positive",
-        title: apOutstanding > 0 ? "Money you owe" : "No outstanding A/P",
-        value: `${apOutstanding.toLocaleString()}`,
-        detail: "Unpaid bills to vendors",
-        statusLabel: apOutstanding > 0 ? "Pay soon" : "All paid",
-        href: "/dashboard/bills",
-        audience: ["decision", "operations"],
-      });
-
-      briefingItems.push({
-        id: "cash",
-        type: cashChange >= 0 ? "positive" : "warning",
-        title:
-          cashChange >= 0
-            ? "Cash position is healthy"
-            : "Cash balance declined",
-        value: `${totalCashBalance.toLocaleString()}`,
-        detail: `${cashChange >= 0 ? "+" : ""}${cashChange}% vs last month`,
-        statusLabel: `${cashChange >= 0 ? "+" : ""}${cashChange}% vs last month`,
+          runwayMonths === 0
+            ? "Critical"
+            : runwayMonths === null
+              ? "Sustainable"
+              : runwayMonths >= 6
+                ? "Healthy"
+                : runwayMonths >= 3
+                  ? "Monitor"
+                  : "Critical",
         href: "/dashboard/banking",
         audience: ["decision", "oversight"],
       });
@@ -1058,22 +955,23 @@ export const dashboardRouter = router({
           cashBalance: totalCashBalance,
           revenue: currentRevenue,
           expenses: currentExpenses,
-          profit: currentProfit,
+          // A/R and A/P are no longer displayed as Business Health cards, but
+          // the chat context still reads them as signals — keep them in the
+          // payload (already computed above).
           arOutstanding,
           apOutstanding,
           cashChange,
           revenueChange: Number(revenueChange.toFixed(1)),
           expensesChange: Number(expensesChange.toFixed(1)),
-          profitChange: Number(profitChange.toFixed(1)),
-          arChange: Number(arChange.toFixed(1)),
-          apChange: Number(apChange.toFixed(1)),
+          // Cash runway — months of cash at the current burn rate (null =
+          // cash-flow positive / sustainable).
+          runwayMonths,
+          monthlyBurn: Number(avgMonthlyBurn.toFixed(0)),
           // Sparkline data for charts
           cashSparkline,
           revenueSparkline: monthlyRevenues,
           expensesSparkline: monthlyExpenses,
-          profitSparkline: monthlyProfits,
-          arSparkline,
-          apSparkline,
+          runwaySparkline,
         },
 
         // Executive briefing
