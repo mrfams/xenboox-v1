@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-10] — Dashboard header: avatar user menu opens on hover
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** 1 (`apps/web/components/layout/top-nav.tsx`) + `BUILD_LOG.md`
+
+**Request:** On the dashboard pages, hovering the avatar should automatically open the user menu (no click needed).
+
+**What was built:**
+
+- The user-menu wrapper now opens immediately on `mouseenter` and closes on `mouseleave` after a 150ms delay — the delay lets the cursor cross the 4px gap between the avatar and the dropdown, and re-entering the menu cancels the pending close, so it doesn't flicker.
+- Click still toggles as a touch/keyboard fallback; `aria-expanded` unchanged; the outside-mousedown close stays as a safety net.
+- Added Escape-to-close for the user menu and notifications (WCAG 1.4.13 — hover-revealed content should be dismissible without moving the pointer) and guarded the close timer so brushing past the avatar doesn't schedule a pointless timeout. The timer ref is cleared on unmount.
+
+**Verification:** `pnpm typecheck` ✓ · lint clean on changed file ✓ · `pnpm build` (Next.js production) ✓ · code review applied (no timer/mousedown interaction bugs; Escape handler + timer guard added).
+
+**Next Steps:** Optional: give the notifications bell and entity switcher the same hover treatment for consistency.
+
+---
+
 ### [2026-08-10] — Per-entity conversation summaries: /chat panel shows a snippet under each title
 
 **Agent:** Buffy (Autonomous Engineer)

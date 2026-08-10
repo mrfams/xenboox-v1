@@ -61,6 +61,7 @@ export function TopNav({
   const [commands, setCommands] = useState<SearchItem[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const closeMenuTimer = useRef<number | null>(null);
   const router = useRouter();
   const { entityId, isLoaded } = useEntity();
   const notifEnabled = isLoaded && !!entityId;
@@ -121,6 +122,50 @@ export function TopNav({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
+
+  // Hover-open the user menu: opening is immediate, closing is delayed so the
+  // menu stays up while the cursor crosses the gap between the avatar and the
+  // dropdown (and re-entering cancels the pending close). Clicks still toggle
+  // as a fallback for touch/keyboard.
+  useEffect(() => {
+    return () => {
+      if (closeMenuTimer.current !== null) {
+        window.clearTimeout(closeMenuTimer.current);
+      }
+    };
+  }, []);
+
+  const openUserMenu = () => {
+    if (closeMenuTimer.current !== null) {
+      window.clearTimeout(closeMenuTimer.current);
+      closeMenuTimer.current = null;
+    }
+    setUserMenuOpen(true);
+  };
+
+  const scheduleCloseUserMenu = () => {
+    if (!userMenuOpen) return;
+    if (closeMenuTimer.current !== null) {
+      window.clearTimeout(closeMenuTimer.current);
+    }
+    closeMenuTimer.current = window.setTimeout(() => {
+      setUserMenuOpen(false);
+      closeMenuTimer.current = null;
+    }, 150);
+  };
+
+  // Escape dismisses the hover-revealed menus without moving the pointer
+  // (WCAG 1.4.13 — hover content should be dismissible).
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setUserMenuOpen(false);
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Close the notifications panel when clicking anywhere outside it. The
   // dropdown's own fixed backdrop can be trapped by the header's backdrop-blur
@@ -322,7 +367,12 @@ export function TopNav({
         )} */}
 
         {/* User menu */}
-        <div className="relative pl-2 border-l" ref={userMenuRef}>
+        <div
+          className="relative pl-2 border-l"
+          ref={userMenuRef}
+          onMouseEnter={openUserMenu}
+          onMouseLeave={scheduleCloseUserMenu}
+        >
           <button
             type="button"
             onClick={() => setUserMenuOpen(!userMenuOpen)}
