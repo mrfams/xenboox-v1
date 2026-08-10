@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   Search,
-  Filter,
   Download,
   ChevronDown,
   CheckCircle2,
@@ -735,6 +734,8 @@ export default function VendorsPage() {
     "all" | "active" | "inactive" | "on_hold" | "1099"
   >("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [vendorTypeFilter, setVendorTypeFilter] = useState("");
+  const [paymentTermsFilter, setPaymentTermsFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
@@ -751,6 +752,8 @@ export default function VendorsPage() {
       status: activeTab === "1099" ? "all" : activeTab,
       is1099: activeTab === "1099" ? true : undefined,
       search: searchQuery || undefined,
+      vendorType: vendorTypeFilter || undefined,
+      paymentTerms: paymentTermsFilter || undefined,
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -834,30 +837,46 @@ export default function VendorsPage() {
               className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Statuses</option>
-            <option>Active</option>
-            <option>Inactive</option>
-            <option>On Hold</option>
+          <select
+            value={vendorTypeFilter}
+            onChange={(e) => {
+              setVendorTypeFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">All Vendor Types</option>
+            <option value="supplier">Supplier</option>
+            <option value="bank">Bank</option>
+            <option value="service_provider">Service Provider</option>
+            <option value="logistics">Logistics</option>
           </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Vendor Types</option>
-            <option>Supplier</option>
-            <option>Bank</option>
-            <option>Service Provider</option>
-            <option>Logistics</option>
+          <select
+            value={paymentTermsFilter}
+            onChange={(e) => {
+              setPaymentTermsFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">All Payment Terms</option>
+            <option value="net_0">Net 0</option>
+            <option value="net_7">Net 7</option>
+            <option value="net_15">Net 15</option>
+            <option value="net_30">Net 30</option>
           </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Payment Terms</option>
-            <option>Net 0</option>
-            <option>Net 7</option>
-            <option>Net 15</option>
-            <option>Net 30</option>
-          </select>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <Filter className="h-4 w-4" />
-            Filters
-          </button>
+          {(vendorTypeFilter || paymentTermsFilter) && (
+            <button
+              onClick={() => {
+                setVendorTypeFilter("");
+                setPaymentTermsFilter("");
+                setPage(1);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       }
       pagination={

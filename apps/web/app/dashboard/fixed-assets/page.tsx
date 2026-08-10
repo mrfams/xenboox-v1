@@ -426,6 +426,8 @@ function AiCopilotPanel({
 export default function FixedAssetsPage() {
   const [activeTab, setActiveTab] = useState<TabFilter>("overview");
   const [showCreate, setShowCreate] = useState(false);
+  const [assetSearch, setAssetSearch] = useState("");
+  const [assetCategory, setAssetCategory] = useState("");
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -528,30 +530,56 @@ export default function FixedAssetsPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="text"
+                    value={assetSearch}
+                    onChange={(e) => setAssetSearch(e.target.value)}
                     placeholder="Search assets..."
                     className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
-                <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>All Categories</option>
+                <select
+                  value={assetCategory}
+                  onChange={(e) => setAssetCategory(e.target.value)}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Categories</option>
+                  {Array.from(
+                    new Set((assetsData ?? []).map((a) => a.assetClass)),
+                  ).map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
             <AssetsTable
-              assets={(assetsData ?? []).map((asset) => ({
-                id: asset.id,
-                name: asset.name,
-                category: asset.assetClass,
-                purchaseDate: asset.purchaseDate,
-                purchaseCost: parseFloat(asset.cost ?? "0"),
-                depreciationMethod: asset.depreciationMethod,
-                usefulLife: asset.usefulLifeMonths ?? 0,
-                accumulatedDepreciation: parseFloat(
-                  asset.accumulatedDepreciation ?? "0",
-                ),
-                netBookValue: parseFloat(asset.netBookValue ?? "0"),
-                status: asset.status,
-              }))}
+              assets={(assetsData ?? [])
+                .filter((asset) => {
+                  if (
+                    assetSearch &&
+                    !asset.name
+                      .toLowerCase()
+                      .includes(assetSearch.toLowerCase())
+                  )
+                    return false;
+                  if (assetCategory && asset.assetClass !== assetCategory)
+                    return false;
+                  return true;
+                })
+                .map((asset) => ({
+                  id: asset.id,
+                  name: asset.name,
+                  category: asset.assetClass,
+                  purchaseDate: asset.purchaseDate,
+                  purchaseCost: parseFloat(asset.cost ?? "0"),
+                  depreciationMethod: asset.depreciationMethod,
+                  usefulLife: asset.usefulLifeMonths ?? 0,
+                  accumulatedDepreciation: parseFloat(
+                    asset.accumulatedDepreciation ?? "0",
+                  ),
+                  netBookValue: parseFloat(asset.netBookValue ?? "0"),
+                  status: asset.status,
+                }))}
               isLoading={assetsLoading}
               onDelete={(id) => deleteAsset.mutate({ id })}
             />

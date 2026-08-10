@@ -14,7 +14,6 @@ import {
   Bot,
   RefreshCw,
   Send,
-  Filter,
   PlusCircle,
   FileText,
   CreditCard,
@@ -773,9 +772,13 @@ function AiCopilotPanel({
 
 export default function CustomersPage() {
   const [activeTab, setActiveTab] = useState<StatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     null,
   );
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview data
@@ -786,8 +789,10 @@ export default function CustomersPage() {
   const { data: customersData, isLoading: customersLoading } =
     trpc.customers.listCustomers.useQuery({
       status: activeTab,
-      limit: 10,
-      offset: 0,
+      search: searchQuery || undefined,
+      group: groupFilter || undefined,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
     });
 
   // Fetch receivables trend
@@ -872,19 +877,21 @@ export default function CustomersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search customers..."
               className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Statuses</option>
-            <option>Active</option>
-            <option>Inactive</option>
-            <option>Overdue</option>
-            <option>At Risk</option>
-          </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Customer Groups</option>
+          <select
+            value={groupFilter}
+            onChange={(e) => {
+              setGroupFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">All Customer Groups</option>
             {overviewData?.customerGroups &&
               Object.keys(overviewData.customerGroups).map((group) => (
                 <option key={group} value={group}>
@@ -892,13 +899,18 @@ export default function CustomersPage() {
                 </option>
               ))}
           </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Sales Reps</option>
-          </select>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <Filter className="h-4 w-4" />
-            Filters
-          </button>
+          {(searchQuery || groupFilter) && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setGroupFilter("");
+                setPage(1);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       }
       pagination={
@@ -908,20 +920,31 @@ export default function CustomersPage() {
             {(customersData?.totalCount ?? 0).toLocaleString()} customers
           </p>
           <div className="flex items-center gap-2">
-            {[1, 2, 3, 4, 5, "...", 16].map((p, i) => (
-              <button
-                key={i}
-                className={cn(
-                  "px-3 py-1.5 text-sm rounded",
-                  p === 1
-                    ? "bg-indigo-600 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
-                )}
-              >
-                {p}
-              </button>
-            ))}
-            <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+            >
+              ←
+            </button>
+            <span className="text-sm text-slate-600">Page {page}</span>
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={
+                page >= Math.ceil((customersData?.totalCount ?? 0) / pageSize)
+              }
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+            >
+              →
+            </button>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
               <option value={10}>10 / page</option>
               <option value={25}>25 / page</option>
               <option value={50}>50 / page</option>

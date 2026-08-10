@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   Search,
-  Filter,
   ChevronDown,
   CheckCircle2,
   AlertTriangle,
@@ -1366,10 +1365,14 @@ export default function PayrollPage() {
         <option value="HR">HR</option>
         <option value="Customer Support">Customer Support</option>
       </select>
-      <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-        <Filter className="h-4 w-4" />
-        Filters
-      </button>
+      {searchQuery && (
+        <button
+          onClick={() => setSearchQuery("")}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+        >
+          Clear search
+        </button>
+      )}
     </div>
   ) : undefined;
 

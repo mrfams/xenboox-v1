@@ -137,7 +137,7 @@ export function ModulePageShell({
 
   const shell = (
     <>
-      {/* ── Sticky chrome: header + tabs ─────────────────────────── */}
+      {/* ── Sticky chrome: header + tabs + filters ──────────────── */}
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
         {/* Header row */}
         <div className="flex items-center justify-between gap-4 px-4 py-2">
@@ -240,6 +240,35 @@ export function ModulePageShell({
             />
           </div>
         )}
+
+        {/* ── Filters (compact, collapsible, pinned with the header) ── */}
+        {hasFilters && (
+          <div className="px-4 py-2">
+            {!filtersCollapsed ? (
+              <div className="flex items-center gap-3">
+                <div className="flex flex-1 items-center gap-2 overflow-x-auto">
+                  {filters}
+                </div>
+                <SectionToggle
+                  collapsed={filtersCollapsed}
+                  onToggle={() => setFiltersCollapsed((v) => !v)}
+                  label="filters"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Filters hidden
+                </span>
+                <SectionToggle
+                  collapsed={filtersCollapsed}
+                  onToggle={() => setFiltersCollapsed((v) => !v)}
+                  label="filters"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── KPI metric strip (compact, hairline-divided) ─────────── */}
@@ -314,35 +343,6 @@ export function ModulePageShell({
                 collapsed={cardsCollapsed}
                 onToggle={() => setCardsCollapsed((v) => !v)}
                 label="summary cards"
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Filters (compact, collapsible) ───────────────────────── */}
-      {hasFilters && (
-        <div className="border-b border-slate-200 bg-white px-4 py-2">
-          {!filtersCollapsed ? (
-            <div className="flex items-center gap-3">
-              <div className="flex flex-1 items-center gap-2 overflow-x-auto">
-                {filters}
-              </div>
-              <SectionToggle
-                collapsed={filtersCollapsed}
-                onToggle={() => setFiltersCollapsed((v) => !v)}
-                label="filters"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Filters hidden
-              </span>
-              <SectionToggle
-                collapsed={filtersCollapsed}
-                onToggle={() => setFiltersCollapsed((v) => !v)}
-                label="filters"
               />
             </div>
           )}

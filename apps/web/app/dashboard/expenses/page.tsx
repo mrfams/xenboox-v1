@@ -538,6 +538,9 @@ function AiCopilotPanel({
 export default function ExpensesPage() {
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(
     null,
   );
@@ -556,6 +559,8 @@ export default function ExpensesPage() {
     trpc.expenses.listExpenses.useQuery({
       status: activeTab,
       search: searchQuery || undefined,
+      category: categoryFilter || undefined,
+      paymentMethod: paymentMethodFilter || undefined,
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -629,33 +634,63 @@ export default function ExpensesPage() {
               className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Categories</option>
-            <option>Meals & Entertainment</option>
-            <option>Utilities</option>
-            <option>Travel</option>
-            <option>Office Supplies</option>
-            <option>Software</option>
-            <option>Marketing</option>
+          <select
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">All Categories</option>
+            <option value="Meals & Entertainment">Meals & Entertainment</option>
+            <option value="Utilities">Utilities</option>
+            <option value="Travel">Travel</option>
+            <option value="Office Supplies">Office Supplies</option>
+            <option value="Software">Software</option>
+            <option value="Marketing">Marketing</option>
           </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Payment Methods</option>
-            <option>Card</option>
-            <option>Bank Transfer</option>
-            <option>Cash</option>
-            <option>Mobile Money</option>
+          <select
+            value={paymentMethodFilter}
+            onChange={(e) => {
+              setPaymentMethodFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">All Payment Methods</option>
+            <option value="card">Card</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="cash">Cash</option>
+            <option value="mobile_money">Mobile Money</option>
           </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Statuses</option>
-            <option>Draft</option>
-            <option>Pending Approval</option>
-            <option>Approved</option>
-            <option>Reimbursed</option>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="pending">Pending Approval</option>
+            <option value="approved">Approved</option>
+            <option value="reimbursed">Reimbursed</option>
           </select>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <Filter className="h-4 w-4" />
-            Filters
-          </button>
+          {(categoryFilter || paymentMethodFilter || statusFilter) && (
+            <button
+              onClick={() => {
+                setCategoryFilter("");
+                setPaymentMethodFilter("");
+                setStatusFilter("");
+                setPage(1);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       }
       pagination={

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   Search,
-  Filter,
   ChevronDown,
   CheckCircle2,
   AlertTriangle,
@@ -672,6 +671,7 @@ export default function JournalEntriesPage() {
     "all" | "draft" | "pending" | "approved" | "posted" | "voided"
   >("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
@@ -687,6 +687,7 @@ export default function JournalEntriesPage() {
     trpc.journal.listWithDetails.useQuery({
       status: activeTab,
       search: searchQuery || undefined,
+      source: sourceFilter || undefined,
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -757,35 +758,32 @@ export default function JournalEntriesPage() {
               className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Dates</option>
-            <option>Today</option>
-            <option>This week</option>
-            <option>This month</option>
-            <option>Custom range</option>
+          <select
+            value={sourceFilter}
+            onChange={(e) => {
+              setSourceFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">All Sources</option>
+            {(sources?.sources ?? []).map((s) => (
+              <option key={s.name} value={s.name}>
+                {s.name}
+              </option>
+            ))}
           </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Sources</option>
-            <option>Manual</option>
-            <option>Bank Import</option>
-            <option>Automation</option>
-            <option>Payroll</option>
-            <option>Inventory</option>
-          </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Statuses</option>
-            <option>Draft</option>
-            <option>Pending Approval</option>
-            <option>Posted</option>
-            <option>Voided</option>
-          </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Users</option>
-          </select>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <Filter className="h-4 w-4" />
-            Filters
-          </button>
+          {sourceFilter && (
+            <button
+              onClick={() => {
+                setSourceFilter("");
+                setPage(1);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Clear filter
+            </button>
+          )}
         </div>
       }
       pagination={

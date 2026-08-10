@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Search,
   Plus,
-  Download,
   ChevronDown,
   MoreHorizontal,
   RefreshCw,
@@ -14,7 +13,6 @@ import {
   TrendingUp,
   TrendingDown,
   Eye,
-  Filter,
   Settings,
   FileText,
   BarChart3,
@@ -26,6 +24,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { CreateReconciliationDialog } from "@/components/dashboard/create-reconciliation-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { DocumentUploadButton } from "@/components/module/document-upload-button";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -884,6 +883,9 @@ export default function ReconciliationPage() {
     null,
   );
   const [showCreate, setShowCreate] = useState(false);
+  const [accountSearch, setAccountSearch] = useState("");
+  const [accountTypeFilter, setAccountTypeFilter] = useState("");
+  const [accountStatusFilter, setAccountStatusFilter] = useState("");
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -931,14 +933,11 @@ export default function ReconciliationPage() {
                 <Plus className="h-4 w-4" />
                 New Reconciliation
               </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Download className="h-4 w-4" />
-                Import
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                More
-                <ChevronDown className="h-4 w-4" />
-              </button>
+              <DocumentUploadButton
+                docType="bank_statement"
+                label="Import"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              />
             </div>
           </div>
 
@@ -972,27 +971,47 @@ export default function ReconciliationPage() {
         <div className="p-4 bg-white border-b border-slate-200">
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />{" "}
               <input
                 type="text"
+                value={accountSearch}
+                onChange={(e) => setAccountSearch(e.target.value)}
                 placeholder="Search accounts..."
                 className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Account Types</option>
+            <select
+              value={accountTypeFilter}
+              onChange={(e) => setAccountTypeFilter(e.target.value)}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">All Account Types</option>
+              <option value="checking">Checking</option>
+              <option value="savings">Savings</option>
+              <option value="mobile_money">Mobile Money</option>
             </select>
-            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option>All Statuses</option>
+            <select
+              value={accountStatusFilter}
+              onChange={(e) => setAccountStatusFilter(e.target.value)}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">All Statuses</option>
+              <option value="Reconciled">Reconciled</option>
+              <option value="Unreconciled">Unreconciled</option>
+              <option value="Not Required">Not Required</option>
             </select>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-              May 1 - May 19, 2025
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Filter className="h-4 w-4" />
-              Filters
-            </button>
+            {(accountSearch || accountTypeFilter || accountStatusFilter) && (
+              <button
+                onClick={() => {
+                  setAccountSearch("");
+                  setAccountTypeFilter("");
+                  setAccountStatusFilter("");
+                }}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Clear filters
+              </button>
+            )}
             <button className="rounded-lg border border-slate-200 bg-white p-2 hover:bg-slate-50">
               <Settings className="h-4 w-4 text-slate-600" />
             </button>
@@ -1002,7 +1021,18 @@ export default function ReconciliationPage() {
         {/* Account Table */}
         <div className="flex-1 overflow-auto bg-white">
           <AccountTable
-            accounts={overviewData?.accountStatuses ?? []}
+            accounts={(overviewData?.accountStatuses ?? []).filter((a) => {
+              if (
+                accountSearch &&
+                !a.name.toLowerCase().includes(accountSearch.toLowerCase())
+              )
+                return false;
+              if (accountTypeFilter && a.type !== accountTypeFilter)
+                return false;
+              if (accountStatusFilter && a.status !== accountStatusFilter)
+                return false;
+              return true;
+            })}
             selectedId={selectedAccountId}
             onSelect={setSelectedAccountId}
             isLoading={overviewLoading}

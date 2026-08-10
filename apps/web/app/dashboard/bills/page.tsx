@@ -15,7 +15,6 @@ import {
   Eye,
   RefreshCw,
   Send,
-  Filter,
   Calendar,
   CreditCard,
   Link,
@@ -760,7 +759,10 @@ function AiCopilotPanel({
 
 export default function BillsPage() {
   const [activeTab, setActiveTab] = useState<StatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview data
@@ -771,8 +773,9 @@ export default function BillsPage() {
   const { data: billsData, isLoading: billsLoading } =
     trpc.bills.listBills.useQuery({
       status: activeTab,
-      limit: 10,
-      offset: 0,
+      search: searchQuery || undefined,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
     });
 
   // Fetch bills trend
@@ -847,7 +850,10 @@ export default function BillsPage() {
       }
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={(key) => setActiveTab(key as StatusFilter)}
+      onTabChange={(key) => {
+        setActiveTab(key as StatusFilter);
+        setPage(1);
+      }}
       summaryCards={
         overviewData?.summary ? buildSummaryCards(overviewData.summary) : []
       }
@@ -857,23 +863,20 @@ export default function BillsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search bills..."
               className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Vendors</option>
-          </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Statuses</option>
-          </select>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>All Due Dates</option>
-          </select>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <Filter className="h-4 w-4" />
-            Filters
-          </button>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Clear search
+            </button>
+          )}
         </div>
       }
       pagination={
@@ -883,20 +886,31 @@ export default function BillsPage() {
             {(billsData?.totalCount ?? 0).toLocaleString()} bills
           </p>
           <div className="flex items-center gap-2">
-            {[1, 2, 3, 4, 5, "...", 13].map((p, i) => (
-              <button
-                key={i}
-                className={cn(
-                  "px-3 py-1.5 text-sm rounded",
-                  p === 1
-                    ? "bg-indigo-600 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
-                )}
-              >
-                {p}
-              </button>
-            ))}
-            <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+            >
+              ←
+            </button>
+            <span className="text-sm text-slate-600">Page {page}</span>
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={
+                page >= Math.ceil((billsData?.totalCount ?? 0) / pageSize)
+              }
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+            >
+              →
+            </button>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
               <option value={10}>10 / page</option>
               <option value={25}>25 / page</option>
               <option value={50}>50 / page</option>

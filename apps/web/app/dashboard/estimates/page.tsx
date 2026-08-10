@@ -1261,7 +1261,12 @@ export default function EstimatesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const overview = trpc.estimates.getOverview.useQuery();
-  const list = trpc.estimates.listEstimates.useQuery({ status: activeTab });
+  const [pageSize, setPageSize] = useState(20);
+  const list = trpc.estimates.listEstimates.useQuery({
+    status: activeTab,
+    limit: pageSize,
+    offset: 0,
+  });
   const detail = trpc.estimates.getEstimateById.useQuery(
     { id: selectedId ?? "" },
     { enabled: !!selectedId },
@@ -1391,9 +1396,13 @@ export default function EstimatesPage() {
               Showing {list.data?.estimates.length ?? 0} of{" "}
               {list.data?.totalCount ?? 0} estimates
             </p>
-            <select className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-              <option>20 / page</option>
-              <option>50 / page</option>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
+            >
+              <option value={20}>20 / page</option>
+              <option value={50}>50 / page</option>
             </select>
           </div>
         </div>

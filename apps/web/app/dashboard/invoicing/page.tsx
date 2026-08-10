@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Search,
   Plus,
-  ChevronDown,
   FileText,
   CheckCircle2,
   AlertTriangle,
@@ -13,10 +12,8 @@ import {
   Eye,
   RefreshCw,
   Send,
-  Filter,
   PlusCircle,
   CreditCard,
-  Calendar,
   LayoutGrid,
   Edit,
 } from "lucide-react";
@@ -27,6 +24,7 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateInvoiceDialog } from "@/components/dashboard/create-invoice-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { DocumentUploadButton } from "@/components/module/document-upload-button";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -784,9 +782,12 @@ function ShortcutsSidebar() {
 
 export default function InvoicingPage() {
   const [activeTab, setActiveTab] = useState<StatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
     null,
   );
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
 
   // Fetch overview data
@@ -797,8 +798,9 @@ export default function InvoicingPage() {
   const { data: invoicesData, isLoading: invoicesLoading } =
     trpc.invoicing.listInvoices.useQuery({
       status: activeTab,
-      limit: 10,
-      offset: 0,
+      search: searchQuery || undefined,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
     });
 
   // Fetch charts data
@@ -876,21 +878,17 @@ export default function InvoicingPage() {
           icon={FileText}
           actions={
             <>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Upload className="h-4 w-4" />
-                Upload Invoice
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                More actions
-                <ChevronDown className="h-4 w-4" />
-              </button>
+              <DocumentUploadButton
+                docType="invoice"
+                label="Upload Invoice"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              />
               <button
                 onClick={() => setShowCreate(true)}
                 className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 New Invoice
-                <ChevronDown className="h-4 w-4" />
               </button>
             </>
           }
@@ -906,28 +904,26 @@ export default function InvoicingPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Search invoices..."
                   className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-                <Calendar className="h-4 w-4" />
-                Date: Last 30 days
-                <ChevronDown className="h-4 w-4" />
-              </button>
-              <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option>All Customers</option>
-              </select>
-              <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option>All Statuses</option>
-              </select>
-              <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option>All Types</option>
-              </select>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Filter className="h-4 w-4" />
-                Filters
-              </button>
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Clear search
+                </button>
+              )}
             </div>
           }
           pagination={
@@ -937,20 +933,32 @@ export default function InvoicingPage() {
                 {(invoicesData?.totalCount ?? 0).toLocaleString()} invoices
               </p>
               <div className="flex items-center gap-2">
-                {[1, 2, 3, 4, 5, "...", 16].map((p, i) => (
-                  <button
-                    key={i}
-                    className={cn(
-                      "px-3 py-1.5 text-sm rounded",
-                      p === 1
-                        ? "bg-indigo-600 text-white"
-                        : "text-slate-600 hover:bg-slate-50",
-                    )}
-                  >
-                    {p}
-                  </button>
-                ))}
-                <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <button
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+                >
+                  ←
+                </button>
+                <span className="text-sm text-slate-600">Page {page}</span>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={
+                    page >=
+                    Math.ceil((invoicesData?.totalCount ?? 0) / pageSize)
+                  }
+                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+                >
+                  →
+                </button>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
                   <option value={10}>10 per page</option>
                   <option value={25}>25 per page</option>
                   <option value={50}>50 per page</option>
@@ -998,10 +1006,11 @@ export default function InvoicingPage() {
                     <Plus className="h-4 w-4" />
                     Create Invoice
                   </button>
-                  <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                    <Upload className="h-4 w-4" />
-                    Upload Invoice
-                  </button>
+                  <DocumentUploadButton
+                    docType="invoice"
+                    label="Upload Invoice"
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  />
                 </div>
                 <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
                   <span>✓ Auto-reminders for overdue</span>
