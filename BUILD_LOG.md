@@ -6,6 +6,21 @@
 
 ---
 
+### [2026-08-10] — Audit trail: tiered access control (ADR-0007)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/server/routers/audit.ts`, `apps/web/app/dashboard/activity/page.tsx`, `apps/web/components/audit/activity-log-view.tsx`, `apps/web/__tests__/audit-router.test.ts`, `docs/decisions/0007-tiered-audit-visibility.md`, `BUILD_LOG.md`
+
+**What:** Closed the access-control gap in the tamper-evident audit trail — the trail was viewable by every entity member; now it's tiered (least privilege):
+
+- **owner/admin** — full trail (all team + agent actions), sensitive metadata (IP, UA, session, request IDs), `verify` + `export` (via existing `requireRole("owner", "admin")` middleware).
+- **regular member** — scoped list of their OWN actions + agent/system actions; sensitive fields nulled; `verify`/`export` return FORBIDDEN; UI hides those controls and shows a "Your activity" notice.
+- New tests prove member FORBIDDEN on verify/export, owner allowed, and the SQL-level WHERE scoping (self userId + actorType agent/system) plus field-stripping.
+
+**Verification:** 502 tests passed · typecheck ✓ · lint ✓ · production build ✓ · code review applied
+
+---
+
 ### [2026-08-10] — Entity switcher opens on hover
 
 **Agent:** Buffy (Autonomous Engineer)

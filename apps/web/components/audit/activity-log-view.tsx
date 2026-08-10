@@ -34,6 +34,9 @@ export type ActivityEvent = {
   newValues: Record<string, unknown> | null;
   createdAt: string | null;
   ipAddress: string | null;
+  sessionId?: string | null;
+  requestId?: string | null;
+  userAgent?: string | null;
 };
 
 function formatTime(value: string | null): string {
@@ -63,6 +66,7 @@ export function ActivityLogView({
   events,
   verification,
   isVerifying = false,
+  scoped = false,
   onVerify,
   onExportJson,
   onExportCsv,
@@ -70,6 +74,8 @@ export function ActivityLogView({
   events: ActivityEvent[];
   verification: AuditVerification;
   isVerifying?: boolean;
+  /** True when the viewer is a regular member seeing a filtered trail. */
+  scoped?: boolean;
   onVerify: () => void;
   onExportJson: () => void;
   onExportCsv: () => void;
@@ -97,64 +103,89 @@ export function ActivityLogView({
 
   return (
     <div className="space-y-4">
-      {/* Integrity banner */}
-      <div
-        className={cn(
-          "flex items-start gap-3 rounded-xl border p-3.5",
-          status.tone,
-        )}
-      >
-        <StatusIcon className="mt-0.5 h-5 w-5 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">{status.label}</p>
-          <p className="mt-0.5 text-xs opacity-80">
-            {verification.checkedCount > 0
-              ? `${verification.checkedCount} events checked in this chain`
-              : verification.status === "broken"
-                ? "No events could be verified in sequence."
-                : "No chained events yet."}
-            {verification.status === "broken" &&
-              verification.firstBrokenSeq != null && (
-                <>
-                  {" "}
-                  First broken link: event{" "}
-                  <span className="font-semibold">
-                    #{verification.firstBrokenSeq}
-                  </span>
-                </>
-              )}
-          </p>
+      {/* Scoped-view notice (regular members) */}
+      {scoped && (
+        <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+          <ShieldQuestion className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">Your activity</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              You&apos;re viewing your own actions and Xenboox agent activity.
+              The full audit trail (including IP addresses and session data) is
+              available to owners and administrators.
+            </p>
+          </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onVerify}
-          disabled={isVerifying}
-          className="shrink-0"
+      )}
+
+      {/* Integrity banner — owner/admin only (verification is an evidentiary
+          artifact; members see the scoped notice above instead) */}
+      {!scoped && (
+        <div
+          className={cn(
+            "flex items-start gap-3 rounded-xl border p-3.5",
+            status.tone,
+          )}
         >
-          <RefreshCw
-            className={cn("mr-1.5 h-3.5 w-3.5", isVerifying && "animate-spin")}
-          />
-          Verify again
-        </Button>
-      </div>
+          <StatusIcon className="mt-0.5 h-5 w-5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">{status.label}</p>
+            <p className="mt-0.5 text-xs opacity-80">
+              {verification.checkedCount > 0
+                ? `${verification.checkedCount} events checked in this chain`
+                : verification.status === "broken"
+                  ? "No events could be verified in sequence."
+                  : "No chained events yet."}
+              {verification.status === "broken" &&
+                verification.firstBrokenSeq != null && (
+                  <>
+                    {" "}
+                    First broken link: event{" "}
+                    <span className="font-semibold">
+                      #{verification.firstBrokenSeq}
+                    </span>
+                  </>
+                )}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onVerify}
+            disabled={isVerifying}
+            className="shrink-0"
+          >
+            <RefreshCw
+              className={cn(
+                "mr-1.5 h-3.5 w-3.5",
+                isVerifying && "animate-spin",
+              )}
+            />
+            Verify again
+          </Button>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {events.length} event{events.length === 1 ? "" : "s"} — every action
-          by a person or an agent, in sequence.
+          {events.length} event{events.length === 1 ? "" : "s"}
+          {scoped
+            ? " — actions by you and Xenboox agents."
+            : " — every action by a person or an agent, in sequence."}
         </p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onExportJson}>
-            <FileDown className="mr-1.5 h-3.5 w-3.5" />
-            Export JSON
-          </Button>
-          <Button variant="outline" size="sm" onClick={onExportCsv}>
-            <FileDown className="mr-1.5 h-3.5 w-3.5" />
-            Export CSV
-          </Button>
-        </div>
+        {!scoped && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onExportJson}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />
+              Export JSON
+            </Button>
+            <Button variant="outline" size="sm" onClick={onExportCsv}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />
+              Export CSV
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Events */}

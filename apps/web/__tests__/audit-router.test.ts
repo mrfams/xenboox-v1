@@ -203,6 +203,15 @@ describe("auditRouter — tamper-evident chain", () => {
     });
   }
 
+  function callerWithRole(role: string) {
+    vi.mocked(db.query.userEntityAccess.findFirst).mockResolvedValue({
+      userId: "user-1",
+      entityId: "entity-1",
+      role,
+    } as never);
+    return caller();
+  }
+
   it("verify returns valid with a checkedCount for an intact chain", async () => {
     vi.mocked(db.query.auditLog.findMany).mockResolvedValue(
       chainedRows() as never,
@@ -275,6 +284,101 @@ describe("auditRouter — tamper-evident chain", () => {
       action: "create",
     });
     expect(result.logs[0].eventHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.logs[0].ipAddress).toBe("10.0.0.1");
     expect(result.total).toBe(2);
+    expect(result.scoped).toBe(false);
+  });
+
+  // ─── Tiered access (ADR-0007) ────────────────────────────────────────
+
+  it("verify is FORBIDDEN for a regular member", async () => {
+    const c = callerWithRole("bookkeeper");
+    await expect(c.audit.verify()).rejects.toThrow(/FORBIDDEN|role/);
+  });
+
+  it("export is FORBIDDEN for a regular member", async () => {
+    const c = callerWithRole("bookkeeper");
+    await expect(c.audit.export({ format: "json" })).rejects.toThrow(
+      /FORBIDDEN|role/,
+    );
+  });
+
+  it("verify is allowed for an owner", async () => {
+    const c = callerWithRole("owner");
+    vi.mocked(db.query.auditLog.findMany).mockResolvedValue(
+      chainedRows() as never,
+    );
+    const result = await c.audit.verify();
+    expect(result.valid).toBe(true);
+  });
+
+  it("list scopes a member to their own + agent actions and strips sensitive fields", async () => {
+    const c = callerWithRole("bookkeeper");
+    const own = chainedRows()[0]; // userId user-1
+    const otherUser = {
+      ...chainedRows()[1],
+      id: "evt-other",
+      userId: "user-999",
+      actorType: "user",
+    };
+    const agentEvent = {
+      ...chainedRows()[1],
+      id: "evt-agent",
+      userId: null,
+      actorType: "agent",
+      agentId: "cfo-agent",
+    };
+    vi.mocked(db.query.auditLog.findMany).mockResolvedValue([
+      own,
+      otherUser,
+      agentEvent,
+    ] as never);
+    vi.mocked(db.execute).mockResolvedValue({
+      rows: [{ total: "3" }],
+    } as never);
+
+    const result = await c.audit.list({ limit: 50, offset: 0 });
+    expect(result.scoped).toBe(true);
+    // Core security property: the `where` the router builds for a member
+    // contains the self-userId condition AND the actorType agent/system
+    // conditions — i.e. other users' rows are excluded at the SQL level.
+    // Drizzle's where is a lazy SQL object; its queryChunks embed the column
+    // names and values, so stringifying it exposes the scoping terms.
+    const where = vi.mocked(db.query.auditLog.findMany).mock.calls[0][0]?.where;
+    expect(where).toBeDefined();
+    // Walk Drizzle's queryChunks recursively, collecting column names and
+    // literal values (JSON.stringify hits circular PgTable refs).
+    const parts: string[] = [];
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+        return;
+      }
+      if (node && typeof node === "object") {
+        const obj = node as Record<string, unknown>;
+        if (obj.queryChunks) {
+          walk(obj.queryChunks);
+          return;
+        }
+        for (const [k, v] of Object.entries(obj)) {
+          if (k === "table" || typeof v === "object") continue;
+          parts.push(k, String(v));
+        }
+        return;
+      }
+      parts.push(String(node));
+    };
+    walk(where);
+    const collected = parts.join(" ");
+    expect(collected).toContain("user_id");
+    expect(collected).toContain("actor_type");
+    expect(collected).toContain("agent");
+    expect(collected).toContain("system");
+    // Sensitive metadata nulled for members
+    expect(result.logs[0].ipAddress).toBeNull();
+    expect(result.logs[0].sessionId).toBeNull();
+    expect(result.logs[0].userAgent).toBeNull();
+    // Non-sensitive chain fields still present
+    expect(result.logs[0].eventHash).toMatch(/^[0-9a-f]{64}$/);
   });
 });

@@ -22,16 +22,24 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 export default function ActivityLogPage() {
-  const { entityId, isLoaded } = useEntity();
+  const { entityId, entityRole, isLoaded } = useEntity();
   const [isExporting, setIsExporting] = useState(false);
   const enabled = isLoaded && !!entityId;
+  // Tiered visibility (ADR-0007): owners/admins see the full trail with
+  // verification + export; regular members get a scoped view of their own
+  // actions and agent activity, without sensitive metadata.
+  const isPrivileged = entityRole === "owner" || entityRole === "admin";
 
   const list = trpc.audit.list.useQuery(
     { limit: 100, offset: 0 },
     { enabled, refetchInterval: 30_000 },
   );
-  const verify = trpc.audit.verify.useQuery(undefined, { enabled });
+  const verify = trpc.audit.verify.useQuery(undefined, {
+    enabled: enabled && isPrivileged,
+  });
   const utils = trpc.useUtils();
+
+  const scoped = list.data?.scoped ?? !isPrivileged;
 
   const events: ActivityEvent[] = (list.data?.logs ?? []).map((log) => ({
     id: log.id,
@@ -47,6 +55,9 @@ export default function ActivityLogPage() {
     newValues: log.newValues,
     createdAt: log.createdAt ? new Date(log.createdAt).toISOString() : null,
     ipAddress: log.ipAddress,
+    sessionId: log.sessionId,
+    requestId: log.requestId,
+    userAgent: log.userAgent,
   }));
 
   const verification: AuditVerification = verify.data ?? {
@@ -57,7 +68,7 @@ export default function ActivityLogPage() {
   };
 
   const handleExport = async (format: "json" | "csv") => {
-    if (!entityId) return;
+    if (!entityId || !isPrivileged) return;
     setIsExporting(true);
     try {
       const data = await utils.audit.export.fetch({ format });
@@ -91,6 +102,7 @@ export default function ActivityLogPage() {
         events={events}
         verification={verification}
         isVerifying={verify.isFetching}
+        scoped={scoped}
         onVerify={() => verify.refetch()}
         onExportJson={() => handleExport("json")}
         onExportCsv={() => handleExport("csv")}

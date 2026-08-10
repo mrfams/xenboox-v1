@@ -4,9 +4,10 @@ import {
   handleMutationError,
   router,
   rlsProtectedProcedure,
+  requireRole,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { eq, desc, asc, and, gte, lte, like, sql } from "drizzle-orm";
+import { eq, desc, asc, and, or, gte, lte, like, sql } from "drizzle-orm";
 import { auditLog } from "@xenboox/db/schema/documents";
 import { verifyChain, type ChainEvent } from "@/lib/audit/chain";
 import { rowToChainPayload } from "@/lib/audit/backfill";
@@ -132,6 +133,13 @@ function escapeCsv(value: unknown): string {
 }
 
 export const auditRouter = router({
+  /**
+   * Tiered audit visibility (see ADR-0007):
+   * - owner/admin → full trail, including sensitive metadata (IP, session).
+   * - regular member → their OWN actions + agent actions only; sensitive
+   *   metadata (ipAddress, userAgent, sessionId, requestId, userId of others)
+   *   is stripped. Least privilege without losing accountability.
+   */
   list: rlsProtectedProcedure
     .input(
       z.object({
@@ -145,7 +153,22 @@ export const auditRouter = router({
     )
     .query(async ({ ctx, input }) => {
       try {
+        const isPrivileged =
+          ctx.entityRole === "owner" || ctx.entityRole === "admin";
         const conditions = [eq(auditLog.entityId, ctx.entityId!)];
+
+        if (!isPrivileged) {
+          // Members see their own actions plus agent/system actions. `or`
+          // is typed SQL | undefined; entityId is always present so the
+          // result is non-null at runtime — assert for the type checker.
+          conditions.push(
+            or(
+              eq(auditLog.userId, ctx.session?.user?.id ?? ""),
+              eq(auditLog.actorType, "agent"),
+              eq(auditLog.actorType, "system"),
+            )!,
+          );
+        }
 
         if (input.action) {
           conditions.push(like(auditLog.action, `%${input.action}%`));
@@ -160,7 +183,13 @@ export const auditRouter = router({
           conditions.push(lte(auditLog.createdAt, new Date(input.dateTo)));
         }
 
-        const whereClause = and(...conditions);
+        // conditions always includes the entityId clause, so whereClause is
+        // guaranteed non-null at runtime; assert once for the type checker.
+        const whereClause = and(...conditions)!;
+
+        const countQuery = db.execute(
+          sql`SELECT COUNT(*) as total FROM audit_log WHERE ${whereClause}`,
+        );
 
         const [logs, countResult] = await Promise.all([
           db.query.auditLog.findMany({
@@ -169,9 +198,7 @@ export const auditRouter = router({
             limit: input.limit,
             offset: input.offset,
           }),
-          db.execute(
-            sql`SELECT COUNT(*) as total FROM audit_log WHERE ${whereClause}`,
-          ),
+          countQuery,
         ]);
 
         const total = Number(
@@ -188,19 +215,21 @@ export const auditRouter = router({
             newValues: log.newValues as Record<string, unknown> | null,
             oldValues: log.oldValues as Record<string, unknown> | null,
             createdAt: log.createdAt,
-            // Chain + actor fields
+            // Chain + actor fields (non-sensitive — always present)
             seq: log.seq,
             prevHash: log.prevHash,
             eventHash: log.eventHash,
             actorType: log.actorType,
             agentId: log.agentId,
             reason: log.reason,
-            sessionId: log.sessionId,
-            requestId: log.requestId,
-            ipAddress: log.ipAddress,
-            userAgent: log.userAgent,
+            // Sensitive metadata — owners/admins only; null for members
+            sessionId: isPrivileged ? log.sessionId : null,
+            requestId: isPrivileged ? log.requestId : null,
+            ipAddress: isPrivileged ? log.ipAddress : null,
+            userAgent: isPrivileged ? log.userAgent : null,
           })),
           total,
+          scoped: !isPrivileged,
         };
       } catch (error) {
         handleMutationError(error, "Failed to fetch audit logs");
@@ -210,18 +239,21 @@ export const auditRouter = router({
   /**
    * Verify the integrity of this entity's audit chain. Recomputes every hash
    * and link; any tampered, reordered, or deleted event breaks verification.
+   * Owner/admin only — a verification report is an evidentiary artifact.
    */
-  verify: rlsProtectedProcedure.query(async ({ ctx }) => {
-    try {
-      const rows = await db.query.auditLog.findMany({
-        where: eq(auditLog.entityId, ctx.entityId!),
-        orderBy: [asc(auditLog.seq), asc(auditLog.createdAt)],
-      });
-      return verifyForEntity(rows);
-    } catch (error) {
-      handleMutationError(error, "Failed to verify audit chain");
-    }
-  }),
+  verify: rlsProtectedProcedure
+    .use(requireRole("owner", "admin"))
+    .query(async ({ ctx }) => {
+      try {
+        const rows = await db.query.auditLog.findMany({
+          where: eq(auditLog.entityId, ctx.entityId!),
+          orderBy: [asc(auditLog.seq), asc(auditLog.createdAt)],
+        });
+        return verifyForEntity(rows);
+      } catch (error) {
+        handleMutationError(error, "Failed to verify audit chain");
+      }
+    }),
 
   /**
    * Export this entity's audit chain (JSON or CSV) together with a live
@@ -229,6 +261,7 @@ export const auditRouter = router({
    * integrity.
    */
   export: rlsProtectedProcedure
+    .use(requireRole("owner", "admin"))
     .input(
       z.object({
         format: z.enum(["json", "csv"]).default("json"),
