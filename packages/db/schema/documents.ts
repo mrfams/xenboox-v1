@@ -9,6 +9,7 @@ import {
   jsonb,
   pgEnum,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { uuidId, entityId, timestamps } from "./helpers";
@@ -96,6 +97,44 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
     references: [users.id],
   }),
   links: many(documentLinks),
+  views: many(documentViews),
+}));
+
+// ─── DOCUMENT VIEWS (per-user read tracking) ──────────────────────────────
+// Lets the dashboard (and later the documents module) distinguish documents
+// the current user has opened/engaged with from ones still "new" to them.
+// entityId mirrors documentLinks so the table stays entity-scoped at the DB
+// layer (RLS convention — see AGENTS.md). One row per (document, user).
+
+export const documentViews = pgTable(
+  "document_views",
+  {
+    id: uuidId(),
+    entityId: entityId.references(() => entities.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    viewedAt: timestamp("viewed_at").notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("document_views_doc_user").on(t.documentId, t.userId),
+    index("document_views_entity").on(t.entityId),
+  ],
+);
+
+export const documentViewsRelations = relations(documentViews, ({ one }) => ({
+  document: one(documents, {
+    fields: [documentViews.documentId],
+    references: [documents.id],
+  }),
+  viewer: one(users, {
+    fields: [documentViews.userId],
+    references: [users.id],
+  }),
 }));
 
 // ─── DOCUMENT LINKS ──────────────────────────────

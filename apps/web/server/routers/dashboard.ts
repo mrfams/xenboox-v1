@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { eq, and, desc, sql, gte, lte, count, sum, asc } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  sql,
+  gte,
+  lte,
+  count,
+  sum,
+  asc,
+  inArray,
+} from "drizzle-orm";
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
@@ -10,6 +21,7 @@ import {
   salesInvoices,
   journalEntries,
   documents,
+  documentViews,
   conversations,
   chatMessages,
   auditLog,
@@ -455,6 +467,9 @@ export const dashboardRouter = router({
 
     // ── Executive Briefing Items ─────────────────────────────────────────
 
+    // `audience` decides which roles see each insight (see ROLE_AUDIENCES in
+    // apps/web/lib/dashboard-audiences.ts). decision = financial pulse,
+    // operations = work queue, oversight = verifiable state for auditors.
     const briefingItems: Array<{
       id: string;
       type: "positive" | "warning" | "negative" | "neutral";
@@ -463,6 +478,7 @@ export const dashboardRouter = router({
       detail: string;
       statusLabel: string;
       href: string;
+      audience: Array<"decision" | "operations" | "oversight">;
     }> = [];
 
     // Core metrics — always shown so the briefing is never a single lonely
@@ -483,6 +499,7 @@ export const dashboardRouter = router({
             : "Declining"
           : "—",
       href: "/dashboard/invoicing",
+      audience: ["decision", "oversight"],
     });
 
     briefingItems.push({
@@ -501,6 +518,7 @@ export const dashboardRouter = router({
             : "Increasing"
           : "—",
       href: "/dashboard/expenses",
+      audience: ["decision", "oversight"],
     });
 
     briefingItems.push({
@@ -512,6 +530,7 @@ export const dashboardRouter = router({
       detail: "Revenue minus expenses",
       statusLabel: currentProfit >= 0 ? "Profitable" : "Loss",
       href: "/dashboard/reports",
+      audience: ["decision", "oversight"],
     });
 
     briefingItems.push({
@@ -522,6 +541,7 @@ export const dashboardRouter = router({
       detail: "Unpaid customer invoices",
       statusLabel: arOutstanding > 0 ? "Collect soon" : "All collected",
       href: "/dashboard/customers",
+      audience: ["decision", "operations"],
     });
 
     briefingItems.push({
@@ -532,6 +552,7 @@ export const dashboardRouter = router({
       detail: "Unpaid bills to vendors",
       statusLabel: apOutstanding > 0 ? "Pay soon" : "All paid",
       href: "/dashboard/bills",
+      audience: ["decision", "operations"],
     });
 
     briefingItems.push({
@@ -543,6 +564,7 @@ export const dashboardRouter = router({
       detail: `${cashChange >= 0 ? "+" : ""}${cashChange}% vs last month`,
       statusLabel: `${cashChange >= 0 ? "+" : ""}${cashChange}% vs last month`,
       href: "/dashboard/banking",
+      audience: ["decision", "oversight"],
     });
 
     // Overdue invoices
@@ -572,6 +594,7 @@ export const dashboardRouter = router({
         detail: "Overdue by 30+ days",
         statusLabel: "Follow up required",
         href: "/dashboard/bills",
+        audience: ["decision", "operations"],
       });
     }
 
@@ -602,6 +625,7 @@ export const dashboardRouter = router({
         detail: "Awaiting approval",
         statusLabel: "Ready for review",
         href: "/dashboard/journal",
+        audience: ["operations"],
       });
     }
 
@@ -632,6 +656,7 @@ export const dashboardRouter = router({
         detail: "Requires attention",
         statusLabel: "Review now",
         href: "/dashboard/review-queue",
+        audience: ["decision", "operations"],
       });
     }
 
@@ -711,6 +736,59 @@ export const dashboardRouter = router({
       [],
     );
 
+    // Per-user read state: which of these docs has the current user opened?
+    // (rlsProtectedProcedure guarantees a session; the ?? "" guard just keeps
+    // the query safe if a caller ever lacks one — matches nothing.)
+    const recentDocIds = recentDocs.map((d) => d.id);
+    const recentDocViews = await safeQuery(
+      "recentDocViews",
+      () =>
+        db.query.documentViews.findMany({
+          where: and(
+            eq(documentViews.entityId, entityId),
+            eq(documentViews.userId, ctx.session?.user?.id ?? ""),
+            recentDocIds.length > 0
+              ? inArray(documentViews.documentId, recentDocIds)
+              : undefined,
+          ),
+          columns: { documentId: true, viewedAt: true },
+        }),
+      [],
+    );
+    const viewedMap = new Map(
+      recentDocViews.map((v) => [v.documentId, v.viewedAt]),
+    );
+
+    // Totals for "View all (N)" links — only shown when N > 5.
+    const recentDocumentsTotal = await safeQuery(
+      "recentDocumentsTotal",
+      async () => {
+        const r = await db
+          .select({ c: count() })
+          .from(documents)
+          .where(eq(documents.entityId, entityId));
+        return r[0]?.c ?? 0;
+      },
+      0,
+    );
+
+    const recentConversationsTotal = await safeQuery(
+      "recentConversationsTotal",
+      async () => {
+        const r = await db
+          .select({ c: count() })
+          .from(conversations)
+          .where(
+            and(
+              eq(conversations.entityId, entityId),
+              eq(conversations.status, "active"),
+            ),
+          );
+        return r[0]?.c ?? 0;
+      },
+      0,
+    );
+
     // ── Recent Conversations ─────────────────────────────────────────────
 
     const recentConversations = await safeQuery(
@@ -773,9 +851,14 @@ export const dashboardRouter = router({
       label: string;
       date: string;
       urgency: string;
+      // Each deadline links to the module that owns it (filing → tax,
+      // invoice → bills, payroll → payroll) — never a generic catch-all.
+      href: string;
     }> = [];
 
     // 1. Compliance / filing deadlines due from today onwards
+    // (limits tuned so the combined deadlines list can exceed 5 — the right
+    // panel's "View all (N)" only appears when total > 5)
     const upcomingFilings = await safeQuery(
       "upcomingFilings",
       () =>
@@ -785,7 +868,7 @@ export const dashboardRouter = router({
             gte(complianceDeadlines.dueDate, new Date()),
           ),
           orderBy: [asc(complianceDeadlines.dueDate)],
-          limit: 2,
+          limit: 3,
         }),
       [],
     );
@@ -802,6 +885,31 @@ export const dashboardRouter = router({
           year: "numeric",
         }),
         urgency: daysLeft <= 7 ? "upcoming" : "normal",
+        href: "/dashboard/tax-compliance",
+      });
+    }
+
+    // Briefing item: the next compliance filing — gives the oversight
+    // audience (auditors/donors) and decision-makers a real compliance pulse.
+    if (upcomingFilings.length > 0) {
+      const next = upcomingFilings[0];
+      const due = new Date(next.dueDate);
+      const daysLeft = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+      briefingItems.push({
+        id: `filing-${next.id}`,
+        type: daysLeft <= 7 ? "warning" : "neutral",
+        title: filingTypeLabels[next.filingType] ?? next.name,
+        value: due.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        }),
+        detail:
+          daysLeft <= 7
+            ? `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`
+            : `Due in ${daysLeft} days`,
+        statusLabel: daysLeft <= 7 ? "Due soon" : "On schedule",
+        href: "/dashboard/tax-compliance",
+        audience: ["decision", "oversight"],
       });
     }
 
@@ -816,7 +924,7 @@ export const dashboardRouter = router({
             gte(invoicesAp.dueDate, todayStr),
           ),
           orderBy: [asc(invoicesAp.dueDate)],
-          limit: 2,
+          limit: 3,
         }),
       [],
     );
@@ -827,6 +935,7 @@ export const dashboardRouter = router({
         label: `Invoice ${invoice.invoiceNumber} due`,
         date: invoice.dueDate,
         urgency: "normal",
+        href: "/dashboard/bills",
       });
     }
 
@@ -865,6 +974,7 @@ export const dashboardRouter = router({
             day: "numeric",
           }),
           urgency: daysLeft <= 7 ? "upcoming" : "normal",
+          href: "/dashboard/payroll",
         });
       }
     }
@@ -901,13 +1011,17 @@ export const dashboardRouter = router({
       // Pending approvals
       pendingApprovals: pendingApprovalItems.slice(0, 5),
 
-      // Recent documents
+      // Recent documents (max 5) with per-user read state
       recentDocuments: recentDocs.map((doc) => ({
         id: doc.id,
         name: doc.name,
         type: doc.type,
         createdAt: doc.createdAt,
+        viewed: viewedMap.has(doc.id),
+        viewedAt: viewedMap.get(doc.id) ?? null,
       })),
+      recentDocumentsTotal,
+      recentConversationsTotal,
 
       // Recent conversations
       recentConversations: recentConversations.map((conv) => ({
@@ -929,12 +1043,14 @@ export const dashboardRouter = router({
       // Suggested actions
       suggestedActions,
 
-      // Deadlines
+      // Deadlines (each row links to its owning module)
       deadlines,
 
       // Counts
       pendingApprovalsCount: pendingApprovalItems.length,
       agentEscalationsCount: escalations,
+      deadlinesTotal: deadlines.length,
+      suggestedActionsTotal: suggestedActions.length,
     };
   }),
 });

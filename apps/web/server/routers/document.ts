@@ -10,6 +10,7 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import {
   documents,
   documentLinks,
+  documentViews,
   auditLog,
   currencies,
   exchangeRates,
@@ -381,6 +382,51 @@ export const documentRouter = router({
       });
 
       return { ...doc, links };
+    }),
+
+  /**
+   * Marks a document as viewed by the current user (per-user read tracking).
+   * Entity-scoped: the document must belong to ctx.entityId, and the view row
+   * is always keyed to the session user — callers can't record views for
+   * anyone else (no IDOR). Idempotent: re-opening just bumps viewedAt.
+   */
+  markDocumentViewed: rlsProtectedProcedure
+    .input(z.object({ documentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+
+      const doc = await db.query.documents.findFirst({
+        where: and(
+          eq(documents.id, input.documentId),
+          eq(documents.entityId, ctx.entityId!),
+        ),
+        columns: { id: true, entityId: true },
+      });
+      if (!doc) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
+      }
+
+      const viewedAt = new Date();
+      await db
+        .insert(documentViews)
+        .values({
+          entityId: doc.entityId,
+          documentId: doc.id,
+          userId,
+          viewedAt,
+        })
+        .onConflictDoUpdate({
+          target: [documentViews.documentId, documentViews.userId],
+          set: { viewedAt },
+        });
+
+      return { ok: true, viewedAt };
     }),
 
   // ── Document Links ──

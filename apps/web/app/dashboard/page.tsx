@@ -23,9 +23,15 @@ import {
   MessageSquare,
   Activity,
   ArrowUpRight,
+  CheckCircle2,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
+import {
+  roleToAudience,
+  AUDIENCE_META,
+  type BriefingAudience,
+} from "@/lib/dashboard-audiences";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { DashboardSkeleton } from "@/components/shared/skeletons";
@@ -322,181 +328,324 @@ function AIChatInput({
 }
 
 // ─── Executive Briefing Component ─────────────────────────────────────────
+// Role-aware: the server tags every insight with an audience
+// (decision / operations / oversight) and the client curates what this role
+// actually sees. One narrative headline (the single most important item for
+// that role right now) + up to 4 attention-first cards, split into
+// "Needs attention" vs "On track". Never a flat blast of equal-weight cards.
+
+type BriefingItem = {
+  id: string;
+  type: string;
+  title: string;
+  value: string;
+  detail: string;
+  statusLabel: string;
+  href?: string;
+  audience?: string[];
+};
+
+const statusConfig: Record<
+  string,
+  { icon: typeof TrendingUp; iconColor: string; iconBg: string }
+> = {
+  positive: {
+    icon: TrendingUp,
+    iconColor: "text-balanced-green",
+    iconBg: "bg-balanced-green-bg",
+  },
+  negative: {
+    icon: AlertTriangle,
+    iconColor: "text-error-clay",
+    iconBg: "bg-error-clay-bg",
+  },
+  warning: {
+    icon: Clock,
+    iconColor: "text-attention-amber",
+    iconBg: "bg-attention-amber-bg",
+  },
+  neutral: {
+    icon: FileText,
+    iconColor: "text-primary",
+    iconBg: "bg-primary/10",
+  },
+};
+
+const statusColors: Record<string, string> = {
+  positive: "text-balanced-green",
+  warning: "text-attention-amber",
+  negative: "text-error-clay",
+  neutral: "text-muted-foreground",
+};
+
+function isAttention(item: BriefingItem): boolean {
+  return item.type === "negative" || item.type === "warning";
+}
+
+// One curated insight card — every card links to the module that owns its
+// metric (no dead cards). `muted` renders quieter, for "on track" items so
+// they never out-shout real problems.
+function BriefingCard({
+  item,
+  muted = false,
+}: {
+  item: BriefingItem;
+  muted?: boolean;
+}) {
+  const config = statusConfig[item.type] ?? statusConfig.neutral;
+  const Icon = config.icon;
+  const inner = (
+    <>
+      <div
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+          config.iconBg,
+        )}
+      >
+        <Icon className={cn("h-5 w-5", config.iconColor)} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p
+          className={cn(
+            "truncate",
+            muted
+              ? "text-[10px] text-muted-foreground"
+              : "text-xs font-medium text-foreground",
+          )}
+        >
+          {item.title}
+        </p>
+        <p
+          className={cn(
+            "tabular-nums text-foreground",
+            muted ? "text-sm font-semibold" : "text-sm font-bold",
+          )}
+        >
+          {item.value}
+        </p>
+        <p className="text-[10px] text-muted-foreground truncate">
+          {item.detail}
+        </p>
+      </div>
+      <span
+        className={cn(
+          "text-[10px] font-medium whitespace-nowrap",
+          statusColors[item.type] ?? "text-muted-foreground",
+        )}
+      >
+        {item.statusLabel}
+      </span>
+    </>
+  );
+  const cardClass = cn(
+    "flex items-center gap-3 rounded-xl border p-3 transition-all duration-200 hover:shadow-md",
+    muted
+      ? "border-border/40 bg-transparent"
+      : "border-border/50 bg-card hover:border-border/80",
+  );
+  return item.href ? (
+    <Link
+      key={item.id}
+      href={item.href}
+      className={cn(cardClass, "group hover:-translate-y-0.5")}
+    >
+      {inner}
+    </Link>
+  ) : (
+    <div key={item.id} className={cardClass}>
+      {inner}
+    </div>
+  );
+}
+
+// The headline is a statement, not a tile: one number, one context line,
+// one destination. It frames the day for this role.
+function BriefingHeadline({ item }: { item: BriefingItem }) {
+  const config = statusConfig[item.type] ?? statusConfig.neutral;
+  const Icon = config.icon;
+  const attention = isAttention(item);
+  const inner = (
+    <>
+      <div
+        className={cn(
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+          config.iconBg,
+        )}
+      >
+        <Icon className={cn("h-6 w-6", config.iconColor)} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p
+          className={cn(
+            "text-[10px] font-semibold uppercase tracking-wider",
+            statusColors[item.type] ?? "text-muted-foreground",
+          )}
+        >
+          {attention ? "Needs attention today" : "Business pulse"}
+        </p>
+        <p className="mt-0.5 text-sm font-semibold text-foreground">
+          {item.title}
+        </p>
+        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground">
+          {item.value}
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
+      </div>
+      {item.href && (
+        <span className="mt-1 hidden sm:inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
+          View
+          <ArrowUpRight className="h-3 w-3" />
+        </span>
+      )}
+    </>
+  );
+  const cardClass = cn(
+    "relative overflow-hidden rounded-xl border p-4 transition-all duration-200 group",
+    attention
+      ? "border-attention-amber/50 bg-gradient-to-br from-attention-amber-bg via-card to-card hover:shadow-md"
+      : "border-balanced-green/50 bg-gradient-to-br from-balanced-green-bg via-card to-card hover:shadow-md",
+  );
+  return item.href ? (
+    <Link href={item.href} className={cn(cardClass, "hover:-translate-y-0.5")}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={cardClass}>{inner}</div>
+  );
+}
+
+function BriefingGroupLabel({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "attention" | "ontrack";
+}) {
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <span
+        className={cn(
+          "h-1.5 w-1.5 rounded-full",
+          tone === "attention" ? "bg-attention-amber" : "bg-balanced-green",
+        )}
+      />
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {children}
+      </span>
+    </div>
+  );
+}
 
 function ExecutiveBriefing({
   items,
+  audience,
 }: {
-  items: Array<{
-    id: string;
-    type: string;
-    title: string;
-    value: string;
-    detail: string;
-    statusLabel: string;
-    href?: string;
-  }>;
+  items: BriefingItem[];
+  audience: BriefingAudience;
 }) {
-  const statusConfig: Record<
-    string,
-    { icon: typeof TrendingUp; iconColor: string; iconBg: string }
-  > = {
-    positive: {
-      icon: TrendingUp,
-      iconColor: "text-balanced-green",
-      iconBg: "bg-balanced-green-bg",
-    },
-    negative: {
-      icon: AlertTriangle,
-      iconColor: "text-error-clay",
-      iconBg: "bg-error-clay-bg",
-    },
-    warning: {
-      icon: Clock,
-      iconColor: "text-attention-amber",
-      iconBg: "bg-attention-amber-bg",
-    },
-    neutral: {
-      icon: FileText,
-      iconColor: "text-primary",
-      iconBg: "bg-primary/10",
-    },
-  };
+  const meta = AUDIENCE_META[audience];
+  // Server-tagged items; items without an audience field are shown to all.
+  const visible = items.filter(
+    (item) => !item.audience || item.audience.includes(audience),
+  );
+  const attention = visible.filter(isAttention);
+  const onTrack = visible.filter((item) => !isAttention(item));
+  const priority = [...attention, ...onTrack];
+  const headline = priority[0];
 
-  const statusColors: Record<string, string> = {
-    positive: "text-balanced-green",
-    warning: "text-attention-amber",
-    negative: "text-error-clay",
-    neutral: "text-muted-foreground",
-  };
+  // Attention-first allocation: problems fill the slots before the pulse.
+  const remaining = priority.slice(1);
+  const attentionCards = remaining.filter(isAttention).slice(0, 3);
+  const onTrackCards = remaining
+    .filter((item) => !isAttention(item))
+    .slice(0, Math.max(0, 4 - attentionCards.length));
+  const overflow = priority.length > 5;
 
   return (
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-foreground">
-            Executive Briefing
-          </h2>
-          <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-primary/10 to-purple-500/10 px-2.5 py-0.5 text-[10px] font-medium text-primary">
-            <Sparkles className="h-3 w-3" />
-            AI generated
-          </span>
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-foreground">
+              {meta.title}
+            </h2>
+            <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-primary/10 to-purple-500/10 px-2.5 py-0.5 text-[10px] font-medium text-primary">
+              <Sparkles className="h-3 w-3" />
+              AI generated
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">{meta.subtitle}</p>
         </div>
         <Link
           href="/dashboard/chat"
           className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
         >
-          View all insights
+          Ask Xenboox
           <ArrowUpRight className="h-3 w-3" />
         </Link>
       </div>
 
-      {/* Desktop: horizontal scroll, Mobile/Tablet: grid layout. Every card
-          links to the module page that owns its metric (no dead cards). */}
-      <div className="hidden md:scrollbar-hide md:flex md:items-center md:gap-3 md:overflow-x-auto md:pb-1">
-        {items.map((item) => {
-          const config = statusConfig[item.type] ?? statusConfig.neutral;
-          const Icon = config.icon;
-          const inner = (
-            <>
-              <div
-                className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  config.iconBg,
-                )}
-              >
-                <Icon className={cn("h-5 w-5", config.iconColor)} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {item.title}
-                </p>
-                <p className="text-sm font-bold tabular-nums text-foreground">
-                  {item.value}
-                </p>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {item.detail}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "text-[10px] font-medium whitespace-nowrap",
-                  statusColors[item.type] ?? "text-muted-foreground",
-                )}
-              >
-                {item.statusLabel}
-              </span>
-            </>
-          );
-          const cardClass =
-            "flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md hover:border-border/80 min-w-[200px]";
-          return item.href ? (
-            <Link
-              key={item.id}
-              href={item.href}
-              className={cn(cardClass, "hover:-translate-y-0.5 group")}
-            >
-              {inner}
-            </Link>
-          ) : (
-            <div key={item.id} className={cardClass}>
-              {inner}
+      {priority.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/60 bg-card/50 px-4 py-6 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-balanced-green-bg">
+            <CheckCircle2 className="h-5 w-5 text-balanced-green" />
+          </div>
+          <p className="text-sm font-medium text-foreground">
+            All clear — nothing needs your attention right now.
+          </p>
+          <p className="text-xs text-muted-foreground">{meta.subtitle}</p>
+          <Link
+            href="/dashboard/chat"
+            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            Ask Xenboox anything
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </div>
+      ) : (
+        <>
+          {headline && <BriefingHeadline item={headline} />}
+
+          {(attentionCards.length > 0 || onTrackCards.length > 0) && (
+            <div className="space-y-1.5">
+              {attentionCards.length > 0 && (
+                <>
+                  <BriefingGroupLabel tone="attention">
+                    Needs attention
+                  </BriefingGroupLabel>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {attentionCards.map((item) => (
+                      <BriefingCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                </>
+              )}
+              {onTrackCards.length > 0 && (
+                <>
+                  <BriefingGroupLabel tone="ontrack">
+                    On track
+                  </BriefingGroupLabel>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {onTrackCards.map((item) => (
+                      <BriefingCard key={item.id} item={item} muted />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-          );
-        })}
-      </div>
-      {/* Mobile/Tablet: stacked grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:hidden">
-        {items.map((item) => {
-          const config = statusConfig[item.type] ?? statusConfig.neutral;
-          const Icon = config.icon;
-          const inner = (
-            <>
-              <div
-                className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  config.iconBg,
-                )}
-              >
-                <Icon className={cn("h-5 w-5", config.iconColor)} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {item.title}
-                </p>
-                <p className="text-sm font-bold tabular-nums text-foreground">
-                  {item.value}
-                </p>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {item.detail}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "text-[10px] font-medium whitespace-nowrap",
-                  statusColors[item.type] ?? "text-muted-foreground",
-                )}
-              >
-                {item.statusLabel}
-              </span>
-            </>
-          );
-          const cardClass =
-            "flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md hover:border-border/80";
-          return item.href ? (
+          )}
+
+          {overflow && (
             <Link
-              key={item.id}
-              href={item.href}
-              className={cn(cardClass, "hover:-translate-y-0.5")}
+              href="/dashboard/review-queue"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              {inner}
+              View more in the review queue
+              <ArrowUpRight className="h-3 w-3" />
             </Link>
-          ) : (
-            <div key={item.id} className={cardClass}>
-              {inner}
-            </div>
-          );
-        })}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -723,27 +872,57 @@ function actionHref(action: string): string | null {
 }
 
 // ─── Dashboard Right Sidebar ──────────────────────────────────────────────
+// Rules:
+//  • Sections with nothing to show are collapsed by default (header stays
+//    visible so the user can open them).
+//  • Lists are capped at 5 — a "View all (N)" link appears when more exist.
+//  • Every deadline row links to the module that owns it.
+//  • Documents the current user hasn't opened yet carry a "New" badge.
+
+type DeadlineItem = {
+  id: string;
+  label: string;
+  date: string;
+  urgency: string;
+  href?: string;
+};
+
+type RecentDoc = {
+  id: string;
+  name: string;
+  type: string;
+  createdAt: string | null;
+  viewed?: boolean;
+  viewedAt?: string | null;
+};
+
+function ViewAllLink({ href, count }: { href: string; count: number }) {
+  return (
+    <Link
+      href={href}
+      className="mt-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-border/60 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+    >
+      View all ({count})
+      <ArrowUpRight className="h-3 w-3" />
+    </Link>
+  );
+}
 
 function DashboardRightSidebar({
   deadlines,
   recentDocuments,
   recentConversations,
   suggestedActions,
+  recentDocumentsTotal,
+  recentConversationsTotal,
+  deadlinesTotal,
+  suggestedActionsTotal,
   onNavigate,
   onContinueConversation,
+  onMarkDocumentViewed,
 }: {
-  deadlines: Array<{
-    id: string;
-    label: string;
-    date: string;
-    urgency: string;
-  }>;
-  recentDocuments: Array<{
-    id: string;
-    name: string;
-    type: string;
-    createdAt: string | null;
-  }>;
+  deadlines: DeadlineItem[];
+  recentDocuments: RecentDoc[];
   recentConversations: Array<{
     id: string;
     title: string | null;
@@ -751,11 +930,16 @@ function DashboardRightSidebar({
     lastMessageAt: string | null;
   }>;
   suggestedActions: string[];
+  recentDocumentsTotal: number;
+  recentConversationsTotal: number;
+  deadlinesTotal: number;
+  suggestedActionsTotal: number;
   onNavigate?: (href: string) => void;
   onContinueConversation?: (conversation: {
     id: string;
     title: string | null;
   }) => void;
+  onMarkDocumentViewed?: (documentId: string) => void;
 }) {
   function formatDocTime(date: string | null): string {
     if (!date) return "";
@@ -785,82 +969,141 @@ function DashboardRightSidebar({
       <CollapsibleSection
         title="Upcoming & Deadlines"
         icon={<Calendar className="h-4 w-4 text-primary" />}
-        defaultOpen={true}
+        defaultOpen={deadlines.length > 0}
       >
-        <div className="space-y-1">
-          {deadlines.map((d) => (
-            <div key={d.id} className="flex items-center gap-3 py-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <Calendar className="h-4 w-4 text-primary" />
+        {deadlines.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            Nothing due right now
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {deadlines.map((d) => (
+              <div key={d.id} className="flex items-center gap-3 py-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Calendar className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  {d.href ? (
+                    <Link
+                      href={d.href}
+                      className="block truncate hover:text-primary transition-colors"
+                    >
+                      <span className="block text-xs font-medium text-foreground truncate">
+                        {d.label}
+                      </span>
+                      <span className="block text-[10px] text-muted-foreground">
+                        {d.date}
+                      </span>
+                    </Link>
+                  ) : (
+                    <>
+                      <p className="text-xs font-medium text-foreground truncate">
+                        {d.label}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {d.date}
+                      </p>
+                    </>
+                  )}
+                </div>
+                <span
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-[9px] font-medium whitespace-nowrap",
+                    d.urgency === "upcoming"
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : "bg-blue-50 text-blue-700 border-blue-200",
+                  )}
+                >
+                  {d.urgency === "upcoming" ? "Upcoming" : "Scheduled"}
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {d.label}
-                </p>
-                <p className="text-[10px] text-muted-foreground">{d.date}</p>
-              </div>
-              <span
-                className={cn(
-                  "rounded-full border px-2 py-0.5 text-[9px] font-medium whitespace-nowrap",
-                  d.urgency === "upcoming"
-                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                    : "bg-blue-50 text-blue-700 border-blue-200",
-                )}
-              >
-                {d.urgency === "upcoming" ? "Upcoming" : "Scheduled"}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+        {deadlinesTotal > 5 && (
+          <ViewAllLink
+            href="/dashboard/tax-compliance"
+            count={deadlinesTotal}
+          />
+        )}
       </CollapsibleSection>
 
       {/* Recent Documents */}
       <CollapsibleSection
         title="Recent Documents"
         icon={<FileText className="h-4 w-4 text-blue-500" />}
-        defaultOpen={true}
+        defaultOpen={recentDocuments.length > 0}
       >
-        <div className="space-y-0.5">
-          {recentDocuments.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-2">
-              No documents yet
-            </p>
-          ) : (
-            recentDocuments.map((doc) => (
+        {recentDocuments.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            No documents yet
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {recentDocuments.map((doc) => (
               <button
                 key={doc.id}
                 type="button"
-                onClick={() => onNavigate?.("/dashboard/documents")}
+                onClick={() => {
+                  // Clicking a recent document counts as engaging with it —
+                  // the "New" badge clears for this user. (Semantic note: this
+                  // fires on the dashboard click that takes the user to the
+                  // documents module — not on an in-app document viewer, since
+                  // the documents module has none yet. Reuse the same mutation
+                  // from a viewer later if one is added.)
+                  if (!doc.viewed) onMarkDocumentViewed?.(doc.id);
+                  onNavigate?.("/dashboard/documents");
+                }}
                 className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 cursor-pointer transition-colors text-left"
               >
                 <FileText
                   className={cn("h-4 w-4 shrink-0", getDocColor(doc.type))}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-foreground truncate">{doc.name}</p>
+                  <p
+                    className={cn(
+                      "truncate",
+                      doc.viewed
+                        ? "text-xs text-foreground"
+                        : "text-xs font-semibold text-foreground",
+                    )}
+                  >
+                    {doc.name}
+                  </p>
+                  {!doc.viewed && (
+                    <span className="mt-0.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-primary">
+                      New
+                    </span>
+                  )}
                 </div>
                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                   {formatDocTime(doc.createdAt)}
                 </span>
               </button>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
+        {recentDocumentsTotal > 5 && (
+          <ViewAllLink
+            href="/dashboard/documents"
+            count={recentDocumentsTotal}
+          />
+        )}
       </CollapsibleSection>
 
       {/* Recent Conversations */}
       <CollapsibleSection
         title="Recent Conversations"
         icon={<MessageSquare className="h-4 w-4 text-purple-500" />}
-        defaultOpen={true}
+        defaultOpen={recentConversations.length > 0}
       >
-        <div className="space-y-0.5">
-          {recentConversations.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-2">
-              No conversations yet
-            </p>
-          ) : (
-            recentConversations.map((c) => (
+        {recentConversations.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            No conversations yet
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {recentConversations.map((c) => (
               <button
                 key={c.id}
                 type="button"
@@ -887,24 +1130,30 @@ function DashboardRightSidebar({
                   <ChevronRight className="h-3 w-3" />
                 </span>
               </button>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
+        {recentConversationsTotal > 5 && (
+          <ViewAllLink
+            href="/dashboard/chat"
+            count={recentConversationsTotal}
+          />
+        )}
       </CollapsibleSection>
 
       {/* Suggested Actions */}
       <CollapsibleSection
         title="Suggested Actions"
         icon={<Sparkles className="h-4 w-4 text-amber-500" />}
-        defaultOpen={true}
+        defaultOpen={suggestedActions.length > 0}
       >
-        <div className="space-y-0.5">
-          {suggestedActions.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-2">
-              All caught up!
-            </p>
-          ) : (
-            suggestedActions.map((action, i) => {
+        {suggestedActions.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            All caught up!
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {suggestedActions.slice(0, 5).map((action, i) => {
               const href = actionHref(action);
               return (
                 <button
@@ -920,9 +1169,15 @@ function DashboardRightSidebar({
                   <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
                 </button>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
+        {suggestedActionsTotal > 5 && (
+          <ViewAllLink
+            href="/dashboard/review-queue"
+            count={suggestedActionsTotal}
+          />
+        )}
       </CollapsibleSection>
     </div>
   );
@@ -931,13 +1186,18 @@ function DashboardRightSidebar({
 // ─── Main Dashboard Page ──────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { entityId } = useEntity();
+  const { entityId, entityRole } = useEntity();
   const { data: session } = useSession();
   const router = useRouter();
   const firstName = session?.user?.name?.split(" ")[0];
 
+  // Which briefing audience this user sees (decision / operations / oversight)
+  const audience = roleToAudience(entityRole);
+
   // Inline AI chat session — activates a full chat screen when messaging.
   const chat = useDashboardChat({ entityId });
+
+  const markDocViewed = trpc.document.markDocumentViewed.useMutation();
 
   // Fetch dashboard data with optimized caching
   const { data: dashboardData, isLoading } =
@@ -1007,6 +1267,10 @@ export default function DashboardPage() {
             recentDocuments={[]}
             recentConversations={[]}
             suggestedActions={[]}
+            recentDocumentsTotal={0}
+            recentConversationsTotal={0}
+            deadlinesTotal={0}
+            suggestedActionsTotal={0}
           />
         </div>
       </div>
@@ -1066,8 +1330,11 @@ export default function DashboardPage() {
               {/* Row 1: Greeting */}
               <AIGreeting firstName={firstName} />
 
-              {/* Row 2: Executive Briefing */}
-              <ExecutiveBriefing items={dashboardData?.briefingItems ?? []} />
+              {/* Row 2: Role-aware Executive Briefing */}
+              <ExecutiveBriefing
+                items={dashboardData?.briefingItems ?? []}
+                audience={audience}
+              />
 
               {/* Row 3: Business Health KPI Cards */}
               <BusinessHealth
@@ -1117,8 +1384,21 @@ export default function DashboardPage() {
           recentDocuments={dashboardData?.recentDocuments ?? []}
           recentConversations={dashboardData?.recentConversations ?? []}
           suggestedActions={dashboardData?.suggestedActions ?? []}
+          recentDocumentsTotal={dashboardData?.recentDocumentsTotal ?? 0}
+          recentConversationsTotal={
+            dashboardData?.recentConversationsTotal ?? 0
+          }
+          deadlinesTotal={dashboardData?.deadlinesTotal ?? 0}
+          suggestedActionsTotal={dashboardData?.suggestedActionsTotal ?? 0}
           onNavigate={(href) => router.push(href)}
           onContinueConversation={handleContinueConversation}
+          onMarkDocumentViewed={(documentId) => {
+            // Fire-and-forget: a failed view record must never block the
+            // navigation or spam the console on an already-rendered page.
+            void markDocViewed
+              .mutateAsync({ documentId })
+              .catch(() => undefined);
+          }}
         />
       </div>
     </div>
