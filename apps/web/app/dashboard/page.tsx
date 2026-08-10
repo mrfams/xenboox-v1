@@ -701,6 +701,23 @@ function ExecutiveBriefing({
 // runway (months of cash at the current burn rate). A/R, A/P and profit are
 // deliberately absent — they are balances, not health signals, and they only
 // surface in the executive briefing when they need action.
+
+// Tone → chip classes + sparkline colors, mirrored from the briefing so the
+// two sections read as one system.
+const HEALTH_TONE_CHIP: Record<string, string> = {
+  positive: "bg-balanced-green-bg text-balanced-green",
+  warning: "bg-attention-amber-bg text-attention-amber",
+  negative: "bg-error-clay-bg text-error-clay",
+  neutral: "bg-muted text-muted-foreground",
+};
+
+const HEALTH_TONE_SPARK: Record<string, string> = {
+  positive: "#10B981",
+  warning: "#F59E0B",
+  negative: "#EF4444",
+  neutral: "#94A3B8",
+};
+
 function BusinessHealth({
   data,
   period,
@@ -730,7 +747,26 @@ function BusinessHealth({
   // If the server ever returns nothing, show a flat line rather than fabricate
   // data — never hardcode chart figures on the client.
   const runway = data.runwayMonths ?? null;
-  const runwayBurn = data.monthlyBurn ?? 0;
+
+  // Per-metric presentation. Runway carries a status chip (Healthy / Caution /
+  // Critical / Sustainable / No cash); the fundamentals carry their % change.
+  // Direction semantics: cash & revenue up is good; expenses down is good.
+  const runwayTone =
+    runway === null || runway >= 6
+      ? "positive"
+      : runway >= 3
+        ? "warning"
+        : "negative";
+  const runwayStatus =
+    runway === 0
+      ? "No cash"
+      : runway === null
+        ? "Sustainable"
+        : runway >= 6
+          ? "Healthy"
+          : runway >= 3
+            ? "Caution"
+            : "Critical";
 
   const metrics = [
     {
@@ -738,7 +774,7 @@ function BusinessHealth({
       label: "Cash Balance",
       value: data.cashBalance,
       change: data.cashChange,
-      changeLabel: null as string | null,
+      tone: data.cashChange >= 0 ? "positive" : "warning",
       sparkline: data.cashSparkline ?? [],
     },
     {
@@ -746,7 +782,7 @@ function BusinessHealth({
       label: "Revenue",
       value: data.revenue,
       change: data.revenueChange,
-      changeLabel: null as string | null,
+      tone: data.revenueChange >= 0 ? "positive" : "negative",
       sparkline: data.revenueSparkline ?? [],
     },
     {
@@ -754,7 +790,7 @@ function BusinessHealth({
       label: "Expenses",
       value: data.expenses,
       change: data.expensesChange,
-      changeLabel: null as string | null,
+      tone: data.expensesChange <= 0 ? "positive" : "negative",
       sparkline: data.expensesSparkline ?? [],
     },
     {
@@ -763,35 +799,42 @@ function BusinessHealth({
       // Runway is a duration, not a currency — format it directly.
       value: runway,
       change: null as number | null,
-      changeLabel:
-        runway === 0
-          ? "No cash"
-          : runway === null
-            ? "Sustainable"
-            : runway >= 12
-              ? "12+ months"
-              : `${runway < 10 ? runway.toFixed(1) : Math.round(runway)} months`,
+      status: runwayStatus,
+      tone: runwayTone,
       sparkline: data.runwaySparkline ?? [],
     },
   ];
 
+  const periodLabel: Record<HealthPeriod, string> = {
+    this_month: "vs last month",
+    last_month: "vs previous month",
+    this_quarter: "vs last quarter",
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold tracking-tight text-foreground">
-            Business Health
-          </h2>
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Activity className="h-3 w-3" />
-            Live data
-          </span>
+    <section className="space-y-4 rounded-2xl border border-border/50 bg-card/40 p-4 sm:p-5">
+      {/* Section header — matches the Executive Briefing panel above */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+              Business Health
+            </h2>
+            <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Activity className="h-2.5 w-2.5" />
+              Live
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Cash, revenue, expenses and runway — the fundamentals that define
+            your business.
+          </p>
         </div>
         <select
           value={period}
           onChange={(e) => onPeriodChange(e.target.value as HealthPeriod)}
           aria-label="Business health period"
-          className="cursor-pointer rounded-lg border border-border/50 bg-transparent px-2 py-1 text-[11px] font-medium text-muted-foreground outline-none"
+          className="shrink-0 cursor-pointer rounded-lg border border-border/60 bg-card px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 hover:text-primary"
         >
           <option value="this_month">This month</option>
           <option value="last_month">Last month</option>
@@ -799,120 +842,73 @@ function BusinessHealth({
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {metrics.map((metric) => {
-          // Direction semantics per metric: cash and revenue up is good;
-          // expenses down is good (a rise is a red flag). Runway carries its
-          // own tone, kept in sync with the server's briefing tiers:
-          // < 3 critical (red), 3–6 caution (amber), >= 6 or sustainable green.
-          const isPositive =
-            metric.id === "runway"
-              ? runway === null || runway >= 6
-              : metric.change !== null &&
-                (metric.id === "expenses"
-                  ? metric.change <= 0
-                  : metric.change >= 0);
-          const isWarning =
-            metric.id === "runway" &&
-            runway !== null &&
-            runway >= 3 &&
-            runway < 6;
-          const isCritical =
-            metric.id === "runway" && runway !== null && runway < 3;
-          const toneClass = isCritical
-            ? "text-error-clay"
-            : isWarning
-              ? "text-attention-amber"
-              : isPositive
-                ? "text-balanced-green"
-                : "text-error-clay";
-          const sparkColor = isCritical
-            ? "#EF4444"
-            : isWarning
-              ? "#F59E0B"
-              : isPositive
-                ? "#10B981"
-                : "#EF4444";
-          const valueText =
-            metric.id === "runway"
-              ? (metric.changeLabel ?? "—")
-              : formatCurrency(metric.value as number);
+          const isRunway = metric.id === "runway";
+          const toneClass =
+            HEALTH_TONE_CHIP[metric.tone] ?? "bg-muted text-muted-foreground";
+          const sparkColor = HEALTH_TONE_SPARK[metric.tone] ?? "#94A3B8";
+          const valueText = isRunway
+            ? (metric.status ?? "—")
+            : formatCurrency(metric.value as number);
+          const changeText =
+            metric.change !== null
+              ? `${metric.change >= 0 ? "+" : ""}${metric.change.toFixed(1)}%`
+              : null;
 
           return (
             <div
               key={metric.id}
-              className="min-w-0 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:shadow-md sm:p-4"
+              className="group min-w-0 rounded-xl border border-border/60 bg-card p-3.5 transition-all duration-200 hover:border-border/90 hover:shadow-md"
             >
-              <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-[10px] font-medium text-muted-foreground sm:text-xs">
                   {metric.label}
                 </p>
+                {!isRunway && changeText && (
+                  <span
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold",
+                      toneClass,
+                    )}
+                  >
+                    {metric.change! >= 0 ? (
+                      <TrendingUp className="h-2.5 w-2.5" />
+                    ) : (
+                      <TrendingDown className="h-2.5 w-2.5" />
+                    )}
+                    {changeText}
+                  </span>
+                )}
               </div>
 
-              <p className="truncate text-base font-bold tracking-tight tabular-nums text-foreground sm:text-xl">
+              <p className="mt-1.5 truncate text-lg font-bold tracking-tight tabular-nums text-foreground sm:text-xl">
                 {valueText}
               </p>
 
               <div className="mt-2 flex items-center justify-between gap-2 sm:mt-3">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-0.5 text-[10px] font-semibold sm:text-xs",
-                    toneClass,
-                  )}
-                >
-                  {metric.id === "runway" ? (
-                    runway !== null && runway < 6 ? (
-                      <>
-                        <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        <span className="hidden sm:inline">
-                          {runway < 3 ? "Critical" : "Caution"}
-                        </span>
-                        <span className="sm:hidden">
-                          {runway < 3 ? "Critical" : "Caution"}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        <span>Healthy</span>
-                      </>
-                    )
-                  ) : metric.change !== null ? (
-                    <>
-                      {metric.change >= 0 ? (
-                        <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                      ) : (
-                        <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                      )}
-                      <span className="hidden sm:inline">
-                        {metric.change >= 0 ? "+" : ""}
-                        {metric.change.toFixed(1)}%
-                      </span>
-                      <span className="sm:hidden">
-                        {metric.change >= 0 ? "+" : ""}
-                        {metric.change.toFixed(0)}%
-                      </span>
-                    </>
-                  ) : null}
-                </span>
-
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {isRunway
+                    ? runway === 0
+                      ? "No cash on hand"
+                      : runway === null
+                        ? "Cash-flow positive"
+                        : (data.monthlyBurn ?? 0) > 0
+                          ? `Burn ${formatCurrency(data.monthlyBurn ?? 0)}/mo`
+                          : "Coverage on hand"
+                    : periodLabel[period]}
+                </p>
                 <MiniSparkline
                   data={metric.sparkline}
                   color={sparkColor}
-                  className="hidden sm:block"
+                  className="hidden shrink-0 sm:block"
                 />
               </div>
             </div>
           );
         })}
       </div>
-      {runwayBurn > 0 && (
-        <p className="text-[10px] text-muted-foreground">
-          Runway = cash ÷ avg monthly burn of {formatCurrency(runwayBurn)} over
-          the last 3 months.
-        </p>
-      )}
-    </div>
+    </section>
   );
 }
 
