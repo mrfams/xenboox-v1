@@ -76,10 +76,20 @@ export const documentRouter = router({
               )
             : eq(documents.entityId, entityId);
 
-      return db.query.documents.findMany({
+      const rows = await db.query.documents.findMany({
         where: whereClause,
         orderBy: [desc(documents.createdAt)],
+        with: {
+          uploader: { columns: { id: true, name: true } },
+        },
       });
+
+      // Surface the uploader's display name (join on users) while keeping
+      // the raw uploadedBy id for API compatibility.
+      return rows.map(({ uploader, ...doc }) => ({
+        ...doc,
+        uploadedByName: uploader?.name ?? null,
+      }));
     }),
 
   getStatus: rlsProtectedProcedure
@@ -513,6 +523,9 @@ export const documentRouter = router({
 
     const docs = await db.query.documents.findMany({
       where: eq(documents.entityId, entityId),
+      with: {
+        uploader: { columns: { id: true, name: true } },
+      },
     });
 
     const totalDocuments = docs.length;
@@ -532,7 +545,10 @@ export const documentRouter = router({
         }).length,
         pendingReview,
       },
-      documents: docs,
+      documents: docs.map(({ uploader, ...doc }) => ({
+        ...doc,
+        uploadedByName: uploader?.name ?? null,
+      })),
     };
   }),
 

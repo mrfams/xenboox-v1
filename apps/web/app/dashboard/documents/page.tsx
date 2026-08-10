@@ -575,7 +575,7 @@ export default function DocumentsPage() {
         [
           `"${doc.name.replace(/"/g, '""')}"`,
           `"${doc.type}"`,
-          `"${doc.uploadedBy ?? ""}"`,
+          `"${doc.uploadedByName ?? ""}"`,
           `"${doc.createdAt ?? ""}"`,
           ((doc.sizeBytes ?? 0) / 1024).toFixed(2),
           `"${doc.status}"`,
@@ -702,7 +702,7 @@ export default function DocumentsPage() {
               // the category stays the document kind (invoice/receipt/…).
               type: fileTypeFromMime(doc.mimeType),
               category: categoryLabel(doc.type),
-              uploadedBy: doc.uploadedBy ?? "—",
+              uploadedBy: doc.uploadedByName ?? "—",
               uploadedAt: doc.createdAt ?? new Date().toISOString(),
               size: doc.sizeBytes ?? 0,
             }))}
