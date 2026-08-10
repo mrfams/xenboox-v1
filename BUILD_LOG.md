@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-10] — Entity switcher opens on hover
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** 1 (`apps/web/components/layout/entity-switcher.tsx`) + `BUILD_LOG.md`
+
+**What:** The entity switcher dropdown now opens on hover like the avatar menu and notifications bell — immediate open, 150ms flicker-free close (re-enter cancels), click still toggles for touch/keyboard, Escape dismisses (WCAG 1.4.13), `aria-expanded` + `aria-haspopup="menu"` added. Code review confirmed no timer/backdrop/dialog interactions; the fixed backdrop stays for touch click-outside.
+
+**Verification:** typecheck ✓ · lint ✓ · entity-switcher tests (4) ✓ · production build ✓
+
+---
+
 ### [2026-08-10] — Tamper-evident audit trail (hash-chained, append-only) + notifications hover
 
 **Agent:** Buffy (Autonomous Engineer)

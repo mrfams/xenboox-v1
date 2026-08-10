@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   ChevronDown,
   Check,
@@ -28,6 +28,8 @@ export function EntitySwitcher() {
   const [entities, setEntities] = useState<Entity[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [currentEntity, setCurrentEntity] = useState<Entity | null>(null);
+  const switcherRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<number | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newEntityName, setNewEntityName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -69,6 +71,49 @@ export function EntitySwitcher() {
       setCurrentEntity(entities.find((e) => e.id === entityId) ?? null);
     }
   }, [entityId, entities]);
+
+  // Hover-open: same treatment as the avatar menu and notifications bell.
+  // Opening is immediate; closing waits 150ms so the cursor can cross the gap
+  // into the dropdown without flicker (re-entering cancels the pending close).
+  // Click still toggles as a touch/keyboard fallback.
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current !== null) {
+        window.clearTimeout(closeTimer.current);
+      }
+    };
+  }, []);
+
+  const openSwitcher = () => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setIsOpen(true);
+  };
+
+  const scheduleCloseSwitcher = () => {
+    if (!isOpen) return;
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+    }
+    closeTimer.current = window.setTimeout(() => {
+      setIsOpen(false);
+      closeTimer.current = null;
+    }, 150);
+  };
+
+  // Escape dismisses the hover-revealed menu without moving the pointer
+  // (WCAG 1.4.13 — hover content should be dismissible).
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Handle entity selection
   const handleSelect = useCallback(
@@ -239,11 +284,18 @@ export function EntitySwitcher() {
 
   return (
     <>
-      <div className="relative">
+      <div
+        className="relative"
+        ref={switcherRef}
+        onMouseEnter={openSwitcher}
+        onMouseLeave={scheduleCloseSwitcher}
+      >
         <Button
           variant="outline"
           size="sm"
           className="min-w-[180px] justify-between"
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
           onClick={() => setIsOpen(!isOpen)}
         >
           <span className="flex items-center gap-2 truncate">
