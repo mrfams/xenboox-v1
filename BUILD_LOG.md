@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-10] — Explore hub: pages directory + AI feature catalog; tax engine, logo, documents fix
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/app/dashboard/explore/`, `apps/web/lib/explore/`, `apps/web/components/layout/sidebar.tsx`, `apps/web/components/layout/ai-sidebar.tsx`, `apps/web/server/routers/tax-config.ts`, `apps/web/components/settings/taxes-section.tsx`, `packages/agents/core/tax-engine.ts`, `packages/agents/core/statutory-rule-resolver.ts`, `packages/db/schema/tax-compliance.ts`, `packages/db/migrations/0027_wandering_cardiac.sql`, `apps/web/server/routers/document.ts`, `apps/web/components/ui/logo.tsx`, `apps/web/public/favicon.svg`, `BUILD_LOG.md`
+
+**What:**
+
+- **Explore hub (`/dashboard/explore`)** — new sidebar tab (both sidebars) leading to a page with two tabs: **Pages** (searchable directory of all 31 dashboard routes, grouped, with Ask Xenboox copilot badges) and **Features** (36-entry AI-native feature catalog color-coded shipped / in-progress / planned, grounded in research across QuickBooks, Xero, Digits, Basis, Sage, and leading AI products; opens with an Ask Xenboox explainer).
+- **Self-service tax configuration** — pure tax engine (`calculateTax`: flat/fixed/bands/conditional + employer/employee splits + ceilings + per-person overrides), statutory-rule resolver bridging configured DB rules into payroll, `taxConfig` tRPC router (CRUD + versioning + activate/deactivate + overrides + preview), Settings → Taxes tab UI, migration 0027. Fully tested (28 agent + 14 router + 2 UI tests).
+- **Documents fix** — `listDocuments`/`getOverview` now join `users` and return `uploadedByName`; the Uploaded By column shows names instead of raw UUIDs (also in CSV export).
+- **Logo redesign** — logo mark now renders clear lowercase "xbx" letterforms (SVG paths + favicon + auth tiles), verified in-browser.
+- **Merge conflict resolution** — resolved stale stash-pop conflicts in `AGENTS.md`, `BUILD_LOG.md`, `packages/db/seed/index.ts` (kept the idempotent upstream seed), removed orphaned `seed/multi-entity-data.ts`.
+
+**Verification:** 567 web tests + 28 agent tests passed · typecheck ✓ (web + db) · lint ✓ · production build ✓ · code review applied
+
+---
+
 ### [2026-08-10] — Dashboard UX fixes: CFO panel default-closed, mutually-exclusive header menus, fuller briefing, real DB charts
 
 **Agent:** Buffy (Autonomous Engineer)
