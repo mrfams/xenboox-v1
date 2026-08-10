@@ -207,7 +207,14 @@ function AIChatInput({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-3">
+    <div
+      className={cn(
+        "mx-auto w-full max-w-3xl",
+        // While a chat is active the composer is in-conversation — the
+        // suggestion row is secondary, so it gets tighter spacing.
+        isChatActive ? "space-y-2" : "space-y-3",
+      )}
+    >
       {/* Suggestions */}
       <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
         {suggestions.map((suggestion) => {
@@ -219,8 +226,11 @@ function AIChatInput({
               onClick={() => handleSubmit(suggestion.prompt)}
               disabled={isResponding}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/50 bg-card/80 px-2.5 sm:px-3 py-1.5",
+                "inline-flex shrink-0 items-center rounded-xl border border-border/50 bg-card/80",
                 "text-[10px] sm:text-xs text-muted-foreground transition-all duration-200",
+                isChatActive
+                  ? "gap-1 px-2 py-1"
+                  : "gap-1.5 px-2.5 sm:px-3 py-1.5",
                 "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
                 "active:scale-95",
                 "disabled:opacity-50 disabled:pointer-events-none",
@@ -236,7 +246,10 @@ function AIChatInput({
         })}
         <button
           type="button"
-          className="inline-flex shrink-0 items-center justify-center h-7 w-7 rounded-xl border border-border/50 bg-card/80 text-muted-foreground transition-all hover:bg-accent"
+          className={cn(
+            "inline-flex shrink-0 items-center justify-center rounded-xl border border-border/50 bg-card/80 text-muted-foreground transition-all hover:bg-accent",
+            isChatActive ? "h-6 w-6" : "h-7 w-7",
+          )}
           title="Refresh suggestions"
         >
           <RefreshCw className="h-3 w-3" />
@@ -1359,13 +1372,14 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Pinned AI Command Bar */}
+        {/* Pinned AI Command Bar — tighter padding while in a chat so the
+            composer doesn't crowd the conversation view */}
         <div
           className={cn(
-            "border-t p-4 flex-shrink-0",
+            "border-t flex-shrink-0",
             chat.isChatActive
-              ? "border-primary/20 bg-background"
-              : "border-border/50 bg-background/80 backdrop-blur-sm",
+              ? "border-primary/20 bg-background px-4 py-2.5"
+              : "border-border/50 bg-background/80 backdrop-blur-sm p-4",
           )}
         >
           <AIChatInput
