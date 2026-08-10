@@ -27,6 +27,7 @@ import { ingestionRouter } from "./ingestion";
 import { approvalsRouter } from "./approvals";
 import { onboardingRouter } from "./onboarding";
 import { taxComplianceRouter } from "./tax-compliance";
+import { taxConfigRouter } from "./tax-config";
 import { estimatesRouter } from "./estimates";
 import { auditPipelineRouter } from "./audit-pipeline";
 import { analyticsRouter } from "./analytics";
@@ -105,6 +106,7 @@ export const appRouter = router({
   approvals: approvalsRouter,
   onboarding: onboardingRouter,
   taxCompliance: taxComplianceRouter,
+  taxConfig: taxConfigRouter,
   estimates: estimatesRouter,
   complianceLiveness: complianceLivenessRouter,
   cfoLiveness: cfoLivenessRouter,

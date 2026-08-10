@@ -33,6 +33,7 @@ import {
   payslips,
   staffLoans,
 } from "@xenboox/db/schema/payroll";
+import { jurisdictionTaxRules } from "@xenboox/db/schema/tax-compliance";
 import {
   chartOfAccounts,
   journalEntries,
@@ -41,6 +42,12 @@ import {
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
+import {
+  groupConfiguredRules,
+  mergeConfiguredRules,
+  type ConfiguredStatutoryRules,
+  type DbTaxRuleRow,
+} from "./statutory-rule-resolver";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -814,9 +821,14 @@ export async function executePayrollPipeline(params: {
       },
     );
 
+    // User-configured tax rules (Settings → Taxes) override the built-ins.
+    const configuredStatutoryRules = await loadConfiguredStatutoryRules(
+      params.entityId,
+    );
     const staffWithDeductions = await calculateStatutoryDeductions(
       grossPayResult,
       staffData,
+      configuredStatutoryRules,
     );
 
     const jurisdictionStats = computeJurisdictionSummary(
@@ -1422,10 +1434,11 @@ async function calculateGrossPay(
 export function calculatePayeForJurisdiction(
   grossPay: number,
   jurisdiction: Jurisdiction,
+  ruleOverride?: StatutoryRule,
 ): number {
   const rules = STATUTORY_RULES[jurisdiction];
   if (!rules || !rules.paye) return 0;
-  const payeRule = rules.paye;
+  const payeRule = ruleOverride ?? rules.paye;
   let tax = 0;
   const monthlyGross = grossPay;
 
@@ -1459,10 +1472,11 @@ export function calculatePayeForJurisdiction(
 export function calculateSocialSecurityForJurisdiction(
   grossPay: number,
   jurisdiction: Jurisdiction,
+  ruleOverride?: StatutoryRule,
 ): { employee: number; employer: number } {
   const rules = STATUTORY_RULES[jurisdiction];
   if (!rules || !rules.socialSecurity) return { employee: 0, employer: 0 };
-  const ssRule = rules.socialSecurity;
+  const ssRule = ruleOverride ?? rules.socialSecurity;
 
   const subjectAmount = ssRule.ceiling
     ? Math.min(grossPay, ssRule.ceiling)
@@ -1478,20 +1492,44 @@ export function calculateSocialSecurityForJurisdiction(
   };
 }
 
+// Loads the entity's user-configured statutory rules (paye / social_security
+// / withholding) from the DB — the Settings → Taxes surface writes these.
+// Returns a per-jurisdiction map ready for mergeConfiguredRules; an empty
+// map means the pipeline falls back entirely to the built-in STATUTORY_RULES.
+async function loadConfiguredStatutoryRules(
+  entityId: string,
+): Promise<ConfiguredStatutoryRules> {
+  const rows = await db.query.jurisdictionTaxRules.findMany({
+    where: and(
+      eq(jurisdictionTaxRules.entityId, entityId),
+      eq(jurisdictionTaxRules.status, "active"),
+      inArray(jurisdictionTaxRules.ruleType, [
+        "paye",
+        "social_security",
+        "withholding",
+      ]),
+    ),
+  });
+
+  return groupConfiguredRules(rows as DbTaxRuleRow[]);
+}
+
 async function calculateStatutoryDeductions(
   grossPayData: CalculatedPayroll[],
   staffData: EmployeePayrollData[],
+  configuredRules: ConfiguredStatutoryRules = {},
 ): Promise<CalculatedPayroll[]> {
   const staffMap = new Map(staffData.map((e) => [e.employeeId, e]));
 
   return grossPayData.map((calc) => {
     const emp = staffMap.get(calc.employeeId);
     const jurisdiction = emp?.jurisdiction ?? "GM";
+    // Merge user-configured rules over the built-ins for this jurisdiction.
+    const rules = mergeConfiguredRules(configuredRules, jurisdiction);
 
     if (calc.isContractor) {
       // Contractors: withholding tax only, not PAYE
-      const rules = STATUTORY_RULES[jurisdiction];
-      const whtRate = rules?.withholdingTax.bands[0]?.rate ?? 0.1;
+      const whtRate = rules.withholdingTax.bands[0]?.rate ?? 0.1;
       const withholdingTax = Math.round(calc.grossPay * whtRate * 100) / 100;
 
       const totalDeductions = withholdingTax + calc.loanDeduction;
@@ -1505,10 +1543,15 @@ async function calculateStatutoryDeductions(
     }
 
     // Employees: PAYE + Social Security
-    const payeTax = calculatePayeForJurisdiction(calc.grossPay, jurisdiction);
+    const payeTax = calculatePayeForJurisdiction(
+      calc.grossPay,
+      jurisdiction,
+      rules.paye,
+    );
     const ss = calculateSocialSecurityForJurisdiction(
       calc.grossPay,
       jurisdiction,
+      rules.socialSecurity,
     );
 
     const totalDeductions =

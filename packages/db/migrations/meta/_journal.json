@@ -190,6 +190,13 @@
       "when": 1786361950231,
       "tag": "0026_woozy_songbird",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1786379891259,
+      "tag": "0027_wandering_cardiac",
+      "breakpoints": true
     }
   ]
 }

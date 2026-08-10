@@ -25,9 +25,13 @@ export const taxRuleStatusEnum = pgEnum("tax_rule_status", [
 
 export const taxRuleTypeEnum = pgEnum("tax_rule_type", [
   "vat",
+  "sales_tax",
   "paye",
   "withholding",
   "corporate",
+  "social_security",
+  "excise",
+  "other",
 ]);
 
 export const vatStatusEnum = pgEnum("vat_status", [
@@ -62,23 +66,67 @@ export const taxPackageStatusEnum = pgEnum("tax_package_status", [
 // Versioned, never overwritten in place. New rules require explicit
 // human sign-off (approved_by must be populated before active).
 
+// ─── RATE OR BANDS PAYLOAD ─────────────────────────
+//
+// The full, user-configurable rate shape a tax rule can carry:
+//   rate        — flat percentage (e.g. 15% VAT)
+//   fixed       — fixed amount per transaction (e.g. GMD 50 excise)
+//   bands       — progressive/edge brackets (PAYE, corporate)
+//   conditional — rate depends on context (product category, customer type,
+//                 amount threshold, location)
+//   employeeRate / employerRate — split contributions (social security,
+//                 pension) so a company can opt to pay the employee's share.
+
+export type TaxRateConfig = {
+  type: "rate" | "fixed" | "bands" | "conditional";
+  // Flat percentage (0.15 = 15%)
+  rate?: number;
+  // Fixed amount per transaction
+  fixedAmount?: number;
+  // Progressive/edge brackets
+  bands?: Array<{
+    from: number;
+    to: number | null;
+    rate: number;
+    cumulative?: boolean;
+  }>;
+  // Conditional rates keyed on context
+  conditions?: Array<{
+    field:
+      | "product_category"
+      | "customer_type"
+      | "amount"
+      | "location"
+      | string;
+    operator: "eq" | "neq" | "gte" | "lte" | "in";
+    value: string | number | Array<string | number>;
+    rate: number;
+    fixedAmount?: number;
+  }>;
+  // Exemption threshold (amount below which no tax applies)
+  threshold?: number;
+  // Max amount subject to tax
+  ceiling?: number;
+  // Employer / employee split for contribution taxes
+  employeeRate?: number;
+  employerRate?: number;
+};
+
 export const jurisdictionTaxRules = pgTable(
   "jurisdiction_tax_rules",
   {
     id: uuidId(),
     entityId: entityId.references(() => entities.id, { onDelete: "cascade" }),
-    country: text("country").notNull(), // "GM", "NG", "KE", "GH"
+    country: text("country").notNull(), // "GM", "NG", "KE", "GH", "US", …
     ruleType: taxRuleTypeEnum("rule_type").notNull(),
     version: integer("version").notNull().default(1),
     name: text("name").notNull(),
     description: text("description"),
-    rateOrBands: jsonb("rate_or_bands").notNull().$type<{
-      type: "rate" | "bands";
-      rate?: number;
-      bands?: Array<{ from: number; to: number | null; rate: number }>;
-      threshold?: number;
-      ceiling?: number;
-    }>(),
+    // Which side of the books this applies to (sales/purchases/payroll/income)
+    appliesTo: text("applies_to")
+      .$type<"sales" | "purchases" | "payroll" | "income" | "other">()
+      .default("sales"),
+    rateOrBands: jsonb("rate_or_bands").notNull().$type<TaxRateConfig>(),
     effectiveFrom: text("effective_from").notNull(),
     effectiveTo: text("effective_to"),
     status: taxRuleStatusEnum("status").notNull().default("draft"),
@@ -97,10 +145,62 @@ export const jurisdictionTaxRules = pgTable(
 
 export const jurisdictionTaxRulesRelations = relations(
   jurisdictionTaxRules,
-  ({ one }) => ({
+  ({ one, many }) => ({
     entity: one(entities, {
       fields: [jurisdictionTaxRules.entityId],
       references: [entities.id],
+    }),
+    overrides: many(taxRateOverrides),
+  }),
+);
+
+// ─── TAX RATE OVERRIDES (per-person / per-item rates) ───────────────────
+//
+// Lets a user override a tax rate for a specific customer, vendor, employee
+// or product category — e.g. a preferred customer charged a reduced VAT
+// band, or a contractor with a bespoke withholding rate. Entity-scoped,
+// effective-dated, audited.
+
+export const taxRateOverrides = pgTable(
+  "tax_rate_overrides",
+  {
+    id: uuidId(),
+    entityId: entityId.references(() => entities.id, { onDelete: "cascade" }),
+    taxRuleId: uuid("tax_rule_id")
+      .notNull()
+      .references(() => jurisdictionTaxRules.id, { onDelete: "cascade" }),
+    appliesToType: text("applies_to_type")
+      .$type<
+        "customer" | "vendor" | "employee" | "product_category" | "other"
+      >()
+      .notNull(),
+    appliesToId: text("applies_to_id").notNull(),
+    appliesToName: text("applies_to_name"),
+    rate: numeric("rate", { precision: 6, scale: 4 }),
+    fixedAmount: numeric("fixed_amount", { precision: 15, scale: 2 }),
+    effectiveFrom: text("effective_from").notNull(),
+    effectiveTo: text("effective_to"),
+    isActive: boolean("is_active").notNull().default(true),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (t) => [
+    index("tro_entity").on(t.entityId),
+    index("tro_tax_rule").on(t.taxRuleId),
+    index("tro_target").on(t.entityId, t.appliesToType, t.appliesToId),
+  ],
+);
+
+export const taxRateOverridesRelations = relations(
+  taxRateOverrides,
+  ({ one }) => ({
+    entity: one(entities, {
+      fields: [taxRateOverrides.entityId],
+      references: [entities.id],
+    }),
+    taxRule: one(jurisdictionTaxRules, {
+      fields: [taxRateOverrides.taxRuleId],
+      references: [jurisdictionTaxRules.id],
     }),
   }),
 );

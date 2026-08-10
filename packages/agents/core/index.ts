@@ -326,6 +326,31 @@ export type {
   OnboardingStep,
 } from "./onboarding-pipeline";
 
+// ─── Configurable Tax Engine ────────────────────────────────
+export {
+  calculateTax,
+  calculateSplitContribution,
+  resolveRateOverride,
+} from "./tax-engine";
+export type {
+  TaxRateConfig,
+  TaxContext,
+  TaxResult,
+  SplitResult,
+  RateOverrideInput,
+} from "./tax-engine";
+
+// ─── Statutory Rule Resolver ────────────────────────────────
+export {
+  mapTaxRuleToStatutory,
+  mergeConfiguredRules,
+  groupConfiguredRules,
+} from "./statutory-rule-resolver";
+export type {
+  DbTaxRuleRow,
+  ConfiguredStatutoryRules,
+} from "./statutory-rule-resolver";
+
 // ─── Tax & Compliance Pipeline (Phase 2, Pipeline 2 of 5) ─────
 export {
   runTaxCompliancePipeline,

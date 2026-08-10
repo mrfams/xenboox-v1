@@ -16,6 +16,7 @@ import {
   Link,
   Fingerprint,
   Coins,
+  Percent,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ import { IntegrationsSection } from "@/components/settings/integrations-section"
 import { WebhooksSection } from "@/components/settings/webhooks-section";
 import { SsoSection } from "@/components/settings/sso-section";
 import { CurrencySection } from "@/components/settings/currency-section";
+import { TaxesSection } from "@/components/settings/taxes-section";
 
 interface TabGroup {
   label: string;
@@ -139,6 +141,13 @@ const TAB_GROUPS: TabGroup[] = [
         icon: Coins,
         description: "Exchange rates and multi-currency settings",
       },
+      {
+        id: "taxes",
+        label: "Taxes",
+        icon: Percent,
+        description:
+          "Configure VAT, PAYE, withholding, social security and custom taxes",
+      },
     ],
   },
   {
@@ -181,6 +190,7 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   privacy: PrivacySection,
   integrations: IntegrationsSection,
   currency: CurrencySection,
+  taxes: TaxesSection,
 };
 
 export default function SettingsPage() {
