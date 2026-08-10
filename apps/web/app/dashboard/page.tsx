@@ -117,32 +117,29 @@ function MiniSparkline({
 
 // ─── Greeting Component ──────────────────────────────────────────────────
 
+// Module-scope formatter — hoisted so it isn't re-allocated on every render.
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
 function AIGreeting({ firstName }: { firstName?: string }) {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
+  const today = DATE_FORMATTER.format(new Date());
+
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-      <div className="space-y-1">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
-          {greeting}, {firstName ?? "there"}!{" "}
-          <span className="inline-block motion-safe:animate-[wave_2s_ease-in-out_infinite] origin-[70%_70%]">
-            👋
-          </span>
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          Here&apos;s what&apos;s happening with your business today.
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-medium text-emerald-700">
-            All systems operational
-          </span>
-        </div>
-      </div>
+    <div className="flex flex-col gap-1">
+      <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+        {greeting}, {firstName ?? "there"}
+      </h1>
+      <p className="text-xs text-muted-foreground sm:text-sm">
+        Here&apos;s your business snapshot for {today}.
+      </p>
     </div>
   );
 }
@@ -387,13 +384,6 @@ const statusConfig: Record<
   },
 };
 
-const statusColors: Record<string, string> = {
-  positive: "text-balanced-green",
-  warning: "text-attention-amber",
-  negative: "text-error-clay",
-  neutral: "text-muted-foreground",
-};
-
 function isAttention(item: BriefingItem): boolean {
   return item.type === "negative" || item.type === "warning";
 }
@@ -410,54 +400,61 @@ function BriefingCard({
 }) {
   const config = statusConfig[item.type] ?? statusConfig.neutral;
   const Icon = config.icon;
+
+  const chipClass = cn(
+    "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap",
+    muted
+      ? "bg-muted/60 text-muted-foreground"
+      : item.type === "negative"
+        ? "bg-error-clay-bg text-error-clay"
+        : item.type === "warning"
+          ? "bg-attention-amber-bg text-attention-amber"
+          : item.type === "positive"
+            ? "bg-balanced-green-bg text-balanced-green"
+            : "bg-muted text-muted-foreground",
+  );
+
   const inner = (
     <>
       <div
         className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-          config.iconBg,
+          muted ? "bg-muted/50" : config.iconBg,
         )}
       >
-        <Icon className={cn("h-5 w-5", config.iconColor)} />
+        <Icon
+          className={cn(
+            "h-5 w-5",
+            muted ? "text-muted-foreground" : config.iconColor,
+          )}
+        />
       </div>
       <div className="flex-1 min-w-0">
-        <p
-          className={cn(
-            "truncate",
-            muted
-              ? "text-[10px] text-muted-foreground"
-              : "text-xs font-medium text-foreground",
-          )}
-        >
-          {item.title}
-        </p>
-        <p
-          className={cn(
-            "tabular-nums text-foreground",
-            muted ? "text-sm font-semibold" : "text-sm font-bold",
-          )}
-        >
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className={cn(
+              "truncate text-xs font-medium",
+              muted ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {item.title}
+          </p>
+          <span className={chipClass}>{item.statusLabel}</span>
+        </div>
+        <p className="mt-1 truncate tabular-nums text-lg font-bold tracking-tight text-foreground">
           {item.value}
         </p>
-        <p className="text-[10px] text-muted-foreground truncate">
+        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
           {item.detail}
         </p>
       </div>
-      <span
-        className={cn(
-          "text-[10px] font-medium whitespace-nowrap",
-          statusColors[item.type] ?? "text-muted-foreground",
-        )}
-      >
-        {item.statusLabel}
-      </span>
     </>
   );
   const cardClass = cn(
-    "flex items-center gap-3 rounded-xl border p-3 transition-all duration-200 hover:shadow-md",
+    "flex items-center gap-3 rounded-xl border p-3.5 transition-all duration-200 hover:shadow-md",
     muted
-      ? "border-border/40 bg-transparent"
-      : "border-border/50 bg-card hover:border-border/80",
+      ? "border-border/40 bg-card hover:border-border/60"
+      : "border-border/60 bg-card hover:border-border/90",
   );
   return item.href ? (
     <Link
@@ -475,7 +472,8 @@ function BriefingCard({
 }
 
 // The headline is a statement, not a tile: one number, one context line,
-// one destination. It frames the day for this role.
+// one destination. It frames the day for this role. A solid surface with a
+// status accent bar reads far more deliberate than a color wash.
 function BriefingHeadline({ item }: { item: BriefingItem }) {
   const config = statusConfig[item.type] ?? statusConfig.neutral;
   const Icon = config.icon;
@@ -484,7 +482,7 @@ function BriefingHeadline({ item }: { item: BriefingItem }) {
     <>
       <div
         className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
           config.iconBg,
         )}
       >
@@ -494,12 +492,12 @@ function BriefingHeadline({ item }: { item: BriefingItem }) {
         <p
           className={cn(
             "text-[10px] font-semibold uppercase tracking-wider",
-            statusColors[item.type] ?? "text-muted-foreground",
+            attention ? "text-attention-amber" : "text-balanced-green",
           )}
         >
           {attention ? "Needs attention today" : "Business pulse"}
         </p>
-        <p className="mt-0.5 text-sm font-semibold text-foreground">
+        <p className="mt-0.5 text-sm font-medium text-foreground">
           {item.title}
         </p>
         <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground">
@@ -508,33 +506,49 @@ function BriefingHeadline({ item }: { item: BriefingItem }) {
         <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
       </div>
       {item.href && (
-        <span className="mt-1 hidden sm:inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
-          View
-          <ArrowUpRight className="h-3 w-3" />
+        <span className="hidden shrink-0 items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-1.5 text-[11px] font-semibold text-foreground transition-colors group-hover:border-primary/40 group-hover:text-primary sm:inline-flex">
+          Review
+          <ArrowUpRight className="h-3.5 w-3.5" />
         </span>
       )}
     </>
   );
   const cardClass = cn(
-    "relative overflow-hidden rounded-xl border p-4 transition-all duration-200 group",
-    attention
-      ? "border-attention-amber/50 bg-gradient-to-br from-attention-amber-bg via-card to-card hover:shadow-md"
-      : "border-balanced-green/50 bg-gradient-to-br from-balanced-green-bg via-card to-card hover:shadow-md",
+    "relative overflow-hidden rounded-xl border bg-card p-4 transition-all duration-200 group sm:p-5",
+    attention ? "border-attention-amber/40" : "border-border/60",
   );
-  return item.href ? (
-    <Link href={item.href} className={cn(cardClass, "hover:-translate-y-0.5")}>
+  const card = item.href ? (
+    <Link
+      href={item.href}
+      className={cn(cardClass, "hover:-translate-y-0.5 hover:shadow-md")}
+    >
       {inner}
     </Link>
   ) : (
     <div className={cardClass}>{inner}</div>
   );
+  return (
+    <div className="relative">
+      {/* Status accent bar — a deliberate signal, not a wash */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0 left-0 z-10 w-1 rounded-l-xl",
+          attention ? "bg-attention-amber" : "bg-balanced-green",
+        )}
+      />
+      {card}
+    </div>
+  );
 }
 
 function BriefingGroupLabel({
   children,
+  count,
   tone,
 }: {
   children: React.ReactNode;
+  count: number;
   tone: "attention" | "ontrack";
 }) {
   return (
@@ -547,6 +561,9 @@ function BriefingGroupLabel({
       />
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {children}
+      </span>
+      <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-medium tabular-nums text-muted-foreground">
+        {count}
       </span>
     </div>
   );
@@ -578,58 +595,54 @@ function ExecutiveBriefing({
   const overflow = priority.length > 5;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <section className="space-y-4 rounded-2xl border border-border/50 bg-card/40 p-4 sm:p-5">
+      {/* Section header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
               {meta.title}
             </h2>
-            <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-primary/10 to-purple-500/10 px-2.5 py-0.5 text-[10px] font-medium text-primary">
-              <Sparkles className="h-3 w-3" />
-              AI generated
+            <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Sparkles className="h-2.5 w-2.5" />
+              Curated
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground">{meta.subtitle}</p>
+          <p className="text-xs text-muted-foreground">{meta.subtitle}</p>
         </div>
         <Link
           href="/dashboard/chat"
-          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-card px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 hover:text-primary"
         >
+          <Bot className="h-3.5 w-3.5 text-primary" />
           Ask Xenboox
-          <ArrowUpRight className="h-3 w-3" />
         </Link>
       </div>
 
       {priority.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/60 bg-card/50 px-4 py-6 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-balanced-green-bg">
-            <CheckCircle2 className="h-5 w-5 text-balanced-green" />
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/60 bg-card/50 px-4 py-8 text-center">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-balanced-green-bg">
+            <CheckCircle2 className="h-6 w-6 text-balanced-green" />
           </div>
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-sm font-semibold text-foreground">
             All clear — nothing needs your attention right now.
           </p>
-          <p className="text-xs text-muted-foreground">{meta.subtitle}</p>
-          <Link
-            href="/dashboard/chat"
-            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-          >
-            Ask Xenboox anything
-            <ArrowUpRight className="h-3 w-3" />
-          </Link>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            {meta.subtitle}
+          </p>
         </div>
       ) : (
         <>
           {headline && <BriefingHeadline item={headline} />}
 
           {(attentionCards.length > 0 || onTrackCards.length > 0) && (
-            <div className="space-y-1.5">
+            <div className="space-y-2.5">
               {attentionCards.length > 0 && (
                 <>
-                  <BriefingGroupLabel tone="attention">
+                  <BriefingGroupLabel tone="attention" count={attention.length}>
                     Needs attention
                   </BriefingGroupLabel>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {attentionCards.map((item) => (
                       <BriefingCard key={item.id} item={item} />
                     ))}
@@ -638,10 +651,10 @@ function ExecutiveBriefing({
               )}
               {onTrackCards.length > 0 && (
                 <>
-                  <BriefingGroupLabel tone="ontrack">
+                  <BriefingGroupLabel tone="ontrack" count={onTrack.length}>
                     On track
                   </BriefingGroupLabel>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {onTrackCards.map((item) => (
                       <BriefingCard key={item.id} item={item} muted />
                     ))}
@@ -654,7 +667,7 @@ function ExecutiveBriefing({
           {overflow && (
             <Link
               href="/dashboard/review-queue"
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-primary transition-colors hover:text-primary/80"
             >
               View more in the review queue
               <ArrowUpRight className="h-3 w-3" />
@@ -662,7 +675,7 @@ function ExecutiveBriefing({
           )}
         </>
       )}
-    </div>
+    </section>
   );
 }
 
