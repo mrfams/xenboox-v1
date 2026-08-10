@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 // ── Hover-expand system (DISABLED — sidebar is now a permanent icon rail) ──
 // To restore the old hover-expand behavior:
 //   1. Uncomment this import, the isHovered state + --sidebar-width effect
@@ -24,8 +25,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
@@ -224,6 +226,9 @@ function AgentStatusBar() {
 
 export function AISidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname() ?? "/";
+  const { data: session } = useSession();
+  const user = session?.user;
+  const initials = getInitials(user?.name || user?.email || "User");
 
   // ── Hover-expand (disabled) — see the import comment at the top ──
   // const [isHovered, setIsHovered] = useState(false);
@@ -235,8 +240,7 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
   //   );
   // }, [isHovered]);
 
-  const { stats, agentApprovals, pendingReview, agentCount } =
-    useApprovalCounts();
+  const { stats, pendingReview, agentCount } = useApprovalCounts();
   const approvalCounts = {
     ingestion: pendingReview,
     agent: agentCount,
@@ -325,19 +329,29 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
         {/* Agent status — renders only when something is processing/pending */}
         <AgentStatusBar />
 
-        {/* User Profile — avatar always visible on the rail, details on mobile */}
+        {/* User Profile — real signed-in user from the session; avatar always
+            visible on the rail, details on mobile */}
         <div className="border-t border-white/[0.06] p-3">
           {/* Rail: restore to "lg:hidden lg:group-hover:flex" to match old */}
           <div className="flex items-center gap-3 lg:flex-col lg:gap-1.5">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xs font-bold shrink-0">
-              FT
-            </div>
+            <Avatar className="h-8 w-8 shrink-0">
+              {user?.image && (
+                <AvatarImage
+                  src={user.image}
+                  alt={user?.name ?? ""}
+                  className="h-full w-full object-cover"
+                />
+              )}
+              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xs font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
             <div className="flex-1 min-w-0 lg:hidden">
               <p className="text-xs font-medium text-[hsl(var(--sidebar-text))] truncate">
-                Famara Touray
+                {user?.name ?? "Signed in"}
               </p>
               <p className="text-[10px] text-[hsl(var(--sidebar-text-dim))] truncate">
-                Administrator
+                {user?.email ?? ""}
               </p>
             </div>
             <ChevronsLeft className="h-4 w-4 text-[hsl(var(--sidebar-text-dim))] shrink-0 lg:hidden" />
