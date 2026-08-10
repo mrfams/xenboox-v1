@@ -34,6 +34,10 @@ import {
 } from "@/lib/dashboard-audiences";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
+import {
+  runwayStatusLabel,
+  runwayTone as runwayToneOf,
+} from "@/lib/dashboard-runway";
 import { DashboardSkeleton } from "@/components/shared/skeletons";
 import { dashboardQueryOptions } from "@/lib/trpc/query-options";
 import { Button } from "@/components/ui";
@@ -751,22 +755,10 @@ function BusinessHealth({
   // Per-metric presentation. Runway carries a status chip (Healthy / Caution /
   // Critical / Sustainable / No cash); the fundamentals carry their % change.
   // Direction semantics: cash & revenue up is good; expenses down is good.
-  const runwayTone =
-    runway === null || runway >= 6
-      ? "positive"
-      : runway >= 3
-        ? "warning"
-        : "negative";
-  const runwayStatus =
-    runway === 0
-      ? "No cash"
-      : runway === null
-        ? "Sustainable"
-        : runway >= 6
-          ? "Healthy"
-          : runway >= 3
-            ? "Caution"
-            : "Critical";
+  // Shared threshold policy (apps/web/lib/dashboard-runway.ts) — the card and
+  // the executive briefing must agree on tone and wording for the same months.
+  const runwayTone = runwayToneOf(runway);
+  const runwayStatus = runwayStatusLabel(runway);
 
   const metrics = [
     {

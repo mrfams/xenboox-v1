@@ -30,6 +30,11 @@ import {
   payrollRuns,
 } from "@xenboox/db/schema";
 import { logger } from "@/lib/logger";
+import {
+  buildRunwayBriefing,
+  computeRunwayMonths,
+  computeRunwaySparkline,
+} from "@/lib/dashboard-runway";
 
 // ─── Helper ────────────────────────────────────────────────────────────────
 function pctChange(current: number, prev: number): number {
@@ -458,17 +463,16 @@ export const dashboardRouter = router({
       );
       const avgMonthlyBurn =
         burnValues.reduce((sum, v) => sum + v, 0) / burnValues.length;
-      // No cash on hand is always critical — never masked as "sustainable".
-      // Otherwise, runway is unbounded only when the business is cash-flow
-      // positive (burn ≤ 0); a positive burn produces a real month count.
-      const runwayMonths: number | null =
-        totalCashBalance <= 0
-          ? 0
-          : avgMonthlyBurn > 0
-            ? totalCashBalance / avgMonthlyBurn
-            : null;
-      const runwaySparkline =
-        avgMonthlyBurn > 0 ? cashSparkline.map((c) => c / avgMonthlyBurn) : [];
+      // Threshold policy, sparkline and briefing copy live in
+      // apps/web/lib/dashboard-runway.ts so server and client can never drift.
+      const runwayMonths = computeRunwayMonths(
+        totalCashBalance,
+        avgMonthlyBurn,
+      );
+      const runwaySparkline = computeRunwaySparkline(
+        cashSparkline,
+        avgMonthlyBurn,
+      );
 
       // ── Executive Briefing Items ─────────────────────────────────────────
 
@@ -491,42 +495,7 @@ export const dashboardRouter = router({
       // which now live in Business Health; the briefing stays attention-first.
       briefingItems.push({
         id: "runway",
-        type:
-          runwayMonths === null || runwayMonths >= 6
-            ? "positive"
-            : runwayMonths >= 3
-              ? "warning"
-              : "negative",
-        title:
-          runwayMonths === 0
-            ? "No cash on hand"
-            : runwayMonths === null || runwayMonths >= 6
-              ? "Cash runway is healthy"
-              : runwayMonths >= 3
-                ? "Cash runway running low"
-                : "Cash runway is critical",
-        value:
-          runwayMonths === null
-            ? "12+ months"
-            : runwayMonths === 0
-              ? "No cash"
-              : `${runwayMonths < 10 ? runwayMonths.toFixed(1) : Math.round(runwayMonths)} months`,
-        detail:
-          runwayMonths === 0
-            ? "Cash balance is zero or negative"
-            : avgMonthlyBurn > 0
-              ? `At a burn of ${avgMonthlyBurn.toLocaleString()}/mo`
-              : "Cash-flow positive",
-        statusLabel:
-          runwayMonths === 0
-            ? "Critical"
-            : runwayMonths === null
-              ? "Sustainable"
-              : runwayMonths >= 6
-                ? "Healthy"
-                : runwayMonths >= 3
-                  ? "Monitor"
-                  : "Critical",
+        ...buildRunwayBriefing(runwayMonths, avgMonthlyBurn),
         href: "/dashboard/banking",
         audience: ["decision", "oversight"],
       });
