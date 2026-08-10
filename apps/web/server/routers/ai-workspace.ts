@@ -2,6 +2,7 @@ import { z } from "zod";
 import { eq, and, desc, sql, gte, lte, count, sum } from "drizzle-orm";
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { generateConversationSummary } from "@/lib/chat/conversation-summary";
 import {
   bankAccounts,
   bankTransactions,
@@ -476,6 +477,7 @@ export const aiWorkspaceRouter = router({
             entityId,
             userId: ctx.session!.user!.id!,
             title: input.message.slice(0, 80),
+            summary: generateConversationSummary(input.message) ?? undefined,
           })
           .returning();
         conversationId = conv.id;

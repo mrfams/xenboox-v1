@@ -470,6 +470,7 @@ function AiAssistantPanel({
   recentConversations: Array<{
     id: string;
     title: string;
+    summary: string | null;
     lastMessageAt: string | null;
   }>;
 }) {
@@ -624,6 +625,11 @@ function AiAssistantPanel({
                   <p className="text-sm text-slate-700 truncate">
                     {conv.title}
                   </p>
+                  {conv.summary && (
+                    <p className="text-xs text-slate-400 truncate mt-1">
+                      {conv.summary}
+                    </p>
+                  )}
                   {conv.lastMessageAt && (
                     <p className="text-xs text-slate-400 mt-1">
                       {new Date(conv.lastMessageAt).toLocaleDateString(

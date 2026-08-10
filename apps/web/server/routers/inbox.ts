@@ -517,6 +517,7 @@ export const inboxRouter = router({
     return conversationsList.map((c) => ({
       id: c.id,
       title: c.title ?? "Untitled conversation",
+      summary: c.summary,
       lastMessageAt: c.lastMessageAt ? new Date(c.lastMessageAt) : null,
       messageCount: c.messageCount ?? 0,
     }));

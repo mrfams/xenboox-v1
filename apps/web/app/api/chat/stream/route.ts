@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 import { generateConversationTitle } from "@/lib/chat/conversation-title";
+import { generateConversationSummary } from "@/lib/chat/conversation-summary";
 import { generateChatArtifacts } from "@/lib/chat/artifact-service";
 
 export const runtime = "nodejs";
@@ -76,8 +77,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // One-line snippet for the /chat panel, derived from this message. Computed
+  // once and reused by the create insert and the exchange update below.
+  const summary = generateConversationSummary(message) ?? undefined;
+
   // Create or get conversation. New conversations get a short, readable name
-  // derived from the first message (not the raw 80-char fragment).
+  // derived from the first message (not the raw 80-char fragment) plus the
+  // summary.
   let convId = conversationId;
   if (!convId) {
     const [conv] = await db
@@ -86,6 +92,7 @@ export async function POST(req: NextRequest) {
         entityId,
         userId: session.user.id!,
         title: generateConversationTitle(message),
+        summary,
       })
       .returning();
     convId = conv.id;
@@ -148,11 +155,14 @@ export async function POST(req: NextRequest) {
   // Bump the message count with an atomic SQL increment rather than a
   // read-modify-write: two tabs streaming to the same thread concurrently
   // could otherwise both read the same count and lose an increment.
+  // The summary is refreshed from the latest user message so the /chat
+  // panel shows where the thread is now.
   await db
     .update(conversations)
     .set({
       lastMessageAt: new Date(),
       messageCount: sql`coalesce(${conversations.messageCount}, 0) + 2`,
+      summary,
       updatedAt: new Date(),
     })
     .where(eq(conversations.id, convId));

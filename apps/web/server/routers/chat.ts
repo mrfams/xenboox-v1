@@ -21,6 +21,7 @@ import {
 } from "@xenboox/agents/core/pipeline";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { generateConversationTitle } from "@/lib/chat/conversation-title";
+import { generateConversationSummary } from "@/lib/chat/conversation-summary";
 
 export const chatRouter = router({
   /**
@@ -286,13 +287,16 @@ export const chatRouter = router({
 
         // Update conversation timestamp. The count is bumped atomically in
         // SQL — read-modify-write here would lose increments when two tabs
-        // send to the same thread concurrently.
+        // send to the same thread concurrently. The summary is refreshed
+        // from the latest user message so the /chat panel snippet stays
+        // current.
         await db
           .update(conversations)
           .set({
             lastMessageAt: new Date(),
             updatedAt: new Date(),
             messageCount: sql`coalesce(${conversations.messageCount}, 0) + 1`,
+            summary: generateConversationSummary(input.message) ?? undefined,
             title:
               conversation.title ?? generateConversationTitle(input.message),
           })
@@ -498,6 +502,12 @@ export const chatRouter = router({
           orderBy: [asc(chatMessages.createdAt)],
         });
 
+        // The summary carries over the last user message up to the fork
+        // point, so the branch shows useful context in the panel.
+        const lastForkedUserMessage = [...messagesToFork]
+          .reverse()
+          .find((m) => m.role === "user");
+
         // Create the new forked conversation
         const [newConversation] = await db
           .insert(conversations)
@@ -507,6 +517,10 @@ export const chatRouter = router({
             title:
               input.title ??
               `${sourceConversation.title ?? "Conversation"} (branch)`,
+            summary: lastForkedUserMessage?.content
+              ? (generateConversationSummary(lastForkedUserMessage.content) ??
+                undefined)
+              : undefined,
             forkedFromConversationId: input.sourceConversationId,
             forkedFromMessageId: input.forkAtMessageId,
             messageCount: messagesToFork.length,

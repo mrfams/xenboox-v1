@@ -146,9 +146,11 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     expect(db.insert).toHaveBeenCalledTimes(3);
 
     // The new conversation is named with a readable generated title — not the
-    // raw message fragment (the "hello " greeting is stripped).
+    // raw message fragment (the "hello " greeting is stripped) — and gets a
+    // one-line summary for the /chat panel snippet.
     expect(mocks.insertValues[0]).toMatchObject({
       title: "Xenboox",
+      summary: "Xenboox",
     });
 
     // Conversations row updated: timestamp set, count bumped by an atomic
@@ -157,6 +159,7 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     const conversationSet = mocks.setSpies[0]?.mock.calls[0]?.[0];
     expect(conversationSet).toMatchObject({
       lastMessageAt: expect.any(Date),
+      summary: "Xenboox",
     });
     expect(sqlText(conversationSet.messageCount)).toContain("coalesce");
     expect(sqlText(conversationSet.messageCount)).toContain("+ 2");
@@ -225,6 +228,8 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     const conversationSet = mocks.setSpies[0]?.mock.calls[0]?.[0];
     expect(conversationSet).toMatchObject({
       lastMessageAt: expect.any(Date),
+      // The panel snippet refreshes from the latest user message on follow-ups.
+      summary: "What about next month",
     });
     // The increment is the same unconditional atomic `+ 2` regardless of the
     // existing count — it no longer depends on a client-side read (previously

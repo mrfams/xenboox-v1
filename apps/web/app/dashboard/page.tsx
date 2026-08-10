@@ -702,6 +702,7 @@ function DashboardRightSidebar({
   recentConversations: Array<{
     id: string;
     title: string | null;
+    summary: string | null;
     lastMessageAt: string | null;
   }>;
   suggestedActions: string[];
@@ -824,6 +825,11 @@ function DashboardRightSidebar({
                   <p className="text-xs text-foreground truncate">
                     {c.title ?? "Untitled conversation"}
                   </p>
+                  {c.summary && (
+                    <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">
+                      {c.summary}
+                    </p>
+                  )}
                 </div>
                 <span className="text-[10px] text-muted-foreground whitespace-nowrap group-hover:hidden">
                   {formatDocTime(c.lastMessageAt)}

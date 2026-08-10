@@ -6,6 +6,27 @@
 
 ---
 
+### [2026-08-10] — Per-entity conversation summaries: /chat panel shows a snippet under each title
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** 8 (`apps/web/lib/chat/conversation-summary.ts` new, `apps/web/lib/chat/conversation-title.ts`, `apps/web/app/api/chat/stream/route.ts`, `apps/web/server/routers/chat.ts`, `apps/web/server/routers/ai-workspace.ts`, `apps/web/server/routers/inbox.ts`, `apps/web/server/routers/dashboard.ts`, `apps/web/app/dashboard/chat/page.tsx`, `apps/web/app/dashboard/page.tsx`, `apps/web/app/dashboard/inbox/page.tsx`) + 2 tests (`__tests__/conversation-summary.test.ts` new, `__tests__/chat-stream-route.test.ts`) + `BUILD_LOG.md`
+
+**Request:** Add a per-entity conversation 'summary' auto-generated from the thread so the /chat panel shows a useful snippet under each title. (The `summary` column already existed on `conversations` — migration 0001 — so no migration was needed; this populates and displays it.)
+
+**What was built:**
+
+- **`generateConversationSummary(message)`** (new `lib/chat/conversation-summary.ts`): deterministic, zero-cost one-line snippet derived from the user's latest message — strips markdown (fences, inline code, bold/italic, headers, bullets, links, URLs), collapses whitespace, reuses the exported `LEADING_FILLERS` from the title generator, truncates at ~120 chars on a word boundary. Returns `null` for bare greetings/acknowledgements (checked against both the original and the cleaned text) so a "thanks" never overwrites a useful summary.
+- **Writes:** the stream route sets the summary on conversation create and refreshes it on every exchange (computed once, reused for both); `chat.sendMessage` refreshes it per message; `forkConversation` seeds it from the last user message at the fork point; the legacy `aiWorkspace.sendMessage` insert sets it too. `?? undefined` means a null summary skips the column update (Drizzle omits undefined), preserving the previous value.
+- **Reads:** `inbox.getRecentConversations` and `dashboard.getDashboardData` now return `summary`; `chat.listConversations` already returns full rows.
+- **UI:** the /chat conversation panel renders a one-line truncated snippet under each title; the dashboard right sidebar Recent Conversations and the inbox AI panel do the same.
+- **Tests:** 9 new — markdown/fence/bullet/link stripping, filler stripping, truncation, null for greetings/acknowledgements (including markdown-formatted ones); the stream-route test asserts the summary on create insert + exchange update and on follow-ups.
+
+**Verification:** `pnpm typecheck` ✓ · lint clean on changed files (only pre-existing warnings) ✓ · full web suite 43 files / 458 passed, 1 skipped ✓ · `pnpm build` (Next.js production) ✓ · code review applied (ack-check now covers cleaned text; stream-route summary hoisted to one const; verified no other conversation write paths — `aiWorkspace.sendMessage` is uncalled legacy and was covered for hygiene).
+
+**Next Steps:** Optional one-time backfill so pre-existing conversations get a snippet from their first user message; surface the snippet in the mobile app's conversation list.
+
+---
+
 ### [2026-08-10] — Harden `messageCount` increment against cross-tab races (atomic SQL increment)
 
 **Agent:** Buffy (Autonomous Engineer)

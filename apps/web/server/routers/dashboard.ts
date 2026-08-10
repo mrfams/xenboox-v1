@@ -794,6 +794,7 @@ export const dashboardRouter = router({
       recentConversations: recentConversations.map((conv) => ({
         id: conv.id,
         title: conv.title,
+        summary: conv.summary,
         lastMessageAt: conv.lastMessageAt,
         messageCount: conv.messageCount,
       })),

@@ -702,6 +702,7 @@ function ConversationItem({
   conversation: {
     id: string;
     title: string | null;
+    summary: string | null;
     messageCount: number | null;
     lastMessageAt: Date | string | null;
   };
@@ -784,6 +785,11 @@ function ConversationItem({
             <p className="text-xs font-medium truncate">
               {conversation.title || "New Conversation"}
             </p>
+            {conversation.summary && (
+              <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
+                {conversation.summary}
+              </p>
+            )}
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-[10px] text-muted-foreground/70">
                 {conversation.messageCount ?? 0} messages
@@ -871,6 +877,7 @@ function groupConversationsByDate(
   conversations: Array<{
     id: string;
     title: string | null;
+    summary: string | null;
     messageCount: number | null;
     lastMessageAt: Date | string | null;
     createdAt: Date | string | null;

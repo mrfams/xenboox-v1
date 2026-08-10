@@ -8,8 +8,9 @@
 const MAX_TITLE_LENGTH = 60;
 
 // Conversational filler prefixes to strip. Ordered longest-first so "tell me
-// about " wins over "tell me ".
-const LEADING_FILLERS = [
+// about " wins over "tell me ". Exported so the conversation summary
+// generator can reuse the same cleanup.
+export const LEADING_FILLERS = [
   "i have a question about ",
   "quick question about ",
   "i would like to ",
