@@ -24,48 +24,49 @@ export function Logo({
         aria-label="Xenboox logo"
       >
         <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
-        {/* First X - left side */}
+        {/* Lowercase "xbx" letterforms */}
+        {/* x — left */}
         <path
-          d="M5 7L10 16L5 25"
+          d="M6.1 9L10.4 16L6.1 23"
           stroke="white"
-          strokeWidth="2"
+          strokeWidth="2.6"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <path
-          d="M10 7L5 16L10 25"
+          d="M10.4 9L6.1 16L10.4 23"
           stroke="white"
-          strokeWidth="2"
+          strokeWidth="2.6"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* B without vertical stem - middle (two bumps only) */}
+        {/* b — vertical stem with a rounded bowl */}
         <path
-          d="M14 7C14 7 17.5 7 19 9C20.5 11 20.5 13 19 15C17.5 17 14 17 14 17"
+          d="M13.1 8.5L13.1 23.5"
           stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M14 17C14 17 18 17 20 19C22 21 22 23.5 20 25C18 27 14 27 14 27"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {/* Second X - right side */}
-        <path
-          d="M22 17L27 25"
-          stroke="white"
-          strokeWidth="2"
+          strokeWidth="2.6"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <path
-          d="M27 17L22 25"
+          d="M13.1 12C17 12 19.5 14.2 19.5 17.5C19.5 20.8 17 23.5 13.1 23.5"
           stroke="white"
-          strokeWidth="2"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* x — right */}
+        <path
+          d="M21.6 9L25.9 16L21.6 23"
+          stroke="white"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M25.9 9L21.6 16L25.9 23"
+          stroke="white"
+          strokeWidth="2.6"
           strokeLinecap="round"
           strokeLinejoin="round"
         />

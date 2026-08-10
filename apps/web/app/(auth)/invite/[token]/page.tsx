@@ -68,8 +68,8 @@ export default function InviteAcceptPage() {
       <div className="relative w-full max-w-md px-4 py-8">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold shadow-sm transition-transform duration-200 group-hover:scale-105">
-              X
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold tracking-tight shadow-sm transition-transform duration-200 group-hover:scale-105">
+              xbx
             </div>
             <span className="text-2xl font-bold text-white tracking-tight">
               Xenboox
