@@ -105,7 +105,7 @@ export default function DashboardLayout({
               />
 
               {/* Main Content + Right Panel Container */}
-              <div className="flex flex-1 overflow-hidden lg:pl-[4.25rem]">
+              <div className="flex flex-1 overflow-hidden lg:pl-[var(--sidebar-width)]">
                 {/* Main Content */}
                 <div
                   className={cn(

@@ -94,8 +94,9 @@
     /* Right-side AI Copilot panel */
     --copilot-width: 24rem;
 
-    /* Sidebar — collapsed icon rail by default (expands to 16rem on hover) */
-    --sidebar-width: 4.25rem;
+    /* Sidebar — fixed icon rail with labels (5.5rem). Was 4.25rem while the
+       hover-expand system was active — see ai-sidebar.tsx to restore. */
+    --sidebar-width: 5.5rem;
   }
 
   .dark {
