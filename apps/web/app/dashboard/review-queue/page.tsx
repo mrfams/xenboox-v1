@@ -39,7 +39,7 @@ export default function ReviewQueuePage() {
   // Use the dashboard's pending approvals + escalations as a lightweight
   // review queue. The admin review-queue router is admin-only, so we surface
   // entity-scoped review items from the dashboard endpoint instead.
-  const dashboardQuery = trpc.dashboard.getDashboardData.useQuery();
+  const dashboardQuery = trpc.dashboard.getDashboardData.useQuery({});
 
   const data = dashboardQuery.data;
   const pendingApprovals = data?.pendingApprovals ?? [];

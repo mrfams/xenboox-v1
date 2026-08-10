@@ -45,6 +45,9 @@ import {
   getPageEmptyState,
 } from "@/components/shared/page-empty-state";
 
+// The Business Health period selector drives real server-side period ranges.
+type HealthPeriod = "this_month" | "last_month" | "this_quarter";
+
 // ─── Mini Sparkline Component ─────────────────────────────────────────────
 
 function MiniSparkline({
@@ -667,6 +670,8 @@ function ExecutiveBriefing({
 
 function BusinessHealth({
   data,
+  period,
+  onPeriodChange,
 }: {
   data: {
     cashBalance: number;
@@ -689,6 +694,8 @@ function BusinessHealth({
     arSparkline?: number[];
     apSparkline?: number[];
   };
+  period: HealthPeriod;
+  onPeriodChange: (period: HealthPeriod) => void;
 }) {
   // Sparklines come from the server (real per-month aggregates from the DB).
   // If the server ever returns nothing, show a flat line rather than fabricate
@@ -750,10 +757,15 @@ function BusinessHealth({
             Live data
           </span>
         </div>
-        <select className="text-[11px] font-medium text-muted-foreground bg-transparent border border-border/50 rounded-lg px-2 py-1 outline-none">
-          <option>This month</option>
-          <option>Last month</option>
-          <option>This quarter</option>
+        <select
+          value={period}
+          onChange={(e) => onPeriodChange(e.target.value as HealthPeriod)}
+          aria-label="Business health period"
+          className="text-[11px] font-medium text-muted-foreground bg-transparent border border-border/50 rounded-lg px-2 py-1 outline-none cursor-pointer"
+        >
+          <option value="this_month">This month</option>
+          <option value="last_month">Last month</option>
+          <option value="this_quarter">This quarter</option>
         </select>
       </div>
 
@@ -1204,6 +1216,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const firstName = session?.user?.name?.split(" ")[0];
 
+  // Business Health period — drives the server-side date ranges for the
+  // revenue / expenses / profit KPIs (see dashboard router periodConfig).
+  const [healthPeriod, setHealthPeriod] = useState<HealthPeriod>("this_month");
+
   // Which briefing audience this user sees (decision / operations / oversight)
   const audience = roleToAudience(entityRole);
 
@@ -1212,14 +1228,19 @@ export default function DashboardPage() {
 
   const markDocViewed = trpc.document.markDocumentViewed.useMutation();
 
-  // Fetch dashboard data with optimized caching
+  // Fetch dashboard data with optimized caching. The period input changes
+  // the query key, so switching the Business Health selector refetches with
+  // the right date ranges.
   const { data: dashboardData, isLoading } =
-    trpc.dashboard.getDashboardData.useQuery(undefined, {
-      enabled: !!entityId,
-      ...dashboardQueryOptions,
-      // No refetchInterval - use staleTime from dashboardQueryOptions (2 minutes)
-      // This prevents unnecessary re-renders and page refreshes
-    });
+    trpc.dashboard.getDashboardData.useQuery(
+      { period: healthPeriod },
+      {
+        enabled: !!entityId,
+        ...dashboardQueryOptions,
+        // No refetchInterval - use staleTime from dashboardQueryOptions (2 minutes)
+        // This prevents unnecessary re-renders and page refreshes
+      },
+    );
 
   // Loading state - show skeleton immediately for perceived performance
   if (isLoading) {
@@ -1367,6 +1388,8 @@ export default function DashboardPage() {
                     apChange: 0,
                   }
                 }
+                period={healthPeriod}
+                onPeriodChange={setHealthPeriod}
               />
             </div>
           )}

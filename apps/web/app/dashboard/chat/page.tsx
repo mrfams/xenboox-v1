@@ -1413,7 +1413,7 @@ function SmartSuggestions({
 
   // Fetch context data
   const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
-    undefined,
+    {},
     { enabled: !!entityId },
   );
 
