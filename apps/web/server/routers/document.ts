@@ -7,6 +7,13 @@ import {
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
+import { callModel } from "@xenboox/models";
+import {
+  applySpliceEdit,
+  applySpliceEditByLine,
+  extractSelectionContext,
+  stripCodeFences,
+} from "@/lib/chat/artifact-edit";
 import {
   documents,
   documentLinks,
@@ -381,6 +388,9 @@ export const documentRouter = router({
           eq(documents.id, input.id),
           eq(documents.entityId, ctx.entityId!),
         ),
+        with: {
+          uploader: { columns: { id: true, name: true } },
+        },
       });
       if (!doc) return null;
 
@@ -391,7 +401,8 @@ export const documentRouter = router({
         ),
       });
 
-      return { ...doc, links };
+      const { uploader, ...rest } = doc;
+      return { ...rest, uploadedByName: uploader?.name ?? null, links };
     }),
 
   /**
@@ -568,4 +579,287 @@ export const documentRouter = router({
       actionLabel: "View",
     }));
   }),
+
+  // ── AI Document Editing (ChatGPT/Claude-style) ─────────────────────────
+  //
+  // The viewer shows the extracted text of a document (OCR or text content)
+  // and lets the user highlight a passage and ask the AI to change/redo it.
+  // Edits are versioned in metadata (original extraction is never touched),
+  // written to the audit trail, and returned to the viewer with an edit count.
+
+  editDocumentText: rlsProtectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        instruction: z.string().min(2).max(600),
+        mode: z.enum(["selection", "whole"]).default("selection"),
+        selection: z.string().max(4000).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const doc = await db.query.documents.findFirst({
+        where: and(
+          eq(documents.id, input.id),
+          eq(documents.entityId, ctx.entityId!),
+        ),
+      });
+      if (!doc) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
+      }
+
+      const meta = (doc.metadata ?? {}) as Record<string, unknown>;
+      // Edits layer on top of the most recent edited copy, falling back to
+      // the AI-extracted text. The original ocrText column is never mutated.
+      const base =
+        typeof meta.editedContent === "string" && meta.editedContent.length > 0
+          ? meta.editedContent
+          : doc.ocrText;
+      if (!base || base.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "This document has no extracted text to edit. Try asking the AI about it instead.",
+        });
+      }
+      if (base.length > 100_000) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "This document is too large to edit in place. Try downloading it and editing it directly.",
+        });
+      }
+
+      if (input.mode === "selection" && !input.selection?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Select a passage in the document first",
+        });
+      }
+
+      try {
+        const newContent = await editPlainTextWithModel({
+          entityId: ctx.entityId!,
+          content: base,
+          selection: input.selection?.trim() ?? "",
+          instruction: input.instruction,
+        });
+
+        const editCount = ((meta.editCount as number) ?? 0) + 1;
+        await db
+          .update(documents)
+          .set({
+            metadata: {
+              ...meta,
+              editedContent: newContent,
+              previousContent: base,
+              editCount,
+              editedAt: new Date().toISOString(),
+              lastEdit: {
+                instruction: input.instruction,
+                selection: input.selection?.trim() || null,
+                mode: input.mode,
+                at: new Date().toISOString(),
+              },
+            },
+          })
+          .where(
+            and(
+              eq(documents.id, doc.id),
+              eq(documents.entityId, ctx.entityId!),
+            ),
+          );
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "document.edit_text",
+          entityType: "document",
+          entityIdRef: doc.id,
+          newValues: {
+            name: doc.name,
+            mode: input.mode,
+            instruction: input.instruction,
+            editCount,
+          },
+        });
+
+        return { content: newContent, editCount };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[document.editDocumentText] failed:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            "The AI couldn't edit this document right now. Try a different instruction or check your model connection.",
+        });
+      }
+    }),
+
+  /** Revert the last AI edit (one level). */
+  undoDocumentEdit: rlsProtectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await db.query.documents.findFirst({
+        where: and(
+          eq(documents.id, input.id),
+          eq(documents.entityId, ctx.entityId!),
+        ),
+      });
+      if (!doc) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
+      }
+
+      const meta = (doc.metadata ?? {}) as Record<string, unknown>;
+      const current =
+        typeof meta.editedContent === "string" && meta.editedContent.length > 0
+          ? meta.editedContent
+          : null;
+      const previous =
+        typeof meta.previousContent === "string" &&
+        meta.previousContent.length > 0
+          ? meta.previousContent
+          : null;
+      if (!current || !previous) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Nothing to undo",
+        });
+      }
+
+      const editCount = Math.max(0, ((meta.editCount as number) ?? 1) - 1);
+      const updatedMeta: Record<string, unknown> = {
+        ...meta,
+        editedContent: previous,
+        editCount,
+        editedAt: new Date().toISOString(),
+        lastEdit: {
+          ...((meta.lastEdit as Record<string, unknown>) ?? {}),
+          undoneAt: new Date().toISOString(),
+        },
+      };
+      // Once we're back at the original extraction, drop the edit layer
+      // entirely so the viewer returns to the untouched document.
+      if (editCount === 0) {
+        delete updatedMeta.editedContent;
+        delete updatedMeta.previousContent;
+      }
+
+      await db
+        .update(documents)
+        .set({ metadata: updatedMeta })
+        .where(
+          and(eq(documents.id, doc.id), eq(documents.entityId, ctx.entityId!)),
+        );
+
+      await db.insert(auditLog).values({
+        entityId: ctx.entityId!,
+        userId: ctx.session!.user!.id!,
+        action: "document.undo_edit",
+        entityType: "document",
+        entityIdRef: doc.id,
+        newValues: { name: doc.name, editCount },
+      });
+
+      return { content: previous, editCount };
+    }),
 });
+
+// ─── AI plain-text editing helper ───────────────────────────────────────────
+
+/**
+ * Edit an extracted document's plain text with the model.
+ * - With a selection: the model returns a replacement spliced into the
+ *   original around the selected passage (data-preserving).
+ * - Whole-document: the model rewrites the text as plain text, preserving
+ *   every figure, date, and label unless the instruction targets it.
+ */
+async function editPlainTextWithModel(params: {
+  entityId: string;
+  content: string;
+  selection: string;
+  instruction: string;
+}): Promise<string> {
+  const { entityId, content, selection, instruction } = params;
+
+  if (selection) {
+    const window = extractSelectionContext(content, selection);
+    const response = await callModel({
+      agentName: "cfo",
+      taskType: "report_generation",
+      entityId,
+      systemPrompt: `You are editing the extracted text of a financial document inside Xenboox. The user selected a passage and asked for a change.
+
+Return ONLY the replacement text for the selected passage — a single continuous string. No explanations, no markdown, no surrounding quotes.
+
+RULES (non-negotiable):
+- Preserve the document's plain-text format exactly.
+- NEVER change any figure, account name, currency, date, or total unless the user's instruction explicitly targets that exact value.
+- The replacement replaces exactly the selected text, so make it self-contained.`,
+      messages: [
+        {
+          role: "user",
+          content: `SELECTED PASSAGE:\n"""${selection}"""\n\nINSTRUCTION:\n"""${instruction}"""\n\nCONTEXT (the document around the selection):\n"""${window}"""`,
+        },
+      ],
+      maxTokens: 1500,
+      temperature: 0.2,
+    });
+
+    const replacement = stripCodeFences(response.content);
+    if (!replacement) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "The AI returned an empty replacement — please try again.",
+      });
+    }
+
+    const spliced =
+      applySpliceEdit(content, selection, replacement) ??
+      applySpliceEditByLine(content, selection, replacement);
+    if (spliced === null) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message:
+          "Couldn't locate the selected text in the document — please try again.",
+      });
+    }
+    return spliced;
+  }
+
+  const response = await callModel({
+    agentName: "cfo",
+    taskType: "report_generation",
+    entityId,
+    systemPrompt: `You are editing the extracted text of a financial document inside Xenboox. The user asked you to change or redo the whole document.
+
+Return ONLY the revised plain text. No explanations, no markdown, no code fences.
+
+RULES (non-negotiable):
+- Keep the same structure and sections unless the instruction asks to reorganize.
+- NEVER invent, round, change, add, or remove any financial figure, account name, currency, date, or total unless the instruction explicitly targets that exact value.`,
+    messages: [
+      {
+        role: "user",
+        content: `INSTRUCTION:\n"""${instruction}"""\n\nDOCUMENT (rewrite it completely with the change applied):\n"""${content}"""`,
+      },
+    ],
+    maxTokens: 4000,
+    temperature: 0.2,
+  });
+
+  const cleaned = stripCodeFences(response.content);
+  if (!cleaned || cleaned.length < 10) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        "The AI didn't return valid text — please try a different instruction.",
+    });
+  }
+  return cleaned;
+}

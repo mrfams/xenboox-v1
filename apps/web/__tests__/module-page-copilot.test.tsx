@@ -111,4 +111,77 @@ describe("ModulePageCopilot", () => {
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
     expect(screen.queryByPlaceholderText(/ask about/i)).not.toBeInTheDocument();
   });
+
+  it("opens targeted at a row when a focus request arrives", () => {
+    renderCopilot({
+      focusRequest: {
+        nonce: 1,
+        focus: {
+          kind: "Employee",
+          name: "Dylan Cooper",
+          id: "emp-123",
+          fields: [{ label: "Tax rate", value: "5%" }],
+        },
+      },
+    });
+
+    // The panel opens itself with a chip naming the focused record.
+    expect(screen.getByText(/Employee · Dylan Cooper/i)).toBeInTheDocument();
+    // The composer is scoped to the record, not the whole page.
+    expect(
+      screen.getByPlaceholderText(/ask about this employee/i),
+    ).toBeInTheDocument();
+  });
+
+  it("sends the focused record inside the pageContext payload", () => {
+    renderCopilot({
+      focusRequest: {
+        nonce: 1,
+        focus: {
+          kind: "Employee",
+          name: "Dylan Cooper",
+          id: "emp-123",
+          fields: [{ label: "Tax rate", value: "5%" }],
+        },
+      },
+    });
+
+    const input = screen.getByPlaceholderText(/ask about this employee/i);
+    fireEvent.change(input, { target: { value: "Why is the tax 5%?" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(mocks.sendMessage).toHaveBeenCalledWith(
+      "Why is the tax 5%?",
+      undefined,
+      undefined,
+      expect.objectContaining({
+        page: "Transactions",
+        focus: {
+          kind: "Employee",
+          name: "Dylan Cooper",
+          id: "emp-123",
+          fields: [{ label: "Tax rate", value: "5%" }],
+        },
+      }),
+    );
+  });
+
+  it("clears the focused record back to page-level context", () => {
+    renderCopilot({
+      focusRequest: {
+        nonce: 1,
+        focus: { kind: "Employee", name: "Dylan Cooper", id: "emp-123" },
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /clear focused record/i }),
+    );
+    expect(
+      screen.queryByText(/Employee · Dylan Cooper/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/ask about this page/i),
+    ).toBeInTheDocument();
+  });
 });

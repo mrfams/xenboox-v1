@@ -27,6 +27,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
+import { RowAiAction } from "@/components/module/row-ai-action";
 import type { TabItem } from "@/components/module/module-page-shell.types";
 import { CreatePayrollRunDialog } from "@/components/dashboard/create-payroll-run-dialog";
 import { CreateEmployeeDialog } from "@/components/dashboard/create-employee-dialog";
@@ -111,8 +112,24 @@ function EmployeeTable({
           {employees.map((emp) => (
             <tr
               key={emp.id}
-              className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
+              className="group relative border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
             >
+              <RowAiAction
+                focus={{
+                  kind: "Employee",
+                  name: emp.name,
+                  id: emp.id,
+                  fields: [
+                    { label: "Employee ID", value: emp.employeeNumber },
+                    { label: "Department", value: emp.department },
+                    { label: "Pay type", value: emp.payType },
+                    { label: "Gross pay", value: emp.grossPayFormatted },
+                    { label: "Deductions", value: emp.deductionsFormatted },
+                    { label: "Net pay", value: emp.netPayFormatted },
+                    { label: "Status", value: emp.status },
+                  ],
+                }}
+              />
               <td className="py-3 px-4">
                 <input type="checkbox" className="rounded border-slate-300" />
               </td>
@@ -245,8 +262,22 @@ function PayrollRunsTable({
           {runs.map((run) => (
             <tr
               key={run.id}
-              className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+              className="group relative border-b border-slate-100 hover:bg-slate-50 transition-colors"
             >
+              <RowAiAction
+                focus={{
+                  kind: "Payroll Run",
+                  name: run.period,
+                  id: run.id,
+                  fields: [
+                    { label: "Status", value: run.status },
+                    { label: "Employees", value: String(run.employeeCount) },
+                    { label: "Gross pay", value: run.grossPay },
+                    { label: "Deductions", value: run.totalDeductions },
+                    { label: "Net pay", value: run.netPay },
+                  ],
+                }}
+              />
               <td className="py-3 px-4 text-sm font-medium text-slate-900">
                 {run.period}
               </td>
@@ -359,8 +390,25 @@ function DeductionTypesTable({
           {deductionTypes.map((d) => (
             <tr
               key={d.id}
-              className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+              className="group relative border-b border-slate-100 hover:bg-slate-50 transition-colors"
             >
+              <RowAiAction
+                focus={{
+                  kind: "Deduction",
+                  name: d.name,
+                  id: d.id,
+                  fields: [
+                    { label: "Code", value: d.code },
+                    { label: "Type", value: d.type },
+                    { label: "Rate", value: d.rate },
+                    { label: "Ceiling", value: d.ceiling ?? "None" },
+                    {
+                      label: "Status",
+                      value: d.isActive ? "Active" : "Inactive",
+                    },
+                  ],
+                }}
+              />
               <td className="py-3 px-4">
                 <p className="text-sm font-medium text-slate-900">{d.name}</p>
                 <p className="text-xs text-slate-400 uppercase">{d.code}</p>
@@ -468,8 +516,20 @@ function StatutoryPaymentsTable({
           {payments.map((p) => (
             <tr
               key={p.name}
-              className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+              className="group relative border-b border-slate-100 hover:bg-slate-50 transition-colors"
             >
+              <RowAiAction
+                focus={{
+                  kind: "Statutory Payment",
+                  name: p.name,
+                  fields: [
+                    { label: "Due date", value: p.dueDate },
+                    { label: "Amount", value: p.amountFormatted },
+                    { label: "Days left", value: String(p.daysLeft) },
+                    { label: "Status", value: p.status },
+                  ],
+                }}
+              />
               <td className="py-3 px-4">
                 <p className="text-sm font-medium text-slate-900">{p.name}</p>
                 {p.status && (

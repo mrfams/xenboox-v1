@@ -1,6 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
-import { conversations, chatMessages } from "@xenboox/db/schema";
+import { conversations, chatMessages, documents } from "@xenboox/db/schema";
 import { processChatInput } from "@xenboox/agents";
 
 import { db } from "@/lib/db";
@@ -119,16 +119,50 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  // Build file context if files were uploaded
+  // Build file context if files were attached — entity-scoped: only documents
+  // that belong to this entity are loaded, so a crafted documentId can never
+  // leak another entity's file into the prompt. Each attached document
+  // contributes its name/type plus a bounded, whitespace-collapsed excerpt of
+  // its AI-extracted text so the agent can genuinely answer about it.
   let fileContext = "";
   if (files && Array.isArray(files) && files.length > 0) {
-    const fileDescriptions = files
-      .map(
-        (f: any) =>
-          `[Attached: ${f.name || "file"} (${f.type || "unknown"}, doc:${f.documentId || "pending"})]`,
-      )
-      .join("\n");
-    fileContext = `\n\nUser uploaded files:\n${fileDescriptions}`;
+    const ids = files
+      .map((f) => f?.documentId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+    const owned =
+      ids.length > 0
+        ? await db.query.documents.findMany({
+            where: and(
+              eq(documents.entityId, entityId),
+              inArray(documents.id, ids),
+            ),
+            columns: {
+              id: true,
+              name: true,
+              type: true,
+              ocrText: true,
+            },
+          })
+        : [];
+    const ownedById = new Map(owned.map((d) => [d.id, d]));
+    const descriptions = files
+      .map((f: any) => {
+        const doc = f?.documentId ? ownedById.get(f.documentId) : undefined;
+        if (!doc) return null;
+        const excerpt = (doc.ocrText ?? "")
+          .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 1500);
+        const line = `[Attached document: ${doc.name} (${doc.type})]`;
+        return excerpt
+          ? `${line} Extracted text: "${excerpt}"`
+          : `${line} No extracted text available yet.`;
+      })
+      .filter(Boolean);
+    if (descriptions.length > 0) {
+      fileContext = `\n\nUser attached document(s) for you to work on. Answer about these documents, not unrelated data:\n${descriptions.join("\n")}`;
+    }
   }
 
   // Build page context so the agent answers about the page the user is on

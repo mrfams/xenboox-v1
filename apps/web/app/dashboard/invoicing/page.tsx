@@ -25,6 +25,7 @@ import type { SummaryCardItem } from "@/components/module/module-page-shell.type
 import { CreateInvoiceDialog } from "@/components/dashboard/create-invoice-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
+import { RowAiAction } from "@/components/module/row-ai-action";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -201,10 +202,34 @@ function InvoiceTable({
                 key={inv.id}
                 onClick={() => onSelect(inv.id)}
                 className={cn(
-                  "border-b border-slate-100 cursor-pointer transition-colors",
+                  "group relative border-b border-slate-100 cursor-pointer transition-colors",
                   selectedId === inv.id ? "bg-indigo-50" : "hover:bg-slate-50",
                 )}
               >
+                <RowAiAction
+                  focus={{
+                    kind: "Invoice",
+                    name: inv.invoiceNumber,
+                    id: inv.id,
+                    fields: [
+                      { label: "Customer", value: inv.customerName },
+                      { label: "Invoice date", value: inv.invoiceDate },
+                      { label: "Due date", value: inv.dueDate },
+                      {
+                        label: "Amount",
+                        value: `GMD ${inv.amount.toLocaleString()}`,
+                      },
+                      {
+                        label: "Balance",
+                        value: `GMD ${inv.balance.toLocaleString()}`,
+                      },
+                      {
+                        label: "Status",
+                        value: statusLabels[inv.status] || inv.status,
+                      },
+                    ],
+                  }}
+                />
                 <td className="py-3 px-4">
                   <input type="checkbox" className="rounded border-slate-300" />
                 </td>

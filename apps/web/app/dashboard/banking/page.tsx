@@ -38,6 +38,7 @@ import {
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { TabItem } from "@/components/module/module-page-shell.types";
 import { CreateBankAccountDialog } from "@/components/dashboard/create-bank-account-dialog";
+import { RowAiAction } from "@/components/module/row-ai-action";
 import {
   ModulePanel,
   ModulePanelEmpty,
@@ -128,12 +129,35 @@ function BankAccountsTable({
                 key={account.id}
                 onClick={() => onSelect(account.id)}
                 className={cn(
-                  "border-b border-slate-100 cursor-pointer transition-colors",
+                  "group relative border-b border-slate-100 cursor-pointer transition-colors",
                   selectedId === account.id
                     ? "bg-indigo-50"
                     : "hover:bg-slate-50",
                 )}
               >
+                <RowAiAction
+                  focus={{
+                    kind: "Bank Account",
+                    name: account.name,
+                    id: account.id,
+                    fields: [
+                      { label: "Bank", value: account.bankName },
+                      { label: "Type", value: account.type },
+                      { label: "Currency", value: account.currency },
+                      {
+                        label: "Balance",
+                        value: balance.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }),
+                      },
+                      {
+                        label: "Status",
+                        value: account.isActive ? "Active" : "Inactive",
+                      },
+                    ],
+                  }}
+                />
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">

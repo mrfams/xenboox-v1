@@ -22,9 +22,10 @@ import {
   onboardingSessions,
   dataConnections,
   historicalPullJobs,
+  openingBalances,
   coaTemplates,
 } from "@xenboox/db";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, inArray } from "drizzle-orm";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
@@ -54,7 +55,54 @@ export type OnboardingStepId =
   | "complete";
 
 export type RoutingAnswer =
-  "excel" | "quickbooks" | "xero" | "nothing" | "other";
+  | "excel"
+  | "quickbooks"
+  | "xero"
+  | "nothing"
+  | "other";
+
+// Five-category record-keeping answer (Historical Data Migration spec §2/§3).
+// Replaces the legacy routing answer for new flows. `routing_answer` is
+// retained read-only for legacy sessions; new flows write `source_type`.
+export type OnboardingSourceType =
+  | "brand_new"
+  | "professional_software"
+  | "manual_records"
+  | "statements_only"
+  | "no_records";
+
+export type ReconstructionDetailDepth =
+  | "last_12_months"
+  | "last_3_years"
+  | "full_history";
+
+export interface OpeningBalanceInput {
+  /** Chart-of-accounts code, e.g. "1010" — resolved to an accountId server-side. */
+  code: string;
+  amount: number;
+}
+
+/**
+ * Best-effort mapping of a legacy routing answer to a five-category source.
+ * `nothing` is genuinely ambiguous (brand-new vs informal-with-no-records) and
+ * returns null so the user is re-asked rather than silently categorized.
+ */
+export function legacyRoutingToSourceType(
+  legacy: string | null,
+): OnboardingSourceType | null {
+  switch (legacy) {
+    case "quickbooks":
+    case "xero":
+      return "professional_software";
+    case "excel":
+    case "other":
+      return "manual_records";
+    case "nothing":
+      return null; // ambiguous — must re-ask
+    default:
+      return null;
+  }
+}
 
 export type DataConnectionType =
   | "bank_api"
@@ -67,7 +115,11 @@ export type DataConnectionType =
   | "manual_entry";
 
 export type DataConnectionStatus =
-  "pending" | "processing" | "connected" | "failed" | "fallback_offered";
+  | "pending"
+  | "processing"
+  | "connected"
+  | "failed"
+  | "fallback_offered";
 
 export interface OnboardingStep {
   id: OnboardingStepId;
@@ -812,19 +864,41 @@ export async function createOnboardingSession(
 
 export async function updateRoutingAnswer(
   sessionId: string,
-  answer: RoutingAnswer,
+  answer: OnboardingSourceType,
 ): Promise<void> {
   const completedSteps: string[] = ["signup", "routing"];
+
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.id, sessionId),
+    columns: { id: true, orgId: true },
+  });
+  if (!session) {
+    throw new Error("Onboarding session not found");
+  }
 
   await db.transaction(async (tx) => {
     await tx
       .update(onboardingSessions)
       .set({
-        routingAnswer: answer,
+        sourceType: answer,
         currentStep: "entity_setup",
         completedSteps,
       })
       .where(eq(onboardingSessions.id, sessionId));
+
+    // Mirror to the entity when one exists (spec §2: the answer sets
+    // entities.onboarding_source_type). The entity may not exist yet at the
+    // routing step — completeFlow re-mirrors defensively.
+    const entity = await tx.query.entities.findFirst({
+      where: eq(entities.organizationId, session.orgId),
+      columns: { id: true },
+    });
+    if (entity) {
+      await tx
+        .update(entities)
+        .set({ onboardingSourceType: answer })
+        .where(eq(entities.id, entity.id));
+    }
 
     // Seed COA templates if they don't exist yet
     for (const template of DEFAULT_COA_TEMPLATES) {
@@ -845,6 +919,63 @@ export async function updateRoutingAnswer(
       }
     }
   });
+}
+
+// ─── Step 1c: Business Start + Detail Depth ──────────────────────────────
+//
+// Category A follow-up (spec §3.1.1): business start date + whether money
+// moved before incorporation (triggers a scoped mini-reconstruction window).
+// Category B/C/D follow-up (spec §4.2): user-selected transaction detail depth.
+
+export async function setBusinessStart(
+  sessionId: string,
+  options: {
+    businessStartDate?: string;
+    preIncorporationActivity: boolean;
+  },
+): Promise<void> {
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.id, sessionId),
+    columns: { id: true, orgId: true },
+  });
+  if (!session) {
+    throw new Error("Onboarding session not found");
+  }
+
+  const entity = await db.query.entities.findFirst({
+    where: eq(entities.organizationId, session.orgId),
+    columns: { id: true },
+  });
+  if (!entity) return; // entity created later — completeFlow mirrors
+
+  await db
+    .update(entities)
+    .set({
+      ...(options.businessStartDate !== undefined
+        ? { businessStartDate: options.businessStartDate }
+        : {}),
+      preIncorporationActivity: options.preIncorporationActivity,
+    })
+    .where(eq(entities.id, entity.id));
+}
+
+export async function setDetailDepth(
+  sessionId: string,
+  depth: ReconstructionDetailDepth,
+): Promise<void> {
+  const session = await db.query.onboardingSessions.findFirst({
+    where: eq(onboardingSessions.id, sessionId),
+    columns: { id: true, metadata: true },
+  });
+  if (!session) {
+    throw new Error("Onboarding session not found");
+  }
+
+  const metadata = { ...(session.metadata ?? {}), detailDepth: depth };
+  await db
+    .update(onboardingSessions)
+    .set({ metadata })
+    .where(eq(onboardingSessions.id, sessionId));
 }
 
 // ─── Step 2: Entity Setup ────────────────────────────────────────────────
@@ -996,6 +1127,7 @@ export async function startHistoricalPull(
   entityId: string,
   dateRangeStart: string,
   dateRangeEnd: string,
+  detailDepth: ReconstructionDetailDepth = "last_12_months",
 ): Promise<{ jobId: string; needsPermission: boolean }> {
   // Estimate if data exceeds 12 months
   const startDate = new Date(dateRangeStart);
@@ -1013,6 +1145,7 @@ export async function startHistoricalPull(
       dateRangeEnd,
       status: exceeds12Months ? "permission_required" : "pulling",
       exceeds12Months,
+      detailDepth,
     })
     .returning();
 
@@ -1065,6 +1198,158 @@ export async function markHistoricalPullComplete(
       completedSteps: steps,
     })
     .where(eq(onboardingSessions.id, sessionId));
+}
+
+// ─── Opening Balances (spec §4.1 / §6) ───────────────────────────────────
+//
+// Account balances as of the earliest point reconstructed to. Category E
+// (no records) is owner-confirmed; B/C/D pipeline-created balances are
+// written with source=reconstructed/migrated. The (entity, account) unique
+// index makes this an idempotent upsert — retries never duplicate rows.
+
+export async function confirmOpeningBalance(
+  entityId: string,
+  rows: OpeningBalanceInput[],
+  confirmedByUserId: string,
+): Promise<{ saved: number }> {
+  if (rows.length === 0) return { saved: 0 };
+
+  const codes = [...new Set(rows.map((r) => r.code))];
+  const accounts = await db.query.chartOfAccounts.findMany({
+    where: and(
+      eq(chartOfAccounts.entityId, entityId),
+      inArray(chartOfAccounts.code, codes),
+    ),
+  });
+  const accountByCode = new Map(accounts.map((a) => [a.code, a.id]));
+  const missing = codes.filter((c) => !accountByCode.has(c));
+  if (missing.length > 0) {
+    throw new Error(`Account not found for this entity: ${missing.join(", ")}`);
+  }
+
+  await db.transaction(async (tx) => {
+    for (const row of rows) {
+      await tx
+        .insert(openingBalances)
+        .values({
+          entityId,
+          accountId: accountByCode.get(row.code)!,
+          amount: row.amount.toString(),
+          currency: "GMD",
+          source: "owner_confirmed",
+          confirmedByUserId,
+          confirmedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [openingBalances.entityId, openingBalances.accountId],
+          set: {
+            amount: row.amount.toString(),
+            confirmedByUserId,
+            confirmedAt: new Date(),
+          },
+        });
+    }
+  });
+
+  return { saved: rows.length };
+}
+
+/**
+ * Category E escape hatch (spec §3.5): the owner doesn't know their balances,
+ * so tracking starts from today and the balances are flagged for a later
+ * reconciliation pass instead of blocking onboarding.
+ */
+export async function confirmOpeningBalanceEscape(
+  entityId: string,
+): Promise<void> {
+  const entity = await db.query.entities.findFirst({
+    where: eq(entities.id, entityId),
+    columns: { id: true, settings: true },
+  });
+  if (!entity) {
+    throw new Error("Entity not found");
+  }
+
+  const settings = {
+    ...(entity.settings ?? {}),
+    openingBalanceNeedsReconciliation: true,
+  };
+  await db.update(entities).set({ settings }).where(eq(entities.id, entityId));
+}
+
+export async function getOpeningBalanceSummary(entityId: string): Promise<{
+  sourceType: OnboardingSourceType | null;
+  businessStartDate: string | null;
+  balances: Array<{
+    accountId: string;
+    accountCode: string | null;
+    amount: string;
+    currency: string;
+    source: string;
+    confirmedAt: Date | null;
+  }>;
+  total: number;
+  escaped: boolean;
+}> {
+  const entity = await db.query.entities.findFirst({
+    where: eq(entities.id, entityId),
+    columns: {
+      id: true,
+      onboardingSourceType: true,
+      businessStartDate: true,
+      settings: true,
+    },
+  });
+
+  const balances = await db.query.openingBalances.findMany({
+    where: eq(openingBalances.entityId, entityId),
+  });
+  const accounts = balances.length
+    ? await db.query.chartOfAccounts.findMany({
+        where: inArray(
+          chartOfAccounts.id,
+          balances.map((b) => b.accountId),
+        ),
+      })
+    : [];
+  const codeByAccount = new Map(accounts.map((a) => [a.id, a.code]));
+  const settings = (entity?.settings ?? {}) as Record<string, unknown>;
+
+  return {
+    sourceType: entity?.onboardingSourceType ?? null,
+    businessStartDate: entity?.businessStartDate ?? null,
+    balances: balances.map((b) => ({
+      accountId: b.accountId,
+      accountCode: codeByAccount.get(b.accountId) ?? null,
+      amount: b.amount,
+      currency: b.currency,
+      source: b.source,
+      confirmedAt: b.confirmedAt,
+    })),
+    total: balances.reduce((s, b) => s + Number(b.amount), 0),
+    escaped: settings.openingBalanceNeedsReconciliation === true,
+  };
+}
+
+/**
+ * CFO Agent's first message, per record-keeping category (spec §3.1/§3.5).
+ * The honesty rule: A/E must never imply records were "found" or processed.
+ */
+export function getFirstMessage(
+  sourceType: OnboardingSourceType | null | undefined,
+  summary?: { transactions?: number; flagged?: number; months?: number },
+): string {
+  switch (sourceType) {
+    case "brand_new":
+      return "You're starting with a clean slate — no history to sort through. I'll track everything from here. Let's set up your chart of accounts.";
+    case "no_records":
+      return "I don't have any records or statements to reconstruct your history from. I can start tracking from today with an opening balance you confirm — cash on hand, any money owed to you, and anything you owe — and we'll build accurate books from this point forward.";
+    case "professional_software":
+    case "statements_only":
+    case "manual_records":
+    default:
+      return `I've reviewed your records. Here's what I found: ${summary?.transactions ?? 0} transactions categorized across ${summary?.months ?? 12} months, ${summary?.flagged ?? 0} flagged for your review.`;
+  }
 }
 
 // ─── Step 5: Chart of Accounts Setup ─────────────────────────────────────

@@ -25,8 +25,10 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { RowAiAction } from "@/components/module/row-ai-action";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
+import { DocumentViewer } from "@/components/documents/document-viewer";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -184,8 +186,21 @@ function DocumentsTable({
               <tr
                 key={doc.id}
                 onClick={() => onViewDocument?.(doc.id)}
-                className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                className="group relative border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
               >
+                <RowAiAction
+                  focus={{
+                    kind: "Document",
+                    name: doc.name,
+                    id: doc.id,
+                    fields: [
+                      { label: "Type", value: doc.type },
+                      { label: "Category", value: doc.category },
+                      { label: "Uploaded by", value: doc.uploadedBy },
+                      { label: "Uploaded", value: doc.uploadedAt },
+                    ],
+                  }}
+                />
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-3">
                     <div
@@ -464,6 +479,7 @@ function categoryLabel(category: string): string {
 
 export default function DocumentsPage() {
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -519,17 +535,8 @@ export default function DocumentsPage() {
   const handleOpenDocument = (documentId: string) => {
     // Fire-and-forget: a failed view record must never block opening the file.
     markViewed?.mutate({ documentId }, { onError: () => undefined });
-    downloadDoc?.mutate(
-      { id: documentId },
-      {
-        onSuccess: (res) => {
-          if (res?.downloadUrl) {
-            window.open(res.downloadUrl, "_blank", "noopener,noreferrer");
-          }
-        },
-        onError: () => undefined,
-      },
-    );
+    // Open the professional in-app viewer (preview + AI workspace).
+    setActiveDocumentId(documentId);
   };
 
   const handleDownloadDocument = (documentId: string) => {
@@ -713,6 +720,14 @@ export default function DocumentsPage() {
           />
         </div>
       </div>
+
+      {/* Professional in-app document viewer with AI workspace */}
+      {activeDocumentId && (
+        <DocumentViewer
+          documentId={activeDocumentId}
+          onClose={() => setActiveDocumentId(null)}
+        />
+      )}
     </ModulePageShell>
   );
 }

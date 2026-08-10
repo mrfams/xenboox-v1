@@ -48,8 +48,40 @@ export interface StateTransition {
   detail: string;
 }
 
+export type OnboardingSourceType =
+  | "brand_new"
+  | "professional_software"
+  | "manual_records"
+  | "statements_only"
+  | "no_records";
+
+export const SOURCE_TYPE_LABELS: Record<OnboardingSourceType, string> = {
+  brand_new: "Brand-new business",
+  professional_software: "Professional accounting software",
+  manual_records: "Manual records",
+  statements_only: "Statements only",
+  no_records: "No records",
+};
+
+// Mirrors getFirstMessage() in packages/agents/core/onboarding-pipeline.ts —
+// keep the copy in sync when either surface changes. B/C/D carry the
+// summary form (demo totals below match the pipeline's summary contract).
+const FIRST_MESSAGE: Record<OnboardingSourceType, string> = {
+  brand_new:
+    "You're starting with a clean slate — no history to sort through. I'll track everything from here. Let's set up your chart of accounts.",
+  no_records:
+    "I don't have any records or statements to reconstruct your history from. I can start tracking from today with an opening balance you confirm — cash on hand, any money owed to you, and anything you owe — and we'll build accurate books from this point forward.",
+  professional_software:
+    "I've reviewed your records from your accounting software. Here's what I found: 5,963 transactions categorized across 12 months, 337 flagged for your review.",
+  manual_records:
+    "I've reviewed your records. Here's what I found: 5,963 transactions categorized across 12 months, 337 flagged for your review.",
+  statements_only:
+    "I've reviewed your bank and mobile money statements. Here's what I found: 5,963 transactions categorized across 12 months, 337 flagged for your review.",
+};
+
 export interface OnboardingLivenessProps {
   className?: string;
+  sourceType?: OnboardingSourceType;
   showEmptyState?: boolean;
   showPermissionRequested?: boolean;
   showFallbackOffered?: boolean;
@@ -402,6 +434,7 @@ function BranchCard({
 
 export function OnboardingLiveness({
   className,
+  sourceType,
   showEmptyState,
   showPermissionRequested,
   showFallbackOffered,
@@ -426,6 +459,155 @@ export function OnboardingLiveness({
             categorized, in real time. Nothing to show right now.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // ── Branch: Category A — brand-new business (clean slate, no pull) ───
+  // Spec §7.4: categories with nothing to reconstruct never show pull UI —
+  // a progress bar here would imply fabricated work.
+  if (sourceType === "brand_new") {
+    return (
+      <div className={cn("space-y-4", className)}>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 rounded-xl border bg-card p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold">
+                  Onboarding — Clean Slate
+                </h2>
+                <span className="rounded-full bg-balanced-green/10 px-2 py-0.5 text-[9px] font-semibold text-balanced-green">
+                  Category A — brand-new business
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                No history to reconstruct — your books start from today. Nothing
+                is sorted, pulled, or estimated.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[10px] font-semibold text-balanced-green">
+            <CheckCircle2 className="h-3 w-3" />
+            Clean slate — no historical pull
+          </span>
+        </div>
+
+        <BranchCard
+          icon={Sparkles}
+          title="Nothing to reconstruct — by design, not by omission"
+          tone="green"
+        >
+          <p>
+            You told us this is a brand-new business. There is no history to
+            pull, no statements to process, and no records to sort through — so
+            we are not showing a progress bar that would imply work that never
+            happened. Your chart of accounts is being prepared for review, and
+            your CFO Agent will track everything from here.
+          </p>
+          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[10px]">
+            <ShieldCheck className="h-3 w-3 text-balanced-green" />
+            No fabricated progress — per spec §7.4, categories with nothing to
+            reconstruct never render pull UI.
+          </div>
+        </BranchCard>
+
+        {/* First Look Preview */}
+        <section
+          aria-label="First Look Preview"
+          className="rounded-xl border bg-card p-4"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              First Look Preview
+            </h3>
+            <LayerTag label="CFO Agent synthesis" />
+          </div>
+          <div className="flex items-start gap-2 rounded-lg border border-border/50 bg-accent/10 px-3 py-2.5">
+            <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-balanced-green" />
+            <p className="text-[10px] text-muted-foreground">
+              {FIRST_MESSAGE.brand_new}
+            </p>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // ── Branch: Category E — no records (opening balance confirmation) ───
+  // Spec §7.4: no reconstruction happens — books start from today with an
+  // owner-confirmed opening balance, so no pull UI renders.
+  if (sourceType === "no_records") {
+    return (
+      <div className={cn("space-y-4", className)}>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 rounded-xl border bg-card p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600">
+              <Landmark className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold">
+                  Onboarding — Opening Balance
+                </h2>
+                <span className="rounded-full bg-attention-amber/10 px-2 py-0.5 text-[9px] font-semibold text-attention-amber">
+                  Category E — no records
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Nothing to reconstruct from — tracking begins today at your
+                confirmed opening balance.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-attention-amber/10 px-2 py-0.5 text-[10px] font-semibold text-attention-amber">
+            <CheckCircle2 className="h-3 w-3" />
+            Opening balance confirmed
+          </span>
+        </div>
+
+        <BranchCard
+          icon={Landmark}
+          title="Books start from today — with the balance you confirmed"
+          tone="indigo"
+        >
+          <p>
+            With no records or statements, there is nothing to reconstruct — and
+            we won&apos;t pretend otherwise. Tracking begins now from the
+            opening balance you confirmed: cash on hand, money owed to you, and
+            anything you owe. If you chose &quot;I don&apos;t know yet&quot;,
+            the balance starts at zero and is flagged for your CFO Agent to
+            reconcile with you later.
+          </p>
+          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[10px]">
+            <ClipboardCheck className="h-3 w-3 text-signal-indigo" />
+            Opening balance source is always recorded — owner-confirmed, never
+            assumed.
+          </div>
+        </BranchCard>
+
+        {/* First Look Preview */}
+        <section
+          aria-label="First Look Preview"
+          className="rounded-xl border bg-card p-4"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              First Look Preview
+            </h3>
+            <LayerTag label="CFO Agent synthesis" />
+          </div>
+          <div className="flex items-start gap-2 rounded-lg border border-border/50 bg-accent/10 px-3 py-2.5">
+            <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-balanced-green" />
+            <p className="text-[10px] text-muted-foreground">
+              {FIRST_MESSAGE.no_records}
+            </p>
+          </div>
+        </section>
       </div>
     );
   }
@@ -631,6 +813,10 @@ export function OnboardingLiveness({
 
   // ── Branch: First Look Delivered (terminal, Spec §2) ─────────────────
   if (showFirstLookDelivered) {
+    const firstLookMessage =
+      sourceType && FIRST_MESSAGE[sourceType]
+        ? FIRST_MESSAGE[sourceType]
+        : "I've reviewed your records. Here's what I found: 5,963 transactions categorized across 12 months, 337 flagged for your review, 2 vendors matched, cash position established. Your first look is ready — every claim traceable to what was actually processed.";
     return (
       <div className={cn("space-y-4", className)}>
         <div className="flex items-center justify-between">
@@ -654,13 +840,7 @@ export function OnboardingLiveness({
           title="CFO Agent's first message — specific, never generic"
           tone="green"
         >
-          <p>
-            I&apos;ve reviewed your records. Here&apos;s what I found: 5,963
-            transactions categorized across 12 months, 337 flagged for your
-            review, 2 vendors matched, cash position established. Your first
-            look is ready — every claim traceable to what was actually
-            processed.
-          </p>
+          <p>{firstLookMessage}</p>
           <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[10px]">
             <ClipboardCheck className="h-3 w-3 text-balanced-green" />
             Cites specifics from what was actually processed — never a generic
@@ -698,6 +878,11 @@ export function OnboardingLiveness({
               <span className="rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground">
                 Cross-cutting first-value flow
               </span>
+              {sourceType && (
+                <span className="rounded-full bg-signal-indigo/10 px-2 py-0.5 text-[9px] font-semibold text-signal-indigo">
+                  {SOURCE_TYPE_LABELS[sourceType]}
+                </span>
+              )}
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
               PRD §13 targets first meaningful value within 12 minutes — the

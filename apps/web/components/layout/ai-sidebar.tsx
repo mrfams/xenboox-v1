@@ -231,11 +231,17 @@ function AgentStatusBar() {
   );
 }
 
+// The Explore hub (dashboard/explore) is currently in a soft-launch — only
+// demo@xenboox.com sees it in the sidebar. Remove this gate (and the filter
+// below) when it ships to everyone.
+const EXPLORE_ALLOWED_EMAIL = "demo@xenboox.com";
+
 export function AISidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const { data: session } = useSession();
   const user = session?.user;
   const initials = getInitials(user?.name || user?.email || "User");
+  const isExploreAllowed = user?.email?.toLowerCase() === EXPLORE_ALLOWED_EMAIL;
 
   // ── Hover-expand (disabled) — see the import comment at the top ──
   // const [isHovered, setIsHovered] = useState(false);
@@ -329,7 +335,12 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
         {/* Primary Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="space-y-1 px-2">
-            {primaryNavItems.map((item) => renderNavItem(item))}
+            {primaryNavItems
+              .filter(
+                (item) =>
+                  item.href !== "/dashboard/explore" || isExploreAllowed,
+              )
+              .map((item) => renderNavItem(item))}
           </div>
         </nav>
 

@@ -27,6 +27,7 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateBillDialog } from "@/components/dashboard/create-bill-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { RowAiAction } from "@/components/module/row-ai-action";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -207,10 +208,30 @@ function BillsTable({
                 key={bill.id}
                 onClick={() => onSelect(bill.id)}
                 className={cn(
-                  "border-b border-slate-100 cursor-pointer transition-colors",
+                  "group relative border-b border-slate-100 cursor-pointer transition-colors",
                   selectedId === bill.id ? "bg-indigo-50" : "hover:bg-slate-50",
                 )}
               >
+                <RowAiAction
+                  focus={{
+                    kind: "Bill",
+                    name: bill.billNumber,
+                    id: bill.id,
+                    fields: [
+                      { label: "Vendor", value: bill.vendorName },
+                      { label: "Bill date", value: bill.billDate },
+                      { label: "Due date", value: bill.dueDate },
+                      {
+                        label: "Amount",
+                        value: `GMD ${bill.amount.toLocaleString()}`,
+                      },
+                      {
+                        label: "Status",
+                        value: statusLabels[bill.status] || bill.status,
+                      },
+                    ],
+                  }}
+                />
                 <td className="py-3 px-4">
                   <input type="checkbox" className="rounded border-slate-300" />
                 </td>

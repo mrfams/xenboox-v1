@@ -7,7 +7,8 @@ import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
 import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
 import { StreamingMessage } from "@/components/workspace/streaming-message";
-import type { PageContextPayload } from "@/lib/chat/page-context";
+import type { PageContextPayload, PageFocus } from "@/lib/chat/page-context";
+import type { FocusRequest } from "./module-ai-context";
 
 type Suggestion = { label: string; prompt: string };
 
@@ -50,19 +51,24 @@ export function ModulePageCopilot({
   title,
   pageContext,
   suggestions,
+  focusRequest,
 }: {
   title: string;
   pageContext?: Partial<PageContextPayload>;
   suggestions?: Suggestion[];
+  /** Row AI action request — open the panel targeted at a specific record. */
+  focusRequest?: FocusRequest | null;
 }) {
   const { entityId, isLoaded } = useEntity();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [input, setInput] = useState("");
+  const [focus, setFocus] = useState<PageFocus | null>(null);
   const conversationId = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const lastFocusNonce = useRef(0);
 
   const {
     sendMessage,
@@ -102,10 +108,51 @@ export function ModulePageCopilot({
     },
   });
 
-  const chips = useMemo(
-    () => suggestions ?? defaultSuggestions(title, pageContext?.view),
-    [suggestions, title, pageContext?.view],
-  );
+  // Row AI action → open the panel targeted at that record. A fresh nonce
+  // re-fires even when the same row is re-picked (so clicking twice still
+  // re-opens), and the thread resets so the new target starts clean.
+  useEffect(() => {
+    if (!focusRequest || focusRequest.nonce === lastFocusNonce.current) return;
+    lastFocusNonce.current = focusRequest.nonce;
+    setFocus(focusRequest.focus);
+    setMessages([]);
+    conversationId.current = null;
+    setOpen(true);
+  }, [focusRequest]);
+
+  // Merge the focused record into the page context sent to the pipeline — the
+  // AI sees "Focused: Employee Dylan Cooper (id) | Tax rate: 5% | …" closest
+  // to the user's ask, so a bare "why is the tax 5%?" is unambiguous.
+  const effectiveContext = useMemo<
+    Partial<PageContextPayload> | undefined
+  >(() => {
+    if (!focus) return pageContext;
+    return { ...(pageContext ?? {}), focus };
+  }, [pageContext, focus]);
+
+  // Focus-aware suggestions — the row is already in context, so the prompts
+  // lean on that instead of repeating the record's name.
+  const chips = useMemo(() => {
+    if (suggestions) return suggestions;
+    if (focus) {
+      return [
+        {
+          label: "Why is this the case?",
+          prompt: `Explain why this ${focus.kind.toLowerCase()} looks the way it does — break down the figures and flag anything unusual.`,
+        },
+        {
+          label: "Change something",
+          prompt: `What should change here? Review this ${focus.kind.toLowerCase()} and tell me the impact before I commit to it.`,
+        },
+        {
+          label: "Summarize this row",
+          prompt: `Summarize this ${focus.kind.toLowerCase()} — the key facts, current state and anything I should know.`,
+        },
+        ...defaultSuggestions(title, pageContext?.view),
+      ];
+    }
+    return defaultSuggestions(title, pageContext?.view);
+  }, [suggestions, focus, title, pageContext?.view]);
 
   // Keep the newest content in view while streaming.
   useEffect(() => {
@@ -159,16 +206,22 @@ export function ModulePageCopilot({
         trimmed,
         conversationId.current ?? undefined,
         undefined,
-        pageContext as PageContextPayload | undefined,
+        effectiveContext as PageContextPayload | undefined,
       );
     },
-    [entityId, input, isStreaming, sendMessage, pageContext],
+    [entityId, input, isStreaming, sendMessage, effectiveContext],
   );
 
   // Reset the thread when the panel is reopened after a close, so each visit
   // starts clean but follow-ups within a visit stay in one conversation.
   const openPanel = useCallback(() => {
     setOpen(true);
+  }, []);
+
+  const clearFocus = useCallback(() => {
+    setFocus(null);
+    setMessages([]);
+    conversationId.current = null;
   }, []);
 
   if (!isLoaded) return null;
@@ -246,6 +299,36 @@ export function ModulePageCopilot({
               </p>
             </div>
 
+            {/* Focused record chip — the row the user picked up */}
+            {focus && (
+              <div className="flex items-center gap-2 border-b border-primary/20 bg-primary/5 px-4 py-2">
+                <Sparkles className="h-3 w-3 shrink-0 text-primary" />
+                <p className="min-w-0 flex-1 truncate text-[11px] text-foreground">
+                  <span className="font-medium">
+                    {focus.kind} · {focus.name}
+                  </span>
+                  {focus.fields && focus.fields.length > 0 && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      —{" "}
+                      {focus.fields
+                        .map((f) => `${f.label}: ${f.value}`)
+                        .join(" · ")}
+                    </span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={clearFocus}
+                  title="Ask about the whole page instead"
+                  aria-label="Clear focused record"
+                  className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Messages */}
             <div
               role="log"
@@ -259,11 +342,14 @@ export function ModulePageCopilot({
                     <Sparkles className="h-5 w-5 text-primary" />
                   </div>
                   <p className="text-sm font-semibold text-foreground">
-                    Ask about the data on this page
+                    {focus
+                      ? `Ask about this ${focus.kind.toLowerCase()}`
+                      : "Ask about the data on this page"}
                   </p>
                   <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                    Question it, task it, or ask for a change — the CFO agent
-                    answers with live, entity-scoped data.
+                    {focus
+                      ? "No need to name it — this row is already in context. Ask why, ask to change it, or task the agent."
+                      : "Question it, task it, or ask for a change — the CFO agent answers with live, entity-scoped data."}
                   </p>
                 </div>
               )}
@@ -353,8 +439,16 @@ export function ModulePageCopilot({
                       handleSend();
                     }
                   }}
-                  placeholder="Ask about this page..."
-                  aria-label="Ask about this page"
+                  placeholder={
+                    focus
+                      ? `Ask about this ${focus.kind.toLowerCase()}...`
+                      : "Ask about this page..."
+                  }
+                  aria-label={
+                    focus
+                      ? `Ask about this ${focus.kind.toLowerCase()}`
+                      : "Ask about this page"
+                  }
                   className="max-h-[120px] min-h-[24px] flex-1 resize-none overflow-y-auto rounded-lg border border-border/60 bg-muted/40 px-3 py-1.5 text-sm leading-normal text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <Button

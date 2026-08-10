@@ -30,6 +30,7 @@ import type { SummaryCardItem } from "@/components/module/module-page-shell.type
 import { CreateExpenseDialog } from "@/components/dashboard/create-expense-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
+import { RowAiAction } from "@/components/module/row-ai-action";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -196,12 +197,30 @@ function ExpenseTable({
               key={expense.id}
               onClick={() => onSelect(expense.id)}
               className={cn(
-                "border-b border-slate-100 cursor-pointer transition-colors",
+                "group relative border-b border-slate-100 cursor-pointer transition-colors",
                 selectedId === expense.id
                   ? "bg-indigo-50"
                   : "hover:bg-slate-50",
               )}
             >
+              <RowAiAction
+                focus={{
+                  kind: "Expense",
+                  name: expense.description || expense.id,
+                  id: expense.id,
+                  fields: [
+                    { label: "Date", value: expense.date },
+                    { label: "Category", value: expense.category },
+                    { label: "Vendor", value: expense.vendor },
+                    { label: "Amount", value: expense.amountFormatted },
+                    {
+                      label: "Payment",
+                      value: expense.paymentMethod.replace("_", " "),
+                    },
+                    { label: "Status", value: expense.status },
+                  ],
+                }}
+              />
               <td className="py-3 px-4">
                 <input type="checkbox" className="rounded border-slate-300" />
               </td>

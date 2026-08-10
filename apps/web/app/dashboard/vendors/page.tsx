@@ -26,6 +26,7 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateVendorDialog } from "@/components/dashboard/create-vendor-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { RowAiAction } from "@/components/module/row-ai-action";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -168,8 +169,27 @@ function VendorTable({
           {vendors.map((vendor) => (
             <tr
               key={vendor.id}
-              className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
+              className="group relative border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
             >
+              <RowAiAction
+                focus={{
+                  kind: "Vendor",
+                  name: vendor.name,
+                  id: vendor.id,
+                  fields: [
+                    { label: "Code", value: vendor.vendorCode },
+                    { label: "Type", value: vendor.vendorType },
+                    {
+                      label: "Payables",
+                      value: `GMD ${vendor.payables.toLocaleString()}`,
+                    },
+                    {
+                      label: "Overdue",
+                      value: `GMD ${vendor.overdue.toLocaleString()}`,
+                    },
+                  ],
+                }}
+              />
               <td className="py-3 px-4">
                 <input type="checkbox" className="rounded border-slate-300" />
               </td>

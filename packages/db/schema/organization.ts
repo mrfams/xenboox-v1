@@ -3,6 +3,7 @@ import {
   uuid,
   text,
   boolean,
+  date,
   jsonb,
   pgEnum,
   index,
@@ -34,6 +35,18 @@ export const entityTypeEnum = pgEnum("entity_type", [
   "subsidiary",
   "branch",
   "client",
+]);
+
+// How the entity kept its records before Xenboox (spec: Historical Data
+// Migration & Onboarding Reconstruction §2/§6 — the Step 3a answer).
+// Defined here (not in onboarding.ts) so `entities` can reference it without
+// a circular import between organization.ts and onboarding.ts.
+export const onboardingSourceTypeEnum = pgEnum("onboarding_source_type", [
+  "brand_new",
+  "professional_software",
+  "manual_records",
+  "statements_only",
+  "no_records",
 ]);
 
 export const entityRoleEnum = pgEnum("entity_role", [
@@ -94,6 +107,10 @@ export const entities = pgTable(
     taxId: text("tax_id"),
     settings: jsonb("settings").default({}).$type<Record<string, unknown>>(),
     isActive: boolean("is_active").notNull().default(true),
+    // Historical reconstruction attributes (spec §6).
+    onboardingSourceType: onboardingSourceTypeEnum("onboarding_source_type"),
+    businessStartDate: date("business_start_date"),
+    preIncorporationActivity: boolean("pre_incorporation_activity"),
     ...timestamps,
   },
   (t) => [index("idx_entities_organization").on(t.organizationId)],

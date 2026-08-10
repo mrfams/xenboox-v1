@@ -27,6 +27,7 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { RowAiAction } from "@/components/module/row-ai-action";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -195,12 +196,31 @@ function CustomerTable({
                 key={customer.id}
                 onClick={() => onSelect(customer.id)}
                 className={cn(
-                  "border-b border-slate-100 cursor-pointer transition-colors",
+                  "group relative border-b border-slate-100 cursor-pointer transition-colors",
                   selectedId === customer.id
                     ? "bg-indigo-50"
                     : "hover:bg-slate-50",
                 )}
               >
+                <RowAiAction
+                  focus={{
+                    kind: "Customer",
+                    name: customer.name,
+                    id: customer.id,
+                    fields: [
+                      { label: "Email", value: customer.email },
+                      { label: "Group", value: customer.group },
+                      {
+                        label: "Balance",
+                        value: `GMD ${customer.currentBalance.toLocaleString()}`,
+                      },
+                      {
+                        label: "Overdue",
+                        value: `GMD ${customer.overdueAmount.toLocaleString()}`,
+                      },
+                    ],
+                  }}
+                />
                 <td className="py-3 px-4">
                   <input type="checkbox" className="rounded border-slate-300" />
                 </td>

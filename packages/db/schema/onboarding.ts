@@ -4,6 +4,8 @@ import {
   text,
   integer,
   boolean,
+  date,
+  numeric,
   timestamp,
   jsonb,
   pgEnum,
@@ -12,7 +14,13 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { uuidId, entityId, timestamps } from "./helpers";
-import { organizations, entities } from "./organization";
+import {
+  organizations,
+  entities,
+  onboardingSourceTypeEnum,
+} from "./organization";
+import { chartOfAccounts } from "./accounting";
+import { users } from "./auth";
 
 // ─── ENUMS ───────────────────────────────────────
 
@@ -70,6 +78,17 @@ export const historicalPullStatusEnum = pgEnum("historical_pull_status", [
   "permission_denied",
 ]);
 
+export const openingBalanceSourceEnum = pgEnum("opening_balance_source", [
+  "reconstructed",
+  "owner_confirmed",
+  "migrated_from_source_system",
+]);
+
+export const reconstructionDetailDepthEnum = pgEnum(
+  "reconstruction_detail_depth",
+  ["last_12_months", "last_3_years", "full_history"],
+);
+
 // ─── ONBOARDING SESSIONS ──────────────────────────
 //
 // Tracks the full onboarding journey for an organization.
@@ -85,6 +104,9 @@ export const onboardingSessions = pgTable(
     currentStep: onboardingStepEnum("current_step").notNull().default("signup"),
     status: onboardingStatusEnum("status").notNull().default("in_progress"),
     routingAnswer: onboardingRoutingAnswerEnum("routing_answer"),
+    // Five-category record-keeping answer (spec §2/§6). New flows write this;
+    // `routingAnswer` above is retained read-only for legacy sessions.
+    sourceType: onboardingSourceTypeEnum("source_type"),
     completedSteps: text("completed_steps").array().notNull().default([]),
     startedAt: timestamp("started_at").notNull().defaultNow(),
     completedAt: timestamp("completed_at"),
@@ -169,6 +191,16 @@ export const historicalPullJobs = pgTable(
     permissionGrantedAt: timestamp("permission_granted_at"),
     completedAt: timestamp("completed_at"),
     errorMessage: text("error_message"),
+    // Reconstruction attributes (spec §4/§6): the five-category source,
+    // user-selected detail depth, the cutoff before which only an opening
+    // balance (not itemized detail) exists, and which model tier processed
+    // the job (full tier routing is the Tech Stack §18 spec).
+    sourceType: onboardingSourceTypeEnum("source_type"),
+    detailDepth: reconstructionDetailDepthEnum("detail_depth")
+      .notNull()
+      .default("last_12_months"),
+    openingBalanceCutoffDate: date("opening_balance_cutoff_date"),
+    modelTierUsed: text("model_tier_used"),
     ...timestamps,
   },
   (t) => [
@@ -183,6 +215,52 @@ export const historicalPullJobsRelations = relations(
     entity: one(entities, {
       fields: [historicalPullJobs.entityId],
       references: [entities.id],
+    }),
+  }),
+);
+
+// ─── OPENING BALANCES ──────────────────────────────
+//
+// Account balances as of the earliest point Xenboox reconstructs to (spec §4.1).
+// `source` is the audit-critical distinction: a reconstructed/migrated balance
+// is a different claim than an owner-confirmed estimate, and both must be
+// distinguishable later if a question ever comes up about where a number came
+// from (spec §7.5). Unique (entity, account) enables the idempotent upsert.
+
+export const openingBalances = pgTable(
+  "opening_balances",
+  {
+    id: uuidId(),
+    entityId: entityId
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => chartOfAccounts.id),
+    amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
+    currency: text("currency").notNull().default("GMD"),
+    source: openingBalanceSourceEnum("source").notNull(),
+    confirmedByUserId: uuid("confirmed_by_user_id").references(() => users.id),
+    confirmedAt: timestamp("confirmed_at"),
+    supportingDocumentId: uuid("supporting_document_id"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("opening_balances_entity_account").on(t.entityId, t.accountId),
+    index("opening_balances_entity").on(t.entityId),
+  ],
+);
+
+export const openingBalancesRelations = relations(
+  openingBalances,
+  ({ one }) => ({
+    entity: one(entities, {
+      fields: [openingBalances.entityId],
+      references: [entities.id],
+    }),
+    account: one(chartOfAccounts, {
+      fields: [openingBalances.accountId],
+      references: [chartOfAccounts.id],
     }),
   }),
 );

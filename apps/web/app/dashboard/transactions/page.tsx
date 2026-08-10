@@ -27,6 +27,7 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { TabItem } from "@/components/module/module-page-shell.types";
 import { CreateTransactionDialog } from "@/components/dashboard/create-transaction-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { RowAiAction } from "@/components/module/row-ai-action";
 
 type TabFilter =
   | "all"
@@ -138,10 +139,25 @@ function TransactionTable({
               key={tx.id}
               onClick={() => onSelect(tx.id)}
               className={cn(
-                "border-b border-slate-100 cursor-pointer transition-colors",
+                "group relative border-b border-slate-100 cursor-pointer transition-colors",
                 selectedId === tx.id ? "bg-indigo-50" : "hover:bg-slate-50",
               )}
             >
+              <RowAiAction
+                focus={{
+                  kind: "Transaction",
+                  name: tx.description || tx.reference || tx.id,
+                  id: tx.id,
+                  fields: [
+                    { label: "Date", value: tx.date },
+                    { label: "Account", value: tx.account },
+                    { label: "Amount", value: tx.amountFormatted },
+                    { label: "Category", value: tx.category },
+                    { label: "Source", value: tx.source },
+                    { label: "Status", value: tx.statusLabel },
+                  ],
+                }}
+              />
               <td className="py-3 px-4">
                 <input type="checkbox" className="rounded border-slate-300" />
               </td>

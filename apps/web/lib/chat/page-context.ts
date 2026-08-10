@@ -28,11 +28,30 @@ export type PageContextPayload = {
   count?: number;
   /** Optional page-specific extra context. */
   notes?: string;
+  /**
+   * A single targeted record the user has "picked up" (a row action) — the
+   * AI answers about THIS record, so the user can ask "why is the tax 5%?"
+   * without naming the employee. Like @-mentioning a file in Cursor.
+   */
+  focus?: PageFocus;
+};
+
+/** A targeted record from a table row — the "something" the user is asking about. */
+export type PageFocus = {
+  /** What kind of thing it is, e.g. "Employee", "Invoice", "Transaction". */
+  kind: string;
+  /** Human label, e.g. "Dylan Cooper". */
+  name: string;
+  /** DB id, when available (enables precise lookups by the agent). */
+  id?: string;
+  /** Key facts about the record, e.g. [{ label: "Tax rate", value: "5%" }]. */
+  fields?: Array<{ label: string; value: string }>;
 };
 
 export const MAX_PAGE_CONTEXT_CHARS = 1200;
 const MAX_FILTERS = 8;
 const MAX_SUMMARY = 8;
+const MAX_FOCUS_FIELDS = 8;
 
 /**
  * Strip control chars AND collapse all whitespace runs to single spaces.
@@ -80,6 +99,22 @@ export function buildPageContextBlock(
   }
 
   if (payload.notes) lines.push(`Notes: ${sanitize(payload.notes)}`);
+
+  // Focused record — the row the user picked up. Rendered last so it sits
+  // closest to the instruction; the AI treats it as the subject of the ask.
+  if (payload.focus) {
+    const f = payload.focus;
+    lines.push(
+      `Focused: ${sanitize(f.kind)} ${sanitize(f.name)}${f.id ? ` (${sanitize(f.id)})` : ""}`,
+    );
+    const fieldLines = (f.fields ?? [])
+      .slice(0, MAX_FOCUS_FIELDS)
+      .map((field) => `${sanitize(field.label)}: ${sanitize(field.value)}`)
+      .filter((line) => line.length > 0);
+    if (fieldLines.length > 0) {
+      lines.push(`  ${fieldLines.join(" | ")}`);
+    }
+  }
 
   let block = lines.join("\n");
   if (block.length > MAX_PAGE_CONTEXT_CHARS) {

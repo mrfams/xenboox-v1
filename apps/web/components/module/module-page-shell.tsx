@@ -7,6 +7,7 @@ import { ModulePageCopilot } from "./module-page-copilot";
 import type { ModulePageShellProps } from "./module-page-shell.types";
 
 import type { PageContextPayload } from "@/lib/chat/page-context";
+import { ModuleAiProvider, useModuleAi } from "./module-ai-context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -81,7 +82,15 @@ function SectionToggle({
  *  - Every chrome band (tabs / summary / filters) is collapsible and the
  *    preference persists in localStorage.
  */
-export function ModulePageShell({
+export function ModulePageShell(props: ModulePageShellProps) {
+  return (
+    <ModuleAiProvider>
+      <ModulePageShellInner {...props} />
+    </ModuleAiProvider>
+  );
+}
+
+function ModulePageShellInner({
   title,
   description,
   icon: Icon,
@@ -102,6 +111,9 @@ export function ModulePageShell({
   aiSuggestions,
   disableAiCopilot = false,
 }: ModulePageShellProps) {
+  // Row AI actions (✗ ask about this row) talk to the copilot through this
+  // context — the shell forwards the request into the copilot below.
+  const { focusRequest } = useModuleAi();
   const [tabsCollapsed, setTabsCollapsed] = useCollapsed(
     "tabs",
     defaultCollapsed?.tabs ?? false,
@@ -178,6 +190,7 @@ export function ModulePageShell({
                 title={title}
                 pageContext={derivedAiContext}
                 suggestions={aiSuggestions}
+                focusRequest={focusRequest}
               />
             )}
           </div>

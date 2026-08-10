@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { BookOpen } from "lucide-react";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { RowAiAction } from "@/components/module/row-ai-action";
 import { CreateJournalEntryDialog } from "@/components/dashboard/create-journal-entry-dialog";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
@@ -175,8 +176,30 @@ function JournalTable({
           {entries.map((entry) => (
             <tr
               key={entry.id}
-              className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
+              className="group relative border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
             >
+              <RowAiAction
+                focus={{
+                  kind: "Journal Entry",
+                  name: entry.entryNumber,
+                  id: entry.id,
+                  fields: [
+                    { label: "Date", value: entry.date },
+                    { label: "Description", value: entry.description },
+                    { label: "Source", value: entry.source },
+                    { label: "Reference", value: entry.reference ?? "—" },
+                    {
+                      label: "Debit",
+                      value: entry.debit > 0 ? entry.debitFormatted : "—",
+                    },
+                    {
+                      label: "Credit",
+                      value: entry.credit > 0 ? entry.creditFormatted : "—",
+                    },
+                    { label: "Status", value: entry.status },
+                  ],
+                }}
+              />
               <td className="py-3 px-4">
                 <input type="checkbox" className="rounded border-slate-300" />
               </td>
