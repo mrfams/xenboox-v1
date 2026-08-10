@@ -19,6 +19,7 @@ import {
   RefreshCw,
   FileText,
   Landmark,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -149,6 +150,11 @@ const primaryNavItems: NavItem[] = [
     icon: RefreshCw,
   },
   { label: "Agent Monitor", href: "/dashboard/agent-monitor", icon: Activity },
+  {
+    label: "Activity Log",
+    href: "/dashboard/activity",
+    icon: ScrollText,
+  },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

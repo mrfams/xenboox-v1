@@ -62,6 +62,7 @@ export function TopNav({
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const closeMenuTimer = useRef<number | null>(null);
+  const closeNotifTimer = useRef<number | null>(null);
   const router = useRouter();
   const { entityId, isLoaded } = useEntity();
   const notifEnabled = isLoaded && !!entityId;
@@ -123,17 +124,39 @@ export function TopNav({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
-  // Hover-open the user menu: opening is immediate, closing is delayed so the
-  // menu stays up while the cursor crosses the gap between the avatar and the
-  // dropdown (and re-entering cancels the pending close). Clicks still toggle
-  // as a fallback for touch/keyboard.
+  // Hover-open the user menu + notifications: opening is immediate, closing is
+  // delayed so the menu stays up while the cursor crosses the gap between the
+  // trigger and the dropdown (and re-entering cancels the pending close).
+  // Clicks still toggle as a fallback for touch/keyboard.
   useEffect(() => {
     return () => {
       if (closeMenuTimer.current !== null) {
         window.clearTimeout(closeMenuTimer.current);
       }
+      if (closeNotifTimer.current !== null) {
+        window.clearTimeout(closeNotifTimer.current);
+      }
     };
   }, []);
+
+  const openNotif = () => {
+    if (closeNotifTimer.current !== null) {
+      window.clearTimeout(closeNotifTimer.current);
+      closeNotifTimer.current = null;
+    }
+    setNotifOpen(true);
+  };
+
+  const scheduleCloseNotif = () => {
+    if (!notifOpen) return;
+    if (closeNotifTimer.current !== null) {
+      window.clearTimeout(closeNotifTimer.current);
+    }
+    closeNotifTimer.current = window.setTimeout(() => {
+      setNotifOpen(false);
+      closeNotifTimer.current = null;
+    }, 150);
+  };
 
   const openUserMenu = () => {
     if (closeMenuTimer.current !== null) {
@@ -262,11 +285,17 @@ export function TopNav({
         </div> */}
 
         {/* Notifications */}
-        <div className="relative" ref={notifRef}>
+        <div
+          className="relative"
+          ref={notifRef}
+          onMouseEnter={openNotif}
+          onMouseLeave={scheduleCloseNotif}
+        >
           <Button
             variant="ghost"
             size="icon"
             aria-label="Notifications"
+            aria-expanded={notifOpen}
             onClick={() => setNotifOpen(!notifOpen)}
           >
             <Bell className="h-5 w-5" />

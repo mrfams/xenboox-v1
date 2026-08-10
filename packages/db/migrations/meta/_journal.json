@@ -169,6 +169,20 @@
       "when": 1786248797542,
       "tag": "0023_typical_silver_centurion",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786289343190,
+      "tag": "0024_mean_zaran",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786347359759,
+      "tag": "0025_free_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

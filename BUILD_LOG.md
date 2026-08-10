@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-10] — Tamper-evident audit trail (hash-chained, append-only) + notifications hover
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** migration `0025_free_quentin_quire`, `packages/db/schema/documents.ts`, `apps/web/server/routers/audit.ts` (+`verify`/`export`/chain fields), new `apps/web/lib/audit/{chain,backfill}.ts`, new `apps/web/components/audit/activity-log-view.tsx`, new `apps/web/app/dashboard/activity/page.tsx`, `components/layout/sidebar.tsx` (Activity Log nav), `components/layout/top-nav.tsx` (notifications hover-open), tests, docs, `BUILD_LOG.md`
+
+**What:**
+
+- `audit_log` is now a **SHA-256 hash-chained, append-only ledger**: a BEFORE INSERT trigger assigns per-entity `seq`, links `prev_hash`, computes `event_hash = sha256(prev_hash || '\n' || payload)`, and stores the exact hashed payload text (`payload_hash_input`). UPDATE/DELETE are blocked at the DB layer. All ~200 existing insert sites gain tamper-evidence automatically.
+- Migration 0025 also **backfills existing history** (idempotent recursive CTE) so the full chain verifies from day one.
+- New tRPC: `audit.verify` (chain integrity + column-consistency check), `audit.export` (JSON/CSV with live verification), `audit.list` returns chain/actor fields.
+- New **Activity Log** dashboard page (`/dashboard/activity`) with verification banner, tamper badge, diff view, and JSON/CSV export. Sidebar nav entry added.
+- Notifications bell now **opens on hover** like the avatar menu (150ms flicker-free close, click fallback, Escape dismiss, `aria-expanded`).
+
+**Design (docs/decisions/):** ADR-0001 DB-layer hash chaining; ADR-0002 per-entity chains; ADR-0003 tamper-evidence v1 (external anchoring = follow-on); ADR-0004 append-only triggers (7-yr retention via archive); ADR-0005 backfill; ADR-0006 canonical serialization (text-form `confidence`, semantic column-consistency compare). `docs/CONTEXT.md` glossary added.
+
+**Verification:** 498 tests passed (47 files, +40 audit tests) · web + db typecheck ✓ · lint ✓ · production build ✓ · TDD red→green on all 4 slices · code review applied
+
+---
+
 ### [2026-08-10] — Dashboard header: avatar user menu opens on hover
 
 **Agent:** Buffy (Autonomous Engineer)

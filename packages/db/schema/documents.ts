@@ -140,6 +140,17 @@ export const auditLog = pgTable(
     confidence: numeric("confidence", { precision: 3, scale: 2 }),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    // ── Tamper-evident chain fields (see lib/audit/chain.ts — keep in sync
+    //    with the DB trigger in the 0025 migration) ──
+    actorType: text("actor_type"), // user | agent | system | api
+    agentId: text("agent_id"), // e.g. "cfo-agent" when actorType = agent
+    reason: text("reason"), // business justification for sensitive actions
+    sessionId: text("session_id"),
+    requestId: text("request_id"),
+    seq: integer("seq"), // 1-based position within the entity's chain
+    prevHash: text("prev_hash"), // SHA-256 of the previous event in the chain
+    eventHash: text("event_hash"), // SHA-256 of this event (prevHash + payload text)
+    payloadHashInput: text("payload_hash_input"), // canonical text that was hashed
     ...timestamps,
   },
   (t) => [
@@ -147,6 +158,7 @@ export const auditLog = pgTable(
     index("audit_user").on(t.userId),
     index("audit_action").on(t.entityId, t.action),
     index("audit_entity_type").on(t.entityType, t.entityIdRef),
+    index("audit_entity_seq").on(t.entityId, t.seq),
   ],
 );
 
