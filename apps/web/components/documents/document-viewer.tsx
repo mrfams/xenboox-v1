@@ -184,6 +184,7 @@ export function DocumentViewer({ documentId, onClose }: DocumentViewerProps) {
     delegations,
     documents,
     approvals,
+    toolTraces,
   } = useStreamingChat({
     entityId: entityId ?? "",
     onConversationCreated: (id) => {
@@ -827,6 +828,7 @@ export function DocumentViewer({ documentId, onClose }: DocumentViewerProps) {
                   content={streamedContent}
                   isStreaming
                   agentActivities={agentActivities}
+                  toolCalls={toolTraces}
                   delegations={delegations}
                   documents={documents}
                   approvals={approvals}

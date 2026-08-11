@@ -79,6 +79,7 @@ export function ModulePageCopilot({
     delegations,
     documents,
     approvals,
+    toolTraces,
   } = useStreamingChat({
     entityId: entityId ?? "",
     onConversationCreated: (id) => {
@@ -421,6 +422,7 @@ export function ModulePageCopilot({
                   content={streamedContent}
                   isStreaming
                   agentActivities={agentActivities}
+                  toolCalls={toolTraces}
                   delegations={delegations}
                   documents={documents}
                   approvals={approvals}

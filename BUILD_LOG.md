@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-11] — Live AI Command Center gets the simulation-style "thinking" reveal (tool traces + agent feed)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/lib/hooks/use-streaming-chat.ts`, `apps/web/components/workspace/agent-activity-block.tsx`, `apps/web/components/workspace/streaming-message.tsx`, `apps/web/app/dashboard/chat/page.tsx`, `apps/web/components/module/module-page-copilot.tsx`, `apps/web/components/documents/document-viewer.tsx`, `apps/web/__tests__/use-streaming-chat.test.ts`, new `apps/web/__tests__/agent-activity-block.test.tsx`, `BUILD_LOG.md`
+
+**Request:** Add a "thinking" reveal to the live AI Command Center chat so real streaming answers show the same agentic UX as the simulations (ChatGPT/Claude/Cursor/Devin-style step-by-step agent activity).
+
+**What was built:**
+
+1. **Hook (`use-streaming-chat.ts`)** — the stream route already emitted `tool_call`/`tool_result` SSE events the hook silently dropped. Now parsed: `ToolTrace` type exported, `toolTraces` state, `onToolCall` callback. `tool_call` appends a `running` trace; `tool_result` settles the most recent matching running trace to `success`/`failed` (manual reverse-scan — the TS lib target predates `findLastIndex`). Traces reset at the start of every message.
+2. **`AgentActivityBlock` rebuilt as a simulation-grade thinking reveal** — reuses the simulation registry (`AGENTS`) for exact avatar gradients + accent colors on live agent names (unknown names fall back gracefully); per-step **thinking phase** (spinner + bouncing dots + "Thinking…" header) that **settles** to Done/Failed with confidence + duration; **tool rows** (mono tool name, truncated args, running/ok/failed chips); **delegation rows** (from → to + reason); **roster chips** of participating agents; auto-scroll to newest step while streaming; expand/collapse header with step count; dark-mode variants throughout. Fixed a latent bug: delegation-only feeds rendered nothing (`hasActivity` now includes delegations).
+3. **Wiring** — `StreamingMessage` accepts `toolCalls?: ToolTrace[]` (single source of truth for the type) and passes through to the block. The **Command Center chat page** streams `toolTraces` directly from the hook return (the reviewer-caught bug: a callback-copied `streamingToolCalls` state would only ever receive `running` traces and never settle — the page now uses the hook's own settling state, like the copilot and viewer do). **Module page copilot** and **document viewer** pass their `toolTraces` through too, so every live streaming surface shows the thinking reveal.
+
+**Verification:** web typecheck ✓ · ESLint 0 errors (pre-existing warnings only) · full web suite **625 passed / 1 skipped** ✓ (3 new hook tests for trace collection/settling/reset + 9 new `AgentActivityBlock` tests for thinking/settled/failed phases, tool rows, delegations, roster chips, expand/collapse, step counts) · **production build ✓** · code review applied (settlement bug on the chat page fixed, `ToolTrace` type deduped, unused ref removed).
+
+---
+
 ### [2026-08-11] — Self-service tax for every country + AI simulation triggers on 6 more module pages
 
 **Agent:** Buffy (Autonomous Engineer)

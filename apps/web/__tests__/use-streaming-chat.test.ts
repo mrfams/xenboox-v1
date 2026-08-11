@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 
 import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
 
@@ -94,5 +94,78 @@ describe("useStreamingChat", () => {
     expect(body.message).toBe("Flag duplicates");
     expect(body.conversationId).toBe("conv-1");
     expect(body.entityId).toBe("entity-1");
+  });
+
+  it("collects tool_call traces and flips them to success on tool_result", async () => {
+    mockFetchStream([
+      {
+        type: "tool_call",
+        toolName: "queryLedger",
+        args: { account: "1000" },
+      },
+      {
+        type: "tool_result",
+        toolName: "queryLedger",
+        success: true,
+      },
+    ]);
+
+    const onToolCall = vi.fn();
+    const { result } = renderHook(() =>
+      useStreamingChat({ entityId: "entity-1", onToolCall }),
+    );
+    await result.current.sendMessage("Pull the ledger");
+
+    await waitFor(() => {
+      expect(onToolCall).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(result.current.toolTraces).toEqual([
+        {
+          toolName: "queryLedger",
+          args: { account: "1000" },
+          status: "success",
+        },
+      ]);
+    });
+  });
+
+  it("marks a tool trace failed when tool_result reports failure", async () => {
+    mockFetchStream([
+      { type: "tool_call", toolName: "listInvoices", args: {} },
+      { type: "tool_result", toolName: "listInvoices", success: false },
+    ]);
+
+    const { result } = renderHook(() =>
+      useStreamingChat({ entityId: "entity-1" }),
+    );
+    await result.current.sendMessage("List invoices");
+
+    await waitFor(() => {
+      expect(result.current.toolTraces).toEqual([
+        { toolName: "listInvoices", args: {}, status: "failed" },
+      ]);
+    });
+  });
+
+  it("clears toolTraces at the start of each new message", async () => {
+    mockFetchStream([
+      { type: "tool_call", toolName: "queryLedger", args: {} },
+      { type: "tool_result", toolName: "queryLedger", success: true },
+    ]);
+
+    const { result } = renderHook(() =>
+      useStreamingChat({ entityId: "entity-1" }),
+    );
+    await result.current.sendMessage("First");
+    await waitFor(() => {
+      expect(result.current.toolTraces).toHaveLength(1);
+    });
+
+    mockFetchStream([]);
+    await result.current.sendMessage("Second");
+    await waitFor(() => {
+      expect(result.current.toolTraces).toHaveLength(0);
+    });
   });
 });

@@ -2,6 +2,8 @@
 
 import { Bot, ThumbsUp, ThumbsDown, Copy } from "lucide-react";
 
+import type { ToolTrace } from "@/lib/hooks/use-streaming-chat";
+
 import { RichMessageRenderer } from "./rich-message-renderer";
 import { AgentActivityBlock } from "./agent-activity-block";
 import { DocumentCard, type ArtifactCardItem } from "./document-card";
@@ -28,6 +30,7 @@ interface StreamingMessageProps {
     url?: string;
   }>;
   approvals?: Array<{ title: string; description: string; amount?: string }>;
+  toolCalls?: ToolTrace[];
   confidence?: number;
   durationMs?: number;
   /** Opens a generated artifact in the inline document viewer. */
@@ -43,6 +46,7 @@ export function StreamingMessage({
   delegations = [],
   documents = [],
   approvals = [],
+  toolCalls = [],
   confidence,
   durationMs,
   onOpenDocument,
@@ -72,13 +76,15 @@ export function StreamingMessage({
         )}
       </div>
 
-      {/* Agent activity block */}
+      {/* Agent thinking reveal */}
       {(agentActivities.length > 0 ||
+        toolCalls.length > 0 ||
         delegations.length > 0 ||
         isStreaming) && (
         <AgentActivityBlock
           activities={agentActivities}
           delegations={delegations}
+          toolCalls={toolCalls}
           isStreaming={isStreaming}
         />
       )}

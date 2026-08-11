@@ -41,7 +41,10 @@ import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/shared/loading";
-import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
+import {
+  useStreamingChat,
+  type ToolTrace,
+} from "@/lib/hooks/use-streaming-chat";
 import { StreamingMessage } from "@/components/workspace/streaming-message";
 import { AIComposer } from "@/components/workspace/ai-composer";
 import { AgentTimeline } from "@/components/workspace/agent-timeline";
@@ -1202,6 +1205,7 @@ function ChatMessages({
   streamedContent,
   isStreaming,
   streamingActivities = [],
+  streamingToolCalls = [],
   streamingDelegations = [],
   streamingApprovals = [],
   streamingDocuments = [],
@@ -1217,6 +1221,7 @@ function ChatMessages({
     confidence?: number;
     durationMs?: number;
   }>;
+  streamingToolCalls?: ToolTrace[];
   streamingDelegations?: Array<{ from: string; to: string; reason: string }>;
   streamingApprovals?: Array<{
     title: string;
@@ -1377,6 +1382,7 @@ function ChatMessages({
           content={streamedContent ?? ""}
           isStreaming={isStreaming}
           agentActivities={streamingActivities}
+          toolCalls={streamingToolCalls}
           delegations={streamingDelegations}
           documents={streamingDocuments as any}
           approvals={streamingApprovals as any}
@@ -1922,6 +1928,7 @@ function AIWorkspaceContent() {
     sendMessage: sendStreamingMessage,
     isStreaming,
     streamedContent,
+    toolTraces,
   } = useStreamingChat({
     entityId: entityId ?? "",
     onConversationCreated: (convId) => {
@@ -2031,6 +2038,7 @@ function AIWorkspaceContent() {
               streamedContent={streamedContent}
               isStreaming={isStreaming}
               streamingActivities={streamingActivities}
+              streamingToolCalls={toolTraces}
               streamingDelegations={streamingDelegations}
               streamingApprovals={streamingApprovals}
               streamingDocuments={streamingDocuments}

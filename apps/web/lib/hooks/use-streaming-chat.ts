@@ -41,6 +41,28 @@ export interface ApprovalEvent {
   amount?: string;
 }
 
+export interface ToolCallEvent {
+  type: "tool_call";
+  toolName: string;
+  args?: Record<string, unknown>;
+  timestamp?: string;
+}
+
+export interface ToolResultEvent {
+  type: "tool_result";
+  toolName: string;
+  success: boolean;
+  data?: unknown;
+  timestamp?: string;
+}
+
+export interface ToolTrace {
+  toolName: string;
+  args?: Record<string, unknown>;
+  status: "running" | "success" | "failed";
+  durationMs?: number;
+}
+
 export interface TokenEvent {
   type: "token";
   content: string;
@@ -73,6 +95,8 @@ type SSEEvent =
   | DelegationEvent
   | DocumentCreatedEvent
   | ApprovalEvent
+  | ToolCallEvent
+  | ToolResultEvent
   | TokenEvent
   | DoneEvent
   | ErrorEvent;
@@ -86,6 +110,7 @@ interface UseStreamingChatOptions {
   onDelegation?: (delegation: DelegationEvent) => void;
   onDocumentCreated?: (doc: DocumentCreatedEvent) => void;
   onApprovalNeeded?: (approval: ApprovalEvent) => void;
+  onToolCall?: (trace: ToolTrace) => void;
   onToken?: (token: string) => void;
   onComplete?: (fullResponse: string, metadata: DoneEvent) => void;
   onError?: (error: string) => void;
@@ -100,6 +125,7 @@ export function useStreamingChat({
   onDelegation,
   onDocumentCreated,
   onApprovalNeeded,
+  onToolCall,
   onToken,
   onComplete,
   onError,
@@ -112,6 +138,7 @@ export function useStreamingChat({
   const [delegations, setDelegations] = useState<DelegationEvent[]>([]);
   const [approvals, setApprovals] = useState<ApprovalEvent[]>([]);
   const [documents, setDocuments] = useState<DocumentCreatedEvent[]>([]);
+  const [toolTraces, setToolTraces] = useState<ToolTrace[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
@@ -129,6 +156,7 @@ export function useStreamingChat({
       setDelegations([]);
       setApprovals([]);
       setDocuments([]);
+      setToolTraces([]);
 
       try {
         abortControllerRef.current = new AbortController();
@@ -197,6 +225,41 @@ export function useStreamingChat({
                     onApprovalNeeded?.(data);
                     break;
 
+                  case "tool_call": {
+                    const trace: ToolTrace = {
+                      toolName: data.toolName,
+                      args: data.args,
+                      status: "running",
+                    };
+                    setToolTraces((prev) => [...prev, trace]);
+                    onToolCall?.(trace);
+                    break;
+                  }
+
+                  case "tool_result": {
+                    setToolTraces((prev) => {
+                      // Complete the most recent running trace with this name.
+                      let idx = -1;
+                      for (let i = prev.length - 1; i >= 0; i--) {
+                        if (
+                          prev[i].toolName === data.toolName &&
+                          prev[i].status === "running"
+                        ) {
+                          idx = i;
+                          break;
+                        }
+                      }
+                      if (idx === -1) return prev;
+                      const next = [...prev];
+                      next[idx] = {
+                        ...next[idx],
+                        status: data.success ? "success" : "failed",
+                      };
+                      return next;
+                    });
+                    break;
+                  }
+
                   case "token":
                     if (data.content) {
                       fullResponse += data.content;
@@ -240,6 +303,7 @@ export function useStreamingChat({
       onDelegation,
       onDocumentCreated,
       onApprovalNeeded,
+      onToolCall,
       onToken,
       onComplete,
       onError,
@@ -260,5 +324,6 @@ export function useStreamingChat({
     delegations,
     approvals,
     documents,
+    toolTraces,
   };
 }
