@@ -12,6 +12,7 @@ import {
 
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { RowAiAction } from "@/components/module/row-ai-action";
 
 export type AuditVerification = {
   valid: boolean;
@@ -212,7 +213,34 @@ export function ActivityLogView({
             </thead>
             <tbody className="divide-y">
               {events.map((event) => (
-                <tr key={event.id} className="align-top hover:bg-muted/30">
+                <tr
+                  key={event.id}
+                  className="group relative align-top hover:bg-muted/30"
+                >
+                  <RowAiAction
+                    focus={{
+                      kind: "Audit Event",
+                      name: `#${event.seq ?? "—"} ${event.action}`,
+                      id: event.id,
+                      fields: [
+                        { label: "Action", value: event.action },
+                        {
+                          label: "Record",
+                          value: event.entityType ?? "—",
+                        },
+                        {
+                          label: "Actor",
+                          value:
+                            event.actorType === "agent"
+                              ? (event.agentId ?? "agent")
+                              : event.userId
+                                ? event.userId.slice(0, 8)
+                                : "system",
+                        },
+                        { label: "Reason", value: event.reason ?? "—" },
+                      ],
+                    }}
+                  />
                   <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">
                     #{event.seq ?? "—"}
                   </td>

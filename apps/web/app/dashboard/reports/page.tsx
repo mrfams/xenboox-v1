@@ -22,6 +22,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { RowAiAction } from "@/components/module/row-ai-action";
 import {
   ModulePanel,
   ModulePanelEmpty,
@@ -753,8 +754,40 @@ function TrialBalancePanel({
             {data.accounts.map((acc) => (
               <tr
                 key={acc.code ?? acc.name ?? ""}
-                className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                className="group relative border-b border-slate-100 hover:bg-slate-50 transition-colors"
               >
+                <RowAiAction
+                  focus={{
+                    kind: "Account",
+                    name: acc.name ?? acc.code ?? "Unknown",
+                    id: acc.code ?? undefined,
+                    fields: [
+                      { label: "Code", value: acc.code ?? "—" },
+                      { label: "Type", value: acc.type ?? "—" },
+                      {
+                        label: "Debit",
+                        value: acc.debit.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }),
+                      },
+                      {
+                        label: "Credit",
+                        value: acc.credit.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }),
+                      },
+                      {
+                        label: "Balance",
+                        value: acc.balance.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }),
+                      },
+                    ],
+                  }}
+                />
                 <td className="py-2.5 px-4">
                   <span className="mr-2 text-xs tabular-nums text-slate-400">
                     {acc.code ?? ""}
@@ -899,8 +932,34 @@ function BudgetVsActualPanel({
             {data.lines.map((line, i) => (
               <tr
                 key={line.accountCode + i}
-                className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                className="group relative border-b border-slate-100 hover:bg-slate-50 transition-colors"
               >
+                <RowAiAction
+                  focus={{
+                    kind: "Budget Line",
+                    name: line.accountName,
+                    id: line.accountCode ?? undefined,
+                    fields: [
+                      { label: "Code", value: line.accountCode },
+                      {
+                        label: "Budgeted",
+                        value: fmtGmd(line.budgetedAmount),
+                      },
+                      {
+                        label: "Actual",
+                        value: fmtGmd(line.actualAmount),
+                      },
+                      {
+                        label: "Variance",
+                        value: `${line.variance > 0 ? "+" : ""}${fmtGmd(line.variance)} (${line.variancePct}%)`,
+                      },
+                      {
+                        label: "Status",
+                        value: line.status.replace("_", " "),
+                      },
+                    ],
+                  }}
+                />
                 <td className="py-2.5 px-4">
                   <span className="mr-2 text-xs tabular-nums text-slate-400">
                     {line.accountCode}
@@ -1222,8 +1281,31 @@ function RecentReports({
           {reports.map((report) => (
             <tr
               key={report.id}
-              className="border-b border-slate-100 last:border-0"
+              className="group relative border-b border-slate-100 last:border-0"
             >
+              <RowAiAction
+                focus={{
+                  kind: "Report",
+                  name: report.name,
+                  id: report.id,
+                  fields: [
+                    { label: "Type", value: report.type },
+                    {
+                      label: "Generated",
+                      value: new Date(report.dateGenerated).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        },
+                      ),
+                    },
+                    { label: "By", value: report.generatedBy },
+                    { label: "Format", value: report.format },
+                  ],
+                }}
+              />
               <td className="py-3 text-sm font-medium text-slate-900">
                 {report.name}
               </td>
