@@ -259,6 +259,92 @@ function BankAccountsTable({
   );
 }
 
+// ─── Account Snapshot (Overview) ──────────────────────────────────────────
+// Compact account list for the Overview tab — a glance at balances and
+// status, not the full register (that lives on the Accounts tab).
+
+function AccountSnapshot({
+  accounts,
+  selectedId,
+  onSelect,
+  isLoading,
+}: {
+  accounts: Array<{
+    id: string;
+    name: string;
+    maskedNumber: string;
+    bankName: string;
+    currentBalance: string;
+    isActive: boolean;
+  }>;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return <ModulePanelLoading rows={5} />;
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <ModulePanelEmpty
+        icon={Building2}
+        title="No bank accounts yet"
+        description="Create your first account to start tracking cash, or connect a bank to sync automatically."
+      />
+    );
+  }
+
+  return (
+    <div className="divide-y divide-slate-100">
+      {accounts.map((account) => {
+        const balance = parseFloat(account.currentBalance ?? "0");
+        return (
+          <button
+            key={account.id}
+            type="button"
+            onClick={() => onSelect(account.id)}
+            className={cn(
+              "flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors",
+              selectedId === account.id ? "bg-indigo-50" : "hover:bg-slate-50",
+            )}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                <Building2 className="h-4 w-4 text-slate-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-900">
+                  {account.name}
+                </p>
+                <p className="truncate text-xs text-slate-400">
+                  {account.bankName} · {account.maskedNumber}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-sm font-semibold tabular-nums text-slate-900">
+                {balance.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+              <p
+                className={cn(
+                  "text-xs",
+                  account.isActive ? "text-emerald-600" : "text-slate-400",
+                )}
+              >
+                {account.isActive ? "Active" : "Inactive"}
+              </p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Cash Position Chart ───────────────────────────────────────────────────
 
 function CashPositionChart({
@@ -1503,6 +1589,14 @@ export default function BankingPage() {
     });
 
   const allAccounts = overviewData?.accounts ?? [];
+  // Top accounts by balance — used by the Overview tab's "at a glance" list.
+  const topAccounts = [...allAccounts]
+    .sort(
+      (a, b) =>
+        parseFloat(b.currentBalance ?? "0") -
+        parseFloat(a.currentBalance ?? "0"),
+    )
+    .slice(0, 5);
   const visibleAccounts = allAccounts.filter((acc) => {
     const q = accountSearch.trim().toLowerCase();
     const matchesQuery =
@@ -1651,18 +1745,13 @@ export default function BankingPage() {
           </ModulePanel>
         );
       default:
-        // Overview — accounts table with cash position charts below.
-        // Uses the same filtered list as the Accounts tab so the search/status
-        // filters stay honest on every view that shows the account table.
+        // Overview — executive snapshot: cash position, top accounts, recent
+        // activity and AI insights. The full filterable accounts table lives
+        // on the Accounts tab.
         return (
           <>
-            <BankAccountsTable
-              accounts={visibleAccounts}
-              selectedId={selectedAccountId}
-              onSelect={setSelectedAccountId}
-              isLoading={overviewLoading}
-            />
-            <div className="grid grid-cols-2 gap-6 border-t border-slate-200 bg-slate-50/70 p-4">
+            {/* Cash position + currency breakdown */}
+            <div className="grid grid-cols-2 gap-6 bg-slate-50/70 p-4">
               {cashPosition && <CashPositionChart data={cashPosition} />}
               {overviewData?.currencyBreakdown && (
                 <BalanceByCurrency
@@ -1671,6 +1760,102 @@ export default function BankingPage() {
                   unreconciledCount={overviewData.summary.unreconciledAccounts}
                 />
               )}
+            </div>
+
+            {/* Accounts at a glance */}
+            <div className="border-t border-slate-200">
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <div>
+                  <h3 className="font-medium text-slate-900">
+                    Accounts at a Glance
+                  </h3>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    Top {Math.min(topAccounts.length, 5)} of{" "}
+                    {allAccounts.length} accounts by balance.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleTabChange("accounts")}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  View all →
+                </button>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <AccountSnapshot
+                  accounts={topAccounts}
+                  selectedId={selectedAccountId}
+                  onSelect={setSelectedAccountId}
+                  isLoading={overviewLoading}
+                />
+              </div>
+            </div>
+
+            {/* Recent activity + AI insights */}
+            <div className="grid grid-cols-2 gap-6 border-t border-slate-200 bg-slate-50/70 p-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <h3 className="mb-3 font-medium text-slate-900">
+                  Recent Activity
+                </h3>
+                {recentActivity && recentActivity.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentActivity.slice(0, 4).map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {activity.action}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">
+                            {activity.bankName} · {activity.accountName}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-xs text-slate-400">
+                          {formatTimeAgo(activity.date)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No recent activity yet.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <h3 className="mb-3 font-medium text-slate-900">AI Insights</h3>
+                {aiInsights && aiInsights.length > 0 ? (
+                  <div className="space-y-3">
+                    {aiInsights.slice(0, 3).map((insight) => (
+                      <div
+                        key={insight.id}
+                        className={cn(
+                          "rounded-lg border p-3",
+                          insight.type === "warning"
+                            ? "border-amber-200 bg-amber-50"
+                            : insight.type === "success"
+                              ? "border-emerald-200 bg-emerald-50"
+                              : "border-blue-200 bg-blue-50",
+                        )}
+                      >
+                        <p className="text-sm font-medium text-slate-900">
+                          {insight.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-600">
+                          {insight.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No insights at this time.
+                  </p>
+                )}
+              </div>
             </div>
           </>
         );
@@ -1782,7 +1967,7 @@ export default function BankingPage() {
           <option value="interest">Interest</option>
         </select>
       </div>
-    ) : activeTab === "accounts" || activeTab === "overview" ? (
+    ) : activeTab === "accounts" ? (
       <div className="flex items-center gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1837,7 +2022,7 @@ export default function BankingPage() {
           </button>
         </div>
       </div>
-    ) : activeTab === "accounts" || activeTab === "overview" ? (
+    ) : activeTab === "accounts" ? (
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
           Showing {visibleAccounts.length} of {allAccounts.length} accounts

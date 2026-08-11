@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-11] — Banking overview tab → executive snapshot
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/app/dashboard/banking/page.tsx`, `BUILD_LOG.md`
+
+**What:**
+
+- **Audited all dashboard Overview tabs** (payroll, banking, fixed-assets, reconciliation, close, tax-compliance, agents, reports) against the requirement that Overview should be a summary, not a data listing. Payroll / fixed-assets / reconciliation / close were already fixed; tax-compliance, agents and reports have proper overviews.
+- **Banking was the last offender** — its Overview tab rendered the full `BankAccountsTable` with the same filtered account list as the Accounts tab (search + status filters applied to both). Replaced with an executive snapshot:
+  - Cash Position chart + Balance by Currency (kept at top)
+  - **Accounts at a Glance** — new compact `AccountSnapshot` component showing the top 5 accounts by balance (name, bank, masked number, balance, status) with a "View all →" button that jumps to the Accounts tab
+  - **Recent Activity** (last 4 events) and **AI Insights** (last 3) side-by-side panels
+  - Account search/status filters and the "Showing X of Y accounts" footer now render only on the Accounts tab, where the full register lives
+
+**Verification:** typecheck ✓ · production build ✓
+
+---
+
 ### [2026-08-10] — Dashboard overview tabs fix + sidebar help link
 
 **Agent:** Buffy (Autonomous Engineer)
