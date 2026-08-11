@@ -16,13 +16,23 @@ import type { PageFocus } from "@/lib/chat/page-context";
 export type FocusRequest = {
   nonce: number;
   focus: PageFocus;
+  /**
+   * Optional command to run immediately on open — e.g. "Explain this entry".
+   * Used by the row right-click menu so a menu item feels like a real action
+   * instead of just opening the panel.
+   */
+  initialPrompt?: string;
 };
 
 type ModuleAiContextValue = {
   /** The most recent focus request, if any. */
   focusRequest: FocusRequest | null;
-  /** Open the page copilot targeted at a specific record. */
-  openWithFocus: (focus: PageFocus) => void;
+  /**
+   * Open the page copilot targeted at a specific record.
+   * Pass an optional `initialPrompt` to auto-run a command on open
+   * (right-click menu items like "Explain this entry").
+   */
+  openWithFocus: (focus: PageFocus, initialPrompt?: string) => void;
 };
 
 const ModuleAiContext = createContext<ModuleAiContextValue | null>(null);
@@ -43,9 +53,12 @@ export function useModuleAi(): ModuleAiContextValue {
 export function ModuleAiProvider({ children }: { children: React.ReactNode }) {
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
 
-  const openWithFocus = useCallback((focus: PageFocus) => {
-    setFocusRequest({ nonce: Date.now(), focus });
-  }, []);
+  const openWithFocus = useCallback(
+    (focus: PageFocus, initialPrompt?: string) => {
+      setFocusRequest({ nonce: Date.now(), focus, initialPrompt });
+    },
+    [],
+  );
 
   return (
     <ModuleAiContext.Provider value={{ focusRequest, openWithFocus }}>

@@ -111,14 +111,32 @@ export function ModulePageCopilot({
   // Row AI action → open the panel targeted at that record. A fresh nonce
   // re-fires even when the same row is re-picked (so clicking twice still
   // re-opens), and the thread resets so the new target starts clean.
+  // If the request carries an initialPrompt (right-click menu command), it is
+  // stashed and auto-sent by `autoSendRef` once the focus is in context.
+  const autoSendRef = useRef<string | null>(null);
   useEffect(() => {
     if (!focusRequest || focusRequest.nonce === lastFocusNonce.current) return;
     lastFocusNonce.current = focusRequest.nonce;
+    autoSendRef.current = focusRequest.initialPrompt ?? null;
     setFocus(focusRequest.focus);
     setMessages([]);
     conversationId.current = null;
     setOpen(true);
   }, [focusRequest]);
+
+  // Once the focus is applied, fire any pending initial command from a
+  // right-click menu action. The context override is passed explicitly so the
+  // command always carries the focused record — even if the effect runs with
+  // a stale handleSend closure from a previous render.
+  useEffect(() => {
+    if (!focus || !autoSendRef.current) return;
+    const prompt = autoSendRef.current;
+    autoSendRef.current = null;
+    handleSendRef.current?.(prompt, {
+      ...(pageContext ?? {}),
+      focus,
+    } as PageContextPayload);
+  }, [focus, pageContext]);
 
   // Merge the focused record into the page context sent to the pipeline — the
   // AI sees "Focused: Employee Dylan Cooper (id) | Tax rate: 5% | …" closest
@@ -187,7 +205,7 @@ export function ModulePageCopilot({
   }, [open, close]);
 
   const handleSend = useCallback(
-    (text?: string) => {
+    (text?: string, contextOverride?: PageContextPayload) => {
       const trimmed = (text ?? input).trim();
       if (!trimmed || !entityId || isStreaming) return;
 
@@ -206,11 +224,17 @@ export function ModulePageCopilot({
         trimmed,
         conversationId.current ?? undefined,
         undefined,
-        effectiveContext as PageContextPayload | undefined,
+        contextOverride ?? (effectiveContext as PageContextPayload | undefined),
       );
     },
     [entityId, input, isStreaming, sendMessage, effectiveContext],
   );
+
+  // Latest handleSend for the auto-send effect (avoids stale closure).
+  const handleSendRef = useRef(handleSend);
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
 
   // Reset the thread when the panel is reopened after a close, so each visit
   // starts clean but follow-ups within a visit stay in one conversation.
@@ -219,6 +243,7 @@ export function ModulePageCopilot({
   }, []);
 
   const clearFocus = useCallback(() => {
+    autoSendRef.current = null;
     setFocus(null);
     setMessages([]);
     conversationId.current = null;

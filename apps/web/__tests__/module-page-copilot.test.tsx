@@ -184,4 +184,32 @@ describe("ModulePageCopilot", () => {
       screen.getByPlaceholderText(/ask about this page/i),
     ).toBeInTheDocument();
   });
+
+  it("auto-sends the initialPrompt command with the focus in context", async () => {
+    renderCopilot({
+      focusRequest: {
+        nonce: 1,
+        focus: {
+          kind: "Transaction",
+          name: "Office supplies",
+          id: "tx-123",
+        },
+        initialPrompt: "Explain this transaction in plain terms.",
+      },
+    });
+
+    // The panel opens itself, focused on the record, and the command fires
+    // automatically once the focus is in context.
+    await vi.waitFor(() => {
+      expect(mocks.sendMessage).toHaveBeenCalledWith(
+        "Explain this transaction in plain terms.",
+        undefined,
+        undefined,
+        expect.objectContaining({
+          page: "Transactions",
+          focus: expect.objectContaining({ kind: "Transaction" }),
+        }),
+      );
+    });
+  });
 });

@@ -179,6 +179,7 @@ function JournalTable({
               className="group relative border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
             >
               <RowAiAction
+                reversible
                 focus={{
                   kind: "Journal Entry",
                   name: entry.entryNumber,

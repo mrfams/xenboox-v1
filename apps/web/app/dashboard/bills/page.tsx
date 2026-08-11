@@ -213,6 +213,7 @@ function BillsTable({
                 )}
               >
                 <RowAiAction
+                  reversible
                   focus={{
                     kind: "Bill",
                     name: bill.billNumber,

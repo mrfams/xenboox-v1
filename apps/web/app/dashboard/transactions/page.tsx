@@ -144,6 +144,7 @@ function TransactionTable({
               )}
             >
               <RowAiAction
+                reversible
                 focus={{
                   kind: "Transaction",
                   name: tx.description || tx.reference || tx.id,
