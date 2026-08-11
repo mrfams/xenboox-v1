@@ -6,6 +6,26 @@
 
 ---
 
+### [2026-08-11] — Senegal demo entity + country tax pack install in onboarding
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/db/seed/sn-tax-rules.ts`, `apps/web/components/shared/country-picker.tsx`, `apps/web/server/lib/tax-install.ts`
+**Files Modified:** `packages/db/seed/index.ts`, `apps/web/__tests__/tax-preset-seed-parity.test.ts`, `apps/web/components/settings/taxes-section.tsx`, `apps/web/server/routers/{onboarding,tax-config}.ts`, `apps/web/app/(auth)/register/onboarding/page.tsx`, `apps/web/__tests__/onboarding-wizard.test.tsx`
+
+**Request:** Seed the Senegal (SN) preset pack into a second demo entity OR make the tax pack install part of the onboarding flow. User chose **Both**.
+
+**What was built:**
+
+1. **Second demo entity — Dakar Distribution SARL** (SN, XOF, company): new seed section 43 creates it via `resetEntity` (idempotent delete+recreate, same contract as the main Kerr Jula entity), grants `demo@xenboox.com` owner access (shows in the entity switcher), and installs the **5 SN presets** (TVA 18%, DGID IRSA progressive XOF bands, IPRES+CSS 6.25%/19.75%, WHT 5%, CIT 30%) as v1 active rules via the new pure-data `packages/db/seed/sn-tax-rules.ts` — the same parity-guarded pattern as Gambia.
+2. **Parity test extended to SN** — `tax-preset-seed-parity.test.ts` refactored to `it.each` over both packs (field-for-field + reverse mapping per country), so a catalog rate/name/effective-date change fails the seed until updated together.
+3. **Country tax pack in onboarding** — the wizard's Business details step now asks "Where is your business based?" via the searchable `CountryPicker` (extracted verbatim from Settings → Taxes into the new shared `apps/web/components/shared/country-picker.tsx`; taxes-section now imports it, with the local definition and its Command/Popover/COUNTRIES/ChevronsUpDown imports pruned). CoA suggestions now pass the selected country, and `handleComplete` auto-installs that country's pack after `completeFlow` — non-fatal (console.warn on failure, wizard still completes; any pack is always installable from Settings → Taxes).
+4. **New `onboarding.installTaxPresets` mutation** — and the shared installer `apps/web/server/lib/tax-install.ts` (`installPresetsForEntity`): one implementation of the idempotent-skip + version-continuation contract now used by BOTH `taxConfig.installPresets` and the onboarding mutation (review fix — the duplicated ~50-line versioning logic is gone).
+5. **Onboarding wizard test** — trpc mock gained `installTaxPresets`; all 11 wizard tests pass.
+
+**Verification:** web typecheck ✓ · db typecheck clean for the new/changed files ✓ · parity + tax-config-router + taxes-section + onboarding-wizard **42/42** ✓ (tax-config-router unchanged → refactor behavior-preserving) · production build ✓ · prettier clean ✓ · full seed exit 0 with the SN entity + 5 rules verified live (entity row, rule types/versions/statuses, owner access row). Code review applied (shared installer, non-silent install failure, parity test granularity).
+
+---
+
 ### [2026-08-11] — Dev-DB schema drift reconciled — full demo seed now completes
 
 **Agent:** Buffy (Autonomous Engineer)

@@ -26,6 +26,7 @@ import { Button } from "@/components/ui";
 import { Card, CardContent } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
 import { OnboardingLiveness } from "@/components/onboarding/onboarding-liveness";
+import { CountryPicker } from "@/components/shared/country-picker";
 import { cn } from "@/lib/utils";
 
 type OnboardingSourceType =
@@ -172,6 +173,7 @@ export default function OnboardingPage() {
   );
   const [businessStartDate, setBusinessStartDate] = useState("");
   const [segment, setSegment] = useState("trading");
+  const [country, setCountry] = useState("GM");
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
   const [coaTemplateId, setCoaTemplateId] = useState<string | null>(null);
   const [openingBalance, setOpeningBalance] = useState({
@@ -188,13 +190,15 @@ export default function OnboardingPage() {
   const depthMutation = trpc.onboarding.setDetailDepth.useMutation();
   const connectMutation = trpc.onboarding.connectData.useMutation();
   const coaSuggestions = trpc.onboarding.getCoaSuggestions.useQuery(
-    { segment, country: "GM" },
+    { segment, country },
     { enabled: currentStep >= 2 },
   );
   const confirmCoaMutation = trpc.onboarding.confirmCoa.useMutation();
   const openingBalanceMutation =
     trpc.onboarding.confirmOpeningBalance.useMutation();
   const completeFlowMutation = trpc.onboarding.completeFlow.useMutation();
+  const installTaxPresetsMutation =
+    trpc.onboarding.installTaxPresets.useMutation();
 
   // Dynamic step list: Category A is the gold-standard clean-slate path —
   // fewer steps, no data-connection step, no historical pull (spec §3.1).
@@ -361,6 +365,19 @@ export default function OnboardingPage() {
     setIsProcessing(true);
     try {
       await completeFlowMutation.mutateAsync();
+      // Pre-install the workspace country's tax pack so Settings → Taxes shows
+      // real rules on first login. Non-fatal: any pack can be installed from
+      // Settings any time, so failures never block completing onboarding.
+      try {
+        await installTaxPresetsMutation.mutateAsync({ country });
+      } catch (err) {
+        // Non-blocking: the wizard still completes, but make the failure
+        // observable — the pack can be installed from Settings → Taxes.
+        console.warn(
+          "Tax pack pre-install failed during onboarding:",
+          err instanceof Error ? err.message : err,
+        );
+      }
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
@@ -660,8 +677,20 @@ export default function OnboardingPage() {
                     Tell us about your business
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    We&apos;ll use this to set up your chart of accounts.
+                    We&apos;ll use this to set up your chart of accounts and tax
+                    rules.
                   </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">
+                    Where is your business based?
+                  </label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Your country determines the tax pack we pre-install (Gambia,
+                    Senegal, US and 190+ more) — changeable anytime in Settings
+                    → Taxes.
+                  </p>
+                  <CountryPicker value={country} onChange={setCountry} />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {BUSINESS_SEGMENTS.map((seg) => (

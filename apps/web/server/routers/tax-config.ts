@@ -26,6 +26,7 @@ import {
   type TaxRateConfig,
   type TaxPreset,
 } from "@xenboox/agents";
+import { installPresetsForEntity } from "@/server/lib/tax-install";
 import {
   router,
   protectedProcedure,
@@ -569,73 +570,17 @@ export const taxConfigRouter = router({
         });
       }
 
-      // Idempotency: skip presets already installed as a non-superseded rule.
-      const existing = await db.query.jurisdictionTaxRules.findMany({
-        where: and(
-          eq(jurisdictionTaxRules.entityId, ctx.entityId!),
-          eq(jurisdictionTaxRules.country, input.country),
-          sql`${jurisdictionTaxRules.status} <> 'superseded'`,
-        ),
-        columns: { ruleType: true, name: true, version: true },
-      });
-      const existingKeys = new Set(
-        existing.map((r) => `${r.ruleType}::${r.name}`),
-      );
-
-      const toInstall = requested.filter(
-        (p) => !existingKeys.has(`${p.ruleType}::${p.name}`),
-      );
-      const skipped = requested.length - toInstall.length;
-
-      if (toInstall.length > 0) {
-        // Versioning contract: a re-install after a supersede/deactivate must
-        // continue the version sequence for the (country, ruleType, name)
-        // identity, exactly like createRule — never collide with an old v1.
-        const history = await db.query.jurisdictionTaxRules.findMany({
-          where: and(
-            eq(jurisdictionTaxRules.entityId, ctx.entityId!),
-            eq(jurisdictionTaxRules.country, input.country),
-          ),
-          columns: { ruleType: true, name: true, version: true },
+      // Shared installer: idempotent skip + version-continuation contract
+      // (single implementation — onboarding.installTaxPresets uses it too).
+      const { installed, skipped, installedNames } =
+        await installPresetsForEntity({
+          entityId: ctx.entityId!,
+          country: input.country,
+          presets: requested,
+          actorId: ctx.session!.user!.id!,
         });
-        const latestVersion = new Map<string, number>();
-        for (const row of history) {
-          const key = `${row.ruleType}::${row.name}`;
-          latestVersion.set(
-            key,
-            Math.max(latestVersion.get(key) ?? 0, row.version),
-          );
-        }
 
-        await db.insert(jurisdictionTaxRules).values(
-          toInstall.map((p) => {
-            const key = `${p.ruleType}::${p.name}`;
-            return {
-              entityId: ctx.entityId!,
-              country: input.country,
-              ruleType: p.ruleType,
-              version: (latestVersion.get(key) ?? 0) + 1,
-              name: p.name,
-              description: p.description,
-              appliesTo: p.appliesTo,
-              rateOrBands: p.rateConfig,
-              effectiveFrom: p.effectiveFrom,
-              effectiveTo: null,
-              status: "active" as const,
-              proposedBy: ctx.session!.user!.id!,
-              approvedBy: ctx.session!.user!.id!,
-              approvedAt: new Date(),
-              notes: `Installed from ${input.country} preset pack (${p.source})`,
-            };
-          }),
-        );
-      }
-
-      return {
-        installed: toInstall.length,
-        skipped,
-        installedNames: toInstall.map((p) => p.name),
-      };
+      return { installed, skipped, installedNames };
     }),
 
   // ── Preview computation (Settings UI + agent parity) ───────────────────

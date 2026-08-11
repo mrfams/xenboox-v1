@@ -9,6 +9,8 @@ import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { organizations, entities } from "@xenboox/db/schema/organization";
 import { onboardingSessions } from "@xenboox/db/schema/onboarding";
+import { getTaxPresetsForCountry } from "@xenboox/agents";
+import { installPresetsForEntity } from "@/server/lib/tax-install";
 import {
   createOnboardingSession,
   updateRoutingAnswer,
@@ -477,6 +479,37 @@ export const onboardingRouter = router({
       handleMutationError(error, "Failed to complete onboarding");
     }
   }),
+
+  /**
+   * Pre-install the workspace country's tax preset pack (called at the end of
+   * the onboarding wizard). Shares the single install implementation with
+   * taxConfig.installPresets — idempotent skip + version continuation — so
+   * Settings → Taxes shows installed rules on first login and re-runs never
+   * collide with an old v1.
+   */
+  installTaxPresets: protectedProcedure
+    .input(z.object({ country: z.string().length(2).toUpperCase() }))
+    .mutation(async ({ ctx, input }) => {
+      const entityId = ctx.entityId;
+      if (!entityId)
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Create your business details before installing taxes.",
+        });
+
+      const presets = getTaxPresetsForCountry(input.country);
+      const { installed } = await installPresetsForEntity({
+        entityId,
+        country: input.country,
+        presets,
+        actorId: ctx.session!.user!.id!,
+      });
+
+      return {
+        installed,
+        total: presets.length,
+      };
+    }),
 });
 
 // Helper used by the router

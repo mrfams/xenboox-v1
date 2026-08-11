@@ -57,6 +57,9 @@ const trpcMocks = vi.hoisted(() => {
         useMutation: () => makeMutation("confirmOpeningBalance"),
       },
       completeFlow: { useMutation: () => makeMutation("completeFlow") },
+      installTaxPresets: {
+        useMutation: () => makeMutation("installTaxPresets"),
+      },
     },
   };
 });

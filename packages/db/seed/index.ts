@@ -74,6 +74,7 @@ import { seedAgents } from "./agents";
 import { seedApprovals } from "./approvals";
 import { seedGoldenEvals } from "./golden-evals";
 import { GM_TAX_RULES } from "./gm-tax-rules";
+import { SN_TAX_RULES } from "./sn-tax-rules";
 import { seedComprehensiveData } from "./comprehensive-data";
 import {
   findOrCreateUser,
@@ -2938,6 +2939,61 @@ export async function seed() {
 
   // 42. Consolidation Pipeline Seed Data
   await seedConsolidation(ENTITY_ID);
+
+  // 43. Senegal demo entity + tax preset pack
+  //
+  // A second, standalone demo entity — Dakar Distribution SARL (SN, XOF) — so
+  // switching entities shows a Senegal workspace with the SN tax pack already
+  // installed (TVA 18%, DGID IRSA, IPRES + CSS, WHT 5%, CIT 30%). The data
+  // mirrors SN_PRESETS via ./sn-tax-rules.ts and is guarded against silent
+  // drift by the same parity test as Gambia.
+  console.log("  Creating Senegal demo entity (Dakar Distribution SARL)...");
+  // resetEntity is idempotent: re-running the seed deletes + recreates the
+  // entity (cascading its tax rules), exactly like the main Kerr Jula entity.
+  const SN_ENTITY_ID = await resetEntity({
+    orgId: ORG_ID,
+    name: "Dakar Distribution SARL",
+    currency: "XOF",
+    country: "SN",
+    fiscalYearEnd: "12",
+    taxId: "0045-SN-DGID",
+    settings: { vatRate: 0.18, defaultPaymentTerms: "net30" },
+  });
+  await grantAccess({
+    userId: USER_ID,
+    entityId: SN_ENTITY_ID,
+    role: "owner",
+    grantedBy: USER_ID,
+  });
+
+  console.log("  Installing Senegal tax preset pack...");
+  for (let t = 0; t < SN_TAX_RULES.length; t++) {
+    const r = SN_TAX_RULES[t];
+    await db
+      .insert(jurisdictionTaxRules)
+      .values({
+        id: seedUuid("sn", t + 1),
+        entityId: SN_ENTITY_ID,
+        country: "SN",
+        ruleType: r.ruleType,
+        version: 1,
+        name: r.name,
+        description: r.description,
+        appliesTo: r.appliesTo,
+        rateOrBands: r.rateOrBands,
+        effectiveFrom: r.effectiveFrom,
+        effectiveTo: null,
+        status: "active",
+        proposedBy: USER_ID,
+        approvedBy: USER_ID,
+        approvedAt: new Date(),
+        notes: `Installed from SN preset pack (${r.source})`,
+      })
+      .onConflictDoNothing();
+  }
+  console.log(
+    `    Senegal entity: Dakar Distribution SARL (SN) — ${SN_TAX_RULES.length} tax rules installed`,
+  );
 }
 
 if (shouldRunDirect()) {
