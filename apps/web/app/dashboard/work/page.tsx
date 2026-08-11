@@ -15,6 +15,7 @@ import {
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 // ─── Notifications Tab Component ─────────────────────────────────────────
 
@@ -108,13 +109,21 @@ export default function WorkPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Work
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Everything requiring your attention — approvals, reviews, and tasks.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Work
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Everything requiring your attention — approvals, reviews, and tasks.
+          </p>
+        </div>
+        <AiSimulationTrigger
+          traceId="approval-pre-review"
+          label="AI Pre-Review"
+          variant="outline"
+          className="shrink-0"
+        />
       </div>
 
       {/* Quick Stats */}

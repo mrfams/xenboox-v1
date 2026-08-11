@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-11] — AI simulation page-coverage guard (never regress silently)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/__tests__/ai-ux-page-coverage.test.ts`
+**Files Modified:** `apps/web/app/dashboard/work/page.tsx`, `apps/web/app/dashboard/reconciliation/center/page.tsx`
+
+**Request:** Add a page-coverage test that asserts every dashboard workflow page has at least one `AiSimulationTrigger`, so coverage never silently regresses.
+
+**What was built:**
+
+1. **New static guard** (`ai-ux-page-coverage.test.ts`, `@vitest-environment node`) — recursively scans `apps/web/app/dashboard/**/page.tsx` and asserts: (1) every page **renders** `<AiSimulationTrigger` (JSX-shape check, so a comment/docstring mention can't fool it) except a documented `EXPLICITLY_EXEMPT` map (explore = discovery hub whose AI UX tab renders a Run button per catalog entry; `documents/artifacts` = artifact viewer; `""` = dashboard home landing) — the failure message tells future devs to wire a trigger or move the page into the exempt map with a reason; (2) every `traceId="…"` used on any page resolves via `getAiUxTrace`, so a typo'd trace id can't ship a broken trigger.
+2. **Two real coverage gaps closed** so the guard passes: `dashboard/work` (approvals/reviews/tasks center) gained an outline **AI Pre-Review** trigger (`approval-pre-review`) in a flex header; `dashboard/reconciliation/center` swapped its dead plain **Auto-Reconcile** button for the live `reconciliation-automatch` trigger (`Sparkles` import kept — still used by a summary card).
+3. **Guard proven to have teeth** — the first run failed exactly on the two surfaces whose exemption keys didn't match the walk's route format, and the JSX-shape check replaced a weaker `includes()` after review.
+
+**Verification:** coverage guard **2/2** ✓ · web typecheck ✓ (0 errors) · production build ✓ · prettier clean ✓ · code review applied (JSX-shape trigger check; route normalization; exemption reasons documented).
+
+---
+
 ### [2026-08-11] — Simulation coverage on passive pages (activity, settings, help, chat)
 
 **Agent:** Buffy (Autonomous Engineer)
