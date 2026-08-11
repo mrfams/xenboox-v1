@@ -173,6 +173,15 @@ export const payrollRouter = router({
         bankName: z.string().optional(),
         bankAccountNumber: z.string().optional(),
         taxId: z.string().optional(),
+        taxStatus: z
+          .enum([
+            "resident",
+            "non_resident",
+            "citizen",
+            "non_citizen",
+            "tax_exempt",
+          ])
+          .optional(),
         basicSalary: z.string(),
       }),
     )
@@ -788,6 +797,15 @@ export const payrollRouter = router({
         bankName: z.string().optional(),
         bankAccountNumber: z.string().optional(),
         taxId: z.string().optional(),
+        taxStatus: z
+          .enum([
+            "resident",
+            "non_resident",
+            "citizen",
+            "non_citizen",
+            "tax_exempt",
+          ])
+          .optional(),
         isActive: z.boolean().optional(),
       }),
     )

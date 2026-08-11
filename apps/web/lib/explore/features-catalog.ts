@@ -262,7 +262,7 @@ export const FEATURES: Feature[] = [
     name: "Self-service tax rules engine",
     category: "Tax & Compliance",
     description:
-      "Configure, version, and override taxes for any country or entity — flat, fixed, bands, or conditional rules with employer/employee splits. No dev needed when laws change.",
+      "Configure, version, and override taxes for any country or entity — flat, edge, progressive brackets, fixed amounts, conditional rules (incl. non-citizen rates), combined-rate components (state+city), rounding rules, and employer/employee splits. Covers 22 tax families from VAT to inheritance. No dev needed when laws change.",
     status: "shipped",
     href: "/dashboard/settings",
     source: "Beyond QuickBooks/Xero — enterprise-grade configurability",
@@ -272,7 +272,7 @@ export const FEATURES: Feature[] = [
     name: "Multi-jurisdiction statutory rates",
     category: "Tax & Compliance",
     description:
-      "Built-in payroll statutory rules (PAYE, social security, WHT) with per-entity overrides and previews.",
+      "One-click country tax packs (Gambia, Senegal, USA, Nigeria, Kenya, Ghana, UK, South Africa) with built-in payroll statutory rules (PAYE, social security, WHT), per-entity overrides, and live previews.",
     status: "shipped",
     href: "/dashboard/settings",
     source: "Sage · QuickBooks (country packs)",

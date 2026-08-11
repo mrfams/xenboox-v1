@@ -11,7 +11,8 @@
 // builder accepts any 2-letter ISO code.
 //
 // Coverage: GM, SN, US (requested), plus NG, KE, GH payroll presets reused
-// from the verified pipeline rules. Add a country by appending entries.
+// from the verified pipeline rules, and GB, ZA as global-coverage examples.
+// Add a country by appending entries.
 
 import type { TaxRateConfig } from "./tax-engine";
 
@@ -30,6 +31,20 @@ export interface TaxPreset {
     | "corporate"
     | "social_security"
     | "excise"
+    | "property"
+    | "capital_gains"
+    | "customs"
+    | "digital_services"
+    | "payroll_tax"
+    | "wealth"
+    | "environmental"
+    | "health"
+    | "unemployment"
+    | "tourist"
+    | "stamp_duty"
+    | "gift"
+    | "inheritance"
+    | "license_fee"
     | "other";
   name: string;
   description: string;
@@ -261,10 +276,17 @@ const US_PRESETS: TaxPreset[] = [
     ruleType: "sales_tax",
     name: "US State Sales Tax (example)",
     description:
-      "Representative combined state + local sales tax (8.875%, NYC-style). Sales tax is state-local in the US — edit this to your exact jurisdictions.",
+      "Representative combined state + local sales tax using rate components — State 4% + City 4.5% + MCTD 0.375% = 8.875% (NYC-style). Sales tax is state-local in the US — edit the components to your exact jurisdictions.",
     appliesTo: "sales",
     effectiveFrom: "2025-01-01",
-    rateConfig: { type: "rate", rate: 0.08875 },
+    rateConfig: {
+      type: "rate",
+      components: [
+        { name: "State", rate: 0.04 },
+        { name: "City", rate: 0.045 },
+        { name: "MCTD", rate: 0.00375 },
+      ],
+    },
     source: "State/local combined example (NYC 8.875%); varies by state",
   },
   {
@@ -458,6 +480,174 @@ const GH_PRESETS: TaxPreset[] = [
   },
 ];
 
+// ─── United Kingdom — HMRC (His Majesty's Revenue & Customs) ────────────────
+
+const GB_PRESETS: TaxPreset[] = [
+  {
+    id: "gb-vat",
+    country: "GB",
+    ruleType: "vat",
+    name: "HMRC VAT (United Kingdom)",
+    description:
+      "Standard 20% value-added tax (reduced 5% rate exists for essentials).",
+    appliesTo: "sales",
+    effectiveFrom: "2025-01-01",
+    rateConfig: { type: "rate", rate: 0.2 },
+    source: "HMRC VAT rates; standard 20%",
+  },
+  {
+    id: "gb-paye",
+    country: "GB",
+    ruleType: "paye",
+    name: "HMRC PAYE (United Kingdom)",
+    description:
+      "2025/26 monthly income tax bands: 0% up to £1,047, 20% to £4,189, 40% to £10,428, 45% above (approximate monthly slices).",
+    appliesTo: "payroll",
+    effectiveFrom: "2025-01-01",
+    rateConfig: {
+      type: "bands",
+      bands: [
+        { from: 0, to: 1047, rate: 0 },
+        { from: 1048, to: 4189, rate: 0.2 },
+        { from: 4190, to: 10428, rate: 0.4 },
+        { from: 10429, to: null, rate: 0.45 },
+      ],
+    },
+    source: "HMRC 2025/26 tax bands (monthly); verify annually",
+  },
+  {
+    id: "gb-nic",
+    country: "GB",
+    ruleType: "social_security",
+    name: "HMRC National Insurance Class 1 (UK)",
+    description:
+      "Employee 8% + employer 13.8% on earnings up to £4,189/month. Note: the payroll split applies the rate on the capped amount (the £1,048 lower threshold needs a custom band rule — verify annually).",
+    appliesTo: "payroll",
+    effectiveFrom: "2025-01-01",
+    rateConfig: {
+      type: "rate",
+      employeeRate: 0.08,
+      employerRate: 0.138,
+      ceiling: 4189,
+    },
+    source: "HMRC Class 1 NIC rates 2025/26; verify annually",
+  },
+  {
+    id: "gb-cit",
+    country: "GB",
+    ruleType: "corporate",
+    name: "UK Corporation Tax",
+    description:
+      "25% main rate; 19% small-profits rate below £50,000 with marginal relief between.",
+    appliesTo: "income",
+    effectiveFrom: "2025-01-01",
+    rateConfig: { type: "rate", rate: 0.25 },
+    source: "UK Corporation Tax Act; main rate 25%",
+  },
+  {
+    id: "gb-wht",
+    country: "GB",
+    ruleType: "withholding",
+    name: "HMRC Withholding Tax (UK)",
+    description:
+      "20% basic-rate withholding on UK-source interest and royalties paid to non-residents.",
+    appliesTo: "purchases",
+    effectiveFrom: "2025-01-01",
+    rateConfig: { type: "rate", rate: 0.2 },
+    source: "HMRC withholding rules; interest/royalties 20%",
+  },
+];
+
+// ─── South Africa — SARS (South African Revenue Service) ────────────────────
+
+const ZA_PRESETS: TaxPreset[] = [
+  {
+    id: "za-vat",
+    country: "ZA",
+    ruleType: "vat",
+    name: "SARS VAT (South Africa)",
+    description: "Standard 15% value-added tax on taxable supplies.",
+    appliesTo: "sales",
+    effectiveFrom: "2025-01-01",
+    rateConfig: { type: "rate", rate: 0.15 },
+    source: "VAT Act 89 of 1991; standard rate 15%",
+  },
+  {
+    id: "za-paye",
+    country: "ZA",
+    ruleType: "paye",
+    name: "SARS PAYE (South Africa)",
+    description:
+      "2025/26 monthly PAYE brackets (R): 0% to R19,758, 18% to R30,875, 26% to R42,733, 31% to R56,083, 36% to R71,492, 39% to R151,417, 41% above.",
+    appliesTo: "payroll",
+    effectiveFrom: "2025-01-01",
+    rateConfig: {
+      type: "bands",
+      bands: [
+        { from: 0, to: 19758, rate: 0 },
+        { from: 19759, to: 30875, rate: 0.18 },
+        { from: 30876, to: 42733, rate: 0.26 },
+        { from: 42734, to: 56083, rate: 0.31 },
+        { from: 56084, to: 71492, rate: 0.36 },
+        { from: 71493, to: 151417, rate: 0.39 },
+        { from: 151418, to: null, rate: 0.41 },
+      ],
+    },
+    source: "SARS 2025/26 tax tables (monthly); verify annually",
+  },
+  {
+    id: "za-uif",
+    country: "ZA",
+    ruleType: "social_security",
+    name: "UIF (South Africa)",
+    description:
+      "Unemployment Insurance Fund: 1% employee + 1% employer on earnings up to R17,711/month.",
+    appliesTo: "payroll",
+    effectiveFrom: "2025-01-01",
+    rateConfig: {
+      type: "rate",
+      employeeRate: 0.01,
+      employerRate: 0.01,
+      ceiling: 17711,
+    },
+    source: "UIF Act 63 of 2001; 1%+1%, ceiling R17,711",
+  },
+  {
+    id: "za-sdl",
+    country: "ZA",
+    ruleType: "payroll_tax",
+    name: "Skills Development Levy (South Africa)",
+    description: "1% employer payroll levy on total remuneration.",
+    appliesTo: "payroll",
+    effectiveFrom: "2025-01-01",
+    rateConfig: { type: "rate", rate: 0.01 },
+    source: "Skills Development Levies Act; 1% employer",
+  },
+  {
+    id: "za-cit",
+    country: "ZA",
+    ruleType: "corporate",
+    name: "South Africa Corporate Income Tax",
+    description: "27% corporate income tax on taxable income.",
+    appliesTo: "income",
+    effectiveFrom: "2025-01-01",
+    rateConfig: { type: "rate", rate: 0.27 },
+    source: "SARS corporate rate; 27%",
+  },
+  {
+    id: "za-wht",
+    country: "ZA",
+    ruleType: "withholding",
+    name: "SARS Withholding Tax (South Africa)",
+    description:
+      "20% dividends withholding on distributions to shareholders; 15% on interest to non-residents.",
+    appliesTo: "purchases",
+    effectiveFrom: "2025-01-01",
+    rateConfig: { type: "rate", rate: 0.2 },
+    source: "DWT Act 2012 (20%); Interest WHT 15% non-residents",
+  },
+];
+
 // ─── Catalog ────────────────────────────────────────────────────────────────
 
 /** Every preset pack across all supported countries. */
@@ -468,6 +658,8 @@ export const TAX_PRESET_CATALOG: TaxPreset[] = [
   ...NG_PRESETS,
   ...KE_PRESETS,
   ...GH_PRESETS,
+  ...GB_PRESETS,
+  ...ZA_PRESETS,
 ];
 
 /** Presets available for a single country (empty array = no pack yet). */

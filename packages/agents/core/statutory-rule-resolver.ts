@@ -32,6 +32,20 @@ export interface DbTaxRuleRow {
     | "sales_tax"
     | "corporate"
     | "excise"
+    | "property"
+    | "capital_gains"
+    | "customs"
+    | "digital_services"
+    | "payroll_tax"
+    | "wealth"
+    | "environmental"
+    | "health"
+    | "unemployment"
+    | "tourist"
+    | "stamp_duty"
+    | "gift"
+    | "inheritance"
+    | "license_fee"
     | "other";
   version: number;
   name: string;
@@ -57,6 +71,14 @@ export type ConfiguredStatutoryRules = Partial<
  * split contributions (social security) carry employee/employer rates and
  * ceiling. Effective dates are preserved so the pipeline can filter by month.
  */
+/** Effective flat rate of a config: components sum, else the flat rate. */
+export function effectiveFlatRate(config: TaxRateConfig): number {
+  const rate = config.components?.length
+    ? config.components.reduce((s, c) => s + c.rate, 0)
+    : (config.rate ?? 0);
+  return Math.max(0, rate); // mirror the engine's clamp
+}
+
 export function mapTaxRuleToStatutory(rule: DbTaxRuleRow): StatutoryRule {
   const config = rule.rateOrBands;
   // DB uses "withholding"; the payroll StatutoryRule uses "withholding_tax".
@@ -73,7 +95,14 @@ export function mapTaxRuleToStatutory(rule: DbTaxRuleRow): StatutoryRule {
           rate: b.rate,
           cumulative: b.cumulative ?? false,
         }))
-      : [{ from: 0, to: null, rate: config.rate ?? 0, cumulative: false }];
+      : [
+          {
+            from: 0,
+            to: null,
+            rate: effectiveFlatRate(config),
+            cumulative: false,
+          },
+        ];
 
   return {
     id: rule.id,
@@ -149,6 +178,50 @@ export function groupConfiguredRules(
       bucket.socialSecurity = mapped;
     else if (mapped.ruleType === "withholding_tax")
       bucket.withholdingTax = mapped;
+  }
+
+  return result;
+}
+
+/**
+ * The raw rate configs per (jurisdiction, statutory role) — kept separate from
+ * the mapped StatutoryRule shape so the payroll pipeline can evaluate
+ * CONDITIONAL rules per employee (e.g. non-citizen social-security rate)
+ * before applying them.
+ */
+export type ConfiguredRawRules = Partial<
+  Record<
+    Jurisdiction,
+    Partial<{
+      paye: TaxRateConfig;
+      socialSecurity: TaxRateConfig;
+      withholding: TaxRateConfig;
+    }>
+  >
+>;
+
+export function groupConfiguredRawConfigs(
+  rows: DbTaxRuleRow[],
+): ConfiguredRawRules {
+  const result: ConfiguredRawRules = {};
+
+  for (const row of rows) {
+    if (
+      row.ruleType !== "paye" &&
+      row.ruleType !== "social_security" &&
+      row.ruleType !== "withholding"
+    ) {
+      continue;
+    }
+    const jurisdiction = row.country as Jurisdiction;
+    if (!STATUTORY_RULES[jurisdiction]) continue;
+
+    const bucket = (result[jurisdiction] ??= {});
+    if (row.ruleType === "paye") bucket.paye = row.rateOrBands;
+    else if (row.ruleType === "social_security")
+      bucket.socialSecurity = row.rateOrBands;
+    else if (row.ruleType === "withholding")
+      bucket.withholding = row.rateOrBands;
   }
 
   return result;

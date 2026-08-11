@@ -33,7 +33,10 @@ import {
   payslips,
   staffLoans,
 } from "@xenboox/db/schema/payroll";
-import { jurisdictionTaxRules } from "@xenboox/db/schema/tax-compliance";
+import {
+  jurisdictionTaxRules,
+  type TaxRateConfig,
+} from "@xenboox/db/schema/tax-compliance";
 import {
   chartOfAccounts,
   journalEntries,
@@ -43,11 +46,14 @@ import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
 import {
+  groupConfiguredRawConfigs,
   groupConfiguredRules,
   mergeConfiguredRules,
+  type ConfiguredRawRules,
   type ConfiguredStatutoryRules,
   type DbTaxRuleRow,
 } from "./statutory-rule-resolver";
+import { evaluateConditionalRate } from "./tax-engine";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -126,6 +132,8 @@ export interface EmployeePayrollData {
   bankAccountNumber: string | null;
   taxId: string | null;
   socialSecurityNumber: string | null;
+  /** Residency/citizenship status — drives conditional statutory rules. */
+  taxStatus: string;
   isActive: boolean;
 }
 
@@ -822,13 +830,16 @@ export async function executePayrollPipeline(params: {
     );
 
     // User-configured tax rules (Settings → Taxes) override the built-ins.
-    const configuredStatutoryRules = await loadConfiguredStatutoryRules(
-      params.entityId,
-    );
+    // Single fetch, mapped into both the StatutoryRule shape and the raw
+    // configs (for per-employee conditional evaluation).
+    const configuredRows = await loadConfiguredRuleRows(params.entityId);
+    const configuredStatutoryRules = groupConfiguredRules(configuredRows);
+    const configuredRawRules = groupConfiguredRawConfigs(configuredRows);
     const staffWithDeductions = await calculateStatutoryDeductions(
       grossPayResult,
       staffData,
       configuredStatutoryRules,
+      configuredRawRules,
     );
 
     const jurisdictionStats = computeJurisdictionSummary(
@@ -1256,6 +1267,7 @@ async function loadStaffMasterData(
       department: emp.department,
       jurisdiction,
       employmentType: (emp.employmentType as EmploymentType) ?? "full_time",
+      taxStatus: emp.taxStatus ?? "resident",
       basicSalary: contract ? Number(contract.basicSalary) : 0,
       currency: contract?.currency ?? "GMD",
       allowances: (contract as any)?.allowances ?? [],
@@ -1442,16 +1454,26 @@ export function calculatePayeForJurisdiction(
   let tax = 0;
   const monthlyGross = grossPay;
 
+  // Edge (cumulative) bands: the highest crossed threshold's rate applies to
+  // the WHOLE amount — mirrors the configurable tax engine exactly.
+  let edgeBand: (typeof payeRule.bands)[number] | null = null;
   for (const band of payeRule.bands) {
-    if (monthlyGross <= band.from) continue;
-    const taxableInBand = Math.min(
-      monthlyGross - band.from,
-      band.to !== null ? band.to - band.from : Infinity,
-    );
-    if (taxableInBand > 0) {
-      tax += taxableInBand * band.rate;
+    if (band.cumulative && monthlyGross > band.from) edgeBand = band;
+  }
+  if (edgeBand) {
+    tax = monthlyGross * edgeBand.rate;
+  } else {
+    for (const band of payeRule.bands) {
+      if (monthlyGross <= band.from) continue;
+      const taxableInBand = Math.min(
+        monthlyGross - band.from,
+        band.to !== null ? band.to - band.from : Infinity,
+      );
+      if (taxableInBand > 0) {
+        tax += taxableInBand * band.rate;
+      }
+      if (band.to !== null && monthlyGross <= band.to) break;
     }
-    if (band.to !== null && monthlyGross <= band.to) break;
   }
 
   // Apply personal relief
@@ -1496,9 +1518,10 @@ export function calculateSocialSecurityForJurisdiction(
 // / withholding) from the DB — the Settings → Taxes surface writes these.
 // Returns a per-jurisdiction map ready for mergeConfiguredRules; an empty
 // map means the pipeline falls back entirely to the built-in STATUTORY_RULES.
-async function loadConfiguredStatutoryRules(
+/** One entity-scoped fetch for the configured statutory rule rows. */
+async function loadConfiguredRuleRows(
   entityId: string,
-): Promise<ConfiguredStatutoryRules> {
+): Promise<DbTaxRuleRow[]> {
   const rows = await db.query.jurisdictionTaxRules.findMany({
     where: and(
       eq(jurisdictionTaxRules.entityId, entityId),
@@ -1510,14 +1533,36 @@ async function loadConfiguredStatutoryRules(
       ]),
     ),
   });
+  return rows as DbTaxRuleRow[];
+}
 
-  return groupConfiguredRules(rows as DbTaxRuleRow[]);
+/**
+ * When a configured statutory rule is CONDITIONAL (e.g. a non-citizen rate),
+ * resolve the effective rate for this specific employee and return a rule
+ * override; otherwise undefined (the mapped rule applies unchanged).
+ */
+export function conditionalStatutoryRuleOverride(
+  mapped: StatutoryRule,
+  raw: TaxRateConfig | undefined,
+  ctx: { taxStatus?: string; employmentType?: string },
+): StatutoryRule | undefined {
+  if (!raw || raw.type !== "conditional") return undefined;
+  const rate = evaluateConditionalRate(raw, ctx);
+  return {
+    ...mapped,
+    bands: [{ from: 0, to: null, rate, cumulative: false }],
+    employeeContributionRate: rate,
+    employerContributionRate:
+      raw.employerRate ?? mapped.employerContributionRate,
+    personalRelief: raw.threshold ?? mapped.personalRelief,
+  };
 }
 
 async function calculateStatutoryDeductions(
   grossPayData: CalculatedPayroll[],
   staffData: EmployeePayrollData[],
   configuredRules: ConfiguredStatutoryRules = {},
+  rawRules: ConfiguredRawRules = {},
 ): Promise<CalculatedPayroll[]> {
   const staffMap = new Map(staffData.map((e) => [e.employeeId, e]));
 
@@ -1526,10 +1571,33 @@ async function calculateStatutoryDeductions(
     const jurisdiction = emp?.jurisdiction ?? "GM";
     // Merge user-configured rules over the built-ins for this jurisdiction.
     const rules = mergeConfiguredRules(configuredRules, jurisdiction);
+    const raw = rawRules[jurisdiction] ?? {};
+    const empCtx = {
+      taxStatus: emp?.taxStatus ?? "resident",
+      employmentType: emp?.employmentType ?? "full_time",
+    };
+
+    // Conditional user rules (non-citizen / non-resident rates) resolve per
+    // employee; banded/flat rules apply via the merged rule unchanged.
+    const payeRule =
+      conditionalStatutoryRuleOverride(rules.paye, raw.paye, empCtx) ??
+      rules.paye;
+    const ssRule =
+      conditionalStatutoryRuleOverride(
+        rules.socialSecurity,
+        raw.socialSecurity,
+        empCtx,
+      ) ?? rules.socialSecurity;
+    const whtRule =
+      conditionalStatutoryRuleOverride(
+        rules.withholdingTax,
+        raw.withholding,
+        empCtx,
+      ) ?? rules.withholdingTax;
 
     if (calc.isContractor) {
       // Contractors: withholding tax only, not PAYE
-      const whtRate = rules.withholdingTax.bands[0]?.rate ?? 0.1;
+      const whtRate = whtRule.bands[0]?.rate ?? 0.1;
       const withholdingTax = Math.round(calc.grossPay * whtRate * 100) / 100;
 
       const totalDeductions = withholdingTax + calc.loanDeduction;
@@ -1546,12 +1614,12 @@ async function calculateStatutoryDeductions(
     const payeTax = calculatePayeForJurisdiction(
       calc.grossPay,
       jurisdiction,
-      rules.paye,
+      payeRule,
     );
     const ss = calculateSocialSecurityForJurisdiction(
       calc.grossPay,
       jurisdiction,
-      rules.socialSecurity,
+      ssRule,
     );
 
     const totalDeductions =

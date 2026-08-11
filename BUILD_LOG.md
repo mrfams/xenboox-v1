@@ -6,6 +6,29 @@
 
 ---
 
+### [2026-08-11] — Self-service tax v2: global coverage (22 tax families, edge brackets, combined components, rounding, non-citizen payroll rules, GB + ZA packs)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `docs/SELF_SERVICE_TAX.md`, `packages/agents/core/__tests__/payroll-conditional-tax.test.ts`, `packages/db/migrations/0028_parallel_ezekiel_stane.sql`
+**Files Modified:** `packages/db/schema/{tax-compliance,payroll}.ts`, `packages/agents/core/{tax-engine,statutory-rule-resolver,payroll-pipeline,tax-presets,index}.ts`, `packages/agents/index.ts`, `packages/agents/core/__tests__/{tax-engine,statutory-rule-resolver,tax-presets}.test.ts`, `apps/web/server/routers/{tax-config,payroll}.ts`, `apps/web/components/settings/taxes-section.tsx`, `apps/web/components/dashboard/create-employee-dialog.tsx`, `apps/web/lib/explore/features-catalog.ts`, `BUILD_LOG.md`, plan `.kilo/plans/1786490000000-self-service-tax-global-coverage.md`
+
+**Request:** Self-service tax that covers the entire world — extensive research on all tax types (progressive brackets, "anything above 10 gets X%", non-citizens, company taxes, etc.) and on how Xero/QuickBooks/Dynamics/Oracle NetSuite/Digits/Basis/Zeni model taxes; autoplan; implement; typecheck + build + commit + push. Users pick their country (GM/SN/US first-class, others creatable), turn presets on/off, and create/edit/version their own taxes.
+
+**Research (3 web researchers + 2 docs researchers, in parallel):** full global tax taxonomy (8 families → income/progressive, corporate, VAT/GST/sales, payroll/social-security with employer-employee splits, property, capital gains, withholding, excise/customs, DST, wealth, environmental, tourist, stamp duty, gift/inheritance, license fees…) with exact calculation shapes (flat %, progressive slices, **edge/level brackets**, fixed per unit, conditional-by-context, thresholds/exemptions, caps/ceilings, rounding) + platform tax-engine comparison (Xero tax codes+components+tax types; QuickBooks agencies+rates+tax groups+exempt customers; Dynamics tax codes/limits/round-off type+precision; NetSuite nexus/tax groups/tax schedules; AI-native Digits/Basis/Zeni/Ramp delegate to Avalara/TaxJar and use JSON-logic rule engines). Findings written to `docs/SELF_SERVICE_TAX.md`.
+
+**What was built (autoplan pipeline CEO → Design → Eng → DX, in-context; gate auto-approved per request):**
+
+1. **Tax family enum expanded 8 → 22** (`tax_rule_type`): property, capital_gains, customs, digital_services, payroll_tax, wealth, environmental, health, unemployment, tourist, stamp_duty, gift, inheritance, license_fee — additive migration (`0028`) with `employees.tax_status` enum (`resident/non_resident/citizen/non_citizen/tax_exempt`, default `resident`).
+2. **Engine** (`tax-engine.ts`): edge (cumulative) brackets — highest crossed threshold's rate applies to the whole amount; combined-rate **components** (state+county+city sum, per-component breakdown in results/preview); **rounding** rules (normal/down/up + precision like 0.05/1); new condition fields `tax_status` + `employment_type`; new `evaluateConditionalRate` + `roundTo` exports.
+3. **Payroll parity** (`payroll-pipeline.ts` + `statutory-rule-resolver.ts`): `calculatePayeForJurisdiction` honors cumulative bands; component rates map to summed flat bands; **per-employee conditional statutory rules** — a user-configured conditional PAYE/social-security/WHT rule resolves against each employee's tax status (non-citizen rates are now real, no redeploy). `groupConfiguredRawConfigs` + `conditionalStatutoryRuleOverride` exported.
+4. **Router/UI**: `tax-config` zod schemas mirror components + rounding (preview returns component breakdown); payroll `createEmployee`/`updateEmployee` accept `taxStatus`; **Settings → Taxes** gains the 14 new labels, a combined-rate components editor, rounding controls (mode + precision), band "Whole amount" (edge) toggle, and Tax status / Employment type condition fields; **Add employee** dialog gains a Tax status select.
+5. **Presets**: **UK (GB)** — VAT 20%, PAYE 20/40/45 bands, NIC 8%+13.8%, CIT 25%, WHT 20%; **South Africa (ZA)** — VAT 15%, SARS PAYE bands, UIF 1%+1% (cap R17,711), SDL 1% (first `payroll_tax` preset), CIT 27%, dividends WHT 20%; **US sales-tax preset upgraded to components** (State 4% + City 4.5% + MCTD 0.375% = 8.875%). Catalog now 8 countries.
+6. **Tests**: 26 new engine tests (components, rounding, cumulative edges, tax_status/employment_type, evaluateConditionalRate), resolver tests (component mapping + raw-config grouping), 6 payroll conditional tests (non-resident PAYE + non-citizen social security through the statutory calc), preset-catalog integrity extended for the new families + integer band boundaries.
+
+**Verification:** web typecheck ✓ · agents + web tax suites **56/56 + 36/36** ✓ · **full web suite 634 passed / 1 skipped** ✓ · **production build ✓** · migration generated (`0028`) · pre-existing/environmental failures confirmed outside changed files (db ESM directory-import errors, LLM-dependent model-call tests). Code review applied. Tax work committed separately from the unrelated simulation-provider WIP left in the working tree.
+
+---
+
 ### [2026-08-11] — Live AI Command Center gets the simulation-style "thinking" reveal (tool traces + agent feed)
 
 **Agent:** Buffy (Autonomous Engineer)

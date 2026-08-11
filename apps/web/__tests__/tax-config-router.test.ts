@@ -143,6 +143,27 @@ describe("taxConfigRouter", () => {
       });
     });
 
+    it("returns a per-component breakdown for combined rates", async () => {
+      const caller = makeCaller();
+      const result = await caller.taxConfig.preview({
+        rateConfig: {
+          type: "rate",
+          components: [
+            { name: "State", rate: 0.04 },
+            { name: "City", rate: 0.045 },
+            { name: "MCTD", rate: 0.00375 },
+          ],
+        },
+        amount: 1000,
+      });
+      expect(result.amount).toBe(88.75);
+      expect(result.componentBreakdown).toHaveLength(3);
+      expect(result.componentBreakdown[0]).toMatchObject({
+        name: "State",
+        amount: 40,
+      });
+    });
+
     it("rejects an invalid rate config", async () => {
       const caller = makeCaller();
       await expect(
@@ -180,6 +201,37 @@ describe("taxConfigRouter", () => {
         id: "11111111-1111-4111-8111-111111111111",
         version: 1,
       });
+    });
+
+    it("accepts a components-only combined rate (state+county+city)", async () => {
+      (
+        db as unknown as { returning: ReturnType<typeof vi.fn> }
+      ).returning.mockResolvedValue([
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          entityId,
+          country: "US",
+          ruleType: "sales_tax",
+          version: 1,
+          status: "active",
+        } as never,
+      ]);
+      const caller = makeCaller();
+      const result = await caller.taxConfig.createRule({
+        country: "US",
+        ruleType: "sales_tax",
+        name: "NYC Sales Tax",
+        rateConfig: {
+          type: "rate",
+          components: [
+            { name: "State", rate: 0.04 },
+            { name: "City", rate: 0.045 },
+            { name: "MCTD", rate: 0.00375 },
+          ],
+        },
+        effectiveFrom: "2026-01-01",
+      });
+      expect(result).toMatchObject({ version: 1 });
     });
 
     it("blocks non-owner/admin roles", async () => {

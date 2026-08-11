@@ -18,9 +18,13 @@
 // inputs) and results are rounded to 2 decimals like every other amount in
 // the ledger.
 
-import type { TaxRateConfig } from "@xenboox/db/schema/tax-compliance";
+import type {
+  TaxRateComponent,
+  TaxRateConfig,
+  TaxRounding,
+} from "@xenboox/db/schema/tax-compliance";
 
-export type { TaxRateConfig };
+export type { TaxRateComponent, TaxRateConfig, TaxRounding };
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +59,10 @@ export interface TaxContext {
   productCategory?: string;
   customerType?: string;
   location?: string;
+  /** Residency / citizenship status — enables non-citizen tax rules. */
+  taxStatus?: string;
+  /** Employment type (full_time / part_time / contractor / intern). */
+  employmentType?: string;
   /** Transaction date (YYYY-MM-DD) for effective-dating overrides. */
   date?: string;
 }
@@ -72,6 +80,12 @@ export interface TaxResult {
     rate: number;
     amount: number;
   }>;
+  /** Per-component amounts for combined rates (state + county + city). */
+  componentBreakdown?: Array<{
+    name: string;
+    rate: number;
+    amount: number;
+  }>;
 }
 
 export interface SplitResult {
@@ -84,12 +98,60 @@ export interface SplitResult {
 // products like 250.5 * 0.15 = 37.574999… round to 37.58, not 37.57.
 const round2 = (n: number): number => Math.round(n * 100 + 1e-9) / 100;
 
+/**
+ * Applies a configured rounding rule (Dynamics-style round-off type + precision)
+ * to a tax amount. precision is a currency step: 0.01 (cents), 0.05, 1 (whole
+ * units). Without a rule, falls back to half-up 2-decimal rounding.
+ */
+export function roundTo(amount: number, rounding?: TaxRounding): number {
+  if (!rounding || !rounding.precision || rounding.precision <= 0) {
+    return round2(amount);
+  }
+  const p = rounding.precision;
+  switch (rounding.mode) {
+    case "down":
+      return Math.floor(amount / p + 1e-9) * p;
+    case "up":
+      return Math.ceil(amount / p - 1e-9) * p;
+    case "normal":
+    default:
+      return Math.round(amount / p + 1e-9) * p;
+  }
+}
+
 // ─── Band computation ───────────────────────────────────────────────────────
 
 function computeBands(
   amount: number,
   bands: NonNullable<TaxRateConfig["bands"]>,
+  rounding?: TaxRounding,
 ): TaxResult {
+  // Edge semantics (cumulative: true): once the amount crosses a band's
+  // lower bound, that band's rate applies to the WHOLE amount — the classic
+  // "anything above X gets Y%" shape. When several cumulative bands are
+  // crossed, the highest threshold wins.
+  let edgeBand: (typeof bands)[number] | null = null;
+  for (const band of bands) {
+    if (band.cumulative && amount > band.from) edgeBand = band;
+  }
+  if (edgeBand) {
+    const tax = amount * edgeBand.rate;
+    return {
+      amount: roundTo(tax, rounding),
+      method: "bands",
+      effectiveRate: edgeBand.rate,
+      breakdown: [
+        {
+          from: edgeBand.from,
+          to: edgeBand.to,
+          rate: edgeBand.rate,
+          amount: round2(tax),
+        },
+      ],
+    };
+  }
+
+  // Progressive semantics (default): each band taxes only the slice inside it.
   let tax = 0;
   const breakdown: TaxResult["breakdown"] = [];
 
@@ -111,7 +173,7 @@ function computeBands(
     if (band.to !== null && amount <= band.to) break;
   }
 
-  return { amount: round2(tax), method: "bands", breakdown };
+  return { amount: roundTo(tax, rounding), method: "bands", breakdown };
 }
 
 // ─── Conditional computation ────────────────────────────────────────────────
@@ -130,6 +192,12 @@ function conditionMatches(
       break;
     case "location":
       actual = ctx.location;
+      break;
+    case "tax_status":
+      actual = ctx.taxStatus;
+      break;
+    case "employment_type":
+      actual = ctx.employmentType;
       break;
     case "amount":
       // amount conditions are handled by the caller with the numeric amount
@@ -182,7 +250,7 @@ function computeConditional(
             ? cond.fixedAmount
             : amount * cond.rate;
         return {
-          amount: round2(tax),
+          amount: roundTo(tax, config.rounding),
           method: "conditional",
           effectiveRate: cond.rate,
         };
@@ -190,14 +258,14 @@ function computeConditional(
     }
   }
 
-  // Context conditions (category, customer type, location) pick a rate.
+  // Context conditions (category, customer type, location, tax status…) pick a rate.
   for (const cond of conditions) {
     if (cond.field === "amount") continue;
     if (conditionMatches(cond, ctx)) {
       const tax =
         cond.fixedAmount !== undefined ? cond.fixedAmount : amount * cond.rate;
       return {
-        amount: round2(tax),
+        amount: roundTo(tax, config.rounding),
         method: "conditional",
         effectiveRate: cond.rate,
       };
@@ -208,10 +276,28 @@ function computeConditional(
   const defaultRate = config.rate ?? 0;
   const tax = amount * defaultRate;
   return {
-    amount: round2(tax),
+    amount: roundTo(tax, config.rounding),
     method: "conditional",
     effectiveRate: defaultRate,
   };
+}
+
+/**
+ * The effective rate a conditional rule would apply for a given context
+ * (matching condition's rate, or the default rate when nothing matches).
+ * Non-conditional configs return their flat rate. Used by the payroll
+ * pipeline to resolve per-employee statutory rates from conditional rules.
+ */
+export function evaluateConditionalRate(
+  config: TaxRateConfig,
+  ctx: TaxContext = {},
+): number {
+  if (config.type !== "conditional") return config.rate ?? 0;
+  for (const cond of config.conditions ?? []) {
+    if (cond.field === "amount") continue;
+    if (conditionMatches(cond, ctx)) return cond.rate;
+  }
+  return config.rate ?? 0;
 }
 
 // ─── Override resolution ────────────────────────────────────────────────────
@@ -335,12 +421,31 @@ export function calculateTax(
 
   switch (config.type) {
     case "rate": {
-      const rate = Math.max(0, config.rate ?? 0);
-      return {
-        amount: round2(taxableBase * rate),
-        method: "flat",
-        effectiveRate: rate,
-      };
+      // Combined rates: named components (state + county + city) sum into the
+      // effective rate, with a per-component breakdown for transparency.
+      const components = config.components?.length
+        ? config.components
+        : undefined;
+      const rate = Math.max(
+        0,
+        components
+          ? components.reduce((s, c) => s + c.rate, 0)
+          : (config.rate ?? 0),
+      );
+      const amount = roundTo(taxableBase * rate, config.rounding);
+      if (components) {
+        return {
+          amount,
+          method: "flat",
+          effectiveRate: rate,
+          componentBreakdown: components.map((c) => ({
+            name: c.name,
+            rate: c.rate,
+            amount: round2(taxableBase * c.rate),
+          })),
+        };
+      }
+      return { amount, method: "flat", effectiveRate: rate };
     }
     case "fixed": {
       return {
@@ -349,7 +454,11 @@ export function calculateTax(
       };
     }
     case "bands": {
-      const result = computeBands(taxableBase, config.bands ?? []);
+      const result = computeBands(
+        taxableBase,
+        config.bands ?? [],
+        config.rounding,
+      );
       return { ...result, method: "bands" };
     }
     case "conditional": {

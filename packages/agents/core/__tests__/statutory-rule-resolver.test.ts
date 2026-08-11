@@ -11,6 +11,7 @@ import { describe, it, expect } from "vitest";
 import {
   mapTaxRuleToStatutory,
   mergeConfiguredRules,
+  groupConfiguredRawConfigs,
   type ConfiguredStatutoryRules,
 } from "../statutory-rule-resolver";
 
@@ -90,6 +91,78 @@ describe("mapTaxRuleToStatutory", () => {
     expect(mapped.bands).toEqual([
       { from: 0, to: null, rate: 0.1, cumulative: false },
     ]);
+  });
+
+  it("sums combined-rate components into a single flat band", () => {
+    const mapped = mapTaxRuleToStatutory({
+      id: "rule-4",
+      country: "US",
+      ruleType: "withholding",
+      version: 1,
+      name: "Combined WHT",
+      rateOrBands: {
+        type: "rate",
+        components: [
+          { name: "State", rate: 0.04 },
+          { name: "City", rate: 0.04875 },
+        ],
+      },
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+    });
+    expect(mapped.bands[0]?.rate).toBeCloseTo(0.08875, 5);
+  });
+});
+
+describe("groupConfiguredRawConfigs", () => {
+  it("keeps raw conditional configs per (jurisdiction, role)", () => {
+    const raw = groupConfiguredRawConfigs([
+      {
+        id: "r1",
+        country: "GM",
+        ruleType: "paye",
+        version: 1,
+        name: "PAYE",
+        rateOrBands: {
+          type: "conditional",
+          conditions: [
+            {
+              field: "tax_status",
+              operator: "eq",
+              value: "non_resident",
+              rate: 0.3,
+            },
+          ],
+          rate: 0.1,
+        },
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+      },
+      {
+        id: "r2",
+        country: "GM",
+        ruleType: "social_security",
+        version: 1,
+        name: "SS",
+        rateOrBands: { type: "rate", rate: 0.05 },
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+      },
+      {
+        id: "r3",
+        country: "XX",
+        ruleType: "paye",
+        version: 1,
+        name: "Unknown",
+        rateOrBands: { type: "rate", rate: 0.1 },
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+      },
+    ]);
+
+    expect(Object.keys(raw)).toEqual(["GM"]); // unsupported jurisdiction dropped
+    expect(raw.GM?.paye?.type).toBe("conditional");
+    expect(raw.GM?.socialSecurity?.rate).toBe(0.05);
   });
 });
 

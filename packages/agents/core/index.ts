@@ -331,6 +331,8 @@ export {
   calculateTax,
   calculateSplitContribution,
   resolveRateOverride,
+  evaluateConditionalRate,
+  roundTo,
 } from "./tax-engine";
 export type {
   TaxRateConfig,
@@ -338,6 +340,8 @@ export type {
   TaxResult,
   SplitResult,
   RateOverrideInput,
+  TaxRounding,
+  TaxRateComponent,
 } from "./tax-engine";
 
 // ─── Statutory Rule Resolver ────────────────────────────────
@@ -345,10 +349,13 @@ export {
   mapTaxRuleToStatutory,
   mergeConfiguredRules,
   groupConfiguredRules,
+  groupConfiguredRawConfigs,
+  effectiveFlatRate,
 } from "./statutory-rule-resolver";
 export type {
   DbTaxRuleRow,
   ConfiguredStatutoryRules,
+  ConfiguredRawRules,
 } from "./statutory-rule-resolver";
 
 // ─── Country Tax Preset Catalog ─────────────────────────────
@@ -539,6 +546,7 @@ export {
   getPayrollStatus,
   calculatePayeForJurisdiction,
   calculateSocialSecurityForJurisdiction,
+  conditionalStatutoryRuleOverride,
   STATUTORY_RULES,
 } from "./payroll-pipeline";
 export type {

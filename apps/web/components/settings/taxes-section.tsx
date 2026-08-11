@@ -61,6 +61,20 @@ const RULE_TYPE_LABELS: Record<string, string> = {
   corporate: "Corporate Tax",
   social_security: "Social Security / Pension",
   excise: "Excise Duty",
+  property: "Property Tax",
+  capital_gains: "Capital Gains Tax",
+  customs: "Customs / Import Duty",
+  digital_services: "Digital Services Tax",
+  payroll_tax: "Payroll Tax",
+  wealth: "Wealth Tax",
+  environmental: "Environmental / Carbon Tax",
+  health: "Health Insurance Levy",
+  unemployment: "Unemployment Insurance",
+  tourist: "Tourist / Bed Tax",
+  stamp_duty: "Stamp Duty / Transfer Tax",
+  gift: "Gift Tax",
+  inheritance: "Inheritance / Estate Tax",
+  license_fee: "License / Permit Fee",
   other: "Other Tax",
 };
 
@@ -84,6 +98,8 @@ function describeRate(config: {
   fixedAmount?: number;
   bands?: Array<{ from: number; to: number | null; rate: number }>;
   conditions?: Array<{ field: string; rate: number }>;
+  components?: Array<{ name: string; rate: number }>;
+  rounding?: { mode: string; precision: number };
   employeeRate?: number;
   employerRate?: number;
 }): string {
@@ -92,22 +108,46 @@ function describeRate(config: {
     const er = Math.round((config.employerRate ?? 0) * 1000) / 10;
     return `Employee ${emp}% · Employer ${er}%`;
   }
+  let base: string;
   switch (config.type) {
-    case "rate":
-      return `${Math.round((config.rate ?? 0) * 1000) / 10}%`;
+    case "rate": {
+      if (config.components?.length) {
+        const parts = config.components.map(
+          (c) => `${c.name} ${Math.round(c.rate * 1000) / 10}%`,
+        );
+        const total = config.components.reduce((s, c) => s + c.rate, 0);
+        base = `${parts.join(" + ")} = ${Math.round(total * 1000) / 10}%`;
+      } else {
+        base = `${Math.round((config.rate ?? 0) * 1000) / 10}%`;
+      }
+      break;
+    }
     case "fixed":
-      return `${config.fixedAmount ?? 0} per transaction`;
+      base = `${config.fixedAmount ?? 0} per transaction`;
+      break;
     case "bands":
-      return `${config.bands?.length ?? 0} bracket${
+      base = `${config.bands?.length ?? 0} bracket${
         (config.bands?.length ?? 0) === 1 ? "" : "s"
       }`;
+      break;
     case "conditional":
-      return `${config.conditions?.length ?? 0} condition${
+      base = `${config.conditions?.length ?? 0} condition${
         (config.conditions?.length ?? 0) === 1 ? "" : "s"
       }`;
+      break;
     default:
-      return "—";
+      base = "—";
   }
+  if (config.rounding) {
+    const mode =
+      config.rounding.mode === "down"
+        ? "down"
+        : config.rounding.mode === "up"
+          ? "up"
+          : "round";
+    base += ` · ${mode} @ ${config.rounding.precision}`;
+  }
+  return base;
 }
 
 // ─── Rule form state helper ────────────────────────────────────────────────
@@ -116,13 +156,21 @@ type RateConfigInput = {
   type: "rate" | "fixed" | "bands" | "conditional";
   rate?: string;
   fixedAmount?: string;
-  bands?: Array<{ from: string; to: string; rate: string }>;
+  bands?: Array<{
+    from: string;
+    to: string;
+    rate: string;
+    cumulative?: boolean;
+  }>;
   conditions?: Array<{
     field: string;
     operator: string;
     value: string;
     rate: string;
   }>;
+  components?: Array<{ name: string; rate: string }>;
+  roundingMode?: "normal" | "down" | "up";
+  roundingPrecision?: string;
   employeeRate?: string;
   employerRate?: string;
   threshold?: string;
@@ -142,13 +190,20 @@ function parseForm(form: RateConfigInput): {
   type: "rate" | "fixed" | "bands" | "conditional";
   rate?: number;
   fixedAmount?: number;
-  bands?: Array<{ from: number; to: number | null; rate: number }>;
+  bands?: Array<{
+    from: number;
+    to: number | null;
+    rate: number;
+    cumulative?: boolean;
+  }>;
   conditions?: Array<{
     field: string;
     operator: "eq" | "neq" | "gte" | "lte" | "in";
     value: string | number | Array<string | number>;
     rate: number;
   }>;
+  components?: Array<{ name: string; rate: number }>;
+  rounding?: { mode: "normal" | "down" | "up"; precision: number };
   employeeRate?: number;
   employerRate?: number;
   threshold?: number;
@@ -161,6 +216,17 @@ function parseForm(form: RateConfigInput): {
   const employerRate = num(form.employerRate);
   const threshold = num(form.threshold);
   const ceiling = num(form.ceiling);
+
+  const components = (form.components ?? [])
+    .filter((c) => c.name.trim() !== "")
+    .map((c) => ({ name: c.name.trim(), rate: Number(c.rate) || 0 }));
+  const rounding =
+    form.roundingPrecision !== undefined && form.roundingPrecision.trim() !== ""
+      ? {
+          mode: form.roundingMode ?? "normal",
+          precision: Number(form.roundingPrecision) || 0.01,
+        }
+      : undefined;
 
   if (form.type === "fixed") {
     return {
@@ -176,11 +242,13 @@ function parseForm(form: RateConfigInput): {
         from: Number(b.from) || 0,
         to: b.to.trim() === "" ? null : Number(b.to),
         rate: Number(b.rate) || 0,
+        cumulative: b.cumulative ?? false,
       })),
       threshold,
       ceiling,
       employeeRate,
       employerRate,
+      rounding,
     };
   }
   if (form.type === "conditional") {
@@ -195,15 +263,18 @@ function parseForm(form: RateConfigInput): {
       rate: rate ?? 0,
       employeeRate,
       employerRate,
+      rounding,
     };
   }
   return {
     type: "rate",
     rate: rate ?? 0,
+    components: components.length ? components : undefined,
     threshold,
     ceiling,
     employeeRate,
     employerRate,
+    rounding,
   };
 }
 
@@ -511,7 +582,9 @@ export function TaxesSection() {
   };
 
   const startEdit = (rule: (typeof rules)[number]) => {
-    const rc = rule.rateOrBands as RateConfigInput;
+    const rc = rule.rateOrBands as RateConfigInput & {
+      rounding?: { mode: "normal" | "down" | "up"; precision: number };
+    };
     setEditing({ id: rule.id, version: rule.version });
     setRuleName(rule.name);
     setRuleType(rule.ruleType);
@@ -527,7 +600,17 @@ export function TaxesSection() {
         from: String(b.from),
         to: b.to === null ? "" : String(b.to),
         rate: String(b.rate),
+        cumulative: b.cumulative ?? false,
       })),
+      components: (rc.components ?? []).map((c) => ({
+        name: c.name,
+        rate: String(c.rate),
+      })),
+      roundingMode: rc.rounding?.mode ?? "normal",
+      roundingPrecision:
+        rc.rounding?.precision !== undefined
+          ? String(rc.rounding.precision)
+          : "",
       conditions: (rc.conditions ?? []).map((c) => ({
         field: c.field,
         operator: c.operator,
@@ -615,7 +698,11 @@ export function TaxesSection() {
     }
   };
 
-  const setBand = (i: number, field: "from" | "to" | "rate", value: string) => {
+  const setBand = (
+    i: number,
+    field: "from" | "to" | "rate" | "cumulative",
+    value: string | boolean,
+  ) => {
     setForm((f) => {
       const bands = [...(f.bands ?? [])];
       bands[i] = { ...bands[i], [field]: value };
@@ -660,6 +747,26 @@ export function TaxesSection() {
     setForm((f) => ({
       ...f,
       conditions: (f.conditions ?? []).filter((_, idx) => idx !== i),
+    }));
+
+  const setComponent = (i: number, field: "name" | "rate", value: string) => {
+    setForm((f) => {
+      const components = [...(f.components ?? [])];
+      components[i] = { ...components[i], [field]: value };
+      return { ...f, components };
+    });
+  };
+
+  const addComponent = () =>
+    setForm((f) => ({
+      ...f,
+      components: [...(f.components ?? []), { name: "", rate: "" }],
+    }));
+
+  const removeComponent = (i: number) =>
+    setForm((f) => ({
+      ...f,
+      components: (f.components ?? []).filter((_, idx) => idx !== i),
     }));
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -936,31 +1043,88 @@ export function TaxesSection() {
               </div>
 
               {form.type === "rate" && (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label>Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={form.rate ?? ""}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, rate: e.target.value }))
-                      }
-                      className="mt-1"
-                    />
+                <div className="mt-3 space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label>Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={form.rate ?? ""}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, rate: e.target.value }))
+                        }
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Exemption threshold (below = no tax)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={form.threshold ?? ""}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, threshold: e.target.value }))
+                        }
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label>Exemption threshold (below = no tax)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={form.threshold ?? ""}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, threshold: e.target.value }))
-                      }
-                      className="mt-1"
-                    />
+
+                  {/* Combined rate components (state + county + city) */}
+                  <div className="rounded-lg border border-border/50 bg-card/60 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Combined rate components (optional)
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={addComponent}
+                        className="-my-1"
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Add
+                      </Button>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Sum several rates into one — e.g. State 4% + City 4.5% +
+                      MCTD 0.375% = 8.875% sales tax.
+                    </p>
+                    {(form.components ?? []).length > 0 && (
+                      <div className="mt-2 space-y-2">
+                        {(form.components ?? []).map((c, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <Input
+                              placeholder="Component (e.g. State)"
+                              value={c.name}
+                              onChange={(e) =>
+                                setComponent(i, "name", e.target.value)
+                              }
+                              className="flex-1"
+                            />
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              placeholder="%"
+                              value={c.rate}
+                              onChange={(e) =>
+                                setComponent(i, "rate", e.target.value)
+                              }
+                              className="w-24"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeComponent(i)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -997,7 +1161,7 @@ export function TaxesSection() {
               {form.type === "bands" && (
                 <div className="mt-3 space-y-2">
                   {(form.bands ?? []).map((band, i) => (
-                    <div key={i} className="flex items-center gap-2">
+                    <div key={i} className="flex flex-wrap items-center gap-2">
                       <Input
                         type="number"
                         placeholder="From"
@@ -1021,6 +1185,17 @@ export function TaxesSection() {
                         onChange={(e) => setBand(i, "rate", e.target.value)}
                         className="w-24"
                       />
+                      <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={band.cumulative ?? false}
+                          onChange={(e) =>
+                            setBand(i, "cumulative", e.target.checked)
+                          }
+                          className="accent-primary"
+                        />
+                        Whole amount
+                      </label>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1035,7 +1210,8 @@ export function TaxesSection() {
                   </Button>
                   <p className="text-[11px] text-muted-foreground">
                     Each bracket taxes only the slice that falls inside it
-                    (progressive brackets, like PAYE).
+                    (progressive brackets, like PAYE). Tick “Whole amount” for
+                    edge rates — “anything above X gets Y%”.
                   </p>
                 </div>
               )}
@@ -1060,6 +1236,10 @@ export function TaxesSection() {
                           </SelectItem>
                           <SelectItem value="location">Location</SelectItem>
                           <SelectItem value="amount">Amount</SelectItem>
+                          <SelectItem value="tax_status">Tax status</SelectItem>
+                          <SelectItem value="employment_type">
+                            Employment type
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <Select
@@ -1107,6 +1287,63 @@ export function TaxesSection() {
                   <Button variant="outline" size="sm" onClick={addCondition}>
                     <Plus className="mr-1 h-3.5 w-3.5" /> Add condition
                   </Button>
+                </div>
+              )}
+
+              {/* Rounding (VAT-style round-off rules) */}
+              {form.type !== "fixed" && (
+                <div className="mt-4 rounded-lg border border-border/50 bg-card/60 p-3">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Rounding (optional)
+                  </Label>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs">Mode</Label>
+                      <Select
+                        value={form.roundingMode ?? "normal"}
+                        onValueChange={(v) =>
+                          setForm((f) => ({
+                            ...f,
+                            roundingMode: v as "normal" | "down" | "up",
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">
+                            Normal (half-up)
+                          </SelectItem>
+                          <SelectItem value="down">Round down</SelectItem>
+                          <SelectItem value="up">Round up</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">
+                        Precision (e.g. 0.05, 1)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        min="0.001"
+                        placeholder="0.01"
+                        value={form.roundingPrecision ?? ""}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            roundingPrecision: e.target.value,
+                          }))
+                        }
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Leave blank to round to 2 decimals. Many VAT regimes round
+                    to the nearest 0.05 or whole unit.
+                  </p>
                 </div>
               )}
 
@@ -1208,6 +1445,16 @@ export function TaxesSection() {
                             {previewResult.split.employer.toLocaleString()}
                           </span>
                         )}
+                        {previewResult.componentBreakdown?.length ? (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ·{" "}
+                            {previewResult.componentBreakdown
+                              .map(
+                                (c) => `${c.name} ${c.amount.toLocaleString()}`,
+                              )
+                              .join(" + ")}
+                          </span>
+                        ) : null}
                       </>
                     ) : null}
                   </div>

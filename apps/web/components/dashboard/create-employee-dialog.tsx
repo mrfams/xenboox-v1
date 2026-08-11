@@ -18,6 +18,14 @@ interface CreateEmployeeDialogProps {
 
 const EMPLOYMENT_TYPES = ["full_time", "part_time", "contractor", "intern"];
 
+const TAX_STATUSES = [
+  { value: "resident", label: "Resident" },
+  { value: "non_resident", label: "Non-resident" },
+  { value: "citizen", label: "Citizen" },
+  { value: "non_citizen", label: "Non-citizen" },
+  { value: "tax_exempt", label: "Tax exempt" },
+];
+
 const defaultEmployeeNumber = () =>
   `EMP-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
 
@@ -40,6 +48,7 @@ export function CreateEmployeeDialog({
   const [bankName, setBankName] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [taxId, setTaxId] = useState("");
+  const [taxStatus, setTaxStatus] = useState("resident");
   const [basicSalary, setBasicSalary] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +63,7 @@ export function CreateEmployeeDialog({
       setBankName("");
       setBankAccountNumber("");
       setTaxId("");
+      setTaxStatus("resident");
       setBasicSalary("");
       setEmployeeNumber(defaultEmployeeNumber());
       onClose();
@@ -83,6 +93,7 @@ export function CreateEmployeeDialog({
       bankName: bankName.trim() || undefined,
       bankAccountNumber: bankAccountNumber.trim() || undefined,
       taxId: taxId.trim() || undefined,
+      taxStatus: taxStatus as "resident",
       basicSalary: parseFloat(basicSalary || "0").toFixed(2),
     });
   };
@@ -273,17 +284,39 @@ export function CreateEmployeeDialog({
           </div>
         </div>
 
-        <div>
-          <label className={modalLabelCls} htmlFor="emp-tax">
-            Tax ID (optional)
-          </label>
-          <input
-            id="emp-tax"
-            value={taxId}
-            onChange={(e) => setTaxId(e.target.value)}
-            placeholder="NIN / TIN"
-            className={modalInputCls}
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={modalLabelCls} htmlFor="emp-tax">
+              Tax ID (optional)
+            </label>
+            <input
+              id="emp-tax"
+              value={taxId}
+              onChange={(e) => setTaxId(e.target.value)}
+              placeholder="NIN / TIN"
+              className={modalInputCls}
+            />
+          </div>
+          <div>
+            <label className={modalLabelCls} htmlFor="emp-tax-status">
+              Tax status
+            </label>
+            <select
+              id="emp-tax-status"
+              value={taxStatus}
+              onChange={(e) => setTaxStatus(e.target.value)}
+              className={modalSelectCls}
+            >
+              {TAX_STATUSES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-400">
+              Enables non-citizen / non-resident tax rules in payroll.
+            </p>
+          </div>
         </div>
       </div>
 

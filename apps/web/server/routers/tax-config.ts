@@ -54,15 +54,28 @@ const conditionSchema = z.object({
   fixedAmount: z.number().min(0).optional(),
 });
 
+const roundingSchema = z.object({
+  mode: z.enum(["normal", "down", "up"]),
+  precision: z.number().positive(),
+});
+
+const componentSchema = z.object({
+  name: z.string().min(1).max(80),
+  rate: z.number().min(0).max(1),
+});
+
 const rateConfigSchema: z.ZodType<TaxRateConfig> = z
   .discriminatedUnion("type", [
     z.object({
       type: z.literal("rate"),
       rate: z.number().min(0).max(1).optional(),
+      // Combined rate: named sub-rates (state + county + city) summed.
+      components: z.array(componentSchema).optional(),
       threshold: z.number().min(0).optional(),
       ceiling: z.number().min(0).optional(),
       employeeRate: z.number().min(0).max(1).optional(),
       employerRate: z.number().min(0).max(1).optional(),
+      rounding: roundingSchema.optional(),
     }),
     z.object({
       type: z.literal("fixed"),
@@ -76,6 +89,7 @@ const rateConfigSchema: z.ZodType<TaxRateConfig> = z
       ceiling: z.number().min(0).optional(),
       employeeRate: z.number().min(0).max(1).optional(),
       employerRate: z.number().min(0).max(1).optional(),
+      rounding: roundingSchema.optional(),
     }),
     z.object({
       type: z.literal("conditional"),
@@ -84,17 +98,24 @@ const rateConfigSchema: z.ZodType<TaxRateConfig> = z
       threshold: z.number().min(0).optional(),
       employeeRate: z.number().min(0).max(1).optional(),
       employerRate: z.number().min(0).max(1).optional(),
+      rounding: roundingSchema.optional(),
     }),
   ])
   .superRefine((v, ctx) => {
-    // A rate rule needs either a combined rate or a split pair (or both).
-    // This is what allows social-security-style employer/employee rules.
-    if (v.type === "rate" && v.rate === undefined) {
-      if (v.employeeRate === undefined && v.employerRate === undefined) {
+    // A rate rule needs a combined rate, named components, or a split pair
+    // (or a mix). This is what allows social-security-style employer/employee
+    // rules and state+county+city component sums without a base rate.
+    if (v.type === "rate") {
+      const hasRate = v.rate !== undefined;
+      const hasComponents = (v.components?.length ?? 0) > 0;
+      const hasSplit =
+        v.employeeRate !== undefined || v.employerRate !== undefined;
+      if (!hasRate && !hasComponents && !hasSplit) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["rate"],
-          message: "Provide a rate, or employer/employee rates for a split",
+          message:
+            "Provide a rate, rate components, or employer/employee rates",
         });
       }
     }
@@ -646,6 +667,7 @@ export const taxConfigRouter = router({
         method: result.method,
         effectiveRate: result.effectiveRate ?? null,
         breakdown: result.breakdown ?? [],
+        componentBreakdown: result.componentBreakdown ?? [],
         split,
       };
     }),

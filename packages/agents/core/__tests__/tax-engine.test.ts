@@ -10,6 +10,7 @@ import { describe, it, expect } from "vitest";
 import {
   calculateTax,
   calculateSplitContribution,
+  evaluateConditionalRate,
   resolveRateOverride,
   type TaxContext,
   type TaxRateConfig,
@@ -241,6 +242,172 @@ describe("rate overrides", () => {
       appliesToId: "cus-01",
     });
     expect(override).toBeNull();
+  });
+});
+
+// ─── Combined rate components (state + county + city) ───────────────────────
+
+describe("combined rate components", () => {
+  const nyc: TaxRateConfig = {
+    type: "rate",
+    components: [
+      { name: "State", rate: 0.04 },
+      { name: "City", rate: 0.045 },
+      { name: "MCTD", rate: 0.00375 },
+    ],
+  };
+
+  it("sums component rates into the effective rate", () => {
+    const result = calculateTax(nyc, 1000);
+    expect(result.amount).toBe(88.75);
+    expect(result.effectiveRate).toBeCloseTo(0.08875, 5);
+  });
+
+  it("returns a per-component breakdown that sums to the total", () => {
+    const result = calculateTax(nyc, 1000);
+    expect(result.componentBreakdown).toHaveLength(3);
+    const sum = result.componentBreakdown!.reduce((s, c) => s + c.amount, 0);
+    expect(sum).toBeCloseTo(88.75, 2);
+    expect(result.componentBreakdown![0]).toMatchObject({
+      name: "State",
+      rate: 0.04,
+      amount: 40,
+    });
+  });
+});
+
+// ─── Rounding rules (round-off type + precision) ────────────────────────────
+
+describe("rounding rules", () => {
+  it("rounds normal to the nearest precision step", () => {
+    const config: TaxRateConfig = {
+      type: "rate",
+      rate: 0.1,
+      rounding: { mode: "normal", precision: 1 },
+    };
+    expect(calculateTax(config, 12.34).amount).toBe(1); // 1.234 → 1
+    expect(calculateTax(config, 15.5).amount).toBe(2); // 1.55 → 2
+  });
+
+  it("rounds down and up", () => {
+    const down: TaxRateConfig = {
+      type: "rate",
+      rate: 0.1,
+      rounding: { mode: "down", precision: 1 },
+    };
+    const up: TaxRateConfig = {
+      type: "rate",
+      rate: 0.1,
+      rounding: { mode: "up", precision: 1 },
+    };
+    expect(calculateTax(down, 15.5).amount).toBe(1);
+    expect(calculateTax(up, 15.1).amount).toBe(2);
+  });
+
+  it("rounds to the nearest 0.05 (common VAT step)", () => {
+    const config: TaxRateConfig = {
+      type: "rate",
+      rate: 0.15,
+      rounding: { mode: "normal", precision: 0.05 },
+    };
+    // 100.33 * 0.15 = 15.0495 → 15.05
+    expect(calculateTax(config, 100.33).amount).toBeCloseTo(15.05, 2);
+  });
+
+  it("defaults to 2-decimal half-up rounding without a rule", () => {
+    const config: TaxRateConfig = { type: "rate", rate: 0.15 };
+    expect(calculateTax(config, 250.5).amount).toBe(37.58);
+  });
+});
+
+// ─── Edge (cumulative) brackets — "anything above X gets Y%" ──────────────
+
+describe("edge (cumulative) brackets", () => {
+  it("applies the rate to the whole amount once the threshold is crossed", () => {
+    const config: TaxRateConfig = {
+      type: "bands",
+      bands: [
+        { from: 0, to: 10, rate: 0 },
+        { from: 10, to: null, rate: 0.2, cumulative: true },
+      ],
+    };
+    expect(calculateTax(config, 5).amount).toBe(0);
+    expect(calculateTax(config, 100).amount).toBe(20); // whole amount, not the slice
+  });
+
+  it("picks the highest crossed cumulative band", () => {
+    const config: TaxRateConfig = {
+      type: "bands",
+      bands: [
+        { from: 0, to: 10, rate: 0 },
+        { from: 10, to: 50, rate: 0.2, cumulative: true },
+        { from: 50, to: null, rate: 0.3, cumulative: true },
+      ],
+    };
+    expect(calculateTax(config, 30).amount).toBe(6); // 30 @ 20%
+    expect(calculateTax(config, 100).amount).toBe(30); // 100 @ 30%
+  });
+
+  it("keeps progressive slicing for non-cumulative bands", () => {
+    const config: TaxRateConfig = {
+      type: "bands",
+      bands: [
+        { from: 0, to: 1000, rate: 0 },
+        { from: 1000, to: 2000, rate: 0.1 },
+        { from: 2000, to: null, rate: 0.2 },
+      ],
+    };
+    expect(calculateTax(config, 3000).amount).toBeCloseTo(300, 2);
+  });
+});
+
+// ─── Residency & employment-type conditions (non-citizens) ──────────────────
+
+describe("residency & employment-type conditions", () => {
+  const nonCitizenWht: TaxRateConfig = {
+    type: "conditional",
+    conditions: [
+      { field: "tax_status", operator: "eq", value: "non_resident", rate: 0.3 },
+      { field: "tax_status", operator: "eq", value: "non_citizen", rate: 0.2 },
+      {
+        field: "employment_type",
+        operator: "eq",
+        value: "contractor",
+        rate: 0.15,
+      },
+    ],
+    rate: 0.1, // default for residents
+  };
+
+  it("applies the matching tax_status rate", () => {
+    expect(
+      calculateTax(nonCitizenWht, 1000, { taxStatus: "non_resident" }).amount,
+    ).toBe(300);
+    expect(
+      calculateTax(nonCitizenWht, 1000, { taxStatus: "non_citizen" }).amount,
+    ).toBe(200);
+  });
+
+  it("matches employment_type", () => {
+    expect(
+      calculateTax(nonCitizenWht, 1000, { employmentType: "contractor" })
+        .amount,
+    ).toBe(150);
+  });
+
+  it("falls back to the default rate for residents", () => {
+    expect(
+      calculateTax(nonCitizenWht, 1000, { taxStatus: "resident" }).amount,
+    ).toBe(100);
+  });
+
+  it("evaluateConditionalRate returns the effective rate for context", () => {
+    expect(
+      evaluateConditionalRate(nonCitizenWht, { taxStatus: "non_resident" }),
+    ).toBe(0.3);
+    expect(
+      evaluateConditionalRate(nonCitizenWht, { taxStatus: "resident" }),
+    ).toBe(0.1);
   });
 });
 

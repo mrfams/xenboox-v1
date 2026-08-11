@@ -31,6 +31,20 @@ export const taxRuleTypeEnum = pgEnum("tax_rule_type", [
   "corporate",
   "social_security",
   "excise",
+  "property",
+  "capital_gains",
+  "customs",
+  "digital_services",
+  "payroll_tax",
+  "wealth",
+  "environmental",
+  "health",
+  "unemployment",
+  "tourist",
+  "stamp_duty",
+  "gift",
+  "inheritance",
+  "license_fee",
   "other",
 ]);
 
@@ -77,17 +91,38 @@ export const taxPackageStatusEnum = pgEnum("tax_package_status", [
 //   employeeRate / employerRate — split contributions (social security,
 //                 pension) so a company can opt to pay the employee's share.
 
+/** A named sub-rate inside a combined rate (state + county + city → one rate). */
+export type TaxRateComponent = {
+  /** Component label, e.g. "State", "County", "City". */
+  name: string;
+  /** Component rate (0.04 = 4%). */
+  rate: number;
+};
+
+/**
+ * Rounding applied to the computed tax amount (Dynamics-style round-off rules).
+ * precision is a currency step, e.g. 0.01 (cents), 0.05, 1 (whole units).
+ */
+export type TaxRounding = {
+  mode: "normal" | "down" | "up";
+  precision: number;
+};
+
 export type TaxRateConfig = {
   type: "rate" | "fixed" | "bands" | "conditional";
   // Flat percentage (0.15 = 15%)
   rate?: number;
+  // Combined rate: named sub-rates summed into the effective rate
+  // (e.g. state 4% + city 4.5% + MCTD 0.375% → 8.875% sales tax).
+  components?: Array<TaxRateComponent>;
   // Fixed amount per transaction
   fixedAmount?: number;
-  // Progressive/edge brackets
+  // Progressive (slice) / edge (cumulative) brackets
   bands?: Array<{
     from: number;
     to: number | null;
     rate: number;
+    /** When true the band rate applies to the WHOLE amount once crossed (edge). */
     cumulative?: boolean;
   }>;
   // Conditional rates keyed on context
@@ -97,6 +132,8 @@ export type TaxRateConfig = {
       | "customer_type"
       | "amount"
       | "location"
+      | "tax_status"
+      | "employment_type"
       | string;
     operator: "eq" | "neq" | "gte" | "lte" | "in";
     value: string | number | Array<string | number>;
@@ -110,6 +147,8 @@ export type TaxRateConfig = {
   // Employer / employee split for contribution taxes
   employeeRate?: number;
   employerRate?: number;
+  // Rounding for the computed tax amount (all percentage-based types)
+  rounding?: TaxRounding;
 };
 
 export const jurisdictionTaxRules = pgTable(
