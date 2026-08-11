@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xenboox Agentic Flow</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #4F46E5;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #4F46E5;
+            margin-top: 40px;
+        }
+        .diagram {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #4F46E5;
+            color: white;
+            font-weight: 600;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧠 Xenboox Agentic Flow</h1>
+    <p><strong>19 agents across 3 tiers</strong> — AI-native, full-stack accounting platform</p>
+
+    <div class="section">
+        <h2>3-Tier Hierarchy</h2>
+        <div class="diagram">
+            <div class="mermaid">
+flowchart TD
+    Human["👤 Human User"]
+    
+    subgraph Tier1["Tier 1 — Strategic"]
+        CFO["🧠 CFO Agent<br/>Sonnet 4.6<br/>chat, question, close_trigger"]
+    end
+    
+    subgraph Tier2["Tier 2 — Management (Department Heads)"]
+        Controller["📊 Controller Agent<br/>Sonnet 4.6<br/>GL Integrity"]
+        Treasury["💰 Treasury Agent<br/>Sonnet 4.6<br/>Cash & Banking"]
+        PayrollMgr["👔 Payroll Manager<br/>Sonnet 4.6<br/>Payroll"]
+        Compliance["⚖️ Compliance Agent<br/>Sonnet 4.6<br/>Tax & Audit"]
+    end
+    
+    subgraph Tier3a["Tier 3 — Controller Dept Workers"]
+        Ledger["📒 Ledger Agent*<br/>Sonnet 4.6<br/>GL Posting (Single Point of Entry)"]
+        AP["📥 AP Agent<br/>Sonnet 4.6<br/>process_ap_invoice"]
+        AR["📤 AR Agent<br/>Haiku+Sonnet<br/>ar_aging, match_payment"]
+        Asset["🏦 Asset Agent<br/>depreciation, asset_register"]
+        Inventory["📦 Inventory Agent<br/>cogs, inventory_summary"]
+    end
+    
+    subgraph Tier3b["Tier 3 — Treasury Dept Workers"]
+        Recon["🔄 Reconciliation Agent<br/>Sonnet 4.6<br/>bank_reconciliation"]
+        Cash["💵 Cash Agent<br/>Haiku+Sonnet<br/>cash_count, imprest"]
+        MobileMoney["📱 Mobile Money Agent<br/>Sonnet 4.6<br/>mm_reconcile, mm_ingest"]
+        Expense["🧾 Expense Agent<br/>submit_expense, approve_expense"]
+    end
+    
+    subgraph Tier3c["Tier 3 — Payroll Dept Workers"]
+        PayrollWorker["⚙️ Payroll Worker<br/>calculate_paye, generate_payslip"]
+    end
+    
+    subgraph Tier3d["Tier 3 — Compliance Dept Workers"]
+        Audit["🔍 Audit Agent<br/>audit_sampling, anomaly_detection"]
+        Tax["🏛️ Tax Agent<br/>tax_review, filing_status"]
+    end
+    
+    subgraph Platform["Platform (Cross-Cutting)"]
+        Reporting["📈 Reporting Agent<br/>report, narrative"]
+        Document["📄 Document Agent<br/>Sonnet 4.6 + Haiku<br/>ingest, classify, extract"]
+        Budget["📉 Budget Agent<br/>variance_analysis, forecast"]
+        Analytics["📊 Analytics Agent<br/>ratios, kpi_dashboard, trends"]
+    end
+    
+    Human -->|instructions| CFO
+    CFO -->|orchestrate| Controller
+    CFO -->|orchestrate| Treasury
+    CFO -->|orchestrate| PayrollMgr
+    CFO -->|orchestrate| Compliance
+    
+    Controller -->|validate & dispatch| Ledger
+    Controller -->|dispatch| AP
+    Controller -->|dispatch| AR
+    Controller -->|dispatch| Asset
+    Controller -->|dispatch| Inventory
+    
+    Treasury -->|dispatch| Recon
+    Treasury -->|dispatch| Cash
+    Treasury -->|dispatch| MobileMoney
+    Treasury -->|dispatch| Expense
+    
+    PayrollMgr -->|dispatch| PayrollWorker
+    Compliance -->|dispatch| Audit
+    Compliance -->|dispatch| Tax
+    
+    CFO -.->|use| Reporting
+    CFO -.->|use| Document
+    CFO -.->|use| Budget
+    CFO -.->|use| Analytics
+    
+    Ledger -->|post to GL| Controller
+    AP -->|journal entries| Controller
+    AR -->|payment match| Controller
+    Recon -->|reconciliation report| Treasury
+    Cash -->|cash report| Treasury
+    Expense -->|expense report| Treasury
+    Audit -->|audit findings| Compliance
+    PayrollWorker -->|payroll complete| PayrollMgr
+    
+    style CFO fill:#4F46E5,color:#fff
+    style Controller fill:#7C3AED,color:#fff
+    style Treasury fill:#059669,color:#fff
+    style PayrollMgr fill:#D97706,color:#fff
+    style Compliance fill:#DC2626,color:#fff
+    style Ledger fill:#1E40AF,color:#fff,stroke:#fff,stroke-width:3px
+    style Platform fill:#6B7280,color:#fff
+            </div>
+        </div>
+        <div class="note">
+            <strong>*Ledger Agent:</strong> Special Tier 3 worker that reports to Controller but is NOT part of any department — it is the single point of entry to the General Ledger.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Communication Rules</h2>
+        <div class="diagram">
+            <div class="mermaid">
+flowchart LR
+    subgraph Rules["Hard Rules"]
+        R1["1. CFO is the ONLY agent<br/>that talks to humans"]
+        R2["2. Workers NEVER talk<br/>to each other directly"]
+        R3["3. Workers report to<br/>their department head"]
+        R4["4. Department heads report<br/>to CFO Agent"]
+        R5["5. Ledger Agent is the ONLY<br/>agent that posts to GL"]
+    end
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Confidence-Based Escalation</h2>
+        <div class="diagram">
+            <div class="mermaid">
+flowchart LR
+    Start["Agent Action"] --> Check{"Confidence?"}
+    Check -->|≥ 0.7| Proceed["✅ Proceed normally"]
+    Check -->|0.4 – 0.7| EscalateSup["⚠️ Escalate to supervisor"]
+    Check -->|< 0.4| EscalateHuman["🛑 Escalate to human"]
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Month-End Close Flow</h2>
+        <div class="diagram">
+            <div class="mermaid">
+sequenceDiagram
+    participant H as Human
+    participant CFO as CFO Agent
+    participant C as Controller
+    participant T as Treasury
+    participant P as Payroll Mgr
+    participant Comp as Compliance
+    participant L as Ledger Agent
+    
+    H->>CFO: Trigger month-end close
+    CFO->>C: Fan out: close_checklist
+    CFO->>T: Fan out: daily_report
+    CFO->>P: Fan out: process_payroll
+    CFO->>Comp: Fan out: filing_status
+    
+    par Parallel Execution
+        C->>C: Run workers (AP, AR, Asset, Inventory)
+        T->>T: Run workers (Recon, Cash, MobileMoney, Expense)
+        P->>P: Run PayrollWorker
+        Comp->>Comp: Run Audit, Tax
+    end
+    
+    C-->>CFO: close_confirmation (clean/has_items/blocked)
+    T-->>CFO: close_confirmation
+    P-->>CFO: close_confirmation
+    Comp-->>CFO: close_confirmation
+    
+    alt All clean (confidence ≥ 0.7)
+        CFO->>H: Present for approval
+        H->>CFO: Approved
+        CFO->>L: Post final entries
+        L-->>CFO: Posted
+        CFO->>CFO: Trigger Reporting Agent
+        CFO->>H: Month-end complete ✅
+    else Any blocked or low confidence
+        CFO->>H: Escalate for review ⚠️
+    end
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Invoice Processing Flow (Example)</h2>
+        <div class="diagram">
+            <div class="mermaid">
+flowchart LR
+    Doc["📄 Document Agent<br/>Ingest PDF"] --> AP["📥 AP Agent<br/>Match PO"]
+    AP --> Controller["📊 Controller Agent<br/>Validate double-entry"]
+    Controller --> Ledger["📒 Ledger Agent<br/>Post to GL"]
+    Ledger --> Controller
+    Controller --> CFO["🧠 CFO Agent<br/>Report to human"]
+    CFO --> Human["👤 Human"]
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>State Machine: Month-End Close</h2>
+        <div class="diagram">
+            <div class="mermaid">
+stateDiagram-v2
+    [*] --> not_started
+    not_started --> collecting_confirmations: CFO triggers close
+    collecting_confirmations --> awaiting_human_approval: All depts clean (≥0.7)
+    collecting_confirmations --> [*]: Any blocked / <0.7 → escalate to human
+    awaiting_human_approval --> approved: Human approves
+    awaiting_human_approval --> [*]: Human rejects
+    approved --> closing: Ledger posts entries
+    closing --> closed: All posted
+    closed --> reopened: Human flags error
+    reopened --> collecting_confirmations: Re-run close
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Observability Stack</h2>
+        <div class="diagram">
+            <div class="mermaid">
+flowchart TD
+    Agent["Every Agent Action"] --> LangFuse["LangFuse<br/>Traces with confidence metadata"]
+    Agent --> AgentActivity["agent_activity table<br/>tier, agent_id, confidence, trace_id"]
+    Agent --> AuditLog["audit_log table<br/>SHA-256 hash chain, append-only"]
+    
+    LangFuse --> Dashboard["Admin Dashboard<br/>/admin/agent-monitor"]
+    AgentActivity --> Dashboard
+    AuditLog --> ActivityPage["/dashboard/activity<br/>Tiered visibility (owner/admin/member)"]
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Department → Agent Mapping</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Department</th>
+                    <th>Tier 2 Head</th>
+                    <th>Tier 3 Workers</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>controller</strong></td>
+                    <td>Controller Agent</td>
+                    <td>Ledger Agent*, AP Agent, AR Agent, Asset Agent, Inventory Agent</td>
+                </tr>
+                <tr>
+                    <td><strong>treasury</strong></td>
+                    <td>Treasury Agent</td>
+                    <td>Reconciliation Agent, Cash Agent, Mobile Money Agent, Expense Agent</td>
+                </tr>
+                <tr>
+                    <td><strong>payroll_manager</strong></td>
+                    <td>Payroll Manager Agent</td>
+                    <td>Payroll Worker Agent</td>
+                </tr>
+                <tr>
+                    <td><strong>compliance</strong></td>
+                    <td>Compliance Agent</td>
+                    <td>Audit Agent, Tax Agent</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="note">
+            <strong>*Ledger Agent:</strong> Special Tier 3 worker that reports to Controller but is NOT part of any department — it is the single point of entry to the GL.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Model Assignment</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tier</th>
+                    <th>Model</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Tier 1 (CFO)</td>
+                    <td>Sonnet 4.6</td>
+                    <td>Strategic decisions, human interaction</td>
+                </tr>
+                <tr>
+                    <td>Tier 2 (Dept Heads)</td>
+                    <td>Sonnet 4.6</td>
+                    <td>Management, quality gates</td>
+                </tr>
+                <tr>
+                    <td>Tier 3 (Workers)</td>
+                    <td>Haiku / Sonnet mix</td>
+                    <td>Execution, sub-ledger operations</td>
+                </tr>
+                <tr>
+                    <td>Platform</td>
+                    <td>Sonnet 4.6</td>
+                    <td>Shared services</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            }
+        });
+    </script>
+</body>
+</html>
