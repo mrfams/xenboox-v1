@@ -17,7 +17,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { AGENTS, type AgentId, type AiUxStep } from "@/lib/ai-ux/types";
-import { useAiUxSimulation } from "@/lib/ai-ux/use-ai-ux-simulation";
+import {
+  useAiUxSimulation,
+  type UseAiUxSimulationResult,
+} from "@/lib/ai-ux/use-ai-ux-simulation";
 import { getAiUxTrace } from "@/lib/ai-ux/traces";
 
 // ─── Per-kind metadata ──────────────────────────────────────────────────────
@@ -181,14 +184,26 @@ export function SimulationOverlay({
   open,
   onClose,
   traceId,
+  simulation,
 }: {
   open: boolean;
   onClose: () => void;
   traceId: string;
+  /**
+   * Optional controlled playback state. When provided the overlay is purely
+   * presentational — the owner (e.g. the global SimulationProvider) runs the
+   * simulation so a minimized run keeps playing. Standalone use falls back to
+   * an internal hook instance.
+   */
+  simulation?: UseAiUxSimulationResult;
 }) {
   const trace = getAiUxTrace(traceId);
+  const internalSimulation = useAiUxSimulation(
+    simulation ? null : open ? traceId : null,
+    simulation ? false : open,
+  );
   const { status, current, settledCount, progress, agents, replay } =
-    useAiUxSimulation(open ? traceId : null, open);
+    simulation ?? internalSimulation;
 
   const feedRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);

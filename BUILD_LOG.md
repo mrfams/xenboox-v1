@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-11] — Global "Agents at work" pill + SimulationProvider (runs survive navigation)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/ai-ux/simulation-provider.tsx`, `apps/web/components/ai-ux/agents-at-work-pill.tsx`, `apps/web/__tests__/simulation-provider.test.tsx`
+**Files Modified:** `apps/web/app/dashboard/layout.tsx`, `apps/web/components/ai-ux/{simulation-overlay,simulation-trigger}.tsx`
+
+**Request:** Add a global "Agents at work" pill to the dashboard layout so any running simulation stays visible across page navigation.
+
+**What was built:**
+
+1. **`SimulationProvider`** (dashboard layout): lifts a simulation run out of the page that started it — `useAiUxSimulation` runs on the provider's `activeTraceId`, so the run keeps playing and stays reachable across route changes. Context exposes `openSimulation` / `minimizeSimulation` / `reopenSimulation` / `dismissSimulation` plus the live run state. Renders the single global `SimulationOverlay` (controlled playback via a new `simulation` prop — the overlay's internal hook is nulled when controlled, so no double run) and the pill.
+2. **`AgentsAtWorkPill`** (bottom-center, fixed): agent avatar roster (first 3 + overflow), live status line from the current step ("Ledger Agent · Posting approved adjustments…"), step counter + progress bar, "Workflow complete" state, dismiss (×) stops the run, click re-opens the overlay. Hidden while the overlay is open. On `/dashboard/chat` it floats above the composer so it never covers what you're typing. `role="status"` + `aria-live="polite"`.
+3. **`AiSimulationTrigger`** now opens the **global** simulation via `useSimulation()` (survives navigation, pill tracks it) with a self-contained local-overlay fallback when no provider exists (unit tests, non-dashboard surfaces). All 26 module-page triggers benefit automatically.
+4. **Tests**: 10 — provider lifecycle (idle → running → minimized-keeps-running → done), pill states (running roster/counter, hidden-when-overlay-open, reopen on click), dismiss clears, **switching traces mid-run restarts cleanly**, trigger uses global sim + local fallback.
+
+**Verification:** web typecheck ✓ · simulation-provider + ai-ux suites **20/20** ✓ · production build ✓ · full web suite includes the 10 provider tests. Code review applied (composer overlap fixed via chat-route offset, trace-switch test added).
+
+---
+
 ### [2026-08-11] — Real thinking reveal in the live AI Command Center (pipeline steps stream as reasoning lines)
 
 **Agent:** Buffy (Autonomous Engineer)

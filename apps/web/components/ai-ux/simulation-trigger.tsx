@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 
+import { useSimulation } from "@/lib/ai-ux/simulation-provider";
 import { SimulationOverlay } from "./simulation-overlay";
 
 import { cn } from "@/lib/utils";
@@ -22,7 +23,10 @@ const VARIANTS: Record<Variant, string> = {
 /**
  * Drop-in trigger that plays an AI-native workflow simulation.
  *
- * Usage anywhere a simulated agent workflow should be demoable:
+ * Inside the dashboard layout the trigger opens the **global** simulation via
+ * SimulationProvider, so the run survives page navigation and the Agents-at-work
+ * pill tracks it. Without a provider (e.g. unit tests) it falls back to a
+ * self-contained local overlay.
  *
  *   <AiSimulationTrigger traceId="month-end-close" label="Run autonomous close" />
  */
@@ -40,13 +44,30 @@ export function AiSimulationTrigger({
   /** Render just the sparkle icon (title carries the label). */
   iconOnly?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const sim = useSimulation();
+  const [localOpen, setLocalOpen] = useState(false);
+
+  const handleClick = () => {
+    if (sim) {
+      sim.openSimulation(traceId);
+    } else {
+      setLocalOpen(true);
+    }
+  };
+
+  const handleClose = () => {
+    if (sim) {
+      sim.minimizeSimulation();
+    } else {
+      setLocalOpen(false);
+    }
+  };
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={handleClick}
         title={iconOnly ? label : undefined}
         aria-label={iconOnly ? label : undefined}
         className={cn(
@@ -60,11 +81,14 @@ export function AiSimulationTrigger({
         {!iconOnly && label}
       </button>
 
-      <SimulationOverlay
-        open={open}
-        onClose={() => setOpen(false)}
-        traceId={traceId}
-      />
+      {/* Fallback overlay only when no global provider exists. */}
+      {!sim && (
+        <SimulationOverlay
+          open={localOpen}
+          onClose={handleClose}
+          traceId={traceId}
+        />
+      )}
     </>
   );
 }

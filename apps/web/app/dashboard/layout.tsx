@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 
 import { EntityProvider, useEntity } from "@/lib/entity-context";
 import { PermissionProvider, serializePermissions } from "@/lib/permissions";
+import { SimulationProvider } from "@/lib/ai-ux/simulation-provider";
 import { AISidebar } from "@/components/layout/ai-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { ChatPanel } from "@/components/layout/chat-panel";
@@ -98,99 +99,101 @@ export default function DashboardLayout({
       <EntityProvider>
         <WhiteLabelProvider>
           <PermissionAwareLayout>
-            <div data-dashboard className="flex h-screen overflow-hidden">
-              {/* Left Sidebar */}
-              <AISidebar
-                isOpen={sidebarOpen}
-                onClose={() => setSidebarOpen(false)}
-              />
+            <SimulationProvider>
+              <div data-dashboard className="flex h-screen overflow-hidden">
+                {/* Left Sidebar */}
+                <AISidebar
+                  isOpen={sidebarOpen}
+                  onClose={() => setSidebarOpen(false)}
+                />
 
-              {/* Main Content + Right Panel Container */}
-              <div className="flex flex-1 overflow-hidden lg:pl-[var(--sidebar-width)]">
-                {/* Main Content */}
-                <div
-                  className={cn(
-                    "flex flex-col overflow-hidden transition-all duration-300 flex-1",
-                    chatOpen ? "flex-1" : "flex-1",
-                  )}
-                >
-                  <TopNav
-                    onMenuClick={() => setSidebarOpen(true)}
-                    onChatToggle={() => setChatOpen(!chatOpen)}
-                    chatOpen={chatOpen}
-                  />
-                  <main
+                {/* Main Content + Right Panel Container */}
+                <div className="flex flex-1 overflow-hidden lg:pl-[var(--sidebar-width)]">
+                  {/* Main Content */}
+                  <div
                     className={cn(
-                      "flex-1 overflow-y-auto",
-                      isPaddedPage && "p-6",
+                      "flex flex-col overflow-hidden transition-all duration-300 flex-1",
+                      chatOpen ? "flex-1" : "flex-1",
                     )}
                   >
-                    {children}
-                  </main>
-                </div>
-
-                {/* Right Panel Toggle Button (when closed) */}
-                {!chatOpen && (
-                  <button
-                    type="button"
-                    onClick={() => setChatOpen(true)}
-                    className="fixed right-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 rounded-l-lg bg-card border border-r-0 border-border px-2 py-3 shadow-lg hover:bg-accent transition-colors"
-                    title="Open AI Assistant"
-                  >
-                    <PanelRightOpen className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-[10px] font-medium text-muted-foreground writing-vertical-rl">
-                      AI Agent
-                    </span>
-                  </button>
-                )}
-
-                {/* Right Panel */}
-                {chatOpen && (
-                  <>
-                    {/* Drag Handle */}
-                    <div
-                      onMouseDown={handleDragStart}
+                    <TopNav
+                      onMenuClick={() => setSidebarOpen(true)}
+                      onChatToggle={() => setChatOpen(!chatOpen)}
+                      chatOpen={chatOpen}
+                    />
+                    <main
                       className={cn(
-                        "w-1.5 cursor-col-resize bg-border hover:bg-primary/30 transition-colors flex-shrink-0 relative group",
-                        isDragging && "bg-primary/40",
+                        "flex-1 overflow-y-auto",
+                        isPaddedPage && "p-6",
                       )}
                     >
-                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-1 h-8 rounded-full bg-muted-foreground/30" />
-                      </div>
-                    </div>
+                      {children}
+                    </main>
+                  </div>
 
-                    {/* Chat Panel */}
-                    <div
-                      className="flex-shrink-0 border-l bg-card h-full overflow-hidden"
-                      style={{ width: `${panelWidth}px` }}
+                  {/* Right Panel Toggle Button (when closed) */}
+                  {!chatOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setChatOpen(true)}
+                      className="fixed right-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 rounded-l-lg bg-card border border-r-0 border-border px-2 py-3 shadow-lg hover:bg-accent transition-colors"
+                      title="Open AI Assistant"
                     >
-                      <ChatPanel
-                        open={chatOpen}
-                        onClose={() => setChatOpen(false)}
-                      />
-                    </div>
-                  </>
-                )}
+                      <PanelRightOpen className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-[10px] font-medium text-muted-foreground writing-vertical-rl">
+                        AI Agent
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Right Panel */}
+                  {chatOpen && (
+                    <>
+                      {/* Drag Handle */}
+                      <div
+                        onMouseDown={handleDragStart}
+                        className={cn(
+                          "w-1.5 cursor-col-resize bg-border hover:bg-primary/30 transition-colors flex-shrink-0 relative group",
+                          isDragging && "bg-primary/40",
+                        )}
+                      >
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-1 h-8 rounded-full bg-muted-foreground/30" />
+                        </div>
+                      </div>
+
+                      {/* Chat Panel */}
+                      <div
+                        className="flex-shrink-0 border-l bg-card h-full overflow-hidden"
+                        style={{ width: `${panelWidth}px` }}
+                      >
+                        <ChatPanel
+                          open={chatOpen}
+                          onClose={() => setChatOpen(false)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Floating CFO Agent button (when panel is closed) */}
-            {!chatOpen && (
-              <button
-                type="button"
-                onClick={() => setChatOpen(true)}
-                aria-label="Open CFO Agent chat"
-                className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
-              >
-                <Bot className="h-5 w-5" />
-                <span className="hidden sm:inline text-sm font-medium">
-                  CFO Agent
-                </span>
-              </button>
-            )}
+              {/* Floating CFO Agent button (when panel is closed) */}
+              {!chatOpen && (
+                <button
+                  type="button"
+                  onClick={() => setChatOpen(true)}
+                  aria-label="Open CFO Agent chat"
+                  className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+                >
+                  <Bot className="h-5 w-5" />
+                  <span className="hidden sm:inline text-sm font-medium">
+                    CFO Agent
+                  </span>
+                </button>
+              )}
 
-            <Toaster position="top-right" richColors closeButton />
+              <Toaster position="top-right" richColors closeButton />
+            </SimulationProvider>
           </PermissionAwareLayout>
         </WhiteLabelProvider>
       </EntityProvider>
