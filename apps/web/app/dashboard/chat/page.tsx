@@ -43,6 +43,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/shared/loading";
 import {
   useStreamingChat,
+  type ThinkingEvent,
   type ToolTrace,
 } from "@/lib/hooks/use-streaming-chat";
 import { StreamingMessage } from "@/components/workspace/streaming-message";
@@ -1205,6 +1206,7 @@ function ChatMessages({
   streamedContent,
   isStreaming,
   streamingActivities = [],
+  streamingThinking = [],
   streamingToolCalls = [],
   streamingDelegations = [],
   streamingApprovals = [],
@@ -1221,6 +1223,7 @@ function ChatMessages({
     confidence?: number;
     durationMs?: number;
   }>;
+  streamingThinking?: ThinkingEvent[];
   streamingToolCalls?: ToolTrace[];
   streamingDelegations?: Array<{ from: string; to: string; reason: string }>;
   streamingApprovals?: Array<{
@@ -1382,6 +1385,7 @@ function ChatMessages({
           content={streamedContent ?? ""}
           isStreaming={isStreaming}
           agentActivities={streamingActivities}
+          thinkingEvents={streamingThinking}
           toolCalls={streamingToolCalls}
           delegations={streamingDelegations}
           documents={streamingDocuments as any}
@@ -1895,6 +1899,16 @@ function AIWorkspaceContent() {
       durationMs?: number;
     }>
   >([]);
+  const [streamingThinking, setStreamingThinking] = useState<
+    Array<{
+      type: "thinking";
+      agent: string;
+      step?: string;
+      label?: string;
+      text: string;
+      durationMs?: number;
+    }>
+  >([]);
   const [streamingDelegations, setStreamingDelegations] = useState<
     Array<{ type: "delegation"; from: string; to: string; reason: string }>
   >([]);
@@ -1940,6 +1954,9 @@ function AIWorkspaceContent() {
     onAgentActivity: (activity) => {
       setStreamingActivities((prev) => [...prev, activity]);
     },
+    onThinking: (event) => {
+      setStreamingThinking((prev) => [...prev, event]);
+    },
     onDelegation: (delegation) => {
       setStreamingDelegations((prev) => [...prev, delegation]);
     },
@@ -1958,6 +1975,7 @@ function AIWorkspaceContent() {
       }
       // Clear streaming state
       setStreamingActivities([]);
+      setStreamingThinking([]);
       setStreamingDelegations([]);
       setStreamingApprovals([]);
       setStreamingDocuments([]);
@@ -2038,6 +2056,7 @@ function AIWorkspaceContent() {
               streamedContent={streamedContent}
               isStreaming={isStreaming}
               streamingActivities={streamingActivities}
+              streamingThinking={streamingThinking}
               streamingToolCalls={toolTraces}
               streamingDelegations={streamingDelegations}
               streamingApprovals={streamingApprovals}

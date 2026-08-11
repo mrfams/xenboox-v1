@@ -150,6 +150,7 @@ export type {
   DbTaxRuleRow,
   ConfiguredStatutoryRules,
   ConfiguredRawRules,
+  PipelineStepEvent,
   ModelTier,
   ModelRoute,
   ProviderName,

@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-11] — Real thinking reveal in the live AI Command Center (pipeline steps stream as reasoning lines)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `packages/agents/core/pipeline.ts`, `packages/agents/{core,index}.ts` (barrel), `apps/web/app/api/chat/stream/route.ts`, `apps/web/app/dashboard/chat/page.tsx`, `apps/web/components/workspace/{streaming-message,thinking-reveal}.tsx`, `apps/web/lib/hooks/use-streaming-chat.ts`, `apps/web/__tests__/{chat-stream-route,use-streaming-chat}.test.ts`, `apps/web/__tests__/thinking-reveal.test.tsx` (new)
+
+**Request:** Add a "thinking" reveal to the live AI Command Center chat so real streaming answers show the same agentic UX as the simulations.
+
+**What was built:**
+
+1. **Real reasoning data from the real pipeline**: `runCFOPipeline` now emits a `PipelineStepEvent` via a new optional `onStep` callback at every real step — session load, intent classification (actual intent type + confidence + routed agents), permission check, task dispatch (real task names + concurrency), summary aggregation (real clean/flagged counts), conflict detection, confidence gate (real decision), escalation push, and audit logging. `processChatInput` threads the callback through; `emitStep` is try/catch-guarded so a throwing consumer can never break the pipeline.
+2. **Stream route**: emits a `thinking` SSE event on intake, then each pipeline step streams as it completes (all before tokens — no race).
+3. **Client**: `use-streaming-chat` gains `ThinkingEvent` + `thinkingEvents` state + `onThinking` callback (cleared per message); new `ThinkingReveal` component mirrors the simulation UX — shimmer + dots while waiting, then each reasoning line types out (StrictMode-safe typewriter, pure updaters) and settles; the moment the answer streams everything settles, header flips to "Thought process", collapsible with roster chips + dark mode.
+4. **Wiring**: `streaming-message.tsx` shows ThinkingReveal when reasoning lines exist or while streaming-with-no-content (AgentActivityBlock now only renders when it has activity/tools/delegations — no duplicate "Processing…" state); chat page threads `streamingThinking` state.
+5. **Tests**: hook collects/clears thinking events, route streams them, ThinkingReveal shimmer → typewriter → settle-on-content → sequential-typing → collapse → idle-null (6 tests).
+
+**Verification:** web typecheck ✓ · chat/route/activity/ai-ux suites **49/49** ✓ · **full web suite 644 passed / 1 skipped** ✓ · production build ✓. Code review applied (pure typewriter state machine, guarded onStep, sequential-typing test). `pipelines.test.ts` failures are the pre-existing db ESM directory-import environment issue (confirmed unchanged).
+
+---
+
 ### [2026-08-11] — AI simulation triggers across all module pages (7 new pages + 13 new traces + 6 deepened)
 
 **Agent:** Buffy (Autonomous Engineer)

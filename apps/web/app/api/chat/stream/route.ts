@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { conversations, chatMessages, documents } from "@xenboox/db/schema";
-import { processChatInput } from "@xenboox/agents";
+import { processChatInput, type PipelineStepEvent } from "@xenboox/agents";
 
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -262,6 +262,16 @@ export async function POST(req: NextRequest) {
           action: "Processing your request",
         });
 
+        // Thinking reveal — the first reasoning line lands immediately, then
+        // the real pipeline steps stream in as they complete.
+        enqueue({
+          type: "thinking",
+          agent: "CFO Agent",
+          step: "input_intake",
+          label: "Input Intake",
+          text: "Reading your request and loading the entity context…",
+        });
+
         // Invoke the real CFO pipeline — page context rides the same seam as
         // file context, so the agent knows what the user is looking at.
         const fullMessage =
@@ -306,6 +316,18 @@ export async function POST(req: NextRequest) {
               success,
               data: success ? data : undefined,
               timestamp: new Date().toISOString(),
+            });
+          },
+          // Thinking reveal — every real pipeline step (intent classification,
+          // dispatch, confidence gate, …) streams as a reasoning line.
+          onStep: (step: PipelineStepEvent) => {
+            enqueue({
+              type: "thinking",
+              agent: "CFO Agent",
+              step: step.step,
+              label: step.label,
+              text: step.note,
+              durationMs: step.durationMs,
             });
           },
         });

@@ -168,4 +168,60 @@ describe("useStreamingChat", () => {
       expect(result.current.toolTraces).toHaveLength(0);
     });
   });
+
+  it("collects thinking events in order and forwards them to onThinking", async () => {
+    mockFetchStream([
+      {
+        type: "thinking",
+        agent: "CFO Agent",
+        step: "input_intake",
+        text: "Reading your request and loading the entity context…",
+      },
+      {
+        type: "thinking",
+        agent: "CFO Agent",
+        step: "intent_resolution",
+        text: 'Classified as "query" at 90% confidence — routing to CFO Agent.',
+        durationMs: 12,
+      },
+    ]);
+
+    const onThinking = vi.fn();
+    const { result } = renderHook(() =>
+      useStreamingChat({ entityId: "entity-1", onThinking }),
+    );
+    await result.current.sendMessage("What is my cash balance?");
+
+    await waitFor(() => {
+      expect(result.current.thinkingEvents).toHaveLength(2);
+    });
+    expect(result.current.thinkingEvents.map((e) => e.text)).toEqual([
+      "Reading your request and loading the entity context…",
+      'Classified as "query" at 90% confidence — routing to CFO Agent.',
+    ]);
+    expect(onThinking).toHaveBeenCalledTimes(2);
+    expect(onThinking).toHaveBeenLastCalledWith(
+      expect.objectContaining({ step: "intent_resolution" }),
+    );
+  });
+
+  it("clears thinkingEvents at the start of each new message", async () => {
+    mockFetchStream([
+      { type: "thinking", agent: "CFO Agent", text: "First reasoning line." },
+    ]);
+
+    const { result } = renderHook(() =>
+      useStreamingChat({ entityId: "entity-1" }),
+    );
+    await result.current.sendMessage("First");
+    await waitFor(() => {
+      expect(result.current.thinkingEvents).toHaveLength(1);
+    });
+
+    mockFetchStream([]);
+    await result.current.sendMessage("Second");
+    await waitFor(() => {
+      expect(result.current.thinkingEvents).toHaveLength(0);
+    });
+  });
 });

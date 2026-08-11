@@ -30,15 +30,27 @@ vi.mock("@/lib/security/rate-limiter", () => ({
 }));
 
 vi.mock("@xenboox/agents", () => ({
-  processChatInput: vi.fn(async () => ({
-    response: "Your cash balance is GMD 12,500.",
-    confidence: 0.95,
-    durationMs: 120,
-    agentId: "cfo",
-    decision: "answered",
-    escalationItems: [],
-    errors: [],
-  })),
+  processChatInput: vi.fn(
+    async (params?: { onStep?: (step: unknown) => void }) => {
+      // Simulate the real pipeline emitting a live progress step.
+      params?.onStep?.({
+        step: "intent_resolution",
+        label: "Intent & Context Resolution",
+        note: 'Classified as "query" at 90% confidence — routing to CFO Agent.',
+        durationMs: 12,
+        status: "completed",
+      });
+      return {
+        response: "Your cash balance is GMD 12,500.",
+        confidence: 0.95,
+        durationMs: 120,
+        agentId: "cfo",
+        decision: "answered",
+        escalationItems: [],
+        errors: [],
+      };
+    },
+  ),
 }));
 
 // The stream route generates document artifacts when the user asks for one;
@@ -190,6 +202,22 @@ describe("POST /api/chat/stream — conversation persistence", () => {
       status: "completed",
       content: "Your cash balance is GMD 12,500.",
     });
+  });
+
+  it("streams thinking events from the pipeline steps for the thinking reveal", async () => {
+    const res = await POST(makeRequest({ message: "Hello Xenboox" }));
+    expect(res.status).toBe(200);
+
+    const body = await res.text();
+
+    // The intake reasoning line is emitted before the pipeline runs…
+    expect(body).toContain('"type":"thinking"');
+    expect(body).toContain(
+      "Reading your request and loading the entity context",
+    );
+    // …and the pipeline's real steps stream through the onStep callback.
+    expect(body).toContain("intent_resolution");
+    expect(body).toContain("routing to CFO Agent");
   });
 
   it("strips filler from the first message when naming a new conversation", async () => {

@@ -2,10 +2,11 @@
 
 import { Bot, ThumbsUp, ThumbsDown, Copy } from "lucide-react";
 
-import type { ToolTrace } from "@/lib/hooks/use-streaming-chat";
+import type { ThinkingEvent, ToolTrace } from "@/lib/hooks/use-streaming-chat";
 
 import { RichMessageRenderer } from "./rich-message-renderer";
 import { AgentActivityBlock } from "./agent-activity-block";
+import { ThinkingReveal } from "./thinking-reveal";
 import { DocumentCard, type ArtifactCardItem } from "./document-card";
 import { ApprovalPrompt } from "./approval-prompt";
 
@@ -19,6 +20,8 @@ interface StreamingMessageProps {
     confidence?: number;
     durationMs?: number;
   }>;
+  /** Live pipeline reasoning lines (simulation-style thinking reveal). */
+  thinkingEvents?: ThinkingEvent[];
   delegations?: Array<{ from: string; to: string; reason: string }>;
   documents?: Array<{
     artifactId?: string;
@@ -43,6 +46,7 @@ export function StreamingMessage({
   content,
   isStreaming,
   agentActivities = [],
+  thinkingEvents = [],
   delegations = [],
   documents = [],
   approvals = [],
@@ -76,11 +80,19 @@ export function StreamingMessage({
         )}
       </div>
 
-      {/* Agent thinking reveal */}
+      {/* Thinking reveal — the pipeline's real reasoning, simulation-style */}
+      {(thinkingEvents.length > 0 || (isStreaming && !content)) && (
+        <ThinkingReveal
+          events={thinkingEvents}
+          isStreaming={isStreaming}
+          hasContent={content.length > 0}
+        />
+      )}
+
+      {/* Detailed agent activity feed (rows, tools, delegations) */}
       {(agentActivities.length > 0 ||
         toolCalls.length > 0 ||
-        delegations.length > 0 ||
-        isStreaming) && (
+        delegations.length > 0) && (
         <AgentActivityBlock
           activities={agentActivities}
           delegations={delegations}

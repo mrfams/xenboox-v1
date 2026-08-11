@@ -184,6 +184,7 @@ export type {
   PipelineResponse,
   EscalationItem as PipelineEscalationItem,
   StepTelemetry,
+  PipelineStepEvent,
 } from "./pipeline";
 
 // ─── Enterprise: Retry, Circuit Breaker, Timeout, PII Redaction ──

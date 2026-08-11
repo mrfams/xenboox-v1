@@ -15,6 +15,20 @@ export interface AgentActivityEvent {
   durationMs?: number;
 }
 
+/**
+ * Live "thinking" event — a real pipeline step revealed to the user, same
+ * visual language as the simulation traces (shimmer → reasoning → settled).
+ */
+export interface ThinkingEvent {
+  type: "thinking";
+  agent: string;
+  /** Stable pipeline step id (e.g. "intent_resolution"). */
+  step?: string;
+  label?: string;
+  text: string;
+  durationMs?: number;
+}
+
 export interface DelegationEvent {
   type: "delegation";
   from: string;
@@ -92,6 +106,7 @@ export interface ErrorEvent {
 type SSEEvent =
   | ConversationEvent
   | AgentActivityEvent
+  | ThinkingEvent
   | DelegationEvent
   | DocumentCreatedEvent
   | ApprovalEvent
@@ -107,6 +122,7 @@ interface UseStreamingChatOptions {
   entityId: string;
   onConversationCreated?: (conversationId: string, title?: string) => void;
   onAgentActivity?: (activity: AgentActivityEvent) => void;
+  onThinking?: (event: ThinkingEvent) => void;
   onDelegation?: (delegation: DelegationEvent) => void;
   onDocumentCreated?: (doc: DocumentCreatedEvent) => void;
   onApprovalNeeded?: (approval: ApprovalEvent) => void;
@@ -122,6 +138,7 @@ export function useStreamingChat({
   entityId,
   onConversationCreated,
   onAgentActivity,
+  onThinking,
   onDelegation,
   onDocumentCreated,
   onApprovalNeeded,
@@ -135,6 +152,7 @@ export function useStreamingChat({
   const [agentActivities, setAgentActivities] = useState<AgentActivityEvent[]>(
     [],
   );
+  const [thinkingEvents, setThinkingEvents] = useState<ThinkingEvent[]>([]);
   const [delegations, setDelegations] = useState<DelegationEvent[]>([]);
   const [approvals, setApprovals] = useState<ApprovalEvent[]>([]);
   const [documents, setDocuments] = useState<DocumentCreatedEvent[]>([]);
@@ -153,6 +171,7 @@ export function useStreamingChat({
       setIsStreaming(true);
       setStreamedContent("");
       setAgentActivities([]);
+      setThinkingEvents([]);
       setDelegations([]);
       setApprovals([]);
       setDocuments([]);
@@ -208,6 +227,11 @@ export function useStreamingChat({
                   case "agent_activity":
                     setAgentActivities((prev) => [...prev, data]);
                     onAgentActivity?.(data);
+                    break;
+
+                  case "thinking":
+                    setThinkingEvents((prev) => [...prev, data]);
+                    onThinking?.(data);
                     break;
 
                   case "delegation":
@@ -300,6 +324,7 @@ export function useStreamingChat({
       isStreaming,
       onConversationCreated,
       onAgentActivity,
+      onThinking,
       onDelegation,
       onDocumentCreated,
       onApprovalNeeded,
@@ -321,6 +346,7 @@ export function useStreamingChat({
     isStreaming,
     streamedContent,
     agentActivities,
+    thinkingEvents,
     delegations,
     approvals,
     documents,
