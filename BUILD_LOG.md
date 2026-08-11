@@ -6,7 +6,24 @@
 
 ---
 
-### [2026-08-11] — Global "Agents at work" pill + SimulationProvider (runs survive navigation)
+### [2026-08-11] — Demo entity seeded with the Gambia tax pack (Settings → Taxes shows installed rules on first login)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `packages/db/seed/index.ts`
+
+**Request:** Seed the demo entity (Kerr Jula Trading Co., GM) with the Gambia tax pack so the Settings → Taxes page shows installed rules with real data on first login.
+
+**What was built:**
+
+1. **New seed section 6b — Gambia Tax Rules**: inserts the 5 GM presets (VAT 15%, progressive PAYE bands, SSHFC 5%+10% capped at GMD 30k, WHT 10%, CIT 27%) as version-1 `active` rows, exactly mirroring `GM_PRESETS` in `packages/agents/core/tax-presets.ts`. Same `(ruleType, name)` identities as `installPresets` uses, so the Settings UI marks each preset as **installed**. Deterministic `seedUuid("tx", …)` ids + `onConflictDoNothing` keep re-runs idempotent.
+2. **Dependency direction**: the catalog lives in `@xenboox/agents` which depends on `@xenboox/db`, so the seed can't import it — the rules are inlined with a comment pointing at the canonical source.
+3. **Live verification**: ran the demo seed against the dev DB — all 5 rules confirmed present (`active`, version 1, correct `applies_to`). Along the way discovered the dev DB was missing the `jurisdiction_tax_rules.applies_to` column (schema drift — `drizzle migrate` fails on duplicate enums and `push` on a PK conflict in unrelated tables); added the single missing column additively so both the seed and the Settings → Taxes page work.
+
+**Verification:** `@xenboox/db` typecheck clean for the seed (only pre-existing `run-seed.ts` TS5097 remains, untouched) · demo seed runs the tax section cleanly · 5 tax rules live in the demo DB.
+
+**Note (out of scope):** the full demo seed currently stops at the pre-existing `employees` drift — the live table is missing `tax_status` (and possibly other sections have drift). Unrelated to taxes; flagging for a future schema-reconciliation pass.
+
+---
 
 **Agent:** Buffy (Autonomous Engineer)
 **Files Created:** `apps/web/lib/ai-ux/simulation-provider.tsx`, `apps/web/components/ai-ux/agents-at-work-pill.tsx`, `apps/web/__tests__/simulation-provider.test.tsx`
