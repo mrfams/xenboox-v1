@@ -205,6 +205,20 @@ export const NAV_PAGES: NavPage[] = [
     group: "Settings",
     keywords: ["preferences", "profile", "organization", "config"],
   },
+  {
+    label: "Help Center",
+    href: "/dashboard/help",
+    group: "Settings",
+    keywords: [
+      "help",
+      "support",
+      "faq",
+      "guide",
+      "documentation",
+      "docs",
+      "contact",
+    ],
+  },
 ];
 
 export function filterNavPages(query: string, limit = 8): NavPage[] {

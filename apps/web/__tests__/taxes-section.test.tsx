@@ -37,6 +37,15 @@ vi.mock("@/lib/trpc/client", () => ({
           isLoading: false,
         }),
       },
+      listPresets: {
+        useQuery: vi.fn().mockReturnValue({
+          data: { presets: [], installedIds: [] },
+          isLoading: false,
+        }),
+      },
+      installPresets: {
+        useMutation: () => ({ mutateAsync: vi.fn(), isLoading: false }),
+      },
     },
   },
 }));
@@ -60,6 +69,37 @@ describe("TaxesSection — self-service tax management UI", () => {
       screen.getByText(/No tax rules configured for/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Create your first tax/i)).toBeInTheDocument();
+  });
+
+  it("shows the installable preset pack for the selected country", async () => {
+    const trpcMock = await import("@/lib/trpc/client");
+    vi.mocked(trpcMock.trpc.taxConfig.listPresets.useQuery).mockReturnValue({
+      data: {
+        presets: [
+          {
+            id: "gm-vat",
+            country: "GM",
+            ruleType: "vat",
+            name: "GRA VAT (The Gambia)",
+            description: "Standard 15% value-added tax.",
+            appliesTo: "sales",
+            effectiveFrom: "2025-01-01",
+            rateConfig: { type: "rate", rate: 0.15 },
+            source: "GRA",
+            installed: false,
+          },
+        ],
+        installedIds: [],
+      },
+      isLoading: false,
+    } as never);
+
+    render(<TaxesSection />);
+    expect(
+      screen.getByText("Gambia tax pack", { exact: false }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("GRA VAT (The Gambia)")).toBeInTheDocument();
+    expect(screen.getByText("Install pack (1)")).toBeInTheDocument();
   });
 
   it("renders the rule list when rules exist", async () => {
@@ -87,6 +127,7 @@ describe("TaxesSection — self-service tax management UI", () => {
 
     render(<TaxesSection />);
     expect(screen.getByText("Gambia VAT")).toBeInTheDocument();
-    expect(screen.getByText("GM")).toBeInTheDocument();
+    // The picker now shows the full country label with the ISO code.
+    expect(screen.getByText("Gambia (GM)")).toBeInTheDocument();
   });
 });

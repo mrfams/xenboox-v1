@@ -389,4 +389,142 @@ describe("taxConfigRouter", () => {
       expect(db.query.jurisdictionTaxRules.findMany).toHaveBeenCalled();
     });
   });
+
+  describe("listPresets — self-service country packs", () => {
+    it("returns the GM pack with installed flags", async () => {
+      // Nothing installed yet for this entity/country.
+      vi.mocked(db.query.jurisdictionTaxRules.findMany).mockResolvedValue(
+        [] as never,
+      );
+      const caller = makeCaller();
+      const result = await caller.taxConfig.listPresets({ country: "GM" });
+      expect(result.presets.length).toBeGreaterThan(0);
+      // VAT + PAYE + SSHFC + WHT + corporate all present for GM.
+      const types = result.presets.map((p) => p.ruleType);
+      expect(types).toContain("vat");
+      expect(types).toContain("paye");
+      expect(types).toContain("social_security");
+      expect(types).toContain("withholding");
+      expect(result.presets.every((p) => p.installed === false)).toBe(true);
+      expect(result.installedIds).toEqual([]);
+    });
+
+    it("marks presets as installed when a matching active rule exists", async () => {
+      vi.mocked(db.query.jurisdictionTaxRules.findMany).mockResolvedValue([
+        {
+          ruleType: "vat",
+          name: "GRA VAT (The Gambia)",
+        },
+      ] as never);
+      const caller = makeCaller();
+      const result = await caller.taxConfig.listPresets({ country: "GM" });
+      const vat = result.presets.find((p) => p.id === "gm-vat");
+      expect(vat?.installed).toBe(true);
+      expect(result.installedIds).toContain("gm-vat");
+    });
+
+    it("returns an empty pack for a country without presets", async () => {
+      vi.mocked(db.query.jurisdictionTaxRules.findMany).mockResolvedValue(
+        [] as never,
+      );
+      const caller = makeCaller();
+      const result = await caller.taxConfig.listPresets({ country: "ID" });
+      expect(result.presets).toEqual([]);
+    });
+  });
+
+  describe("installPresets — one-click pack install", () => {
+    it("installs the requested presets as active v1 rules", async () => {
+      vi.mocked(db.query.jurisdictionTaxRules.findMany).mockResolvedValue(
+        [] as never,
+      );
+      const caller = makeCaller();
+      const result = await caller.taxConfig.installPresets({
+        country: "GM",
+        presetIds: ["gm-vat", "gm-paye"],
+      });
+      expect(result.installed).toBe(2);
+      expect(result.skipped).toBe(0);
+      expect(result.installedNames).toContain("GRA VAT (The Gambia)");
+      // Insert got the full rows (2 values).
+      expect(db.insert).toHaveBeenCalled();
+      const dbValues = (db as unknown as { values: ReturnType<typeof vi.fn> })
+        .values;
+      expect(dbValues).toHaveBeenCalled();
+      const values = dbValues.mock.calls[0][0] as Array<{
+        country: string;
+        version: number;
+        status: string;
+      }>;
+      expect(values).toHaveLength(2);
+      expect(values[0]).toMatchObject({
+        country: "GM",
+        version: 1,
+        status: "active",
+      });
+    });
+
+    it("skips presets that are already installed (idempotent)", async () => {
+      vi.mocked(db.query.jurisdictionTaxRules.findMany).mockResolvedValue([
+        { ruleType: "vat", name: "GRA VAT (The Gambia)", version: 1 },
+      ] as never);
+      const caller = makeCaller();
+      const result = await caller.taxConfig.installPresets({
+        country: "GM",
+        presetIds: ["gm-vat", "gm-paye"],
+      });
+      expect(result.installed).toBe(1);
+      expect(result.skipped).toBe(1);
+      // Only the PAYE row was inserted.
+      const dbValues = (db as unknown as { values: ReturnType<typeof vi.fn> })
+        .values;
+      const values = dbValues.mock.calls[0][0] as Array<{
+        name: string;
+      }>;
+      expect(values).toHaveLength(1);
+      expect(values[0].name).not.toContain("VAT");
+    });
+
+    it("continues the version sequence when re-installing after a supersede", async () => {
+      // Nothing currently active (pack was deactivated), but v2 history exists.
+      vi.mocked(db.query.jurisdictionTaxRules.findMany).mockResolvedValueOnce(
+        [] as never,
+      );
+      vi.mocked(db.query.jurisdictionTaxRules.findMany).mockResolvedValueOnce([
+        { ruleType: "vat", name: "GRA VAT (The Gambia)", version: 2 },
+      ] as never);
+      const caller = makeCaller();
+      const result = await caller.taxConfig.installPresets({
+        country: "GM",
+        presetIds: ["gm-vat"],
+      });
+      expect(result.installed).toBe(1);
+      const dbValues = (db as unknown as { values: ReturnType<typeof vi.fn> })
+        .values;
+      const values = dbValues.mock.calls[0][0] as Array<{
+        version: number;
+      }>;
+      expect(values[0].version).toBe(3); // v3 continues after the superseded v2
+    });
+
+    it("rejects unknown preset ids for that country", async () => {
+      const caller = makeCaller();
+      await expect(
+        caller.taxConfig.installPresets({
+          country: "GM",
+          presetIds: ["zz-not-a-preset"],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("blocks non-owner/admin roles", async () => {
+      const caller = makeCaller("member");
+      await expect(
+        caller.taxConfig.installPresets({
+          country: "GM",
+          presetIds: ["gm-vat"],
+        }),
+      ).rejects.toThrow();
+    });
+  });
 });

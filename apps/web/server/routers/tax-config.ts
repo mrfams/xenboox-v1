@@ -22,7 +22,9 @@ import { entities } from "@xenboox/db/schema/organization";
 import {
   calculateTax,
   calculateSplitContribution,
+  getTaxPresetsForCountry,
   type TaxRateConfig,
+  type TaxPreset,
 } from "@xenboox/agents";
 import {
   router,
@@ -486,6 +488,133 @@ export const taxConfigRouter = router({
         .delete(taxRateOverrides)
         .where(eq(taxRateOverrides.id, input.overrideId));
       return { success: true };
+    }),
+
+  // ── Preset packs (Settings UI self-service installs) ───────────────────
+
+  listPresets: protectedProcedure
+    .input(z.object({ country: z.string().length(2).toUpperCase() }))
+    .query(async ({ ctx, input }) => {
+      const catalog = getTaxPresetsForCountry(input.country);
+      if (catalog.length === 0) {
+        return { presets: [], installedIds: [] };
+      }
+
+      const installed = await db.query.jurisdictionTaxRules.findMany({
+        where: and(
+          eq(jurisdictionTaxRules.entityId, ctx.entityId!),
+          eq(jurisdictionTaxRules.country, input.country),
+          sql`${jurisdictionTaxRules.status} <> 'superseded'`,
+        ),
+        columns: { ruleType: true, name: true },
+      });
+      const installedKeys = new Set(
+        installed.map((r) => `${r.ruleType}::${r.name}`),
+      );
+
+      const presets = catalog.map((p) => ({
+        ...p,
+        installed: installedKeys.has(`${p.ruleType}::${p.name}`),
+      }));
+
+      return {
+        presets,
+        installedIds: presets.filter((p) => p.installed).map((p) => p.id),
+      };
+    }),
+
+  installPresets: mutateProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .input(
+      z.object({
+        country: z.string().length(2).toUpperCase(),
+        presetIds: z.array(z.string().min(1)).min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertEntity(ctx);
+
+      const catalog = getTaxPresetsForCountry(input.country);
+      const byId = new Map(catalog.map((p) => [p.id, p]));
+
+      const requested = input.presetIds
+        .map((id) => byId.get(id))
+        .filter((p): p is TaxPreset => p !== undefined);
+
+      if (requested.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No valid presets found for this country",
+        });
+      }
+
+      // Idempotency: skip presets already installed as a non-superseded rule.
+      const existing = await db.query.jurisdictionTaxRules.findMany({
+        where: and(
+          eq(jurisdictionTaxRules.entityId, ctx.entityId!),
+          eq(jurisdictionTaxRules.country, input.country),
+          sql`${jurisdictionTaxRules.status} <> 'superseded'`,
+        ),
+        columns: { ruleType: true, name: true, version: true },
+      });
+      const existingKeys = new Set(
+        existing.map((r) => `${r.ruleType}::${r.name}`),
+      );
+
+      const toInstall = requested.filter(
+        (p) => !existingKeys.has(`${p.ruleType}::${p.name}`),
+      );
+      const skipped = requested.length - toInstall.length;
+
+      if (toInstall.length > 0) {
+        // Versioning contract: a re-install after a supersede/deactivate must
+        // continue the version sequence for the (country, ruleType, name)
+        // identity, exactly like createRule — never collide with an old v1.
+        const history = await db.query.jurisdictionTaxRules.findMany({
+          where: and(
+            eq(jurisdictionTaxRules.entityId, ctx.entityId!),
+            eq(jurisdictionTaxRules.country, input.country),
+          ),
+          columns: { ruleType: true, name: true, version: true },
+        });
+        const latestVersion = new Map<string, number>();
+        for (const row of history) {
+          const key = `${row.ruleType}::${row.name}`;
+          latestVersion.set(
+            key,
+            Math.max(latestVersion.get(key) ?? 0, row.version),
+          );
+        }
+
+        await db.insert(jurisdictionTaxRules).values(
+          toInstall.map((p) => {
+            const key = `${p.ruleType}::${p.name}`;
+            return {
+              entityId: ctx.entityId!,
+              country: input.country,
+              ruleType: p.ruleType,
+              version: (latestVersion.get(key) ?? 0) + 1,
+              name: p.name,
+              description: p.description,
+              appliesTo: p.appliesTo,
+              rateOrBands: p.rateConfig,
+              effectiveFrom: p.effectiveFrom,
+              effectiveTo: null,
+              status: "active" as const,
+              proposedBy: ctx.session!.user!.id!,
+              approvedBy: ctx.session!.user!.id!,
+              approvedAt: new Date(),
+              notes: `Installed from ${input.country} preset pack (${p.source})`,
+            };
+          }),
+        );
+      }
+
+      return {
+        installed: toInstall.length,
+        skipped,
+        installedNames: toInstall.map((p) => p.name),
+      };
     }),
 
   // ── Preview computation (Settings UI + agent parity) ───────────────────

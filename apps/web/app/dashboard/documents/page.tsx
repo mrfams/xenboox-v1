@@ -19,6 +19,10 @@ import {
   File,
   FileSpreadsheet,
   Trash2,
+  HardDrive,
+  Inbox,
+  ChevronRight,
+  Clock,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -28,11 +32,13 @@ import type { SummaryCardItem } from "@/components/module/module-page-shell.type
 import { RowAiAction } from "@/components/module/row-ai-action";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { DocumentViewer } from "@/components/documents/document-viewer";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 type TabFilter =
+  | "overview"
   | "all"
   | "invoices"
   | "receipts"
@@ -475,10 +481,379 @@ function categoryLabel(category: string): string {
   return CATEGORY_LABELS[category] ?? category;
 }
 
+// ─── Document Overview tab ─────────────────────────────────────────────────
+
+const STATUS_META: Record<string, { label: string; chip: string }> = {
+  detected: { label: "Detected", chip: "bg-slate-100 text-slate-600" },
+  processing: { label: "Processing", chip: "bg-amber-50 text-amber-700" },
+  extracted: { label: "Extracted", chip: "bg-blue-50 text-blue-700" },
+  validated: { label: "Validated", chip: "bg-indigo-50 text-indigo-700" },
+  synced: { label: "Synced", chip: "bg-teal-50 text-teal-700" },
+  resolving: { label: "Resolving entity", chip: "bg-amber-50 text-amber-700" },
+  classifying_workflow: {
+    label: "Classifying workflow",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  mapping_accounts: {
+    label: "Mapping accounts",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  calculating_tax: {
+    label: "Calculating tax",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  generating_journal: {
+    label: "Generating journal",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  validating_entry: {
+    label: "Validating entry",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  deciding_post: {
+    label: "Deciding to post",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  posting: { label: "Posting", chip: "bg-amber-50 text-amber-700" },
+  propagating: { label: "Propagating", chip: "bg-amber-50 text-amber-700" },
+  agent_processing: {
+    label: "Agent processing",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  persisted: { label: "Persisted", chip: "bg-emerald-50 text-emerald-700" },
+  done: { label: "Done", chip: "bg-emerald-50 text-emerald-700" },
+  failed: { label: "Failed", chip: "bg-red-50 text-red-700" },
+  archived: { label: "Archived", chip: "bg-slate-100 text-slate-500" },
+  uploaded: { label: "Uploaded", chip: "bg-blue-50 text-blue-700" },
+  processed: { label: "Processed", chip: "bg-emerald-50 text-emerald-700" },
+};
+
+function statusMeta(status: string): { label: string; chip: string } {
+  return (
+    STATUS_META[status] ?? {
+      label: status,
+      chip: "bg-slate-100 text-slate-600",
+    }
+  );
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  invoice: "bg-indigo-500",
+  receipt: "bg-emerald-500",
+  contract: "bg-amber-500",
+  voucher: "bg-sky-500",
+  bank_statement: "bg-teal-500",
+  tax_return: "bg-violet-500",
+  payroll_report: "bg-fuchsia-500",
+  journal_entry: "bg-rose-500",
+  po: "bg-blue-500",
+  supporting: "bg-slate-400",
+};
+
+type OverviewDocument = {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  mimeType?: string | null;
+  sizeBytes: number | null;
+  createdAt: string | Date | null;
+  uploadedByName: string | null;
+};
+
+type DocumentsOverviewData = {
+  categoryBreakdown: Array<{
+    category: string;
+    count: number;
+    sizeBytes: number;
+  }>;
+  pendingReviewTotal: number;
+  pendingReview: OverviewDocument[];
+  recentUploads: OverviewDocument[];
+};
+
+function OverviewDocIcon({
+  doc,
+  size = "md",
+}: {
+  doc: OverviewDocument;
+  size?: "sm" | "md";
+}) {
+  const type = fileTypeFromMime(doc.mimeType);
+  const Icon =
+    type === "image"
+      ? Image
+      : type === "spreadsheet"
+        ? FileSpreadsheet
+        : type === "document"
+          ? File
+          : FileText;
+  const color =
+    type === "image"
+      ? "bg-blue-100 text-blue-600"
+      : type === "spreadsheet"
+        ? "bg-emerald-100 text-emerald-600"
+        : type === "document"
+          ? "bg-purple-100 text-purple-600"
+          : "bg-red-100 text-red-600";
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-lg",
+        color,
+        size === "md" ? "h-9 w-9" : "h-7 w-7",
+      )}
+    >
+      <Icon className={size === "md" ? "h-4 w-4" : "h-3.5 w-3.5"} />
+    </div>
+  );
+}
+
+function formatSize(bytes: number | null | undefined): string {
+  if (!bytes) return "—";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
+}
+
+function formatDate(createdAt: string | Date | null): string {
+  if (!createdAt) return "—";
+  return new Date(createdAt).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function StorageByCategory({
+  breakdown,
+}: {
+  breakdown: DocumentsOverviewData["categoryBreakdown"];
+}) {
+  const totalSize = breakdown.reduce((sum, b) => sum + b.sizeBytes, 0);
+  const totalCount = breakdown.reduce((sum, b) => sum + b.count, 0);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HardDrive className="h-4 w-4 text-indigo-500" />
+          <h3 className="text-sm font-semibold text-slate-900">
+            Storage by category
+          </h3>
+        </div>
+        <span className="text-[11px] text-slate-400">
+          {formatSize(totalSize)} · {totalCount} documents
+        </span>
+      </div>
+
+      {breakdown.length === 0 ? (
+        <p className="text-xs text-slate-400">No documents yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {breakdown.map((item) => {
+            const share = totalSize > 0 ? item.sizeBytes / totalSize : 0;
+            return (
+              <div key={item.category}>
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="font-medium text-slate-700">
+                    {categoryLabel(item.category)}
+                  </span>
+                  <span className="text-slate-400">
+                    {item.count} · {formatSize(item.sizeBytes)}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      CATEGORY_COLORS[item.category] ?? "bg-indigo-500",
+                    )}
+                    style={{
+                      width: `${Math.max(share * 100, item.count > 0 ? 3 : 0)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PendingReviewQueue({
+  docs,
+  totalPending,
+  onOpenDocument,
+  onViewAll,
+}: {
+  docs: OverviewDocument[];
+  /** True pending count (the queue renders at most the first 8). */
+  totalPending: number;
+  onOpenDocument: (id: string) => void;
+  onViewAll: () => void;
+}) {
+  const truncated = docs.length < totalPending;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Inbox className="h-4 w-4 text-amber-500" />
+          <h3 className="text-sm font-semibold text-slate-900">
+            Pending review
+          </h3>
+          {totalPending > 0 && (
+            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">
+              {totalPending}
+            </span>
+          )}
+          {truncated && (
+            <span className="text-[10px] text-slate-400">
+              showing first {docs.length}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="inline-flex items-center gap-0.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
+        >
+          View all
+          <ChevronRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      {docs.length === 0 ? (
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-3">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+          <p className="text-xs text-emerald-700">
+            All caught up — no documents waiting for review.
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {docs.map((doc) => {
+            const status = statusMeta(doc.status);
+            return (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => onOpenDocument(doc.id)}
+                className="flex w-full items-center gap-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+              >
+                <OverviewDocIcon doc={doc} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-slate-900">
+                    {doc.name}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {categoryLabel(doc.type)} ·{" "}
+                    {doc.uploadedByName ?? "Unknown"}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                    status.chip,
+                  )}
+                >
+                  {status.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecentUploads({
+  docs,
+  onOpenDocument,
+}: {
+  docs: OverviewDocument[];
+  onOpenDocument: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Clock className="h-4 w-4 text-emerald-500" />
+        <h3 className="text-sm font-semibold text-slate-900">Recent uploads</h3>
+        <span className="text-[11px] text-slate-400">last 5</span>
+      </div>
+
+      {docs.length === 0 ? (
+        <p className="text-xs text-slate-400">No uploads yet.</p>
+      ) : (
+        <div className="space-y-1">
+          {docs.map((doc) => (
+            <button
+              key={doc.id}
+              type="button"
+              onClick={() => onOpenDocument(doc.id)}
+              className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-slate-50"
+            >
+              <OverviewDocIcon doc={doc} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-medium text-slate-800">
+                  {doc.name}
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  {formatDate(doc.createdAt)}
+                </p>
+              </div>
+              <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
+                {formatSize(doc.sizeBytes)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocumentsOverview({
+  overview,
+  onOpenDocument,
+  onViewAll,
+}: {
+  overview: DocumentsOverviewData | null | undefined;
+  onOpenDocument: (id: string) => void;
+  onViewAll: () => void;
+}) {
+  if (!overview) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="h-8 w-8 text-slate-400 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-3">
+      <div className="space-y-6 lg:col-span-2">
+        <StorageByCategory breakdown={overview.categoryBreakdown} />
+        <PendingReviewQueue
+          docs={overview.pendingReview}
+          totalPending={overview.pendingReviewTotal}
+          onOpenDocument={onOpenDocument}
+          onViewAll={onViewAll}
+        />
+      </div>
+      <RecentUploads
+        docs={overview.recentUploads}
+        onOpenDocument={onOpenDocument}
+      />
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function DocumentsPage() {
-  const [activeTab, setActiveTab] = useState<TabFilter>("all");
+  const [activeTab, setActiveTab] = useState<TabFilter>("overview");
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
 
   // Fetch overview data
@@ -601,6 +976,7 @@ export default function DocumentsPage() {
   };
 
   const tabs = [
+    { key: "overview" as TabFilter, label: "Overview" },
     { key: "all" as TabFilter, label: "All Documents" },
     { key: "invoices" as TabFilter, label: "Invoices" },
     { key: "receipts" as TabFilter, label: "Receipts" },
@@ -627,6 +1003,11 @@ export default function DocumentsPage() {
             <Download className="h-4 w-4" />
             Export
           </button>
+          <AiSimulationTrigger
+            traceId="document-extraction"
+            label="Process with AI"
+            variant="outline"
+          />
           <DocumentUploadButton
             docType="supporting"
             label="Upload Document"
@@ -645,80 +1026,91 @@ export default function DocumentsPage() {
       }
     >
       <div className="min-h-full space-y-6 bg-slate-50 p-4">
-        {/* Empty State for New Users */}
-        {isEmpty && (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12">
-            <div className="max-w-md text-center space-y-4 mx-auto">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100">
-                <FolderOpen className="h-8 w-8 text-indigo-600" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-bold text-slate-900">
-                  Upload your first document
-                </h3>
-                <p className="text-sm text-slate-500">
-                  Store invoices, receipts, contracts, and reports. AI will
-                  automatically categorize and extract data from your documents.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-                  <Upload className="h-4 w-4" />
-                  Upload Document
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                  <FileText className="h-4 w-4" />
-                  Scan with AI
-                </button>
-              </div>
-              <div className="flex items-center justify-center gap-4 text-xs text-slate-400 pt-2">
-                <span>✓ PDF, images, spreadsheets</span>
-                <span>✓ Auto-categorization</span>
-                <span>✓ OCR extraction</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Documents Table */}
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between p-4 border-b border-slate-200">
-            <h3 className="font-medium text-slate-900">
-              Documents ({documentsData?.length ?? 0})
-            </h3>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search documents..."
-                  className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-                <Filter className="h-4 w-4" />
-                Filters
-              </button>
-            </div>
-          </div>
-          <DocumentsTable
-            documents={(documentsData ?? []).map((doc) => ({
-              id: doc.id,
-              name: doc.name,
-              // File-type icon comes from the MIME type (pdf/image/…) while
-              // the category stays the document kind (invoice/receipt/…).
-              type: fileTypeFromMime(doc.mimeType),
-              category: categoryLabel(doc.type),
-              uploadedBy: doc.uploadedByName ?? "—",
-              uploadedAt: doc.createdAt ?? new Date().toISOString(),
-              size: doc.sizeBytes ?? 0,
-            }))}
-            isLoading={documentsLoading}
-            onViewDocument={handleOpenDocument}
-            onDownload={handleDownloadDocument}
-            onDelete={handleDeleteDocument}
+        {activeTab === "overview" ? (
+          <DocumentsOverview
+            overview={overviewData?.overview}
+            onOpenDocument={handleOpenDocument}
+            onViewAll={() => setActiveTab("all")}
           />
-        </div>
+        ) : (
+          <>
+            {/* Empty State for New Users */}
+            {isEmpty && (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12">
+                <div className="max-w-md text-center space-y-4 mx-auto">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100">
+                    <FolderOpen className="h-8 w-8 text-indigo-600" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Upload your first document
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      Store invoices, receipts, contracts, and reports. AI will
+                      automatically categorize and extract data from your
+                      documents.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                      <Upload className="h-4 w-4" />
+                      Upload Document
+                    </button>
+                    <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                      <FileText className="h-4 w-4" />
+                      Scan with AI
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-center gap-4 text-xs text-slate-400 pt-2">
+                    <span>✓ PDF, images, spreadsheets</span>
+                    <span>✓ Auto-categorization</span>
+                    <span>✓ OCR extraction</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Documents Table */}
+            <div className="rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                <h3 className="font-medium text-slate-900">
+                  Documents ({documentsData?.length ?? 0})
+                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search documents..."
+                      className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+                  <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                  </button>
+                </div>
+              </div>
+              <DocumentsTable
+                documents={(documentsData ?? []).map((doc) => ({
+                  id: doc.id,
+                  name: doc.name,
+                  // File-type icon comes from the MIME type (pdf/image/…) while
+                  // the category stays the document kind (invoice/receipt/…).
+                  type: fileTypeFromMime(doc.mimeType),
+                  category: categoryLabel(doc.type),
+                  uploadedBy: doc.uploadedByName ?? "—",
+                  uploadedAt: doc.createdAt ?? new Date().toISOString(),
+                  size: doc.sizeBytes ?? 0,
+                }))}
+                isLoading={documentsLoading}
+                onViewDocument={handleOpenDocument}
+                onDownload={handleDownloadDocument}
+                onDelete={handleDeleteDocument}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Professional in-app document viewer with AI workspace */}

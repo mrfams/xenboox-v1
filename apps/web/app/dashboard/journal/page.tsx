@@ -540,6 +540,184 @@ function AiCopilotPanel({
   );
 }
 
+// ─── Overview Panel ────────────────────────────────────────────────────────
+// Executive snapshot for the Overview tab: entry trend, top account impact,
+// sources, recent activity and AI insights. The full journal table lives on
+// the status tabs.
+
+function JournalOverview({
+  topAccounts,
+  recentActivity,
+  sources,
+  insights,
+}: {
+  topAccounts?: Array<{
+    name: string;
+    debit: number;
+    debitFormatted: string;
+    credit: number;
+    creditFormatted: string;
+  }>;
+  recentActivity?: Array<{
+    id: string;
+    entryNumber: string;
+    action: string;
+    timestamp: string;
+    user: string;
+  }>;
+  sources?: {
+    sources: Array<{
+      name: string;
+      count: number;
+      percent: number;
+      color: string;
+    }>;
+    totalCount: number;
+  };
+  insights?: Array<{
+    id: string;
+    type: "warning" | "info" | "success";
+    title: string;
+    description: string;
+    actionLabel: string;
+  }>;
+}) {
+  const sourceColors = [
+    "bg-slate-500",
+    "bg-blue-500",
+    "bg-purple-500",
+    "bg-amber-500",
+    "bg-emerald-500",
+  ];
+
+  return (
+    <>
+      {/* Trend + impact + activity */}
+      <div className="bg-slate-50/70 p-4">
+        <BottomRow
+          topAccounts={topAccounts ?? []}
+          recentActivity={recentActivity ?? []}
+        />
+      </div>
+
+      {/* Sources + AI insights */}
+      <div className="grid grid-cols-2 gap-6 border-t border-slate-200 bg-slate-50/70 p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-4 font-medium text-slate-900">
+            Entries by Source (MTD)
+          </h3>
+          {sources && sources.sources.length > 0 ? (
+            <div className="flex items-center gap-4">
+              {/* Donut Chart */}
+              <div className="relative h-32 w-32 shrink-0">
+                <svg className="h-full w-full" viewBox="0 0 100 100">
+                  {sources.sources.map((source, i) => {
+                    const startAngle = sources.sources
+                      .slice(0, i)
+                      .reduce((acc, s) => acc + (s.percent / 100) * 360, 0);
+                    const endAngle = startAngle + (source.percent / 100) * 360;
+                    const largeArc = source.percent > 50 ? 1 : 0;
+                    const x1 =
+                      50 + 40 * Math.cos((startAngle - 90) * (Math.PI / 180));
+                    const y1 =
+                      50 + 40 * Math.sin((startAngle - 90) * (Math.PI / 180));
+                    const x2 =
+                      50 + 40 * Math.cos((endAngle - 90) * (Math.PI / 180));
+                    const y2 =
+                      50 + 40 * Math.sin((endAngle - 90) * (Math.PI / 180));
+                    const x3 =
+                      50 + 25 * Math.cos((endAngle - 90) * (Math.PI / 180));
+                    const y3 =
+                      50 + 25 * Math.sin((endAngle - 90) * (Math.PI / 180));
+                    const x4 =
+                      50 + 25 * Math.cos((startAngle - 90) * (Math.PI / 180));
+                    const y4 =
+                      50 + 25 * Math.sin((startAngle - 90) * (Math.PI / 180));
+
+                    return (
+                      <path
+                        key={source.name}
+                        d={`M ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A 25 25 0 ${largeArc} 0 ${x4} ${y4} Z`}
+                        className={sourceColors[i % sourceColors.length]}
+                        fill="currentColor"
+                      />
+                    );
+                  })}
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-slate-900">
+                      {sources.totalCount}
+                    </p>
+                    <p className="text-[10px] text-slate-500">Total</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="flex-1 space-y-2">
+                {sources.sources.map((source, i) => (
+                  <div
+                    key={source.name}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "h-3 w-3 rounded-full",
+                          sourceColors[i % sourceColors.length],
+                        )}
+                      />
+                      <span className="text-xs text-slate-600">
+                        {source.name}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-500">
+                      {source.count} ({source.percent}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No source data yet.</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 font-medium text-slate-900">AI Insights</h3>
+          {insights && insights.length > 0 ? (
+            <div className="space-y-3">
+              {insights.slice(0, 3).map((insight) => (
+                <div
+                  key={insight.id}
+                  className={cn(
+                    "rounded-lg border p-3",
+                    insight.type === "warning"
+                      ? "border-amber-200 bg-amber-50"
+                      : insight.type === "success"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-blue-200 bg-blue-50",
+                  )}
+                >
+                  <p className="text-sm font-medium text-slate-900">
+                    {insight.title}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {insight.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No insights at this time.</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Bottom Row ────────────────────────────────────────────────────────────
 
 function BottomRow({
@@ -692,8 +870,8 @@ function BottomRow({
 
 export default function JournalEntriesPage() {
   const [activeTab, setActiveTab] = useState<
-    "all" | "draft" | "pending" | "approved" | "posted" | "voided"
-  >("all");
+    "overview" | "all" | "draft" | "pending" | "approved" | "posted" | "voided"
+  >("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -709,7 +887,7 @@ export default function JournalEntriesPage() {
   // Fetch entries
   const { data: entriesData, isLoading: entriesLoading } =
     trpc.journal.listWithDetails.useQuery({
-      status: activeTab,
+      status: activeTab === "overview" ? "all" : activeTab,
       search: searchQuery || undefined,
       source: sourceFilter || undefined,
       limit: pageSize,
@@ -731,6 +909,7 @@ export default function JournalEntriesPage() {
   const { data: insights } = trpc.journal.getAiInsights.useQuery();
 
   const tabs = [
+    { key: "overview" as const, label: "Overview" },
     { key: "all" as const, label: "All Entries", count: tabCounts?.all },
     { key: "draft" as const, label: "Draft", count: tabCounts?.draft },
     {
@@ -742,6 +921,60 @@ export default function JournalEntriesPage() {
     { key: "posted" as const, label: "Posted", count: tabCounts?.posted },
     { key: "voided" as const, label: "Voided", count: tabCounts?.voided },
   ];
+
+  const pagination = (
+    <div className="flex items-center justify-between">
+      <p className="text-sm text-slate-500">
+        Showing {(page - 1) * pageSize + 1} to{" "}
+        {Math.min(page * pageSize, entriesData?.totalCount ?? 0)} of{" "}
+        {entriesData?.totalCount ?? 0} entries
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          ←
+        </button>
+        {Array.from(
+          { length: Math.min(5, entriesData?.totalPages ?? 1) },
+          (_, i) => i + 1,
+        ).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            className={cn(
+              "px-3 py-1.5 text-sm rounded",
+              page === p
+                ? "bg-indigo-600 text-white"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() =>
+            setPage(Math.min(entriesData?.totalPages ?? 1, page + 1))
+          }
+          disabled={page === (entriesData?.totalPages ?? 1)}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          →
+        </button>
+        <select
+          value={pageSize}
+          onChange={() => setPage(1)}
+          className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value={10}>10 / page</option>
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
+        </select>
+      </div>
+    </div>
+  );
 
   return (
     <ModulePageShell
@@ -810,70 +1043,21 @@ export default function JournalEntriesPage() {
           )}
         </div>
       }
-      pagination={
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            Showing {(page - 1) * pageSize + 1} to{" "}
-            {Math.min(page * pageSize, entriesData?.totalCount ?? 0)} of{" "}
-            {entriesData?.totalCount ?? 0} entries
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              ←
-            </button>
-            {Array.from(
-              { length: Math.min(5, entriesData?.totalPages ?? 1) },
-              (_, i) => i + 1,
-            ).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={cn(
-                  "px-3 py-1.5 text-sm rounded",
-                  page === p
-                    ? "bg-indigo-600 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
-                )}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              onClick={() =>
-                setPage(Math.min(entriesData?.totalPages ?? 1, page + 1))
-              }
-              disabled={page === (entriesData?.totalPages ?? 1)}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              →
-            </button>
-            <select
-              value={pageSize}
-              onChange={() => setPage(1)}
-              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value={10}>10 / page</option>
-              <option value={25}>25 / page</option>
-              <option value={50}>50 / page</option>
-            </select>
-          </div>
-        </div>
-      }
-      bottomCharts={
-        <BottomRow
-          topAccounts={topAccounts ?? []}
-          recentActivity={recentActivity ?? []}
-        />
-      }
+      pagination={activeTab !== "overview" ? pagination : undefined}
     >
-      <JournalTable
-        entries={entriesData?.entries ?? []}
-        isLoading={entriesLoading}
-      />
+      {activeTab === "overview" ? (
+        <JournalOverview
+          topAccounts={topAccounts}
+          recentActivity={recentActivity}
+          sources={sources}
+          insights={insights}
+        />
+      ) : (
+        <JournalTable
+          entries={entriesData?.entries ?? []}
+          isLoading={entriesLoading}
+        />
+      )}
       <CreateJournalEntryDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}

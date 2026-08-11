@@ -166,7 +166,7 @@ const primaryNavItems: NavItem[] = [
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: "Help & Support", href: "/dashboard/settings", icon: HelpCircle },
+  { label: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
 ];
 
 interface SidebarProps {
@@ -414,7 +414,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Help & Support */}
         <div className="border-t border-white/[0.06] p-3">
           <Link
-            href="/dashboard/settings"
+            href="/dashboard/help"
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))] transition-colors lg:justify-center lg:group-hover:justify-start"
           >
             <HelpCircle className="h-4 w-4 shrink-0" />

@@ -26,6 +26,7 @@ import {
   ASK_XENBOOX_EXPLAINER,
   type FeatureStatus,
 } from "@/lib/explore/features-catalog";
+import { AiUxTab } from "@/components/explore/ai-ux-tab";
 
 // ─── Status meta ────────────────────────────────────────────────────────────
 
@@ -487,7 +488,9 @@ function PagesTab() {
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function ExplorePage() {
-  const [activeTab, setActiveTab] = useState<"pages" | "features">("pages");
+  const [activeTab, setActiveTab] = useState<"pages" | "features" | "ai-ux">(
+    "pages",
+  );
 
   return (
     <ModulePageShell
@@ -497,11 +500,18 @@ export default function ExplorePage() {
       tabs={[
         { key: "pages", label: "Pages" },
         { key: "features", label: "Features" },
+        { key: "ai-ux", label: "AI UX" },
       ]}
       activeTab={activeTab}
-      onTabChange={(key) => setActiveTab(key as "pages" | "features")}
+      onTabChange={(key) => setActiveTab(key as "pages" | "features" | "ai-ux")}
     >
-      {activeTab === "pages" ? <PagesTab /> : <FeaturesTab />}
+      {activeTab === "pages" ? (
+        <PagesTab />
+      ) : activeTab === "features" ? (
+        <FeaturesTab />
+      ) : (
+        <AiUxTab />
+      )}
     </ModulePageShell>
   );
 }

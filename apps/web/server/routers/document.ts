@@ -540,8 +540,62 @@ export const documentRouter = router({
     });
 
     const totalDocuments = docs.length;
-    const pendingReview = docs.filter((d) => d.status === "processed").length;
     const totalSize = docs.reduce((sum, d) => sum + (d.sizeBytes ?? 0), 0);
+
+    // Terminal states need no attention; everything else is still in the
+    // processing pipeline (or failed) — i.e. pending review. The set mirrors
+    // the "Terminal states" group in the doc_status enum (schema/documents.ts).
+    const TERMINAL_STATUSES = new Set([
+      "agent_processing",
+      "persisted",
+      "done",
+      "archived",
+      "processed",
+      "uploaded",
+    ]);
+    const pendingReviewDocs = docs.filter(
+      (d) => !TERMINAL_STATUSES.has(d.status),
+    );
+    const pendingReview = pendingReviewDocs.length;
+
+    // Storage breakdown by document category (only categories in use).
+    const categoryBreakdown = (
+      [
+        "invoice",
+        "receipt",
+        "contract",
+        "voucher",
+        "bank_statement",
+        "tax_return",
+        "payroll_report",
+        "journal_entry",
+        "po",
+        "supporting",
+      ] as const
+    )
+      .map((category) => {
+        const items = docs.filter((d) => d.type === category);
+        return {
+          category,
+          count: items.length,
+          sizeBytes: items.reduce((sum, d) => sum + (d.sizeBytes ?? 0), 0),
+        };
+      })
+      .filter((b) => b.count > 0);
+
+    const withUploader = ({ uploader, ...doc }: (typeof docs)[number]) => ({
+      ...doc,
+      uploadedByName: uploader?.name ?? null,
+    });
+
+    const recentUploads = [...docs]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime(),
+      )
+      .slice(0, 5)
+      .map(withUploader);
 
     return {
       summary: {
@@ -556,10 +610,13 @@ export const documentRouter = router({
         }).length,
         pendingReview,
       },
-      documents: docs.map(({ uploader, ...doc }) => ({
-        ...doc,
-        uploadedByName: uploader?.name ?? null,
-      })),
+      overview: {
+        categoryBreakdown,
+        pendingReviewTotal: pendingReview,
+        pendingReview: pendingReviewDocs.slice(0, 8).map(withUploader),
+        recentUploads,
+      },
+      documents: docs.map(withUploader),
     };
   }),
 

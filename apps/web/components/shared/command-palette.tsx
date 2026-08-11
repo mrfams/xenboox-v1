@@ -15,6 +15,7 @@ import {
   Activity,
   FileText,
   RefreshCw,
+  HelpCircle,
   Search,
   Plus,
   ArrowRight,
@@ -183,6 +184,13 @@ const navigationItems: Omit<CommandItem, "id">[] = [
     icon: Settings,
     group: "Pages",
     keywords: ["settings", "preferences", "config"],
+  },
+  {
+    label: "Help Center",
+    href: "/dashboard/help",
+    icon: HelpCircle,
+    group: "Pages",
+    keywords: ["help", "support", "faq", "guide", "docs", "contact"],
   },
 ];
 

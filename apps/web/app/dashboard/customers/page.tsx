@@ -24,6 +24,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
@@ -32,6 +33,7 @@ import { RowAiAction } from "@/components/module/row-ai-action";
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 type StatusFilter =
+  | "overview"
   | "all"
   | "active"
   | "inactive"
@@ -475,6 +477,85 @@ function AgingSummary({
   );
 }
 
+// ─── Overview Panel ────────────────────────────────────────────────────────
+// Executive snapshot for the Overview tab: receivables trend, top customers,
+// aging, and AI insights. The full filterable customer table lives on the
+// status tabs.
+
+function CustomersOverview({
+  receivablesTrend,
+  topCustomers,
+  agingSummary,
+  totalReceivables,
+  insights,
+}: {
+  receivablesTrend?: Array<{ month: string; receivables: number }>;
+  topCustomers?: Array<{ name: string; balance: number }>;
+  agingSummary?: {
+    current: number;
+    "31_60": number;
+    "61_90": number;
+    "90_plus": number;
+  };
+  totalReceivables: number;
+  insights?: Array<{
+    id: string;
+    type: "warning" | "info" | "success";
+    title: string;
+    description: string;
+    actionLabel: string;
+  }>;
+}) {
+  return (
+    <>
+      {/* Receivables trend + concentration */}
+      <div className="grid grid-cols-3 gap-6 bg-slate-50/70 p-4">
+        {receivablesTrend && (
+          <ReceivablesTrendChart trendData={receivablesTrend} />
+        )}
+        {topCustomers && <TopCustomersChart customers={topCustomers} />}
+        {agingSummary && (
+          <AgingSummary
+            agingSummary={agingSummary}
+            totalReceivables={totalReceivables}
+          />
+        )}
+      </div>
+
+      {/* AI Insights */}
+      <div className="border-t border-slate-200 bg-slate-50/70 p-4">
+        <h3 className="mb-3 font-medium text-slate-900">AI Insights</h3>
+        {insights && insights.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {insights.slice(0, 4).map((insight) => (
+              <div
+                key={insight.id}
+                className={cn(
+                  "rounded-lg border p-3",
+                  insight.type === "warning"
+                    ? "border-amber-200 bg-amber-50"
+                    : insight.type === "success"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-blue-200 bg-blue-50",
+                )}
+              >
+                <p className="text-sm font-medium text-slate-900">
+                  {insight.title}
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  {insight.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">No insights at this time.</p>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── AI Copilot Panel ──────────────────────────────────────────────────────
 
 function AiCopilotPanel({
@@ -791,7 +872,7 @@ function AiCopilotPanel({
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function CustomersPage() {
-  const [activeTab, setActiveTab] = useState<StatusFilter>("all");
+  const [activeTab, setActiveTab] = useState<StatusFilter>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
@@ -808,7 +889,7 @@ export default function CustomersPage() {
   // Fetch customers
   const { data: customersData, isLoading: customersLoading } =
     trpc.customers.listCustomers.useQuery({
-      status: activeTab,
+      status: activeTab === "overview" ? "all" : activeTab,
       search: searchQuery || undefined,
       group: groupFilter || undefined,
       limit: pageSize,
@@ -823,6 +904,7 @@ export default function CustomersPage() {
   const { data: aiInsights } = trpc.customers.getAiInsights.useQuery();
 
   const tabs = [
+    { key: "overview" as StatusFilter, label: "Overview" },
     {
       key: "all" as StatusFilter,
       label: "All Customers",
@@ -859,6 +941,46 @@ export default function CustomersPage() {
   const isEmpty =
     !customersLoading && (!overviewData || overviewData.statusCounts.all === 0);
 
+  const pagination = (
+    <div className="flex items-center justify-between">
+      <p className="text-sm text-slate-500">
+        Showing 1 to {customersData?.customers.length ?? 0} of{" "}
+        {(customersData?.totalCount ?? 0).toLocaleString()} customers
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          ←
+        </button>
+        <span className="text-sm text-slate-600">Page {page}</span>
+        <button
+          onClick={() => setPage(page + 1)}
+          disabled={
+            page >= Math.ceil((customersData?.totalCount ?? 0) / pageSize)
+          }
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          →
+        </button>
+        <select
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+          }}
+          className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value={10}>10 / page</option>
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
+        </select>
+      </div>
+    </div>
+  );
+
   return (
     <ModulePageShell
       title="Customers"
@@ -867,6 +989,11 @@ export default function CustomersPage() {
       iconBgClassName="bg-gradient-to-br from-indigo-500 to-purple-500"
       actions={
         <>
+          <AiSimulationTrigger
+            traceId="collections-flow"
+            label="AI Collect"
+            variant="outline"
+          />
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
@@ -933,61 +1060,7 @@ export default function CustomersPage() {
           )}
         </div>
       }
-      pagination={
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            Showing 1 to {customersData?.customers.length ?? 0} of{" "}
-            {(customersData?.totalCount ?? 0).toLocaleString()} customers
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              ←
-            </button>
-            <span className="text-sm text-slate-600">Page {page}</span>
-            <button
-              onClick={() => setPage(page + 1)}
-              disabled={
-                page >= Math.ceil((customersData?.totalCount ?? 0) / pageSize)
-              }
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              →
-            </button>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value={10}>10 / page</option>
-              <option value={25}>25 / page</option>
-              <option value={50}>50 / page</option>
-            </select>
-          </div>
-        </div>
-      }
-      bottomCharts={
-        <div className="grid grid-cols-3 gap-6">
-          {receivablesTrend && (
-            <ReceivablesTrendChart trendData={receivablesTrend} />
-          )}
-          {overviewData?.topCustomers && (
-            <TopCustomersChart customers={overviewData.topCustomers} />
-          )}
-          {overviewData?.agingSummary && (
-            <AgingSummary
-              agingSummary={overviewData.agingSummary}
-              totalReceivables={overviewData.summary.totalReceivables}
-            />
-          )}
-        </div>
-      }
+      pagination={activeTab !== "overview" ? pagination : undefined}
     >
       {isEmpty ? (
         <div className="flex items-center justify-center py-16">
@@ -1024,6 +1097,14 @@ export default function CustomersPage() {
             </div>
           </div>
         </div>
+      ) : activeTab === "overview" ? (
+        <CustomersOverview
+          receivablesTrend={receivablesTrend}
+          topCustomers={overviewData?.topCustomers}
+          agingSummary={overviewData?.agingSummary}
+          totalReceivables={overviewData?.summary.totalReceivables ?? 0}
+          insights={aiInsights}
+        />
       ) : (
         <CustomerTable
           customers={customersData?.customers ?? []}

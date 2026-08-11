@@ -24,6 +24,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateBillDialog } from "@/components/dashboard/create-bill-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
@@ -32,6 +33,7 @@ import { RowAiAction } from "@/components/module/row-ai-action";
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 type StatusFilter =
+  | "overview"
   | "all"
   | "draft"
   | "pending_approval"
@@ -513,6 +515,80 @@ function BillsByStatusDonut({
   );
 }
 
+// ─── Overview Panel ────────────────────────────────────────────────────────
+// Executive snapshot for the Overview tab: bills trend, top vendors, pipeline
+// status and AI insights. The full filterable bills table lives on the status
+// tabs.
+
+function BillsOverview({
+  overviewData,
+  billsTrend,
+  insights,
+}: {
+  overviewData?: {
+    topVendors?: Array<{ name: string; balance: number }>;
+    billsByStatus?: Array<{ label: string; count: number; color: string }>;
+    totalBills: number;
+  };
+  billsTrend?: Array<{ month: string; total: number }>;
+  insights?: Array<{
+    id: string;
+    type: "warning" | "info" | "success";
+    title: string;
+    description: string;
+    actionLabel: string;
+  }>;
+}) {
+  return (
+    <>
+      {/* Trend + concentration + pipeline */}
+      <div className="grid grid-cols-3 gap-6 bg-slate-50/70 p-4">
+        {billsTrend && <BillsTrendChart trendData={billsTrend} />}
+        {overviewData?.topVendors && (
+          <TopVendorsChart vendors={overviewData.topVendors} />
+        )}
+        {overviewData?.billsByStatus && (
+          <BillsByStatusDonut
+            data={overviewData.billsByStatus}
+            total={overviewData.totalBills}
+          />
+        )}
+      </div>
+
+      {/* AI Insights */}
+      <div className="border-t border-slate-200 bg-slate-50/70 p-4">
+        <h3 className="mb-3 font-medium text-slate-900">AI Insights</h3>
+        {insights && insights.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {insights.slice(0, 4).map((insight) => (
+              <div
+                key={insight.id}
+                className={cn(
+                  "rounded-lg border p-3",
+                  insight.type === "warning"
+                    ? "border-amber-200 bg-amber-50"
+                    : insight.type === "success"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-blue-200 bg-blue-50",
+                )}
+              >
+                <p className="text-sm font-medium text-slate-900">
+                  {insight.title}
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  {insight.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">No insights at this time.</p>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── AI Copilot Panel ──────────────────────────────────────────────────────
 
 function AiCopilotPanel({
@@ -780,7 +856,7 @@ function AiCopilotPanel({
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function BillsPage() {
-  const [activeTab, setActiveTab] = useState<StatusFilter>("all");
+  const [activeTab, setActiveTab] = useState<StatusFilter>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -794,7 +870,7 @@ export default function BillsPage() {
   // Fetch bills
   const { data: billsData, isLoading: billsLoading } =
     trpc.bills.listBills.useQuery({
-      status: activeTab,
+      status: activeTab === "overview" ? "all" : activeTab,
       search: searchQuery || undefined,
       limit: pageSize,
       offset: (page - 1) * pageSize,
@@ -807,6 +883,7 @@ export default function BillsPage() {
   const { data: aiInsights } = trpc.bills.getAiInsights.useQuery();
 
   const tabs = [
+    { key: "overview" as StatusFilter, label: "Overview" },
     {
       key: "all" as StatusFilter,
       label: "All Bills",
@@ -852,6 +929,11 @@ export default function BillsPage() {
       iconBgClassName="bg-gradient-to-br from-indigo-500 to-purple-500"
       actions={
         <>
+          <AiSimulationTrigger
+            traceId="vendor-payments"
+            label="AI Schedule Payments"
+            variant="outline"
+          />
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
@@ -902,65 +984,61 @@ export default function BillsPage() {
         </div>
       }
       pagination={
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            Showing 1 to {billsData?.bills.length ?? 0} of{" "}
-            {(billsData?.totalCount ?? 0).toLocaleString()} bills
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              ←
-            </button>
-            <span className="text-sm text-slate-600">Page {page}</span>
-            <button
-              onClick={() => setPage(page + 1)}
-              disabled={
-                page >= Math.ceil((billsData?.totalCount ?? 0) / pageSize)
-              }
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              →
-            </button>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value={10}>10 / page</option>
-              <option value={25}>25 / page</option>
-              <option value={50}>50 / page</option>
-            </select>
+        activeTab !== "overview" ? (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">
+              Showing 1 to {billsData?.bills.length ?? 0} of{" "}
+              {(billsData?.totalCount ?? 0).toLocaleString()} bills
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+              >
+                ←
+              </button>
+              <span className="text-sm text-slate-600">Page {page}</span>
+              <button
+                onClick={() => setPage(page + 1)}
+                disabled={
+                  page >= Math.ceil((billsData?.totalCount ?? 0) / pageSize)
+                }
+                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+              >
+                →
+              </button>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value={10}>10 / page</option>
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+              </select>
+            </div>
           </div>
-        </div>
-      }
-      bottomCharts={
-        <div className="grid grid-cols-3 gap-6">
-          {billsTrend && <BillsTrendChart trendData={billsTrend} />}
-          {overviewData?.topVendors && (
-            <TopVendorsChart vendors={overviewData.topVendors} />
-          )}
-          {overviewData?.billsByStatus && (
-            <BillsByStatusDonut
-              data={overviewData.billsByStatus}
-              total={overviewData.totalBills}
-            />
-          )}
-        </div>
+        ) : undefined
       }
     >
-      <BillsTable
-        bills={billsData?.bills ?? []}
-        selectedId={selectedBillId}
-        onSelect={setSelectedBillId}
-        isLoading={billsLoading}
-      />
+      {activeTab === "overview" ? (
+        <BillsOverview
+          overviewData={overviewData}
+          billsTrend={billsTrend}
+          insights={aiInsights}
+        />
+      ) : (
+        <BillsTable
+          bills={billsData?.bills ?? []}
+          selectedId={selectedBillId}
+          onSelect={setSelectedBillId}
+          isLoading={billsLoading}
+        />
+      )}
       <CreateBillDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}

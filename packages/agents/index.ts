@@ -93,6 +93,9 @@ export {
   calculateTax,
   calculateSplitContribution,
   resolveRateOverride,
+  TAX_PRESET_CATALOG,
+  getTaxPresetsForCountry,
+  PRESET_COUNTRIES,
   mapTaxRuleToStatutory,
   mergeConfiguredRules,
   groupConfiguredRules,
@@ -132,6 +135,7 @@ export {
 } from "./core";
 export type {
   TaxRateConfig,
+  TaxPreset,
   TaxContext,
   TaxResult,
   SplitResult,

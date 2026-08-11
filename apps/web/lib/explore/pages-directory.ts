@@ -25,6 +25,7 @@ import {
   BadgeCheck,
   Building2,
   NotebookPen,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -331,6 +332,14 @@ export const PAGES: PageEntry[] = [
     description:
       "Entity settings, users & roles, taxes, branding, and integrations.",
     icon: Settings,
+    group: "Administration",
+  },
+  {
+    href: "/dashboard/help",
+    title: "Help Center",
+    description:
+      "Guides, documentation, and support — search topics or ask the AI.",
+    icon: HelpCircle,
     group: "Administration",
   },
 ];

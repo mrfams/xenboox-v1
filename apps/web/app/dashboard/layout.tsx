@@ -56,6 +56,7 @@ export default function DashboardLayout({
     "/dashboard/insights",
     "/dashboard/agents",
     "/dashboard/settings",
+    "/dashboard/help",
   ]);
 
   const isPaddedPage = pathname ? PAGE_PADDING_ROUTES.has(pathname) : false;

@@ -36,6 +36,7 @@ import {
   analyticsQueryOptions,
 } from "@/lib/trpc/query-options";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import type { TabItem } from "@/components/module/module-page-shell.types";
 import { CreateBankAccountDialog } from "@/components/dashboard/create-bank-account-dialog";
 import { RowAiAction } from "@/components/module/row-ai-action";
@@ -2046,6 +2047,11 @@ export default function BankingPage() {
         <Plus className="h-4 w-4" />
         Add Account
       </button>
+      <AiSimulationTrigger
+        traceId="bank-reconciliation"
+        label="AI Match"
+        variant="outline"
+      />
       <DocumentUploadButton
         docType="bank_statement"
         label="Import Statement"

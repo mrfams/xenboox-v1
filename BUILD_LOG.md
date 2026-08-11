@@ -6,6 +6,150 @@
 
 ---
 
+### [2026-08-11] — Self-service tax for every country + AI simulation triggers on 6 more module pages
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/agents/core/tax-presets.ts`, `packages/agents/core/__tests__/tax-presets.test.ts`, `apps/web/lib/accounting/countries.ts`
+**Files Modified:** `packages/agents/core/index.ts`, `packages/agents/index.ts`, `apps/web/server/routers/tax-config.ts`, `apps/web/components/settings/taxes-section.tsx`, `apps/web/__tests__/{tax-config-router.test.ts,taxes-section.test.tsx}`, `apps/web/lib/ai-ux/traces.ts`, `apps/web/lib/explore/ai-ux-catalog.ts`, `apps/web/app/dashboard/{payroll,invoicing,bills,expenses,customers,vendors}/page.tsx`, `BUILD_LOG.md`
+
+**Request:** Self-service tax — users can set up their own taxes for any country (progressive brackets, thresholds, citizen/non-citizen variants, employer/employee splits…). Extensive research on the full tax universe (income/payroll, indirect, social security, withholding, corporate) and on how Xero/QuickBooks/Digits/Basis/Zeni/Dynamics/Oracle/Odoo handle tax configuration, then autoplan, then implement, then typecheck + build + commit + push. Follow-up: add AI simulation triggers to payroll, invoicing, bills, expenses, customers and vendors to match the banking/transactions/documents pattern.
+
+**Research (2 web researchers, in parallel):** tax-type universe with exact calculation structures (progressive marginal brackets, thresholds/exemptions, flat/fixed, employee/employer splits, ceilings, conditional-by-context rates) + platform-by-platform tax-engine models (Xero code+component+region, QuickBooks manual vs automated sales tax, Odoo computation mapping, Dynamics tax groups intersection, Oracle regime→status→rate→rule, modern AI platforms' auto-ingest) → architected as a data catalog feeding the existing pure `tax-engine.ts` (which already expresses every structure).
+
+**What was built (autoplan pipeline CEO → Design → Eng → DX, run in-context):**
+
+1. **`tax-presets.ts` catalog** — research-backed preset packs for **GM, SN, US** (requested) plus NG, KE, GH, each entry carrying name, ruleType, appliesTo, description, source citation, and a `TaxRateConfig`. Payroll figures are aligned 1:1 with the pipeline's verified `STATUTORY_RULES` (GM PAYE bands, SSHFC 5/10 w/ GMD 30k ceiling, DGID IRSA, IPRES+CSS, IRS monthly brackets, FICA 7.65/7.65 w/ $14,675/mo ceiling…) so installing a pack and running payroll agree. Indirect/corporate rates from current research (Gambia VAT 15%/CIT 27%, Senegal TVA 18%/IS 30%, US federal 21% + state sales-tax example, NG VAT 7.5%, KE VAT 16%). Exported from `@xenboox/agents`.
+2. **`countries.ts` registry** — full ISO 3166-1 list (~190 countries, code + name + currency), flags derived from the code via regional-indicator symbols (pure data, no emoji in the file), `countryLabel`/`getCountry` helpers.
+3. **Router (`tax-config.ts`)** — `listPresets(country)` (catalog + `installed` flags computed against the entity's non-superseded rules) and `installPresets(country, presetIds[])` (idempotent bulk install: skips already-installed `ruleType::name`, **continues the version sequence** exactly like `createRule` so a re-install after a supersede never collides with an old v1, role-gated owner/admin/finance_director, audit-logged via proposedBy/approvedBy).
+4. **Settings → Taxes UI** — hardcoded 6-country `<Select>` replaced with a **searchable country picker** (Popover + Command over the full registry, flags, any 2-letter ISO fallback) and a new **tax pack card**: per-country presets with Install / Installed states, per-rule and bulk "Install pack (N)" buttons, source citations, and a verification disclaimer. Installed rules land in the existing table where they can be edited (new version) or deactivated. Dark-mode variants on the installed state.
+5. **AI simulation triggers** — `AiSimulationTrigger` wired into the `actions` slot of **Payroll** ("Run with AI" → `payroll-run`), **Invoicing** ("AI Draft Invoice" → `invoice-creation`), **Bills** ("AI Schedule Payments" → `vendor-payments`), **Expenses** ("AI Review" → `expense-review`), **Customers** ("AI Collect" → `collections-flow`), **Vendors** ("AI Enrich" → new `vendor-profile` trace: dedupe, tax-ID flags, payment-terms enrichment, approval). New trace + catalog entry so the Explore AI UX tab lists it.
+
+**Verification:** web typecheck ✓ · ESLint 0 errors (pre-existing warnings only) · full web suite **613 passed / 1 skipped** ✓ (7 new catalog-integrity tests in packages/agents, 7 new router tests incl. the version-continuation regression, 1 new UI test for the preset pack) · packages/agents typecheck clean for the new files (2 pre-existing errors in untouched tool-system tests, confirmed on the stashed tree) · **production build ✓** (compiled, 23/23 static pages) · code review applied (version-continuation bug in installPresets fixed + regression-tested, import-order verified, dark-mode installed-state, unused `installedIds` removed).
+
+---
+
+### [2026-08-11] — Documents page gets a lightweight Overview tab (storage breakdown, pending-review queue, recent uploads)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/app/dashboard/documents/page.tsx`, `apps/web/server/routers/document.ts`, `BUILD_LOG.md`
+
+**Request:** Reconsider a lightweight Overview tab for the Documents page — the earlier audit had deliberately skipped it as "a repository surface where the list is the overview".
+
+**What:**
+
+- **Overview is now the default first tab** (consistent with the other module pages), showing three lightweight panels:
+  - **Storage by category** — per-doc-type count + size with colored share bars and a total line (only categories in use).
+  - **Pending review queue** — up to 8 documents still in the processing pipeline or failed, with human status chips ("Resolving entity", "Classifying workflow", "Generating journal"…), uploader, category, and a click-through to the in-app document viewer. "View all" jumps to the All Documents tab. Empty state: "All caught up".
+  - **Recent uploads** — last 5 by upload date with size, opening the viewer on click.
+- **Router (`document.getOverview`)** — now returns `overview { categoryBreakdown, pendingReviewTotal, pendingReview[≤8], recentUploads[≤5] }` computed from the already-fetched docs (no extra query). **Fixed a latent semantic bug**: `summary.pendingReview` counted `status === "processed"` (a terminal state); it now counts non-terminal pipeline + failed docs, with the terminal set mirroring the "Terminal states" group of the `doc_status` enum (`agent_processing` … `archived`, plus legacy `processed`/`uploaded`).
+- List tabs unchanged — empty state + table render only on non-overview tabs; the list query still runs on overview so Export keeps working.
+
+**Verification:** web typecheck ✓ · ESLint 0 errors (pre-existing warnings only) · full web suite **604 passed / 1 skipped** ✓ · production build ✓ · code review applied (terminal-set alignment with the enum, pending badge now shows the true total with a "showing first 8" note).
+
+---
+
+### [2026-08-11] — AI-native UX: simulation engine + Explore "AI UX" tab + wired module triggers
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/ai-ux/{types,traces,use-ai-ux-simulation}.ts`, `apps/web/components/ai-ux/{simulation-overlay,simulation-trigger}.tsx`, `apps/web/components/explore/ai-ux-tab.tsx`, `apps/web/lib/explore/ai-ux-catalog.ts`, `apps/web/__tests__/ai-ux-simulation.test.tsx`
+**Files Modified:** `apps/web/app/dashboard/{explore,close,transactions,documents,banking}/page.tsx`, `BUILD_LOG.md`
+
+**Request:** Make Xenboox feel AI-native end to end. No live LLMs yet, so build a high-fidelity simulation of the agentic experience — clicking something shows exactly how the 19-agent workforce will think, delegate, work, and post (ChatGPT/Claude/Cursor/Devin/Conductor/Basis-inspired). Extensive research done across those products. Add a new **AI UX** tab to the Explore page cataloguing every AI-native feature with the same implementation-status styling as the Features tab.
+
+**What was built (autoplan pipeline: CEO → Design → Eng → DX, run in-context):**
+
+1. **Simulation engine** — `lib/ai-ux/`:
+   - `types.ts` — 12-agent registry (tier 1 CFO → tier 2 department heads → tier 3 workers + Ledger Agent as the single posting point), discriminated step union (`think` / `act` / `tool` / `approval` / `complete`), trace type.
+   - `traces.ts` — **12 scripted workflows** with research-informed status vocabulary: month-end close ("Creating June month-end close report…"), bank auto-match, transaction categorization, document extraction, invoice generation, payroll run, cash-flow forecast, collections, vendor payments, audit verification, expense policy review, data migration.
+   - `use-ai-ux-simulation.ts` — playback state machine: each step passes `thinking` shimmer → typewriter reveal → settled pause; terminal step settles to `done`; replay cancels + restarts; stopped runs reset to idle (no stuck "running").
+2. **`SimulationOverlay`** — Devin/Conductor-style modal player: gradient header + AI Simulation badge, agent roster chips, live step feed (agent avatars, per-kind chips, tool traces in mono, approval confidence badges), auto-scrolling, progress bar, done banner, Escape to close, `inert` + `aria-hidden` when closed, dark-mode variants throughout.
+3. **`AiSimulationTrigger`** — one-line drop-in button: `<AiSimulationTrigger traceId="month-end-close" label="Run autonomous close" />`.
+4. **Wired module triggers** — Close Center "Run autonomous close", Transactions "AI Categorize", Documents "Process with AI", Banking "AI Match" (each opens its workflow simulation).
+5. **Explore → AI UX tab** — hero banner ("Play it before the models arrive" + live demo button), status legend + roll-up (shipped / in progress / planned, same styling as Features), category filter chips (Agent Workflows · Progress & Thinking · Conversation & Creation · Trust & Approval), **27 entries** each with status badge, benchmark source, product link, and a **Run simulation** button wherever a trace exists.
+
+**Verification:** web typecheck ✓ · ESLint 0 errors on all new/changed files (pre-existing warnings only) · **full web suite 604 passed / 1 skipped** ✓ (11 new AI-UX tests: trace integrity, hook playback + replay + cancel/reopen race, overlay done-state + Escape + inert) · **production build ✓** · code review applied (stuck-running-on-reopen race fixed + regression-tested, closed-overlay focusability via `inert`, dark-mode contrast in step feed, dead ref removed, trace lookup DRY'd).
+
+---
+
+### [2026-08-11] — Real Help Center page + sidebar Help link retargeted to /dashboard/help
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/app/dashboard/help/page.tsx`
+**Files Modified:** `apps/web/components/layout/sidebar.tsx`, `apps/web/components/layout/ai-sidebar.tsx`, `apps/web/app/dashboard/layout.tsx`, `apps/web/lib/nav.ts`, `apps/web/components/shared/command-palette.tsx`, `apps/web/lib/explore/pages-directory.ts`, `BUILD_LOG.md`
+
+**Request:** Add a real Help Center page and point the sidebar Help link to it instead of `/dashboard/settings`.
+
+**What:**
+
+- **New `/dashboard/help` page** — a proper Help Center matching the settings-page chrome (header + scrollable content, `h-[calc(100vh-4rem)]`, dark-mode variants):
+  - Gradient hero card with live **topic search** (filters docs topics + in-app guides by title/description/keywords) and quick-chip filters (Getting started / Invoices / Payroll / Security).
+  - **Documentation grid** — 6 cards linking to real public routes (`/docs/quickstart`, `/docs/getting-started`, `/docs/modules`, `/docs/faq`, `/docs/security`, `/docs/webhooks`), each with an external-link affordance since they leave the dashboard shell.
+  - **In-app guides grid** — 6 cards linking to dashboard modules (banking, invoicing, payroll, reconciliation, inbox, settings).
+  - Empty-search state that hands off to the AI Command Center with the query prefilled (`/dashboard/chat?initial=…`).
+  - "Still stuck?" support row — Ask Xenboox AI, Full Documentation, and `mailto:` support. Subtle "All systems operational" status pill in the header.
+- **Sidebar links retargeted** — `Help & Support` (both `sidebar.tsx` bottomNav + `ai-sidebar.tsx`) now points to `/dashboard/help` instead of `/dashboard/settings`.
+- **Layout** — `/dashboard/help` added to `PAGE_PADDING_ROUTES` so the page gets the standard padded treatment.
+- **Discovery registration** — Help Center added to `lib/nav.ts` (command-bar search), `command-palette.tsx` (Pages), and `lib/explore/pages-directory.ts` (Administration group).
+
+**Bonus:** the e2e suite `flow-03-modules-interaction.spec.ts` already listed `/dashboard/help` as a route that must render — the new page fixes that latent failing check.
+
+**Verification:** web typecheck ✓ · ESLint 0 errors on new file (one pre-existing unused-var warning in sidebar.tsx) · full web suite 593 passed / 1 skipped ✓ · code review applied (empty search sections hidden, docs topics marked external, search input aria-label).
+
+---
+
+### [2026-08-11] — Overview-first tabs on all remaining module pages (customers, vendors, invoicing, bills, expenses, journal, estimates, transactions)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/app/dashboard/{customers,vendors,invoicing,bills,expenses,journal,estimates,transactions}/page.tsx`, `BUILD_LOG.md`
+
+**Request:** Audit the remaining module pages whose first tab is a status filter rather than an overview — should any get a proper Overview tab? (Banking already had one; documents deliberately skipped — it's a repository surface.)
+
+**What:** Added an **Overview tab as the default first tab** on all 8 modules, matching the banking/reconciliation/payroll/tax-compliance/fixed-assets/reports pattern. Every page already fetched an overview payload, so no new server queries were needed:
+
+- **Customers** — Overview = receivables trend + top customers + aging summary (moved out of `bottomCharts`, which was showing charts under the table on every tab) + AI insights.
+- **Vendors** — Overview = payables trend + top vendors + payment terms (moved from `bottomCharts`) + vendor aging (was only feeding the unused AI panel) + AI insights.
+- **Invoicing** — Overview = aging + invoices trend + top customers (moved from `bottomCharts`) + new Invoice Status donut + AI insights.
+- **Bills** — Overview = bills trend + top vendors + bills-by-status donut (moved from `bottomCharts`) + AI insights.
+- **Expenses** — Overview = budget burn + top vendors + AI insights (extracted from the unused AI panel).
+- **Journal** — Overview = entry trend + top account impact + recent activity (moved from `bottomCharts`) + new entries-by-source donut + AI insights.
+- **Estimates** — Overview = quote pipeline bars + value/conversion stats (custom layout page; summary cards stay above tabs).
+- **Transactions** — Overview = categorization-health donut (auto-categorized / matched / needs review / excluded) + AI insights.
+
+Mechanics per page: `"overview"` added to the tab filter union, `useState` default becomes `"overview"`, tabs prepend `{ key: "overview", label: "Overview" }`, list queries pass `status: "all"` when overview is active (never an invalid status), pagination hidden on the overview tab, and `bottomCharts`/rail content **moved** (not duplicated) into the overview panel so status tabs stay lean.
+
+**Verification:** web typecheck ✓ · ESLint ✓ (0 errors; 28 warnings all pre-existing — unused `AiCopilotPanel` dead code and unused imports) · full web test suite 593 passed / 1 skipped ✓ · e2e specs verified compatible (they click status tabs explicitly; estimates summary cards still render above tabs).
+
+**Notes / deferred:** two overview charts still render pre-existing **mock trend data** (Vendors Payables Trend, Journal Entry Trend — labeled "would come from API in production"); the filter/search bar remains visible on overview tabs (inert but harmless, consistent across pages); the unused `AiCopilotPanel` components across these pages remain dead code pending a cleanup pass.
+
+---
+
+### [2026-08-11] — Fix: entities + data invisible on every page (stale DATABASE_URL + schema drift)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** none (environment + database fixes — see below)
+
+**Symptom:** User reported "can't see my entities nor any data on any page" — the org/static chrome rendered, but `organization.listUserEntities` returned 500 and every data table was empty, on both local dev and the deployed app.
+
+**Root cause (two independent problems):**
+
+1. **Stale machine-level `DATABASE_URL` environment variable.** The Windows User environment had `DATABASE_URL` set to a **dead Neon endpoint** (`ep-fragrant-hall-ab8yafyi…`, a previous project whose password was rotated out). Next.js never overrides an existing `process.env` variable with `.env` files, so the app connected to the wrong database and every query died with `password authentication failed for user 'neondb_owner'` → 500 on login-adjacent and entity-scoped tRPC calls. The correct URL (live `ep-crimson-lake-abh33lg6…` with all seeded data) lives in `apps/web/.env` / root `.env.local`, but was shadowed.
+2. **Schema drift on the live DB.** The database was created via `db:push` (no `__drizzle_migrations` table), but schema additions from later commits were never pushed: `entities.onboarding_source_type / business_start_date / pre_incorporation_activity` columns, `audit_log` tamper-evident chain columns (`actor_type`, `agent_id`, `reason`, `session_id`, `request_id`, `seq`, `prev_hash`, `event_hash`, `payload_hash_input`) + `audit_entity_seq` index, and three missing tables (`document_views`, `opening_balances`, `tax_rate_overrides`).
+
+**Fix:**
+
+- Removed the stale User-level `DATABASE_URL` from the Windows environment (`[Environment]::SetEnvironmentVariable('DATABASE_URL', $null, 'User')`) so Next.js loads the correct value from `apps/web/.env`. ⚠️ **Open a NEW terminal** — existing shells/processes still hold the old value.
+- Applied the missing schema delta directly to the DB (verified against `packages/db/schema`): the three `entities` columns, nine `audit_log` columns + index, and the three tables with their indexes. (drizzle-kit push could not be used: it aborts with `type "onboarding_source_type" already exists` on this partially-pushed DB.)
+
+**Verification (local dev, demo@xenboox.com):**
+
+- Login → dashboard 200, `organization.listUserEntities` 200, entity switcher shows **Kerr Jula Trading Co.**
+- Dashboard renders real data: Cash Balance D 745,000.00 (+355.8%), executive briefing, cash runway, business health.
+- Payroll page HAS DATA; Banking overview HAS DATA; reports tRPC batch 200. Zero 5xx on any page.
+
+**Deployment note:** the deployed app (xenboox.vercel.app) showed the same `listUserEntities` 500 — the Vercel project's `DATABASE_URL` env var likely points at the same dead `ep-fragrant-hall` endpoint. Update it to the live `ep-crimson-lake` URL in Vercel settings and redeploy.
+
+---
+
 ### [2026-08-11] — Banking overview tab → executive snapshot
 
 **Agent:** Buffy (Autonomous Engineer)

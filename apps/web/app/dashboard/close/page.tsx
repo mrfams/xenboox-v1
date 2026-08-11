@@ -19,6 +19,7 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -870,6 +871,13 @@ function AiCopilotPanel({
             View close checklist →
           </button>
         </div>
+
+        {/* Run AI Close */}
+        <AiSimulationTrigger
+          traceId="month-end-close"
+          label="Run autonomous close"
+          className="w-full justify-center py-2.5"
+        />
 
         {/* Quick Actions */}
         <div className="space-y-2">

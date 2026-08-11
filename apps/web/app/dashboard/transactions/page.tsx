@@ -28,8 +28,10 @@ import type { TabItem } from "@/components/module/module-page-shell.types";
 import { CreateTransactionDialog } from "@/components/dashboard/create-transaction-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { RowAiAction } from "@/components/module/row-ai-action";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 type TabFilter =
+  | "overview"
   | "all"
   | "uncategorized"
   | "needs_review"
@@ -732,10 +734,176 @@ function TransactionDetailPanel({
   );
 }
 
+// ─── Overview Panel ────────────────────────────────────────────────────────
+// Executive snapshot for the Overview tab: categorization health and AI
+// insights. The reviewable transaction list lives on the status tabs.
+
+function TransactionsOverview({
+  summary,
+  aiInsights,
+}: {
+  summary?: {
+    totalTransactions: number;
+    aiCategorized: number;
+    needsReview: number;
+    matched: number;
+    excluded: number;
+  } | null;
+  aiInsights?: Array<{
+    id: string;
+    type: "warning" | "info" | "success";
+    title: string;
+    description: string;
+    actionLabel: string;
+  }>;
+}) {
+  const total = summary?.totalTransactions ?? 0;
+  const autoRate =
+    total > 0 ? Math.round(((summary?.aiCategorized ?? 0) / total) * 100) : 0;
+  const segments = [
+    {
+      label: "Auto-categorized",
+      count: summary?.aiCategorized ?? 0,
+      color: "bg-emerald-500",
+    },
+    {
+      label: "Matched",
+      count: summary?.matched ?? 0,
+      color: "bg-blue-500",
+    },
+    {
+      label: "Needs review",
+      count: summary?.needsReview ?? 0,
+      color: "bg-amber-500",
+    },
+    {
+      label: "Excluded",
+      count: summary?.excluded ?? 0,
+      color: "bg-slate-400",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-6 bg-slate-50/70 p-4">
+      {/* Categorization Health */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-slate-900">Categorization Health</h3>
+          <span className="text-xs text-slate-500">This month</span>
+        </div>
+        <div className="flex items-center gap-6">
+          {/* Donut Chart */}
+          <div className="relative h-32 w-32 shrink-0">
+            <svg className="h-full w-full" viewBox="0 0 100 100">
+              {segments.map((seg, i) => {
+                const startAngle = segments
+                  .slice(0, i)
+                  .reduce((sum, s) => sum + (s.count / (total || 1)) * 360, 0);
+                const endAngle = startAngle + (seg.count / (total || 1)) * 360;
+                const largeArc = seg.count / (total || 1) > 0.5 ? 1 : 0;
+                const startRad = (startAngle * Math.PI) / 180;
+                const endRad = (endAngle * Math.PI) / 180;
+                const x1 = 50 + 40 * Math.cos(startRad);
+                const y1 = 50 + 40 * Math.sin(startRad);
+                const x2 = 50 + 40 * Math.cos(endRad);
+                const y2 = 50 + 40 * Math.sin(endRad);
+                const x3 = 50 + 25 * Math.cos(endRad);
+                const y3 = 50 + 25 * Math.sin(endRad);
+                const x4 = 50 + 25 * Math.cos(startRad);
+                const y4 = 50 + 25 * Math.sin(startRad);
+
+                const fillColor =
+                  seg.color === "bg-emerald-500"
+                    ? "#10b981"
+                    : seg.color === "bg-blue-500"
+                      ? "#3b82f6"
+                      : seg.color === "bg-amber-500"
+                        ? "#f59e0b"
+                        : "#94a3b8";
+
+                return (
+                  <path
+                    key={seg.label}
+                    d={`M ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A 25 25 0 ${largeArc} 0 ${x4} ${y4} Z`}
+                    fill={fillColor}
+                  />
+                );
+              })}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="text-lg font-bold tabular-nums text-slate-900">
+                {autoRate}%
+              </p>
+              <p className="text-[10px] text-slate-500">auto-categorized</p>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex-1 space-y-2">
+            {segments.map((seg) => {
+              const percentage = total > 0 ? (seg.count / total) * 100 : 0;
+              return (
+                <div
+                  key={seg.label}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={cn("h-2 w-2 rounded", seg.color)} />
+                    <span className="text-xs text-slate-600">{seg.label}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-medium text-slate-900">
+                      {seg.count}
+                    </span>
+                    <span className="text-[10px] text-slate-400 ml-1">
+                      ({percentage.toFixed(0)}%)
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* AI Insights */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <h3 className="mb-3 font-medium text-slate-900">AI Insights</h3>
+        {aiInsights && aiInsights.length > 0 ? (
+          <div className="space-y-3">
+            {aiInsights.slice(0, 3).map((insight) => (
+              <div
+                key={insight.id}
+                className={cn(
+                  "rounded-lg border p-3",
+                  insight.type === "warning"
+                    ? "border-amber-200 bg-amber-50"
+                    : insight.type === "success"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-blue-200 bg-blue-50",
+                )}
+              >
+                <p className="text-sm font-medium text-slate-900">
+                  {insight.title}
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  {insight.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">No insights at this time.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function TransactionsPage() {
-  const [activeTab, setActiveTab] = useState<TabFilter>("all");
+  const [activeTab, setActiveTab] = useState<TabFilter>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -772,7 +940,7 @@ export default function TransactionsPage() {
 
   const { data: transactionsData, isLoading: transactionsLoading } =
     trpc.transactions.listTransactions.useQuery({
-      status: activeTab,
+      status: activeTab === "overview" ? "all" : activeTab,
       search: searchQuery || undefined,
       accountId: accountFilter || undefined,
       type: typeFilter || undefined,
@@ -826,6 +994,7 @@ export default function TransactionsPage() {
   // expose an uncategorized count, so that tab carries no badge rather than
   // a fabricated number.
   const tabs: TabItem[] = [
+    { key: "overview" as TabFilter, label: "Overview" },
     { key: "all" as TabFilter, label: "All" },
     { key: "uncategorized" as TabFilter, label: "Uncategorized" },
     {
@@ -1032,6 +1201,11 @@ export default function TransactionsPage() {
   const actions = (
     <>
       {headerSearch}
+      <AiSimulationTrigger
+        traceId="transaction-categorization"
+        label="AI Categorize"
+        variant="outline"
+      />
       <button
         onClick={() => setShowCreate(true)}
         className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
@@ -1055,6 +1229,7 @@ export default function TransactionsPage() {
       }}
       summaryCards={summaryCards}
       filters={filters}
+      pagination={activeTab !== "overview" ? pagination : undefined}
       aiContext={{
         page: "Transactions",
         module: "transactions",
@@ -1066,14 +1241,18 @@ export default function TransactionsPage() {
           : undefined,
       }}
     >
-      <TransactionTable
-        transactions={transactionsData?.transactions ?? []}
-        selectedId={selectedTransactionId}
-        onSelect={setSelectedTransactionId}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        isLoading={transactionsLoading}
-      />
+      {activeTab === "overview" ? (
+        <TransactionsOverview summary={summary} aiInsights={aiInsights} />
+      ) : (
+        <TransactionTable
+          transactions={transactionsData?.transactions ?? []}
+          selectedId={selectedTransactionId}
+          onSelect={setSelectedTransactionId}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          isLoading={transactionsLoading}
+        />
+      )}
       <CreateTransactionDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}

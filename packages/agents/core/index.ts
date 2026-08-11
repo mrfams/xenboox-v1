@@ -351,6 +351,14 @@ export type {
   ConfiguredStatutoryRules,
 } from "./statutory-rule-resolver";
 
+// ─── Country Tax Preset Catalog ─────────────────────────────
+export {
+  TAX_PRESET_CATALOG,
+  getTaxPresetsForCountry,
+  PRESET_COUNTRIES,
+} from "./tax-presets";
+export type { TaxPreset } from "./tax-presets";
+
 // ─── Tax & Compliance Pipeline (Phase 2, Pipeline 2 of 5) ─────
 export {
   runTaxCompliancePipeline,

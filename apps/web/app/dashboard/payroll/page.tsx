@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
 import { RowAiAction } from "@/components/module/row-ai-action";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import type { TabItem } from "@/components/module/module-page-shell.types";
 import { CreatePayrollRunDialog } from "@/components/dashboard/create-payroll-run-dialog";
 import { CreateEmployeeDialog } from "@/components/dashboard/create-employee-dialog";
@@ -1700,6 +1701,11 @@ export default function PayrollPage() {
 
   const actions = (
     <>
+      <AiSimulationTrigger
+        traceId="payroll-run"
+        label="Run with AI"
+        variant="outline"
+      />
       <button
         onClick={() => setShowRun(true)}
         className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"

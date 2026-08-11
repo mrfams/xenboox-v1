@@ -25,11 +25,13 @@ import type { SummaryCardItem } from "@/components/module/module-page-shell.type
 import { CreateInvoiceDialog } from "@/components/dashboard/create-invoice-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { RowAiAction } from "@/components/module/row-ai-action";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 type StatusFilter =
+  | "overview"
   | "all"
   | "draft"
   | "sent"
@@ -579,6 +581,210 @@ function TopCustomers({
   );
 }
 
+// ─── Invoice Status Donut ──────────────────────────────────────────────────
+
+function InvoiceStatusDonut({
+  statusCounts,
+  total,
+}: {
+  statusCounts: {
+    draft: number;
+    sent: number;
+    viewed: number;
+    overdue: number;
+    paid: number;
+    cancelled: number;
+  };
+  total: number;
+}) {
+  const data = [
+    { label: "Draft", count: statusCounts.draft, color: "bg-slate-400" },
+    { label: "Sent", count: statusCounts.sent, color: "bg-blue-500" },
+    { label: "Viewed", count: statusCounts.viewed, color: "bg-indigo-500" },
+    { label: "Overdue", count: statusCounts.overdue, color: "bg-red-500" },
+    { label: "Paid", count: statusCounts.paid, color: "bg-emerald-500" },
+    {
+      label: "Cancelled",
+      count: statusCounts.cancelled,
+      color: "bg-slate-300",
+    },
+  ];
+
+  const fillColor = (color: string) =>
+    ({
+      "bg-slate-400": "#94a3b8",
+      "bg-blue-500": "#3b82f6",
+      "bg-indigo-500": "#6366f1",
+      "bg-red-500": "#ef4444",
+      "bg-emerald-500": "#10b981",
+      "bg-slate-300": "#cbd5e1",
+    })[color] ?? "#9ca3af";
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 className="font-medium text-slate-900 mb-4">Invoice Status</h3>
+      <div className="flex items-center gap-6">
+        {/* Donut Chart */}
+        <div className="relative w-32 h-32 shrink-0">
+          <svg className="w-full h-full" viewBox="0 0 100 100">
+            {data.map((seg, i) => {
+              const startAngle = data
+                .slice(0, i)
+                .reduce((sum, s) => sum + (s.count / total) * 360, 0);
+              const endAngle = startAngle + (seg.count / total) * 360;
+              const largeArc = seg.count / total > 0.5 ? 1 : 0;
+              const startRad = (startAngle * Math.PI) / 180;
+              const endRad = (endAngle * Math.PI) / 180;
+              const x1 = 50 + 40 * Math.cos(startRad);
+              const y1 = 50 + 40 * Math.sin(startRad);
+              const x2 = 50 + 40 * Math.cos(endRad);
+              const y2 = 50 + 40 * Math.sin(endRad);
+              const x3 = 50 + 25 * Math.cos(endRad);
+              const y3 = 50 + 25 * Math.sin(endRad);
+              const x4 = 50 + 25 * Math.cos(startRad);
+              const y4 = 50 + 25 * Math.sin(startRad);
+
+              return (
+                <path
+                  key={seg.label}
+                  d={`M ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A 25 25 0 ${largeArc} 0 ${x4} ${y4} Z`}
+                  fill={fillColor(seg.color)}
+                />
+              );
+            })}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <p className="text-xl font-bold text-slate-900">{total}</p>
+            <p className="text-xs text-slate-500">Invoices</p>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="flex-1 space-y-1">
+          {data.map((seg) => {
+            const percentage = total > 0 ? (seg.count / total) * 100 : 0;
+            return (
+              <div
+                key={seg.label}
+                className="flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={cn("h-2 w-2 rounded", seg.color)} />
+                  <span className="text-xs text-slate-600">{seg.label}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-medium text-slate-900">
+                    {seg.count}
+                  </span>
+                  <span className="text-[10px] text-slate-400 ml-1">
+                    ({percentage.toFixed(0)}%)
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Overview Panel ────────────────────────────────────────────────────────
+// Executive snapshot for the Overview tab: aging, trend, top customers,
+// pipeline status and AI insights. The full filterable invoice table lives
+// on the status tabs.
+
+function InvoicingOverview({
+  overviewData,
+  invoicesTrend,
+  aiInsights,
+}: {
+  overviewData?: {
+    agingSummary?: {
+      current: number;
+      "31_60": number;
+      "61_90": number;
+      "90_plus": number;
+    };
+    summary: { totalOutstanding: number };
+    topCustomers?: Array<{ name: string; outstanding: number }>;
+    statusCounts: {
+      draft: number;
+      sent: number;
+      viewed: number;
+      overdue: number;
+      paid: number;
+      cancelled: number;
+    };
+    totalInvoices: number;
+  };
+  invoicesTrend?: Array<{ month: string; issued: number; paid: number }>;
+  aiInsights?: Array<{
+    id: string;
+    type: "warning" | "info" | "success";
+    title: string;
+    description: string;
+    actionLabel: string;
+  }>;
+}) {
+  return (
+    <>
+      {/* Aging + trend + concentration */}
+      <div className="grid grid-cols-3 gap-6 bg-slate-50/70 p-4">
+        {overviewData?.agingSummary && (
+          <AgingSummaryChart
+            agingSummary={overviewData.agingSummary}
+            totalOutstanding={overviewData.summary.totalOutstanding}
+          />
+        )}
+        {invoicesTrend && <InvoicesTrendChart trendData={invoicesTrend} />}
+        {overviewData?.topCustomers && (
+          <TopCustomers customers={overviewData.topCustomers} />
+        )}
+      </div>
+
+      {/* Pipeline status + AI insights */}
+      <div className="grid grid-cols-2 gap-6 border-t border-slate-200 bg-slate-50/70 p-4">
+        {overviewData?.statusCounts && (
+          <InvoiceStatusDonut
+            statusCounts={overviewData.statusCounts}
+            total={overviewData.totalInvoices}
+          />
+        )}
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 font-medium text-slate-900">AI Insights</h3>
+          {aiInsights && aiInsights.length > 0 ? (
+            <div className="space-y-3">
+              {aiInsights.slice(0, 3).map((insight) => (
+                <div
+                  key={insight.id}
+                  className={cn(
+                    "rounded-lg border p-3",
+                    insight.type === "warning"
+                      ? "border-amber-200 bg-amber-50"
+                      : insight.type === "success"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-blue-200 bg-blue-50",
+                  )}
+                >
+                  <p className="text-sm font-medium text-slate-900">
+                    {insight.title}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {insight.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No insights at this time.</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── AI Invoice Assistant Panel ────────────────────────────────────────────
 
 function AiInvoiceAssistantPanel({
@@ -806,7 +1012,7 @@ function ShortcutsSidebar() {
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function InvoicingPage() {
-  const [activeTab, setActiveTab] = useState<StatusFilter>("all");
+  const [activeTab, setActiveTab] = useState<StatusFilter>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
     null,
@@ -822,7 +1028,7 @@ export default function InvoicingPage() {
   // Fetch invoices
   const { data: invoicesData, isLoading: invoicesLoading } =
     trpc.invoicing.listInvoices.useQuery({
-      status: activeTab,
+      status: activeTab === "overview" ? "all" : activeTab,
       search: searchQuery || undefined,
       limit: pageSize,
       offset: (page - 1) * pageSize,
@@ -841,6 +1047,7 @@ export default function InvoicingPage() {
   const { data: invoicesTrend } = trpc.invoicing.getInvoicesTrend.useQuery();
 
   const tabs = [
+    { key: "overview" as StatusFilter, label: "Overview" },
     {
       key: "all" as StatusFilter,
       label: "All Invoices",
@@ -887,6 +1094,46 @@ export default function InvoicingPage() {
   const isEmpty =
     !invoicesLoading && (!overviewData || overviewData.totalInvoices === 0);
 
+  const pagination = (
+    <div className="flex items-center justify-between">
+      <p className="text-sm text-slate-500">
+        Showing 1 to {invoicesData?.invoices.length ?? 0} of{" "}
+        {(invoicesData?.totalCount ?? 0).toLocaleString()} invoices
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          ←
+        </button>
+        <span className="text-sm text-slate-600">Page {page}</span>
+        <button
+          onClick={() => setPage(page + 1)}
+          disabled={
+            page >= Math.ceil((invoicesData?.totalCount ?? 0) / pageSize)
+          }
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          →
+        </button>
+        <select
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+          }}
+          className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value={10}>10 per page</option>
+          <option value={25}>25 per page</option>
+          <option value={50}>50 per page</option>
+        </select>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex min-h-full">
       {/* Left Shortcuts Sidebar */}
@@ -903,6 +1150,11 @@ export default function InvoicingPage() {
           icon={FileText}
           actions={
             <>
+              <AiSimulationTrigger
+                traceId="invoice-creation"
+                label="AI Draft Invoice"
+                variant="outline"
+              />
               <DocumentUploadButton
                 docType="invoice"
                 label="Upload Invoice"
@@ -951,62 +1203,7 @@ export default function InvoicingPage() {
               )}
             </div>
           }
-          pagination={
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">
-                Showing 1 to {invoicesData?.invoices.length ?? 0} of{" "}
-                {(invoicesData?.totalCount ?? 0).toLocaleString()} invoices
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-                >
-                  ←
-                </button>
-                <span className="text-sm text-slate-600">Page {page}</span>
-                <button
-                  onClick={() => setPage(page + 1)}
-                  disabled={
-                    page >=
-                    Math.ceil((invoicesData?.totalCount ?? 0) / pageSize)
-                  }
-                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-                >
-                  →
-                </button>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value={10}>10 per page</option>
-                  <option value={25}>25 per page</option>
-                  <option value={50}>50 per page</option>
-                </select>
-              </div>
-            </div>
-          }
-          bottomCharts={
-            <div className="grid grid-cols-3 gap-6">
-              {overviewData?.agingSummary && (
-                <AgingSummaryChart
-                  agingSummary={overviewData.agingSummary}
-                  totalOutstanding={overviewData.summary.totalOutstanding}
-                />
-              )}
-              {invoicesTrend && (
-                <InvoicesTrendChart trendData={invoicesTrend} />
-              )}
-              {overviewData?.topCustomers && (
-                <TopCustomers customers={overviewData.topCustomers} />
-              )}
-            </div>
-          }
+          pagination={activeTab !== "overview" ? pagination : undefined}
         >
           {isEmpty ? (
             <div className="flex items-center justify-center py-16">
@@ -1044,6 +1241,12 @@ export default function InvoicingPage() {
                 </div>
               </div>
             </div>
+          ) : activeTab === "overview" ? (
+            <InvoicingOverview
+              overviewData={overviewData}
+              invoicesTrend={invoicesTrend}
+              aiInsights={aiInsights}
+            />
           ) : (
             <InvoiceTable
               invoices={invoicesData?.invoices ?? []}

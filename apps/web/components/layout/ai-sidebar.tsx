@@ -348,7 +348,7 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
         {/* Help & Support */}
         <div className="border-t border-white/[0.06] p-3">
           <Link
-            href="/dashboard/settings"
+            href="/dashboard/help"
             title="Help & Support"
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))] transition-all duration-150 lg:flex-col lg:gap-1 lg:px-1 lg:py-2 lg:text-[10px] lg:leading-tight"
           >

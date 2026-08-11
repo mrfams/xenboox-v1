@@ -17,6 +17,15 @@ import {
   SelectContent,
   SelectItem,
   Textarea,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
 } from "@xenboox/ui";
 import {
   Plus,
@@ -29,12 +38,18 @@ import {
   BadgeCheck,
   X,
   FlaskConical,
+  Search,
+  Globe2,
+  Download,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { skipToken } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { COUNTRIES, countryFlag, getCountry } from "@/lib/accounting/countries";
 
 // ─── Meta ───────────────────────────────────────────────────────────────────
 
@@ -190,6 +205,248 @@ function parseForm(form: RateConfigInput): {
     employeeRate,
     employerRate,
   };
+}
+
+// ─── Searchable country picker ───────────────────────────────────────────────
+
+function CountryPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (code: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.currency.toLowerCase().includes(q),
+    ).slice(0, 60);
+  }, [query]);
+
+  const current = getCountry(value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="mt-1 w-full justify-between font-normal"
+        >
+          <span className="flex items-center gap-2">
+            <span aria-hidden>{countryFlag(value)}</span>
+            <span>
+              {current ? `${current.name} (${value})` : `Custom: ${value}`}
+            </span>
+          </span>
+          <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[320px] p-0">
+        <Command>
+          <CommandInput
+            placeholder="Search 190+ countries…"
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList>
+            <CommandEmpty>
+              Type any 2-letter ISO code (e.g. &ldquo;ID&rdquo; for Indonesia)
+            </CommandEmpty>
+            <CommandGroup heading="Countries">
+              {filtered.map((c) => (
+                <CommandItem
+                  key={c.code}
+                  value={`${c.name} ${c.code} ${c.currency}`}
+                  onSelect={() => {
+                    onChange(c.code);
+                    setOpen(false);
+                  }}
+                >
+                  <span aria-hidden className="mr-2">
+                    {countryFlag(c.code)}
+                  </span>
+                  <span className="flex-1">{c.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {c.code}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─── Preset pack card ────────────────────────────────────────────────────────
+
+function PresetPackCard({ country }: { country: string }) {
+  const { entityId } = useEntity();
+  const utils = trpc.useUtils();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const presetsQuery = trpc.taxConfig.listPresets.useQuery(
+    { country },
+    { enabled: !!entityId },
+  );
+  const installMutation = trpc.taxConfig.installPresets.useMutation();
+
+  const presets = presetsQuery.data?.presets ?? [];
+  const available = presets.filter((p) => !p.installed);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const install = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    try {
+      const res = await installMutation.mutateAsync({
+        country,
+        presetIds: ids,
+      });
+      toast.success(
+        res.skipped > 0
+          ? `Installed ${res.installed} — ${res.skipped} already configured`
+          : `Installed ${res.installed} tax rule${res.installed === 1 ? "" : "s"}`,
+      );
+      setSelected(new Set());
+      await utils.taxConfig.listPresets.invalidate({ country });
+      await utils.taxConfig.listRules.invalidate({ country });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to install presets",
+      );
+    }
+  };
+
+  if (!presetsQuery.data && presetsQuery.isLoading) {
+    return null;
+  }
+
+  if (presets.length === 0) {
+    return null;
+  }
+
+  const isInstalling = installMutation.isPending;
+
+  return (
+    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Globe2 className="h-5 w-5 text-primary" />
+            {getCountry(country)?.name ?? country} tax pack
+          </CardTitle>
+          <CardDescription>
+            Research-backed starting rates for this jurisdiction. Install them,
+            then edit any rule when the law changes — each edit becomes a new
+            version. You can also create fully custom taxes below.
+          </CardDescription>
+        </div>
+        {available.length > 0 && (
+          <Button
+            size="sm"
+            onClick={() => install(available.map((p) => p.id))}
+            disabled={isInstalling}
+          >
+            {isInstalling ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-1 h-4 w-4" />
+            )}
+            Install pack ({available.length})
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {presets.map((p) => {
+          const isInstalled = p.installed;
+          const isSelected = selected.has(p.id);
+          return (
+            <div
+              key={p.id}
+              className={cn(
+                "flex items-start gap-3 rounded-xl border p-3 transition-colors",
+                isInstalled
+                  ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/40"
+                  : "border-border/60 bg-card",
+              )}
+            >
+              {!isInstalled && (
+                <button
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => toggle(p.id)}
+                  className={cn(
+                    "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
+                    isSelected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:border-primary/50",
+                  )}
+                >
+                  {isSelected && <Check className="h-3 w-3" />}
+                  <span className="sr-only">Select</span>
+                </button>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {p.name}
+                  </p>
+                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {RULE_TYPE_LABELS[p.ruleType] ?? p.ruleType}
+                  </span>
+                  {isInstalled && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">
+                      <BadgeCheck className="h-3 w-3" /> Installed
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {p.description}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground/70">
+                  {describeRate(p.rateConfig)} · {p.appliesTo} · {p.source}
+                </p>
+              </div>
+              {!isInstalled && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => install([p.id])}
+                  disabled={isInstalling}
+                  className="shrink-0"
+                >
+                  Install
+                </Button>
+              )}
+            </div>
+          );
+        })}
+        <p className="pt-1 text-[11px] text-muted-foreground">
+          Rates are starting points from public statutory sources — verify for
+          your exact situation before filing. Anything here can be edited after
+          install.
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -430,26 +687,18 @@ export function TaxesSection() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="w-40">
+            <div className="w-full sm:w-72">
               <Label className="text-xs">Country</Label>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {["GM", "SN", "GH", "NG", "KE", "US"].map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CountryPicker value={country} onChange={setCountry} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Don&apos;t see your country? Any 2-letter ISO code works — set up
-              taxes for the jurisdiction you operate in.
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Search className="h-3.5 w-3.5" />
+              {getCountry(country)?.name ?? country} — install the ready-made
+              pack below, or build your own taxes. Any 2-letter ISO code works.
             </p>
           </div>
+
+          <PresetPackCard country={country} />
 
           {listQuery.isLoading ? (
             <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">

@@ -26,6 +26,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateExpenseDialog } from "@/components/dashboard/create-expense-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
@@ -34,7 +35,13 @@ import { RowAiAction } from "@/components/module/row-ai-action";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-type TabFilter = "all" | "draft" | "pending" | "approved" | "reimbursed";
+type TabFilter =
+  | "overview"
+  | "all"
+  | "draft"
+  | "pending"
+  | "approved"
+  | "reimbursed";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -552,10 +559,176 @@ function AiCopilotPanel({
   );
 }
 
+// ─── Overview Panel ────────────────────────────────────────────────────────
+// Executive snapshot for the Overview tab: budget burn, top vendors and AI
+// insights. The full filterable expense table lives on the status tabs.
+
+function ExpensesOverview({
+  budgetOverview,
+  topVendors,
+  insights,
+}: {
+  budgetOverview?: {
+    hasBudget: boolean;
+    categories: Array<{
+      name: string;
+      budget: number;
+      budgetFormatted: string;
+      percent: number;
+      spent: number;
+      spentFormatted: string;
+    }>;
+    overallPercent: number;
+  };
+  topVendors?: Array<{
+    name: string;
+    total: number;
+    totalFormatted: string;
+  }>;
+  insights?: Array<{
+    id: string;
+    type: "warning" | "info" | "success";
+    title: string;
+    description: string;
+    actionLabel: string;
+  }>;
+}) {
+  const maxVendor = topVendors?.[0]?.total ?? 1;
+
+  return (
+    <>
+      {/* Budget burn + top vendors */}
+      <div className="grid grid-cols-2 gap-6 bg-slate-50/70 p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-slate-900">Budget Overview</h3>
+            <button className="text-xs font-medium text-indigo-600 hover:text-indigo-700">
+              View budget →
+            </button>
+          </div>
+          {budgetOverview?.hasBudget && budgetOverview.categories.length > 0 ? (
+            <div className="space-y-3">
+              {budgetOverview.categories.map((cat) => (
+                <div key={cat.name}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-slate-600">{cat.name}</span>
+                    <span className="text-xs text-slate-500">
+                      {cat.percent}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          cat.percent > 90
+                            ? "bg-red-500"
+                            : cat.percent > 70
+                              ? "bg-amber-500"
+                              : "bg-emerald-500",
+                        )}
+                        style={{ width: `${Math.min(cat.percent, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 w-24 text-right">
+                      {cat.spentFormatted ??
+                        `GMD ${cat.spent.toLocaleString()}`}{" "}
+                      /{" "}
+                      {cat.budgetFormatted ??
+                        `GMD ${cat.budget.toLocaleString()}`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-900">
+                    Overall Budget
+                  </span>
+                  <span className="text-sm font-medium text-slate-900">
+                    {budgetOverview.overallPercent}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">
+              No active budget yet — set one up to track spend against targets.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-4 font-medium text-slate-900">Top Vendors (MTD)</h3>
+          {topVendors && topVendors.length > 0 ? (
+            <div className="space-y-3">
+              {topVendors.map((vendor) => (
+                <div key={vendor.name}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-slate-700 truncate max-w-[160px]">
+                      {vendor.name}
+                    </span>
+                    <span className="text-xs font-medium text-slate-900">
+                      {vendor.totalFormatted}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 rounded-full"
+                      style={{
+                        width: `${
+                          maxVendor > 0 ? (vendor.total / maxVendor) * 100 : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No vendor data yet.</p>
+          )}
+        </div>
+      </div>
+
+      {/* AI Insights */}
+      <div className="border-t border-slate-200 bg-slate-50/70 p-4">
+        <h3 className="mb-3 font-medium text-slate-900">AI Insights</h3>
+        {insights && insights.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {insights.slice(0, 4).map((insight) => (
+              <div
+                key={insight.id}
+                className={cn(
+                  "rounded-lg border p-3",
+                  insight.type === "warning"
+                    ? "border-amber-200 bg-amber-50"
+                    : insight.type === "success"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-blue-200 bg-blue-50",
+                )}
+              >
+                <p className="text-sm font-medium text-slate-900">
+                  {insight.title}
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  {insight.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">No insights at this time.</p>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function ExpensesPage() {
-  const [activeTab, setActiveTab] = useState<TabFilter>("all");
+  const [activeTab, setActiveTab] = useState<TabFilter>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("");
@@ -576,7 +749,7 @@ export default function ExpensesPage() {
   // Fetch expenses
   const { data: expensesData, isLoading: expensesLoading } =
     trpc.expenses.listExpenses.useQuery({
-      status: activeTab,
+      status: activeTab === "overview" ? "all" : activeTab,
       search: searchQuery || undefined,
       category: categoryFilter || undefined,
       paymentMethod: paymentMethodFilter || undefined,
@@ -594,6 +767,7 @@ export default function ExpensesPage() {
   const { data: insights } = trpc.expenses.getAiInsights.useQuery();
 
   const tabs = [
+    { key: "overview" as TabFilter, label: "Overview" },
     { key: "all" as TabFilter, label: "All Expenses", count: tabCounts?.all },
     { key: "draft" as TabFilter, label: "Draft", count: tabCounts?.draft },
     {
@@ -613,6 +787,60 @@ export default function ExpensesPage() {
     },
   ];
 
+  const pagination = (
+    <div className="flex items-center justify-between">
+      <p className="text-sm text-slate-500">
+        Showing {(page - 1) * pageSize + 1} to{" "}
+        {Math.min(page * pageSize, expensesData?.totalCount ?? 0)} of{" "}
+        {expensesData?.totalCount ?? 0} expenses
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          ←
+        </button>
+        {Array.from(
+          { length: Math.min(5, expensesData?.totalPages ?? 1) },
+          (_, i) => i + 1,
+        ).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            className={cn(
+              "px-3 py-1.5 text-sm rounded",
+              page === p
+                ? "bg-indigo-600 text-white"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() =>
+            setPage(Math.min(expensesData?.totalPages ?? 1, page + 1))
+          }
+          disabled={page === (expensesData?.totalPages ?? 1)}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          →
+        </button>
+        <select
+          value={pageSize}
+          onChange={() => setPage(1)}
+          className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value={10}>10 / page</option>
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
+        </select>
+      </div>
+    </div>
+  );
+
   return (
     <ModulePageShell
       title="Expenses"
@@ -620,6 +848,11 @@ export default function ExpensesPage() {
       icon={Receipt}
       actions={
         <>
+          <AiSimulationTrigger
+            traceId="expense-review"
+            label="AI Review"
+            variant="outline"
+          />
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
@@ -712,69 +945,22 @@ export default function ExpensesPage() {
           )}
         </div>
       }
-      pagination={
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            Showing {(page - 1) * pageSize + 1} to{" "}
-            {Math.min(page * pageSize, expensesData?.totalCount ?? 0)} of{" "}
-            {expensesData?.totalCount ?? 0} expenses
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              ←
-            </button>
-            {Array.from(
-              { length: Math.min(5, expensesData?.totalPages ?? 1) },
-              (_, i) => i + 1,
-            ).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={cn(
-                  "px-3 py-1.5 text-sm rounded",
-                  page === p
-                    ? "bg-indigo-600 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
-                )}
-              >
-                {p}
-              </button>
-            ))}
-            <button className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded">
-              ...
-            </button>
-            <button
-              onClick={() =>
-                setPage(Math.min(expensesData?.totalPages ?? 1, page + 1))
-              }
-              disabled={page === (expensesData?.totalPages ?? 1)}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              →
-            </button>
-            <select
-              value={pageSize}
-              onChange={() => setPage(1)}
-              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value={10}>10 / page</option>
-              <option value={25}>25 / page</option>
-              <option value={50}>50 / page</option>
-            </select>
-          </div>
-        </div>
-      }
+      pagination={activeTab !== "overview" ? pagination : undefined}
     >
-      <ExpenseTable
-        expenses={expensesData?.expenses ?? []}
-        selectedId={selectedExpenseId}
-        onSelect={setSelectedExpenseId}
-        isLoading={expensesLoading}
-      />
+      {activeTab === "overview" ? (
+        <ExpensesOverview
+          budgetOverview={budgetOverview}
+          topVendors={topVendors}
+          insights={insights}
+        />
+      ) : (
+        <ExpenseTable
+          expenses={expensesData?.expenses ?? []}
+          selectedId={selectedExpenseId}
+          onSelect={setSelectedExpenseId}
+          isLoading={expensesLoading}
+        />
+      )}
       <CreateExpenseDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}

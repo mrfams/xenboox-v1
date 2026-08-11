@@ -32,6 +32,7 @@ import { RowActionsMenu } from "@/components/module/row-actions-menu";
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 type TabType =
+  | "overview"
   | "all"
   | "draft"
   | "sent"
@@ -137,6 +138,118 @@ function SummaryCards({
           <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Overview Panel ────────────────────────────────────────────────────────
+// Executive snapshot for the Overview tab: quote pipeline distribution and
+// value/conversion stats. The filterable estimates table lives on the status
+// tabs.
+
+function EstimatesOverview({
+  overview,
+}: {
+  overview: {
+    totalEstimates: number;
+    statusCounts: Record<string, number>;
+    openTotal: number;
+    acceptedTotal: number;
+    conversionRate: number;
+    expiringSoon: number;
+  } | null;
+}) {
+  const pipeline = [
+    { label: "Draft", key: "draft", color: "bg-slate-400" },
+    { label: "Sent", key: "sent", color: "bg-blue-500" },
+    { label: "Viewed", key: "viewed", color: "bg-indigo-500" },
+    { label: "Accepted", key: "accepted", color: "bg-emerald-500" },
+    { label: "Declined", key: "declined", color: "bg-red-500" },
+    { label: "Converted", key: "converted", color: "bg-purple-500" },
+  ];
+  const total = overview?.totalEstimates ?? 0;
+
+  const stats = [
+    {
+      label: "Open Value",
+      value: `GMD ${(overview?.openTotal ?? 0).toLocaleString()}`,
+      subtitle: "Draft + sent + viewed + accepted",
+    },
+    {
+      label: "Accepted Value",
+      value: `GMD ${(overview?.acceptedTotal ?? 0).toLocaleString()}`,
+      subtitle: "Awaiting conversion",
+    },
+    {
+      label: "Conversion Rate",
+      value: `${overview?.conversionRate ?? 0}%`,
+      subtitle: "Estimates → invoices",
+    },
+    {
+      label: "Expiring Soon",
+      value: `${overview?.expiringSoon ?? 0}`,
+      subtitle: "Within 7 days",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {/* Quote Pipeline */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 className="font-medium text-slate-900 mb-4">Quote Pipeline</h3>
+        {total > 0 ? (
+          <div className="space-y-3">
+            {pipeline.map((stage) => {
+              const count = overview?.statusCounts[stage.key] ?? 0;
+              const percent = total > 0 ? (count / total) * 100 : 0;
+              return (
+                <div key={stage.key} className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 w-28">
+                    <div className={cn("h-3 w-3 rounded", stage.color)} />
+                    <span className="text-xs text-slate-600">
+                      {stage.label}
+                    </span>
+                  </div>
+                  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full", stage.color)}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-slate-900 w-12 text-right">
+                    {count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">No estimates yet.</p>
+        )}
+      </div>
+
+      {/* Value & Conversion */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 className="font-medium text-slate-900 mb-4">
+          Value &amp; Conversion
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-lg border border-slate-100 bg-slate-50/60 p-4"
+            >
+              <p className="text-xs text-slate-500">{stat.label}</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+                {stat.value}
+              </p>
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                {stat.subtitle}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1251,7 +1364,7 @@ type AiDraftPayload = {
 };
 
 export default function EstimatesPage() {
-  const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [showCreate, setShowCreate] = useState(false);
   const [showAiDraft, setShowAiDraft] = useState(false);
   const [aiDraftPrefill, setAiDraftPrefill] = useState<AiDraftPayload | null>(
@@ -1263,7 +1376,7 @@ export default function EstimatesPage() {
   const overview = trpc.estimates.getOverview.useQuery();
   const [pageSize, setPageSize] = useState(20);
   const list = trpc.estimates.listEstimates.useQuery({
-    status: activeTab,
+    status: activeTab === "overview" ? "all" : activeTab,
     limit: pageSize,
     offset: 0,
   });
@@ -1290,6 +1403,7 @@ export default function EstimatesPage() {
   };
 
   const tabs = [
+    { key: "overview" as TabType, label: "Overview" },
     { key: "all" as TabType, label: "All" },
     { key: "draft" as TabType, label: "Draft" },
     { key: "sent" as TabType, label: "Sent" },
@@ -1350,6 +1464,7 @@ export default function EstimatesPage() {
               {tab.label}
               {overview.data?.statusCounts &&
                 tab.key !== "all" &&
+                tab.key !== "overview" &&
                 (overview.data.statusCounts[tab.key] ?? 0) > 0 && (
                   <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
                     {overview.data.statusCounts[tab.key] ?? 0}
@@ -1367,45 +1482,49 @@ export default function EstimatesPage() {
 
       {/* Search + table */}
       <div className="px-4 pb-4 space-y-4">
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center gap-4 border-b border-slate-200 p-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search estimates..."
-                className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
+        {activeTab === "overview" ? (
+          <EstimatesOverview overview={overview.data ?? null} />
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center gap-4 border-b border-slate-200 p-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search estimates..."
+                  className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                All customers <ChevronDown className="h-4 w-4" />
+              </button>
             </div>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-              All customers <ChevronDown className="h-4 w-4" />
-            </button>
+            <EstimatesTable
+              estimates={list.data?.estimates ?? []}
+              isLoading={list.isLoading}
+              onSelect={(id) => setSelectedId(id)}
+              onConvert={(e) => setShowConvert(e)}
+              onStatusChange={(e, status) =>
+                statusMutation.mutate({ id: e.id, status })
+              }
+              onDelete={(id) => deleteMutation.mutate({ id })}
+            />
+            <div className="flex items-center justify-between border-t border-slate-200 p-3">
+              <p className="text-sm text-slate-500">
+                Showing {list.data?.estimates.length ?? 0} of{" "}
+                {list.data?.totalCount ?? 0} estimates
+              </p>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
+              >
+                <option value={20}>20 / page</option>
+                <option value={50}>50 / page</option>
+              </select>
+            </div>
           </div>
-          <EstimatesTable
-            estimates={list.data?.estimates ?? []}
-            isLoading={list.isLoading}
-            onSelect={(id) => setSelectedId(id)}
-            onConvert={(e) => setShowConvert(e)}
-            onStatusChange={(e, status) =>
-              statusMutation.mutate({ id: e.id, status })
-            }
-            onDelete={(id) => deleteMutation.mutate({ id })}
-          />
-          <div className="flex items-center justify-between border-t border-slate-200 p-3">
-            <p className="text-sm text-slate-500">
-              Showing {list.data?.estimates.length ?? 0} of{" "}
-              {list.data?.totalCount ?? 0} estimates
-            </p>
-            <select
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
-            >
-              <option value={20}>20 / page</option>
-              <option value={50}>50 / page</option>
-            </select>
-          </div>
-        </div>
+        )}
       </div>
 
       {showAiDraft && (

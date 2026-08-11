@@ -23,6 +23,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { CreateVendorDialog } from "@/components/dashboard/create-vendor-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
@@ -747,12 +748,151 @@ function BottomRow({
   );
 }
 
+// ─── Overview Panel ────────────────────────────────────────────────────────
+// Executive snapshot for the Overview tab: payables trend, top vendors,
+// payment terms, aging and AI insights. The full vendor table lives on the
+// status tabs.
+
+function VendorsOverview({
+  topVendors,
+  paymentTerms,
+  aging,
+  insights,
+}: {
+  topVendors: Array<{
+    name: string;
+    total: number;
+    totalFormatted: string;
+  }>;
+  paymentTerms: {
+    terms: Array<{
+      name: string;
+      count: number;
+      percent: number;
+    }>;
+    totalVendors: number;
+  };
+  aging?: {
+    aging: Array<{
+      label: string;
+      amount: number;
+      amountFormatted: string;
+      percent: number;
+    }>;
+    total: number;
+    totalFormatted: string;
+  };
+  insights?: Array<{
+    id: string;
+    type: "warning" | "info" | "success";
+    title: string;
+    description: string;
+    actionLabel: string;
+  }>;
+}) {
+  const agingColors = [
+    "bg-emerald-500",
+    "bg-blue-500",
+    "bg-amber-500",
+    "bg-red-500",
+  ];
+
+  return (
+    <>
+      {/* Payables trend + concentration */}
+      <div className="bg-slate-50/70 p-4">
+        <BottomRow topVendors={topVendors} paymentTerms={paymentTerms} />
+      </div>
+
+      {/* Aging + AI insights */}
+      <div className="grid grid-cols-2 gap-6 border-t border-slate-200 bg-slate-50/70 p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 font-medium text-slate-900">
+            Vendor Aging (Payables)
+          </h3>
+          {aging && aging.aging.length > 0 ? (
+            <div className="space-y-3">
+              {aging.aging.map((item, i) => (
+                <div key={item.label} className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 w-32">
+                    <div
+                      className={cn(
+                        "h-3 w-3 rounded",
+                        agingColors[i % agingColors.length],
+                      )}
+                    />
+                    <span className="text-xs text-slate-600">{item.label}</span>
+                  </div>
+                  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full",
+                        agingColors[i % agingColors.length],
+                      )}
+                      style={{ width: `${Math.min(item.percent, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-slate-900 w-24 text-right">
+                    {item.amountFormatted}
+                  </span>
+                </div>
+              ))}
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex justify-between">
+                  <span className="font-medium text-slate-900">
+                    Total Payables
+                  </span>
+                  <span className="font-bold text-slate-900">
+                    {aging.totalFormatted}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No aging data yet.</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 font-medium text-slate-900">AI Insights</h3>
+          {insights && insights.length > 0 ? (
+            <div className="space-y-3">
+              {insights.slice(0, 3).map((insight) => (
+                <div
+                  key={insight.id}
+                  className={cn(
+                    "rounded-lg border p-3",
+                    insight.type === "warning"
+                      ? "border-amber-200 bg-amber-50"
+                      : insight.type === "success"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-blue-200 bg-blue-50",
+                  )}
+                >
+                  <p className="text-sm font-medium text-slate-900">
+                    {insight.title}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {insight.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No insights at this time.</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function VendorsPage() {
   const [activeTab, setActiveTab] = useState<
-    "all" | "active" | "inactive" | "on_hold" | "1099"
-  >("all");
+    "overview" | "all" | "active" | "inactive" | "on_hold" | "1099"
+  >("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [vendorTypeFilter, setVendorTypeFilter] = useState("");
   const [paymentTermsFilter, setPaymentTermsFilter] = useState("");
@@ -769,7 +909,8 @@ export default function VendorsPage() {
   // Fetch vendors
   const { data: vendorsData, isLoading: vendorsLoading } =
     trpc.ap.listVendorsWithPayables.useQuery({
-      status: activeTab === "1099" ? "all" : activeTab,
+      status:
+        activeTab === "overview" || activeTab === "1099" ? "all" : activeTab,
       is1099: activeTab === "1099" ? true : undefined,
       search: searchQuery || undefined,
       vendorType: vendorTypeFilter || undefined,
@@ -800,6 +941,7 @@ export default function VendorsPage() {
   });
 
   const tabs = [
+    { key: "overview" as const, label: "Overview" },
     { key: "all" as const, label: "All Vendors", count: tabCounts?.all },
     { key: "active" as const, label: "Active", count: tabCounts?.active },
     { key: "inactive" as const, label: "Inactive", count: tabCounts?.inactive },
@@ -814,6 +956,60 @@ export default function VendorsPage() {
   // Empty state for new users
   const isEmpty = !vendorsLoading && (!overview || overview.totalVendors === 0);
 
+  const pagination = (
+    <div className="flex items-center justify-between">
+      <p className="text-sm text-slate-500">
+        Showing {(page - 1) * pageSize + 1} to{" "}
+        {Math.min(page * pageSize, vendorsData?.totalCount ?? 0)} of{" "}
+        {vendorsData?.totalCount ?? 0} vendors
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          ←
+        </button>
+        {Array.from(
+          { length: Math.min(5, vendorsData?.totalPages ?? 1) },
+          (_, i) => i + 1,
+        ).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            className={cn(
+              "px-3 py-1.5 text-sm rounded",
+              page === p
+                ? "bg-indigo-600 text-white"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() =>
+            setPage(Math.min(vendorsData?.totalPages ?? 1, page + 1))
+          }
+          disabled={page === (vendorsData?.totalPages ?? 1)}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
+        >
+          →
+        </button>
+        <select
+          value={pageSize}
+          onChange={() => setPage(1)}
+          className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value={10}>10 / page</option>
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
+        </select>
+      </div>
+    </div>
+  );
+
   return (
     <ModulePageShell
       title="Vendors"
@@ -821,6 +1017,11 @@ export default function VendorsPage() {
       icon={Users}
       actions={
         <>
+          <AiSimulationTrigger
+            traceId="vendor-profile"
+            label="AI Enrich"
+            variant="outline"
+          />
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
@@ -899,65 +1100,7 @@ export default function VendorsPage() {
           )}
         </div>
       }
-      pagination={
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            Showing {(page - 1) * pageSize + 1} to{" "}
-            {Math.min(page * pageSize, vendorsData?.totalCount ?? 0)} of{" "}
-            {vendorsData?.totalCount ?? 0} vendors
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              ←
-            </button>
-            {Array.from(
-              { length: Math.min(5, vendorsData?.totalPages ?? 1) },
-              (_, i) => i + 1,
-            ).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={cn(
-                  "px-3 py-1.5 text-sm rounded",
-                  page === p
-                    ? "bg-indigo-600 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
-                )}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              onClick={() =>
-                setPage(Math.min(vendorsData?.totalPages ?? 1, page + 1))
-              }
-              disabled={page === (vendorsData?.totalPages ?? 1)}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded disabled:opacity-50"
-            >
-              →
-            </button>
-            <select
-              value={pageSize}
-              onChange={() => setPage(1)}
-              className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value={10}>10 / page</option>
-              <option value={25}>25 / page</option>
-              <option value={50}>50 / page</option>
-            </select>
-          </div>
-        </div>
-      }
-      bottomCharts={
-        <BottomRow
-          topVendors={topVendors ?? []}
-          paymentTerms={paymentTerms ?? { terms: [], totalVendors: 0 }}
-        />
-      }
+      pagination={activeTab !== "overview" ? pagination : undefined}
     >
       {isEmpty ? (
         <div className="flex items-center justify-center py-16">
@@ -994,6 +1137,13 @@ export default function VendorsPage() {
             </div>
           </div>
         </div>
+      ) : activeTab === "overview" ? (
+        <VendorsOverview
+          topVendors={topVendors ?? []}
+          paymentTerms={paymentTerms ?? { terms: [], totalVendors: 0 }}
+          aging={aging}
+          insights={insights}
+        />
       ) : (
         <VendorTable
           vendors={vendorsData?.vendors ?? []}
