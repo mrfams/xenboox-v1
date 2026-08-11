@@ -66,3 +66,6 @@ langfuse-data/
 packages/db/seed/test-db.js
 nullability-drift.tmp.mjs
 apps/web/scripts/investigate-drift.mjs
+
+# Local gstack tooling state
+.gstack/
