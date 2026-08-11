@@ -6,7 +6,23 @@
 
 ---
 
-### [2026-08-11] — Simulation coverage complete: deepen 6 pages + wire 7 previously-unwired pages (13 new traces)
+### [2026-08-11] — Demo seed ↔ Gambia preset catalog parity test (drift guard)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/db/seed/gm-tax-rules.ts`, `apps/web/__tests__/tax-preset-seed-parity.test.ts`
+**Files Modified:** `packages/db/seed/index.ts`
+
+**Request:** Add a parity test asserting the seed's Gambia tax rows equal `getTaxPresetsForCountry('GM')` so a catalog rate change can't silently drift the demo data.
+
+**What was built:**
+
+1. **`GM_TAX_RULES` extracted to a pure-data module** (`packages/db/seed/gm-tax-rules.ts`) — the seed's inline 5-row array now lives in an importable module with only a type import (no runtime db load), single-sourced for both the seed and the test.
+2. **`seed/index.ts`** consumes `GM_TAX_RULES` (loop unchanged, same deterministic ids + `onConflictDoNothing`); the duplicated data and the now-unused `TaxRateConfig` type import were removed.
+3. **Parity test** (`apps/web/__tests__/tax-preset-seed-parity.test.ts`): imports `GM_TAX_RULES` from `@xenboox/db/seed/gm-tax-rules` and `getTaxPresetsForCountry` from `@xenboox/agents`, and asserts — count parity; per-preset `ruleType`/`name`/`description`/`appliesTo`/`effectiveFrom`/`source` equality; `rateOrBands` deep-equals `rateConfig` (so a band or rate change in the catalog fails the seed too); and reverse mapping (every seed row exists in the catalog). The seed insert now reads `effectiveFrom` from the data module instead of a hardcoded string (review fix — a catalog effective-date change previously wouldn't have been caught). Lives in web because `@xenboox/agents` depends on `@xenboox/db` — the cycle prevents the test living in either package.
+
+**Verification:** parity + tax-config-router **26/26** ✓ · web typecheck ✓ · db typecheck clean for the new/changed files (only the pre-existing `run-seed.ts` TS5097 remains) · prettier clean.
+
+---
 
 **Agent:** Buffy (Autonomous Engineer)
 **Files Modified:** `apps/web/lib/ai-ux/traces.ts` (+13 traces → 39 total), `apps/web/lib/explore/ai-ux-catalog.ts` (+13 entries), `apps/web/app/dashboard/{journal,estimates,chart-of-accounts,reconciliation,fixed-assets,tax-compliance}/page.tsx` (2nd trigger), `apps/web/app/dashboard/{money,insights,automation,review-queue,inbox,agent-monitor,agents}/page.tsx` (newly wired)
