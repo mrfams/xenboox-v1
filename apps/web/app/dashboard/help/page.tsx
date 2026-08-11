@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 // ─── Data ──────────────────────────────────────────────────────────────────
 
@@ -296,6 +297,14 @@ export default function HelpPage() {
                     Clear search
                   </button>
                 )}
+              </div>
+
+              <div className="mt-5">
+                <AiSimulationTrigger
+                  traceId="ai-workforce-demo"
+                  label="See the AI workforce in action"
+                  variant="inverse"
+                />
               </div>
             </div>
           </div>

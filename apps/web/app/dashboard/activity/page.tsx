@@ -6,6 +6,7 @@ import { ScrollText } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import {
   ActivityLogView,
   type ActivityEvent,
@@ -97,6 +98,12 @@ export default function ActivityLogPage() {
       title="Activity Log"
       description="Every action by your team and by Xenboox agents — recorded in a tamper-evident, verifiable chain."
       icon={ScrollText}
+      actions={
+        <AiSimulationTrigger
+          traceId="audit-verification"
+          label="AI Verify Trail"
+        />
+      }
     >
       <ActivityLogView
         events={events}

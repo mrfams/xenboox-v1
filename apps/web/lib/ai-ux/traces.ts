@@ -2083,6 +2083,174 @@ export const AI_UX_TRACES: AiUxTrace[] = [
       },
     ],
   ),
+
+  // ─── Settings — workspace setup ───────────────────────────────────────────
+
+  t(
+    "workspace-setup",
+    "AI Set Up Workspace",
+    "The CFO agent configures a brand-new workspace end to end — entity settings, tax pack, roles, and banking.",
+    "Settings",
+    "~32s run",
+    ["cfo", "controller", "compliance", "treasury"],
+    [
+      {
+        kind: "think",
+        agent: "cfo",
+        text: "Reading the workspace profile and country to plan the setup sequence.",
+        ms: 1600,
+      },
+      {
+        kind: "act",
+        agent: "cfo",
+        text: "Setting fiscal year, default currency, and approval thresholds on the entity.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Applying the standard chart of accounts for the jurisdiction.",
+        ms: 3200,
+      },
+      {
+        kind: "tool",
+        agent: "compliance",
+        tool: "taxConfig.installPresets",
+        detail:
+          "Installing the country tax pack — 5 rules active, latest versions.",
+        ms: 2800,
+      },
+      {
+        kind: "act",
+        agent: "treasury",
+        text: "Wiring the primary bank account and cash account mappings.",
+        ms: 3000,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Inviting team members with role-based permissions and alert defaults.",
+        ms: 2400,
+      },
+      {
+        kind: "approval",
+        agent: "cfo",
+        confidence: 97,
+        ms: 2800,
+        text: "Workspace setup reviewed — everything consistent with the entity profile.",
+      },
+      {
+        kind: "complete",
+        agent: "cfo",
+        text: "Workspace is ready — taxes installed, roles set, and banking connected.",
+      },
+    ],
+  ),
+
+  // ─── Help Center — workforce explainer ────────────────────────────────────
+
+  t(
+    "ai-workforce-demo",
+    "How the AI workforce works",
+    "Follow one month-end task from the CFO down to the Ledger Agent — 19 agents, three tiers, one audit trail.",
+    "Help Center",
+    "~30s run",
+    ["cfo", "controller", "ap", "ar", "ledger", "compliance"],
+    [
+      {
+        kind: "think",
+        agent: "cfo",
+        text: "Planning the month-end close and assigning work across the department heads.",
+        ms: 1600,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Coordinating receivables and payables teams for the close checklist.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "ap",
+        text: "Matching vendor bills and preparing the payment schedule.",
+        ms: 2800,
+      },
+      {
+        kind: "act",
+        agent: "ar",
+        text: "Reconciling customer payments and flagging overdue invoices.",
+        ms: 2800,
+      },
+      {
+        kind: "tool",
+        agent: "ledger",
+        tool: "journal.post",
+        detail:
+          "Posting 43 approved entries — every line ties to a source document.",
+        ms: 3400,
+      },
+      {
+        kind: "act",
+        agent: "compliance",
+        text: "Verifying the audit chain after the posting — hashes re-checked.",
+        ms: 2600,
+      },
+      {
+        kind: "complete",
+        agent: "cfo",
+        text: "Close complete — the ledger is posted, balanced, and fully verifiable.",
+      },
+    ],
+  ),
+
+  // ─── AI Command Center — demo exchange ────────────────────────────────────
+
+  t(
+    "command-center-demo",
+    "AI Command Center demo",
+    "Watch a live question route through the CFO agent — classified, delegated, answered with confidence.",
+    "AI Command Center",
+    "~26s run",
+    ["cfo", "reporting"],
+    [
+      {
+        kind: "think",
+        agent: "cfo",
+        text: "Classifying your question — it looks like a cash-flow insight request.",
+        ms: 1400,
+      },
+      {
+        kind: "act",
+        agent: "cfo",
+        text: "Routing to the Reporting Agent with the last six months of context.",
+        ms: 2200,
+      },
+      {
+        kind: "tool",
+        agent: "reporting",
+        tool: "report.cashflow",
+        detail: "Building the cash-flow summary — 6 months, 32 bank accounts.",
+        ms: 3200,
+      },
+      {
+        kind: "act",
+        agent: "reporting",
+        text: "Flagging the runway trend and the top three variances to surface.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "cfo",
+        text: "Synthesizing the answer at 94% confidence and citing sources.",
+        ms: 2400,
+      },
+      {
+        kind: "complete",
+        agent: "cfo",
+        text: "Done — here's your answer, with every number traceable to the books.",
+      },
+    ],
+  ),
 ];
 
 // ─── Lookup ────────────────────────────────────────────────────────────────

@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-11] — Simulation coverage on passive pages (activity, settings, help, chat)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/lib/ai-ux/traces.ts` (+3 → 42 total), `apps/web/lib/explore/ai-ux-catalog.ts` (+3 entries), `apps/web/app/dashboard/{activity,settings,help,chat}/page.tsx`
+
+**Request:** Wire the remaining passive pages (activity, help, settings, chat) where it makes sense — e.g. an "AI explain activity" trace or a settings onboarding sim.
+
+**What was built:**
+
+1. **Activity Log** — reuses the existing `audit-verification` trace (Compliance Agent walking the tamper-evident hash chain) via the ModulePageShell `actions` slot: **AI Verify Trail** button in the header.
+2. **Settings** — new `workspace-setup` trace ("AI Set Up Workspace"): CFO reads the workspace profile, sets fiscal/currency/approval config, Controller applies the jurisdiction CoA, Compliance installs the country tax pack (`taxConfig.installPresets`), Treasury wires bank accounts, Controller sets roles/alerts, CFO approves at 97 and completes. Header restyled to a flex row with the trigger (outline).
+3. **Help Center** — new `ai-workforce-demo` trace ("How the AI workforce works"): a month-end task travels CFO → Controller → AP → AR → Ledger Agent posting → Compliance hash-verification, completing the three-tier explainer. `inverse`-variant trigger in the gradient hero (white button on indigo).
+4. **Chat** — new `command-center-demo` trace ("AI Command Center demo"): a live question classified, routed to Reporting, researched, and answered at 94% — matching what real streaming answers will look like. Placed as a dashed "watch a demo run" card in the no-data empty state (the onboarding surface).
+5. **Catalog** — 3 new Explore → AI UX entries with matching traceIds/hrefs; the catalog↔trace integrity test now covers **42 playable simulations**.
+
+**Verification:** web typecheck ✓ (0 errors) · ai-ux simulation + provider + overlay suites **21/21** ✓ (integrity covers all 42 traces) · production build ✓ · prettier clean ✓ · code review applied (think/approval steps require `ms` per the step type — fixed; approval confidence on the 0–100 scale; prose "at 94%" consistency; neutralized the workspace-setup catalog source).
+
+---
+
 ### [2026-08-11] — Senegal demo entity + country tax pack install in onboarding
 
 **Agent:** Buffy (Autonomous Engineer)

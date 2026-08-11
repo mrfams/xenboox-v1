@@ -629,6 +629,39 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     href: "/dashboard/agents",
     source: "LangFuse agent monitoring",
   },
+  {
+    id: "workspace-setup",
+    name: "AI workspace setup",
+    category: "Agent Workflows",
+    description:
+      "One run configures a new workspace — entity settings, the country tax pack, roles, and banking — all from Settings.",
+    status: "partial",
+    traceId: "workspace-setup",
+    href: "/dashboard/settings",
+    source: "Product onboarding flows",
+  },
+  {
+    id: "ai-workforce-demo",
+    name: "How the AI workforce works",
+    category: "Agent Workflows",
+    description:
+      "The three-tier explainer: watch a month-end task travel from the CFO through the department heads down to the Ledger Agent.",
+    status: "partial",
+    traceId: "ai-workforce-demo",
+    href: "/dashboard/help",
+    source: "Help-center product tours",
+  },
+  {
+    id: "command-center-demo",
+    name: "AI Command Center demo",
+    category: "Conversation & Creation",
+    description:
+      "A live question classified, routed, researched, and answered — exactly what your real streaming answers will look like.",
+    status: "partial",
+    traceId: "command-center-demo",
+    href: "/dashboard/chat",
+    source: "Perplexity · ChatGPT reasoning UX",
+  },
 ];
 
 // ─── AI UX explainer (hero banner on the tab) ─────────────────────────────

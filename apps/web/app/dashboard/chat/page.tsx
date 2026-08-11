@@ -41,6 +41,7 @@ import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/shared/loading";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import {
   useStreamingChat,
   type ThinkingEvent,
@@ -1629,6 +1630,23 @@ function SmartSuggestions({
               );
             })}
           </div>
+        </div>
+
+        {/* Watch the AI in action */}
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-5 text-center">
+          <p className="text-sm font-semibold text-foreground">
+            Curious how the AI Command Center thinks?
+          </p>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            Watch a simulated run — your real streaming answers will look
+            exactly like this.
+          </p>
+          <AiSimulationTrigger
+            traceId="command-center-demo"
+            label="Watch a demo run"
+            variant="outline"
+            className="mt-1"
+          />
         </div>
 
         {/* Quick prompts for getting started */}
