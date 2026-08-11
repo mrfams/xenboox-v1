@@ -6,7 +6,24 @@
 
 ---
 
-### [2026-08-11] — Per-state US sales tax presets (all 50 states + DC — jurisdiction-complete US pack)
+### [2026-08-11] — Simulation coverage complete: deepen 6 pages + wire 7 previously-unwired pages (13 new traces)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/lib/ai-ux/traces.ts` (+13 traces → 39 total), `apps/web/lib/explore/ai-ux-catalog.ts` (+13 entries), `apps/web/app/dashboard/{journal,estimates,chart-of-accounts,reconciliation,fixed-assets,tax-compliance}/page.tsx` (2nd trigger), `apps/web/app/dashboard/{money,insights,automation,review-queue,inbox,agent-monitor,agents}/page.tsx` (newly wired)
+
+**Request:** Add dedicated simulation traces for the remaining unwired pages (journal, estimates, chart-of-accounts, reconciliation, fixed-assets, tax-compliance) and wire their triggers.
+
+**What was built:**
+
+1. **Audit first**: all 6 named pages were already wired with dedicated traces (shipped earlier). The genuinely-unwired pages were a different set. User chose **Both** — deepen the 6 AND wire the unwired pages.
+2. **6 second-tier traces + triggers** (matching the bills/invoicing/payroll two-trigger pattern): Journal → `journal-review` (AI Review Entries — anomaly audit), Estimates → `estimate-margin-review` (AI Review Margins), COA → `coa-suggest-accounts` (AI Suggest Accounts), Reconciliation → `reconciliation-automatch` (AI Auto-Match), Fixed Assets → `fixed-assets-health` (AI Asset Health), Tax & Compliance → `tax-compliance-check` (AI Compliance Check).
+3. **7 newly-wired pages**: Money → `mobile-money-reconciliation`, Insights → `insight-generation`, Automation Studio → `automation-suggestion`, Review Queue → `approval-pre-review`, Inbox → `inbox-processing`, Agent Monitor → `agent-health-check`, Agents → `workforce-review`. Every trace is a 5–7 step think/act/tool/approval/complete script with valid agent ids and confidence-scored approvals; the global SimulationProvider means every trigger survives navigation with the Agents-at-work pill.
+4. **Explore → AI UX gallery synced**: 13 new catalog entries with matching `traceId`/`href` — the catalog↔trace integrity test now covers 39 playable simulations.
+5. **Code review applied**: fixed the `inbox-processing` roster (AR Agent now links invoices to customer balances instead of being a dead chip) and the `mobile-money-reconciliation` agents array order (order of first appearance: treasury → ledger → cfo).
+
+**Verification:** web typecheck ✓ · ai-ux simulation + provider suites **32/32** ✓ · production build ✓ · prettier clean.
+
+---
 
 **Agent:** Buffy (Autonomous Engineer)
 **Files Modified:** `packages/agents/core/tax-presets.ts`, `packages/agents/core/__tests__/tax-presets.test.ts`

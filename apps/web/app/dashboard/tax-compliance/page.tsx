@@ -613,6 +613,11 @@ export default function TaxCompliancePage() {
               label="AI Prep Filing"
               variant="outline"
             />
+            <AiSimulationTrigger
+              traceId="tax-compliance-check"
+              label="AI Compliance Check"
+              variant="outline"
+            />
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
               <input
                 type="month"

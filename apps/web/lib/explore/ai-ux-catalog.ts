@@ -486,6 +486,149 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     href: "/dashboard/activity",
     source: "Xero JAX Assure · Glean",
   },
+  {
+    id: "journal-review",
+    name: "Journal review & anomaly flagging",
+    category: "Agent Workflows",
+    description:
+      "Recent postings are audited for duplicates, unbalanced rounding, and skipped approvals — corrections drafted for one-click sign-off.",
+    status: "partial",
+    traceId: "journal-review",
+    href: "/dashboard/journal",
+    source: "Xero / QuickBooks audit trails",
+  },
+  {
+    id: "estimate-margin-review",
+    name: "Estimate margin & follow-up review",
+    category: "Agent Workflows",
+    description:
+      "Open estimates are checked against real costs — expiring quotes nudged, under-priced ones flagged for re-quote.",
+    status: "partial",
+    traceId: "estimate-margin-review",
+    href: "/dashboard/estimates",
+    source: "QuickBooks Estimate → Invoice",
+  },
+  {
+    id: "coa-suggest-accounts",
+    name: "Chart of accounts suggestions",
+    category: "Agent Workflows",
+    description:
+      "Transaction patterns reveal where the chart forces awkward postings — new accounts, merges, and renames proposed safely.",
+    status: "partial",
+    traceId: "coa-suggest-accounts",
+    href: "/dashboard/chart-of-accounts",
+    source: "Xero Chart of Accounts",
+  },
+  {
+    id: "reconciliation-automatch",
+    name: "Reconciliation auto-matching",
+    category: "Agent Workflows",
+    description:
+      "The bank feed is matched against the ledger automatically — only the genuinely unclear lines wait on you.",
+    status: "partial",
+    traceId: "reconciliation-automatch",
+    href: "/dashboard/reconciliation",
+    source: "QuickBooks Bank Feeds",
+  },
+  {
+    id: "fixed-assets-health",
+    name: "Fixed asset health review",
+    category: "Agent Workflows",
+    description:
+      "The asset register is scanned for fully-depreciated items, disposal candidates, and impairment risk.",
+    status: "partial",
+    traceId: "fixed-assets-health",
+    href: "/dashboard/fixed-assets",
+    source: "Sage Fixed Assets",
+  },
+  {
+    id: "tax-compliance-check",
+    name: "Tax compliance & deadline check",
+    category: "Agent Workflows",
+    description:
+      "Filings, liabilities, and deadlines are cross-checked across every active jurisdiction before anything is late.",
+    status: "partial",
+    traceId: "tax-compliance-check",
+    href: "/dashboard/tax-compliance",
+    source: "Avalara · Basis",
+  },
+  {
+    id: "mobile-money-reconciliation",
+    name: "Mobile money reconciliation",
+    category: "Agent Workflows",
+    description:
+      "Wave, MTN MoMo, and Orange Money feeds are normalized, matched to the ledger, and settled in one pass.",
+    status: "partial",
+    traceId: "mobile-money-reconciliation",
+    href: "/dashboard/money",
+    source: "Wave · MTN MoMo",
+  },
+  {
+    id: "insight-generation",
+    name: "AI-generated business insights",
+    category: "Agent Workflows",
+    description:
+      "The books are scanned for trends and anomalies — a CFO-ready narrative brief comes out the other side.",
+    status: "partial",
+    traceId: "insight-generation",
+    href: "/dashboard/insights",
+    source: "QuickBooks Insights",
+  },
+  {
+    id: "automation-suggestion",
+    name: "Automation workflow builder",
+    category: "Agent Workflows",
+    description:
+      "Repetitive manual work is observed and turned into a ready-to-enable automation recipe.",
+    status: "partial",
+    traceId: "automation-suggestion",
+    href: "/dashboard/automation",
+    source: "Zapier · QuickBooks Automation",
+  },
+  {
+    id: "approval-pre-review",
+    name: "Approval pre-review & triage",
+    category: "Agent Workflows",
+    description:
+      "Pending approvals are triaged by the agents first — routine items resolved, policy conflicts escalated to you.",
+    status: "partial",
+    traceId: "approval-pre-review",
+    href: "/dashboard/review-queue",
+    source: "Basis · Digits review queues",
+  },
+  {
+    id: "inbox-processing",
+    name: "Document inbox processing",
+    category: "Agent Workflows",
+    description:
+      "Every document lands, gets extracted, matched, and linked into the audit trail — the inbox works itself empty.",
+    status: "partial",
+    traceId: "inbox-processing",
+    href: "/dashboard/inbox",
+    source: "Dext · AutoEntry",
+  },
+  {
+    id: "agent-health-check",
+    name: "Agent workforce diagnostic",
+    category: "Agent Workflows",
+    description:
+      "All 19 agents are surveyed — queue depth, confidence, and escalations — and bottlenecks get remediation.",
+    status: "partial",
+    traceId: "agent-health-check",
+    href: "/dashboard/agent-monitor",
+    source: "LangFuse agent monitoring",
+  },
+  {
+    id: "workforce-review",
+    name: "Agent workforce overview",
+    category: "Agent Workflows",
+    description:
+      "Today's workforce summary — tasks dispatched, completed, and escalated across all three tiers.",
+    status: "partial",
+    traceId: "workforce-review",
+    href: "/dashboard/agents",
+    source: "LangFuse agent monitoring",
+  },
 ];
 
 // ─── AI UX explainer (hero banner on the tab) ─────────────────────────────

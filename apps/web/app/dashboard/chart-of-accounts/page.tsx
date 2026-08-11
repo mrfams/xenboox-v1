@@ -751,6 +751,11 @@ export default function ChartOfAccountsPage() {
                 label="AI Review COA"
                 variant="outline"
               />
+              <AiSimulationTrigger
+                traceId="coa-suggest-accounts"
+                label="AI Suggest Accounts"
+                variant="outline"
+              />
               <button
                 onClick={() => setShowCreate(true)}
                 className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"

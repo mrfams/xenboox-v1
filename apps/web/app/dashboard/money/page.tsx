@@ -20,6 +20,7 @@ import {
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { CreateInvoiceDialog } from "@/components/dashboard/create-invoice-dialog";
 import { CreateBillDialog } from "@/components/dashboard/create-bill-dialog";
 import { CreateExpenseDialog } from "@/components/dashboard/create-expense-dialog";
@@ -109,14 +110,21 @@ export default function MoneyPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Money
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Everything related to your finances — transactions, banking,
-          invoicing, and more.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Money
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Everything related to your finances — transactions, banking,
+            invoicing, and more.
+          </p>
+        </div>
+        <AiSimulationTrigger
+          traceId="mobile-money-reconciliation"
+          label="AI Reconcile Mobile Money"
+          variant="outline"
+        />
       </div>
 
       {/* Quick Stats */}

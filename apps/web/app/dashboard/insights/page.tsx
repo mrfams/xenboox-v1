@@ -17,6 +17,7 @@ import {
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 const insightSections = [
   {
@@ -99,13 +100,20 @@ export default function InsightsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Insights
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Financial analytics, reports, and business intelligence.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Insights
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Financial analytics, reports, and business intelligence.
+          </p>
+        </div>
+        <AiSimulationTrigger
+          traceId="insight-generation"
+          label="AI Generate Insights"
+          variant="outline"
+        />
       </div>
 
       {/* AI-Generated Insights */}

@@ -17,6 +17,7 @@ import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { AgentTimeline } from "@/components/workspace/agent-timeline";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 const agentTabs = [
   { id: "overview", label: "Overview", icon: Activity },
@@ -48,13 +49,20 @@ export default function AgentsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Agents
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Monitor your AI agents — their status, history, and performance.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Agents
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Monitor your AI agents — their status, history, and performance.
+          </p>
+        </div>
+        <AiSimulationTrigger
+          traceId="workforce-review"
+          label="AI Workforce Review"
+          variant="outline"
+        />
       </div>
 
       {/* Quick Stats */}

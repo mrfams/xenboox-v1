@@ -1,15 +1,23 @@
 "use client";
 
 import { Activity, Bot, Clock, AlertTriangle, TrendingUp } from "lucide-react";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 export default function AgentMonitorPage() {
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
       <div className="border-b border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-          <span className="text-2xl">🤖</span>
-          Agent Monitor
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+            <span className="text-2xl">🤖</span>
+            Agent Monitor
+          </h1>
+          <AiSimulationTrigger
+            traceId="agent-health-check"
+            label="AI Health Check"
+            variant="outline"
+          />
+        </div>
         <p className="text-sm text-slate-500 mt-1">
           Monitor AI agent performance, tasks, and health in real-time.
         </p>

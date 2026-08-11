@@ -1,15 +1,23 @@
 "use client";
 
 import { Boxes, Zap, Clock, CheckCircle2 } from "lucide-react";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 export default function AutomationPage() {
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
       <div className="border-b border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-          <span className="text-2xl">⚡</span>
-          Automation Studio
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+            <span className="text-2xl">⚡</span>
+            Automation Studio
+          </h1>
+          <AiSimulationTrigger
+            traceId="automation-suggestion"
+            label="AI Build Workflow"
+            variant="outline"
+          />
+        </div>
         <p className="text-sm text-slate-500 mt-1">
           Create and manage automated workflows for your accounting processes.
         </p>

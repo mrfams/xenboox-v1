@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 type Tab = "all" | "pending" | "escalated" | "resolved";
 
@@ -80,17 +81,24 @@ export default function ReviewQueuePage() {
             transactions.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => dashboardQuery.refetch()}
-          disabled={isLoading}
-        >
-          <RefreshCw
-            className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+        <div className="flex items-center gap-2">
+          <AiSimulationTrigger
+            traceId="approval-pre-review"
+            label="AI Pre-Review"
+            variant="outline"
           />
-          Refresh
-        </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => dashboardQuery.refetch()}
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}

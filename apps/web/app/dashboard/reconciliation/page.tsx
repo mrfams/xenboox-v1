@@ -978,6 +978,11 @@ function ReconciliationPageInner() {
                 label="AI Reconcile"
                 variant="outline"
               />
+              <AiSimulationTrigger
+                traceId="reconciliation-automatch"
+                label="AI Auto-Match"
+                variant="outline"
+              />
               <ModulePageCopilot
                 title="Reconciliation"
                 pageContext={

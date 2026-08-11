@@ -1439,6 +1439,11 @@ export default function EstimatesPage() {
               label="AI Convert"
               variant="outline"
             />
+            <AiSimulationTrigger
+              traceId="estimate-margin-review"
+              label="AI Review Margins"
+              variant="outline"
+            />
             <button
               onClick={() => setShowCreate(true)}
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
