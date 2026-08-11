@@ -6,7 +6,23 @@
 
 ---
 
-### [2026-08-11] — Demo seed ↔ Gambia preset catalog parity test (drift guard)
+### [2026-08-11] — Dev-DB schema drift reconciled — full demo seed now completes
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/db/seed/reconcile-schema-drift.ts`
+
+**Request:** Reconcile the dev DB schema drift (`employees.tax_status` and other missing columns) so the full demo seed completes and all module pages have real data.
+
+**What was built:**
+
+1. **Drift detection**: wrote a detector that imports the Drizzle schema at runtime (drizzle symbols) and diffs it against live `information_schema` — missing tables, missing columns, missing enum types/values, and (informational) type mismatches. Finding: only **6 missing columns** and **1 missing enum**; every reported type "mismatch" was a benign alias (`numeric`≡`numeric(15,2)`, `bool`≡`boolean`, `int4`≡`integer`).
+2. **`reconcile-schema-drift.ts`** (committed dev-tool): additive-only reconciliator — `CREATE TYPE IF NOT EXISTS` for missing pgEnums (from the barrel), `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for missing columns with a `columnType→SQL` type mapper (PgDateString→`date`, numeric precision/scale, varchar length, enum via an explicit column→enum-type map), schema defaults serialized from drizzle configs (literals + `now()`/`gen_random_uuid()` query chunks). Hardened after review: **type-correct placeholder defaults** ('' text / 0 integer / false boolean / '{}' jsonb / 'epoch' date) with `DROP DEFAULT` backfilled afterwards so a schema-defined default is never permanently baked in, unserializable defaults are skipped + reported (never `DEFAULT ''` on a jsonb column), and no silent fallbacks — anything it can't do safely is listed as an action to review. Never drops or alters existing objects. Missing tables are reported but not guessed at.
+3. **Applied to the dev DB** (6 statements + 1 enum): `employees.tax_status` (`employee_tax_status`, default `resident`), `historical_pull_jobs.{source_type, detail_depth, opening_balance_cutoff_date, model_tier_used}`, `onboarding_sessions.source_type`, and `CREATE TYPE reconstruction_detail_depth`. Root cause: columns/enums added to the schema (tax session and later) that `drizzle-kit push` hadn't synced — the DB predates the migration journal, so `migrate` fails on duplicate enums and `push` can hit PK rebuilds.
+4. **Full demo seed now completes** — exit 0 through all 44 sections including the consolidation pipeline seeds; verified data across module tables (COA 56, journal 43/98, employees 9, payroll runs 5/22 lines, fixed assets 28, bank txns 32, mobile money 9, documents 30, audit 51, tax rules 5, exchange rates 215). Re-running the tool reports **"no drift"** (idempotent).
+
+**Verification:** seed exit 0 ✓ (re-run after the hardening rewrite — behavior identical) · reconciliator idempotent ✓ (2nd run reports "no drift", 0 statements) · db typecheck clean for the new script (only the pre-existing `run-seed.ts` TS5097 remains) ✓ · prettier clean ✓ · code review applied (safe placeholder defaults + `DROP DEFAULT` backfill, refusal to guess on unserializable defaults, idempotent `CREATE TYPE`).
+
+---
 
 **Agent:** Buffy (Autonomous Engineer)
 **Files Created:** `packages/db/seed/gm-tax-rules.ts`, `apps/web/__tests__/tax-preset-seed-parity.test.ts`
