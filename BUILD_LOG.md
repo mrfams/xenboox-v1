@@ -6,6 +6,26 @@
 
 ---
 
+### [2026-08-10] — Dashboard overview tabs fix + sidebar help link
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/app/dashboard/payroll/page.tsx`, `apps/web/app/dashboard/fixed-assets/page.tsx`, `apps/web/app/dashboard/reconciliation/page.tsx`, `apps/web/app/dashboard/close/page.tsx`, `apps/web/components/layout/sidebar.tsx`, `apps/web/components/layout/ai-sidebar.tsx`, `BUILD_LOG.md`
+
+**What:**
+
+- **Overview tabs audit and fix** — audited all 16 dashboard module pages; 4 had broken Overview tabs:
+
+  - **Payroll** — Overview tab was rendering the full `EmployeeTable` (same content as Employees tab). Replaced with a proper summary dashboard: recent payroll runs (last 5), department breakdown bar chart, upcoming statutory payments summary, and existing bottom charts (trend + donut + statutory). Removed `showEmployeesList` flag that was sharing filters between Overview and Employees.
+  - **Fixed Assets** — all 4 tabs rendered identical content (SummaryCards + AssetsTable) regardless of activeTab. Added `renderPanel()` switch: Overview (summary + recent 5 + AI insights), Assets (full table with search/filter), Depreciation (new schedule table with method/useful life/accumulated depreciation), Disposals (filtered disposed assets).
+  - **Reconciliation** — all 7 tabs rendered identical content. Added IIFE `renderPanel()` switch: Overview (summary cards + recent accounts + bottom charts), Bank Accounts (full table with search/filters), Reconciliations (history table from lastReconciled dates), Discrepancies (filtered unreconciled accounts), Rules/Reports/Settings (empty state placeholders).
+  - **Close** — 7 tab buttons had no onClick handler or state. Added `activeTab` state, onClick handlers, and conditional content: Overview (checklist + AI assistant + trend), Checklist (full width), Reconciliations/Journal Entries/Reviews/Reports/Audit Trail (empty state placeholders).
+
+- **Sidebar avatar removal** — replaced hardcoded user avatar ("FT / Famara Touray / Administrator") in `sidebar.tsx` and real session user Avatar in `ai-sidebar.tsx` with Help & Support links (HelpCircle icon). Cleaned up unused imports (Avatar, AvatarFallback, AvatarImage, ChevronsLeft, getInitials).
+
+**Verification:** typecheck ✓ · production build ✓ · committed and pushed
+
+---
+
 ### [2026-08-10] — Onboarding 5-category source types, opening balances, AI document editing, row copilot, module AI context
 
 **Agent:** Buffy (Autonomous Engineer)
