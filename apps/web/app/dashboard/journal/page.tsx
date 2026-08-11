@@ -24,6 +24,7 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { RowAiAction } from "@/components/module/row-ai-action";
 import { CreateJournalEntryDialog } from "@/components/dashboard/create-journal-entry-dialog";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -983,6 +984,11 @@ export default function JournalEntriesPage() {
       icon={BookOpen}
       actions={
         <>
+          <AiSimulationTrigger
+            traceId="journal-entry-automation"
+            label="AI Draft Entry"
+            variant="outline"
+          />
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"

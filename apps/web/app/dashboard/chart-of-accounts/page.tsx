@@ -25,6 +25,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { CreateAccountDialog } from "@/components/dashboard/create-account-dialog";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -745,6 +746,11 @@ export default function ChartOfAccountsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <AiSimulationTrigger
+                traceId="chart-of-accounts-review"
+                label="AI Review COA"
+                variant="outline"
+              />
               <button
                 onClick={() => setShowCreate(true)}
                 className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"

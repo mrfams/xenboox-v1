@@ -184,6 +184,149 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     href: "/dashboard/settings",
     source: "Xero conversion service",
   },
+  {
+    id: "estimate-conversion",
+    name: "Estimate conversion & follow-up",
+    category: "Agent Workflows",
+    description:
+      "Accepted quotes become invoices automatically while expiring ones get a final nudge — the sales-to-cash handoff runs itself.",
+    status: "partial",
+    traceId: "estimate-conversion",
+    href: "/dashboard/estimates",
+    source: "QuickBooks Estimate → Invoice",
+  },
+  {
+    id: "journal-entry-automation",
+    name: "Journal entry automation",
+    category: "Agent Workflows",
+    description:
+      "Describe the adjustment in plain words — the controller structures it and the ledger posts a balanced, audit-traced entry.",
+    status: "partial",
+    traceId: "journal-entry-automation",
+    href: "/dashboard/journal",
+    source: "Xero Journal Assistant",
+  },
+  {
+    id: "depreciation-run",
+    name: "Monthly depreciation run",
+    category: "Agent Workflows",
+    description:
+      "Depreciation is computed per asset, verified against policy, and posted in one controlled run — fully-depreciated assets flagged.",
+    status: "partial",
+    traceId: "depreciation-run",
+    href: "/dashboard/fixed-assets",
+    source: "Sage Fixed Assets",
+  },
+  {
+    id: "chart-of-accounts-review",
+    name: "Chart of accounts review",
+    category: "Agent Workflows",
+    description:
+      "The controller reviews account structure, suggests new accounts from real transaction patterns, and flags dormant ones.",
+    status: "partial",
+    traceId: "chart-of-accounts-review",
+    href: "/dashboard/chart-of-accounts",
+    source: "QuickBooks COA cleanup",
+  },
+  {
+    id: "tax-filing-prep",
+    name: "Tax filing preparation",
+    category: "Agent Workflows",
+    description:
+      "VAT, PAYE, and corporate liabilities are computed from the live tax rules engine and returns are drafted for review.",
+    status: "partial",
+    traceId: "tax-filing-prep",
+    href: "/dashboard/tax-compliance",
+    source: "Avalara · Xero Tax",
+  },
+  {
+    id: "ledger-reconciliation",
+    name: "Subledger vs ledger reconciliation",
+    category: "Agent Workflows",
+    description:
+      "AR, AP, and cash subledgers are reconciled against the general ledger — every difference traced to its source entry.",
+    status: "partial",
+    traceId: "ledger-reconciliation",
+    href: "/dashboard/reconciliation",
+    source: "Dynamics 365 reconciliation",
+  },
+  {
+    id: "report-generation",
+    name: "Financial statement generation",
+    category: "Agent Workflows",
+    description:
+      "The reporting agent builds the P&L, balance sheet, and cash flow with variance narratives — CFO-reviewed before publication.",
+    status: "partial",
+    traceId: "report-generation",
+    href: "/dashboard/reports",
+    source: "Basis · Sage Intacct reports",
+  },
+  {
+    id: "payroll-filing",
+    name: "Statutory payroll filing",
+    category: "Agent Workflows",
+    description:
+      "PAYE, social security, and year-end certificates are prepared from the payroll run — ready to file.",
+    status: "partial",
+    traceId: "payroll-filing",
+    href: "/dashboard/payroll",
+    source: "Sage Payroll · QuickBooks Payroll",
+  },
+  {
+    id: "payment-matching",
+    name: "Payment matching & application",
+    category: "Agent Workflows",
+    description:
+      "Incoming payments are matched to open invoices — short-payments and overpayments flagged before posting.",
+    status: "partial",
+    traceId: "payment-matching",
+    href: "/dashboard/invoicing",
+    source: "Xero payment matching",
+  },
+  {
+    id: "bill-approval",
+    name: "Bill approval routing",
+    category: "Agent Workflows",
+    description:
+      "Every bill is checked against purchase orders and routed through the right approval chain before it posts.",
+    status: "planned",
+    traceId: "bill-approval",
+    href: "/dashboard/bills",
+    source: "Melio · BILL approvals",
+  },
+  {
+    id: "expense-reimbursement",
+    name: "Expense reimbursement run",
+    category: "Agent Workflows",
+    description:
+      "Employee reimbursements are compiled, policy-checked, and batched into a single payment run.",
+    status: "planned",
+    traceId: "expense-reimbursement",
+    href: "/dashboard/expenses",
+    source: "Expensify · Ramp reimbursements",
+  },
+  {
+    id: "credit-limit-review",
+    name: "Customer credit review",
+    category: "Agent Workflows",
+    description:
+      "Credit limits are reviewed against aging and exposure — over-limit customers flagged before they ship.",
+    status: "planned",
+    traceId: "credit-limit-review",
+    href: "/dashboard/customers",
+    source: "Brex credit risk",
+  },
+  {
+    id: "w9-collection",
+    name: "Tax form collection",
+    category: "Agent Workflows",
+    description:
+      "W-9 and W-8 forms are requested, tracked, and verified so 1099 season never gets held up.",
+    status: "planned",
+    traceId: "w9-collection",
+    href: "/dashboard/vendors",
+    source: "Track1099 · Avalara 1099",
+  },
 
   // ── Progress & Thinking ────────────────────────────────────────────────
   {

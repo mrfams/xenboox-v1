@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -607,6 +608,11 @@ export default function TaxCompliancePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <AiSimulationTrigger
+              traceId="tax-filing-prep"
+              label="AI Prep Filing"
+              variant="outline"
+            />
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
               <input
                 type="month"

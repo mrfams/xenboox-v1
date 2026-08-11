@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-11] — AI simulation triggers across all module pages (7 new pages + 13 new traces + 6 deepened)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/lib/ai-ux/traces.ts` (+13 traces → 26 total), `apps/web/lib/explore/ai-ux-catalog.ts` (+13 entries), `apps/web/app/dashboard/{estimates,journal,reports,fixed-assets,chart-of-accounts,tax-compliance,reconciliation,payroll,invoicing,bills,expenses,customers,vendors}/page.tsx`
+
+**Request:** Add simulation triggers to payroll/invoicing/bills/expenses/customers/vendors matching the banking/transactions/documents pattern. Audit found those 6 already shipped (commit `990b478`); user chose **both**: cover the remaining module pages AND deepen the existing six.
+
+**What was built:**
+
+1. **13 new traces** (`traces.ts`): `estimate-conversion`, `journal-entry-automation`, `depreciation-run`, `chart-of-accounts-review`, `tax-filing-prep`, `ledger-reconciliation`, `report-generation`, `payroll-filing`, `payment-matching`, `bill-approval`, `expense-reimbursement`, `credit-limit-review`, `w9-collection` — each a 6–7 step think/act/tool/approval/complete script with confidence-scored approvals and valid agent IDs.
+2. **7 module pages wired** (previously none): Estimates (AI Convert), Journal (AI Draft Entry), Reports (Generate with AI), Fixed Assets (Run Depreciation), Chart of Accounts (AI Review COA), Tax & Compliance (AI Prep Filing), Reconciliation (AI Reconcile) — all via the header actions pattern (ModulePageShell `actions` for journal/reports, header action groups for the rest).
+3. **6 existing pages deepened** with a second workflow trigger: Payroll (AI File Returns), Invoicing (AI Match Payments), Bills (AI Approvals), Expenses (AI Reimburse), Customers (AI Review Credit), Vendors (AI Collect Forms).
+4. **Explore → AI UX gallery** synced: 13 new catalog entries with matching `traceId`/`href`, statuses aligned to each module's existing entry semantics (partial for live modules, planned for future automations) — the catalog↔trace integrity test now covers 26 playable simulations.
+
+**Verification:** web typecheck ✓ · `ai-ux-simulation` + `simulation-provider` suites **20/20** ✓ · **full web suite 636 passed / 1 skipped** ✓ · production build ✓. Code review applied (catalog status consistency fixed).
+
+---
+
 ### [2026-08-11] — Self-service tax v2: global coverage (22 tax families, edge brackets, combined components, rounding, non-citizen payroll rules, GB + ZA packs)
 
 **Agent:** Buffy (Autonomous Engineer)

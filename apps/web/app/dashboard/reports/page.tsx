@@ -22,6 +22,7 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { RowAiAction } from "@/components/module/row-ai-action";
 import {
   ModulePanel,
@@ -1705,6 +1706,15 @@ export default function ReportsPage() {
       title="Reports"
       description="Financial insights and analytics for smarter decisions."
       icon={BarChart3}
+      actions={
+        <>
+          <AiSimulationTrigger
+            traceId="report-generation"
+            label="Generate with AI"
+            variant="outline"
+          />
+        </>
+      }
       tabs={[
         { key: "overview", label: "Overview" },
         { key: "statements", label: "Financial Statements" },

@@ -1155,6 +1155,11 @@ export default function InvoicingPage() {
                 label="AI Draft Invoice"
                 variant="outline"
               />
+              <AiSimulationTrigger
+                traceId="payment-matching"
+                label="AI Match Payments"
+                variant="outline"
+              />
               <DocumentUploadButton
                 docType="invoice"
                 label="Upload Invoice"

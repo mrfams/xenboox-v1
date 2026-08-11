@@ -747,6 +747,715 @@ export const AI_UX_TRACES: AiUxTrace[] = [
       },
     ],
   ),
+
+  // ── Estimate → invoice conversion ──────────────────────────────────────
+  t(
+    "estimate-conversion",
+    "Estimate conversion & follow-up",
+    "Accepted quotes become invoices automatically while expiring ones get a final nudge — the sales-to-cash handoff runs itself.",
+    "Estimates",
+    "~30s run",
+    ["ar", "cfo"],
+    [
+      {
+        kind: "think",
+        agent: "ar",
+        text: "Scanning 23 open estimates — checking which are accepted, expiring soon, or have gone quiet.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "ar",
+        text: "Converting 2 accepted estimates into invoices — line items, tax treatment, and terms carried over.",
+        ms: 3200,
+      },
+      {
+        kind: "tool",
+        agent: "ar",
+        tool: "estimates.convertAccepted",
+        detail: "EST-2026-0314 → INV-2026-118 · EST-2026-0319 → INV-2026-119",
+        ms: 2200,
+      },
+      {
+        kind: "act",
+        agent: "ar",
+        text: "Sending a final reminder to 3 customers with quotes expiring within the next 7 days.",
+        ms: 2800,
+      },
+      {
+        kind: "approval",
+        agent: "ar",
+        text: "2 invoices ready to send and 3 expiry nudges drafted. Review the conversion details.",
+        ms: 2600,
+        confidence: 95,
+      },
+      {
+        kind: "act",
+        agent: "cfo",
+        text: "Updating the quote pipeline — conversion rate, average time-to-accept, and open value recalibrated.",
+        ms: 3000,
+      },
+      {
+        kind: "complete",
+        agent: "cfo",
+        text: "Estimates round complete — conversions queued, expiring quotes chased, pipeline refreshed.",
+      },
+    ],
+  ),
+
+  // ── Journal entry automation ───────────────────────────────────────────
+  t(
+    "journal-entry-automation",
+    "Journal entry automation",
+    "Describe the adjustment in plain words — the controller structures it and the ledger posts a balanced, audit-traced entry.",
+    "Journal Entries",
+    "~32s run",
+    ["controller", "ledger"],
+    [
+      {
+        kind: "think",
+        agent: "controller",
+        text: "Reading the request: 'accrue for the consulting invoice that arrives next month' — identifying accounts and amounts.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Structuring a draft entry — D 12,500.00 to Consulting Expense · C 12,500.00 to Accrued Liabilities.",
+        ms: 3200,
+      },
+      {
+        kind: "tool",
+        agent: "controller",
+        tool: "journal.draftEntry",
+        detail:
+          "Debits D 12,500.00 · Credits D 12,500.00 · balanced · accounts mapped from the chart",
+        ms: 2200,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Checking the entry against the close checklist — no duplicate accrual exists for this vendor.",
+        ms: 2600,
+      },
+      {
+        kind: "approval",
+        agent: "controller",
+        text: "Draft journal entry awaiting approval: Consulting Expense D 12,500.00 ↔ Accrued Liabilities.",
+        ms: 2800,
+        confidence: 96,
+      },
+      {
+        kind: "act",
+        agent: "ledger",
+        text: "Posting the approved entry — balanced, entity-scoped, and chained onto the audit trail.",
+        ms: 3000,
+      },
+      {
+        kind: "complete",
+        agent: "ledger",
+        text: "Journal entry posted — the accrual will reverse automatically when the invoice is booked next month.",
+      },
+    ],
+  ),
+
+  // ── Monthly depreciation run ───────────────────────────────────────────
+  t(
+    "depreciation-run",
+    "Monthly depreciation run",
+    "Depreciation is computed per asset, verified against policy, and posted in one controlled run.",
+    "Fixed Assets",
+    "~34s run",
+    ["controller", "ledger"],
+    [
+      {
+        kind: "think",
+        agent: "controller",
+        text: "Preparing the June depreciation run for 41 active assets — checking methods, useful lives, and prior-year additions.",
+        ms: 2800,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Computing straight-line and declining-balance depreciation per asset class from the fixed-asset register.",
+        ms: 3400,
+      },
+      {
+        kind: "tool",
+        agent: "controller",
+        tool: "fixedAssets.computeDepreciation",
+        detail:
+          "41 assets · D 86,240.00 total · 3 assets fully depreciated · 1 disposed",
+        ms: 2400,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Flagging 2 assets at 95%+ of useful life for a revaluation or disposal decision.",
+        ms: 2800,
+      },
+      {
+        kind: "approval",
+        agent: "controller",
+        text: "Depreciation journal of D 86,240.00 ready to post — 41 assets, methods verified.",
+        ms: 2800,
+        confidence: 98,
+      },
+      {
+        kind: "act",
+        agent: "ledger",
+        text: "Posting depreciation to accumulated depreciation and depreciation expense accounts.",
+        ms: 3000,
+      },
+      {
+        kind: "complete",
+        agent: "controller",
+        text: "Depreciation run complete — net book values updated, fully-depreciated assets flagged for review.",
+      },
+    ],
+  ),
+
+  // ── Chart of accounts review ───────────────────────────────────────────
+  t(
+    "chart-of-accounts-review",
+    "Chart of accounts review",
+    "The controller reviews account structure, suggests new accounts from real transaction patterns, and flags dormant ones.",
+    "Chart of Accounts",
+    "~30s run",
+    ["controller", "ledger"],
+    [
+      {
+        kind: "think",
+        agent: "controller",
+        text: "Reviewing 74 accounts — mapping six months of transactions to spot misuse and missing granularity.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Suggesting 3 new sub-accounts — split 'Utilities' into power, water, and internet based on spend patterns.",
+        ms: 3000,
+      },
+      {
+        kind: "tool",
+        agent: "controller",
+        tool: "coa.analyzeUsage",
+        detail:
+          "74 accounts · 5 never used · 2 overloaded · 1 duplicate pair detected",
+        ms: 2200,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Flagging 5 dormant accounts and a duplicate 'Travel – Local' / 'Travel – Domestic' pair for cleanup.",
+        ms: 2800,
+      },
+      {
+        kind: "approval",
+        agent: "controller",
+        text: "Chart of accounts recommendations ready — 3 new accounts, 2 merges, 5 deactivations.",
+        ms: 2600,
+        confidence: 88,
+      },
+      {
+        kind: "act",
+        agent: "ledger",
+        text: "Applying approved changes — reclassifying history so reports stay comparable month over month.",
+        ms: 3000,
+      },
+      {
+        kind: "complete",
+        agent: "controller",
+        text: "Chart of accounts review complete — structure clean, reports now group where your spend actually is.",
+      },
+    ],
+  ),
+
+  // ── Tax filing preparation ─────────────────────────────────────────────
+  t(
+    "tax-filing-prep",
+    "Tax filing preparation",
+    "VAT, PAYE, and corporate liabilities are computed from the live tax rules engine and returns are drafted for review.",
+    "Tax & Compliance",
+    "~40s run",
+    ["compliance", "controller", "reporting"],
+    [
+      {
+        kind: "think",
+        agent: "compliance",
+        text: "Compiling the June filing package — VAT, PAYE, and corporate estimates across 5 active jurisdictions.",
+        ms: 2800,
+      },
+      {
+        kind: "act",
+        agent: "compliance",
+        text: "Applying the entity's tax rules — output VAT on sales, input VAT on purchases, PAYE bands, and corporate rate.",
+        ms: 3400,
+      },
+      {
+        kind: "tool",
+        agent: "compliance",
+        tool: "tax.computeLiabilities",
+        detail:
+          "VAT payable D 48,600 · PAYE D 96,200 · corporate estimate D 210,400 · due dates mapped",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Reconciling the computed liabilities against the general ledger VAT and PAYE payable accounts.",
+        ms: 3000,
+      },
+      {
+        kind: "act",
+        agent: "reporting",
+        text: "Drafting the filing summaries with the supporting transaction schedules for each return.",
+        ms: 3200,
+      },
+      {
+        kind: "approval",
+        agent: "compliance",
+        text: "Filing package ready for review — 3 returns drafted, liabilities match the ledger to the cent.",
+        ms: 2800,
+        confidence: 93,
+      },
+      {
+        kind: "complete",
+        agent: "compliance",
+        text: "Filing package prepared — returns, schedules, and due-date reminders attached for your sign-off.",
+      },
+    ],
+  ),
+
+  // ── Subledger vs ledger reconciliation ─────────────────────────────────
+  t(
+    "ledger-reconciliation",
+    "Subledger vs ledger reconciliation",
+    "AR, AP, and cash subledgers are reconciled against the general ledger — every difference traced to its source entry.",
+    "Reconciliation",
+    "~36s run",
+    ["reconciliation", "controller"],
+    [
+      {
+        kind: "think",
+        agent: "reconciliation",
+        text: "Comparing subledger totals to the general ledger for June — receivables, payables, and cash.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "reconciliation",
+        text: "Matching 312 subledger postings to ledger entries — 309 tie out exactly.",
+        ms: 3200,
+      },
+      {
+        kind: "tool",
+        agent: "reconciliation",
+        tool: "reconcile.subledger",
+        detail:
+          "AR D 645,000 = GL · AP D 412,000 = GL · Cash D 1,286,000 ≠ GL by D 2,500",
+        ms: 2400,
+      },
+      {
+        kind: "act",
+        agent: "reconciliation",
+        text: "Tracing the D 2,500 cash difference to a bank-fee entry posted to the wrong subledger line.",
+        ms: 3000,
+      },
+      {
+        kind: "approval",
+        agent: "reconciliation",
+        text: "Correction proposed: move the D 2,500.00 bank fee to Bank Charges. Apply to reconcile?",
+        ms: 2800,
+        confidence: 91,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Verifying the correction keeps the trial balance balanced and the audit chain intact.",
+        ms: 2800,
+      },
+      {
+        kind: "complete",
+        agent: "reconciliation",
+        text: "Subledgers reconciled — all differences resolved, June books tie out to the cent.",
+      },
+    ],
+  ),
+
+  // ── Financial statement generation ─────────────────────────────────────
+  t(
+    "report-generation",
+    "Financial statement generation",
+    "The reporting agent builds the P&L, balance sheet, and cash flow with variance narratives — CFO-reviewed before publication.",
+    "Reports",
+    "~38s run",
+    ["reporting", "cfo"],
+    [
+      {
+        kind: "think",
+        agent: "reporting",
+        text: "Building the June statement package from posted ledger entries — period, budget, and prior-year comparisons.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "reporting",
+        text: "Generating the P&L with budget variance, the balance sheet, and the cash-flow statement.",
+        ms: 3400,
+      },
+      {
+        kind: "tool",
+        agent: "reporting",
+        tool: "reports.generateMonthly",
+        detail:
+          "Revenue D 1.24M · Net income D 318k · gross margin +2.1pts vs May · OCF D 142k",
+        ms: 2400,
+      },
+      {
+        kind: "act",
+        agent: "reporting",
+        text: "Writing variance narratives — explaining the margin lift and the one-off legal fee in June.",
+        ms: 3200,
+      },
+      {
+        kind: "act",
+        agent: "cfo",
+        text: "Reviewing the package — checking the numbers against the close report and prior-period trends.",
+        ms: 3000,
+      },
+      {
+        kind: "approval",
+        agent: "cfo",
+        text: "June statement package ready — publish to the board pack and the entity's shared reports?",
+        ms: 2600,
+        confidence: 97,
+      },
+      {
+        kind: "complete",
+        agent: "reporting",
+        text: "Reports published — P&L, balance sheet, and cash flow attached with signed-off narratives.",
+      },
+    ],
+  ),
+
+  // ── Statutory payroll filing ───────────────────────────────────────────
+  t(
+    "payroll-filing",
+    "Statutory payroll filing",
+    "PAYE, social security, and year-end certificates are prepared from the payroll run — ready to file.",
+    "Payroll",
+    "~34s run",
+    ["payroll", "compliance"],
+    [
+      {
+        kind: "think",
+        agent: "payroll",
+        text: "Preparing June statutory returns from the posted payroll run — 14 employees, per-employee tax statuses applied.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "payroll",
+        text: "Computing PAYE payable, social security contributions, and the employer's share per employee.",
+        ms: 3400,
+      },
+      {
+        kind: "tool",
+        agent: "payroll",
+        tool: "payroll.prepareFiling",
+        detail:
+          "PAYE D 96,200 · SS employee D 38,520 · SS employer D 48,150 · 14 certificates",
+        ms: 2400,
+      },
+      {
+        kind: "act",
+        agent: "compliance",
+        text: "Cross-checking the figures against the tax rules engine and last month's filing for rate regressions.",
+        ms: 3000,
+      },
+      {
+        kind: "approval",
+        agent: "payroll",
+        text: "June filing package ready — returns and certificates drafted, totals match the payroll journal.",
+        ms: 2800,
+        confidence: 96,
+      },
+      {
+        kind: "complete",
+        agent: "compliance",
+        text: "Filing package complete — returns queued for submission and payslips distributed to employees.",
+      },
+    ],
+  ),
+
+  // ── Payment matching & application ─────────────────────────────────────
+  t(
+    "payment-matching",
+    "Payment matching & application",
+    "Incoming payments are matched to open invoices — short-payments and overpayments flagged before posting.",
+    "Invoicing",
+    "~32s run",
+    ["ar", "ledger"],
+    [
+      {
+        kind: "think",
+        agent: "ar",
+        text: "Reviewing 9 incoming payments against 31 open invoices — matching by customer, amount, and reference.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "ar",
+        text: "Applying 6 payments cleanly — invoice paid in full, receivables updated.",
+        ms: 3000,
+      },
+      {
+        kind: "tool",
+        agent: "ar",
+        tool: "ar.matchPayment",
+        detail:
+          "6 applied · 1 short-payment (D 24,000 vs D 25,400 due) · 1 overpayment · 1 unidentifiable",
+        ms: 2400,
+      },
+      {
+        kind: "act",
+        agent: "ar",
+        text: "Flagging the short-payment for a follow-up note and the overpayment as a customer credit.",
+        ms: 2800,
+      },
+      {
+        kind: "approval",
+        agent: "ar",
+        text: "7 of 9 payments ready to post — 2 exceptions need your call before they touch the ledger.",
+        ms: 2600,
+        confidence: 90,
+      },
+      {
+        kind: "act",
+        agent: "ledger",
+        text: "Posting applied payments — debiting cash and clearing each invoice's receivable balance.",
+        ms: 3000,
+      },
+      {
+        kind: "complete",
+        agent: "ar",
+        text: "Payment matching complete — 7 posted, overpayment credited, short-payment flagged for follow-up.",
+      },
+    ],
+  ),
+
+  // ── Bill approval routing ──────────────────────────────────────────────
+  t(
+    "bill-approval",
+    "Bill approval routing",
+    "Every bill is checked against purchase orders and routed through the right approval chain before it posts.",
+    "Bills",
+    "~34s run",
+    ["ap", "controller"],
+    [
+      {
+        kind: "think",
+        agent: "ap",
+        text: "Reviewing 7 incoming bills — checking PO matching, duplicate risk, and approval authority by amount.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "ap",
+        text: "Routing 4 bills under the threshold straight through and 3 higher-value bills up the approval chain.",
+        ms: 3200,
+      },
+      {
+        kind: "tool",
+        agent: "ap",
+        tool: "ap.matchPO",
+        detail:
+          "5 PO-matched · 1 price variance +3.2% · 1 possible duplicate of BILL-0873",
+        ms: 2400,
+      },
+      {
+        kind: "act",
+        agent: "ap",
+        text: "Flagging the price variance for the buyer and holding the suspected duplicate for confirmation.",
+        ms: 2800,
+      },
+      {
+        kind: "approval",
+        agent: "ap",
+        text: "5 bills approved · 2 exceptions flagged — variance and duplicate check. Approve the batch?",
+        ms: 2800,
+        confidence: 89,
+      },
+      {
+        kind: "act",
+        agent: "controller",
+        text: "Verifying approved bills against budget and the accruals raised in the close checklist.",
+        ms: 2800,
+      },
+      {
+        kind: "complete",
+        agent: "ap",
+        text: "Bill batch processed — approved bills booked to payables, exceptions routed to the review queue.",
+      },
+    ],
+  ),
+
+  // ── Expense reimbursement run ───────────────────────────────────────────
+  t(
+    "expense-reimbursement",
+    "Expense reimbursement run",
+    "Employee reimbursements are compiled, policy-checked, and batched into a single payment run.",
+    "Expenses",
+    "~30s run",
+    ["ap", "cash"],
+    [
+      {
+        kind: "think",
+        agent: "ap",
+        text: "Compiling 12 pending employee reimbursements — receipts, policy limits, and approval status.",
+        ms: 2400,
+      },
+      {
+        kind: "act",
+        agent: "ap",
+        text: "Validating each expense against policy — meal caps, mileage rates, and receipt requirements.",
+        ms: 3000,
+      },
+      {
+        kind: "tool",
+        agent: "ap",
+        tool: "expenses.policyCheck",
+        detail:
+          "11 approved · 1 over per-diem cap by D 1,200 · total run D 84,600",
+        ms: 2200,
+      },
+      {
+        kind: "act",
+        agent: "cash",
+        text: "Checking the run against cash position — no conflict with the scheduled vendor payment batch.",
+        ms: 2800,
+      },
+      {
+        kind: "approval",
+        agent: "ap",
+        text: "Reimbursement batch of D 84,600 ready — 11 employees, 1 exception held for review.",
+        ms: 2600,
+        confidence: 94,
+      },
+      {
+        kind: "complete",
+        agent: "cash",
+        text: "Reimbursements batched — employees notified, the exception stays in the review queue.",
+      },
+    ],
+  ),
+
+  // ── Customer credit review ─────────────────────────────────────────────
+  t(
+    "credit-limit-review",
+    "Customer credit review",
+    "Credit limits are reviewed against aging and exposure — over-limit customers flagged before they ship.",
+    "Customers",
+    "~32s run",
+    ["ar", "cfo"],
+    [
+      {
+        kind: "think",
+        agent: "ar",
+        text: "Reviewing credit limits for 28 customers against open balances, aging, and recent payment behavior.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "ar",
+        text: "Calculating exposure — D 645,000 outstanding against D 1.4M in approved credit limits.",
+        ms: 3000,
+      },
+      {
+        kind: "tool",
+        agent: "ar",
+        tool: "ar.creditReview",
+        detail:
+          "3 customers over limit · 2 near limit · 5 with 45+ day overdue balances",
+        ms: 2400,
+      },
+      {
+        kind: "act",
+        agent: "ar",
+        text: "Flagging the 3 over-limit customers — new orders will be held pending payment or a limit increase.",
+        ms: 2800,
+      },
+      {
+        kind: "approval",
+        agent: "ar",
+        text: "Credit actions ready — raise 2 limits, hold 1 new order, and send 5 payment reminders.",
+        ms: 2600,
+        confidence: 87,
+      },
+      {
+        kind: "act",
+        agent: "cfo",
+        text: "Reviewing the exceptions — the largest exposure is a long-standing customer with a clean 3-year history.",
+        ms: 3000,
+      },
+      {
+        kind: "complete",
+        agent: "ar",
+        text: "Credit review complete — limits updated, holds applied, reminders queued for overdue accounts.",
+      },
+    ],
+  ),
+
+  // ── Tax form collection ────────────────────────────────────────────────
+  t(
+    "w9-collection",
+    "Tax form collection",
+    "W-9 and W-8 forms are requested, tracked, and verified so 1099 season never gets held up.",
+    "Vendors",
+    "~30s run",
+    ["compliance", "ap"],
+    [
+      {
+        kind: "think",
+        agent: "compliance",
+        text: "Reviewing vendor tax-document status ahead of the filing season — 31 vendors, W-9s and W-8s required.",
+        ms: 2600,
+      },
+      {
+        kind: "act",
+        agent: "compliance",
+        text: "Checking which vendors are reportable and which forms are on file, expired, or missing.",
+        ms: 3000,
+      },
+      {
+        kind: "tool",
+        agent: "compliance",
+        tool: "vendors.taxDocStatus",
+        detail:
+          "22 W-9 on file · 4 missing · 2 expired · 3 foreign W-8BEN required",
+        ms: 2200,
+      },
+      {
+        kind: "act",
+        agent: "ap",
+        text: "Drafting form requests to the 6 vendors with missing or expired documents.",
+        ms: 2800,
+      },
+      {
+        kind: "approval",
+        agent: "compliance",
+        text: "6 form requests ready to send — with a note that payments may pause for new vendors until received.",
+        ms: 2600,
+        confidence: 92,
+      },
+      {
+        kind: "complete",
+        agent: "ap",
+        text: "Requests sent — vendor records tagged, 1099 season will have every form in hand.",
+      },
+    ],
+  ),
 ];
 
 // ─── Lookup ────────────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { CreateReconciliationDialog } from "@/components/dashboard/create-reconciliation-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { RowAiAction } from "@/components/module/row-ai-action";
 import { ModulePageCopilot } from "@/components/module/module-page-copilot";
 import {
@@ -972,6 +973,11 @@ function ReconciliationPageInner() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <AiSimulationTrigger
+                traceId="ledger-reconciliation"
+                label="AI Reconcile"
+                variant="outline"
+              />
               <ModulePageCopilot
                 title="Reconciliation"
                 pageContext={

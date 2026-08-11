@@ -1022,6 +1022,11 @@ export default function VendorsPage() {
             label="AI Enrich"
             variant="outline"
           />
+          <AiSimulationTrigger
+            traceId="w9-collection"
+            label="AI Collect Forms"
+            variant="outline"
+          />
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"

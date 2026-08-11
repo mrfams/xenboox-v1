@@ -21,6 +21,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { CreateAssetDialog } from "@/components/dashboard/create-asset-dialog";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -734,6 +735,11 @@ export default function FixedAssetsPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <AiSimulationTrigger
+                traceId="depreciation-run"
+                label="Run Depreciation"
+                variant="outline"
+              />
               <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                 <Download className="h-4 w-4" />
                 Export

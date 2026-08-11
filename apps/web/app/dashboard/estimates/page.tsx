@@ -28,6 +28,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -1433,6 +1434,11 @@ export default function EstimatesPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <AiSimulationTrigger
+              traceId="estimate-conversion"
+              label="AI Convert"
+              variant="outline"
+            />
             <button
               onClick={() => setShowCreate(true)}
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"

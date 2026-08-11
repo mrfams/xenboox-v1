@@ -1706,6 +1706,11 @@ export default function PayrollPage() {
         label="Run with AI"
         variant="outline"
       />
+      <AiSimulationTrigger
+        traceId="payroll-filing"
+        label="AI File Returns"
+        variant="outline"
+      />
       <button
         onClick={() => setShowRun(true)}
         className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
