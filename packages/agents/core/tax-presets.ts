@@ -271,25 +271,6 @@ const US_PRESETS: TaxPreset[] = [
     source: "IRS backup withholding 24%; matches in-repo STATUTORY_RULES",
   },
   {
-    id: "us-sales-tax",
-    country: "US",
-    ruleType: "sales_tax",
-    name: "US State Sales Tax (example)",
-    description:
-      "Representative combined state + local sales tax using rate components — State 4% + City 4.5% + MCTD 0.375% = 8.875% (NYC-style). Sales tax is state-local in the US — edit the components to your exact jurisdictions.",
-    appliesTo: "sales",
-    effectiveFrom: "2025-01-01",
-    rateConfig: {
-      type: "rate",
-      components: [
-        { name: "State", rate: 0.04 },
-        { name: "City", rate: 0.045 },
-        { name: "MCTD", rate: 0.00375 },
-      ],
-    },
-    source: "State/local combined example (NYC 8.875%); varies by state",
-  },
-  {
     id: "us-cit",
     country: "US",
     ruleType: "corporate",
@@ -301,6 +282,434 @@ const US_PRESETS: TaxPreset[] = [
     source: "IRC § 11; 21% flat rate",
   },
 ];
+
+// ─── United States — per-state sales tax (all 50 states + DC) ───────────────
+//
+// One preset per state + DC so the US pack is jurisdiction-complete. Rates are
+// the 2025–2026 state base rates; where the base already includes a mandatory
+// local share (CA, UT, VA) it is split into named components so the sum still
+// equals the statutory base. Local-option add-ons vary by city/county — each
+// description carries the local context and a flagship combined example; users
+// add their exact jurisdiction as components or per-customer overrides.
+//
+// Source of the rate data: Tax Foundation 2025 state sales tax reports and
+// state revenue departments (LA raised 4.45% → 5.00% Jan 2025; SD is a
+// temporary 4.2% reduction from 4.5% that sunsets after 2026).
+
+interface UsSalesTaxRow {
+  /** Two-letter state code. */
+  code: string;
+  /** Full state name. */
+  name: string;
+  /** State base rate (0 for no-sales-tax states). */
+  stateRate: number;
+  /** Optional named sub-rates that make up the base (mandatory local splits). */
+  components?: Array<{ name: string; rate: number }>;
+  /** Local-option context shown in the preset description. */
+  localNote: string;
+  /** Optional flagship combined-rate example (state + city + county). */
+  example?: string;
+  /** True when the state has no local sales taxes (skip the add-local guidance). */
+  noLocal?: boolean;
+}
+
+function fmtPct(rate: number): string {
+  return (rate * 100).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function usSalesTaxDescription(r: UsSalesTaxRow): string {
+  const base =
+    r.stateRate === 0
+      ? `${r.name} has no state sales tax.`
+      : r.components
+        ? `${fmtPct(r.stateRate)}% base rate (${r.components
+            .map((c) => `${c.name} ${fmtPct(c.rate)}%`)
+            .join(" + ")}).`
+        : `${fmtPct(r.stateRate)}% state base rate.`;
+  const local = r.localNote ? ` ${r.localNote}` : "";
+  const example = r.example ? ` e.g. ${r.example}.` : "";
+  const guidance = r.noLocal
+    ? ""
+    : " Local rates vary by jurisdiction — add your exact city/county rates as components or per-customer overrides.";
+  return `${base}${local}${example}${guidance}`;
+}
+
+const US_SALES_TAX_ROWS: UsSalesTaxRow[] = [
+  {
+    code: "AL",
+    name: "Alabama",
+    stateRate: 0.04,
+    localNote:
+      "Local city/county taxes average ~5.46% — combined rates frequently reach 8–11%.",
+    example: "Birmingham 10.00%",
+  },
+  {
+    code: "AK",
+    name: "Alaska",
+    stateRate: 0,
+    localNote:
+      "Local-option municipal/borough sales taxes apply (average ~1.82%, some areas up to ~7.85%).",
+  },
+  {
+    code: "AZ",
+    name: "Arizona",
+    stateRate: 0.056,
+    localNote: "Local add-ons average ~2.92%.",
+    example: "Phoenix 8.60%",
+  },
+  {
+    code: "AR",
+    name: "Arkansas",
+    stateRate: 0.065,
+    localNote:
+      "Local add-ons apply; the state grocery tax ended Jan 2026 (localities may still levy one).",
+  },
+  {
+    code: "CA",
+    name: "California",
+    stateRate: 0.0725,
+    components: [
+      { name: "State", rate: 0.06 },
+      { name: "Mandatory local", rate: 0.0125 },
+    ],
+    localNote:
+      "The base includes a 1.25% mandatory local add-on; district taxes can add up to ~2.5% more.",
+    example: "Los Angeles 9.50%",
+  },
+  {
+    code: "CO",
+    name: "Colorado",
+    stateRate: 0.029,
+    localNote: "Lowest non-zero state base; local add-ons average ~4.99%.",
+    example: "Denver 8.81%",
+  },
+  {
+    code: "CT",
+    name: "Connecticut",
+    stateRate: 0.0635,
+    localNote: "No local sales taxes.",
+    noLocal: true,
+  },
+  {
+    code: "DE",
+    name: "Delaware",
+    stateRate: 0,
+    localNote: "No local-option sales taxes either.",
+    noLocal: true,
+  },
+  {
+    code: "FL",
+    name: "Florida",
+    stateRate: 0.06,
+    localNote: "County discretionary surtaxes average ~0.98%.",
+    example: "Miami-Dade 7.00%",
+  },
+  {
+    code: "GA",
+    name: "Georgia",
+    stateRate: 0.04,
+    localNote: "Local add-ons average ~3.49%.",
+    example: "Atlanta 8.90%",
+  },
+  {
+    code: "HI",
+    name: "Hawaii",
+    stateRate: 0.04,
+    localNote:
+      "General Excise Tax (GET) — broad base that includes services; no local add-ons.",
+    noLocal: true,
+  },
+  {
+    code: "ID",
+    name: "Idaho",
+    stateRate: 0.06,
+    localNote: "Local add-ons negligible (average ~0.03%).",
+  },
+  {
+    code: "IL",
+    name: "Illinois",
+    stateRate: 0.0625,
+    localNote:
+      "Local add-ons average ~2.5%; Chicago-area combined rates reach 10%+.",
+    example: "Chicago 10.25%",
+  },
+  {
+    code: "IN",
+    name: "Indiana",
+    stateRate: 0.07,
+    localNote: "No local sales taxes.",
+    noLocal: true,
+  },
+  {
+    code: "IA",
+    name: "Iowa",
+    stateRate: 0.06,
+    localNote: "Local-option add-ons average ~0.94%.",
+  },
+  {
+    code: "KS",
+    name: "Kansas",
+    stateRate: 0.065,
+    localNote: "Local add-ons average ~2.19%.",
+  },
+  {
+    code: "KY",
+    name: "Kentucky",
+    stateRate: 0.06,
+    localNote: "No local sales taxes.",
+    noLocal: true,
+  },
+  {
+    code: "LA",
+    name: "Louisiana",
+    stateRate: 0.05,
+    localNote:
+      "Raised from 4.45% to 5.00% Jan 2025; the nation's highest local add-ons (average ~5%).",
+    example: "New Orleans 9.45%",
+  },
+  {
+    code: "ME",
+    name: "Maine",
+    stateRate: 0.055,
+    localNote: "No local sales taxes.",
+    noLocal: true,
+  },
+  {
+    code: "MD",
+    name: "Maryland",
+    stateRate: 0.06,
+    localNote: "No local sales taxes.",
+    noLocal: true,
+  },
+  {
+    code: "MA",
+    name: "Massachusetts",
+    stateRate: 0.0625,
+    localNote: "No local sales taxes.",
+    noLocal: true,
+  },
+  {
+    code: "MI",
+    name: "Michigan",
+    stateRate: 0.06,
+    localNote: "No local sales taxes.",
+    noLocal: true,
+  },
+  {
+    code: "MN",
+    name: "Minnesota",
+    stateRate: 0.06875,
+    localNote: "Local add-ons average ~1.26%.",
+  },
+  {
+    code: "MS",
+    name: "Mississippi",
+    stateRate: 0.07,
+    localNote: "Local add-ons negligible (average ~0.06%).",
+  },
+  {
+    code: "MO",
+    name: "Missouri",
+    stateRate: 0.04225,
+    localNote:
+      "Local add-ons average ~4.22% — combined rates routinely exceed 8%.",
+  },
+  {
+    code: "MT",
+    name: "Montana",
+    stateRate: 0,
+    localNote: "Limited resort-area local option taxes only.",
+  },
+  {
+    code: "NE",
+    name: "Nebraska",
+    stateRate: 0.055,
+    localNote: "Local add-ons average ~1.48%.",
+  },
+  {
+    code: "NV",
+    name: "Nevada",
+    stateRate: 0.0685,
+    localNote: "The base rate already includes mandatory local components.",
+  },
+  {
+    code: "NH",
+    name: "New Hampshire",
+    stateRate: 0,
+    localNote: "No local-option sales taxes either.",
+    noLocal: true,
+  },
+  {
+    code: "NJ",
+    name: "New Jersey",
+    stateRate: 0.06625,
+    localNote:
+      "No local add-ons; Urban Enterprise Zones collect at half-rate (3.3125%).",
+    noLocal: true,
+  },
+  {
+    code: "NM",
+    name: "New Mexico",
+    stateRate: 0.04875,
+    localNote:
+      "Gross Receipts Tax (hybrid, includes services); local portions add on.",
+  },
+  {
+    code: "NY",
+    name: "New York",
+    stateRate: 0.04,
+    localNote: "Local add-ons average ~4.54%.",
+    example: "New York City 8.875% (4% state + 4.5% city + 0.375% MCTD)",
+  },
+  {
+    code: "NC",
+    name: "North Carolina",
+    stateRate: 0.0475,
+    localNote:
+      "Local add-ons up to 2.75% (2% county + 0.5% transit + 0.25% city).",
+    example: "Charlotte 8.25%",
+  },
+  {
+    code: "ND",
+    name: "North Dakota",
+    stateRate: 0.05,
+    localNote: "Local add-ons average ~2.09%.",
+  },
+  {
+    code: "OH",
+    name: "Ohio",
+    stateRate: 0.0575,
+    localNote: "Local add-ons average ~1.54%.",
+  },
+  {
+    code: "OK",
+    name: "Oklahoma",
+    stateRate: 0.045,
+    localNote: "Local add-ons average ~4.56%.",
+  },
+  {
+    code: "OR",
+    name: "Oregon",
+    stateRate: 0,
+    localNote: "No local-option sales taxes either.",
+    noLocal: true,
+  },
+  {
+    code: "PA",
+    name: "Pennsylvania",
+    stateRate: 0.06,
+    localNote: "Local add-ons negligible (average ~0.34%).",
+  },
+  {
+    code: "RI",
+    name: "Rhode Island",
+    stateRate: 0.07,
+    localNote: "No local sales taxes.",
+    noLocal: true,
+  },
+  {
+    code: "SC",
+    name: "South Carolina",
+    stateRate: 0.06,
+    localNote: "Local add-ons average ~1.49%.",
+  },
+  {
+    code: "SD",
+    name: "South Dakota",
+    stateRate: 0.042,
+    localNote:
+      "Temporary reduction from 4.50% (sunsets after 2026); local add-ons apply.",
+  },
+  {
+    code: "TN",
+    name: "Tennessee",
+    stateRate: 0.07,
+    localNote: "Local add-ons average ~2.61%.",
+    example: "Nashville 9.25% / Memphis 9.75%",
+  },
+  {
+    code: "TX",
+    name: "Texas",
+    stateRate: 0.0625,
+    localNote: "Local add-ons average ~1.95%.",
+    example: "Dallas / Houston 8.25%",
+  },
+  {
+    code: "UT",
+    name: "Utah",
+    stateRate: 0.061,
+    components: [
+      { name: "State", rate: 0.0485 },
+      { name: "Mandatory local", rate: 0.0125 },
+    ],
+    localNote:
+      "The base includes a 1.25% mandatory local add-on; optional local add-ons on top.",
+  },
+  {
+    code: "VT",
+    name: "Vermont",
+    stateRate: 0.06,
+    localNote: "Local-option add-ons in select towns (average ~0.39%).",
+  },
+  {
+    code: "VA",
+    name: "Virginia",
+    stateRate: 0.053,
+    components: [
+      { name: "State", rate: 0.043 },
+      { name: "Mandatory local", rate: 0.01 },
+    ],
+    localNote:
+      "The base includes a mandatory 1.00% local add-on; additional regional taxes apply in some areas.",
+  },
+  {
+    code: "WA",
+    name: "Washington",
+    stateRate: 0.065,
+    localNote: "Local add-ons average ~3.01%.",
+  },
+  {
+    code: "WV",
+    name: "West Virginia",
+    stateRate: 0.06,
+    localNote: "Local add-ons average ~0.59%.",
+  },
+  {
+    code: "WI",
+    name: "Wisconsin",
+    stateRate: 0.05,
+    localNote: "County add-ons average ~0.72%.",
+  },
+  {
+    code: "WY",
+    name: "Wyoming",
+    stateRate: 0.04,
+    localNote: "Local add-ons average ~1.56%.",
+  },
+  {
+    code: "DC",
+    name: "District of Columbia",
+    stateRate: 0.06,
+    localNote: "Single district rate; no separate local add-ons.",
+    noLocal: true,
+  },
+];
+
+/** Per-state US sales tax presets — every state + DC (jurisdiction-complete). */
+const US_SALES_TAX_PRESETS: TaxPreset[] = US_SALES_TAX_ROWS.map((r) => ({
+  id: `us-sales-tax-${r.code.toLowerCase()}`,
+  country: "US",
+  ruleType: "sales_tax" as const,
+  name: `US Sales Tax — ${r.name}`,
+  description: usSalesTaxDescription(r),
+  appliesTo: "sales" as const,
+  effectiveFrom: "2025-01-01",
+  rateConfig: r.components
+    ? { type: "rate" as const, components: r.components }
+    : { type: "rate" as const, rate: r.stateRate },
+  source:
+    "Tax Foundation 2025 state sales tax rates; state revenue departments",
+}));
 
 // ─── Nigeria — FIRS (Federal Inland Revenue Service) ────────────────────────
 
@@ -655,6 +1064,7 @@ export const TAX_PRESET_CATALOG: TaxPreset[] = [
   ...GM_PRESETS,
   ...SN_PRESETS,
   ...US_PRESETS,
+  ...US_SALES_TAX_PRESETS,
   ...NG_PRESETS,
   ...KE_PRESETS,
   ...GH_PRESETS,

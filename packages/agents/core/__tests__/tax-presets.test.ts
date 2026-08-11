@@ -58,6 +58,51 @@ describe("tax preset catalog", () => {
     expect(PRESET_COUNTRIES).toContain("US");
   });
 
+  it("US pack is jurisdiction-complete: a sales tax preset for every state + DC", () => {
+    const usSales = getTaxPresetsForCountry("US").filter(
+      (p) => p.ruleType === "sales_tax",
+    );
+    expect(usSales.length).toBe(51);
+    // Unique per-state ids (us-sales-tax-<code>).
+    const codes = new Set(
+      usSales.map((p) => p.id.replace("us-sales-tax-", "")),
+    );
+    expect(codes.size).toBe(51);
+    // Every component-based rule sums to <= 1 with sane component rates.
+    for (const p of usSales) {
+      const rc = p.rateConfig;
+      if (rc.type === "rate" && rc.components) {
+        const sum = rc.components.reduce((acc, c) => acc + c.rate, 0);
+        expect(sum, `${p.id} components sum`).toBeLessThanOrEqual(1);
+        for (const c of rc.components) {
+          expect(c.rate, `${p.id} ${c.name}`).toBeGreaterThanOrEqual(0);
+          expect(c.rate, `${p.id} ${c.name}`).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+
+  it("mandatory-local splits sum to the statutory base (CA, UT, VA)", () => {
+    const usSales = getTaxPresetsForCountry("US").filter(
+      (p) => p.ruleType === "sales_tax",
+    );
+    const expected: Record<string, number> = {
+      "us-sales-tax-ca": 0.0725,
+      "us-sales-tax-ut": 0.061,
+      "us-sales-tax-va": 0.053,
+    };
+    for (const [id, base] of Object.entries(expected)) {
+      const preset = usSales.find((p) => p.id === id);
+      expect(preset, `${id} exists`).toBeDefined();
+      const rc = preset?.rateConfig;
+      expect(rc?.type, `${id} uses components`).toBe("rate");
+      if (rc?.type === "rate") {
+        const sum = (rc.components ?? []).reduce((a, c) => a + c.rate, 0);
+        expect(sum, `${id} components sum to base`).toBeCloseTo(base, 6);
+      }
+    }
+  });
+
   it("has unique preset ids across the whole catalog", () => {
     const ids = TAX_PRESET_CATALOG.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
