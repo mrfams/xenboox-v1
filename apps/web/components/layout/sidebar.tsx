@@ -17,7 +17,6 @@ import {
   Activity,
   Settings,
   HelpCircle,
-  ChevronsLeft,
   RefreshCw,
   FileText,
   Landmark,
@@ -412,22 +411,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         </div>
 
-        {/* User Profile */}
+        {/* Help & Support */}
         <div className="border-t border-white/[0.06] p-3">
-          <div className="lg:hidden lg:group-hover:flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xs font-bold shrink-0">
-              FT
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-[hsl(var(--sidebar-text))] truncate">
-                Famara Touray
-              </p>
-              <p className="text-[10px] text-[hsl(var(--sidebar-text-dim))] truncate">
-                Administrator
-              </p>
-            </div>
-            <ChevronsLeft className="h-4 w-4 text-[hsl(var(--sidebar-text-dim))] shrink-0" />
-          </div>
+          <Link
+            href="/dashboard/settings"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))] transition-colors lg:justify-center lg:group-hover:justify-start"
+          >
+            <HelpCircle className="h-4 w-4 shrink-0" />
+            <span className="flex-1 truncate lg:hidden lg:group-hover:inline">
+              Help & Support
+            </span>
+          </Link>
         </div>
       </aside>
     </>

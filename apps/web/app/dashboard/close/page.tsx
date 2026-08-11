@@ -952,6 +952,7 @@ function AiCopilotPanel({
 
 export default function CloseCenterPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
+  const [activeTab, setActiveTab] = useState("Overview");
 
   // Real periods from the entity's fiscal calendar
   const { data: periods } = trpc.closeCenter.listPeriods.useQuery();
@@ -1047,9 +1048,10 @@ export default function CloseCenterPage() {
             {tabs.map((tab) => (
               <button
                 key={tab}
+                onClick={() => setActiveTab(tab)}
                 className={cn(
                   "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                  tab === "Overview"
+                  activeTab === tab
                     ? "bg-indigo-50 text-indigo-600"
                     : "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
                 )}
@@ -1069,17 +1071,102 @@ export default function CloseCenterPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Checklist and AI Assistant */}
-          <div className="grid grid-cols-2 gap-6">
-            {checklist && <CloseChecklist checklist={checklist} />}
-            {recommendations && (
-              <AiCloseAssistant recommendations={recommendations} />
-            )}
-          </div>
+          {activeTab === "Overview" && (
+            <>
+              {/* Checklist and AI Assistant */}
+              <div className="grid grid-cols-2 gap-6">
+                {checklist && <CloseChecklist checklist={checklist} />}
+                {recommendations && (
+                  <AiCloseAssistant recommendations={recommendations} />
+                )}
+              </div>
 
-          {/* Bottom Row */}
-          {trend && timeSaved && history && (
-            <BottomRow trend={trend} timeSaved={timeSaved} history={history} />
+              {/* Bottom Row */}
+              {trend && timeSaved && history && (
+                <BottomRow
+                  trend={trend}
+                  timeSaved={timeSaved}
+                  history={history}
+                />
+              )}
+            </>
+          )}
+
+          {activeTab === "Checklist" && checklist && (
+            <CloseChecklist checklist={checklist} />
+          )}
+
+          {activeTab === "Reconciliations" && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="rounded-xl border border-slate-200 bg-white p-8">
+                <RefreshCw className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-slate-900">
+                  Reconciliations
+                </h3>
+                <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                  Bank and account reconciliations for this period will appear
+                  here once initiated.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "Journal Entries" && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="rounded-xl border border-slate-200 bg-white p-8">
+                <Sparkles className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-slate-900">
+                  Journal Entries
+                </h3>
+                <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                  Adjusting and closing journal entries will be generated and
+                  reviewed here.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "Reviews" && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="rounded-xl border border-slate-200 bg-white p-8">
+                <Shield className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-slate-900">Reviews</h3>
+                <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                  Compliance and accuracy reviews for the close period will
+                  appear here.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "Reports" && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="rounded-xl border border-slate-200 bg-white p-8">
+                <CheckCircle2 className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-slate-900">
+                  Close Reports
+                </h3>
+                <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                  Period-end reports and variance analyses will be generated
+                  here.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "Audit Trail" && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="rounded-xl border border-slate-200 bg-white p-8">
+                <Clock className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-slate-900">
+                  Audit Trail
+                </h3>
+                <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                  Complete audit log of all close activities and agent actions
+                  will appear here.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>

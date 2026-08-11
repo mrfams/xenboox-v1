@@ -463,6 +463,261 @@ export default function FixedAssetsPage() {
     { key: "disposals" as TabFilter, label: "Disposals" },
   ];
 
+  const allAssets = (assetsData ?? []).map((asset) => ({
+    id: asset.id,
+    name: asset.name,
+    category: asset.assetClass,
+    purchaseDate: asset.purchaseDate,
+    purchaseCost: parseFloat(asset.cost ?? "0"),
+    depreciationMethod: asset.depreciationMethod,
+    usefulLife: asset.usefulLifeMonths ?? 0,
+    accumulatedDepreciation: parseFloat(asset.accumulatedDepreciation ?? "0"),
+    netBookValue: parseFloat(asset.netBookValue ?? "0"),
+    status: asset.status,
+  }));
+
+  const filteredAssets = allAssets.filter((asset) => {
+    if (
+      assetSearch &&
+      !asset.name.toLowerCase().includes(assetSearch.toLowerCase())
+    )
+      return false;
+    if (assetCategory && asset.category !== assetCategory) return false;
+    return true;
+  });
+
+  const renderPanel = () => {
+    switch (activeTab) {
+      case "assets":
+        return (
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="font-medium text-slate-900">
+                Assets ({filteredAssets.length})
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={assetSearch}
+                    onChange={(e) => setAssetSearch(e.target.value)}
+                    placeholder="Search assets..."
+                    className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+                <select
+                  value={assetCategory}
+                  onChange={(e) => setAssetCategory(e.target.value)}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Categories</option>
+                  {Array.from(new Set(allAssets.map((a) => a.category))).map(
+                    (cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+            </div>
+            <AssetsTable
+              assets={filteredAssets}
+              isLoading={assetsLoading}
+              onDelete={(id) => deleteAsset.mutate({ id })}
+            />
+          </div>
+        );
+
+      case "depreciation":
+        return (
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <div className="p-4 border-b border-slate-200">
+              <h3 className="font-medium text-slate-900">
+                Depreciation Schedule
+              </h3>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Accumulated depreciation and remaining useful life for active
+                assets.
+              </p>
+            </div>
+            {assetsLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <RefreshCw className="h-8 w-8 text-slate-400 animate-spin" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+                        Asset
+                      </th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+                        Method
+                      </th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+                        Useful Life
+                      </th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+                        Cost
+                      </th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+                        Accum. Depreciation
+                      </th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+                        Net Book Value
+                      </th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allAssets.map((asset) => (
+                      <tr
+                        key={asset.id}
+                        className="border-b border-slate-100 hover:bg-slate-50"
+                      >
+                        <td className="py-3 px-4 text-sm font-medium text-slate-900">
+                          {asset.name}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-600 capitalize">
+                          {asset.depreciationMethod.replace("_", " ")}
+                        </td>
+                        <td className="py-3 px-4 text-right text-sm tabular-nums text-slate-700">
+                          {asset.usefulLife} mo
+                        </td>
+                        <td className="py-3 px-4 text-right text-sm tabular-nums text-slate-900">
+                          GMD {asset.purchaseCost.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-right text-sm tabular-nums text-amber-600">
+                          GMD {asset.accumulatedDepreciation.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-right text-sm font-medium tabular-nums text-slate-900">
+                          GMD {asset.netBookValue.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
+                              asset.status === "active"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : asset.status === "disposed"
+                                  ? "bg-slate-100 text-slate-600"
+                                  : "bg-amber-100 text-amber-700",
+                            )}
+                          >
+                            {asset.status.replace("_", " ")}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+
+      case "disposals":
+        const disposedAssets = filteredAssets.filter(
+          (a) => a.status === "disposed",
+        );
+        return (
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <div>
+                <h3 className="font-medium text-slate-900">
+                  Disposed Assets ({disposedAssets.length})
+                </h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  Assets that have been written off, sold, or scrapped.
+                </p>
+              </div>
+            </div>
+            {disposedAssets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Package className="h-10 w-10 text-slate-300 mb-3" />
+                <p className="text-sm font-medium text-slate-900">
+                  No disposed assets
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Disposed assets will appear here once you write off or sell an
+                  asset.
+                </p>
+              </div>
+            ) : (
+              <AssetsTable
+                assets={disposedAssets}
+                isLoading={false}
+                onDelete={(id) => deleteAsset.mutate({ id })}
+              />
+            )}
+          </div>
+        );
+
+      default:
+        // Overview — summary cards + recent assets + AI insights
+        return (
+          <>
+            {overviewData?.summary && (
+              <SummaryCards summary={overviewData.summary} />
+            )}
+            <div className="grid grid-cols-3 gap-6">
+              <div className="col-span-2 rounded-xl border border-slate-200 bg-white">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                  <h3 className="font-medium text-slate-900">Recent Assets</h3>
+                  <button
+                    onClick={() => setActiveTab("assets")}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                  >
+                    View all →
+                  </button>
+                </div>
+                <AssetsTable
+                  assets={allAssets.slice(0, 5)}
+                  isLoading={assetsLoading}
+                  onDelete={(id) => deleteAsset.mutate({ id })}
+                />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <h3 className="font-medium text-slate-900 mb-3">AI Insights</h3>
+                {aiInsights && aiInsights.length > 0 ? (
+                  <div className="space-y-3">
+                    {aiInsights.map((insight) => (
+                      <div
+                        key={insight.id}
+                        className={cn(
+                          "rounded-lg border p-3",
+                          insight.type === "warning" &&
+                            "border-amber-200 bg-amber-50",
+                          insight.type === "info" &&
+                            "border-blue-200 bg-blue-50",
+                        )}
+                      >
+                        <p className="text-sm font-medium text-slate-900">
+                          {insight.title}
+                        </p>
+                        <p className="text-xs text-slate-600 mt-1">
+                          {insight.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No insights at this time.
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        );
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-4rem)] flex">
       {/* Main Content */}
@@ -514,76 +769,7 @@ export default function FixedAssetsPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50">
-          {/* Summary Cards */}
-          {overviewData?.summary && (
-            <SummaryCards summary={overviewData.summary} />
-          )}
-
-          {/* Assets Table */}
-          <div className="rounded-xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <h3 className="font-medium text-slate-900">
-                Assets ({assetsData?.length ?? 0})
-              </h3>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={assetSearch}
-                    onChange={(e) => setAssetSearch(e.target.value)}
-                    placeholder="Search assets..."
-                    className="rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <select
-                  value={assetCategory}
-                  onChange={(e) => setAssetCategory(e.target.value)}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">All Categories</option>
-                  {Array.from(
-                    new Set((assetsData ?? []).map((a) => a.assetClass)),
-                  ).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <AssetsTable
-              assets={(assetsData ?? [])
-                .filter((asset) => {
-                  if (
-                    assetSearch &&
-                    !asset.name
-                      .toLowerCase()
-                      .includes(assetSearch.toLowerCase())
-                  )
-                    return false;
-                  if (assetCategory && asset.assetClass !== assetCategory)
-                    return false;
-                  return true;
-                })
-                .map((asset) => ({
-                  id: asset.id,
-                  name: asset.name,
-                  category: asset.assetClass,
-                  purchaseDate: asset.purchaseDate,
-                  purchaseCost: parseFloat(asset.cost ?? "0"),
-                  depreciationMethod: asset.depreciationMethod,
-                  usefulLife: asset.usefulLifeMonths ?? 0,
-                  accumulatedDepreciation: parseFloat(
-                    asset.accumulatedDepreciation ?? "0",
-                  ),
-                  netBookValue: parseFloat(asset.netBookValue ?? "0"),
-                  status: asset.status,
-                }))}
-              isLoading={assetsLoading}
-              onDelete={(id) => deleteAsset.mutate({ id })}
-            />
-          </div>
+          {renderPanel()}
         </div>
       </div>
 

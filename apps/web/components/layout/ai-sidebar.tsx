@@ -22,13 +22,12 @@ import {
   BarChart3,
   Bot,
   Settings,
-  ChevronsLeft,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 
-import { cn, getInitials } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
@@ -240,7 +239,6 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const { data: session } = useSession();
   const user = session?.user;
-  const initials = getInitials(user?.name || user?.email || "User");
   const isExploreAllowed = user?.email?.toLowerCase() === EXPLORE_ALLOWED_EMAIL;
 
   // ── Hover-expand (disabled) — see the import comment at the top ──
@@ -347,33 +345,18 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
         {/* Agent status — renders only when something is processing/pending */}
         <AgentStatusBar />
 
-        {/* User Profile — real signed-in user from the session; avatar always
-            visible on the rail, details on mobile */}
+        {/* Help & Support */}
         <div className="border-t border-white/[0.06] p-3">
-          {/* Rail: restore to "lg:hidden lg:group-hover:flex" to match old */}
-          <div className="flex items-center gap-3 lg:flex-col lg:gap-1.5">
-            <Avatar className="h-8 w-8 shrink-0">
-              {user?.image && (
-                <AvatarImage
-                  src={user.image}
-                  alt={user?.name ?? ""}
-                  className="h-full w-full object-cover"
-                />
-              )}
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xs font-bold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0 lg:hidden">
-              <p className="text-xs font-medium text-[hsl(var(--sidebar-text))] truncate">
-                {user?.name ?? "Signed in"}
-              </p>
-              <p className="text-[10px] text-[hsl(var(--sidebar-text-dim))] truncate">
-                {user?.email ?? ""}
-              </p>
-            </div>
-            <ChevronsLeft className="h-4 w-4 text-[hsl(var(--sidebar-text-dim))] shrink-0 lg:hidden" />
-          </div>
+          <Link
+            href="/dashboard/settings"
+            title="Help & Support"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))] transition-all duration-150 lg:flex-col lg:gap-1 lg:px-1 lg:py-2 lg:text-[10px] lg:leading-tight"
+          >
+            <HelpCircle className="h-5 w-5" />
+            <span className="flex-1 truncate lg:flex-none lg:w-full lg:text-center">
+              Help
+            </span>
+          </Link>
         </div>
       </aside>
     </>

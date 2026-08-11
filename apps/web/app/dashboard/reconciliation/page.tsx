@@ -25,6 +25,13 @@ import { cn } from "@/lib/utils";
 import { CreateReconciliationDialog } from "@/components/dashboard/create-reconciliation-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { DocumentUploadButton } from "@/components/module/document-upload-button";
+import { RowAiAction } from "@/components/module/row-ai-action";
+import { ModulePageCopilot } from "@/components/module/module-page-copilot";
+import {
+  ModuleAiProvider,
+  useModuleAi,
+} from "@/components/module/module-ai-context";
+import type { PageContextPayload } from "@/lib/chat/page-context";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -235,12 +242,42 @@ function AccountTable({
                 key={account.id}
                 onClick={() => onSelect(account.id)}
                 className={cn(
-                  "border-b border-slate-100 cursor-pointer transition-colors",
+                  "group relative border-b border-slate-100 cursor-pointer transition-colors",
                   selectedId === account.id
                     ? "bg-indigo-50"
                     : "hover:bg-slate-50",
                 )}
               >
+                <RowAiAction
+                  focus={{
+                    kind: "Bank Account",
+                    name: account.name,
+                    id: account.id,
+                    fields: [
+                      { label: "Type", value: account.type },
+                      {
+                        label: "Account number",
+                        value:
+                          account.accountNumber.length > 8
+                            ? `•••• •••• ${account.accountNumber.slice(-4)}`
+                            : account.accountNumber,
+                      },
+                      { label: "Bank", value: account.bankName },
+                      {
+                        label: "Book balance",
+                        value: `GMD ${account.bookBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                      },
+                      {
+                        label: "Difference",
+                        value:
+                          account.difference === 0
+                            ? "GMD 0.00"
+                            : `GMD ${Math.abs(account.difference).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                      },
+                      { label: "Status", value: account.status },
+                    ],
+                  }}
+                />
                 <td className="py-3 px-4">
                   <input type="checkbox" className="rounded border-slate-300" />
                 </td>
@@ -878,6 +915,15 @@ function AiCopilotPanel({
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function ReconciliationPage() {
+  return (
+    <ModuleAiProvider>
+      <ReconciliationPageInner />
+    </ModuleAiProvider>
+  );
+}
+
+function ReconciliationPageInner() {
+  const { focusRequest } = useModuleAi();
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null,
@@ -926,6 +972,17 @@ export default function ReconciliationPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <ModulePageCopilot
+                title="Reconciliation"
+                pageContext={
+                  {
+                    page: "Reconciliation",
+                    module: "reconciliation",
+                    view: activeTab,
+                  } as PageContextPayload
+                }
+                focusRequest={focusRequest}
+              />
               <button
                 onClick={() => setShowCreate(true)}
                 className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
@@ -960,124 +1017,314 @@ export default function ReconciliationPage() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        {overviewData?.summary && (
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <SummaryCards summary={overviewData.summary} />
-          </div>
-        )}
+        {/* Tab Content */}
+        {(() => {
+          const allAccounts = overviewData?.accountStatuses ?? [];
+          const filteredAccounts = allAccounts.filter((a) => {
+            if (
+              accountSearch &&
+              !a.name.toLowerCase().includes(accountSearch.toLowerCase())
+            )
+              return false;
+            if (accountTypeFilter && a.type !== accountTypeFilter) return false;
+            if (accountStatusFilter && a.status !== accountStatusFilter)
+              return false;
+            return true;
+          });
 
-        {/* Search and Filters */}
-        <div className="p-4 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />{" "}
-              <input
-                type="text"
-                value={accountSearch}
-                onChange={(e) => setAccountSearch(e.target.value)}
-                placeholder="Search accounts..."
-                className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-            <select
-              value={accountTypeFilter}
-              onChange={(e) => setAccountTypeFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">All Account Types</option>
-              <option value="checking">Checking</option>
-              <option value="savings">Savings</option>
-              <option value="mobile_money">Mobile Money</option>
-            </select>
-            <select
-              value={accountStatusFilter}
-              onChange={(e) => setAccountStatusFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">All Statuses</option>
-              <option value="Reconciled">Reconciled</option>
-              <option value="Unreconciled">Unreconciled</option>
-              <option value="Not Required">Not Required</option>
-            </select>
-            {(accountSearch || accountTypeFilter || accountStatusFilter) && (
-              <button
-                onClick={() => {
-                  setAccountSearch("");
-                  setAccountTypeFilter("");
-                  setAccountStatusFilter("");
-                }}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Clear filters
-              </button>
-            )}
-            <button className="rounded-lg border border-slate-200 bg-white p-2 hover:bg-slate-50">
-              <Settings className="h-4 w-4 text-slate-600" />
-            </button>
-          </div>
-        </div>
+          switch (activeTab) {
+            case "bank_accounts":
+              return (
+                <>
+                  {/* Search and Filters */}
+                  <div className="p-4 bg-white border-b border-slate-200">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={accountSearch}
+                          onChange={(e) => setAccountSearch(e.target.value)}
+                          placeholder="Search accounts..."
+                          className="w-full rounded-lg border border-slate-200 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
+                      <select
+                        value={accountTypeFilter}
+                        onChange={(e) => setAccountTypeFilter(e.target.value)}
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">All Account Types</option>
+                        <option value="checking">Checking</option>
+                        <option value="savings">Savings</option>
+                        <option value="mobile_money">Mobile Money</option>
+                      </select>
+                      <select
+                        value={accountStatusFilter}
+                        onChange={(e) => setAccountStatusFilter(e.target.value)}
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="Reconciled">Reconciled</option>
+                        <option value="Unreconciled">Unreconciled</option>
+                        <option value="Not Required">Not Required</option>
+                      </select>
+                      {(accountSearch ||
+                        accountTypeFilter ||
+                        accountStatusFilter) && (
+                        <button
+                          onClick={() => {
+                            setAccountSearch("");
+                            setAccountTypeFilter("");
+                            setAccountStatusFilter("");
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          Clear filters
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-auto bg-white">
+                    <AccountTable
+                      accounts={filteredAccounts}
+                      selectedId={selectedAccountId}
+                      onSelect={setSelectedAccountId}
+                      isLoading={overviewLoading}
+                    />
+                  </div>
+                </>
+              );
 
-        {/* Account Table */}
-        <div className="flex-1 overflow-auto bg-white">
-          <AccountTable
-            accounts={(overviewData?.accountStatuses ?? []).filter((a) => {
-              if (
-                accountSearch &&
-                !a.name.toLowerCase().includes(accountSearch.toLowerCase())
-              )
-                return false;
-              if (accountTypeFilter && a.type !== accountTypeFilter)
-                return false;
-              if (accountStatusFilter && a.status !== accountStatusFilter)
-                return false;
-              return true;
-            })}
-            selectedId={selectedAccountId}
-            onSelect={setSelectedAccountId}
-            isLoading={overviewLoading}
-          />
-        </div>
+            case "reconciliations":
+              return (
+                <div className="flex-1 overflow-auto bg-white p-4">
+                  <div className="rounded-xl border border-slate-200">
+                    <div className="p-4 border-b border-slate-200">
+                      <h3 className="font-medium text-slate-900">
+                        Reconciliation History
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-0.5">
+                        Recent reconciliation runs across all accounts.
+                      </p>
+                    </div>
+                    {allAccounts.filter((a) => a.lastReconciled).length ===
+                    0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <RefreshCw className="h-10 w-10 text-slate-300 mb-3" />
+                        <p className="text-sm font-medium text-slate-900">
+                          No reconciliations yet
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Completed reconciliations will appear here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50">
+                              <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+                                Account
+                              </th>
+                              <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+                                Bank
+                              </th>
+                              <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+                                Last Reconciled
+                              </th>
+                              <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {allAccounts
+                              .filter((a) => a.lastReconciled)
+                              .map((a) => (
+                                <tr
+                                  key={a.id}
+                                  className="border-b border-slate-100 hover:bg-slate-50"
+                                >
+                                  <td className="py-3 px-4 text-sm font-medium text-slate-900">
+                                    {a.name}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-slate-600">
+                                    {a.bankName}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-slate-600">
+                                    {a.lastReconciled
+                                      ? new Date(
+                                          a.lastReconciled,
+                                        ).toLocaleDateString("en-US", {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        })
+                                      : "—"}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span
+                                      className={cn(
+                                        "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
+                                        a.status === "Reconciled"
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : a.status === "Unreconciled"
+                                            ? "bg-red-100 text-red-700"
+                                            : "bg-slate-100 text-slate-600",
+                                      )}
+                                    >
+                                      {a.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
 
-        {/* Pagination */}
-        <div className="border-t border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing 1 to {overviewData?.accountStatuses.length ?? 0} of{" "}
-              {(overviewData?.summary.totalAccounts ?? 0).toLocaleString()}{" "}
-              accounts
-            </p>
-            <div className="flex items-center gap-2">
-              <button className="px-3 py-1.5 text-sm rounded bg-indigo-600 text-white">
-                1
-              </button>
-              <select className="ml-4 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value={10}>10 / page</option>
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-              </select>
-            </div>
-          </div>
-        </div>
+            case "discrepancies":
+              const discrepantAccounts = allAccounts.filter(
+                (a) => a.status === "Unreconciled" || a.difference !== 0,
+              );
+              return (
+                <div className="flex-1 overflow-auto bg-white p-4">
+                  <div className="rounded-xl border border-slate-200">
+                    <div className="p-4 border-b border-slate-200">
+                      <h3 className="font-medium text-slate-900">
+                        Open Discrepancies ({discrepantAccounts.length})
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-0.5">
+                        Accounts with unmatched or differing balances.
+                      </p>
+                    </div>
+                    {discrepantAccounts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <CheckCircle2 className="h-10 w-10 text-emerald-300 mb-3" />
+                        <p className="text-sm font-medium text-slate-900">
+                          All clear
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          No open discrepancies found.
+                        </p>
+                      </div>
+                    ) : (
+                      <AccountTable
+                        accounts={discrepantAccounts}
+                        selectedId={selectedAccountId}
+                        onSelect={setSelectedAccountId}
+                        isLoading={overviewLoading}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
 
-        {/* Bottom Charts Row */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200">
-          <div className="grid grid-cols-3 gap-6">
-            {overviewData?.trendData && (
-              <ReconciliationTrendChart trendData={overviewData.trendData} />
-            )}
-            {overviewData?.reconciliationStatus && (
-              <ReconciliationStatusDonut
-                status={overviewData.reconciliationStatus}
-              />
-            )}
-            {overviewData?.topUnreconciled && (
-              <TopUnreconciledAccounts
-                accounts={overviewData.topUnreconciled}
-              />
-            )}
-          </div>
-        </div>
+            case "rules":
+              return (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="rounded-xl border border-slate-200 bg-white p-8">
+                    <Settings className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-slate-900">
+                      Matching Rules
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                      AI-powered matching rules for automatic reconciliation
+                      will be configured here.
+                    </p>
+                  </div>
+                </div>
+              );
+
+            case "reports":
+              return (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="rounded-xl border border-slate-200 bg-white p-8">
+                    <BarChart3 className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-slate-900">
+                      Reconciliation Reports
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                      Variance reports and reconciliation summaries will be
+                      generated here.
+                    </p>
+                  </div>
+                </div>
+              );
+
+            case "settings":
+              return (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="rounded-xl border border-slate-200 bg-white p-8">
+                    <Settings className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-slate-900">
+                      Account Settings
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                      Bank feed connections and account reconciliation
+                      preferences will be managed here.
+                    </p>
+                  </div>
+                </div>
+              );
+
+            default:
+              // Overview — summary cards + recent accounts + bottom charts
+              return (
+                <>
+                  {overviewData?.summary && (
+                    <div className="p-4 bg-slate-50 border-b border-slate-200">
+                      <SummaryCards summary={overviewData.summary} />
+                    </div>
+                  )}
+                  <div className="p-4 bg-white border-b border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-slate-900">
+                        Account Status
+                      </h3>
+                      <button
+                        onClick={() => setActiveTab("bank_accounts")}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        View all →
+                      </button>
+                    </div>
+                  </div>
+                  <div className="bg-white">
+                    <AccountTable
+                      accounts={allAccounts.slice(0, 5)}
+                      selectedId={selectedAccountId}
+                      onSelect={setSelectedAccountId}
+                      isLoading={overviewLoading}
+                    />
+                  </div>
+                  <div className="p-4 bg-slate-50 border-t border-slate-200">
+                    <div className="grid grid-cols-3 gap-6">
+                      {overviewData?.trendData && (
+                        <ReconciliationTrendChart
+                          trendData={overviewData.trendData}
+                        />
+                      )}
+                      {overviewData?.reconciliationStatus && (
+                        <ReconciliationStatusDonut
+                          status={overviewData.reconciliationStatus}
+                        />
+                      )}
+                      {overviewData?.topUnreconciled && (
+                        <TopUnreconciledAccounts
+                          accounts={overviewData.topUnreconciled}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+          }
+        })()}
       </div>
 
       {/*

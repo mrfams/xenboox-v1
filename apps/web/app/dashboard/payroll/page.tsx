@@ -1143,7 +1143,10 @@ export default function PayrollPage() {
 
   const { data: runs, isLoading: runsLoading } =
     trpc.payroll.listPayrollRuns.useQuery(undefined, {
-      enabled: activeTab === "Runs" || activeTab === "Compliance",
+      enabled:
+        activeTab === "Overview" ||
+        activeTab === "Runs" ||
+        activeTab === "Compliance",
     });
 
   const { data: deductionTypes, isLoading: deductionsLoading } =
@@ -1333,21 +1336,227 @@ export default function PayrollPage() {
           </ModulePanel>
         );
       default:
-        // Overview — employee register with trend + statutory charts below.
+        // Overview — summary dashboard with recent runs, department breakdown, and statutory overview.
         return (
-          <>
-            <EmployeeTable
-              employees={employeesData?.employees ?? []}
-              isLoading={employeesLoading}
-            />
-            <div className="border-t border-slate-200 bg-slate-50/70 p-4">
-              <BottomChartsRow
-                payrollTrend={payrollTrend ?? []}
-                statutoryPayments={statutoryData?.payments ?? []}
-                overview={overview ?? null}
-              />
+          <div className="p-4 space-y-6">
+            {/* Recent Payroll Runs */}
+            <div className="rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                <div>
+                  <h3 className="font-medium text-slate-900">
+                    Recent Payroll Runs
+                  </h3>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Latest processed payroll periods.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleTabChange("Runs")}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  View all →
+                </button>
+              </div>
+              {runsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <RefreshCw className="h-6 w-6 text-slate-400 animate-spin" />
+                </div>
+              ) : !runs || runs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <FileText className="h-8 w-8 text-slate-300 mb-2" />
+                  <p className="text-sm font-medium text-slate-900">
+                    No payroll runs yet
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Run your first payroll to see it here.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-slate-500">
+                          Period
+                        </th>
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-slate-500">
+                          Status
+                        </th>
+                        <th className="text-right py-2.5 px-4 text-xs font-medium text-slate-500">
+                          Employees
+                        </th>
+                        <th className="text-right py-2.5 px-4 text-xs font-medium text-slate-500">
+                          Net Pay
+                        </th>
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-slate-500">
+                          Processed
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runs.slice(0, 5).map((run) => (
+                        <tr
+                          key={run.id}
+                          className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                        >
+                          <td className="py-2.5 px-4 text-sm font-medium text-slate-900">
+                            {run.period}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+                                run.status === "paid"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : run.status === "approved"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : run.status === "draft"
+                                      ? "bg-slate-100 text-slate-600"
+                                      : "bg-amber-100 text-amber-700",
+                              )}
+                            >
+                              {run.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-sm tabular-nums text-slate-700">
+                            {run.employeeCount}
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-sm font-medium tabular-nums text-slate-900">
+                            GMD {Number(run.netPay).toLocaleString()}
+                          </td>
+                          <td className="py-2.5 px-4 text-sm text-slate-500">
+                            {run.createdAt
+                              ? new Date(run.createdAt).toLocaleDateString(
+                                  "en-US",
+                                  { month: "short", day: "numeric" },
+                                )
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          </>
+
+            {/* Department Breakdown + Statutory Overview */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Department Breakdown */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <h3 className="font-medium text-slate-900 mb-4">
+                  Department Breakdown
+                </h3>
+                {departmentBreakdown?.departments &&
+                departmentBreakdown.departments.length > 0 ? (
+                  <div className="space-y-3">
+                    {departmentBreakdown.departments.map((dept, i) => {
+                      const colors = [
+                        "bg-indigo-500",
+                        "bg-emerald-500",
+                        "bg-amber-500",
+                        "bg-blue-500",
+                        "bg-purple-500",
+                        "bg-pink-500",
+                      ];
+                      return (
+                        <div key={dept.name}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-slate-700">
+                              {dept.name}
+                            </span>
+                            <span className="text-sm font-medium tabular-nums text-slate-900">
+                              {dept.amountFormatted}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full",
+                                colors[i % colors.length],
+                              )}
+                              style={{ width: `${dept.percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No department data available.
+                  </p>
+                )}
+              </div>
+
+              {/* Upcoming Statutory */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-slate-900">
+                    Upcoming Statutory
+                  </h3>
+                  <button
+                    onClick={() => handleTabChange("Taxes")}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                  >
+                    View all →
+                  </button>
+                </div>
+                {statutoryData?.payments &&
+                statutoryData.payments.length > 0 ? (
+                  <div className="space-y-3">
+                    {statutoryData.payments.slice(0, 4).map((payment) => (
+                      <div
+                        key={payment.name}
+                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">
+                            {payment.name}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Due{" "}
+                            {new Date(payment.dueDate).toLocaleDateString(
+                              "en-US",
+                              { month: "short", day: "numeric" },
+                            )}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-slate-900">
+                            {payment.amountFormatted}
+                          </p>
+                          <p
+                            className={cn(
+                              "text-xs font-medium",
+                              payment.status === "overdue"
+                                ? "text-red-600"
+                                : payment.status === "urgent"
+                                  ? "text-amber-600"
+                                  : "text-slate-500",
+                            )}
+                          >
+                            {payment.daysLeft} days
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No upcoming obligations.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Charts */}
+            <BottomChartsRow
+              payrollTrend={payrollTrend ?? []}
+              statutoryPayments={statutoryData?.payments ?? []}
+              overview={overview ?? null}
+            />
+          </div>
         );
     }
   };
@@ -1397,8 +1606,7 @@ export default function PayrollPage() {
       ]
     : [];
 
-  const showEmployeesList =
-    activeTab === "Overview" || activeTab === "Employees";
+  const showEmployeesList = activeTab === "Employees";
 
   const filters = showEmployeesList ? (
     <div className="flex items-center gap-3">
