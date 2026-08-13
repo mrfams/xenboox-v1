@@ -10,8 +10,10 @@
  *   1. Call callModel() with tools
  *   2. If response has toolCalls, execute them via tool executor
  *   3. Append tool results as messages
- *   4. Repeat until no more tool calls (max 5 iterations)
+ * 4. Repeat until no more tool calls (max 5 iterations)
  */
+
+import { envelopeToolResult } from "../security/injection-defense";
 
 import { callModel } from "@xenboox/models";
 import type { TaskType } from "@xenboox/models";
@@ -189,13 +191,11 @@ export async function callLLMWithTools(params: {
 
       messages.push({
         role: "user",
-        content: JSON.stringify({
-          toolResult: {
-            toolName: tc.name,
-            success: result.result.success,
-            data: result.result.data,
-            error: result.result.error,
-          },
+        content: envelopeToolResult({
+          toolName: tc.name,
+          success: result.result.success,
+          data: result.result.data,
+          error: result.result.error,
         }),
       });
     }

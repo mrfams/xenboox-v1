@@ -1,60 +1,68 @@
 /**
  * Fill template variables in a system prompt.
  * Usage: fillPrompt(cfoSystemPromptV7, { ENTITY_NAME: "Acme Corp", ... })
+ *
+ * Automatically appends the injection defense suffix to every prompt.
  */
-export function fillPrompt(template: string, vars: Record<string, string>): string {
-  let result = template
+import { INJECTION_DEFENSE_SUFFIX } from "../security/injection-defense";
+
+export function fillPrompt(
+  template: string,
+  vars: Record<string, string>,
+): string {
+  let result = template;
   for (const [key, value] of Object.entries(vars)) {
-    result = result.replaceAll(`{{${key}}}`, value)
+    result = result.replaceAll(`{{${key}}}`, value);
   }
-  return result
+  return result + INJECTION_DEFENSE_SUFFIX;
 }
 
-import { cfoSystemPromptV7 } from "./cfo-system-prompt-v7"
-import { controllerSystemPromptV5 } from "./controller-system-prompt-v5"
-import { ledgerSystemPromptV6 } from "./ledger-system-prompt-v6"
-import { treasurySystemPromptV1 } from "./treasury-system-prompt"
-import { apSystemPromptV1 } from "./ap-system-prompt-v1"
-import { arSystemPromptV1 } from "./ar-system-prompt-v1"
-import { assetSystemPromptV1 } from "./asset-system-prompt-v1"
-import { inventorySystemPromptV1 } from "./inventory-system-prompt-v1"
-import { complianceSystemPromptV1 } from "./compliance-system-prompt-v1"
-import { payrollManagerSystemPromptV1 } from "./payroll-manager-system-prompt-v1"
-import { reportingSystemPromptV1 } from "./reporting-system-prompt-v1"
-import { payrollWorkerSystemPromptV1 } from "./payroll-worker-system-prompt-v1"
-import { budgetSystemPromptV1 } from "./budget-system-prompt-v1"
-import { analyticsSystemPromptV1 } from "./analytics-system-prompt-v1"
+import { cfoSystemPromptV7 } from "./cfo-system-prompt-v7";
+import { controllerSystemPromptV5 } from "./controller-system-prompt-v5";
+import { ledgerSystemPromptV6 } from "./ledger-system-prompt-v6";
+import { treasurySystemPromptV1 } from "./treasury-system-prompt";
+import { apSystemPromptV1 } from "./ap-system-prompt-v1";
+import { arSystemPromptV1 } from "./ar-system-prompt-v1";
+import { assetSystemPromptV1 } from "./asset-system-prompt-v1";
+import { inventorySystemPromptV1 } from "./inventory-system-prompt-v1";
+import { complianceSystemPromptV1 } from "./compliance-system-prompt-v1";
+import { payrollManagerSystemPromptV1 } from "./payroll-manager-system-prompt-v1";
+import { reportingSystemPromptV1 } from "./reporting-system-prompt-v1";
+import { payrollWorkerSystemPromptV1 } from "./payroll-worker-system-prompt-v1";
+import { budgetSystemPromptV1 } from "./budget-system-prompt-v1";
+import { analyticsSystemPromptV1 } from "./analytics-system-prompt-v1";
 
-export { cfoSystemPromptV7 } from "./cfo-system-prompt-v7"
-export { controllerSystemPromptV5 } from "./controller-system-prompt-v5"
-export { ledgerSystemPromptV6 } from "./ledger-system-prompt-v6"
-export { treasurySystemPromptV1 } from "./treasury-system-prompt"
-export { apSystemPromptV1 } from "./ap-system-prompt-v1"
-export { arSystemPromptV1 } from "./ar-system-prompt-v1"
-export { assetSystemPromptV1 } from "./asset-system-prompt-v1"
-export { inventorySystemPromptV1 } from "./inventory-system-prompt-v1"
-export { complianceSystemPromptV1 } from "./compliance-system-prompt-v1"
-export { payrollManagerSystemPromptV1 } from "./payroll-manager-system-prompt-v1"
-export { reportingSystemPromptV1 } from "./reporting-system-prompt-v1"
-export { payrollWorkerSystemPromptV1 } from "./payroll-worker-system-prompt-v1"
-export { budgetSystemPromptV1 } from "./budget-system-prompt-v1"
-export { analyticsSystemPromptV1 } from "./analytics-system-prompt-v1"
-export { RECONCILIATION_SYSTEM_PROMPT } from "./reconciliation-system-prompt-v1"
-export { CASH_SYSTEM_PROMPT } from "./cash-system-prompt-v1"
-export { MOBILE_MONEY_SYSTEM_PROMPT } from "./mobile-money-system-prompt-v1"
-export { DOCUMENT_SYSTEM_PROMPT } from "./document-system-prompt-v1"
+export { cfoSystemPromptV7 } from "./cfo-system-prompt-v7";
+export { controllerSystemPromptV5 } from "./controller-system-prompt-v5";
+export { ledgerSystemPromptV6 } from "./ledger-system-prompt-v6";
+export { treasurySystemPromptV1 } from "./treasury-system-prompt";
+export { apSystemPromptV1 } from "./ap-system-prompt-v1";
+export { arSystemPromptV1 } from "./ar-system-prompt-v1";
+export { assetSystemPromptV1 } from "./asset-system-prompt-v1";
+export { inventorySystemPromptV1 } from "./inventory-system-prompt-v1";
+export { complianceSystemPromptV1 } from "./compliance-system-prompt-v1";
+export { payrollManagerSystemPromptV1 } from "./payroll-manager-system-prompt-v1";
+export { reportingSystemPromptV1 } from "./reporting-system-prompt-v1";
+export { payrollWorkerSystemPromptV1 } from "./payroll-worker-system-prompt-v1";
+export { budgetSystemPromptV1 } from "./budget-system-prompt-v1";
+export { analyticsSystemPromptV1 } from "./analytics-system-prompt-v1";
+export { RECONCILIATION_SYSTEM_PROMPT } from "./reconciliation-system-prompt-v1";
+export { CASH_SYSTEM_PROMPT } from "./cash-system-prompt-v1";
+export { MOBILE_MONEY_SYSTEM_PROMPT } from "./mobile-money-system-prompt-v1";
+export { DOCUMENT_SYSTEM_PROMPT } from "./document-system-prompt-v1";
 
-export const CFO_SYSTEM_PROMPT: string = cfoSystemPromptV7
-export const CONTROLLER_SYSTEM_PROMPT: string = controllerSystemPromptV5
-export const LEDGER_SYSTEM_PROMPT: string = ledgerSystemPromptV6
-export const TREASURY_SYSTEM_PROMPT: string = treasurySystemPromptV1
-export const AP_SYSTEM_PROMPT: string = apSystemPromptV1
-export const AR_SYSTEM_PROMPT: string = arSystemPromptV1
-export const ASSET_SYSTEM_PROMPT: string = assetSystemPromptV1
-export const INVENTORY_SYSTEM_PROMPT: string = inventorySystemPromptV1
-export const COMPLIANCE_SYSTEM_PROMPT: string = complianceSystemPromptV1
-export const PAYROLL_MANAGER_SYSTEM_PROMPT: string = payrollManagerSystemPromptV1
-export const REPORTING_SYSTEM_PROMPT: string = reportingSystemPromptV1
-export const PAYROLL_WORKER_SYSTEM_PROMPT: string = payrollWorkerSystemPromptV1
-export const BUDGET_SYSTEM_PROMPT: string = budgetSystemPromptV1
-export const ANALYTICS_SYSTEM_PROMPT: string = analyticsSystemPromptV1
+export const CFO_SYSTEM_PROMPT: string = cfoSystemPromptV7;
+export const CONTROLLER_SYSTEM_PROMPT: string = controllerSystemPromptV5;
+export const LEDGER_SYSTEM_PROMPT: string = ledgerSystemPromptV6;
+export const TREASURY_SYSTEM_PROMPT: string = treasurySystemPromptV1;
+export const AP_SYSTEM_PROMPT: string = apSystemPromptV1;
+export const AR_SYSTEM_PROMPT: string = arSystemPromptV1;
+export const ASSET_SYSTEM_PROMPT: string = assetSystemPromptV1;
+export const INVENTORY_SYSTEM_PROMPT: string = inventorySystemPromptV1;
+export const COMPLIANCE_SYSTEM_PROMPT: string = complianceSystemPromptV1;
+export const PAYROLL_MANAGER_SYSTEM_PROMPT: string =
+  payrollManagerSystemPromptV1;
+export const REPORTING_SYSTEM_PROMPT: string = reportingSystemPromptV1;
+export const PAYROLL_WORKER_SYSTEM_PROMPT: string = payrollWorkerSystemPromptV1;
+export const BUDGET_SYSTEM_PROMPT: string = budgetSystemPromptV1;
+export const ANALYTICS_SYSTEM_PROMPT: string = analyticsSystemPromptV1;

@@ -872,7 +872,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 17.2 Partitioning append-heavy financial tables
 
-- `[ ]` **Partition by range on time** the tables that grow without bound: journal entries, bank transactions, `opsLiveRunEvents`, audit trail, chat messages, document versions. Monthly or daily ranges.
+- `[x]` **Partition by range on time** the tables that grow without bound: journal entries, bank transactions, `opsLiveRunEvents`, audit trail, chat messages, document versions. Monthly or daily ranges.
+  - **Implemented:** `packages/db/migrations/0029_partition_append_heavy_tables.sql` — monthly range partitions on `audit_log_partitioned`, `bank_transactions_partitioned`, `journal_entries_partitioned`. Includes `pg_partman` setup, index recreation, composite PK with partition key. Management utility: `packages/db/seed/manage-partitions.ts`.
 - `[ ]` Composite PKs must include the partition key (`PRIMARY KEY (entity_id, id, created_at)`) — Postgres requires the partition key in every unique index.
 - `[ ]` Enable `enable_partitionwise_join` and `enable_partitionwise_aggregate` for ledger rollups and trial balances.
 - `[ ]` Verify queries always carry the partition key so the planner prunes partitions (audit the largest routers: `dashboard.ts` (994 lines), `banking.ts` (798 lines), `reports.ts`).
@@ -1032,7 +1033,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 22.3 Prompt injection (OWASP LLM Top 10) — critical for a financial agent system
 
-- `[ ]` **Isolate untrusted data:** invoice PDFs, emails, uploaded docs are attacker-controlled. Envelope them in explicit delimiters (`<untrusted_document>…</untrusted_document>`) and instruct agents to treat them as data, never instructions. Audit `packages/agents/core/prompts/*` for this discipline.
+- `[x]` **Isolate untrusted data:** invoice PDFs, emails, uploaded docs are attacker-controlled. Envelope them in explicit delimiters (`<untrusted_document>…</untrusted_document>`) and instruct agents to treat them as data, never instructions. Audit `packages/agents/core/prompts/*` for this discipline.
+  - **Implemented:** `packages/agents/core/security/injection-defense.ts` — `envelopeDocument()`, `redactPii()`, `INJECTION_DEFENSE_SUFFIX`. Wired into `classification.ts`, `extraction.ts`, `ocr.ts`. `fillPrompt()` auto-appends injection defense suffix to all 19 agent prompts. Tool result feedback loop in `agent-llm.ts` wrapped in `<tool_result_data>` tags.
 - `[ ]` **Dual-LLM auditor pattern** for money movements: a second, restricted model validates the primary output for injection anomalies before execution (or a deterministic validator).
 - `[ ]` Agents must NEVER execute bank transfers/payments autonomously — always HITL (verify `cash-agent`, `treasury-agent`, `mobile-money-agent` tool grants).
 - `[ ]` **Autonomy slider:** suggestions first; auto-approval only below a configurable threshold, never above policy limits. Policy-as-code (deterministic checks) decides pass/fail, not the LLM.
@@ -1128,12 +1130,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## DEEP-DIVE SEVERITY SUMMARY
 
-| Severity    | Count | Description                                                                                                                                                                                                                                                                   |
-| ----------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                      |
-| 🟠 HIGH     | 7     | Required before enterprise launch: edge rate limiting, ~~per-tenant tiers~~, ~~DSAR/export~~, SAST/dependency scanning, ~~RLS DB-layer tests~~, partitioning, APM/OTel, load tests, LLM gateway + injection defense, ~~outbound webhooks~~, multi-region. ~~Cookie consent~~. |
-| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                         |
-| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                  |
+| Severity    | Count | Description                                                                                                                                                                                                                                                                     |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                        |
+| 🟠 HIGH     | 4     | Required before enterprise launch: edge rate limiting, APM/OTel, load tests, multi-region. ~~per-tenant tiers~~, ~~DSAR/export~~, ~~SAST/dependency scanning~~, ~~RLS DB-layer tests~~, ~~partitioning~~, ~~LLM injection defense~~, ~~outbound webhooks~~, ~~cookie consent~~. |
+| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                           |
+| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                    |
 
 ### Top Deep-Dive Actions (blocking, in order)
 

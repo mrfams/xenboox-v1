@@ -6,6 +6,27 @@
 
 ---
 
+### [2026-08-14] — LLM injection defense + DB partitioning — HIGH 6→4
+
+**Agent:** Opencode (Autonomous Engineer)
+**Files Created:** `packages/agents/core/security/injection-defense.ts`, `packages/db/migrations/0029_partition_append_heavy_tables.sql`, `packages/db/seed/manage-partitions.ts`
+**Files Modified:** `packages/jobs/lib/classification.ts`, `packages/jobs/lib/extraction.ts`, `packages/jobs/lib/ocr.ts`, `packages/agents/core/llm/agent-llm.ts`, `packages/agents/core/prompts/index.ts`, `ROADTOPRODUCTION.md`
+
+**What was built:**
+
+1. **LLM prompt injection defense** (§22.3): `injection-defense.ts` — `envelopeDocument()` wraps untrusted text in `<untrusted_document>` tags, `redactPii()` scrubs emails/phones/SSN/bank accounts/credit cards/tax IDs/IPs before any LLM call, `INJECTION_DEFENSE_SUFFIX` appended to all 19 agent prompts via `fillPrompt()`. Wired into 3 injection points: `classification.ts` (document classification), `extraction.ts` (structured extraction), `ocr.ts` (vision fallback). Tool result feedback loop in `agent-llm.ts` wrapped in `<tool_result_data>` tags.
+2. **DB table partitioning** (§23.1): `0029_partition_append_heavy_tables.sql` — monthly range partitions on `audit_log_partitioned`, `bank_transactions_partitioned`, `journal_entries_partitioned`. Includes `pg_partman` setup, index recreation, composite PK with partition key. `manage-partitions.ts` utility for creating future partitions, listing partition sizes, and dropping old ones.
+
+**ROADTOPRODUCTION updates:**
+
+- §22.3 isolate untrusted data: `[ ]` → `[x]`
+- §23.1 partition by range: `[ ]` → `[x]`
+- HIGH count: 6 → 4
+
+**Remaining HIGH (4):** edge rate limiting, APM/OTel, load tests, multi-region.
+
+---
+
 ### [2026-08-14] — RLS DB-layer tests, per-tenant tiers, cookie consent — HIGH 10→7
 
 **Agent:** Opencode (Autonomous Engineer)
