@@ -14,7 +14,13 @@ const IV_LENGTH = 12;
  * persisted or logged.
  */
 function getKey(): Buffer {
-  const base = process.env.AUTH_SECRET ?? "xenboox-dev-secret";
+  const base = process.env.AUTH_SECRET;
+  if (!base) {
+    throw new Error(
+      "AUTH_SECRET environment variable is required for TOTP encryption. " +
+        "Set it in your .env file or environment.",
+    );
+  }
   return createHash("sha256").update(`${base}:admin-totp`).digest();
 }
 

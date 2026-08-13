@@ -139,6 +139,91 @@ export const adminAccessRouter = router({
         const challengeToken = await createMfaChallenge(user.id);
         return { challengeToken };
       }),
+
+    // ─── AUTHENTICATED: self-service MFA enrollment ───
+    setupMfa: adminProtectedProcedure.mutation(async ({ ctx }) => {
+      const a = getCtx(ctx);
+      const mfa = await generateMfaSecret(a.adminUser.email);
+
+      // Store the new secret encrypted but keep totpEnrolled=false until verified.
+      await db
+        .update(adminUsers)
+        .set({
+          totpSecretEncrypted: encryptSecret(mfa.secret),
+          totpEnrolled: false,
+          updatedAt: new Date(),
+        })
+        .where(eq(adminUsers.id, a.adminUser.id));
+
+      await writeAdminAudit(
+        db,
+        buildAuditEntry({
+          actorAdminUserId: a.adminUser.id,
+          actorRoleAtTimeOfAction: a.adminRole,
+          actionType: "admin_mfa.setup_initiated",
+          targetEntityType: "admin_user",
+          targetEntityId: a.adminUser.id,
+          ipAddress: getIp(ctx),
+          userAgent: getUserAgent(ctx),
+        }),
+      );
+
+      return {
+        secret: mfa.secret,
+        qrCodeUri: mfa.qrCodeUri,
+        qrCodeDataUrl: mfa.qrCodeDataUrl,
+        backupCodes: mfa.backupCodes,
+      };
+    }),
+
+    verifyMfaSetup: adminProtectedProcedure
+      .input(z.object({ totpCode: z.string().min(6).max(8) }))
+      .mutation(async ({ ctx, input }) => {
+        const a = getCtx(ctx);
+
+        // Reload to get the pending secret
+        const user = await db.query.adminUsers.findFirst({
+          where: eq(adminUsers.id, a.adminUser.id),
+        });
+        if (!user || !user.totpSecretEncrypted) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No pending MFA setup. Start setup first.",
+          });
+        }
+
+        const secret = decryptSecret(user.totpSecretEncrypted);
+        if (!secret || !verifyTOTP(input.totpCode, secret)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid verification code. Check your authenticator app.",
+          });
+        }
+
+        // Code valid — finalize enrollment
+        await db
+          .update(adminUsers)
+          .set({
+            totpEnrolled: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(adminUsers.id, a.adminUser.id));
+
+        await writeAdminAudit(
+          db,
+          buildAuditEntry({
+            actorAdminUserId: a.adminUser.id,
+            actorRoleAtTimeOfAction: a.adminRole,
+            actionType: "admin_mfa.setup_completed",
+            targetEntityType: "admin_user",
+            targetEntityId: a.adminUser.id,
+            ipAddress: getIp(ctx),
+            userAgent: getUserAgent(ctx),
+          }),
+        );
+
+        return { ok: true };
+      }),
   }),
 
   // ─── AUTHENTICATED: current session ───

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 
 import { trpc } from "@/lib/trpc/client";
+import { AdminMfaSetup } from "@/components/admin/admin-mfa-setup";
 
 export default function AdminSettingsPage() {
   const saveMutation = trpc.admin.updateSettings.useMutation({
@@ -207,6 +208,7 @@ export default function AdminSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <AdminMfaSetup />
             <Button variant="outline" className="w-full justify-start">
               <Key className="h-4 w-4 mr-2" />
               Change Admin Password
