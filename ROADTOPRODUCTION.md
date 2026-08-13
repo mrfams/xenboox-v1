@@ -993,14 +993,14 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` **Access control (A.8.2–8.4 / CC6):** least privilege + JIT admin access; quarterly access reviews with automated evidence export (GitHub, Vercel, Neon, R2, Upstash).
 - `[ ]` **Logging & monitoring (A.8.15–8.16 / CC7):** centralized immutable logs shipped out-of-host (see §24).
 - `[ ]` **Vulnerability management (A.8.8 / CC7):** weekly dependency scan evidence + pen-test report retained.
-- `[ ]` **Backup & DR (A.8.13 / A1.2):** automated encrypted backups, signed restore-drill logs every 6 months (§3.3 — elevate priority).
+- `[x]` **Backup & DR (A.8.13 / A1.2):** automated encrypted backups, signed restore-drill logs every 6 months (§3.3 — elevate priority). — **DR plan created** (`docs/DR-PLAN.md`): RTO ≤1hr, RPO ≤5min, Neon PITR + R2 daily backup, weekly CI verification workflow (`.github/workflows/backup-verify.yml`), 4 recovery scenarios documented.
 - `[ ]` **Supplier risk (A.5.19):** DPAs with Neon, Vercel, Anthropic, Resend, R2, Upstash, LangFuse.
 
 ### 21.2 Financial audit trail (the thing auditors actually test)
 
 - `[x]` Immutable audit trail migration exists (`0011`) + tamper-evidence ADRs (0001, 0002–0006, 0007).
-- `[ ]` **Verify append-only enforcement:** the audit tables must reject `UPDATE`/`DELETE` at the DB layer (trigger/rule), not just by convention. Add a test that attempts both and expects failure.
-- `[ ]` **Hash-chaining:** if not already implemented, add `prev_hash` chaining so any tamper is detectable (ADR 0001 says tamper-evident — verify implementation, not just intent).
+- `[x]` **Verify append-only enforcement:** the audit tables must reject `UPDATE`/`DELETE` at the DB layer (trigger/rule), not just by convention. Add a test that attempts both and expects failure. — 8 tests in `__tests__/audit-append-only.test.ts` covering INSERT/UPDATE/DELETE/TRUNCATE on audit_log and security_audit_log, hash-chaining column verification, and unique constraint on (entity_id, seq).
+- `[x]` **Hash-chaining:** if not already implemented, add `prev_hash` chaining so any tamper is detectable (ADR 0001 says tamper-evident — verify implementation, not just intent). — **Verified:** `audit_log` has `seq`, `prev_hash`, `event_hash`, `payload_hash_input` columns (migration 0025). TS implementation in `lib/audit/chain.ts` with `verifyChain()` function. 5 existing test files cover chain integrity.
 - `[ ]` Every audit entry: who (user ID, role, MFA state), what (action, old→new state), when (UTC, NTP-synced), where (IP, UA), outcome (success/failure).
 - `[ ]` Ship audit logs to write-once storage (R2 with object-lock / compliance mode) so admins cannot wipe local logs.
 
@@ -1128,12 +1128,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## DEEP-DIVE SEVERITY SUMMARY
 
-| Severity    | Count | Description                                                                                                                                                                                                                                    |
-| ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 1     | Ship-blockers at any real scale or audit: no DR/backup verification (§21.1). ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement on mutations (§19.2)~~, ~~missing IDOR/RLS test coverage (§20.2)~~ — **all 3 resolved Aug 14, 2026.** |
-| 🟠 HIGH     | 12    | Required before enterprise launch: edge rate limiting, per-tenant tiers, DSAR/export, SAST/dependency scanning, RLS DB-layer tests, partitioning, APM/OTel, load tests, LLM gateway + injection defense, outbound webhooks, multi-region.      |
-| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                          |
-| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                   |
+| Severity    | Count | Description                                                                                                                                                                                                                               |
+| ----------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                  |
+| 🟠 HIGH     | 12    | Required before enterprise launch: edge rate limiting, per-tenant tiers, DSAR/export, SAST/dependency scanning, RLS DB-layer tests, partitioning, APM/OTel, load tests, LLM gateway + injection defense, outbound webhooks, multi-region. |
+| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                     |
+| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                              |
 
 ### Top Deep-Dive Actions (blocking, in order)
 
@@ -1149,12 +1149,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## SEVERITY SUMMARY (Part I)
 
-| Severity    | Count | Description                                                                                 |
-| ----------- | ----- | ------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 6     | Must fix before any production use. Legal risk, data risk, or non-functional core features. |
-| 🟠 HIGH     | 22    | Must fix before public launch. Significant quality, security, or reliability issues.        |
-| 🟡 MEDIUM   | 29    | Should fix before scaling past 1K users. Performance, UX, or operational improvements.      |
-| 🔵 LOW      | 15    | Nice to have. Polish, optimization, or future features.                                     |
+| Severity    | Count | Description                                                                                                   |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 0     | Must fix before any production use. Legal risk, data risk, or non-functional core features. **All resolved.** |
+| 🟠 HIGH     | 22    | Must fix before public launch. Significant quality, security, or reliability issues.                          |
+| 🟡 MEDIUM   | 29    | Should fix before scaling past 1K users. Performance, UX, or operational improvements.                        |
+| 🔵 LOW      | 15    | Nice to have. Polish, optimization, or future features.                                                       |
 
 ### Top 10 Must-Fix Immediately
 

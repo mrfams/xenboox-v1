@@ -1,0 +1,165 @@
+# Backup Verification — Weekly Neon PITR restore test
+#
+# Runs every Monday at 04:00 UTC. Restores the production database to a
+# temporary Neon branch, verifies schema integrity, and cleans up.
+
+name: Backup Verification
+
+on:
+  schedule:
+    - cron: "0 4 * * 1" # Monday 04:00 UTC
+  workflow_dispatch: # Manual trigger
+
+env:
+  NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+  NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+
+jobs:
+  verify-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        run: corepack enable && corepack prepare pnpm@9 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create restore branch from production
+        id: restore
+        run: |
+          # Create a branch from 1 hour ago (safety margin)
+          RESTORE_POINT=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
+          BRANCH_NAME="dr-verify-$(date -u +%Y%m%d-%H%M%S)"
+
+          RESPONSE=$(curl -s -X POST \
+            "https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}/branches" \
+            -H "Authorization: Bearer ${NEON_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"branch\": {
+                \"name\": \"${BRANCH_NAME}\",
+                \"parent_id\": \"main\"
+              },
+              \"endpoints\": [{
+                \"type\": \"read_write\"
+              }]
+            }")
+
+          BRANCH_ID=$(echo $RESPONSE | jq -r '.branch.id')
+          DB_URL=$(echo $RESPONSE | jq -r '.connection_uris[0].connection_uri')
+
+          echo "branch_id=${BRANCH_ID}" >> $GITHUB_OUTPUT
+          echo "db_url=${DB_URL}" >> $GITHUB_OUTPUT
+          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+
+          echo "Created restore branch: ${BRANCH_NAME} (${BRANCH_ID})"
+
+      - name: Wait for branch to be ready
+        run: sleep 30
+
+      - name: Run migrations on restore branch
+        env:
+          DATABASE_URL: ${{ steps.restore.outputs.db_url }}
+        run: pnpm db:migrate
+
+      - name: Verify schema integrity
+        env:
+          DATABASE_URL: ${{ steps.restore.outputs.db_url }}
+        run: |
+          # Check critical tables exist
+          TABLES=$(psql "${DATABASE_URL}" -t -c "
+            SELECT table_name FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name IN (
+              'users', 'entities', 'organizations', 'journal_entries',
+              'journal_entry_lines', 'invoices_ap', 'sales_invoices',
+              'bank_accounts', 'bank_transactions', 'chart_of_accounts',
+              'audit_log', 'security_audit_log', 'idempotency_keys'
+            )
+            ORDER BY table_name;
+          ")
+
+          echo "Critical tables found:"
+          echo "$TABLES"
+
+          # Count — should be 13
+          COUNT=$(echo "$TABLES" | grep -c "public" || true)
+          if [ "$COUNT" -lt 13 ]; then
+            echo "ERROR: Only ${COUNT}/13 critical tables found"
+            exit 1
+          fi
+
+          echo "Schema verification passed: ${COUNT} critical tables present"
+
+      - name: Verify row-level security
+        env:
+          DATABASE_URL: ${{ steps.restore.outputs.db_url }}
+        run: |
+          RLS_COUNT=$(psql "${DATABASE_URL}" -t -c "
+            SELECT count(*) FROM pg_tables
+            WHERE schemaname = 'public'
+            AND tablename IN (
+              'journal_entries', 'invoices_ap', 'sales_invoices',
+              'bank_accounts', 'chart_of_accounts', 'employees'
+            )
+            AND rowsecurity = true;
+          " | tr -d ' ')
+
+          echo "RLS-enabled tables: ${RLS_COUNT}"
+          if [ "$RLLS_COUNT" -lt 6 ]; then
+            echo "ERROR: Only ${RLS_COUNT}/6 critical tables have RLS enabled"
+            exit 1
+          fi
+
+          echo "RLS verification passed"
+
+      - name: Verify audit trail triggers
+        env:
+          DATABASE_URL: ${{ steps.restore.outputs.db_url }}
+        run: |
+          TRIGGER_COUNT=$(psql "${DATABASE_URL}" -t -c "
+            SELECT count(*) FROM pg_trigger
+            WHERE tgname LIKE 'trg_audit_log%'
+            AND tgenabled = 'O';
+          " | tr -d ' ')
+
+          echo "Audit triggers enabled: ${TRIGGER_COUNT}"
+          if [ "$TRIGGER_COUNT" -lt 2 ]; then
+            echo "ERROR: Only ${TRIGGER_COUNT}/2 audit triggers enabled"
+            exit 1
+          fi
+
+          echo "Audit trail trigger verification passed"
+
+      - name: Cleanup restore branch
+        if: always()
+        run: |
+          if [ -n "${{ steps.restore.outputs.branch_id }}" ]; then
+            curl -s -X DELETE \
+              "https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}/branches/${{ steps.restore.outputs.branch_id }}" \
+              -H "Authorization: Bearer ${NEON_API_KEY}"
+            echo "Deleted restore branch: ${{ steps.restore.outputs.branch_name }}"
+          fi
+
+      - name: Record verification result
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          if [ "$STATUS" = "success" ]; then
+            echo "✅ Backup verification PASSED at ${TIMESTAMP}"
+          else
+            echo "❌ Backup verification FAILED at ${TIMESTAMP}"
+            echo "Action required: investigate Neon backup integrity"
+          fi

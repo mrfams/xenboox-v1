@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-14] — DR plan, backup verification CI, audit append-only test — CRITICAL 0 achieved
+
+**Agent:** Opencode (Autonomous Engineer)
+**Files Created:** `docs/DR-PLAN.md`, `.github/workflows/backup-verify.yml`, `apps/web/__tests__\audit-append-only.test.ts`
+**Files Modified:** `ROADTOPRODUCTION.md`
+
+**What was built:**
+
+1. **DR plan** (§21.1): `docs/DR-PLAN.md` — RTO ≤1hr, RPO ≤5min, 4 recovery scenarios (DB corruption, Vercel failure, region outage, secrets compromise), backup strategy (Neon PITR + R2 daily + git schema), monitoring alerts, quarterly review schedule.
+2. **Backup verification CI** (§21.1): `.github/workflows/backup-verify.yml` — weekly Monday 04:00 UTC, creates Neon restore branch, runs migrations, verifies 13 critical tables, checks RLS on 6 tables, verifies audit triggers, auto-cleans up branch.
+3. **Audit append-only test** (§21.2): 8 tests in `__tests__/audit-append-only.test.ts` — verifies UPDATE/DELETE/TRUNCATE blocked by triggers on `audit_log` and `security_audit_log`, hash-chaining column existence, unique constraint on (entity_id, seq).
+4. **Hash-chaining verified** (§21.2): Confirmed `audit_log` has `seq`, `prev_hash`, `event_hash`, `payload_hash_input` columns (migration 0025). TS implementation in `lib/audit/chain.ts`.
+
+**Verification:** ROADTOPRODUCTION CRITICAL items: **4 → 0** — all resolved. Phase 11 + §21 complete.
+
+---
+
 ### [2026-08-14] — Phase 11 deep-dive blockers resolved: idempotency, SSE, IDOR, health endpoints
 
 **Agent:** Opencode (Autonomous Engineer)
