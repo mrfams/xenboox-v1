@@ -1,0 +1,26 @@
+# CODEOWNERS — Xenboox
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything
+* @mrfams
+
+# Security-critical paths require owner review
+ SECURITY.md @mrfams
+ .github/workflows/ @mrfams
+ .gitleaks.toml @mrfams
+ .semgrep/ @mrfams
+ apps/web/lib/admin/ @mrfams
+ apps/web/lib/auth/ @mrfams
+ apps/web/server/routers/admin-access.ts @mrfams
+ packages/db/schema/ @mrfams
+ packages/db/migrations/ @mrfams
+
+# Agent system
+ packages/agents/ @mrfams
+
+# Database
+ packages/db/ @mrfams
+
+# Auth & security
+ apps/web/middleware.ts @mrfams
+ apps/web/lib/security/ @mrfams
