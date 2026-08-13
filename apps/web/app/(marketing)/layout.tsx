@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { X, Menu } from "lucide-react";
 
 import { Logo } from "@/components/ui/logo";
+import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 
 const navLinks = [
   { label: "Features", href: "/features" },
@@ -367,6 +368,7 @@ export default function MarketingLayout({
           </div>
         </div>
       </footer>
+      <CookieConsentBanner />
     </div>
   );
 }

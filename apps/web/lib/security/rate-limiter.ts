@@ -74,6 +74,28 @@ interface RateLimitResult {
   reset: number;
 }
 
+// ─── Per-Tenant Tier Limits (§19.2) ────────────────────────────────────────
+//
+// Limits scale with billing plan. Higher plans get higher ceilings.
+// The tier is resolved from the user's organization at check time.
+
+type BillingPlan = "free" | "starter" | "growth" | "pro" | "firm";
+
+const TIER_LIMITS: Record<
+  BillingPlan,
+  { api: number; agent: number; chat: number; webhook: number }
+> = {
+  free: { api: 200, agent: 5, chat: 10, webhook: 20 },
+  starter: { api: 500, agent: 10, chat: 20, webhook: 50 },
+  growth: { api: 1000, agent: 20, chat: 30, webhook: 100 },
+  pro: { api: 5000, agent: 50, chat: 60, webhook: 200 },
+  firm: { api: 10000, agent: 100, chat: 120, webhook: 500 },
+};
+
+function getTierLimits(plan: BillingPlan | string) {
+  return TIER_LIMITS[plan as BillingPlan] || TIER_LIMITS.free;
+}
+
 const DEFAULT_LIMIT = 1000;
 const DEFAULT_WINDOW_SECONDS = 60;
 
@@ -99,6 +121,7 @@ async function tryUpstash(
   );
 }
 
+// Default limiters (used when plan is unknown)
 const apiLimiter = hasRedis()
   ? createRatelimit("api", DEFAULT_LIMIT, "60 s")
   : null;
@@ -161,6 +184,69 @@ export class RateLimiter {
 
   async checkChatStreamRateLimit(identifier: string): Promise<RateLimitResult> {
     return tryUpstash(chatStreamLimiter, identifier, 30, 60);
+  }
+
+  // ─── Plan-Aware Rate Limiting ──────────────────────────────────────────
+
+  /**
+   * Check API rate limit with plan-aware limits.
+   * Pass the user's billing plan to get the correct tier ceiling.
+   */
+  async checkApiRateLimitForPlan(
+    identifier: string,
+    plan: BillingPlan | string,
+  ): Promise<RateLimitResult> {
+    const limits = getTierLimits(plan);
+    const prefixedKey = `api:${plan}:${identifier}`;
+    const limiter = hasRedis()
+      ? createRatelimit(`api:${plan}`, limits.api, "60 s")
+      : null;
+    return tryUpstash(limiter, prefixedKey, limits.api, 60);
+  }
+
+  /**
+   * Check agent rate limit with plan-aware limits.
+   */
+  async checkAgentRateLimitForPlan(
+    identifier: string,
+    plan: BillingPlan | string,
+  ): Promise<RateLimitResult> {
+    const limits = getTierLimits(plan);
+    const prefixedKey = `agent:${plan}:${identifier}`;
+    const limiter = hasRedis()
+      ? createRatelimit(`agent:${plan}`, limits.agent, "60 s")
+      : null;
+    return tryUpstash(limiter, prefixedKey, limits.agent, 60);
+  }
+
+  /**
+   * Check chat stream rate limit with plan-aware limits.
+   */
+  async checkChatStreamRateLimitForPlan(
+    identifier: string,
+    plan: BillingPlan | string,
+  ): Promise<RateLimitResult> {
+    const limits = getTierLimits(plan);
+    const prefixedKey = `chat:${plan}:${identifier}`;
+    const limiter = hasRedis()
+      ? createRatelimit(`chat:${plan}`, limits.chat, "60 s")
+      : null;
+    return tryUpstash(limiter, prefixedKey, limits.chat, 60);
+  }
+
+  /**
+   * Check webhook rate limit with plan-aware limits.
+   */
+  async checkWebhookRateLimitForPlan(
+    identifier: string,
+    plan: BillingPlan | string,
+  ): Promise<RateLimitResult> {
+    const limits = getTierLimits(plan);
+    const prefixedKey = `webhook:${plan}:${identifier}`;
+    const limiter = hasRedis()
+      ? createRatelimit(`webhook:${plan}`, limits.webhook, "60 s")
+      : null;
+    return tryUpstash(limiter, prefixedKey, limits.webhook, 60);
   }
 }
 

@@ -1,6 +1,10 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
-import { userEntityAccess, entities } from "@xenboox/db/schema/organization";
+import {
+  userEntityAccess,
+  entities,
+  organizations,
+} from "@xenboox/db/schema/organization";
 import { orgRoles } from "@xenboox/db/schema/org-roles";
 import { sessions, users } from "@xenboox/db/schema/auth";
 import { adminUsers, adminSessions } from "@xenboox/db/schema";
@@ -12,6 +16,7 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { isSessionActive } from "@/lib/admin/session";
+import { getRateLimiter } from "@/lib/security/rate-limiter";
 import {
   hasAdminPermission,
   type AdminEpic,
@@ -235,7 +240,16 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
     columns: { id: true, organizationId: true },
   });
 
+  let billingPlan: string | undefined;
+
   if (entity?.organizationId) {
+    // Look up the org's billing plan for rate-limit tiering
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, entity.organizationId),
+      columns: { plan: true },
+    });
+    billingPlan = org?.plan;
+
     const orgRole = await db.query.orgRoles.findFirst({
       where: and(
         eq(orgRoles.userId, userId),
@@ -251,6 +265,7 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
           entityId,
           entityRole: orgRole.role,
           permissionScope: "full",
+          billingPlan,
         },
       });
     }
@@ -271,7 +286,9 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  return next({ ctx: { ...ctx, entityId, entityRole: access.role } });
+  return next({
+    ctx: { ...ctx, entityId, entityRole: access.role, billingPlan },
+  });
 });
 
 /**
@@ -519,32 +536,46 @@ const idempotencyMiddleware = t.middleware(async ({ ctx, next, path }) => {
   });
 
   if (existing) {
+    // Keys are derived from (entityId, path, input), so a key is owned by the
+    // caller who created it. Only replay the stored response for the owner —
+    // a foreign row (different user/entity) must never leak a replayed
+    // response; it is reclaimed and re-executed instead.
+    const ownsKey =
+      existing.userId === ctx.session?.user?.id &&
+      existing.entityId === ctx.entityId;
+
     if (existing.expiresAt < now) {
       await db
         .delete(idempotencyKeys)
         .where(eq(idempotencyKeys.key, idempotencyKey));
-    } else if (existing.lockedAt) {
+    } else if (existing.lockedAt && !existing.responseBody) {
+      // In-flight: the original request hasn't completed yet.
       const lockAge = (now.getTime() - existing.lockedAt.getTime()) / 1000;
       if (lockAge > LOCK_TIMEOUT_SECONDS) {
+        // Stale lock (previous attempt died mid-flight) — reclaim.
         await db
           .delete(idempotencyKeys)
           .where(eq(idempotencyKeys.key, idempotencyKey));
-      } else if (existing.responseBody) {
-        return {
-          result: { data: existing.responseBody },
-          ctx,
-        } as unknown as Awaited<ReturnType<typeof next>>;
       } else {
         throw new TRPCError({
           code: "CONFLICT",
           message: "Request is still being processed",
         });
       }
-    } else if (existing.responseBody) {
+    } else if (ownsKey && existing.responseBody) {
+      // Completed retry of the same operation by the same caller — replay.
+      // tRPC v11 middlewares must return the { ok, data } envelope, not the
+      // v10 { result, ctx } shape — the caller unwraps `result.data`.
       return {
-        result: { data: existing.responseBody },
-        ctx,
+        ok: true,
+        data: existing.responseBody,
       } as unknown as Awaited<ReturnType<typeof next>>;
+    } else if (!ownsKey) {
+      // Foreign or stale completed row — never replay someone else's result;
+      // reclaim and execute as a fresh operation.
+      await db
+        .delete(idempotencyKeys)
+        .where(eq(idempotencyKeys.key, idempotencyKey));
     }
   }
 
@@ -569,9 +600,11 @@ const idempotencyMiddleware = t.middleware(async ({ ctx, next, path }) => {
   const result = await next({ ctx });
 
   try {
+    // v11: `next()` resolves to the { ok, data, marker } envelope — store the
+    // actual procedure result (`.data`), not the envelope itself.
     const data =
-      result && typeof result === "object" && "result" in result
-        ? ((result as { result: { data?: unknown } }).result?.data ?? result)
+      result && typeof result === "object" && "ok" in result
+        ? ((result as { ok: boolean; data?: unknown }).data ?? result)
         : result;
 
     await db
@@ -618,6 +651,47 @@ export const adminProcedure = t.procedure
   .use(authMiddleware)
   .use(entityScopingMiddleware)
   .use(requireRole("owner", "admin", "finance_director"));
+
+// ─── Plan-Aware Rate Limit Procedure (§19.2) ──────────────────────────────
+//
+// Rate limits scale with the organization's billing plan:
+//   free:    200 API / 5 agent / 10 chat / 20 webhook per minute
+//   starter: 500 / 10 / 20 / 50
+//   growth:  1000 / 20 / 30 / 100
+//   pro:     5000 / 50 / 60 / 200
+//   firm:    10000 / 100 / 120 / 500
+
+const planAwareRateLimitMiddleware = t.middleware(async ({ ctx, next }) => {
+  const plan = (ctx as { billingPlan?: string }).billingPlan || "free";
+  const userId = ctx.session!.user?.id || "unknown";
+  const headers = ctx.headers as Record<string, string> | undefined;
+  const ip = headers?.["x-forwarded-for"] || "anonymous";
+  const identifier = `${userId}:${ip}`;
+
+  const limiter = getRateLimiter();
+  const result = await limiter.checkApiRateLimitForPlan(identifier, plan);
+
+  if (!result.success) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: `Rate limit exceeded for ${plan} plan. Try again in ${result.reset - Math.floor(Date.now() / 1000)}s.`,
+    });
+  }
+
+  return next({ ctx });
+});
+
+export const planAwareProcedure = t.procedure
+  .use(loggingMiddleware)
+  .use(authMiddleware)
+  .use(requireVerifiedEmail)
+  .use(entityScopingMiddleware)
+  .use(planAwareRateLimitMiddleware)
+  .use(idempotencyMiddleware)
+  .use(async ({ ctx, next }) => {
+    await setRlsContext(ctx.session!.user!.id!, ctx.entityId!);
+    return next({ ctx });
+  });
 
 // ─────────────────────────────────────────────
 // Admin control-plane procedures

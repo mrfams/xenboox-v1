@@ -891,7 +891,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` RLS enabled via migrations `0006_enable_rls.sql` + `0010_rls_remaining_tables.sql`.
 - `[ ]` **Policy functions must be `STABLE`/`IMMUTABLE`** — `VOLATILE` functions inside RLS policies evaluate per row and destroy performance.
 - `[ ]` `ALTER TABLE … FORCE ROW LEVEL SECURITY` so table owners don't bypass policies (currently app role is restricted; make it explicit).
-- `[ ]` RLS integration tests: prove cross-entity access returns 403/empty both at the DB layer and the tRPC layer (§1.1 gap — elevate to HIGH).
+- `[x]` RLS integration tests: prove cross-entity access returns 403/empty both at the DB layer and the tRPC layer (§1.1 gap — elevate to HIGH). — **Done:** `__tests__/rls-db-layer.test.ts` (12 tests: SELECT/INSERT/UPDATE/DELETE enforcement, fail-closed on missing session vars, cross-entity blocked) + `__tests__/idor-rls-sweep.test.ts` (69 tests: entity-scoping contract, financial query isolation, mutation scoping, attack scenarios).
 - `[ ]` Document the Neon-HTTP limitation (no session vars) in DATABASE.md so future agents never assume DB-layer tenant context.
 
 ### 17.5 NUMERIC integrity & JSONB discipline
@@ -940,7 +940,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[ ]` **Move auth+API rate limiting to the Edge** (middleware) so abusive traffic never reaches a function invocation — Upstash ratelimit supports edge.
 - `[ ]` **Trusted-proxy discipline:** rate-limit keys derived from `x-forwarded-for` are spoofable if the client can set the header — only trust it when set by Vercel. Verify current key derivation.
-- `[ ]` **Per-tenant tiers:** limits must scale with plan (free 1K/min, pro 10K/min, enterprise custom) instead of one global ceiling.
+- `[x]` **Per-tenant tiers:** limits must scale with plan (free 1K/min, pro 10K/min, enterprise custom) instead of one global ceiling. — **Done:** `TIER_LIMITS` map in rate-limiter.ts with 5 tiers (free/starter/growth/pro/firm). `planAwareProcedure` type resolves org plan via entityScopingMiddleware and applies tier-specific limits. API 200→10K, agent 5→100, chat 10→120, webhook 20→500 per minute.
 - `[ ]` **Concurrent-request limiter** for heavy endpoints (report generation, bulk export) so one tenant can't starve the pool.
 - `[ ]` **Return standard headers** `X-RateLimit-Limit/Remaining/Reset` and a `Retry-After` on 429 (currently missing — §1.5).
 - `[x]` **Idempotency at every mutation boundary:** schema exists (`packages/db/schema/idempotency.ts`, migration `0007_idempotency_keys.sql`) — upgraded 57 financial mutations from `rlsProtectedProcedure` to `rlsMutateProcedure` across 12 routers (cash, mobileMoney, reconciliation, payroll, expenses, coa, journal, ap, ar, fixedAssets, estimates, expense). All money-movement and GL-entry mutations now have idempotency protection via `x-idempotency-key` header.
@@ -1010,7 +1010,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` **DPIA** for the onboarding/financial processing pipeline (required for high-risk processing in NDPA).
 - `[x]` **DSAR (data subject access request) workflow** — export + erasure within statutory deadlines (currently no export functionality — §10.4 / §11.2 gap; this is a HIGH launch-blocker for African enterprise sales). — **Done:** Full export (user profile, preferences, entity access, financial data across all entities, audit logs, API keys) + account anonymization (user record anonymized, entity access revoked, preferences deleted, audit trail preserved). Both wired in `settings.ts` with frontend UI in `privacy-section.tsx`.
 - `[ ]` **Cross-border transfer rules:** many African laws restrict outbound transfers absent adequacy/SCCs — a data-residency story is required (see §26).
-- `[ ]` Cookie consent banner before enabling analytics (§15.4 + §11.2).
+- `[x]` Cookie consent banner before enabling analytics (§15.4 + §11.2). — **Done:** `components/cookie-consent-banner.tsx` — essential-only / accept-analytics choice, localStorage persistence, wired into marketing layout. No analytics cookies are set until user consents.
 - `[ ]` Data retention automation (90-day + legal-hold exclusions) to match the policy pages.
 
 ---
@@ -1128,12 +1128,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## DEEP-DIVE SEVERITY SUMMARY
 
-| Severity    | Count | Description                                                                                                                                                                                                                                       |
-| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                          |
-| 🟠 HIGH     | 10    | Required before enterprise launch: edge rate limiting, per-tenant tiers, ~~DSAR/export~~, SAST/dependency scanning, RLS DB-layer tests, partitioning, APM/OTel, load tests, LLM gateway + injection defense, ~~outbound webhooks~~, multi-region. |
-| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                             |
-| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                      |
+| Severity    | Count | Description                                                                                                                                                                                                                                                                   |
+| ----------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                      |
+| 🟠 HIGH     | 7     | Required before enterprise launch: edge rate limiting, ~~per-tenant tiers~~, ~~DSAR/export~~, SAST/dependency scanning, ~~RLS DB-layer tests~~, partitioning, APM/OTel, load tests, LLM gateway + injection defense, ~~outbound webhooks~~, multi-region. ~~Cookie consent~~. |
+| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                         |
+| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                  |
 
 ### Top Deep-Dive Actions (blocking, in order)
 

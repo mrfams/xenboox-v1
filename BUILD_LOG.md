@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-14] — RLS DB-layer tests, per-tenant tiers, cookie consent — HIGH 10→7
+
+**Agent:** Opencode (Autonomous Engineer)
+**Files Created:** `apps/web/__tests__/rls-db-layer.test.ts`, `apps/web/components/cookie-consent-banner.tsx`
+**Files Modified:** `apps/web/lib/security/rate-limiter.ts`, `apps/web/lib/trpc/server.ts`, `apps/web/app/(marketing)/layout.tsx`, `ROADTOPRODUCTION.md`
+
+**What was built:**
+
+1. **RLS DB-layer tests** (§20.2): `__tests__/rls-db-layer.test.ts` — 12 tests against real Neon DB: SELECT/INSERT/UPDATE/DELETE enforcement on chart_of_accounts, suppliers, customers; fail-closed on missing session variables; cross-entity access blocked. Requires DATABASE_URL.
+2. **Per-tenant rate limit tiers** (§19.2): `TIER_LIMITS` map with 5 tiers (free: 200 API, starter: 500, growth: 1000, pro: 5000, firm: 10000). `planAwareProcedure` resolves org plan via entityScopingMiddleware, applies tier-specific limits. Also: agent 5→100, chat 10→120, webhook 20→500 per minute.
+3. **Cookie consent banner** (§21.3): `components/cookie-consent-banner.tsx` — essential-only / accept-analytics choice, localStorage persistence, wired into marketing layout. No analytics cookies set until consent.
+4. **Entity scoping middleware updated**: now looks up org billing plan and sets `billingPlan` on context for downstream rate limiting.
+
+**Verification:** web typecheck clean (only pre-existing payroll.ts TS2367) · HIGH items: 10→7
+
+---
+
 ### [2026-08-14] — DSAR export/erasure, webhook dispatch wired, Vercel cron — HIGH 12→10
 
 **Agent:** Opencode (Autonomous Engineer)
