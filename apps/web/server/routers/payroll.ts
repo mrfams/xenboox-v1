@@ -24,6 +24,7 @@ import { sendEmployeeCreatedEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { runPayrollPipeline, getPayrollStatus } from "@xenboox/agents";
 import type { ExceptionIntakeItem } from "@xenboox/agents";
+import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 
 // ─── Payroll Router ────────────────────────────────────────────────────────
 
@@ -1177,6 +1178,29 @@ export const payrollRouter = router({
             confidence: result.overallConfidence,
           },
         });
+
+        // Fire-and-forget webhook dispatch
+        if (result.status === "completed" || result.status === "paid") {
+          try {
+            void dispatchWebhookEvent({
+              entityId: ctx.entityId!,
+              eventType: "payroll.completed",
+              data: {
+                payrollRunId: result.payrollRunId,
+                period: input.period,
+                employeeCount: result.employeeCount,
+                totalGrossPay: result.totalGrossPay,
+                totalNetPay: result.totalNetPay,
+                status: result.status,
+              },
+            });
+          } catch (e) {
+            logger.error(
+              { err: e },
+              "Failed to dispatch payroll.completed webhook",
+            );
+          }
+        }
 
         return result;
       } catch (error) {

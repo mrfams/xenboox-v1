@@ -22,6 +22,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import { sendPaymentSentEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
+import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 import {
   validateInvoice,
   logTrustGuardResult,
@@ -1031,6 +1032,29 @@ export const apRouter = router({
             and(eq(invoicesAp.id, id), eq(invoicesAp.entityId, ctx.entityId!)),
           )
           .returning();
+
+        if (updated && input.status === "overdue") {
+          try {
+            void dispatchWebhookEvent({
+              entityId: ctx.entityId!,
+              eventType: "invoice.overdue",
+              data: {
+                invoiceId: updated.id,
+                invoiceNumber: updated.invoiceNumber,
+                supplierId: updated.supplierId,
+                totalAmount: updated.totalAmount,
+                balance: updated.balance,
+                dueDate: updated.dueDate,
+              },
+            });
+          } catch (e) {
+            logger.error(
+              { err: e },
+              "Failed to dispatch invoice.overdue webhook",
+            );
+          }
+        }
+
         return updated;
       } catch (error) {
         handleMutationError(error, "Failed to update invoice");
@@ -1180,6 +1204,24 @@ export const apRouter = router({
                   ),
                 );
             }
+          }
+
+          // Fire-and-forget webhook dispatch
+          try {
+            void dispatchWebhookEvent({
+              entityId: ctx.entityId!,
+              eventType: "invoice.paid",
+              data: {
+                invoiceId: invoiceApId,
+                invoiceNumber: invoice.invoiceNumber,
+                amount: paymentAmountStr,
+                method: input.method,
+                reference: input.reference,
+                newStatus,
+              },
+            });
+          } catch (e) {
+            logger.error({ err: e }, "Failed to dispatch invoice.paid webhook");
           }
 
           return payment;

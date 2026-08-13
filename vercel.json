@@ -3,5 +3,11 @@
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
   "installCommand": "pnpm install",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/webhooks/process?batch=50",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }

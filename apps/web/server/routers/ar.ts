@@ -20,6 +20,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import { sendPaymentReceivedEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
+import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 import {
   validateInvoice,
   logTrustGuardResult,
@@ -277,6 +278,29 @@ export const arRouter = router({
             ),
           )
           .returning();
+
+        if (updated && input.status === "overdue") {
+          try {
+            void dispatchWebhookEvent({
+              entityId: ctx.entityId!,
+              eventType: "invoice.overdue",
+              data: {
+                invoiceId: updated.id,
+                invoiceNumber: updated.invoiceNumber,
+                customerId: updated.customerId,
+                totalAmount: updated.totalAmount,
+                balance: updated.balance,
+                dueDate: updated.dueDate,
+              },
+            });
+          } catch (e) {
+            logger.error(
+              { err: e },
+              "Failed to dispatch invoice.overdue webhook",
+            );
+          }
+        }
+
         return updated;
       } catch (error) {
         handleMutationError(error, "Failed to update invoice");
@@ -434,6 +458,24 @@ export const arRouter = router({
                   ),
                 );
             }
+          }
+
+          // Fire-and-forget webhook dispatch
+          try {
+            void dispatchWebhookEvent({
+              entityId: ctx.entityId!,
+              eventType: "invoice.paid",
+              data: {
+                invoiceId: salesInvoiceId,
+                invoiceNumber: invoice.invoiceNumber,
+                amount: paymentAmountStr,
+                method: input.method,
+                reference: input.reference,
+                newStatus,
+              },
+            });
+          } catch (e) {
+            logger.error({ err: e }, "Failed to dispatch invoice.paid webhook");
           }
 
           return payment;

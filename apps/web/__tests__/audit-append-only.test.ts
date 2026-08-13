@@ -22,12 +22,12 @@ describeIfDb("§21.2 Audit Trail Append-Only Enforcement", () => {
 
   beforeAll(async () => {
     // Insert a test audit log entry
-    const [row] = await db.execute(sql`
-      INSERT INTO audit_log (entity_id, user_id, action, details, created_at)
-      VALUES (${ENTITY_ID}, ${USER_ID}, 'test.append_only', '{"test": true}'::jsonb, NOW())
+    const result = await db.execute(sql`
+      INSERT INTO audit_log (entity_id, user_id, action, entity_type, created_at)
+      VALUES (${ENTITY_ID}, ${USER_ID}, 'test.append_only', 'user', NOW())
       RETURNING id
     `);
-    auditLogId = (row as any).id;
+    auditLogId = (result as unknown as any[])[0].id;
   });
 
   afterAll(async () => {
@@ -39,11 +39,11 @@ describeIfDb("§21.2 Audit Trail Append-Only Enforcement", () => {
 
   it("audit_log: INSERT succeeds", async () => {
     const result = await db.execute(sql`
-      INSERT INTO audit_log (entity_id, user_id, action, details, created_at)
-      VALUES (${ENTITY_ID}, ${USER_ID}, 'test.insert', '{}'::jsonb, NOW())
+      INSERT INTO audit_log (entity_id, user_id, action, entity_type, created_at)
+      VALUES (${ENTITY_ID}, ${USER_ID}, 'test.insert', 'user', NOW())
       RETURNING id
     `);
-    expect(result).toHaveLength(1);
+    expect((result as unknown as any[]).length).toBe(1);
   });
 
   it("audit_log: UPDATE is blocked by trigger", async () => {
@@ -70,27 +70,27 @@ describeIfDb("§21.2 Audit Trail Append-Only Enforcement", () => {
 
   it("security_audit_log: UPDATE is blocked by trigger", async () => {
     // Insert then try to update
-    const [row] = await db.execute(sql`
-      INSERT INTO security_audit_log (entity_id, user_id, action, details, created_at)
-      VALUES (${ENTITY_ID}, ${USER_ID}, 'test.security', '{}'::jsonb, NOW())
+    const result = await db.execute(sql`
+      INSERT INTO security_audit_log (entity_id, user_id, event_type, resource_type, resource_id)
+      VALUES (${ENTITY_ID}, ${USER_ID}, 'access', 'table', 'test-resource')
       RETURNING id
     `);
-    const secId = (row as any).id;
+    const secId = (result as unknown as any[])[0].id;
 
     await expect(
       db.execute(sql`
-        UPDATE security_audit_log SET action = 'test.hacked' WHERE id = ${secId}
+        UPDATE security_audit_log SET event_type = 'modification' WHERE id = ${secId}
       `),
     ).rejects.toThrow();
   });
 
   it("security_audit_log: DELETE is blocked by trigger", async () => {
-    const [row] = await db.execute(sql`
-      INSERT INTO security_audit_log (entity_id, user_id, action, details, created_at)
-      VALUES (${ENTITY_ID}, ${USER_ID}, 'test.delete_block', '{}'::jsonb, NOW())
+    const result = await db.execute(sql`
+      INSERT INTO security_audit_log (entity_id, user_id, event_type, resource_type, resource_id)
+      VALUES (${ENTITY_ID}, ${USER_ID}, 'access', 'table', 'test-delete-block')
       RETURNING id
     `);
-    const secId = (row as any).id;
+    const secId = (result as unknown as any[])[0].id;
 
     await expect(
       db.execute(sql`
@@ -106,7 +106,7 @@ describeIfDb("§21.2 Audit Trail Append-Only Enforcement", () => {
       AND column_name IN ('seq', 'prev_hash', 'event_hash', 'payload_hash_input')
       ORDER BY column_name
     `);
-    const columns = result.map((r: any) => r.column_name);
+    const columns = (result as unknown as any[]).map((r: any) => r.column_name);
     expect(columns).toContain("seq");
     expect(columns).toContain("prev_hash");
     expect(columns).toContain("event_hash");
@@ -116,14 +116,14 @@ describeIfDb("§21.2 Audit Trail Append-Only Enforcement", () => {
   it("audit_log: unique constraint on (entity_id, seq) prevents chain gaps", async () => {
     // Try to insert two entries with the same seq — should fail
     await db.execute(sql`
-      INSERT INTO audit_log (entity_id, user_id, action, details, seq, created_at)
-      VALUES (${ENTITY_ID}, ${USER_ID}, 'test.seq_dup1', '{}'::jsonb, 999999, NOW())
+      INSERT INTO audit_log (entity_id, user_id, action, entity_type, seq, created_at)
+      VALUES (${ENTITY_ID}, ${USER_ID}, 'test.seq_dup1', 'user', 999999, NOW())
     `);
 
     await expect(
       db.execute(sql`
-        INSERT INTO audit_log (entity_id, user_id, action, details, seq, created_at)
-        VALUES (${ENTITY_ID}, ${USER_ID}, 'test.seq_dup2', '{}'::jsonb, 999999, NOW())
+        INSERT INTO audit_log (entity_id, user_id, action, entity_type, seq, created_at)
+        VALUES (${ENTITY_ID}, ${USER_ID}, 'test.seq_dup2', 'user', 999999, NOW())
       `),
     ).rejects.toThrow(); // Unique constraint violation
   });

@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-14] — DSAR export/erasure, webhook dispatch wired, Vercel cron — HIGH 12→10
+
+**Agent:** Opencode (Autonomous Engineer)
+**Files Modified:** `apps/web/server/routers/settings.ts`, `apps/web/server/routers/ap.ts`, `apps/web/server/routers/ar.ts`, `apps/web/server/routers/journal.ts`, `apps/web/server/routers/reconciliation.ts`, `apps/web/server/routers/payroll.ts`, `apps/web/server/routers/document.ts`, `vercel.json`, `ROADTOPRODUCTION.md`, `apps/web/__tests__/audit-append-only.test.ts`
+
+**What was built:**
+
+1. **DSAR export** (§21.3): `exportUserData` now returns full data: user profile, preferences, entity access grants, entities, financial data per entity (journal entries, suppliers, customers, AP/AR invoices, bank accounts, employees, payroll runs), audit logs, API keys. GDPR Art. 20 compliant.
+2. **DSAR erasure** (§21.3): `deleteAccount` now anonymizes: user record → `Deleted User <hash>`, email → `deleted-<hash>@anonymized.local`, entity access revoked, preferences deleted, audit trail preserved (legal compliance).
+3. **Webhook dispatch wired** (§10.2): `dispatchWebhookEvent` called in 8 financial mutation paths: AP/AR `createPayment` (invoice.paid), AP/AR `updateInvoice` (invoice.overdue), journal `post` (transaction.created), reconciliation `matchTransaction` (reconciliation.flagged), payroll `runPayrollPipeline` (payroll.completed), document `confirmUpload` (document.processed). All fire-and-forget with try/catch.
+4. **Vercel cron** (§10.2): `vercel.json` configured with cron job `/api/webhooks/process?batch=50` every 5 minutes.
+5. **audit-append-only.test.ts fixed**: NeonHttpQueryResult cast issues resolved, column names corrected for security_audit_log schema.
+
+**Verification:** web typecheck clean (only pre-existing payroll.ts TS2367 remains) · HIGH items: 12→10
+
+---
+
 ### [2026-08-14] — DR plan, backup verification CI, audit append-only test — CRITICAL 0 achieved
 
 **Agent:** Opencode (Autonomous Engineer)

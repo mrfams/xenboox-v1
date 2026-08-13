@@ -15,6 +15,8 @@ import {
   journalEntries,
   journalEntryLines,
 } from "@xenboox/db/schema/accounting";
+import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
+import { logger } from "@/lib/logger";
 
 // ─── Match Candidate Scoring ──────────────────────────────────────────────
 //
@@ -370,6 +372,28 @@ export const reconciliationRouter = router({
           ),
         )
         .returning();
+
+      // Fire-and-forget webhook dispatch
+      if (updated) {
+        try {
+          void dispatchWebhookEvent({
+            entityId,
+            eventType: "reconciliation.flagged",
+            data: {
+              transactionId: updated.id,
+              journalEntryId: input.journalEntryId,
+              bankAccountId: updated.bankAccountId,
+              amount: updated.amount,
+              description: updated.description,
+            },
+          });
+        } catch (e) {
+          logger.error(
+            { err: e },
+            "Failed to dispatch reconciliation.flagged webhook",
+          );
+        }
+      }
 
       return { success: !!updated };
     }),

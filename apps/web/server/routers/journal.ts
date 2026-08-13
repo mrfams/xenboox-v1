@@ -34,6 +34,8 @@ import {
   logTrustGuardResult,
   trustGuardToError,
 } from "@xenboox/agents";
+import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
+import { logger } from "@/lib/logger";
 
 export const journalRouter = router({
   // ── Journal Entries Overview ──
@@ -876,6 +878,26 @@ export const journalRouter = router({
           entityIdRef: input.id,
           newValues: { status: "posted" },
         });
+
+        // Fire-and-forget webhook dispatch
+        try {
+          void dispatchWebhookEvent({
+            entityId: ctx.entityId!,
+            eventType: "transaction.created",
+            data: {
+              journalEntryId: updated.id,
+              entryNumber: updated.entryNumber,
+              description: updated.description,
+              date: updated.date,
+              periodId: updated.periodId,
+            },
+          });
+        } catch (e) {
+          logger.error(
+            { err: e },
+            "Failed to dispatch transaction.created webhook",
+          );
+        }
 
         return updated;
       } catch (error) {

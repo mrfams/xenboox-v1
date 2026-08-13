@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
+  rlsMutateProcedure,
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
@@ -38,6 +39,7 @@ import {
   sendDocumentUploadedEmail,
   sendDocumentProcessedEmail,
 } from "@/lib/email";
+import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -126,7 +128,7 @@ export const documentRouter = router({
 
   // ── Upload Flow ──
 
-  getUploadUrl: rlsProtectedProcedure
+  getUploadUrl: rlsMutateProcedure
     .input(
       z.object({
         fileName: z.string().min(1).max(255),
@@ -160,7 +162,7 @@ export const documentRouter = router({
       return { uploadUrl, storagePath };
     }),
 
-  confirmUpload: rlsProtectedProcedure
+  confirmUpload: rlsMutateProcedure
     .input(
       z.object({
         r2Key: z.string().min(1),
@@ -224,13 +226,33 @@ export const documentRouter = router({
           });
         }
 
+        // Fire-and-forget webhook dispatch
+        try {
+          void dispatchWebhookEvent({
+            entityId: ctx.entityId!,
+            eventType: "document.processed",
+            data: {
+              documentId: doc.id,
+              name: input.name,
+              type: input.type,
+              mimeType: input.mimeType,
+              r2Key: input.r2Key,
+            },
+          });
+        } catch (e) {
+          logger.error(
+            { err: e },
+            "Failed to dispatch document.processed webhook",
+          );
+        }
+
         return { documentId: doc.id };
       } catch (error) {
         handleMutationError(error, "Failed to confirm document upload");
       }
     }),
 
-  download: rlsProtectedProcedure
+  download: rlsMutateProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -271,7 +293,7 @@ export const documentRouter = router({
       }
     }),
 
-  delete: rlsProtectedProcedure
+  delete: rlsMutateProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -306,7 +328,7 @@ export const documentRouter = router({
       }
     }),
 
-  createDocument: rlsProtectedProcedure
+  createDocument: rlsMutateProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -352,7 +374,7 @@ export const documentRouter = router({
       return doc;
     }),
 
-  updateDocument: rlsProtectedProcedure
+  updateDocument: rlsMutateProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -412,7 +434,7 @@ export const documentRouter = router({
    * is always keyed to the session user — callers can't record views for
    * anyone else (no IDOR). Idempotent: re-opening just bumps viewedAt.
    */
-  markDocumentViewed: rlsProtectedProcedure
+  markDocumentViewed: rlsMutateProcedure
     .input(z.object({ documentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session?.user?.id;
@@ -452,7 +474,7 @@ export const documentRouter = router({
     }),
 
   // ── Document Links ──
-  createDocumentLink: rlsProtectedProcedure
+  createDocumentLink: rlsMutateProcedure
     .input(
       z.object({
         documentId: z.string().uuid(),
@@ -480,7 +502,7 @@ export const documentRouter = router({
       return link;
     }),
 
-  removeDocumentLink: rlsProtectedProcedure
+  removeDocumentLink: rlsMutateProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const [deleted] = await db
@@ -516,7 +538,7 @@ export const documentRouter = router({
     });
   }),
 
-  createExchangeRate: rlsProtectedProcedure
+  createExchangeRate: rlsMutateProcedure
     .input(
       z.object({
         fromCurrency: z.string().length(3),
@@ -645,7 +667,7 @@ export const documentRouter = router({
   // Edits are versioned in metadata (original extraction is never touched),
   // written to the audit trail, and returned to the viewer with an edit count.
 
-  editDocumentText: rlsProtectedProcedure
+  editDocumentText: rlsMutateProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -757,7 +779,7 @@ export const documentRouter = router({
     }),
 
   /** Revert the last AI edit (one level). */
-  undoDocumentEdit: rlsProtectedProcedure
+  undoDocumentEdit: rlsMutateProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const doc = await db.query.documents.findFirst({

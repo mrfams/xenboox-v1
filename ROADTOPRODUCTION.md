@@ -944,7 +944,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` **Concurrent-request limiter** for heavy endpoints (report generation, bulk export) so one tenant can't starve the pool.
 - `[ ]` **Return standard headers** `X-RateLimit-Limit/Remaining/Reset` and a `Retry-After` on 429 (currently missing — §1.5).
 - `[x]` **Idempotency at every mutation boundary:** schema exists (`packages/db/schema/idempotency.ts`, migration `0007_idempotency_keys.sql`) — upgraded 57 financial mutations from `rlsProtectedProcedure` to `rlsMutateProcedure` across 12 routers (cash, mobileMoney, reconciliation, payroll, expenses, coa, journal, ap, ar, fixedAssets, estimates, expense). All money-movement and GL-entry mutations now have idempotency protection via `x-idempotency-key` header.
-- `[ ]` **Outbound webhooks:** signing (HMAC-SHA256), per-tenant secrets, retry with exponential backoff, event catalog, and a management UI (§10.2 — elevate priority).
+- `[x]` **Outbound webhooks:** signing (HMAC-SHA256), per-tenant secrets, retry with exponential backoff, event catalog, and a management UI (§10.2 — elevate priority). — **Done:** `dispatchWebhookEvent` wired into 8 financial mutation paths (AP/AR invoice.paid, invoice.overdue, journal transaction.created, reconciliation.flagged, payroll.completed, document.processed). Vercel cron processes pending deliveries every 5 min. HMAC signing, exponential backoff, dedup, management UI all pre-existed.
 
 ---
 
@@ -1008,7 +1008,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[ ]` **Map the law per market:** Nigeria (NDPA 2023/NDPR — NDPC), South Africa (POPIA — Info Regulator, fines up to R10M), Kenya (DPA 2019 — ODPC), Ghana (DPA 2012 — DPC), Senegal (Law 2008-12), plus GDPR for EU users.
 - `[ ]` **DPIA** for the onboarding/financial processing pipeline (required for high-risk processing in NDPA).
-- `[ ]` **DSAR (data subject access request) workflow** — export + erasure within statutory deadlines (currently no export functionality — §10.4 / §11.2 gap; this is a HIGH launch-blocker for African enterprise sales).
+- `[x]` **DSAR (data subject access request) workflow** — export + erasure within statutory deadlines (currently no export functionality — §10.4 / §11.2 gap; this is a HIGH launch-blocker for African enterprise sales). — **Done:** Full export (user profile, preferences, entity access, financial data across all entities, audit logs, API keys) + account anonymization (user record anonymized, entity access revoked, preferences deleted, audit trail preserved). Both wired in `settings.ts` with frontend UI in `privacy-section.tsx`.
 - `[ ]` **Cross-border transfer rules:** many African laws restrict outbound transfers absent adequacy/SCCs — a data-residency story is required (see §26).
 - `[ ]` Cookie consent banner before enabling analytics (§15.4 + §11.2).
 - `[ ]` Data retention automation (90-day + legal-hold exclusions) to match the policy pages.
@@ -1128,12 +1128,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## DEEP-DIVE SEVERITY SUMMARY
 
-| Severity    | Count | Description                                                                                                                                                                                                                               |
-| ----------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                  |
-| 🟠 HIGH     | 12    | Required before enterprise launch: edge rate limiting, per-tenant tiers, DSAR/export, SAST/dependency scanning, RLS DB-layer tests, partitioning, APM/OTel, load tests, LLM gateway + injection defense, outbound webhooks, multi-region. |
-| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                     |
-| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                              |
+| Severity    | Count | Description                                                                                                                                                                                                                                       |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                          |
+| 🟠 HIGH     | 10    | Required before enterprise launch: edge rate limiting, per-tenant tiers, ~~DSAR/export~~, SAST/dependency scanning, RLS DB-layer tests, partitioning, APM/OTel, load tests, LLM gateway + injection defense, ~~outbound webhooks~~, multi-region. |
+| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                             |
+| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                      |
 
 ### Top Deep-Dive Actions (blocking, in order)
 
