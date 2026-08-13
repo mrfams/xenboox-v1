@@ -121,12 +121,12 @@ ALTER TABLE idempotency_keys ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY ik_user_read ON idempotency_keys
   FOR SELECT USING (
-    user_id = current_setting('app.current_user_id')::UUID
+    user_id = current_setting('app.current_user_id')
   );
 
 CREATE POLICY ik_user_write ON idempotency_keys
   FOR ALL USING (
-    user_id = current_setting('app.current_user_id')::UUID
+    user_id = current_setting('app.current_user_id')
   );
 
 -- ─── Notifications (user-scoped + entity-scoped) ──────────────────

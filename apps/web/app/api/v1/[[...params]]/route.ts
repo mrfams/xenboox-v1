@@ -17,6 +17,7 @@ import { journalEntries, chartOfAccounts } from "@xenboox/db/schema/accounting";
 import { salesInvoices, invoicesAp } from "@xenboox/db/schema/ap-ar";
 import { customers, suppliers } from "@xenboox/db/schema/ap-ar";
 import { bankAccounts, bankTransactions } from "@xenboox/db/schema/treasury";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/db";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
@@ -561,7 +562,7 @@ async function authenticateAndRateLimit(
   } catch (err) {
     // Never leak an HTML error page — DB/auth infra failures return
     // structured JSON with a 500 so API clients can handle them.
-    console.error("API v1 authentication failed:", err);
+    logger.error({ err }, "API v1 authentication failed");
     return {
       response: errorResponse(
         "Authentication service unavailable. Please retry.",

@@ -622,7 +622,7 @@ export default function FixedAssetsPage() {
           </div>
         );
 
-      case "disposals":
+      case "disposals": {
         const disposedAssets = filteredAssets.filter(
           (a) => a.status === "disposed",
         );
@@ -658,6 +658,7 @@ export default function FixedAssetsPage() {
             )}
           </div>
         );
+      }
 
       default:
         // Overview — summary cards + recent assets + AI insights

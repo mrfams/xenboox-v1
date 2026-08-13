@@ -8,6 +8,7 @@ import {
   timestamp,
   numeric,
   jsonb,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { uuidId, timestamps } from "./helpers";
 
@@ -85,7 +86,7 @@ export const workflowNodes = pgTable("workflow_nodes", {
   id: uuidId(),
   ...timestamps,
 
-  workflowId: varchar("workflow_id", { length: 255 })
+  workflowId: uuid("workflow_id")
     .references(() => workflows.id)
     .notNull(),
 
@@ -124,14 +125,14 @@ export const workflowEdges = pgTable("workflow_edges", {
   id: uuidId(),
   ...timestamps,
 
-  workflowId: varchar("workflow_id", { length: 255 })
+  workflowId: uuid("workflow_id")
     .references(() => workflows.id)
     .notNull(),
 
-  sourceNodeId: varchar("source_node_id", { length: 255 })
+  sourceNodeId: uuid("source_node_id")
     .references(() => workflowNodes.id)
     .notNull(),
-  targetNodeId: varchar("target_node_id", { length: 255 })
+  targetNodeId: uuid("target_node_id")
     .references(() => workflowNodes.id)
     .notNull(),
 
@@ -147,7 +148,7 @@ export const workflowRuns = pgTable("workflow_runs", {
   id: uuidId(),
   ...timestamps,
 
-  workflowId: varchar("workflow_id", { length: 255 })
+  workflowId: uuid("workflow_id")
     .references(() => workflows.id)
     .notNull(),
 
@@ -181,7 +182,7 @@ export const workflowVersions = pgTable("workflow_versions", {
   id: uuidId(),
   ...timestamps,
 
-  workflowId: varchar("workflow_id", { length: 255 })
+  workflowId: uuid("workflow_id")
     .references(() => workflows.id)
     .notNull(),
 

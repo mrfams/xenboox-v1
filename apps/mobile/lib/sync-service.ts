@@ -1,91 +1,104 @@
-import { NetInfo } from "@react-native-community/netinfo"
-import { getPendingTransactions, markTransactionSynced, markTransactionFailed, clearSyncedTransactions } from "./offline-storage"
-import { trpc } from "./trpc"
-import { getCurrentEntityId } from "./auth"
+import { NetInfo } from "@react-native-community/netinfo";
+import {
+  getPendingTransactions,
+  markTransactionSynced,
+  markTransactionFailed,
+  clearSyncedTransactions,
+} from "./offline-storage";
+import { trpc } from "./trpc";
+import { getCurrentEntityId } from "./auth";
 
-let syncInterval: NodeJS.Timeout | null = null
-let isSyncing = false
+let syncInterval: NodeJS.Timeout | null = null;
+let isSyncing = false;
 
 export function startSyncService() {
-  if (syncInterval) return
+  if (syncInterval) return;
 
-  NetInfo.addEventListener(state => {
+  NetInfo.addEventListener((state) => {
     if (state.isConnected) {
-      syncOfflineData()
+      syncOfflineData();
     }
-  })
+  });
 
   syncInterval = setInterval(() => {
-    syncOfflineData()
-  }, 60000)
+    syncOfflineData();
+  }, 60000);
 }
 
 export function stopSyncService() {
   if (syncInterval) {
-    clearInterval(syncInterval)
-    syncInterval = null
+    clearInterval(syncInterval);
+    syncInterval = null;
   }
 }
 
 async function syncOfflineData() {
-  if (isSyncing) return
-  isSyncing = true
+  if (isSyncing) return;
+  isSyncing = true;
 
   try {
-    const entityId = await getCurrentEntityId()
-    if (!entityId) return
+    const entityId = await getCurrentEntityId();
+    if (!entityId) return;
 
-    const pending = await getPendingTransactions()
+    const pending = await getPendingTransactions();
     if (pending.length === 0) {
-      await clearSyncedTransactions()
-      isSyncing = false
-      return
+      await clearSyncedTransactions();
+      isSyncing = false;
+      return;
     }
 
     for (const tx of pending) {
       try {
-        const data = JSON.parse(tx.data)
+        const data = JSON.parse(tx.data);
 
         switch (tx.type) {
           case "invoice":
-            await trpc.ar.invoices.create.mutate(data)
-            break
+            await trpc.ar.invoices.create.mutate(data);
+            break;
           case "journal":
-            await trpc.journal.entries.create.mutate(data)
-            break
+            await trpc.journal.entries.create.mutate(data);
+            break;
           case "payment":
-            await trpc.ar.invoices.pay.mutate(data)
-            break
+            await trpc.ar.invoices.pay.mutate(data);
+            break;
           case "expense":
-            await trpc.cash.entries.create.mutate(data)
-            break
+            await trpc.cash.entries.create.mutate(data);
+            break;
         }
 
-        await markTransactionSynced(tx.id)
+        await markTransactionSynced(tx.id);
       } catch (error) {
-        console.error(`Failed to sync transaction ${tx.id}:`, error)
-        await markTransactionFailed(tx.id, error instanceof Error ? error.message : String(error))
+        console.error(`Failed to sync transaction ${tx.id}:`, error);
+        await markTransactionFailed(
+          tx.id,
+          error instanceof Error ? error.message : String(error),
+        );
       }
     }
 
-    await clearSyncedTransactions()
+    await clearSyncedTransactions();
   } catch (error) {
-    console.error("Sync error:", error)
+    console.error("Sync error:", error);
   } finally {
-    isSyncing = false
+    isSyncing = false;
   }
 }
 
-export function queueOfflineTransaction(
+export async function queueOfflineTransaction(
   type: "invoice" | "journal" | "payment" | "expense",
-  data: unknown
+  data: unknown,
 ) {
+  const entityId = await getCurrentEntityId();
+  if (!entityId) {
+    throw new Error("Cannot queue offline transaction: no entity selected");
+  }
+
   const transaction = {
     id: crypto.randomUUID(),
     type,
-    entityId: "",
+    entityId,
     data: JSON.stringify(data),
-  }
+  };
 
-  return saveTransaction({ ...transaction, entityId: "" })
+  return saveTransaction(transaction);
 }

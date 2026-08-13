@@ -8,6 +8,7 @@ import {
   timestamp,
   numeric,
   jsonb,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { uuidId, timestamps } from "./helpers";
 import { organizations } from "./organization";
@@ -74,7 +75,7 @@ export const featureFlagAuditLog = pgTable("feature_flag_audit_log", {
   id: uuidId(),
   ...timestamps,
 
-  flagId: varchar("flag_id", { length: 255 })
+  flagId: uuid("flag_id")
     .references(() => featureFlags.id)
     .notNull(),
 
@@ -97,7 +98,7 @@ export const featureFlagRolloutHistory = pgTable(
     id: uuidId(),
     ...timestamps,
 
-    flagId: varchar("flag_id", { length: 255 })
+    flagId: uuid("flag_id")
       .references(() => featureFlags.id)
       .notNull(),
 

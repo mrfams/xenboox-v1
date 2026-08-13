@@ -6,6 +6,7 @@ import {
   router,
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import {
   conversations,
@@ -304,7 +305,7 @@ export const chatRouter = router({
 
         // Seed confidence thresholds if not yet seeded (safe, ON CONFLICT DO NOTHING)
         seedDefaultThresholds().catch((e) =>
-          console.warn("[chat] Failed to seed confidence thresholds:", e),
+          logger.warn({ err: e }, "Failed to seed confidence thresholds"),
         );
 
         // Fetch enriched entity context

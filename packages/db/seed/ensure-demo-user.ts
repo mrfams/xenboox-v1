@@ -1,13 +1,7 @@
 import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import * as schema from "../schema";
-import { users } from "../schema/auth";
+import { requireDbUrl } from "./db-url";
 
-const DATABASE_URL =
-  "postgresql://neondb_owner:npg_hS1rq9sLmjnP@ep-crimson-lake-abh33lg6-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
-
-const sql = neon(DATABASE_URL);
-const db = drizzle(sql, { schema: schema as any });
+const sql = neon(requireDbUrl());
 
 const DEMO_EMAIL = "demo@xenboox.com";
 const DEMO_PASSWORD = "demo1234";

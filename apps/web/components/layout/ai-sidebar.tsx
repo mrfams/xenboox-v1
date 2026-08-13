@@ -180,7 +180,7 @@ function useApprovalCounts() {
     { limit: 50 },
     {
       staleTime: 60 * 1000, // 1 minute
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       refetchOnMount: false,
       enabled,
     },

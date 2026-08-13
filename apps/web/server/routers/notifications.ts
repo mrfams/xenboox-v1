@@ -60,15 +60,20 @@ export const notificationsRouter = router({
       const entityId = ctx.entityId;
       if (!entityId) return { count: 0 };
 
-      const results = await db.query.notifications.findFirst({
-        where: and(
-          eq(notifications.userId, ctx.session!.user!.id!),
-          eq(notifications.entityId, entityId),
-          eq(notifications.read, false),
-        ),
-      });
+      // Real count — the badge must reflect EVERY unread row, not a 0/1
+      // existence probe. The previous findFirst capped the count at 1.
+      const rows = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.userId, ctx.session!.user!.id!),
+            eq(notifications.entityId, entityId),
+            eq(notifications.read, false),
+          ),
+        );
 
-      return { count: results ? 1 : 0 };
+      return { count: rows[0]?.count ?? 0 };
     } catch (err) {
       logger.warn({ err }, "notifications.unreadCount failed — returning 0");
       return { count: 0 };

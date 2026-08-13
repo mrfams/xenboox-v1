@@ -6,6 +6,7 @@ import {
   integer,
   boolean,
   timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { uuidId, timestamps } from "./helpers";
 import { organizations } from "./organization";
@@ -62,9 +63,7 @@ export const reviewItems = pgTable("review_items", {
   status: reviewItemStatusEnum("status").notNull().default("pending"),
 
   // Relationships
-  organizationId: varchar("organization_id", { length: 255 }).references(
-    () => organizations.id,
-  ),
+  organizationId: uuid("organization_id").references(() => organizations.id),
   agentId: varchar("agent_id", { length: 255 }),
   runId: varchar("run_id", { length: 255 }),
 
@@ -88,7 +87,7 @@ export const reviewItemActions = pgTable("review_item_actions", {
   id: uuidId(),
   ...timestamps,
 
-  reviewItemId: varchar("review_item_id", { length: 255 })
+  reviewItemId: uuid("review_item_id")
     .references(() => reviewItems.id)
     .notNull(),
   action: reviewItemActionEnum("action").notNull(),
@@ -102,7 +101,7 @@ export const reviewItemHistory = pgTable("review_item_history", {
   id: uuidId(),
   ...timestamps,
 
-  reviewItemId: varchar("review_item_id", { length: 255 })
+  reviewItemId: uuid("review_item_id")
     .references(() => reviewItems.id)
     .notNull(),
   eventType: varchar("event_type", { length: 100 }).notNull(),
@@ -116,7 +115,7 @@ export const reviewItemEvidence = pgTable("review_item_evidence", {
   id: uuidId(),
   ...timestamps,
 
-  reviewItemId: varchar("review_item_id", { length: 255 })
+  reviewItemId: uuid("review_item_id")
     .references(() => reviewItems.id)
     .notNull(),
   evidenceType: varchar("evidence_type", { length: 100 }).notNull(),

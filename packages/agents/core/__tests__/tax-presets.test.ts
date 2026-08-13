@@ -58,16 +58,16 @@ describe("tax preset catalog", () => {
     expect(PRESET_COUNTRIES).toContain("US");
   });
 
-  it("US pack is jurisdiction-complete: a sales tax preset for every state + DC", () => {
+  it("US pack is jurisdiction-complete: a sales tax preset for every state + DC, plus the NYC combined-rate preset", () => {
     const usSales = getTaxPresetsForCountry("US").filter(
       (p) => p.ruleType === "sales_tax",
     );
-    expect(usSales.length).toBe(51);
-    // Unique per-state ids (us-sales-tax-<code>).
+    expect(usSales.length).toBe(52);
+    // Unique per-state ids (us-sales-tax-<code>) + the NYC combined preset.
     const codes = new Set(
       usSales.map((p) => p.id.replace("us-sales-tax-", "")),
     );
-    expect(codes.size).toBe(51);
+    expect(codes.size).toBe(52);
     // Every component-based rule sums to <= 1 with sane component rates.
     for (const p of usSales) {
       const rc = p.rateConfig;
@@ -79,6 +79,25 @@ describe("tax preset catalog", () => {
           expect(c.rate, `${p.id} ${c.name}`).toBeLessThanOrEqual(1);
         }
       }
+    }
+  });
+
+  it("NYC combined-rate preset ships as three named components summing to 8.875%", () => {
+    const nyc = getTaxPresetsForCountry("US").find(
+      (p) => p.id === "us-sales-tax-nyc",
+    );
+    expect(nyc, "us-sales-tax-nyc exists").toBeDefined();
+    expect(nyc?.ruleType).toBe("sales_tax");
+    const rc = nyc?.rateConfig;
+    expect(rc?.type, "NYC uses a combined rate").toBe("rate");
+    if (rc?.type === "rate") {
+      expect(rc.components).toEqual([
+        { name: "State", rate: 0.04 },
+        { name: "City", rate: 0.045 },
+        { name: "MCTD", rate: 0.00375 },
+      ]);
+      const sum = (rc.components ?? []).reduce((a, c) => a + c.rate, 0);
+      expect(sum, "State + City + MCTD = 8.875%").toBeCloseTo(0.08875, 6);
     }
   });
 

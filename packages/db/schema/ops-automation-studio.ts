@@ -8,6 +8,7 @@ import {
   timestamp,
   numeric,
   jsonb,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { uuidId, timestamps } from "./helpers";
 
@@ -87,9 +88,7 @@ export const automationActivity = pgTable("automation_activity", {
   id: uuidId(),
   ...timestamps,
 
-  automationId: varchar("automation_id", { length: 255 }).references(
-    () => automations.id,
-  ),
+  automationId: uuid("automation_id").references(() => automations.id),
   automationName: varchar("automation_name", { length: 255 }).notNull(),
 
   // Activity details
@@ -137,9 +136,7 @@ export const automationTimeSavings = pgTable("automation_time_savings", {
   id: uuidId(),
   ...timestamps,
 
-  automationId: varchar("automation_id", { length: 255 }).references(
-    () => automations.id,
-  ),
+  automationId: uuid("automation_id").references(() => automations.id),
   automationName: varchar("automation_name", { length: 255 }).notNull(),
 
   // Time saved

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@xenboox/db";
 import * as schema from "@xenboox/db/schema";
 import { eq, and } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   try {
@@ -845,11 +846,7 @@ export async function POST(request: Request) {
                 : inv.amount,
           currency: "GMD",
           status: inv.status as
-            | "pending"
-            | "partial"
-            | "paid"
-            | "overdue"
-            | "voided",
+            "pending" | "partial" | "paid" | "overdue" | "voided",
         })
         .onConflictDoNothing();
 
@@ -893,11 +890,7 @@ export async function POST(request: Request) {
                 : inv.amount,
           currency: "GMD",
           status: inv.status as
-            | "pending"
-            | "partial"
-            | "paid"
-            | "overdue"
-            | "voided",
+            "pending" | "partial" | "paid" | "overdue" | "voided",
         })
         .onConflictDoNothing();
 
@@ -928,11 +921,7 @@ export async function POST(request: Request) {
         bankAccountId: bankAccountIds[tx.aIdx],
         transactionDate: tx.date,
         type: tx.type as
-          | "deposit"
-          | "withdrawal"
-          | "transfer"
-          | "fee"
-          | "interest",
+          "deposit" | "withdrawal" | "transfer" | "fee" | "interest",
         amount: tx.amount,
         description: tx.desc,
         isReconciled: false,
@@ -946,11 +935,7 @@ export async function POST(request: Request) {
         inventoryItemId: inventoryItemIds[tx.item],
         warehouseId: warehouseIds[tx.wh],
         type: tx.type as
-          | "receipt"
-          | "issue"
-          | "adjustment"
-          | "transfer"
-          | "return",
+          "receipt" | "issue" | "adjustment" | "transfer" | "return",
         quantity: tx.qty,
         unitCost: tx.cost,
         totalCost: String(Math.abs(tx.qty) * parseFloat(tx.cost)),
@@ -1045,7 +1030,7 @@ export async function POST(request: Request) {
       message: "4-month demo data seeded successfully",
     });
   } catch (err) {
-    console.error("Seed endpoint error:", err);
+    logger.error({ err }, "Seed endpoint failed");
     return NextResponse.json(
       { error: "Seed failed", details: String(err) },
       { status: 500 },

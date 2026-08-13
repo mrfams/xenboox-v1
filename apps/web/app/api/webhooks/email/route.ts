@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { triggerClient } from "@/lib/trigger";
 import { verifyWebhookSignature } from "@/lib/webhook-verify";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!rule) {
-      console.error("[Email Webhook] No forwarding rule found for:", toAddress);
+      logger.warn({ toAddress }, "No forwarding rule found");
       return NextResponse.json(
         { error: "Forwarding rule not found" },
         { status: 404 },
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
       autoProcessed: rule.autoClassify && attachments.length > 0,
     });
   } catch (error) {
-    console.error("[Email Webhook] Error:", error);
+    logger.error({ err: error }, "Email webhook processing failed");
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 },

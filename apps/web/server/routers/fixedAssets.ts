@@ -8,6 +8,7 @@ import {
   rlsMutateProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import {
   fixedAssets,
@@ -135,9 +136,13 @@ export const fixedAssetsRouter = router({
               usefulLifeMonths: input.usefulLifeMonths,
               depreciationMethod: input.depreciationMethod,
               entityName: entityCtx.entityName,
-            }).catch(console.error);
+            }).catch((e) =>
+              logger.error({ err: e }, "Failed to send asset email"),
+            );
           })
-          .catch(console.error);
+          .catch((e) =>
+            logger.error({ err: e }, "Failed to send asset notification"),
+          );
 
         return asset;
       } catch (error) {

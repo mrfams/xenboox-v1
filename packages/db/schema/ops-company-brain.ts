@@ -8,6 +8,7 @@ import {
   timestamp,
   numeric,
   jsonb,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { uuidId, timestamps } from "./helpers";
 
@@ -57,9 +58,7 @@ export const knowledgeDocuments = pgTable("knowledge_documents", {
   id: uuidId(),
   ...timestamps,
 
-  sourceId: varchar("source_id", { length: 255 }).references(
-    () => knowledgeSources.id,
-  ),
+  sourceId: uuid("source_id").references(() => knowledgeSources.id),
 
   title: varchar("title", { length: 500 }).notNull(),
   content: text("content"),

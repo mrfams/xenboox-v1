@@ -6,6 +6,7 @@ import {
   protectedProcedure,
   adminProcedure,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { eq, and, desc, count, sum, sql } from "drizzle-orm";
 import { users } from "@xenboox/db/schema/auth";
@@ -636,26 +637,7 @@ export const adminRouter = router({
     )
     .mutation(async ({ input }) => {
       try {
-        // In production, this would persist to database or config service
-        // For now, validate and return success with logged audit trail
-        console.log("[admin] Settings update:", {
-          notifications: {
-            emailAlerts: input.emailAlerts,
-            slackAlerts: input.slackAlerts,
-            smsAlerts: input.smsAlerts,
-          },
-          ai: {
-            autoScaling: input.autoScaling,
-            costOptimization: input.costOptimization,
-            providerFallback: input.providerFallback,
-          },
-          system: {
-            maintenanceMode: input.maintenanceMode,
-            debugMode: input.debugMode,
-            auditLogging: input.auditLogging,
-          },
-          budgets: input.budgets,
-        });
+        logger.info("Admin settings update");
         return { success: true };
       } catch (error) {
         handleMutationError(error, "Failed to update settings");

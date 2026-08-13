@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 import { generateConversationTitle } from "@/lib/chat/conversation-title";
 import { generateConversationSummary } from "@/lib/chat/conversation-summary";
+import { logger } from "@/lib/logger";
 import { generateChatArtifacts } from "@/lib/chat/artifact-service";
 import {
   buildPageContextBlock,
@@ -470,7 +471,7 @@ export async function POST(req: NextRequest) {
           // already closed by the abort handler
         }
       } catch (error) {
-        console.error("Streaming error:", error);
+        logger.error({ err: error }, "Chat streaming error");
         if (aborted) {
           // The user left before the pipeline finished — mark the pending
           // message as cancelled instead of a scary "failed".

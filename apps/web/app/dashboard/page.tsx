@@ -500,6 +500,16 @@ function BriefingHeadline({ item }: { item: BriefingItem }) {
   const attention = isAttention(item);
   const inner = (
     <>
+      {/* Status accent bar — lives INSIDE the card so overflow-hidden clips
+          it to the card's rounded corners (a sibling bar would poke out past
+          the corner radius) and the hover translate carries it along. */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0 left-0 z-10 w-1",
+          attention ? "bg-attention-amber" : "bg-balanced-green",
+        )}
+      />
       <div
         className={cn(
           "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
@@ -533,8 +543,12 @@ function BriefingHeadline({ item }: { item: BriefingItem }) {
       )}
     </>
   );
+  // Must be a flex row (matching BriefingCard) — the inner layout relies on
+  // flex-1 / shrink-0 children. Without `flex` the card renders as an inline
+  // link, the icon/content/CTA stack vertically, and the card overflows its
+  // relative wrapper so the accent bar and icon hang half into the margin.
   const cardClass = cn(
-    "relative overflow-hidden rounded-xl border bg-card p-4 transition-all duration-200 group sm:p-5",
+    "relative flex items-center gap-3 overflow-hidden rounded-xl border bg-card p-4 transition-all duration-200 group sm:p-5",
     attention ? "border-attention-amber/40" : "border-border/60",
   );
   const card = item.href ? (
@@ -547,19 +561,7 @@ function BriefingHeadline({ item }: { item: BriefingItem }) {
   ) : (
     <div className={cardClass}>{inner}</div>
   );
-  return (
-    <div className="relative">
-      {/* Status accent bar — a deliberate signal, not a wash */}
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-0 left-0 z-10 w-1 rounded-l-xl",
-          attention ? "bg-attention-amber" : "bg-balanced-green",
-        )}
-      />
-      {card}
-    </div>
-  );
+  return card;
 }
 
 function BriefingGroupLabel({
@@ -1398,15 +1400,15 @@ export default function DashboardPage() {
   };
 
   const handleAskAI = (text: string) => {
-    console.log("Ask AI about:", text);
+    chat.sendMessage(`Help me understand this: "${text}"`);
   };
 
   const handleExplain = (text: string) => {
-    console.log("Explain:", text);
+    chat.sendMessage(`Explain this in simple terms: "${text}"`);
   };
 
   const handleCorrect = (text: string) => {
-    console.log("Correct:", text);
+    chat.sendMessage(`Review and correct this: "${text}"`);
   };
 
   return (

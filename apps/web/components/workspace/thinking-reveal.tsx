@@ -219,9 +219,6 @@ export function ThinkingReveal({
     [events, settledCount],
   );
 
-  // Nothing to reveal (idle message or history replay) — render nothing.
-  if (!thinking && events.length === 0) return null;
-
   // Participating agents in order of first appearance.
   const roster = useMemo(
     () =>
@@ -230,6 +227,9 @@ export function ThinkingReveal({
       ),
     [events],
   );
+
+  // Nothing to reveal (idle message or history replay) — render nothing.
+  if (!thinking && events.length === 0) return null;
 
   return (
     <div className="w-full max-w-[80%] overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-b from-indigo-50/40 to-transparent dark:border-indigo-500/20 dark:from-indigo-500/5">

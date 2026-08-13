@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import {
   invoicesAp,
@@ -83,7 +84,7 @@ export const expensesRouter = router({
 
         return expense;
       } catch (error) {
-        console.error("[expenses.createExpense] failed:", error);
+        logger.error({ err: error }, "Failed to create expense");
         throw error;
       }
     }),

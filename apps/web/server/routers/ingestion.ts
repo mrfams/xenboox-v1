@@ -13,6 +13,7 @@ import {
   router,
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import {
@@ -220,7 +221,7 @@ async function sendResolutionNotification(
     await db.insert(notifications).values(notificationValues);
   } catch (error) {
     // Notification failure should never break the mutation
-    console.error("[ingestion] Failed to send resolution notification:", error);
+    logger.error({ err: error }, "Failed to send resolution notification");
   }
 }
 

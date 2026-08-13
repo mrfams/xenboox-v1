@@ -4,6 +4,9 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { verifyMonoSignature } from "@/lib/webhook-verify";
+import { logger } from "@/lib/logger";
+
+const log = logger.child({ module: "mono-webhook" });
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,14 +14,14 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get("mono-signature");
 
     if (!verifyMonoSignature(rawBody, signature)) {
-      console.error("[Mono Webhook] Invalid signature");
+      log.warn("Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const body = JSON.parse(rawBody);
     const { event, data } = body;
 
-    console.log("[Mono Webhook] Received event:", event, data?.id);
+    log.info({ event, connectionId: data?.id }, "Received webhook event");
 
     switch (event) {
       case "mono.account.connected":
@@ -47,10 +50,7 @@ export async function POST(request: NextRequest) {
               .set({ lastSyncedAt: new Date() })
               .where(eq(bankConnections.id, connection.id));
 
-            console.log(
-              "[Mono Webhook] Sync completed for connection:",
-              connection.id,
-            );
+            log.info({ connectionId: connection.id }, "Sync completed");
           }
         }
         break;
@@ -67,12 +67,12 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log("[Mono Webhook] Unhandled event:", event);
+        log.warn({ event }, "Unhandled webhook event");
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("[Mono Webhook] Error:", error);
+    log.error({ error }, "Webhook processing failed");
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 },

@@ -7,6 +7,7 @@ import {
   boolean,
   timestamp,
   numeric,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { uuidId, timestamps } from "./helpers";
 import { organizations } from "./organization";
@@ -55,9 +56,7 @@ export const customerIssues = pgTable("customer_issues", {
   status: issueStatusEnum("status").notNull().default("investigating"),
 
   // Relationships
-  organizationId: varchar("organization_id", { length: 255 }).references(
-    () => organizations.id,
-  ),
+  organizationId: uuid("organization_id").references(() => organizations.id),
   agentId: varchar("agent_id", { length: 255 }),
   workflowId: varchar("workflow_id", { length: 255 }),
 
@@ -112,9 +111,7 @@ export const orgActiveIssues = pgTable("org_active_issues", {
   id: uuidId(),
   ...timestamps,
 
-  organizationId: varchar("organization_id", { length: 255 }).references(
-    () => organizations.id,
-  ),
+  organizationId: uuid("organization_id").references(() => organizations.id),
   organizationName: varchar("organization_name", { length: 255 }).notNull(),
   tier: organizationTierEnum("tier").notNull(),
 

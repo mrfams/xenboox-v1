@@ -5,6 +5,7 @@ import {
   router,
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { callModel } from "@xenboox/models";
@@ -746,7 +747,7 @@ export const documentRouter = router({
         return { content: newContent, editCount };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
-        console.error("[document.editDocumentText] failed:", error);
+        logger.error({ err: error }, "Failed to edit document text");
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:

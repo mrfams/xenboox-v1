@@ -6,6 +6,138 @@
 
 ---
 
+### [2026-08-13] — Database rebuilt from scratch from repo (schema + mechanisms + seeds) — verified live admin login
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/db/seed/replay-migrations.cjs`, `packages/db/seed/apply-mechanisms.cjs`, `packages/db/seed/sync-indexes.cjs` (dev rebuild tooling)
+**Files Modified:** `packages/db/schema/ops-review-queue.ts` (FK type bug), `packages/db/migrations/0010_rls_remaining_tables.sql` (text-vs-uuid cast drift), `BUILD_LOG.md`
+
+**Request:** Rebuild the database entirely from the repo (user declined Neon console PITR): "guess tables and everything db related is here so you do that."
+
+**What was built:**
+
+1. **Schema bug found & fixed — the DB was unbuildable from zero**: `reviewItemId` was `varchar(255)` but references `reviewItems.id` (`uuid`) in all three review-item child tables — Postgres forbids that FK, so both `migrate` and `push` failed on a clean DB. Changed to `uuid` (app already stores UUID strings). Also fixed latent drift in `0010_rls_remaining_tables.sql`: two `idempotency_keys` policies cast the `text` `user_id`/`entity_id` columns to `UUID` (written against an older schema) — dropped the casts.
+2. **Schema layer**: `drizzle-kit push --force` from an empty schema (after `DROP SCHEMA public CASCADE`) → **254 base tables**. `seed/sync-indexes.cjs` recovered the ~556 indexes the interrupted push skipped (reads the 0028 snapshot's index metadata).
+3. **Mechanism layer** (`seed/apply-mechanisms.cjs`): applied the handwritten migrations push skips — RLS on **39 tables / 82 policies**, immutable audit triggers, legal mechanisms, check constraints — tolerating stale references (0013 targets legacy table names like `invoices_ar` superseded by the modern schema). Re-ran the `ENABLE ROW LEVEL SECURITY` statements idempotently after a re-push dropped them (whole-file replay aborted early on duplicate-policy errors, so the trailing enables never ran).
+4. **Data layer**: full `seed-all.ts` (44 sections) → both demo users (`demo@xenboox.com`, `yc@xenboox.com`), all demo entities incl. Brooklyn Goods LLC + Dakar Distribution SARL, journal entries, COA, payroll, tax rules. `setup-demo-admin.ts` recreated the admin with a **fresh TOTP secret per run** (old hardcoded 10-byte secret was below otplib's 16-byte minimum — logins always failed before).
+
+**Verification:** 254 tables ✓ · 39 RLS tables / 82 policies ✓ · admin row: `demo@xenboox.com` / `admin123` — bcrypt verified against the stored hash, role `super_admin`, active, TOTP enrolled ✓ · deployed `https://xenboox.vercel.app/api/health?check=ready` DB check **pass** (256ms) ✓ · **live admin login verified end-to-end in the browser**: Operations Dashboard loads, 0 console errors — the TOTP code that authenticated was generated from the rebuilt DB's secret, proving the deployed site reads the rebuilt database ✓.
+
+**Credentials:** Admin: `demo@xenboox.com` / `admin123` + TOTP secret `JHEJRYICPGR2AISEMZSEY6PEUHGBOLLV` (scan `otpauth://totp/Xenboox:Demo%20Admin?secret=JHEJRYICPGR2AISEMZSEY6PEUHGBOLLV&issuer=Xenboox`, or run `cd packages/db && set -a && source ../../apps/web/.env && set +a && npx tsx seed/get-admin-totp.ts` for the current code). Customer demo: `demo@xenboox.com` / `demo1234`.
+
+---
+
+### [2026-08-13] — Stale shell/OS `DATABASE_URL` purged — Windows registry + `.bashrc` guard
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `~/.bashrc`, `~/.bash_profile` (outside repo)
+**Files Modified:** Windows user env registry `HKCU\Environment` (`DATABASE_URL_UNPOOLED`), `BUILD_LOG.md`
+
+**Request:** Fix the stale `DATABASE_URL` in the shell environment so local commands stop failing.
+
+**What was found & fixed:**
+
+1. **Registry was the durable culprit** — `HKCU\Environment` held `DATABASE_URL_UNPOOLED` pointing at the dead `ep-fragrant-hall` Neon project (password rotated). Verified the correct unpooled endpoint (`ep-crimson-lake` direct, no `-pooler`) connects with the working password, then updated the registry value in place — new Windows processes now inherit a working unpooled URL.
+2. **`~/.bashrc` + `~/.bash_profile` guard** — new files (none existed). The guard `unset`s `DATABASE_URL` / `DATABASE_URL_UNPOOLED` at shell start (stripping whatever stale values the parent env injected) and re-exports the working URLs from `~/Desktop/xenboox/.env.local` when present. Verified: sourcing with stale vars pre-set → stale host gone, working `ep-crimson-lake` restored, live DB connect succeeds.
+3. **Agent-shell injection noted** — the harness that spawns agent commands injects its own `DATABASE_URL` per-process; that source cannot be edited from inside the repo, but every user-facing terminal (Git Bash / cmd / PowerShell) now inherits the corrected registry value + rc guard.
+
+**Verification:** registry value confirmed (correct host, password redacted) · fresh-shell simulation: BEFORE `ep-fragrant-hall-stale` → AFTER `ep-crimson-lake` + DB connect OK · guard files in place. This closes the root cause behind the recurring `password authentication failed` failures (previously documented in PRO_ACCOUNTING.md and older BUILD_LOG entries).
+
+---
+
+### [2026-08-13] — DB seed scripts read DATABASE_URL from env — no more hardcoded Neon URLs
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/db/seed/db-url.ts`
+**Files Modified:** `packages/db/seed/{setup-demo-admin,get-admin-totp,ensure-demo-user,reset,test-db}.{ts,js}`, `docs/seed-credentials.md`, `BUILD_LOG.md`
+
+**Request:** Refactor the db seed scripts to read `DATABASE_URL` from the environment instead of hardcoded connection strings.
+
+**What was built:**
+
+1. **`db-url.ts` shared helper** — `requireDbUrl()` reads `process.env.DATABASE_URL` and exits with a copy-pasteable hint (`cd packages/db && set -a && source ../../.env.local && set +a`) if unset. Matches the existing convention everywhere else in the repo (`packages/db/index.ts`, `seed-lib.ts`, `reconcile-schema-drift.ts`, `apps/web/scripts/create-admin.mjs` already read env).
+2. **5 scripts de-hardcoded** — `setup-demo-admin.ts`, `get-admin-totp.ts`, `ensure-demo-user.ts`, `reset.ts` (TS, import the helper) and `test-db.js` (CJS, inlines the same env check + optional `DATABASE_URL_UNPOOLED`). The old `npg_hS1rq9sLmjnP@ep-crimson-lake…` strings are gone from the seed folder. Unused `drizzle`/`schema`/`adminUsers`/`eq` imports pruned from `setup-demo-admin.ts` along the way.
+3. **Docs updated** — usage comments in the refactored scripts + `docs/seed-credentials.md` now show the env-loading invocation.
+
+**Why:** the shell environment on this machine carries a stale `DATABASE_URL` (old `ep-fragrant-hall` Neon endpoint, password rotated) that shadows the repo's `.env` files; the hardcoded fallback strings also rot silently when Neon rotates the password. Env-only makes the scripts behave like every other db entry point.
+
+**Verification:** missing-env error path ✓ (clear hint, exit 1) · `get-admin-totp.ts` + `test-db.js` run against the live DB via `apps/web/.env` URL ✓ · db typecheck clean for changed files (only the pre-existing `run-seed.ts` TS5097 remains) · code review applied.
+
+---
+
+### [2026-08-12] — Part II Enterprise Deep-Dive — the "last review" before production (ROADTOPRODUCTION.md)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `ROADTOPRODUCTION.md` (Part II, sections 16-26), `BUILD_LOG.md`
+
+**Request:** Deep-dive review — not surface-level: production/enterprise-grade analysis of everything between current state and ship-to-millions-of-users quality, grounded in web research, added to `ROADTOPRODUCTION.md` following its existing style. Make it the last review ever needed.
+
+**What was built:**
+
+1. **Research (5 parallel web research threads)** — Postgres/Neon at scale (connection pooling, partitioning, RLS pitfalls, index bloat), Next.js 15 + Vercel hardening (function limits, caching geometry, SSE/WebSocket on serverless, edge rate limiting), enterprise security/compliance (OWASP ASVS, SOC 2 Type II, ISO 27001, GDPR + NDPA/POPIA/DPA-2019/Ghana DPA, tamper-evident audit trails, secrets/rotation), AI/LLM production safety (gateways, PII redaction, OWASP LLM Top 10 prompt injection, HITL, fallbacks, circuit breakers), and event-driven architecture at scale (Trigger.dev/BullMQ/Inngest, idempotency, CQRS, cell-based multi-region) with patterns from Stripe/Xero/Ramp/Mercury/Wise.
+2. **Codebase grounding** — verified each finding against source: in-memory SSE `activeConnections` map (`agent-events/route.ts:14`), `rlsProtectedProcedure` + RLS migrations `0006`/`0010`, Neon HTTP driver session-variable limitation, Upstash fixed-window rate limiter with in-memory fallback + missing rate-limit headers, idempotency schema (`0007_idempotency_keys.sql`) with unclear enforcement, Pino/Sentry/LangFuse coverage, 12 Trigger.dev job modules, 67 schema files / 135 tables.
+3. **ROADTOPRODUCTION.md Part II** — 11 new sections (16-26): Real-Time/SSE (the #1 scale blocker), Database at Scale, Serverless/Vercel at Scale, API Abuse & Rate Limiting, Security Hardening (ASVS), Compliance (SOC 2/ISO/African DP), AI/LLM Safety, Event-Driven Architecture, Observability & Incident Response, Scale Verification & Chaos, Multi-Region & Data Residency — each with actionable `[ ]`/`[~]`/`[x]` items in the file's existing style, plus a Deep-Dive Severity Summary (4 critical / 12 high / 14 medium / 6 low) and a Top-7 blocking-action list. TOC, effort table, and footer updated.
+
+**Verification:** markdown structure checked (107 `[ ]]` typos fixed with sed → 0 remaining); typecheck/tests unaffected (documentation-only change). Build + commit + push pending a green local build.
+
+---
+
+### [2026-08-12] — Sidebar attention map — users always know where something needs them
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/hooks/use-attention-signals.ts`, `apps/web/__tests__/attention-signals.test.ts`
+**Files Modified:** `apps/web/components/layout/sidebar.tsx`, `apps/web/components/layout/notification-badge.tsx` (+ `apps/web/__tests__/notification-badge.test.tsx`), `BUILD_LOG.md`
+
+**Request:** The sidebar must tell a user that attention is needed and WHERE — e.g. "your approval is needed and the agent is waiting for you", or "work is done and you haven't viewed it". Senior-UX design, then autoplan, then implement professionally, typecheck + build + commit + push. Plan: `.kilo/plans/1786550000000-attention-signals-sidebar.md` (autoplan CEO → Design → Eng, decision audit trail; single-model run — gstack skills + codex absent on this machine; approved as-is at the final gate).
+
+**Design:** a **two-tone attention map** on the nav. `action` (destructive red, pulsing) = "blocked on you — agent waiting, approval needed, failed work"; `new` (primary indigo, static) = "fresh results to view". Collapsed icon rail (the default desktop state) shows a small **dot** on the icon corner — the thing that was previously invisible; expanding swaps the dot for a tone-colored **count pill**; a bottom **strip** answers the aggregate: pulsing red "N need your attention" → Inbox, indigo "N new updates" → notifications, green pulse while agents are still processing.
+
+**What was built:**
+
+1. **`use-attention-signals.ts`** — pure `computeAttentionSignals()` (unit-testable, no React/TRPC) fans in three already-fetched sources: unread notifications bucketed per-type by a `NOTIFICATION_DESTINATIONS` map (all 15 schema types routed; future types fall back to Inbox/new so nothing is ever silently dropped), plus `ingestion.getStats` and `listAgentApprovals` as the **authoritative** Inbox action count (`pendingReview + agentApprovals + failed` — dismissing a notification row never clears unresolved work). Action beats new within a destination. The hook reuses the EXACT react-query cache keys top-nav reads (and `use-unread-notifications` writes on SSE events), so sidebar dots update in **real time without a second EventSource connection**.
+2. **`notification-badge.tsx`** — new `AttentionDot` (two tones, pop-in via the existing `notification-badge-pop` keyframes, pulse on action, parent-positioned so it works overlaid on icons and inline in the strip) and `CountPill` gains a `tone` prop (destructive action vs primary new).
+3. **`sidebar.tsx`** — `attentionKey` on 7 nav items (Dashboard, Inbox, Invoicing, Payroll, Reports, Close Center, Reconciliation); dots overlay icon corners in the collapsed rail (`lg:group-hover:hidden` — dot hands off to the pill on expand); pills get tone colors; old `useApprovalCounts`/`ApprovalCounts`/`countKey`/`showCount` dead machinery removed; `AgentStatusBar` became `AttentionStrip` (links to Inbox for action, notifications for new, keeps the processing pulse). Nav links announce counts via `aria-label` (dots are `aria-hidden`).
+
+**Verification:** attention-signals **11/11** ✓ · notification-badge **14/14** ✓ · web typecheck ✓ (only the 2 pre-existing WIP errors: `language-switcher.tsx`, Sentry `hideSourceMaps`) · production build ✓ · code review applied. Committed feature files only (incl. the previously-uncommitted `notification-badge.tsx` my feature builds on); the rest of the dirty tree (tax/seed/mobile/SSE work) left as-is.
+
+---
+
+### [2026-08-12] — Chat demo card on the with-data welcome surface (returning users)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/app/dashboard/chat/page.tsx`, `BUILD_LOG.md`
+
+**Request:** Add the chat demo card to the with-data welcome surface too, so returning users see the watch-a-demo affordance.
+
+**What was built:**
+
+1. **`SmartSuggestions` with-data branch** — added the same dashed "Watch the AI in action" card that previously only shipped in the no-data onboarding empty state. Copy adapted for returning users ("See the AI Command Center in action… how your questions are classified, routed, and answered"), placed directly above the Quick Prompts so the layout mirrors the empty-state ordering. Same `AiSimulationTrigger` (`command-center-demo`, "Watch a demo run", outline) — runs through the global provider, so the Agents-at-work pill + overlay work identically.
+2. **Shared `CommandCenterDemoCard`** (review fix) — the card markup was duplicated verbatim across both branches; extracted into a single local component taking `headline`/`description` props so the trigger config (traceId, label, variant) can never drift between the new-user and returning-user surfaces.
+
+**Verification:** web typecheck clean for the changed file (only the 2 pre-existing WIP errors remain: `language-switcher.tsx` missing ui module, Sentry `hideSourceMaps` in `next.config.ts`) · ai-ux simulation + provider + page-coverage suites **23/23** ✓ · prettier clean. Code review applied (mutually exclusive branches share one traceId safely; markup deduplicated).
+
+---
+
+### [2026-08-12] — NYC combined-rate preset + US demo entity (Brooklyn Goods LLC) — NY / NYC / CA / TX
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/db/seed/us-tax-rules.ts`
+**Files Modified:** `packages/agents/core/tax-presets.ts`, `packages/agents/core/__tests__/tax-presets.test.ts`, `packages/db/seed/index.ts`, `apps/web/__tests__/tax-preset-seed-parity.test.ts`, `BUILD_LOG.md`
+
+**Request:** Resume the parked US tax work — add the NYC combined-rate preset (State 4% + City 4.5% + MCTD 0.375%) to the catalog, then seed a US demo entity with NY + NYC + CA + TX.
+
+**What was built:**
+
+1. **NYC combined-rate preset** (`tax-presets.ts`) — new `us-sales-tax-nyc` catalog preset: `sales_tax`, "US Sales Tax — New York City (Combined)", 8.875% modeled as three named components (State 4%, City 4.5%, MCTD 0.375%) so a one-click install lands the exact combined rate as a component breakdown instead of a single magic number. Spread into `TAX_PRESET_CATALOG` → the Settings → Taxes US pack now lists **52** sales-tax presets (50 states + DC + NYC).
+2. **Preset integrity tests** — jurisdiction-complete count updated 51 → 52, plus a dedicated NYC test asserting the exact component list and that State + City + MCTD sums to 8.875%.
+3. **US demo entity** (`seed/index.ts` §44) — third demo entity **Brooklyn Goods LLC** (US, USD, EIN taxId, `taxMode: us` / `state: NY`, combined 8.875% as default vatRate), following the Senegal pattern (idempotent `resetEntity` + owner grant; no books). Installs the 4 US sales-tax rules from the new parity-guarded `packages/db/seed/us-tax-rules.ts` (NY 4%, NYC combined, CA 7.25% components, TX 6.25%).
+4. **Parity guard extended** (`tax-preset-seed-parity.test.ts`) — the US demo installs a curated subset of the US pack, so `SEED_PACKS` gained an optional `presetIds` pin (`us-sales-tax-ny` / `-nyc` / `-ca` / `-tx`); the field-for-field checks (ruleType, name, description, appliesTo, effectiveFrom, rateConfig, source) now cover GM + SN + US. The parity test caught a real drift on the first run — my hand-written NY description said "4% base rate." vs the catalog's generated "4% state base rate." — fixed.
+5. **Live verification** — ran the full demo seed against the dev DB (note: root `.env`'s `DATABASE_URL` password is stale/rotated — `apps/web/.env` has the valid URL); confirmed **Brooklyn Goods LLC** exists (US, USD, EIN) with 4 active v1 sales-tax rules and exact rate configs.
+
+**Verification:** agents tax-presets + tax-engine suites **46/46** ✓ · web tax suites (parity + tax-config-router + taxes-section + jurisdiction-rules) **44/44** ✓ · db typecheck clean (only the pre-existing `run-seed.ts` TS5097) · agents typecheck clean for changed files · web typecheck clean for changed files (the 2 remaining errors are pre-existing WIP: `language-switcher.tsx` missing ui module, Sentry `hideSourceMaps` in `next.config.ts`) · prettier clean · live seed run + DB row verification ✓.
+
+---
+
 ### [2026-08-11] — AI simulation page-coverage guard (never regress silently)
 
 **Agent:** Buffy (Autonomous Engineer)

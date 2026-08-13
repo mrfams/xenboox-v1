@@ -1198,7 +1198,7 @@ function ReconciliationPageInner() {
                 </div>
               );
 
-            case "discrepancies":
+            case "discrepancies": {
               const discrepantAccounts = allAccounts.filter(
                 (a) => a.status === "Unreconciled" || a.difference !== 0,
               );
@@ -1234,6 +1234,7 @@ function ReconciliationPageInner() {
                   </div>
                 </div>
               );
+            }
 
             case "rules":
               return (

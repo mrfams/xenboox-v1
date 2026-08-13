@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   transpilePackages: [
@@ -47,9 +48,6 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   generateEtags: true,
   productionBrowserSourceMaps: false,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // Enterprise logging (only in development)
   logging:
     process.env.NODE_ENV === "development"
@@ -61,4 +59,11 @@ const nextConfig: NextConfig = {
       : undefined,
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  disableLogger: true,
+  tunnelRoute: "/api/sentry",
+});

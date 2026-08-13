@@ -626,8 +626,7 @@ export function OnboardingLiveness({
                 History Beyond 12 Months Detected
               </h2>
               <p className="text-[10px] text-muted-foreground">
-                Spec §6 — permission requested before the pull begins (per PRD
-                §13)
+                Permission required before importing historical data
               </p>
             </div>
           </div>
@@ -637,14 +636,13 @@ export function OnboardingLiveness({
         </div>
         <BranchCard
           icon={Lock}
-          title="Permission requested before beginning — routes to Historical Data Reconstruction spec"
+          title="Permission requested before beginning"
           tone="red"
         >
           <p>
-            History beyond 12 months detected (per PRD §13). The pull cannot
-            begin until permission is given — blocking until permission is
-            given. Once approved, the flow routes to the Historical Data
-            Reconstruction spec for the full &gt;12-month path.
+            History beyond 12 months detected. The pull cannot begin until
+            permission is given. Once approved, the full historical data
+            reconstruction will begin.
           </p>
           <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[10px]">
             <AlertTriangle className="h-3 w-3 text-error-clay" />
@@ -670,7 +668,7 @@ export function OnboardingLiveness({
                 Bank Statement Format Not Recognized
               </h2>
               <p className="text-[10px] text-muted-foreground">
-                Spec §6/§7 — every failure state has a named alternative path
+                Alternative entry method available
               </p>
             </div>
           </div>
@@ -685,8 +683,8 @@ export function OnboardingLiveness({
         >
           <p>
             The uploaded statement format wasn&apos;t recognized. Manual entry
-            offered immediately (per PRD §13) — never a dead end, never silently
-            skipped, never left on a broken screen.
+            offered immediately — never a dead end, never silently skipped,
+            never left on a broken screen.
           </p>
           <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[10px]">
             <Route className="h-3 w-3 text-signal-indigo" />
@@ -711,7 +709,7 @@ export function OnboardingLiveness({
                 Low Categorization Confidence Batch
               </h2>
               <p className="text-[10px] text-muted-foreground">
-                Spec §6 — flagged for review, never silently accepted
+                Flagged for your review
               </p>
             </div>
           </div>
@@ -753,7 +751,7 @@ export function OnboardingLiveness({
                 Chart of Accounts — Edited Before Confirming
               </h2>
               <p className="text-[10px] text-muted-foreground">
-                Spec §2 — user edits before confirming, never silently applied
+                Review changes before confirming
               </p>
             </div>
           </div>
@@ -827,7 +825,7 @@ export function OnboardingLiveness({
             <div>
               <h2 className="text-sm font-semibold">First Look Delivered</h2>
               <p className="text-[10px] text-muted-foreground">
-                Spec §2 — terminal state, CFO Agent&apos;s first message
+                CFO Agent&apos;s first message
               </p>
             </div>
           </div>
@@ -885,10 +883,7 @@ export function OnboardingLiveness({
               )}
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              PRD §13 targets first meaningful value within 12 minutes — the
-              first-value moment is watching transactions appear, categorized,
-              in real time. Onboarding must visibly perform agent work at first
-              impression, not look like autofill.
+              Watch your transactions appear, categorized, in real time.
             </p>
           </div>
         </div>

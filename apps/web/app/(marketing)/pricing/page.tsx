@@ -98,7 +98,7 @@ const faqs = [
   },
   {
     q: "What happens to my data if I cancel?",
-    a: "Export at any time. Data retained for 30 days after cancellation, then permanently deleted.",
+    a: "Export at any time. Data retained for 90 days after cancellation, then permanently deleted.",
   },
 ];
 

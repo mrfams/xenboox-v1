@@ -3,8 +3,11 @@ import { TRPCError } from "@trpc/server";
 
 import { appRouter } from "@/server/routers/_app";
 import { createTRPCContext } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+
+const log = logger.child({ module: "trpc" });
 
 const handler = (req: Request) =>
   fetchRequestHandler({
@@ -21,9 +24,9 @@ const handler = (req: Request) =>
     },
     onError: ({ error, path }: { error: Error; path?: string }) => {
       if (error instanceof TRPCError) {
-        console.warn(`tRPC [${error.code}] on ${path}: ${error.message}`);
+        log.warn({ code: error.code, path }, error.message);
       } else {
-        console.error(`tRPC unhandled error on ${path}:`, error);
+        log.error({ path, err: error }, "Unhandled tRPC error");
       }
     },
   });

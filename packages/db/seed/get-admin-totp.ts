@@ -1,20 +1,19 @@
 /**
  * Get the current TOTP code for demo@xenboox.com admin user.
- * Run: npx tsx packages/db/seed/get-admin-totp.ts
+ * Requires DATABASE_URL in the environment (see ./db-url.ts).
+ * Run: cd packages/db && set -a && source ../../.env.local && set +a \
+ *      && npx tsx seed/get-admin-totp.ts
  */
 import { neon } from "@neondatabase/serverless";
 import { OTP } from "otplib";
+import { requireDbUrl } from "./db-url";
 
 const otp = new OTP({ strategy: "totp" });
-
-const DATABASE_URL =
-  process.env.DATABASE_URL ??
-  "postgresql://neondb_owner:npg_hS1rq9sLmjnP@ep-crimson-lake-abh33lg6-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
 
 const EMAIL = "demo@xenboox.com";
 
 async function main() {
-  const sql = neon(DATABASE_URL);
+  const sql = neon(requireDbUrl());
 
   const rows = await sql`
     SELECT totp_secret_encrypted 

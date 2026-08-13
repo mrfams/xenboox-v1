@@ -7,6 +7,7 @@ import {
   rlsProtectedProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import {
   employees,
@@ -239,9 +240,13 @@ export const payrollRouter = router({
                 basicSalary,
                 currency: entityCtx.currency,
                 entityName: entityCtx.entityName,
-              }).catch(console.error);
+              }).catch((e) =>
+                logger.error({ err: e }, "Failed to send employee email"),
+              );
             })
-            .catch(console.error);
+            .catch((e) =>
+              logger.error({ err: e }, "Failed to send employee notification"),
+            );
         }
 
         return emp;

@@ -1,0 +1,99 @@
+{
+  "common": {
+    "appName": "Xenboox",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "noResults": "No results found",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "success": "Success",
+    "failed": "Failed"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "invoices": "Invoices",
+    "bills": "Bills",
+    "expenses": "Expenses",
+    "journal": "Journal",
+    "chartOfAccounts": "Chart of Accounts",
+    "banking": "Banking",
+    "reconciliation": "Reconciliation",
+    "payroll": "Payroll",
+    "reports": "Reports",
+    "settings": "Settings",
+    "help": "Help",
+    "documents": "Documents",
+    "customers": "Customers",
+    "vendors": "Vendors",
+    "fixedAssets": "Fixed Assets",
+    "inventory": "Inventory",
+    "taxCompliance": "Tax Compliance",
+    "inbox": "Inbox",
+    "chat": "AI Assistant"
+  },
+  "auth": {
+    "login": "Sign in",
+    "register": "Create account",
+    "email": "Email address",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "verifyEmail": "Verify your email",
+    "resetPassword": "Reset password"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back",
+    "overview": "Overview",
+    "revenue": "Revenue",
+    "expenses": "Expenses",
+    "profit": "Profit",
+    "cashFlow": "Cash Flow",
+    "recentTransactions": "Recent Transactions",
+    "upcomingDeadlines": "Upcoming Deadlines"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "create": "Create Invoice",
+    "number": "Invoice Number",
+    "customer": "Customer",
+    "amount": "Amount",
+    "status": "Status",
+    "dueDate": "Due Date",
+    "paid": "Paid",
+    "pending": "Pending",
+    "overdue": "Overdue",
+    "draft": "Draft"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "team": "Team",
+    "organization": "Organization",
+    "billing": "Billing",
+    "security": "Security",
+    "notifications": "Notifications",
+    "appearance": "Appearance",
+    "language": "Language"
+  },
+  "marketing": {
+    "hero": {
+      "title": "AI-native accounting for African businesses",
+      "subtitle": "19 specialized agents that handle invoicing, payroll, compliance, and month-end close."
+    },
+    "cta": {
+      "title": "Ready to transform your accounting?",
+      "button": "Get started free"
+    }
+  }
+}

@@ -7,6 +7,7 @@ import {
   rlsProtectedProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import {
   inventoryItems,
@@ -358,9 +359,16 @@ export const inventoryRouter = router({
                     reorderLevel: item.reorderLevel ?? 0,
                     warehouseName,
                     entityName: entityCtx.entityName,
-                  }).catch(console.error);
+                  }).catch((e) =>
+                    logger.error({ err: e }, "Failed to send inventory alert"),
+                  );
                 })
-                .catch(console.error);
+                .catch((e) =>
+                  logger.error(
+                    { err: e },
+                    "Failed to send inventory notification",
+                  ),
+                );
             }
           }
 

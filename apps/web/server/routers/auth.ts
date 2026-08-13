@@ -13,6 +13,19 @@ import { entities, userEntityAccess } from "@xenboox/db/schema/organization";
 import { orgRoles } from "@xenboox/db/schema/org-roles";
 import { pendingInvites } from "@xenboox/db/schema/invitations";
 import { auditLog } from "@xenboox/db/schema/documents";
+
+function getAppUrl(): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL;
+  if (!url) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "NEXT_PUBLIC_APP_URL must be set in production — auth emails require a public URL.",
+      );
+    }
+    return "http://localhost:3000";
+  }
+  return url;
+}
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
@@ -314,16 +327,14 @@ export const authRouter = router({
             token: verificationToken,
             expires: verificationExpires,
           });
-          const appUrl =
-            process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-          const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`;
+          const verifyUrl = `${getAppUrl()}/verify-email?token=${verificationToken}`;
           await sendVerificationEmail(user.email!, {
             userName: user.name ?? "User",
             verifyUrl,
             expiryMinutes: Math.floor(VERIFICATION_TOKEN_EXPIRY_MS / 60000),
           });
         } catch {
-          console.error("[auth] Failed to send verification email");
+          logger.error("Failed to send verification email");
         }
 
         // ─── Milestone 2: Auto-check for pending invites ────────────
@@ -369,7 +380,7 @@ export const authRouter = router({
           }
         } catch {
           // Non-blocking — invite check failure shouldn't prevent signup
-          console.error("[auth] Failed to check/accept pending invites");
+          logger.error("Failed to check/accept pending invites");
         }
 
         // Audit trail: registration
@@ -430,9 +441,7 @@ export const authRouter = router({
           })
           .where(eq(users.id, user.id));
 
-        const appUrl =
-          process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-        const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
+        const resetUrl = `${getAppUrl()}/reset-password?token=${resetToken}`;
 
         try {
           await sendPasswordResetEmail(user.email, {
@@ -442,7 +451,7 @@ export const authRouter = router({
           });
         } catch {
           // Log but don't fail the request — user gets generic success either way
-          console.error("[auth] Failed to send password reset email");
+          logger.error("Failed to send password reset email");
         }
 
         return {
@@ -631,8 +640,7 @@ export const authRouter = router({
         expires: verificationExpires,
       });
 
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`;
+      const verifyUrl = `${getAppUrl()}/verify-email?token=${verificationToken}`;
 
       try {
         await sendVerificationEmail(user.email!, {
@@ -641,7 +649,7 @@ export const authRouter = router({
           expiryMinutes: Math.floor(VERIFICATION_TOKEN_EXPIRY_MS / 60000),
         });
       } catch {
-        console.error("[auth] Failed to send verification email");
+        logger.error("Failed to send verification email");
       }
 
       return { success: true, message: "Verification email sent" };
@@ -717,9 +725,7 @@ export const authRouter = router({
           newValues: { token: input.token },
         });
 
-        console.log("[auth] Push token update recorded:", {
-          userId: ctx.session!.user!.id!,
-        });
+        logger.info({ userId: ctx.session!.user!.id }, "Push token updated");
 
         return { success: true, message: "Push token updated successfully" };
       } catch (error) {
@@ -751,10 +757,10 @@ export const authRouter = router({
 
         // In production, persist to user_preferences table or JSON column
         // Schema migration needed: ALTER TABLE users ADD COLUMN notification_preferences JSONB DEFAULT '{}'
-        console.log("[auth] Notification preferences updated:", {
-          userId: ctx.session!.user!.id!,
-          ...input,
-        });
+        logger.info(
+          { userId: ctx.session!.user!.id },
+          "Notification preferences updated",
+        );
 
         return { success: true, message: "Notification preferences saved" };
       } catch (error) {

@@ -8,6 +8,7 @@ import {
   requireRole,
   requirePermission,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import {
   suppliers,
@@ -1168,9 +1169,16 @@ export const apRouter = router({
                     paymentMethod: input.method,
                     reference: input.reference,
                     entityName: entityCtx.entityName,
-                  }).catch(console.error);
+                  }).catch((e) =>
+                    logger.error({ err: e }, "Failed to send payment email"),
+                  );
                 })
-                .catch(console.error);
+                .catch((e) =>
+                  logger.error(
+                    { err: e },
+                    "Failed to send payment notification",
+                  ),
+                );
             }
           }
 

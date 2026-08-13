@@ -13,6 +13,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 import { artifactRegistry, auditLog } from "@xenboox/db/schema";
 import { callModel } from "@xenboox/models";
 
@@ -286,9 +287,7 @@ export const artifactRouter = router({
           await deleteObject(artifact.r2Key);
         } catch {
           // R2 delete failure shouldn't block DB deletion
-          console.warn(
-            `[artifact] Failed to delete R2 object: ${artifact.r2Key}`,
-          );
+          logger.warn({ key: artifact.r2Key }, "Failed to delete R2 object");
         }
       }
 
@@ -481,7 +480,7 @@ export const artifactRouter = router({
         return { content: newContent, editCount };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
-        console.error("[artifact.editContent] failed:", error);
+        logger.error({ err: error }, "Failed to edit artifact content");
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:

@@ -574,4 +574,25 @@
   .animate-pulse-ring {
     animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+
+  /* ── Notification Badge Pop ── */
+  /* Plays once whenever the unread count changes (keyed remount in
+     NotificationBadge), so a new notification visibly pops onto the bell. */
+  @keyframes notification-badge-pop {
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .notification-badge-pop {
+    animation: notification-badge-pop 0.25s ease-out;
+  }
 }

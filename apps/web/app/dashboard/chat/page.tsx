@@ -1401,6 +1401,33 @@ function ChatMessages({
 
 // ─── Smart Suggestions Component ──────────────────────────────────────────
 
+// ─── Command Center Demo Card ────────────────────────────────────────────
+//
+// Shared "watch a demo run" affordance for BOTH SmartSuggestions surfaces
+// (no-data onboarding + with-data returning users). One component so the
+// trigger config (traceId, label, variant) can never drift between them.
+
+function CommandCenterDemoCard({
+  headline,
+  description,
+}: {
+  headline: string;
+  description: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-5 text-center">
+      <p className="text-sm font-semibold text-foreground">{headline}</p>
+      <p className="max-w-sm text-xs text-muted-foreground">{description}</p>
+      <AiSimulationTrigger
+        traceId="command-center-demo"
+        label="Watch a demo run"
+        variant="outline"
+        className="mt-1"
+      />
+    </div>
+  );
+}
+
 function SmartSuggestions({
   entityId,
   onSelect,
@@ -1633,21 +1660,10 @@ function SmartSuggestions({
         </div>
 
         {/* Watch the AI in action */}
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-5 text-center">
-          <p className="text-sm font-semibold text-foreground">
-            Curious how the AI Command Center thinks?
-          </p>
-          <p className="max-w-sm text-xs text-muted-foreground">
-            Watch a simulated run — your real streaming answers will look
-            exactly like this.
-          </p>
-          <AiSimulationTrigger
-            traceId="command-center-demo"
-            label="Watch a demo run"
-            variant="outline"
-            className="mt-1"
-          />
-        </div>
+        <CommandCenterDemoCard
+          headline="Curious how the AI Command Center thinks?"
+          description="Watch a simulated run — your real streaming answers will look exactly like this."
+        />
 
         {/* Quick prompts for getting started */}
         <div className="space-y-3">
@@ -1863,6 +1879,12 @@ function SmartSuggestions({
           })}
         </div>
       </div>
+
+      {/* Watch the AI in action */}
+      <CommandCenterDemoCard
+        headline="See the AI Command Center in action"
+        description="Watch a simulated run to see how your questions are classified, routed, and answered — your real streaming answers will look exactly like this."
+      />
 
       {/* Quick Prompts */}
       <div className="space-y-3">

@@ -35,6 +35,9 @@ import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { useEntity } from "@/lib/entity-context";
 import { getInitials } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
+import { NotificationBadge } from "@/components/layout/notification-badge";
+import { useUnreadNotifications } from "@/lib/hooks/use-unread-notifications";
+import { useNotificationMutations } from "@/lib/hooks/use-notification-mutations";
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -67,12 +70,20 @@ export function TopNav({
   const { entityId, isLoaded } = useEntity();
   const notifEnabled = isLoaded && !!entityId;
 
+  // Unread notifications — kept fresh three ways:
+  //   1. refetchInterval: 30s background poll (react-query pauses it while the
+  //      tab is hidden, so it costs ~nothing when the app isn't visible) — this
+  //      is what makes the badge auto-increment when a new notification lands.
+  //   2. refetchOnWindowFocus: returning to the tab re-syncs instantly.
+  //   3. Optimistic mutations below: reading/dismissing updates the badge the
+  //      moment you click, before the server round-trip settles.
   const { data: notifications } = trpc.notifications.list.useQuery(
     { limit: 20, onlyUnread: true },
     {
-      staleTime: 60 * 1000, // 1 minute
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
+      staleTime: 15 * 1000,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchInterval: 30 * 1000,
       enabled: notifEnabled,
     },
   );
@@ -80,19 +91,26 @@ export function TopNav({
   const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(
     undefined,
     {
-      staleTime: 60 * 1000, // 1 minute
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
+      staleTime: 15 * 1000,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchInterval: 30 * 1000,
       enabled: notifEnabled,
     },
   );
-  const markRead = trpc.notifications.markAsRead.useMutation();
-  const markAllRead = trpc.notifications.markAllAsRead.useMutation();
-  const deleteNotif = trpc.notifications.delete.useMutation();
 
+  const utils = trpc.useUtils();
   const unread = notifications ?? [];
   const unreadTotal = unreadCount?.count ?? unread.length;
-  const showBadge = unreadTotal > 0;
+
+  // Real-time badge: SSE bumps the count within ~3s of a server-side insert
+  // (ingestion, jobs, webhooks), BroadcastChannel applies read/delete made in
+  // other tabs instantly, and switching entity invalidates stale caches.
+  useUnreadNotifications(entityId, notifEnabled);
+
+  // Shared optimistic mutations — instant badge/dropdown updates, rollback on
+  // error, cross-tab broadcast, and settle reconciliation with the server.
+  const { markRead, markAllRead, deleteNotif } = useNotificationMutations();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -167,6 +185,10 @@ export function TopNav({
     }
     setUserMenuOpen(false);
     setNotifOpen(true);
+    // Opening the panel is the moment accuracy matters most — re-sync the
+    // unread list + count so the dropdown never shows stale rows.
+    utils.notifications.unreadCount.refetch();
+    utils.notifications.list.refetch();
   };
 
   const scheduleCloseNotif = () => {
@@ -254,8 +276,6 @@ export function TopNav({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [notifOpen]);
 
-  const utils = trpc.useUtils();
-
   useEffect(() => {
     if (!notifEnabled) return;
     async function loadCommands() {
@@ -341,16 +361,17 @@ export function TopNav({
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Notifications"
+            className="relative"
+            aria-label={
+              unreadTotal > 0
+                ? `Notifications — ${unreadTotal} unread`
+                : "Notifications"
+            }
             aria-expanded={notifOpen}
             onClick={toggleNotif}
           >
             <Bell className="h-5 w-5" />
-            {showBadge ? (
-              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
-                {unreadTotal}
-              </span>
-            ) : null}
+            <NotificationBadge count={unreadTotal} />
           </Button>
 
           {notifOpen && (

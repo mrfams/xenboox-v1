@@ -1,0 +1,99 @@
+{
+  "common": {
+    "appName": "Xenboox",
+    "loading": "Chargement...",
+    "error": "Une erreur s'est produite",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "search": "Rechercher",
+    "noResults": "Aucun résultat trouvé",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Soumettre",
+    "success": "Succès",
+    "failed": "Échoué"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "invoices": "Factures",
+    "bills": "Factures fournisseurs",
+    "expenses": "Dépenses",
+    "journal": "Journal",
+    "chartOfAccounts": "Plan comptable",
+    "banking": "Banque",
+    "reconciliation": "Rapprochement",
+    "payroll": "Paie",
+    "reports": "Rapports",
+    "settings": "Paramètres",
+    "help": "Aide",
+    "documents": "Documents",
+    "customers": "Clients",
+    "vendors": "Fournisseurs",
+    "fixedAssets": "Immobilisations",
+    "inventory": "Inventaire",
+    "taxCompliance": "Conformité fiscale",
+    "inbox": "Boîte de réception",
+    "chat": "Assistant IA"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "register": "Créer un compte",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "noAccount": "Vous n'avez pas de compte ?",
+    "hasAccount": "Vous avez déjà un compte ?",
+    "verifyEmail": "Vérifiez votre e-mail",
+    "resetPassword": "Réinitialiser le mot de passe"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome": "Bon retour",
+    "overview": "Aperçu",
+    "revenue": "Revenus",
+    "expenses": "Dépenses",
+    "profit": "Profit",
+    "cashFlow": "Flux de trésorerie",
+    "recentTransactions": "Transactions récentes",
+    "upcomingDeadlines": "Échéances à venir"
+  },
+  "invoices": {
+    "title": "Factures",
+    "create": "Créer une facture",
+    "number": "Numéro de facture",
+    "customer": "Client",
+    "amount": "Montant",
+    "status": "Statut",
+    "dueDate": "Date d'échéance",
+    "paid": "Payé",
+    "pending": "En attente",
+    "overdue": "En retard",
+    "draft": "Brouillon"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "profile": "Profil",
+    "team": "Équipe",
+    "organization": "Organisation",
+    "billing": "Facturation",
+    "security": "Sécurité",
+    "notifications": "Notifications",
+    "appearance": "Apparence",
+    "language": "Langue"
+  },
+  "marketing": {
+    "hero": {
+      "title": "Comptabilité IA pour les entreprises africaines",
+      "subtitle": "19 agents spécialisés qui gèrent la facturation, la paie, la conformité et la clôture mensuelle."
+    },
+    "cta": {
+      "title": "Prêt à transformer votre comptabilité ?",
+      "button": "Commencer gratuitement"
+    }
+  }
+}

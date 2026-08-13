@@ -5,6 +5,7 @@ import {
   router,
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import {
   processChatInput,
   seedDefaultThresholds,
@@ -65,7 +66,7 @@ export const agentRouter = router({
 
         // Seed default thresholds (safe, idempotent)
         seedDefaultThresholds().catch((e) =>
-          console.warn("[agent] Failed to seed confidence thresholds:", e),
+          logger.warn({ err: e }, "Failed to seed confidence thresholds"),
         );
 
         // Use the full CFO Agent Pipeline

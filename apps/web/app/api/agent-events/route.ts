@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
-import { eq, and, desc, gte } from "drizzle-orm";
+import { eq, and, desc, gte, gt, asc } from "drizzle-orm";
 import {
   opsLiveRuns,
   opsLiveRunEvents,
 } from "@xenboox/db/schema/ops-live-runs";
+import { notifications } from "@xenboox/db/schema/notifications";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 // In-memory store for active SSE connections per entity
 const activeConnections = new Map<
@@ -93,10 +95,28 @@ export type AgentEvent =
       title: string;
       description: string;
       timestamp: string;
+    }
+  | {
+      type: "notification_created";
+      notification: {
+        id: string;
+        type: string;
+        priority: string;
+        title: string;
+        body: string;
+        data: string | null;
+        createdAt: Date | string;
+      };
+      timestamp: string;
     };
 
 // Polling interval for database changes (in milliseconds)
 const POLL_INTERVAL = 3000;
+
+// How far back a freshly connected client looks for unread notifications.
+// Mirrors the run-event lookback so a notification that landed seconds before
+// the tab opened still shows up instead of silently missing.
+const NOTIF_LOOKBACK_MS = 10_000;
 
 // Track last seen timestamps for change detection
 const lastSeenTimestamps = new Map<string, Date>();
@@ -196,6 +216,9 @@ export async function GET(req: NextRequest) {
   // Get entityId from query params or use a default
   const { searchParams } = new URL(req.url);
   const entityId = searchParams.get("entityId") || session.user.id || "default";
+  // Auth gate above guarantees session.user exists; id is typed optional by
+  // next-auth, so assert it like the rest of the codebase does.
+  const userId = session.user.id!;
 
   const encoder = new TextEncoder();
 
@@ -218,6 +241,55 @@ export async function GET(req: NextRequest) {
       const lastSeen =
         lastSeenTimestamps.get(entityId) || new Date(Date.now() - 10000);
 
+      // Unread notifications — a per-CONNECTION cursor (not the entity-global
+      // lastSeenTimestamps map above) so a user only ever receives rows that
+      // arrived after THIS tab connected, and users sharing an entity never
+      // bleed each other's notifications into the stream.
+      let lastNotifSeen = new Date(Date.now() - NOTIF_LOOKBACK_MS);
+
+      const pollNotifications = async () => {
+        try {
+          const fresh = await db.query.notifications.findMany({
+            where: and(
+              eq(notifications.userId, userId),
+              eq(notifications.entityId, entityId),
+              eq(notifications.read, false),
+              gt(notifications.createdAt, lastNotifSeen),
+            ),
+            orderBy: [asc(notifications.createdAt)],
+            limit: 20,
+          });
+
+          if (fresh.length > 0) {
+            for (const n of fresh) {
+              const event = {
+                type: "notification_created" as const,
+                notification: {
+                  id: n.id,
+                  type: n.type,
+                  priority: n.priority,
+                  title: n.title,
+                  body: n.body,
+                  data: n.data,
+                  createdAt: n.createdAt,
+                },
+                timestamp: new Date().toISOString(),
+              };
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+              );
+            }
+            // Advance the cursor to the newest row we emitted so the next poll
+            // only sees rows that arrived after these.
+            lastNotifSeen = new Date(fresh[fresh.length - 1].createdAt);
+          }
+        } catch (e) {
+          // Notification polling must never break the run-event stream — the
+          // 30s client poll reconciles any missed rows.
+          logger.error({ err: e }, "SSE notification polling error");
+        }
+      };
+
       const pollForChanges = async () => {
         try {
           const newEvents = await getEntityEvents(entityId, lastSeen);
@@ -237,6 +309,8 @@ export async function GET(req: NextRequest) {
             }
           }
 
+          await pollNotifications();
+
           // Send keepalive ping
           controller.enqueue(
             encoder.encode(
@@ -244,7 +318,7 @@ export async function GET(req: NextRequest) {
             ),
           );
         } catch (e) {
-          console.error("Polling error:", e);
+          logger.error({ err: e }, "SSE polling error");
         }
       };
 
@@ -333,6 +407,7 @@ export async function POST(req: NextRequest) {
     "task_created",
     "task_completed",
     "approval_needed",
+    "notification_created",
   ];
   if (!event.type || !validEventTypes.includes(event.type)) {
     return Response.json({ error: "Invalid event type" }, { status: 400 });

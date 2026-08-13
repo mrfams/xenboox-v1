@@ -95,7 +95,7 @@ const team = [
     icon: "⚡",
   },
   {
-    name: "Product",
+    name: "Product & Design",
     description: "Designing experiences that make complex simple",
     icon: "🎯",
   },
@@ -103,11 +103,6 @@ const team = [
     name: "Customer Success",
     description: "Ensuring every business succeeds with Xenboox",
     icon: "🤝",
-  },
-  {
-    name: "Operations",
-    description: "Scaling our infrastructure and processes",
-    icon: "📊",
   },
 ];
 
@@ -384,25 +379,15 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Investors/Backers */}
+      {/* Mission Statement */}
       <section className="py-16 sm:py-20 bg-slate-50 border-y border-slate-200">
-        <div className="mx-auto max-w-5xl px-4 text-center">
+        <div className="mx-auto max-w-3xl px-4 text-center">
           <FadeInUp>
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-8">
-              Backed by leading investors who believe in our mission
+            <p className="text-lg sm:text-xl text-slate-600 leading-relaxed">
+              We&apos;re building Xenboox because every small business in Africa
+              deserves the same financial tools as a Fortune 500 company —
+              powered by AI, built for their reality.
             </p>
-            <div className="flex flex-wrap justify-center items-center gap-12 opacity-50">
-              {["Y Combinator", "Sequoia", "a16z", "Tiger Global"].map(
-                (investor) => (
-                  <div
-                    key={investor}
-                    className="text-2xl font-bold text-slate-400"
-                  >
-                    {investor}
-                  </div>
-                ),
-              )}
-            </div>
           </FadeInUp>
         </div>
       </section>

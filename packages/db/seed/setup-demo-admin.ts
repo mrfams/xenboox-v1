@@ -4,24 +4,23 @@
  * Creates an admin user for demo@xenboox.com with TOTP 2FA.
  * Run this script to set up admin access.
  *
- * Usage: npx tsx packages/db/seed/setup-demo-admin.ts
+ * Usage: cd packages/db && set -a && source ../../.env.local && set +a \
+ *        && npx tsx seed/setup-demo-admin.ts
+ *
+ * Requires DATABASE_URL in the environment (see ./db-url.ts).
  */
 
 import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import * as schema from "../schema";
-import { adminUsers } from "../schema/admin";
-import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { generateSecret } from "otplib";
+import { requireDbUrl } from "./db-url";
 
-const DATABASE_URL =
-  "postgresql://neondb_owner:npg_hS1rq9sLmjnP@ep-crimson-lake-abh33lg6-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
+const sql = neon(requireDbUrl());
 
-const sql = neon(DATABASE_URL);
-const db = drizzle(sql, { schema: schema as any });
-
-// Simple TOTP secret for demo (in production, use proper encryption)
-const DEMO_TOTP_SECRET = "JBSWY3DPEHPK3PXP"; // Base32 encoded secret
+// A fresh 32-char base32 secret (20 bytes) is generated per run.
+// NOTE: the old hardcoded "JBSWY3DPEHPK3PXP" is only 10 bytes — otplib's
+// verifySync requires >= 16 bytes, so logins with it always failed.
+const DEMO_TOTP_SECRET = generateSecret();
 const DEMO_PASSWORD = "admin123";
 
 async function main() {
@@ -77,9 +76,12 @@ async function main() {
   console.log("  Email: demo@xenboox.com");
   console.log("  Password: admin123");
   console.log("\nTOTP 2FA Setup:");
-  console.log("  Secret: JBSWY3DPEHPK3PXP");
+  console.log(`  Secret: ${DEMO_TOTP_SECRET}`);
   console.log(
     "  Use this in your authenticator app (Google Authenticator, Authy, etc.)",
+  );
+  console.log(
+    "  Tip: re-run `npx tsx seed/get-admin-totp.ts` to print the current code.",
   );
   console.log("\nTo login:");
   console.log("  1. Go to /admin-login");

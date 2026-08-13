@@ -75,6 +75,7 @@ import { seedApprovals } from "./approvals";
 import { seedGoldenEvals } from "./golden-evals";
 import { GM_TAX_RULES } from "./gm-tax-rules";
 import { SN_TAX_RULES } from "./sn-tax-rules";
+import { US_TAX_RULES } from "./us-tax-rules";
 import { seedComprehensiveData } from "./comprehensive-data";
 import {
   findOrCreateUser,
@@ -2993,6 +2994,68 @@ export async function seed() {
   }
   console.log(
     `    Senegal entity: Dakar Distribution SARL (SN) — ${SN_TAX_RULES.length} tax rules installed`,
+  );
+
+  // 44. US demo entity + tax preset pack
+  //
+  // A third, standalone demo entity — Brooklyn Goods LLC (US, USD) — so
+  // switching entities shows a US workspace with the US sales-tax pack already
+  // installed (NY 4%, NYC combined 8.875%, CA 7.25%, TX 6.25%). The data
+  // mirrors the catalog via ./us-tax-rules.ts and is guarded against silent
+  // drift by the same parity test as Gambia/Senegal.
+  console.log("  Creating US demo entity (Brooklyn Goods LLC)...");
+  // resetEntity is idempotent: re-running the seed deletes + recreates the
+  // entity (cascading its tax rules), exactly like the other demo entities.
+  const US_ENTITY_ID = await resetEntity({
+    orgId: ORG_ID,
+    name: "Brooklyn Goods LLC",
+    currency: "USD",
+    country: "US",
+    fiscalYearEnd: "12",
+    taxId: "11-2345678", // EIN format
+    settings: {
+      timezone: "America/New_York",
+      locale: "en-US",
+      taxMode: "us",
+      state: "NY",
+      vatRate: 0.08875,
+      defaultPaymentTerms: "net30",
+    },
+  });
+  await grantAccess({
+    userId: USER_ID,
+    entityId: US_ENTITY_ID,
+    role: "owner",
+    grantedBy: USER_ID,
+  });
+
+  console.log("  Installing US sales tax preset pack...");
+  for (let t = 0; t < US_TAX_RULES.length; t++) {
+    const r = US_TAX_RULES[t];
+    await db
+      .insert(jurisdictionTaxRules)
+      .values({
+        id: seedUuid("us", t + 1),
+        entityId: US_ENTITY_ID,
+        country: "US",
+        ruleType: r.ruleType,
+        version: 1,
+        name: r.name,
+        description: r.description,
+        appliesTo: r.appliesTo,
+        rateOrBands: r.rateOrBands,
+        effectiveFrom: r.effectiveFrom,
+        effectiveTo: null,
+        status: "active",
+        proposedBy: USER_ID,
+        approvedBy: USER_ID,
+        approvedAt: new Date(),
+        notes: `Installed from US preset pack (${r.source})`,
+      })
+      .onConflictDoNothing();
+  }
+  console.log(
+    `    US entity: Brooklyn Goods LLC (US) — ${US_TAX_RULES.length} tax rules installed`,
   );
 }
 

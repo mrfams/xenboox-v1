@@ -711,6 +711,33 @@ const US_SALES_TAX_PRESETS: TaxPreset[] = US_SALES_TAX_ROWS.map((r) => ({
     "Tax Foundation 2025 state sales tax rates; state revenue departments",
 }));
 
+// ─── United States — NYC combined-rate sales tax ────────────────────────────
+//
+// The per-state catalog above ships each state's base rate and points users at
+// their exact city/county add-ons. NYC is the flagship combined-rate example —
+// shipped as a real preset so a one-click install lands the exact 8.875%
+// combined rate as three named components instead of a single magic number.
+
+const US_NYC_COMBINED_PRESET: TaxPreset = {
+  id: "us-sales-tax-nyc",
+  country: "US",
+  ruleType: "sales_tax",
+  name: "US Sales Tax — New York City (Combined)",
+  description:
+    "8.875% combined New York City rate: State 4% + City 4.5% + MCTD 0.375%.",
+  appliesTo: "sales",
+  effectiveFrom: "2025-01-01",
+  rateConfig: {
+    type: "rate",
+    components: [
+      { name: "State", rate: 0.04 },
+      { name: "City", rate: 0.045 },
+      { name: "MCTD", rate: 0.00375 },
+    ],
+  },
+  source: "NY State Dept. of Taxation & Finance; NYC combined rate 8.875%",
+};
+
 // ─── Nigeria — FIRS (Federal Inland Revenue Service) ────────────────────────
 
 const NG_PRESETS: TaxPreset[] = [
@@ -1065,6 +1092,7 @@ export const TAX_PRESET_CATALOG: TaxPreset[] = [
   ...SN_PRESETS,
   ...US_PRESETS,
   ...US_SALES_TAX_PRESETS,
+  US_NYC_COMBINED_PRESET,
   ...NG_PRESETS,
   ...KE_PRESETS,
   ...GH_PRESETS,

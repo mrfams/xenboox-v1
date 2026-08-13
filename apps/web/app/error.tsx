@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 import { Button } from "@/components/ui";
 
@@ -14,7 +15,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

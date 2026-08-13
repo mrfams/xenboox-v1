@@ -27,29 +27,36 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
-import { useEntity } from "@/lib/entity-context";
-import { trpc } from "@/lib/trpc/client";
 import { Badge } from "@/components/ui";
+import {
+  AttentionDot,
+  CountPill,
+} from "@/components/layout/notification-badge";
+import {
+  useAttentionSignals,
+  type AttentionTotals,
+  type NavKey,
+} from "@/lib/hooks/use-attention-signals";
 
 type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
   badge?: string;
-  countKey?: string;
+  // Which attention bucket lights this item up (approvals → Inbox, report
+  // ready → Reports, …). The two-tone system lives in use-attention-signals.
+  attentionKey?: NavKey;
   attrs?: Record<string, string>;
   match?: string[];
 };
 
-type ApprovalCounts = {
-  ingestion: number;
-  agent: number;
-  critical: number;
-  total: number;
-};
-
 const primaryNavItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    attentionKey: "dashboard",
+  },
   {
     label: "Explore",
     href: "/dashboard/explore",
@@ -66,7 +73,7 @@ const primaryNavItems: NavItem[] = [
     label: "Inbox",
     href: "/dashboard/inbox",
     icon: Receipt,
-    countKey: "total",
+    attentionKey: "inbox",
     match: [
       "/dashboard/inbox",
       "/dashboard/review-queue",
@@ -108,6 +115,7 @@ const primaryNavItems: NavItem[] = [
     label: "Invoicing",
     href: "/dashboard/invoicing",
     icon: Receipt,
+    attentionKey: "invoicing",
   },
   {
     label: "Estimates & Quotes",
@@ -128,6 +136,7 @@ const primaryNavItems: NavItem[] = [
     label: "Payroll",
     href: "/dashboard/payroll",
     icon: Users,
+    attentionKey: "payroll",
   },
   {
     label: "Tax & Compliance",
@@ -138,6 +147,7 @@ const primaryNavItems: NavItem[] = [
     label: "Reports",
     href: "/dashboard/reports",
     icon: BarChart3,
+    attentionKey: "reports",
     match: [
       "/dashboard/reports",
       "/dashboard/trial-balance",
@@ -150,11 +160,13 @@ const primaryNavItems: NavItem[] = [
     href: "/dashboard/close",
     icon: RefreshCw,
     badge: "New",
+    attentionKey: "close",
   },
   {
     label: "Reconciliation",
     href: "/dashboard/reconciliation/center",
     icon: RefreshCw,
+    attentionKey: "reconciliation",
   },
   { label: "Agent Monitor", href: "/dashboard/agent-monitor", icon: Activity },
   {
@@ -230,57 +242,72 @@ function WhiteLabelLogo() {
   );
 }
 
-function useApprovalCounts() {
-  const { entityId, isLoaded } = useEntity();
-  const enabled = isLoaded && !!entityId;
-  const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
-    staleTime: 60 * 1000, // 1 minute
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    enabled,
-  });
-  const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
-    { limit: 50 },
-    {
-      staleTime: 60 * 1000, // 1 minute
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      enabled,
-    },
-  );
-  return {
-    stats,
-    agentApprovals,
-    pendingReview: stats?.pendingReview ?? 0,
-    processing: stats?.processing ?? 0,
-    agentCount: agentApprovals?.items?.length ?? 0,
-  };
-}
+// ─── Attention Strip ──────────────────────────────────────────────────────
+//
+// Bottom-of-sidebar summary that answers "is anything waiting on me, and
+// where?" at a glance:
+//   - pulsing red "N need your attention" → Inbox (the review queue — where
+//     approvals and escalations are resolved)
+//   - indigo "N new updates" → the notifications page
+//   - green processing pulse → agents still working (nothing needed from you)
+// Renders nothing when there is nothing to say — a quiet rail is the
+// success state, not a permanent red dot.
 
-// ─── Agent Status Bar ───────────────────────────────────────────────────
+function AttentionStrip({
+  totals,
+  processing,
+  onClose,
+}: {
+  totals: AttentionTotals;
+  processing: number;
+  onClose: () => void;
+}) {
+  if (totals.action > 0) {
+    return (
+      <Link
+        href="/dashboard/inbox"
+        onClick={onClose}
+        className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 transition-colors hover:bg-destructive/15"
+      >
+        <AttentionDot tone="action" />
+        <span className="truncate text-[11px] font-semibold text-destructive">
+          {totals.action} need your attention
+        </span>
+      </Link>
+    );
+  }
 
-function AgentStatusBar() {
-  const { pendingReview, processing, agentCount } = useApprovalCounts();
-  const totalPending = pendingReview + agentCount;
+  if (totals.new > 0) {
+    return (
+      <Link
+        href="/dashboard/notifications"
+        onClick={onClose}
+        className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 transition-colors hover:bg-primary/15"
+      >
+        <AttentionDot tone="new" />
+        <span className="truncate text-[11px] font-semibold text-primary">
+          {totals.new} new update{totals.new === 1 ? "" : "s"}
+        </span>
+      </Link>
+    );
+  }
 
-  return (
-    <div className="space-y-1.5 lg:hidden lg:group-hover:block">
-      {(processing > 0 || totalPending > 0) && (
-        <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2">
-          <div className="flex gap-0.5">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 [animation-delay:150ms]" />
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 [animation-delay:300ms]" />
-          </div>
-          <span className="text-[11px] text-muted-foreground">
-            {processing > 0 && `${processing} processing`}
-            {processing > 0 && totalPending > 0 && " · "}
-            {totalPending > 0 && `${totalPending} pending`}
-          </span>
+  if (processing > 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2">
+        <div className="flex gap-0.5">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 [animation-delay:150ms]" />
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 [animation-delay:300ms]" />
         </div>
-      )}
-    </div>
-  );
+        <span className="truncate text-[11px] text-muted-foreground">
+          {processing} processing
+        </span>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // The Explore hub (dashboard/explore) is currently in a soft-launch — only
@@ -302,14 +329,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     );
   }, [isHovered]);
 
-  const { stats, agentApprovals, pendingReview, agentCount } =
-    useApprovalCounts();
-  const approvalCounts: ApprovalCounts = {
-    ingestion: pendingReview,
-    agent: agentCount,
-    critical: stats?.failed ?? 0,
-    total: pendingReview + agentCount,
-  };
+  const attention = useAttentionSignals();
 
   function isActive(item: NavItem) {
     if (item.match) return item.match.some((m) => pathname.startsWith(m));
@@ -317,18 +337,24 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     return pathname.startsWith(item.href);
   }
 
-  function getCount(countKey?: string): number | undefined {
-    if (!countKey) return undefined;
-    return approvalCounts[countKey as keyof ApprovalCounts];
-  }
+  function renderNavItem(item: NavItem) {
+    const signal = item.attentionKey
+      ? attention.byKey[item.attentionKey]
+      : undefined;
+    const hasAttention = !!signal && signal.count > 0;
+    const count = signal?.count ?? 0;
+    const tone = signal?.tone ?? "action";
 
-  function renderNavItem(item: NavItem, showCount?: boolean) {
-    const count = getCount(item.countKey);
     return (
       <Link
         key={item.href}
         href={item.href}
         onClick={onClose}
+        aria-label={
+          hasAttention
+            ? `${item.label} — ${count} ${tone === "action" ? "need your attention" : "new updates"}`
+            : undefined
+        }
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
           "lg:justify-center lg:group-hover:justify-start",
@@ -338,19 +364,25 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
         {...(item.attrs ?? {})}
       >
-        <item.icon className="h-4 w-4 shrink-0" />
+        <span className="relative">
+          <item.icon className="h-4 w-4 shrink-0" />
+          {hasAttention && (
+            <AttentionDot
+              key={count}
+              tone={tone}
+              className="absolute -right-1 -top-0.5 lg:group-hover:hidden"
+            />
+          )}
+        </span>
         <span className="flex-1 truncate lg:hidden lg:group-hover:inline">
           {item.label}
         </span>
-        {showCount && approvalCounts.total > 0 && (
-          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground lg:hidden lg:group-hover:inline-flex">
-            {approvalCounts.total > 99 ? "99+" : approvalCounts.total}
-          </span>
-        )}
-        {count !== undefined && count > 0 && (
-          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground lg:hidden lg:group-hover:inline-flex">
-            {count > 99 ? "99+" : count}
-          </span>
+        {hasAttention && (
+          <CountPill
+            count={count}
+            tone={tone}
+            className="lg:hidden lg:group-hover:inline-flex"
+          />
         )}
         {item.badge && (
           <Badge
@@ -403,11 +435,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Bottom Nav + User Profile */}
         <div className="border-t border-white/[0.06] p-3 space-y-2">
-          <AgentStatusBar />
+          <div className="lg:hidden lg:group-hover:block">
+            <AttentionStrip
+              totals={attention.totals}
+              processing={attention.processing}
+              onClose={onClose}
+            />
+          </div>
           <div className="space-y-0.5">
-            {bottomNavItems.map((item) =>
-              renderNavItem(item, item.label === "Approvals"),
-            )}
+            {bottomNavItems.map((item) => renderNavItem(item))}
           </div>
         </div>
 
