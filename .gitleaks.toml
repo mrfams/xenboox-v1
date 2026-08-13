@@ -1,0 +1,196 @@
+# gitleaks configuration — enterprise secret scanning
+# https://github.com/gitleaks/gitleaks
+
+title = "Xenboox Secret Scanning Rules"
+
+# ── Global ──────────────────────────────────────────────────────
+[allowlist]
+  description = "Global allowlist — false positives"
+  paths = [
+    '''vendor/''',
+    '''node_modules/''',
+    '''\.turbo/''',
+    '''pnpm-lock\.yaml$''',
+    '''package-lock\.json$''',
+    '''yarn\.lock$''',
+  ]
+  # Allow test fixtures and mock data
+  regexes = [
+    # Test/example values
+    '''(?i)test[_-]?secret[_-]?key\s*=\s*['"']?test[_-]?key['"']?''',
+    '''(?i)example[_-]?token\s*=\s*['"']?example['"']?''',
+    '''(?i)placeholder[_-]?secret\s*=\s*['"']?placeholder['"']?''',
+    # JWT test tokens
+    '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJ0ZXN0IjoxfQ\.''',
+    # Dummy UUIDs
+    '''00000000-0000-0000-0000-000000000000''',
+    '''12345678-1234-1234-1234-123456789012''',
+  ]
+
+# ── Rules ───────────────────────────────────────────────────────
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API key"
+regex = '''(?i)(api[_-]?key|apikey)\s*[:=]\s*['"']([a-zA-Z0-9\-._]{20,})['"']'''
+tags = ["key", "generic"]
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["key", "aws"]
+
+[[rules]]
+id = "aws-secret-key"
+description = "AWS Secret Key"
+regex = '''(?i)aws[_-]?secret[_-]?access[_-]?key\s*[:=]\s*['"']([a-zA-Z0-9/+=]{40})['"']'''
+tags = ["key", "aws"]
+
+[[rules]]
+id = "github-token"
+description = "GitHub Personal Access Token"
+regex = '''ghp_[a-zA-Z0-9]{36}'''
+tags = ["key", "github"]
+
+[[rules]]
+id = "github-oauth"
+description = "GitHub OAuth Access Token"
+regex = '''gho_[a-zA-Z0-9]{36}'''
+tags = ["key", "github"]
+
+[[rules]]
+id = "github-app-token"
+description = "GitHub App Token"
+regex = '''(ghu|ghs)_[a-zA-Z0-9]{36}'''
+tags = ["key", "github"]
+
+[[rules]]
+id = "slack-token"
+description = "Slack Token"
+regex = '''xox[bpsa]-[0-9a-zA-Z\-]{10,}'''
+tags = ["key", "slack"]
+
+[[rules]]
+id = "stripe-key"
+description = "Stripe API Key"
+regex = '''[rs]k_(live|test)_[a-zA-Z0-9]{24,}'''
+tags = ["key", "stripe"]
+
+[[rules]]
+id = "google-api-key"
+description = "Google API Key"
+regex = '''AIza[0-9A-Za-z\-_]{35}'''
+tags = ["key", "google"]
+
+[[rules]]
+id = "google-oauth"
+description = "Google OAuth ID"
+regex = '''[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com'''
+tags = ["key", "google"]
+
+[[rules]]
+id = "private-key"
+description = "Private Key"
+regex = '''-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'''
+tags = ["key", "private"]
+
+[[rules]]
+id = "heroku-api-key"
+description = "Heroku API Key"
+regex = '''(?i)heroku[_-]?api[_-]?key\s*[:=]\s*['"']([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})['"']'''
+tags = ["key", "heroku"]
+
+[[rules]]
+id = "npm-token"
+description = "NPM Token"
+regex = '''npm_[a-zA-Z0-9]{36}'''
+tags = ["key", "npm"]
+
+[[rules]]
+id = "sendgrid-api-key"
+description = "SendGrid API Key"
+regex = '''SG\.[a-zA-Z0-9\-_]{22,}\.[a-zA-Z0-9\-_]{43,}'''
+tags = ["key", "sendgrid"]
+
+[[rules]]
+id = "twilio-api-key"
+description = "Twilio API Key"
+regex = '''SK[0-9a-fA-F]{32}'''
+tags = ["key", "twilio"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API Key"
+regex = '''sk-ant-[a-zA-Z0-9\-_]{20,}'''
+tags = ["key", "anthropic"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''sk-[a-zA-Z0-9]{20,}'''
+tags = ["key", "openai"]
+
+[[rules]]
+id = "langfuse-key"
+description = "LangFuse Secret Key"
+regex = '''sk-lf-[a-zA-Z0-9\-_]{20,}'''
+tags = ["key", "langfuse"]
+
+[[rules]]
+id = "mono-secret"
+description = "Mono API Secret"
+regex = '''(?:mono|MONO)[_\-]?secret[_\-]?(?:key)?\s*[:=]\s*['"']([a-zA-Z0-9\-._]{20,})['"']'''
+tags = ["key", "mono"]
+
+[[rules]]
+id = "resend-api-key"
+description = "Resend API Key"
+regex = '''re_[a-zA-Z0-9]{20,}'''
+tags = ["key", "resend"]
+
+[[rules]]
+id = "upstash-url"
+description = "Upstash Redis URL"
+regex = '''rediss?://[a-zA-Z0-9\-._]+:[a-zA-Z0-9\-._]+@[a-zA-Z0-9\-._:]+'''
+tags = ["key", "upstash"]
+
+[[rules]]
+id = "neon-connection-string"
+description = "Neon PostgreSQL Connection String"
+regex = '''postgres(?:ql)?://[a-zA-Z0-9\-._]+:[a-zA-Z0-9\-._]+@[a-zA-Z0-9\-._/]+'''
+tags = ["key", "neon", "database"]
+
+[[rules]]
+id = "supabase-url"
+description = "Supabase URL"
+regex = '''https?://[a-z0-9]+\.supabase\.co'''
+tags = ["key", "supabase"]
+
+[[rules]]
+id = "vercel-token"
+description = "Vercel Token"
+regex = '''['"']?vercel[_-]?token['"']?\s*[:=]\s*['"']([a-zA-Z0-9]{24,})['"']'''
+tags = ["key", "vercel"]
+
+[[rules]]
+id = "password-in-code"
+description = "Hardcoded password in source"
+regex = '''(?i)(password|passwd|pwd)\s*[:=]\s*['"']([^'"']{8,})['"']'''
+tags = ["password", "credentials"]
+# Allow test passwords in test files
+[paths]
+  regexes = [
+    '''test[/_\-]''',
+    '''__tests__/''',
+    '''\.test\.[jt]sx?$''',
+    '''\.spec\.[jt]sx?$''',
+    '''seed/''',
+    '''fixtures/''',
+  ]
+
+[[rules]]
+id = "connection-string"
+description = "Database connection string with password"
+regex = '''(?:postgres|mysql|mongodb|redis)://[^\s'"']{20,}'''
+tags = ["key", "database", "connection"]

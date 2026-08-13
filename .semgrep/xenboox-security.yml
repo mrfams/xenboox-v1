@@ -1,0 +1,248 @@
+# Xenboox Custom Semgrep Rules — Enterprise Security
+# Targeted at Next.js + tRPC + Drizzle ORM + Auth.js patterns
+
+rules:
+  # ──────────────────────────────────────────────────────────────
+  # 1. SQL Injection via raw SQL
+  # ──────────────────────────────────────────────────────────────
+  - id: no-raw-sql-interpolation
+    patterns:
+      - pattern: sql`...${$VAR}...`
+      - pattern-not: sql`...${literal}...`
+    message: >
+      Raw SQL interpolation detected. Use Drizzle ORM parameterized queries
+      or `sql\`...${sql\`SELECT ... WHERE id = ${param}\`}\`` with proper
+      parameter binding. Raw interpolation is the #1 SQL injection vector.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-89: SQL Injection"
+      owasp:
+        - "A03:2021 - Injection"
+      confidence: HIGH
+
+  # ──────────────────────────────────────────────────────────────
+  # 2. eval() / Function() — never in production
+  # ──────────────────────────────────────────────────────────────
+  - id: no-eval
+    pattern: eval(...)
+    message: >
+      eval() is banned in production code. It enables arbitrary code execution.
+      Use JSON.parse() for data, or a sandboxed interpreter for dynamic logic.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-95: Eval Injection"
+      confidence: HIGH
+
+  - id: no-function-constructor
+    pattern: Function(...)
+    message: >
+      Function() constructor is banned. It's equivalent to eval().
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-95: Eval Injection"
+      confidence: HIGH
+
+  # ──────────────────────────────────────────────────────────────
+  # 3. Hardcoded secrets in source code
+  # ──────────────────────────────────────────────────────────────
+  - id: no-hardcoded-secrets
+    patterns:
+      - pattern-either:
+          - pattern: $KEY = "sk-..."
+          - pattern: $KEY = "sk_live_..."
+          - pattern: $KEY = "ghp_..."
+          - pattern: $KEY = "AKIA..."
+    message: >
+      Potential hardcoded secret detected. Use environment variables
+      and never commit secrets to source code.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-798: Hardcoded Credentials"
+      confidence: HIGH
+
+  # ──────────────────────────────────────────────────────────────
+  # 4. Missing entity scoping on database queries
+  # ──────────────────────────────────────────────────────────────
+  - id: db-query-missing-entity-scope
+    patterns:
+      - pattern-either:
+          - pattern: db.query.$TABLE.findMany({...})
+          - pattern: db.query.$TABLE.findFirst({...})
+          - pattern: db.select().from($TABLE)
+      - pattern-not-inside: |
+          const entityId = ...
+          if (...) { ... }
+      - metavariable-regex:
+          metavariable: $TABLE
+          regex: (?i)(?!admin_users|admin_sessions|admin_audit)
+    message: >
+      Database query may be missing entity_id scoping. Every customer-facing
+      query MUST filter by entityId. Admin tables (admin_users, admin_sessions)
+      are exempt. See AGENTS.md Entity Scoping Rule.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-863: Incorrect Authorization"
+      confidence: MEDIUM
+
+  # ──────────────────────────────────────────────────────────────
+  # 5. Console.log in production code
+  # ──────────────────────────────────────────────────────────────
+  - id: no-console-in-production
+    pattern: console.$METHOD(...)
+    message: >
+      Use the structured logger (lib/logger.ts) instead of console.*.
+      console.log leaks data to stdout and cannot be filtered by log level.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-532: Insertion of Sensitive Information into Log File"
+      confidence: LOW
+    paths:
+      exclude:
+        - "**/*.test.*"
+        - "**/*.spec.*"
+        - "**/__tests__/**"
+        - "**/seed/**"
+        - "**/scripts/**"
+
+  # ──────────────────────────────────────────────────────────────
+  # 6. Missing Zod validation on tRPC inputs
+  # �─────────────────────────────────────────────────────────────
+  - id: trpc-missing-input-validation
+    patterns:
+      - pattern: publicProcedure.mutation(async ({ input }) => { ... })
+      - pattern-not: publicProcedure.input(...).mutation(...)
+    message: >
+      tRPC mutation has no input validation. All procedures MUST use
+      .input(z.object({...})) to validate inputs with Zod.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-20: Improper Input Validation"
+      confidence: MEDIUM
+
+  # ──────────────────────────────────────────────────────────────
+  # 7. JWT/Token handling issues
+  # ──────────────────────────────────────────────────────────────
+  - id: jwt-no-expiration
+    patterns:
+      - pattern: new SignJWT($PAYLOAD).setProtectedHeader(...).sign(...)
+      - pattern-not: new SignJWT($PAYLOAD).setProtectedHeader(...).setExpirationTime(...).sign(...)
+    message: >
+      JWT created without expiration. All tokens MUST have an expiration
+      time to prevent indefinite validity if leaked.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-613: Insufficient Session Expiration"
+      confidence: HIGH
+
+  # ──────────────────────────────────────────────────────────────
+  # 8. Insecure randomness for security-critical operations
+  # ──────────────────────────────────────────────────────────────
+  - id: no-math-random-for-security
+    patterns:
+      - pattern-either:
+          - pattern: Math.random()
+          - pattern: $X = Math.random()
+      - pattern-inside: |
+          ...token...
+          ...
+    message: >
+      Math.random() is not cryptographically secure. Use crypto.randomBytes()
+      or crypto.randomUUID() for tokens, secrets, and security-critical values.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-330: Use of Insufficiently Random Values"
+      confidence: HIGH
+
+  # ──────────────────────────────────────────────────────────────
+  # 9. Missing CSRF protection on mutations
+  # ──────────────────────────────────────────────────────────────
+  - id: fetch-mutation-no-csrf
+    patterns:
+      - pattern-either:
+          - pattern: 'fetch($URL, { method: "POST", ... })'
+          - pattern: 'fetch($URL, { method: "PUT", ... })'
+          - pattern: 'fetch($URL, { method: "DELETE", ... })'
+      - pattern-not: 'fetch($URL, { headers: { "x-csrf-token": ... }, ... })'
+    message: >
+      Mutation via fetch without CSRF token. Ensure CSRF protection is
+      enabled via Auth.js or manual token validation.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-352: Cross-Site Request Forgery"
+      confidence: LOW
+
+  # ──────────────────────────────────────────────────────────────
+  # 10. Unsafe deserialization
+  # ──────────────────────────────────────────────────────────────
+  - id: no-unsafe-deserialize
+    pattern: JSON.parse(...)
+    message: >
+      Ensure JSON.parse() input is validated with Zod after parsing.
+      Raw deserialization without validation is a common injection vector.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-502: Deserialization of Untrusted Data"
+      confidence: LOW
+    paths:
+      exclude:
+        - "**/*.test.*"
+        - "**/*.spec.*"
+
+  # ──────────────────────────────────────────────────────────────
+  # 11. Server-side request forgery (SSRF)
+  # ──────────────────────────────────────────────────────────────
+  - id: no-ssrf-fetch
+    patterns:
+      - pattern-either:
+          - pattern: fetch(userInput, ...)
+          - pattern: fetch(req.body.url, ...)
+          - pattern: fetch(req.query.url, ...)
+    message: >
+      Potential SSRF: user-controlled URL passed to fetch(). Validate
+      URLs against an allowlist of permitted domains before fetching.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-918: Server-Side Request Forgery"
+      confidence: MEDIUM
+
+  # ──────────────────────────────────────────────────────────────
+  # 12. Debug endpoints in production
+  # ──────────────────────────────────────────────────────────────
+  - id: no-debug-endpoint-in-production
+    patterns:
+      - pattern-either:
+          - pattern: app.get("/debug", ...)
+          - pattern: app.get("/_debug", ...)
+          - pattern: router.get("/debug", ...)
+    message: >
+      Debug endpoint detected. Remove or gate behind NODE_ENV !== 'production'.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-215: Insertion of Sensitive Information Into Debugging Code"
+      confidence: HIGH

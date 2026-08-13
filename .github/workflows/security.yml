@@ -1,0 +1,319 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Run full scan weekly on Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9"
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # 1. Secret Scanning — gitleaks
+  #    Catches API keys, tokens, passwords, connection strings
+  #    that accidentally made it into git history.
+  # ──────────────────────────────────────────────────────────────
+  secrets-scan:
+    name: "Secrets Scan (gitleaks)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for git log scanning
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Upload SARIF on failure
+        if: failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # ──────────────────────────────────────────────────────────────
+  # 2. SAST — Semgrep
+  #    Static analysis for TypeScript/JavaScript/Node.js.
+  #    Uses p/default for broad coverage + custom rules for
+  #    Next.js, tRPC, Drizzle ORM, and Auth.js patterns.
+  # ──────────────────────────────────────────────────────────────
+  sast:
+    name: "SAST (Semgrep)"
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config "p/default" \
+            --config "p/typescript" \
+            --config "p/node" \
+            --config "p/nextjs" \
+            --config "p/security-audit" \
+            --config .semgrep/ \
+            --sarif --output semgrep-results.sarif \
+            --error \
+            --jobs 4
+        env:
+          SEMGREP_RULES: >-
+            p/default
+            p/typescript
+            p/node
+            p/nextjs
+            p/security-audit
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
+
+  # ──────────────────────────────────────────────────────────────
+  # 3. Dependency Audit — pnpm audit + license compliance
+  #    Checks for known CVEs in dependencies and enforces
+  #    license policy (no AGPL/SSPL in production).
+  # ──────────────────────────────────────────────────────────────
+  dependency-audit:
+    name: "Dependency Audit"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Audit for known vulnerabilities
+        run: pnpm audit --audit-level=high
+        continue-on-error: false
+
+      - name: Check license compliance
+        run: |
+          npx license-checker \
+            --production \
+            --failOn "AGPL-3.0;SSPL-1.0;EUPL-1.1;OSL-3.0" \
+            --summary
+        continue-on-error: false
+
+      - name: Generate dependency tree snapshot
+        run: pnpm list --depth=0 --json > dependency-tree.json
+
+      - name: Upload dependency snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-tree
+          path: dependency-tree.json
+          retention-days: 90
+
+  # ──────────────────────────────────────────────────────────────
+  # 4. CodeQL Analysis — GitHub's semantic code analysis
+  #    Deeper than Semgrep: builds the code, tracks data flow,
+  #    finds taint-mode vulnerabilities (SQL injection, XSS,
+  #    path traversal, prototype pollution).
+  # ──────────────────────────────────────────────────────────────
+  codeql:
+    name: "CodeQL Analysis"
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["javascript-typescript"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          output: sarif-results
+
+  # ──────────────────────────────────────────────────────────────
+  # 5. Infrastructure as Code Scan — tfsec / checkov
+  #    Scans Dockerfiles, GitHub Actions, and any IaC for
+  #    misconfigurations.
+  # ──────────────────────────────────────────────────────────────
+  iac-scan:
+    name: "IaC Security (checkov)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: dockerfile,github_actions
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          soft_fail: false
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-results.sarif
+          category: checkov
+
+  # ──────────────────────────────────────────────────────────────
+  # 6. Environment Leak Detection
+  #    Scans for .env files, backup configs, and credential
+  #    files that should never be committed.
+  # ──────────────────────────────────────────────────────────────
+  env-leak-scan:
+    name: "Environment Leak Detection"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for committed .env files
+        run: |
+          echo "=== Scanning for environment files in git history ==="
+          FOUND=0
+
+          # Check current tree
+          if git ls-files | grep -E '\.env$|\.env\..*|\.env\.bak|\.env\.local|\.env\.vercel|\.env\.production'; then
+            echo "❌ Found environment files in current tree:"
+            git ls-files | grep -E '\.env$|\.env\..*|\.env\.bak|\.env\.local|\.env\.vercel|\.env\.production'
+            FOUND=1
+          fi
+
+          # Check for common secret patterns in tracked files
+          echo ""
+          echo "=== Scanning tracked files for secret patterns ==="
+          PATTERNS=(
+            'sk_live_[a-zA-Z0-9]'
+            'sk_test_[a-zA-Z0-9]'
+            'ghp_[a-zA-Z0-9]'
+            'gho_[a-zA-Z0-9]'
+            'xox[bpsa]-[a-zA-Z0-9]'
+            'AKIA[0-9A-Z]{16}'
+            '['"'"'"][0-9a-f]{32,}['"'"'"]'
+            'Bearer [a-zA-Z0-9\-._~+/]+=*'
+            'password\s*[:=]\s*['"'"'"][^'"'"'"]{8,}['"'"'"]'
+          )
+
+          for pattern in "${PATTERNS[@]}"; do
+            MATCHES=$(git grep -n "$pattern" -- ':(exclude)*.lock' ':(exclude)*.snap' ':(exclude)*.md' 2>/dev/null | head -20)
+            if [ -n "$MATCHES" ]; then
+              echo "⚠️  Pattern '$pattern' found in:"
+              echo "$MATCHES"
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo "❌ Potential secrets detected. Review above findings."
+            exit 1
+          fi
+
+          echo "✅ No environment files or secret patterns found in tracked files."
+
+  # ──────────────────────────────────────────────────────────────
+  # 7. Security Scorecard
+  #    OpenSSF Scorecard — automated security health check
+  #    that enterprise buyers reference.
+  # ──────────────────────────────────────────────────────────────
+  scorecard:
+    name: "OpenSSF Scorecard"
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@v2.3.1
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # ──────────────────────────────────────────────────────────────
+  # 8. Aggregate Gate
+  #    Single job that must pass for branch protection.
+  #    All security scans feed into this.
+  # ──────────────────────────────────────────────────────────────
+  security-gate:
+    name: "Security Gate"
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - secrets-scan
+      - sast
+      - dependency-audit
+      - codeql
+      - iac-scan
+      - env-leak-scan
+      - scorecard
+    steps:
+      - name: Check all jobs passed
+        run: |
+          echo "Secrets Scan: ${{ needs.secrets-scan.result }}"
+          echo "SAST: ${{ needs.sast.result }}"
+          echo "Dependency Audit: ${{ needs.dependency-audit.result }}"
+          echo "CodeQL: ${{ needs.codeql.result }}"
+          echo "IaC Scan: ${{ needs.iac-scan.result }}"
+          echo "Env Leak: ${{ needs.env-leak-scan.result }}"
+          echo "Scorecard: ${{ needs.scorecard.result }}"
+
+          if [[ "${{ needs.secrets-scan.result }}" != "success" ]] || \
+             [[ "${{ needs.sast.result }}" != "success" ]] || \
+             [[ "${{ needs.dependency-audit.result }}" != "success" ]] || \
+             [[ "${{ needs.codeql.result }}" != "success" ]] || \
+             [[ "${{ needs.iac-scan.result }}" != "success" ]] || \
+             [[ "${{ needs.env-leak-scan.result }}" != "success" ]]; then
+            echo ""
+            echo "❌ Security gate FAILED — one or more scans failed or found issues."
+            echo "   Fix the issues above before merging."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All security scans passed."

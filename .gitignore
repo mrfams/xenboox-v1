@@ -12,6 +12,11 @@ out/
 .env
 .env.local
 .env.*.local
+.env.bak*
+.env.vercel
+.env.production
+.env.staging
+.env.development
 
 # IDE
 .vscode/
@@ -35,6 +40,12 @@ coverage/
 .nyc_output/
 playwright-report/
 test-results/
+
+# Security scan results (generated, not committed)
+*.sarif
+semgrep-results.sarif
+results.sarif
+checkov-results.sarif
 
 # Turborepo
 .turbo/
