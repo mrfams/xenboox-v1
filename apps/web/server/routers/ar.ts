@@ -83,7 +83,7 @@ export const arRouter = router({
       }
     }),
 
-  updateCustomer: rlsProtectedProcedure
+  updateCustomer: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "edit"))
     .input(
       z.object({
@@ -250,7 +250,7 @@ export const arRouter = router({
       }
     }),
 
-  updateInvoice: rlsProtectedProcedure
+  updateInvoice: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "edit"))
     .input(
       z.object({
@@ -445,7 +445,7 @@ export const arRouter = router({
 
   // ── Delete Procedures ──
 
-  deleteCustomer: rlsProtectedProcedure
+  deleteCustomer: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -485,7 +485,7 @@ export const arRouter = router({
       }
     }),
 
-  deleteInvoice: rlsProtectedProcedure
+  deleteInvoice: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -536,7 +536,7 @@ export const arRouter = router({
       }
     }),
 
-  deletePayment: rlsProtectedProcedure
+  deletePayment: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

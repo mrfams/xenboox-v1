@@ -11,7 +11,12 @@ import {
 } from "@xenboox/db/schema/expense";
 import { runExpensePipeline, getExpenseStatus } from "@xenboox/agents";
 import type { ClaimSource } from "@xenboox/agents";
-import { router, protectedProcedure, requireRole } from "../../lib/trpc/server";
+import {
+  router,
+  protectedProcedure,
+  mutateProcedure,
+  requireRole,
+} from "../../lib/trpc/server";
 import { entities } from "@xenboox/db/schema/organization";
 
 // ─── Expense Router ─────────────────────────────────────────────────────
@@ -19,7 +24,7 @@ import { entities } from "@xenboox/db/schema/organization";
 export const expenseRouter = router({
   // ── Pipeline Execution ──────────────────────────────────────────────
 
-  runPipeline: protectedProcedure
+  runPipeline: mutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -242,7 +247,7 @@ export const expenseRouter = router({
 
   // ── Approve/Reject Claim ────────────────────────────────────────────
 
-  approveClaim: protectedProcedure
+  approveClaim: mutateProcedure
     .use(requireRole("owner", "admin", "finance_director", "manager"))
     .input(
       z.object({
@@ -308,7 +313,7 @@ export const expenseRouter = router({
     });
   }),
 
-  createPolicyRule: protectedProcedure
+  createPolicyRule: mutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({

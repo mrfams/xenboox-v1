@@ -150,7 +150,7 @@ export const fixedAssetsRouter = router({
       }
     }),
 
-  updateAsset: rlsProtectedProcedure
+  updateAsset: rlsMutateProcedure
     .use(requirePermission("fixed_assets", "edit"))
     .input(
       z.object({
@@ -258,7 +258,7 @@ export const fixedAssetsRouter = router({
       });
     }),
 
-  deleteAsset: rlsProtectedProcedure
+  deleteAsset: rlsMutateProcedure
     .use(requirePermission("fixed_assets", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

@@ -382,7 +382,7 @@ export const apRouter = router({
   }),
 
   // ── Vendor updates (status / 1099 / terms) ──
-  updateVendor: rlsProtectedProcedure
+  updateVendor: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "edit"))
     .input(
       z.object({
@@ -671,7 +671,7 @@ export const apRouter = router({
       }
     }),
 
-  updateSupplier: rlsProtectedProcedure
+  updateSupplier: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "edit"))
     .input(
       z.object({
@@ -802,7 +802,7 @@ export const apRouter = router({
       }
     }),
 
-  updatePO: rlsProtectedProcedure
+  updatePO: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "edit"))
     .input(
       z.object({
@@ -1008,7 +1008,7 @@ export const apRouter = router({
       }
     }),
 
-  updateInvoice: rlsProtectedProcedure
+  updateInvoice: rlsMutateProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -1191,7 +1191,7 @@ export const apRouter = router({
 
   // ── Delete Procedures ──
 
-  deleteSupplier: rlsProtectedProcedure
+  deleteSupplier: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1229,7 +1229,7 @@ export const apRouter = router({
       }
     }),
 
-  deletePO: rlsProtectedProcedure
+  deletePO: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1282,7 +1282,7 @@ export const apRouter = router({
       }
     }),
 
-  deleteInvoice: rlsProtectedProcedure
+  deleteInvoice: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1335,7 +1335,7 @@ export const apRouter = router({
       }
     }),
 
-  deletePayment: rlsProtectedProcedure
+  deletePayment: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

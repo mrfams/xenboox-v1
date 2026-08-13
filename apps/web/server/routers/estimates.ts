@@ -500,7 +500,7 @@ export const estimatesRouter = router({
       }
     }),
 
-  updateEstimateStatus: rlsProtectedProcedure
+  updateEstimateStatus: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "edit"))
     .input(
       z.object({
@@ -687,7 +687,7 @@ export const estimatesRouter = router({
       }
     }),
 
-  deleteEstimate: rlsProtectedProcedure
+  deleteEstimate: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

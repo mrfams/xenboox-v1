@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-14] — Phase 11 deep-dive blockers resolved: idempotency, SSE, IDOR, health endpoints
+
+**Agent:** Opencode (Autonomous Engineer)
+**Files Created:** `apps/web/lib/sse/broadcast.ts`, `apps/web/__tests__/idor-rls-sweep.test.ts`
+**Files Modified:** `apps/web/app/api/health/route.ts`, `apps/web/app/api/agent-events/route.ts`, `apps/web/server/routers/cash.ts`, `apps/web/server/routers/mobileMoney.ts`, `apps/web/server/routers/reconciliation.ts`, `apps/web/server/routers/payroll.ts`, `apps/web/server/routers/expenses.ts`, `apps/web/server/routers/coa.ts`, `apps/web/server/routers/journal.ts`, `apps/web/server/routers/ap.ts`, `apps/web/server/routers/ar.ts`, `apps/web/server/routers/fixedAssets.ts`, `apps/web/server/routers/estimates.ts`, `apps/web/server/routers/expense.ts`, `ROADTOPRODUCTION.md`
+
+**What was built:**
+
+1. **Health endpoints upgraded** (§2.4): Real Redis ping via Upstash REST API, HTTP 503 on unhealthy (readiness + detailed), uptime tracking, Anthropic API reachability check, removed disk space stub.
+2. **Idempotency wired into 57 financial mutations** (§19.2): Upgraded 57 mutations from `rlsProtectedProcedure` to `rlsMutateProcedure` across 12 routers (cash, mobileMoney, reconciliation, payroll, expenses, coa, journal, ap, ar, fixedAssets, estimates, expense). All money-movement and GL-entry mutations now have idempotency protection via `x-idempotency-key` header.
+3. **Redis-backed SSE broadcast** (§16.1): Created `lib/sse/broadcast.ts` with `publishSseEvent` + `drainSseEvents` using Upstash Redis lists. POST publishes to Redis, SSE polling loop drains cross-instance events. In-memory map retained for same-instance fast path.
+4. **IDOR + RLS test sweep** (§20.2): 69 tests in `__tests__/idor-rls-sweep.test.ts` covering entity-scoping contract, financial query isolation (19 tables), mutation entity scoping (34 routers), RLS context verification, idempotency key isolation, and cross-entity attack scenarios.
+5. **ROADTOPRODUCTION.md updated**: 3 of 4 CRITICAL items resolved. Phase 11 marked complete.
+
+**Verification:** typecheck clean ✓ · idor-rls-sweep 69/69 tests pass ✓ · ROADTOPRODUCTION severity: CRITICAL 4→1
+
+---
+
 ### [2026-08-13] — Database rebuilt from scratch from repo (schema + mechanisms + seeds) — verified live admin login
 
 **Agent:** Buffy (Autonomous Engineer)

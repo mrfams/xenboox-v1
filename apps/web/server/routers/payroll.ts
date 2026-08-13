@@ -5,6 +5,7 @@ import {
   handleMutationError,
   router,
   rlsProtectedProcedure,
+  rlsMutateProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
@@ -157,7 +158,7 @@ export const payrollRouter = router({
       return { ...emp, contracts, loans };
     }),
 
-  createEmployee: rlsProtectedProcedure
+  createEmployee: rlsMutateProcedure
     .use(requirePermission("payroll", "create"))
     .input(
       z.object({
@@ -724,7 +725,7 @@ export const payrollRouter = router({
       return { ...run, lineItems };
     }),
 
-  createPayrollRun: rlsProtectedProcedure
+  createPayrollRun: rlsMutateProcedure
     .use(requirePermission("payroll", "create"))
     .input(
       z.object({
@@ -786,7 +787,7 @@ export const payrollRouter = router({
     }),
 
   // ── Update ──
-  updateEmployee: rlsProtectedProcedure
+  updateEmployee: rlsMutateProcedure
     .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
@@ -841,7 +842,7 @@ export const payrollRouter = router({
       }
     }),
 
-  updatePayrollRun: rlsProtectedProcedure
+  updatePayrollRun: rlsMutateProcedure
     .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
@@ -908,7 +909,7 @@ export const payrollRouter = router({
     }),
 
   // ── Deduction Types ──
-  createDeductionType: rlsProtectedProcedure
+  createDeductionType: rlsMutateProcedure
     .use(requirePermission("payroll", "create"))
     .input(
       z.object({
@@ -945,7 +946,7 @@ export const payrollRouter = router({
       }
     }),
 
-  updateDeductionType: rlsProtectedProcedure
+  updateDeductionType: rlsMutateProcedure
     .use(requirePermission("payroll", "edit"))
     .input(
       z.object({
@@ -988,7 +989,7 @@ export const payrollRouter = router({
       }
     }),
 
-  deleteDeductionType: rlsProtectedProcedure
+  deleteDeductionType: rlsMutateProcedure
     .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1024,7 +1025,7 @@ export const payrollRouter = router({
     }),
 
   // ── Delete ──
-  deleteEmployee: rlsProtectedProcedure
+  deleteEmployee: rlsMutateProcedure
     .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1065,7 +1066,7 @@ export const payrollRouter = router({
       }
     }),
 
-  deletePayrollRun: rlsProtectedProcedure
+  deletePayrollRun: rlsMutateProcedure
     .use(requirePermission("payroll", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1114,7 +1115,7 @@ export const payrollRouter = router({
    * Salary data is enforcement at the query layer via entity scoping.
    * Payroll Worker Agent never posts to the ledger directly.
    */
-  runPayrollPipeline: rlsProtectedProcedure
+  runPayrollPipeline: rlsMutateProcedure
     .use(requirePermission("payroll", "approve"))
     .input(
       z.object({

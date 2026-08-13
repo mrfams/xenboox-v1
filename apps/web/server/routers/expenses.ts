@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import {
+  router,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
+} from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import {
@@ -24,7 +28,7 @@ export const expensesRouter = router({
    * same table the expenses page reads), pending by default so they can be
    * reviewed before approval. Requires a payee (supplier) and a balance.
    */
-  createExpense: rlsProtectedProcedure
+  createExpense: rlsMutateProcedure
     .input(
       z.object({
         supplierId: z.string().uuid(),

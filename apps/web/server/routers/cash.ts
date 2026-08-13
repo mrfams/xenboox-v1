@@ -29,7 +29,7 @@ export const cashRouter = router({
     });
   }),
 
-  createCashAccount: rlsProtectedProcedure
+  createCashAccount: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
@@ -70,7 +70,7 @@ export const cashRouter = router({
       }
     }),
 
-  updateCashAccount: rlsProtectedProcedure
+  updateCashAccount: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
@@ -117,7 +117,7 @@ export const cashRouter = router({
     });
   }),
 
-  createImprestFloat: rlsProtectedProcedure
+  createImprestFloat: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
@@ -170,7 +170,7 @@ export const cashRouter = router({
       return { ...float, receipts };
     }),
 
-  updateImprestFloat: rlsProtectedProcedure
+  updateImprestFloat: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
@@ -199,7 +199,7 @@ export const cashRouter = router({
       }
     }),
 
-  deleteImprestReceipt: rlsProtectedProcedure
+  deleteImprestReceipt: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -249,7 +249,7 @@ export const cashRouter = router({
       }
     }),
 
-  addImprestReceipt: rlsProtectedProcedure
+  addImprestReceipt: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
@@ -309,7 +309,7 @@ export const cashRouter = router({
       }
     }),
 
-  settleImprestFloat: rlsProtectedProcedure
+  settleImprestFloat: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "approve"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -351,7 +351,7 @@ export const cashRouter = router({
       });
     }),
 
-  updatePettyCashEntry: rlsProtectedProcedure
+  updatePettyCashEntry: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "edit"))
     .input(
       z.object({
@@ -391,7 +391,7 @@ export const cashRouter = router({
     });
   }),
 
-  createPettyCashEntry: rlsProtectedProcedure
+  createPettyCashEntry: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "create"))
     .input(
       z.object({
@@ -441,7 +441,7 @@ export const cashRouter = router({
       }
     }),
 
-  deleteCashAccount: rlsProtectedProcedure
+  deleteCashAccount: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -472,7 +472,7 @@ export const cashRouter = router({
       }
     }),
 
-  deleteImprestFloat: rlsProtectedProcedure
+  deleteImprestFloat: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -508,7 +508,7 @@ export const cashRouter = router({
       }
     }),
 
-  deletePettyCashEntry: rlsProtectedProcedure
+  deletePettyCashEntry: rlsMutateProcedure
     .use(requirePermission("cash_imprest", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

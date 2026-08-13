@@ -1,5 +1,9 @@
 // Enterprise Health Check Endpoints
 // Provides comprehensive health monitoring for the application
+// GET /api/health          — basic (always 200)
+// GET /api/health?check=live   — liveness (always 200 if process alive)
+// GET /api/health?check=ready  — readiness (503 if DB/Redis unreachable)
+// GET /api/health?check=detailed — full system check
 
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
@@ -9,29 +13,29 @@ import { db } from "@/lib/db";
 interface HealthCheckResult {
   status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
+  uptime_s: number;
   version: string;
   environment: string;
   checks: {
     database: HealthCheck;
-    redis?: HealthCheck;
+    redis: HealthCheck;
     external_apis?: HealthCheck;
-    disk_space?: HealthCheck;
     memory?: HealthCheck;
   };
 }
 
 interface HealthCheck {
   status: "pass" | "fail" | "warn";
-  latency?: number;
+  latency_ms?: number;
   message?: string;
-  last_check: string;
 }
 
 const VERSION = process.env.npm_package_version || "0.1.0";
 const ENVIRONMENT = process.env.NODE_ENV || "development";
+const STARTUP_TIME = Date.now();
 
 /**
- * GET /api/health - Basic health check
+ * GET /api/health — health check with optional ?check= parameter
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -60,226 +64,177 @@ export async function GET(request: Request) {
   }
 }
 
-/**
- * Basic health check - returns 200 if server is running
- */
+/** Basic — always 200 if the process is alive */
 async function basicHealthCheck(): Promise<NextResponse> {
   return NextResponse.json({
     status: "healthy",
     timestamp: new Date().toISOString(),
+    uptime_s: Math.floor((Date.now() - STARTUP_TIME) / 1000),
     version: VERSION,
     environment: ENVIRONMENT,
   });
 }
 
-/**
- * Readiness check - checks if the application is ready to serve traffic
- */
-async function readinessCheck(): Promise<NextResponse> {
-  const checks = {
-    database: await checkDatabase(),
-  };
-
-  const overallStatus = Object.values(checks).every(
-    (check) => check.status === "pass",
-  )
-    ? "healthy"
-    : "unhealthy";
-
-  return NextResponse.json({
-    status: overallStatus,
-    timestamp: new Date().toISOString(),
-    checks,
-  });
-}
-
-/**
- * Liveness check - checks if the application is alive
- */
+/** Liveness — always 200 if the process is alive (for k8s/lb probes) */
 async function livenessCheck(): Promise<NextResponse> {
-  // Simple liveness check - just return 200
   return NextResponse.json({
     status: "healthy",
     timestamp: new Date().toISOString(),
+    uptime_s: Math.floor((Date.now() - STARTUP_TIME) / 1000),
   });
 }
 
-/**
- * Detailed health check - checks all system components
- */
+/** Readiness — 200 if DB + Redis reachable, 503 if not (for traffic routing) */
+async function readinessCheck(): Promise<NextResponse> {
+  const checks = {
+    database: await checkDatabase(),
+    redis: await checkRedis(),
+  };
+
+  const overallStatus = Object.values(checks).every((c) => c.status === "pass")
+    ? "healthy"
+    : "unhealthy";
+
+  return NextResponse.json(
+    {
+      status: overallStatus,
+      timestamp: new Date().toISOString(),
+      uptime_s: Math.floor((Date.now() - STARTUP_TIME) / 1000),
+      checks,
+    },
+    { status: overallStatus === "healthy" ? 200 : 503 },
+  );
+}
+
+/** Detailed — full system check for dashboards and debugging */
 async function detailedHealthCheck(): Promise<NextResponse> {
   const checks: HealthCheckResult["checks"] = {
     database: await checkDatabase(),
+    redis: await checkRedis(),
   };
 
-  // Add Redis check if configured
-  if (process.env.UPSTASH_REDIS_REST_URL) {
-    checks.redis = await checkRedis();
+  // External API check (only if key is set)
+  if (process.env.ANTHROPIC_API_KEY) {
+    checks.external_apis = await checkExternalAPIs();
   }
 
-  // Add external API checks
-  checks.external_apis = await checkExternalAPIs();
-
-  // Add system resource checks
   checks.memory = await checkMemory();
-  checks.disk_space = await checkDiskSpace();
 
   const overallStatus = determineOverallStatus(checks);
 
-  return NextResponse.json({
-    status: overallStatus,
-    timestamp: new Date().toISOString(),
-    version: VERSION,
-    environment: ENVIRONMENT,
-    checks,
-  });
+  return NextResponse.json(
+    {
+      status: overallStatus,
+      timestamp: new Date().toISOString(),
+      uptime_s: Math.floor((Date.now() - STARTUP_TIME) / 1000),
+      version: VERSION,
+      environment: ENVIRONMENT,
+      checks,
+    },
+    { status: overallStatus === "unhealthy" ? 503 : 200 },
+  );
 }
 
-/**
- * Check database connectivity
- */
+/** Ping the database with a simple SELECT 1 */
 async function checkDatabase(): Promise<HealthCheck> {
-  const startTime = Date.now();
-
+  const start = Date.now();
   try {
-    const ____result = await db.execute(sql`SELECT 1 as ok`);
-    const latency = Date.now() - startTime;
-
-    return {
-      status: latency < 1000 ? "pass" : "warn",
-      latency,
-      last_check: new Date().toISOString(),
-    };
-  } catch (error) {
-    return {
-      status: "fail",
-      message:
-        error instanceof Error ? error.message : "Database connection failed",
-      last_check: new Date().toISOString(),
-    };
-  }
-}
-
-/**
- * Check Redis connectivity
- */
-async function checkRedis(): Promise<HealthCheck> {
-  const ____startTime = Date.now();
-
-  try {
-    // This would be implemented when Redis is added
-    // For now, return a warning
-    return {
-      status: "warn",
-      message: "Redis not yet configured",
-      last_check: new Date().toISOString(),
-    };
-  } catch (error) {
-    return {
-      status: "fail",
-      message:
-        error instanceof Error ? error.message : "Redis connection failed",
-      last_check: new Date().toISOString(),
-    };
-  }
-}
-
-/**
- * Check external API connectivity
- */
-async function checkExternalAPIs(): Promise<HealthCheck> {
-  const startTime = Date.now();
-
-  try {
-    // Check Anthropic API
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicKey) {
-      return {
-        status: "warn",
-        message: "Anthropic API key not configured",
-        last_check: new Date().toISOString(),
-      };
-    }
-
-    // Simple connectivity check (would be actual API call in production)
-    const latency = Date.now() - startTime;
-
+    await db.execute(sql`SELECT 1 as ok`);
     return {
       status: "pass",
-      latency,
-      last_check: new Date().toISOString(),
+      latency_ms: Date.now() - start,
     };
   } catch (error) {
     return {
       status: "fail",
-      message:
-        error instanceof Error ? error.message : "External API check failed",
-      last_check: new Date().toISOString(),
+      latency_ms: Date.now() - start,
+      message: error instanceof Error ? error.message : "DB connection failed",
     };
   }
 }
 
-/**
- * Check memory usage
- */
+/** Ping Redis via Upstash REST API */
+async function checkRedis(): Promise<HealthCheck> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    return { status: "warn", message: "Upstash Redis not configured" };
+  }
+  const start = Date.now();
+  try {
+    const res = await fetch(`${url}/ping`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) {
+      return {
+        status: "fail",
+        latency_ms: Date.now() - start,
+        message: `Redis returned ${res.status}`,
+      };
+    }
+    return { status: "pass", latency_ms: Date.now() - start };
+  } catch (error) {
+    return {
+      status: "fail",
+      latency_ms: Date.now() - start,
+      message: error instanceof Error ? error.message : "Redis ping failed",
+    };
+  }
+}
+
+/** Check Anthropic API reachability (lightweight HEAD/GET) */
+async function checkExternalAPIs(): Promise<HealthCheck> {
+  const start = Date.now();
+  try {
+    // Just verify the endpoint is reachable — don't spend tokens
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": process.env.ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1,
+        messages: [{ role: "user", content: "ping" }],
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    // 200 or 400 both mean the API is reachable
+    const reachable = res.ok || res.status === 400;
+    return {
+      status: reachable ? "pass" : "fail",
+      latency_ms: Date.now() - start,
+      message: reachable ? "Anthropic reachable" : `Status ${res.status}`,
+    };
+  } catch (error) {
+    return {
+      status: "fail",
+      latency_ms: Date.now() - start,
+      message: error instanceof Error ? error.message : "Anthropic unreachable",
+    };
+  }
+}
+
+/** Check heap memory usage */
 async function checkMemory(): Promise<HealthCheck> {
-  try {
-    const memoryUsage = process.memoryUsage();
-    const usedMB = memoryUsage.heapUsed / 1024 / 1024;
-    const totalMB = memoryUsage.heapTotal / 1024 / 1024;
-    const usagePercent = (usedMB / totalMB) * 100;
-
-    return {
-      status: usagePercent < 80 ? "pass" : usagePercent < 90 ? "warn" : "fail",
-      message: `Memory usage: ${usedMB.toFixed(2)}MB / ${totalMB.toFixed(2)}MB (${usagePercent.toFixed(1)}%)`,
-      last_check: new Date().toISOString(),
-    };
-  } catch (error) {
-    return {
-      status: "fail",
-      message: error instanceof Error ? error.message : "Memory check failed",
-      last_check: new Date().toISOString(),
-    };
-  }
+  const mem = process.memoryUsage();
+  const usedMB = mem.heapUsed / 1024 / 1024;
+  const totalMB = mem.heapTotal / 1024 / 1024;
+  const pct = (usedMB / totalMB) * 100;
+  return {
+    status: pct < 80 ? "pass" : pct < 90 ? "warn" : "fail",
+    message: `${usedMB.toFixed(0)}MB / ${totalMB.toFixed(0)}MB (${pct.toFixed(0)}%)`,
+  };
 }
 
-/**
- * Check disk space
- */
-async function checkDiskSpace(): Promise<HealthCheck> {
-  try {
-    // This would require a filesystem check
-    // For now, return a warning
-    return {
-      status: "warn",
-      message: "Disk space check not yet implemented",
-      last_check: new Date().toISOString(),
-    };
-  } catch (error) {
-    return {
-      status: "fail",
-      message:
-        error instanceof Error ? error.message : "Disk space check failed",
-      last_check: new Date().toISOString(),
-    };
-  }
-}
-
-/**
- * Determine overall health status
- */
 function determineOverallStatus(
   checks: HealthCheckResult["checks"],
 ): "healthy" | "degraded" | "unhealthy" {
   const values = Object.values(checks);
-
-  if (values.some((check) => check.status === "fail")) {
-    return "unhealthy";
-  }
-
-  if (values.some((check) => check.status === "warn")) {
-    return "degraded";
-  }
-
+  if (values.some((c) => c.status === "fail")) return "unhealthy";
+  if (values.some((c) => c.status === "warn")) return "degraded";
   return "healthy";
 }

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte, inArray } from "drizzle-orm";
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import {
+  router,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   bankAccounts,
@@ -342,7 +346,7 @@ export const reconciliationRouter = router({
     }),
 
   // ── Match Transaction ──
-  matchTransaction: rlsProtectedProcedure
+  matchTransaction: rlsMutateProcedure
     .input(
       z.object({
         transactionId: z.string().uuid(),
@@ -371,7 +375,7 @@ export const reconciliationRouter = router({
     }),
 
   // ── Auto-Reconcile ──
-  autoReconcile: rlsProtectedProcedure
+  autoReconcile: rlsMutateProcedure
     .input(
       z.object({
         bankAccountId: z.string().uuid(),
@@ -440,7 +444,7 @@ export const reconciliationRouter = router({
     }),
 
   // ── Finalize Reconciliation ──
-  finalizeReconciliation: rlsProtectedProcedure
+  finalizeReconciliation: rlsMutateProcedure
     .input(
       z.object({
         bankAccountId: z.string().uuid(),

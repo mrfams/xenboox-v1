@@ -883,7 +883,7 @@ export const journalRouter = router({
       }
     }),
 
-  reverse: rlsProtectedProcedure
+  reverse: rlsMutateProcedure
     .use(requirePermission("general_ledger", "delete"))
     .input(
       z.object({
@@ -1067,7 +1067,7 @@ export const journalRouter = router({
       }
     }),
 
-  delete: rlsProtectedProcedure
+  delete: rlsMutateProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {

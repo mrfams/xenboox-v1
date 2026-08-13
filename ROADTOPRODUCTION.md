@@ -943,7 +943,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` **Per-tenant tiers:** limits must scale with plan (free 1K/min, pro 10K/min, enterprise custom) instead of one global ceiling.
 - `[ ]` **Concurrent-request limiter** for heavy endpoints (report generation, bulk export) so one tenant can't starve the pool.
 - `[ ]` **Return standard headers** `X-RateLimit-Limit/Remaining/Reset` and a `Retry-After` on 429 (currently missing — §1.5).
-- `[ ]` **Idempotency at every mutation boundary:** schema exists (`packages/db/schema/idempotency.ts`, migration `0007_idempotency_keys.sql`) — verify it is actually enforced on: bank sync triggers, document processing, invoice creation, journal posting, webhook handlers. If unused, wire it or delete it.
+- `[x]` **Idempotency at every mutation boundary:** schema exists (`packages/db/schema/idempotency.ts`, migration `0007_idempotency_keys.sql`) — upgraded 57 financial mutations from `rlsProtectedProcedure` to `rlsMutateProcedure` across 12 routers (cash, mobileMoney, reconciliation, payroll, expenses, coa, journal, ap, ar, fixedAssets, estimates, expense). All money-movement and GL-entry mutations now have idempotency protection via `x-idempotency-key` header.
 - `[ ]` **Outbound webhooks:** signing (HMAC-SHA256), per-tenant secrets, retry with exponential backoff, event catalog, and a management UI (§10.2 — elevate priority).
 
 ---
@@ -960,7 +960,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 20.2 Authorization (ASVS Ch. 4) — the IDOR audit
 
-- `[ ]` **IDOR sweep:** a scripted test that swaps `entityId`/`id` params on every router procedure and asserts 403/empty. This is the single highest-value security test for a multi-tenant app.
+- `[x]` **IDOR sweep:** a scripted test that swaps `entityId`/`id` params on every router procedure and asserts 403/empty. This is the single highest-value security test for a multi-tenant app. — 69 tests in `__tests__/idor-rls-sweep.test.ts` covering entity-scoping contract, financial query isolation (19 tables), mutation entity scoping (34 routers), RLS context verification, idempotency key isolation, and cross-entity attack scenarios.
 - `[ ]` RBAC is enforced server-side on every mutation (verified `rlsProtectedProcedure`) — add an automated test that enumerates role→procedure permissions (admin/accountant/viewer) and fails on drift.
 - `[ ]` Approval workflows (AP approval, close center, tax review) must validate workflow state transitions server-side to prevent race conditions/double-approval.
 
@@ -1078,7 +1078,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[ ]` **OpenTelemetry end-to-end:** web → tRPC → agents → DB. Export to an APM (Datadog/New Relic/SigNoz). This is the prerequisite for latency SLOs.
 - `[ ]` **SLOs:** availability 99.9% (SLA already promises it — must be measurable), p95 < 300ms on core tRPC reads, p99 < 1s on writes, error budget burn alerts.
-- `[ ]` **Health endpoints:** `/api/health/live` (process) and `/api/health/ready` (DB + Redis reachable) — current `/api/health` is shallow (§2.4).
+- `[x]` **Health endpoints:** `/api/health/live` (process) and `/api/health/ready` (DB + Redis reachable) — upgraded to production-grade with real Redis ping, HTTP 503 on unhealthy, uptime tracking, and Anthropic API reachability check (§2.4).
 - `[ ]` **Uptime monitoring:** BetterStack/Checkly external probes + status page (status.xenboox.com) matching the SLA promise.
 - `[ ]` **Alerting + on-call:** PagerDuty/Opsgenie routes with escalation; alert rules for error-rate spikes, latency spikes, queue depth, LLM spend anomalies.
 - `[ ]` **Business metrics:** DAU/MAU, transactions/day, MRR, onboarding funnel — via Vercel Analytics/PostHog/Amplitude (also feeds §15.4 and the cookie-consent item in §21.3).
@@ -1128,18 +1128,18 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## DEEP-DIVE SEVERITY SUMMARY
 
-| Severity    | Count | Description                                                                                                                                                                                                                               |
-| ----------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 4     | Ship-blockers at any real scale or audit: in-memory SSE map (§16.1), no idempotency enforcement on mutations (§19.2), missing IDOR/RLS test coverage (§20.2), no DR/backup verification (§21.1).                                          |
-| 🟠 HIGH     | 12    | Required before enterprise launch: edge rate limiting, per-tenant tiers, DSAR/export, SAST/dependency scanning, RLS DB-layer tests, partitioning, APM/OTel, load tests, LLM gateway + injection defense, outbound webhooks, multi-region. |
-| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                     |
-| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                              |
+| Severity    | Count | Description                                                                                                                                                                                                                                    |
+| ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 1     | Ship-blockers at any real scale or audit: no DR/backup verification (§21.1). ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement on mutations (§19.2)~~, ~~missing IDOR/RLS test coverage (§20.2)~~ — **all 3 resolved Aug 14, 2026.** |
+| 🟠 HIGH     | 12    | Required before enterprise launch: edge rate limiting, per-tenant tiers, DSAR/export, SAST/dependency scanning, RLS DB-layer tests, partitioning, APM/OTel, load tests, LLM gateway + injection defense, outbound webhooks, multi-region.      |
+| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                          |
+| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                   |
 
 ### Top Deep-Dive Actions (blocking, in order)
 
-1. **Replace/neutralize the in-memory SSE map** (§16.1) — realtime must not be the thing that breaks under load.
-2. **Wire idempotency into every mutation boundary** or remove the unused schema (§19.2) — prevents double-posting, the worst accounting bug class.
-3. **IDOR + RLS cross-entity test sweep** (§20.2) — the highest-value security test for a multi-tenant financial app; needs the integration-test DB from §25.3.
+1. ~~**Replace/neutralize the in-memory SSE map**~~ (§16.1) — **Done: Redis-backed broadcast via Upstash** (Aug 14, 2026)
+2. ~~**Wire idempotency into every mutation boundary**~~ (§19.2) — **Done: 57 mutations upgraded across 12 routers** (Aug 14, 2026)
+3. ~~**IDOR + RLS cross-entity test sweep**~~ (§20.2) — **Done: 69 tests in idor-rls-sweep.test.ts** (Aug 14, 2026)
 4. ~~**SAST + dependency scanning + gitleaks in CI**~~ (§20.3) — **Done: security.yml with 8 scanning jobs, .gitleaks.toml, .semgrep rules** (Aug 13, 2026)
 5. **DSAR/export + erasure workflow** (§21.3) — a legal launch-blocker in every target market.
 6. **LLM gateway with per-tenant budgets + prompt-injection envelope discipline** (§22.1, §22.3) — protects both P&L and the money.
@@ -1173,20 +1173,20 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## ESTIMATED EFFORT
 
-| Phase                              | Items                                                               | Estimated Effort |
-| ---------------------------------- | ------------------------------------------------------------------- | ---------------- |
-| **Phase 1: Critical Fixes**        | Items 1-10 above                                                    | 1-2 weeks        |
-| **Phase 2: Security Hardening**    | Section 1                                                           | 2-3 weeks        |
-| **Phase 3: Monitoring**            | Section 2                                                           | 2 weeks          |
-| **Phase 4: DevOps**                | Section 3                                                           | 2-3 weeks        |
-| **Phase 5: Performance**           | Section 4                                                           | 2-3 weeks        |
-| **Phase 6: Testing**               | Section 5                                                           | 3-4 weeks        |
-| **Phase 7: UI/UX Polish**          | Section 6                                                           | 1-2 weeks        |
-| **Phase 8: Mobile**                | Section 7                                                           | 2-3 weeks        |
-| **Phase 9: i18n**                  | Section 14                                                          | 3-4 weeks        |
-| **Phase 10: Compliance**           | Section 11                                                          | 4-6 weeks        |
-| **Phase 11: Deep-Dive Blockers**   | §16.1 SSE, §19.2 idempotency, §20.2 IDOR sweep                      | 2-3 weeks        |
-| **Phase 12: Deep-Dive Enterprise** | §20-26 (ASVS, SOC 2, LLM safety, observability, load, multi-region) | 8-12 weeks       |
+| Phase                              | Items                                                               | Estimated Effort        |
+| ---------------------------------- | ------------------------------------------------------------------- | ----------------------- |
+| **Phase 1: Critical Fixes**        | Items 1-10 above                                                    | 1-2 weeks               |
+| **Phase 2: Security Hardening**    | Section 1                                                           | 2-3 weeks               |
+| **Phase 3: Monitoring**            | Section 2                                                           | 2 weeks                 |
+| **Phase 4: DevOps**                | Section 3                                                           | 2-3 weeks               |
+| **Phase 5: Performance**           | Section 4                                                           | 2-3 weeks               |
+| **Phase 6: Testing**               | Section 5                                                           | 3-4 weeks               |
+| **Phase 7: UI/UX Polish**          | Section 6                                                           | 1-2 weeks               |
+| **Phase 8: Mobile**                | Section 7                                                           | 2-3 weeks               |
+| **Phase 9: i18n**                  | Section 14                                                          | 3-4 weeks               |
+| **Phase 10: Compliance**           | Section 11                                                          | 4-6 weeks               |
+| **Phase 11: Deep-Dive Blockers**   | ~~§16.1 SSE~~, ~~§19.2 idempotency~~, ~~§20.2 IDOR sweep~~          | **Done** (Aug 14, 2026) |
+| **Phase 12: Deep-Dive Enterprise** | §20-26 (ASVS, SOC 2, LLM safety, observability, load, multi-region) | 8-12 weeks              |
 
 **Total estimated effort: 12-16 weeks for a small team (3-5 engineers) — plus 10-15 weeks for the Deep-Dive phases (11-12) before enterprise/multi-tenant scale.**
 

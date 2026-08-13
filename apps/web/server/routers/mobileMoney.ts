@@ -4,6 +4,7 @@ import {
   handleMutationError,
   router,
   rlsProtectedProcedure,
+  rlsMutateProcedure,
   requireRole,
   requirePermission,
 } from "@/lib/trpc/server";
@@ -26,7 +27,7 @@ export const mobileMoneyRouter = router({
     });
   }),
 
-  createAccount: rlsProtectedProcedure
+  createAccount: rlsMutateProcedure
     .use(requirePermission("mobile_money", "create"))
     .input(
       z.object({
@@ -61,7 +62,7 @@ export const mobileMoneyRouter = router({
       return account;
     }),
 
-  updateAccount: rlsProtectedProcedure
+  updateAccount: rlsMutateProcedure
     .use(requirePermission("mobile_money", "edit"))
     .input(
       z.object({
@@ -94,7 +95,7 @@ export const mobileMoneyRouter = router({
     });
   }),
 
-  createTransaction: rlsProtectedProcedure
+  createTransaction: rlsMutateProcedure
     .use(requirePermission("mobile_money", "create"))
     .input(
       z.object({
@@ -127,7 +128,7 @@ export const mobileMoneyRouter = router({
       return tx;
     }),
 
-  updateTransactionStatus: rlsProtectedProcedure
+  updateTransactionStatus: rlsMutateProcedure
     .use(requirePermission("mobile_money", "edit"))
     .input(
       z.object({
@@ -179,7 +180,7 @@ export const mobileMoneyRouter = router({
       return updated;
     }),
 
-  deleteAccount: rlsProtectedProcedure
+  deleteAccount: rlsMutateProcedure
     .use(requirePermission("mobile_money", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -212,7 +213,7 @@ export const mobileMoneyRouter = router({
       }
     }),
 
-  deleteTransaction: rlsProtectedProcedure
+  deleteTransaction: rlsMutateProcedure
     .use(requirePermission("mobile_money", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

@@ -9,14 +9,15 @@ import { notifications } from "@xenboox/db/schema/notifications";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { publishSseEvent, drainSseEvents } from "@/lib/sse/broadcast";
 
-// In-memory store for active SSE connections per entity
+// Local connections for this instance (still needed for controller references)
 const activeConnections = new Map<
   string,
   Set<ReadableStreamDefaultController>
 >();
 
-// Broadcast to all connections for an entity
+// Local broadcast (for same-instance fast path)
 function broadcastToEntity(entityId: string, event: AgentEvent) {
   const connections = activeConnections.get(entityId);
   if (!connections) return;
@@ -28,24 +29,7 @@ function broadcastToEntity(entityId: string, event: AgentEvent) {
     try {
       controller.enqueue(encoder.encode(data));
     } catch {
-      // Connection closed, remove it
       connections.delete(controller);
-    }
-  }
-}
-
-// Broadcast to all connections (global events like agent health changes)
-function _broadcastToAll(event: AgentEvent) {
-  const encoder = new TextEncoder();
-  const data = `data: ${JSON.stringify(event)}\n\n`;
-
-  for (const [, connections] of activeConnections) {
-    for (const controller of connections) {
-      try {
-        controller.enqueue(encoder.encode(data));
-      } catch {
-        connections.delete(controller);
-      }
     }
   }
 }
@@ -295,17 +279,28 @@ export async function GET(req: NextRequest) {
           const newEvents = await getEntityEvents(entityId, lastSeen);
 
           if (newEvents.length > 0) {
-            // Send each event
             for (const event of newEvents) {
               controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
               );
             }
 
-            // Update last seen timestamp
             const latestEvent = newEvents[newEvents.length - 1];
             if (latestEvent) {
               lastSeenTimestamps.set(entityId, new Date(latestEvent.timestamp));
+            }
+          }
+
+          // Drain Redis-backed cross-instance events
+          const redisEvents = await drainSseEvents(entityId);
+          for (const raw of redisEvents) {
+            try {
+              const event = JSON.parse(raw) as AgentEvent;
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+              );
+            } catch {
+              // malformed event, skip
             }
           }
 
@@ -413,7 +408,9 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Invalid event type" }, { status: 400 });
   }
 
-  // Broadcast the event
+  // Publish to Redis for cross-instance delivery (§16.1)
+  // Also broadcast locally for same-instance fast path.
+  await publishSseEvent(entityId, event);
   broadcastToEntity(entityId, event);
 
   return Response.json({ success: true });

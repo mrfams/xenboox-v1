@@ -4,6 +4,7 @@ import {
   handleMutationError,
   router,
   rlsProtectedProcedure,
+  rlsMutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -57,7 +58,7 @@ export const coaRouter = router({
       });
     }),
 
-  create: rlsProtectedProcedure
+  create: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -130,7 +131,7 @@ export const coaRouter = router({
       }
     }),
 
-  update: rlsProtectedProcedure
+  update: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
@@ -174,7 +175,7 @@ export const coaRouter = router({
       return updated;
     }),
 
-  delete: rlsProtectedProcedure
+  delete: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -216,7 +217,7 @@ export const coaRouter = router({
       }
     }),
 
-  importTemplate: rlsProtectedProcedure
+  importTemplate: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
       z.object({
