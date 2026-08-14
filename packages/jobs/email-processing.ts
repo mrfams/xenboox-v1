@@ -6,6 +6,7 @@
  */
 
 import { task, logger } from "@trigger.dev/sdk";
+import { dlqOnFailure } from "./lib/dlq";
 import { db } from "@xenboox/db";
 import { inboundEmails, documents, auditLog } from "@xenboox/db/schema";
 import { eq } from "drizzle-orm";
@@ -23,6 +24,27 @@ export const processInboundEmail = task({
     minTimeoutInMs: 5_000,
     maxTimeoutInMs: 60_000,
   },
+
+  onFailure: dlqOnFailure<{
+    emailId: string;
+    entityId: string;
+    from: string;
+    subject: string;
+    textBody: string;
+    htmlBody?: string;
+    attachments: Array<{
+      filename: string;
+      mimeType: string;
+      size: number;
+      buffer: string;
+    }>;
+  }>({
+    task: "process-inbound-email",
+    type: "data_validation",
+    severity: "high",
+    title: (p) => `Inbound email processing failed: ${p.emailId}`,
+    entityIdFrom: (p) => p.entityId,
+  }),
 
   run: async (payload: {
     emailId: string;

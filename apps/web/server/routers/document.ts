@@ -27,7 +27,7 @@ import {
   userEntityAccess,
   docTypeEnum,
 } from "@xenboox/db/schema";
-import { triggerClient } from "@/lib/trigger";
+import { tenantJobOptions, triggerClient } from "@/lib/trigger";
 import {
   getPresignedUploadUrl,
   getPresignedDownloadUrl,
@@ -265,12 +265,18 @@ export const documentRouter = router({
 
         // Trigger AI processing pipeline
         if (input.mimeType) {
-          await triggerClient.tasks.trigger("process-document", {
-            documentId: doc.id,
-            entityId: ctx.entityId!,
-            storagePath: input.r2Key,
-            mimeType: input.mimeType,
-          });
+          await triggerClient.tasks.trigger(
+            "process-document",
+            {
+              documentId: doc.id,
+              entityId: ctx.entityId!,
+              storagePath: input.r2Key,
+              mimeType: input.mimeType,
+            },
+            // Per-tenant queue + dedup: re-triggering the same document (double
+            // webhook / retried request) must not run the pipeline twice.
+            tenantJobOptions(ctx.entityId!, `process-document:${doc.id}`),
+          );
         }
 
         // Fire-and-forget webhook dispatch
@@ -410,12 +416,16 @@ export const documentRouter = router({
 
       // Trigger document processing job
       if (input.mimeType) {
-        await triggerClient.tasks.trigger("process-document", {
-          documentId: doc.id,
-          entityId: ctx.entityId!,
-          storagePath: input.r2Key,
-          mimeType: input.mimeType,
-        });
+        await triggerClient.tasks.trigger(
+          "process-document",
+          {
+            documentId: doc.id,
+            entityId: ctx.entityId!,
+            storagePath: input.r2Key,
+            mimeType: input.mimeType,
+          },
+          tenantJobOptions(ctx.entityId!, `process-document:${doc.id}`),
+        );
       }
 
       return doc;

@@ -7,6 +7,7 @@
 
 import { task, logger } from "@trigger.dev/sdk";
 import { triggerClient } from "./trigger-client";
+import { dlqOnFailure } from "./lib/dlq";
 import { db } from "@xenboox/db";
 import {
   bankConnections,
@@ -30,6 +31,18 @@ export const syncMonoTransactions = task({
   queue: {
     concurrencyLimit: 5,
   },
+
+  onFailure: dlqOnFailure<{
+    connectionId: string;
+    entityId: string;
+    providerConnectionId: string;
+  }>({
+    task: "mono-sync-transactions",
+    type: "data_validation",
+    severity: "high",
+    title: (p) => `Bank sync failed for connection ${p.connectionId}`,
+    entityIdFrom: (p) => p.entityId,
+  }),
 
   run: async (payload: {
     connectionId: string;

@@ -17,7 +17,7 @@ import {
   journalEntryLines,
 } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
-import { triggerClient } from "@/lib/trigger";
+import { tenantJobOptions, triggerClient } from "@/lib/trigger";
 import { cachedDomain } from "@/lib/cache/tenant-cache";
 import {
   executeClosePipeline,
@@ -316,6 +316,11 @@ export const fiscalRouter = router({
             year: period.year,
             userId: ctx.session!.user!.id!,
           },
+          // One close per tenant per period — double-trigger collapses.
+          tenantJobOptions(
+            ctx.entityId!,
+            `process-month-end-close:${period.year}-${period.month}`,
+          ),
         );
 
         return { jobId: job.id, status: "triggered" };

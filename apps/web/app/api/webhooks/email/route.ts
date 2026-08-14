@@ -6,7 +6,7 @@ import {
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { triggerClient } from "@/lib/trigger";
+import { tenantJobOptions, triggerClient } from "@/lib/trigger";
 import { verifyWebhookSignature } from "@/lib/webhook-verify";
 import { logger } from "@/lib/logger";
 import { claimWebhookEvent, shortHash } from "@/lib/webhooks/dedup";
@@ -101,15 +101,21 @@ export async function POST(request: NextRequest) {
         }),
       );
 
-      await triggerClient.tasks.trigger("process-inbound-email", {
-        emailId: email.id,
-        entityId: rule.entityId,
-        from,
-        subject,
-        textBody: textBody ?? "",
-        htmlBody,
-        attachments: processedAttachments,
-      });
+      await triggerClient.tasks.trigger(
+        "process-inbound-email",
+        {
+          emailId: email.id,
+          entityId: rule.entityId,
+          from,
+          subject,
+          textBody: textBody ?? "",
+          htmlBody,
+          attachments: processedAttachments,
+        },
+        // Resend webhooks are at-least-once — the idempotency key (plus the
+        // webhook dedup above) collapses duplicates into one processing run.
+        tenantJobOptions(rule.entityId, `process-inbound-email:${email.id}`),
+      );
 
       await db
         .update(inboundEmails)

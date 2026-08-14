@@ -1053,11 +1053,11 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 23.1 Job platform (verified: Trigger.dev, 12 job modules)
 
-- `[x]` Trigger.dev v3 config (`trigger.config.ts`), 12 job modules in `packages/jobs/`, tasks triggered from routers (document processing, mono sync, month-end close, email processing, reminders, exchange rates, report generation).
-- `[ ]` **Move long-running/heavy work out of functions into jobs:** report generation, document OCR/LLM pipelines, close orchestration, batch email — functions stay ≤ a few seconds.
-- `[ ]` **Dead-letter queues:** verify Trigger.dev retry policies per task (maxAttempts, exponential backoff) and that poison tasks surface to a review queue (schema exists: `ops-review-queue.ts`).
-- `[ ]` **Idempotency for job triggers:** re-triggering a job (double webhook) must not double-post (see §19.2 idempotency).
-- `[ ]` Concurrency limits per tenant for heavy jobs (fair scheduling; one tenant's 10K-document import must not starve others).
+- `[x]` Trigger.dev v4 config (`trigger.config.ts`), 12 job modules in `packages/jobs/`, tasks triggered from routers (document processing, mono sync, month-end close, email processing, reminders, exchange rates, report generation). — **SDK upgraded v3→v4 (Aug 14, 2026): the jobs package was pinned to v3.3.17 but used the v4 `task()` API — now on `@trigger.dev/sdk` 4.5.3 matching web; jobs-local typecheck 100% clean.**
+- `[x]` **Move long-running/heavy work out of functions into jobs:** report generation, document OCR/LLM pipelines, close orchestration, batch email — functions stay ≤ a few seconds. — **Done: all heavy work already runs in jobs; verified no long-running loops remain in request handlers.**
+- `[x]` **Dead-letter queues:** verify Trigger.dev retry policies per task (maxAttempts, exponential backoff) and that poison tasks surface to a review queue (schema exists: `ops-review-queue.ts`). — **Done (Aug 14, 2026): `onFailure` hook on all 9 heavy tasks surfaces exhausted-retry poison tasks into `review_items` via `packages/jobs/lib/dlq.ts` (resolves org from entity, includes error context, never throws).**
+- `[x]` **Idempotency for job triggers:** re-triggering a job (double webhook) must not double-post (see §19.2 idempotency). — **Done (Aug 14, 2026): deterministic `idempotencyKey` (`job:{entityId}:{job-key}`) on every trigger site — web routers + email webhook + intra-pipeline triggers — so double webhooks collapse into one run.**
+- `[x]` Concurrency limits per tenant for heavy jobs (fair scheduling; one tenant's 10K-document import must not starve others). — **Done (Aug 14, 2026): `concurrencyKey: entityId` on every tenant-scoped trigger gives each entity its own queue copy with the task's own concurrencyLimit.**
 
 ### 23.2 Event-driven backbone (when volume demands it)
 

@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-14] — Jobs: Trigger.dev v4 upgrade + per-tenant concurrency + job idempotency + DLQ (§23.1)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/jobs/lib/dlq.ts`, `apps/web/__tests__/jobs-dlq.test.ts` (6 tests), `apps/web/__tests__/trigger-options.test.ts` (3 tests)
+**Files Modified:** `packages/jobs/package.json` (SDK v3.3.0→v4.5.3), `trigger.config.ts` (v4 format: `maxDuration` + default retries), `packages/jobs/{document-processing,ingestion,bank-import,mono-sync,auto-link,report-generation,email-processing,month-end-close,reminders}.ts` (DLQ onFailure hooks), `apps/web/lib/trigger.ts` (`tenantJobOptions` helper), `apps/web/server/routers/{document,fiscal,integrations}.ts` + `apps/web/app/api/webhooks/email/route.ts` (concurrencyKey + idempotencyKey on every trigger)
+
+**What was done (autoplan):**
+
+1. **v3→v4 SDK upgrade** — the jobs package was pinned to `@trigger.dev/sdk` 3.3.17 but every module used the v4 `task()` API (`task`/`logger`/`tasks.trigger` don't exist in v3) — the root cause of the pre-existing jobs typecheck failures. Bumped to 4.5.3 (matching web), converted `trigger.config.ts` to v4 (`Telemetry`→removed, added `maxDuration` + default retry policy). Jobs-local typecheck is now 100% clean (remaining errors live in `../ingestion`/`../models` and pre-date this work).
+2. **Per-tenant concurrency (fair scheduling)** — `concurrencyKey: entityId` on every tenant-scoped trigger. v4 creates a queue copy per unique key, so one tenant's 10K-doc import can never starve another tenant's jobs.
+3. **Job-trigger idempotency** — deterministic `idempotencyKey` = `job:{entityId}:{key}` on all trigger sites (document create/resubmit, month-end close per period, mono sync per connection, reminders, inbound email per email) plus the three intra-pipeline triggers in document-processing. Double webhook → one run.
+4. **Dead-letter queue** — `onFailure` hook on all 9 heavy tasks via `packages/jobs/lib/dlq.ts`: resolves org from entity, inserts into `review_items` with type/priority/error context, and never throws (a failing DLQ write must not re-enter the retry loop).
+5. Also fixed a latent bug: `transitionToFailed(documentId, entityId, error)` was passed the raw `unknown` catch value.
+
+**Verification:** jobs-local typecheck clean, web typecheck clean, build green, 920 passed / 15 pre-existing DB-env failures / 19 skipped (+9 new tests).
+
+---
+
 ### [2026-08-14] — DB index review: partial indexes for hot states + leading-column/GIN audit (§17.3, §886)
 
 **Agent:** Buffy (Autonomous Engineer)

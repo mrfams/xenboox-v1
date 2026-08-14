@@ -1,4 +1,5 @@
 import { task, logger } from "@trigger.dev/sdk";
+import { dlqOnFailure } from "./lib/dlq";
 import { db } from "@xenboox/db";
 import {
   bankConnections,
@@ -24,6 +25,14 @@ export const sendMonthlyBankReminders = task({
   queue: {
     concurrencyLimit: 1,
   },
+
+  onFailure: dlqOnFailure<{ entityId?: string }>({
+    task: "send-monthly-bank-reminders",
+    type: "review",
+    severity: "medium",
+    title: () => "Monthly bank reminders failed",
+    entityIdFrom: (p) => p.entityId,
+  }),
 
   run: async (payload: { entityId?: string }) => {
     const targetEntityId = payload.entityId;

@@ -29,13 +29,17 @@
     "./lib/bank-statement-parser": {
       "import": "./lib/bank-statement-parser.ts",
       "default": "./lib/bank-statement-parser.ts"
+    },
+    "./lib/dlq": {
+      "import": "./lib/dlq.ts",
+      "default": "./lib/dlq.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@trigger.dev/sdk": "^3.3.0",
+    "@trigger.dev/sdk": "^4.5.3",
     "@xenboox/db": "workspace:*",
     "@xenboox/ingestion": "workspace:*",
     "@xenboox/models": "workspace:*",

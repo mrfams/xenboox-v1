@@ -21,7 +21,7 @@ import {
   csvMappings,
 } from "@xenboox/db/schema/integrations";
 import { entities } from "@xenboox/db/schema/organization";
-import { triggerClient } from "@/lib/trigger";
+import { tenantJobOptions, triggerClient } from "@/lib/trigger";
 
 // ─── CSV Mapping Helpers ───────────────────────────────────────────────────
 
@@ -434,11 +434,15 @@ export const integrationsRouter = router({
         });
       }
 
-      await triggerClient.tasks.trigger("mono-sync-transactions", {
-        connectionId: connection.id,
-        entityId: ctx.entityId!,
-        providerConnectionId: connection.providerConnectionId,
-      });
+      await triggerClient.tasks.trigger(
+        "mono-sync-transactions",
+        {
+          connectionId: connection.id,
+          entityId: ctx.entityId!,
+          providerConnectionId: connection.providerConnectionId,
+        },
+        tenantJobOptions(ctx.entityId!, `mono-sync:${connection.id}`),
+      );
 
       return { triggered: true };
     }),
@@ -702,9 +706,13 @@ export const integrationsRouter = router({
 
   triggerMonthlyBankReminders: rlsProtectedProcedure.mutation(
     async ({ ctx }) => {
-      await triggerClient.tasks.trigger("send-monthly-bank-reminders", {
-        entityId: ctx.entityId!,
-      });
+      await triggerClient.tasks.trigger(
+        "send-monthly-bank-reminders",
+        {
+          entityId: ctx.entityId!,
+        },
+        tenantJobOptions(ctx.entityId!, `send-monthly-bank-reminders`),
+      );
       return { success: true };
     },
   ),

@@ -1,4 +1,5 @@
 import { task, logger } from "@trigger.dev/sdk";
+import { dlqOnFailure } from "./lib/dlq";
 import { triggerClient } from "./trigger-client";
 import { db } from "@xenboox/db";
 import { documents } from "@xenboox/db/schema";
@@ -383,12 +384,20 @@ async function stageAgentProcessing(
     logger.info("Bank statement detected, triggering bank import", {
       documentId,
     });
-    await triggerClient.tasks.trigger("import-bank-statement", {
-      documentId,
-      entityId,
-      storagePath,
-      mimeType,
-    });
+    await triggerClient.tasks.trigger(
+      "import-bank-statement",
+      {
+        documentId,
+        entityId,
+        storagePath,
+        mimeType,
+      },
+      // Per-tenant queue + dedup on the downstream jobs too.
+      {
+        concurrencyKey: entityId,
+        idempotencyKey: `import-bank-statement:${documentId}`,
+      },
+    );
   }
 
   if (
@@ -399,10 +408,17 @@ async function stageAgentProcessing(
       documentId,
       category: classification.category,
     });
-    await triggerClient.tasks.trigger("auto-link-document", {
-      documentId,
-      entityId,
-    });
+    await triggerClient.tasks.trigger(
+      "auto-link-document",
+      {
+        documentId,
+        entityId,
+      },
+      {
+        concurrencyKey: entityId,
+        idempotencyKey: `auto-link-document:${documentId}`,
+      },
+    );
   }
 
   // Always trigger the autonomous accounting ingestion pipeline
@@ -413,10 +429,17 @@ async function stageAgentProcessing(
     documentId,
     category: classification.category,
   });
-  await triggerClient.tasks.trigger("run-document-ingestion", {
-    documentId,
-    entityId,
-  });
+  await triggerClient.tasks.trigger(
+    "run-document-ingestion",
+    {
+      documentId,
+      entityId,
+    },
+    {
+      concurrencyKey: entityId,
+      idempotencyKey: `run-document-ingestion:${documentId}`,
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -435,6 +458,21 @@ export const processDocument = task({
   queue: {
     concurrencyLimit: 10,
   },
+
+  // DLQ: after retries are exhausted, surface the poison task to the ops
+  // review queue instead of silently dropping the document.
+  onFailure: dlqOnFailure<{
+    documentId: string;
+    entityId: string;
+    storagePath: string;
+    mimeType: string;
+  }>({
+    task: "process-document",
+    type: "data_validation",
+    severity: "high",
+    title: (p) => `Document processing failed: ${p.documentId}`,
+    entityIdFrom: (p) => p.entityId,
+  }),
 
   run: async (payload: {
     documentId: string;
@@ -528,7 +566,7 @@ export const processDocument = task({
         error: errorMessage,
       });
 
-      await transitionToFailed(documentId, entityId, error);
+      await transitionToFailed(documentId, entityId, errorMessage);
 
       throw error;
     }

@@ -7,6 +7,7 @@
  */
 
 import { task, logger } from "@trigger.dev/sdk";
+import { dlqOnFailure } from "./lib/dlq";
 import { db } from "@xenboox/db";
 import {
   bankTransactions,
@@ -42,6 +43,20 @@ export const importBankStatement = task({
   queue: {
     concurrencyLimit: 5,
   },
+
+  onFailure: dlqOnFailure<{
+    documentId: string;
+    entityId: string;
+    storagePath: string;
+    mimeType: string;
+    bankAccountId?: string;
+  }>({
+    task: "import-bank-statement",
+    type: "data_validation",
+    severity: "high",
+    title: (p) => `Bank statement import failed: ${p.documentId}`,
+    entityIdFrom: (p) => p.entityId,
+  }),
 
   run: async (payload: {
     documentId: string;

@@ -7,6 +7,7 @@
  */
 
 import { task, logger } from "@trigger.dev/sdk";
+import { dlqOnFailure } from "./lib/dlq";
 import { db } from "@xenboox/db";
 import {
   documents,
@@ -27,6 +28,14 @@ export const autoLinkDocument = task({
     factor: 2,
     minTimeoutInMs: 5_000,
   },
+
+  onFailure: dlqOnFailure<{ documentId: string; entityId: string }>({
+    task: "auto-link-document",
+    type: "entity_resolution",
+    severity: "medium",
+    title: (p) => `Auto-link failed for document ${p.documentId}`,
+    entityIdFrom: (p) => p.entityId,
+  }),
 
   run: async (payload: { documentId: string; entityId: string }) => {
     const { documentId, entityId } = payload;

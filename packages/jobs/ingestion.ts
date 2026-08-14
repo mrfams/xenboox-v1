@@ -9,6 +9,7 @@
  */
 
 import { task, logger } from "@trigger.dev/sdk";
+import { dlqOnFailure } from "./lib/dlq";
 import { db } from "@xenboox/db";
 import { documents, auditLog } from "@xenboox/db/schema";
 import { eq } from "drizzle-orm";
@@ -26,6 +27,14 @@ export const runDocumentIngestion = task({
   queue: {
     concurrencyLimit: 5,
   },
+
+  onFailure: dlqOnFailure<{ documentId: string; entityId: string }>({
+    task: "run-document-ingestion",
+    type: "review",
+    severity: "high",
+    title: (p) => `Accounting ingestion failed for document ${p.documentId}`,
+    entityIdFrom: (p) => p.entityId,
+  }),
 
   run: async (payload: { documentId: string; entityId: string }) => {
     const { documentId, entityId } = payload;
