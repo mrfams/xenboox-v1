@@ -1,4 +1,5 @@
 import { render } from "@react-email/render";
+import { logger } from "@/lib/logger";
 import { CloseCompleteEmail } from "@xenboox/email";
 import { InvoiceOverdueEmail } from "@xenboox/email";
 import { AgentEscalationEmail } from "@xenboox/email";
@@ -23,19 +24,13 @@ type SendEmailOptions = {
 
 // ─── Base Sender ────────────────────────────────────────────────────────────
 
-// Structured JSON logger for production use (replaces console.warn/error)
+// Structured pino logger (service-tagged) — replaces ad-hoc console calls so
+// email failures land in the same pipeline as everything else.
 function log(level: "warn" | "error", message: string, data?: unknown) {
-  const entry = JSON.stringify({
-    timestamp: new Date().toISOString(),
-    level,
-    service: "email",
-    message,
-    ...(data ? { data } : {}),
-  });
   if (level === "error") {
-    console.error(entry);
+    logger.error({ ...(data as object) }, message);
   } else {
-    console.warn(entry);
+    logger.warn({ ...(data as object) }, message);
   }
 }
 

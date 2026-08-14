@@ -299,8 +299,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Check if user email matches an SSO-restricted domain
         // Reads from config file (admin UI) or env vars
         if (user?.email && isDomainEnforced(user.email)) {
-          console.warn(
-            `[sso] Password login blocked for SSO domain user: ${user.email}`,
+          logger.warn(
+            { email: user.email },
+            "[sso] Password login blocked for SSO domain user",
           );
           return false;
         }

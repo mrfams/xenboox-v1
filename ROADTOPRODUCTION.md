@@ -169,8 +169,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[~]` `@types/pino` installed but pino not used — **fixed: replaced critical console statements in auth, admin, tRPC, and Mono webhook with structured logger** (Aug 12, 2026)
 - `[~]` Replace all `console.log` in API routes with structured logger — **done for Mono webhook, tRPC handler** (Aug 12, 2026)
 - `[~]` Replace all `console.error` in server routers with structured logger — **done for auth router (6 instances), admin router** (Aug 12, 2026)
-- `[ ]` Add request ID tracking across log entries
-- `[ ]` Configure log levels per environment (debug, info, warn, error)
+- `[x]` Add request ID tracking across log entries — **edge middleware sets `x-request-id`; authMiddleware attaches a `requestId`+`userId`-scoped pino child to every authenticated call; loggingMiddleware now derives a requestId-scoped child for public procedures too — every tRPC log entry carries its request** (Aug 14, 2026)
+- `[x]` Configure log levels per environment (debug, info, warn, error) — **`resolveLogLevel` in `lib/logger.ts`: explicit `LOG_LEVEL` (validated) > env defaults (dev=debug, test=silent, prod=info); 6 unit tests** (Aug 14, 2026)
 - `[ ]` Centralize logs (Vercel function logs → external service)
 
 ### 2.4 Health Check Endpoints
@@ -690,7 +690,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 12.1 Console Statements
 
-- `[ ]` 84 `console.log/error/warn` statements in production code
+- `[x]` 84 `console.log/error/warn` statements in production code — **0 remaining in server/lib code (sso, auth, artifact-service, api/v1, email migrated to pino); 7 remaining are idiomatic client-side (Next error boundaries + client UX error paths)** (Aug 14, 2026)
 - `[x]` 3 debug `console.log` stubs in dashboard — replaced with functional `chat.sendMessage()` calls. `app/dashboard/page.tsx:1402-1411` (Aug 12, 2026)
 - `[~]` 6 `console.log` calls in API routes logging user data — **fixed: auth.ts and admin.ts migrated to structured logger; Mono webhook migrated** (Aug 12, 2026)
 - `[ ]` Replace all with structured logger (Pino)

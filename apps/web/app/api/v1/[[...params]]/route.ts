@@ -583,7 +583,7 @@ async function authenticateAndRateLimit(
   try {
     rateLimit = await checkRateLimit(auth.key);
   } catch (err) {
-    console.error("API v1 rate-limit check failed:", err);
+    logger.error({ err }, "API v1 rate-limit check failed");
     return {
       response: errorResponse(
         "Rate limiting service unavailable. Please retry.",

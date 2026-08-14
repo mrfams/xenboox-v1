@@ -18,6 +18,7 @@
 import type { Provider } from "next-auth/providers";
 
 import { getSsoSettings } from "@/lib/sso-settings";
+import { logger } from "@/lib/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ export function buildSsoProviders(): Provider[] {
 
   if (!config.enabled || config.provider === "none") return [];
   if (!config.clientId || !config.clientSecret) {
-    console.warn(
+    logger.warn(
       "[sso] SSO enabled but missing SSO_CLIENT_ID or SSO_CLIENT_SECRET",
     );
     return [];
@@ -107,7 +108,7 @@ export function buildSsoProviders(): Provider[] {
  */
 function buildAzureAdProvider(config: SsoConfig): Provider[] {
   if (!config.issuer) {
-    console.warn(
+    logger.warn(
       "[sso] Azure AD requires SSO_ISSUER (e.g., https://login.microsoftonline.com/{tenant-id}/v2.0)",
     );
     return [];
@@ -150,7 +151,7 @@ function buildAzureAdProvider(config: SsoConfig): Provider[] {
  */
 function buildOktaProvider(config: SsoConfig): Provider[] {
   if (!config.issuer) {
-    console.warn(
+    logger.warn(
       "[sso] Okta requires SSO_ISSUER (e.g., https://your-domain.okta.com/oauth2/default)",
     );
     return [];

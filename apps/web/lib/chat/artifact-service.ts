@@ -14,6 +14,7 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { eq } from "drizzle-orm";
 import { artifactRegistry, fiscalPeriods } from "@xenboox/db/schema";
+import { logger } from "@/lib/logger";
 import {
   generateProfitLoss,
   generateBalanceSheet,
@@ -193,7 +194,7 @@ export async function generateChatArtifacts(
     return refs;
   } catch (error) {
     // A failed artifact must never break the chat response.
-    console.error("[chat-artifacts] generation failed:", error);
+    logger.error({ err: error }, "[chat-artifacts] generation failed");
     return [];
   }
 }
@@ -568,8 +569,9 @@ async function persistArtifact(params: {
 }): Promise<ChatArtifactRef | null> {
   const contentBytes = Buffer.byteLength(params.content, "utf8");
   if (contentBytes > MAX_INLINE_BYTES) {
-    console.warn(
-      `[chat-artifacts] content too large, skipping: ${params.name}`,
+    logger.warn(
+      { name: params.name },
+      "[chat-artifacts] content too large, skipping",
     );
     return null;
   }
@@ -639,9 +641,9 @@ export async function rewriteR2Object(params: {
     );
     return true;
   } catch (error) {
-    console.warn(
-      "[chat-artifacts] R2 rewrite unavailable, inline only:",
-      error,
+    logger.warn(
+      { err: error },
+      "[chat-artifacts] R2 rewrite unavailable, inline only",
     );
     return false;
   }
@@ -666,9 +668,9 @@ async function uploadToR2(
     );
     return { r2Key, r2Bucket: R2_BUCKET };
   } catch (error) {
-    console.warn(
-      "[chat-artifacts] R2 upload unavailable, storing inline only:",
-      error,
+    logger.warn(
+      { err: error },
+      "[chat-artifacts] R2 upload unavailable, storing inline only",
     );
     return null;
   }

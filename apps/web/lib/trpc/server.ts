@@ -145,7 +145,17 @@ const loggingMiddleware = t.middleware(async ({ ctx, next, path, type }) => {
   const result = await next({ ctx });
   const duration = Date.now() - start;
   const level = type === "query" ? "debug" : "info";
-  const log = (ctx as { log?: typeof logger }).log ?? logger;
+  // Authenticated procedures carry a requestId+userId-scoped logger on ctx
+  // (set by authMiddleware). Public procedures fall back to a requestId-
+  // scoped child derived from the x-request-id header the edge middleware
+  // sets, so every log entry is traceable to a request.
+  let log = (ctx as { log?: typeof logger }).log;
+  if (!log) {
+    const requestId =
+      (ctx as { headers?: Record<string, string> }).headers?.["x-request-id"] ??
+      "unknown";
+    log = logger.child({ requestId });
+  }
   log[level]({ path, type, durationMs: duration }, `tRPC ${type} ${path}`);
   return result;
 });

@@ -6,6 +6,22 @@
 
 ---
 
+### [2026-08-14] — Observability: per-env log levels + request-ID propagation + console sweep (§2.3, §20)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/__tests__/logger-levels.test.ts` (6 tests)
+**Files Modified:** `apps/web/lib/logger.ts` (resolveLogLevel), `apps/web/lib/trpc/server.ts` (requestId-scoped child for public procedures), `apps/web/lib/auth/sso.ts`, `apps/web/lib/auth/index.ts`, `apps/web/lib/chat/artifact-service.ts`, `apps/web/lib/email.ts`, `apps/web/app/api/v1/[[...params]]/route.ts`, `ROADTOPRODUCTION.md`
+
+**What was done (autoplan):**
+
+1. **Log levels per env** — `resolveLogLevel(env)`: validated `LOG_LEVEL` wins; else dev=debug, test=silent (clean CI), prod=info (no per-query debug noise/cost). Invalid LOG_LEVEL falls back safely.
+2. **Request-ID propagation completed** — edge middleware already set `x-request-id` and authMiddleware attached a requestId+userId child logger; closed the public-procedure gap so every tRPC log entry (auth'd or not) carries its requestId.
+3. **console sweep finished** — server/ + lib/ now **0** console statements: sso config warnings, SSO-domain login block, artifact-service (4), api/v1 rate-limit failure, email send failures all migrated to pino. 7 client-side console sites remain by design (Next error boundaries + client UX error paths).
+
+**Verification:** web typecheck clean, build green, 902 passed / 15 pre-existing DB-env failures / 19 skipped. (Iteration note: initial `createRequestLogger` import broke 13 test files' logger mocks — swapped to `logger.child()` which the mocks already provide.)
+
+---
+
 ### [2026-08-14] — Password policy + session invalidation on password change / role revocation (§1.144, §20.958)
 
 **Agent:** Buffy (Autonomous Engineer)
