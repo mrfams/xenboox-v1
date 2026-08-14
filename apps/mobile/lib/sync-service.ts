@@ -1,9 +1,11 @@
-import { NetInfo } from "@react-native-community/netinfo";
+import NetInfo from "@react-native-community/netinfo";
 import {
   getPendingTransactions,
   markTransactionSynced,
   markTransactionFailed,
   clearSyncedTransactions,
+  clearExpiredReadCache,
+  saveTransaction,
 } from "./offline-storage";
 import { trpc } from "./trpc";
 import { getCurrentEntityId } from "./auth";
@@ -41,6 +43,7 @@ async function syncOfflineData() {
     if (!entityId) return;
 
     const pending = await getPendingTransactions();
+    await clearExpiredReadCache(); // sweep stale offline reads while we're here
     if (pending.length === 0) {
       await clearSyncedTransactions();
       isSyncing = false;

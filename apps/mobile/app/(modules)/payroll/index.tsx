@@ -1,42 +1,44 @@
-import { View, FlatList, RefreshControl, Pressable } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { Input } from "@/components/ui/input"
-import { trpc } from "@/lib/trpc"
-import { useState, useCallback } from "react"
-import { useRouter } from "expo-router"
-import { Plus } from "lucide-react-native"
-import { ErrorComponent } from "@/components/error-component"
+import { View, FlatList, RefreshControl, Pressable } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { Input } from "@/components/ui/input";
+import { trpc } from "@/lib/trpc";
+import { useState, useCallback } from "react";
+import { useRouter } from "expo-router";
+import { Plus } from "lucide-react-native";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
 type Employee = {
-  id: string
-  employeeNumber: string
-  firstName: string
-  lastName: string
-  department: string
-  jobTitle: string
-  status: string
-}
+  id: string;
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  department: string;
+  jobTitle: string;
+  status: string;
+};
 
 export default function PayrollScreen() {
-  const router = useRouter()
-  const [refreshing, setRefreshing] = useState(false)
-  const [search, setSearch] = useState("")
-  const { data: employees, refetch, isLoading, error } = trpc.payroll.listEmployees.useQuery()
+  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
+  const {
+    data: employees,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.payroll.listEmployees.useQuery();
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text>Loading...</Text>
-      </View>
-    )
+    return <ScreenSkeleton rows={6} />;
   }
 
   if (error) {
@@ -45,11 +47,11 @@ export default function PayrollScreen() {
         <Header title="Payroll" />
         <ErrorComponent message={error.message} onRetry={refetch} />
       </View>
-    )
+    );
   }
 
   const filtered = (employees || []).filter((e: Employee) => {
-    const term = search.toLowerCase()
+    const term = search.toLowerCase();
     return (
       !term ||
       e.firstName.toLowerCase().includes(term) ||
@@ -57,14 +59,14 @@ export default function PayrollScreen() {
       e.employeeNumber.toLowerCase().includes(term) ||
       e.department.toLowerCase().includes(term) ||
       e.jobTitle.toLowerCase().includes(term)
-    )
-  })
+    );
+  });
 
   const statusColors: Record<string, string> = {
     active: "text-success",
     inactive: "text-slate-500",
-    terminated: "text-danger"
-  }
+    terminated: "text-danger",
+  };
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-900">
@@ -89,7 +91,9 @@ export default function PayrollScreen() {
       <FlatList
         data={filtered}
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(`/(modules)/payroll/${item.id}`)}>
+          <Pressable
+            onPress={() => router.push(`/(modules)/payroll/${item.id}`)}
+          >
             <Card variant="elevated" className="mx-4 mb-3">
               <CardContent>
                 <View className="flex-row items-center justify-between">
@@ -107,7 +111,8 @@ export default function PayrollScreen() {
                       variant="caption"
                       className={statusColors[item.status] || ""}
                     >
-                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                      {item.status.charAt(0).toUpperCase() +
+                        item.status.slice(1)}
                     </Text>
                   </View>
                 </View>
@@ -132,5 +137,5 @@ export default function PayrollScreen() {
         }
       />
     </View>
-  )
+  );
 }

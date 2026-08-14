@@ -1,27 +1,28 @@
-import { View, FlatList, RefreshControl } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { trpc } from "@/lib/trpc"
-import { useState, useCallback } from "react"
-import { ErrorComponent } from "@/components/error-component"
+import { View, FlatList, RefreshControl } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { trpc } from "@/lib/trpc";
+import { useState, useCallback } from "react";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
 type Invoice = {
-  id: string
-  invoiceNumber: string
-  contactName: string
-  totalAmount: number
-  status: string
-  dueDate: string
-}
+  id: string;
+  invoiceNumber: string;
+  contactName: string;
+  totalAmount: number;
+  status: string;
+  dueDate: string;
+};
 
 function InvoiceRow({ invoice }: { invoice: Invoice }) {
   const statusColors: Record<string, string> = {
     draft: "text-slate-500",
     sent: "text-primary-600",
     paid: "text-success",
-    overdue: "text-danger"
-  }
+    overdue: "text-danger",
+  };
 
   return (
     <Card variant="elevated" className="mb-3">
@@ -37,32 +38,36 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
             <Text variant="bodySmall" className="font-medium">
               ${invoice.totalAmount.toFixed(2)}
             </Text>
-            <Text variant="caption" className={statusColors[invoice.status] || ""}>
+            <Text
+              variant="caption"
+              className={statusColors[invoice.status] || ""}
+            >
               {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
             </Text>
           </View>
         </View>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 export default function InvoicesScreen() {
-  const [refreshing, setRefreshing] = useState(false)
-  const { data: invoices, refetch, isLoading, error } = trpc.ar.listInvoices.useQuery()
+  const [refreshing, setRefreshing] = useState(false);
+  const {
+    data: invoices,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.ar.listInvoices.useQuery();
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text>Loading...</Text>
-      </View>
-    )
+    return <ScreenSkeleton rows={6} />;
   }
 
   if (error) {
@@ -71,7 +76,7 @@ export default function InvoicesScreen() {
         <Header title="Invoices" />
         <ErrorComponent message={error.message} onRetry={refetch} />
       </View>
-    )
+    );
   }
 
   return (
@@ -98,5 +103,5 @@ export default function InvoicesScreen() {
         }
       />
     </View>
-  )
+  );
 }

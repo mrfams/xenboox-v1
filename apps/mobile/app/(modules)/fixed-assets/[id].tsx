@@ -1,13 +1,21 @@
-import { View, ScrollView, RefreshControl } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { trpc } from "@/lib/trpc"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { useState, useCallback } from "react"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { View, ScrollView, RefreshControl } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { trpc } from "@/lib/trpc";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState, useCallback } from "react";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
-function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | number | null;
+}) {
   return (
     <View className="mb-3 flex-row justify-between">
       <Text variant="caption">{label}</Text>
@@ -15,27 +23,45 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
         {value ?? "—"}
       </Text>
     </View>
-  )
+  );
 }
 
 export default function AssetDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const router = useRouter()
-  const [refreshing, setRefreshing] = useState(false)
-  const { data: asset, refetch } = trpc.fixedAssets.getAssetById.useQuery({ id: id! })
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const {
+    data: asset,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.fixedAssets.getAssetById.useQuery({ id: id! });
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  if (isLoading) {
+    return <ScreenSkeleton rows={3} />;
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-slate-50 dark:bg-slate-900">
+        <Header title="Fixed Asset" />
+        <ErrorComponent message={error.message} onRetry={() => refetch()} />
+      </View>
+    );
+  }
 
   if (!asset) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <Text variant="bodySmall">Loading...</Text>
+        <Text variant="bodySmall">Asset not found.</Text>
       </View>
-    )
+    );
   }
 
   return (
@@ -43,7 +69,11 @@ export default function AssetDetailScreen() {
       <Header
         title={asset.name}
         leftAction={
-          <Text variant="body" className="text-primary-600" onPress={() => router.back()}>
+          <Text
+            variant="body"
+            className="text-primary-600"
+            onPress={() => router.back()}
+          >
             ← Back
           </Text>
         }
@@ -65,7 +95,14 @@ export default function AssetDetailScreen() {
               <DetailRow label="Description" value={asset.description} />
               <DetailRow label="Asset Class" value={asset.assetClass} />
               <DetailRow label="Location" value={asset.location} />
-              <DetailRow label="Acquisition Date" value={asset.acquisitionDate ? formatDate(asset.acquisitionDate) : null} />
+              <DetailRow
+                label="Acquisition Date"
+                value={
+                  asset.acquisitionDate
+                    ? formatDate(asset.acquisitionDate)
+                    : null
+                }
+              />
               <DetailRow label="Status" value={asset.status} />
             </CardContent>
           </Card>
@@ -76,9 +113,18 @@ export default function AssetDetailScreen() {
             </CardHeader>
             <CardContent>
               <DetailRow label="Cost" value={formatCurrency(asset.cost)} />
-              <DetailRow label="Salvage Value" value={formatCurrency(asset.salvageValue)} />
-              <DetailRow label="Useful Life" value={asset.usefulLife ? `${asset.usefulLife} years` : null} />
-              <DetailRow label="Depreciation Method" value={asset.depreciationMethod} />
+              <DetailRow
+                label="Salvage Value"
+                value={formatCurrency(asset.salvageValue)}
+              />
+              <DetailRow
+                label="Useful Life"
+                value={asset.usefulLife ? `${asset.usefulLife} years` : null}
+              />
+              <DetailRow
+                label="Depreciation Method"
+                value={asset.depreciationMethod}
+              />
             </CardContent>
           </Card>
 
@@ -87,12 +133,18 @@ export default function AssetDetailScreen() {
               <Text variant="h3">Depreciation</Text>
             </CardHeader>
             <CardContent>
-              <DetailRow label="Accumulated Depreciation" value={formatCurrency(asset.accumulatedDepreciation)} />
-              <DetailRow label="Net Book Value" value={formatCurrency(asset.netBookValue)} />
+              <DetailRow
+                label="Accumulated Depreciation"
+                value={formatCurrency(asset.accumulatedDepreciation)}
+              />
+              <DetailRow
+                label="Net Book Value"
+                value={formatCurrency(asset.netBookValue)}
+              />
             </CardContent>
           </Card>
         </View>
       </ScrollView>
     </View>
-  )
+  );
 }

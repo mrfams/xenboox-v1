@@ -1,12 +1,20 @@
-import { View, ScrollView, RefreshControl } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { trpc } from "@/lib/trpc"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { useState, useCallback } from "react"
+import { View, ScrollView, RefreshControl } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { trpc } from "@/lib/trpc";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState, useCallback } from "react";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
-function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | number | null;
+}) {
   return (
     <View className="mb-3 flex-row justify-between">
       <Text variant="caption">{label}</Text>
@@ -14,27 +22,45 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
         {value ?? "—"}
       </Text>
     </View>
-  )
+  );
 }
 
 export default function SupplierDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const router = useRouter()
-  const [refreshing, setRefreshing] = useState(false)
-  const { data: supplier, refetch } = trpc.ap.getSupplierById.useQuery({ id: id! })
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const {
+    data: supplier,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.ap.getSupplierById.useQuery({ id: id! });
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  if (isLoading) {
+    return <ScreenSkeleton rows={3} />;
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-slate-50 dark:bg-slate-900">
+        <Header title="Supplier" />
+        <ErrorComponent message={error.message} onRetry={() => refetch()} />
+      </View>
+    );
+  }
 
   if (!supplier) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <Text variant="bodySmall">Loading...</Text>
+        <Text variant="bodySmall">Supplier not found.</Text>
       </View>
-    )
+    );
   }
 
   return (
@@ -43,7 +69,11 @@ export default function SupplierDetailScreen() {
         title={supplier.name}
         subtitle="Supplier"
         leftAction={
-          <Text variant="body" className="text-primary-600" onPress={() => router.back()}>
+          <Text
+            variant="body"
+            className="text-primary-600"
+            onPress={() => router.back()}
+          >
             Back
           </Text>
         }
@@ -84,5 +114,5 @@ export default function SupplierDetailScreen() {
         </View>
       </ScrollView>
     </View>
-  )
+  );
 }

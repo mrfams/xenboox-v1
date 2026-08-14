@@ -1,21 +1,22 @@
-import { View, ScrollView, RefreshControl } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { trpc } from "@/lib/trpc"
-import { useState, useCallback } from "react"
-import { ErrorComponent } from "@/components/error-component"
+import { View, ScrollView, RefreshControl } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { trpc } from "@/lib/trpc";
+import { useState, useCallback } from "react";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
 function StatCard({
   title,
   value,
   subtitle,
-  color
+  color,
 }: {
-  title: string
-  value: string
-  subtitle?: string
-  color?: string
+  title: string;
+  value: string;
+  subtitle?: string;
+  color?: string;
 }) {
   return (
     <Card variant="elevated">
@@ -29,25 +30,26 @@ function StatCard({
         {subtitle && <Text variant="caption">{subtitle}</Text>}
       </CardContent>
     </Card>
-  )
+  );
 }
 
 export default function DashboardScreen() {
-  const [refreshing, setRefreshing] = useState(false)
-  const { data: summary, refetch, isLoading, error } = trpc.organization.getEntitySummary.useQuery()
+  const [refreshing, setRefreshing] = useState(false);
+  const {
+    data: summary,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.organization.getEntitySummary.useQuery();
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text>Loading...</Text>
-      </View>
-    )
+    return <ScreenSkeleton rows={5} />;
   }
 
   if (error) {
@@ -56,7 +58,7 @@ export default function DashboardScreen() {
         <Header title="Dashboard" />
         <ErrorComponent message={error.message} onRetry={refetch} />
       </View>
-    )
+    );
   }
 
   return (
@@ -110,12 +112,13 @@ export default function DashboardScreen() {
             </CardHeader>
             <CardContent>
               <Text variant="bodySmall" className="text-slate-500">
-                Chat with your AI CFO to get started. Ask questions about your finances, create journal entries, or run reports.
+                Chat with your AI CFO to get started. Ask questions about your
+                finances, create journal entries, or run reports.
               </Text>
             </CardContent>
           </Card>
         </View>
       </ScrollView>
     </View>
-  )
+  );
 }

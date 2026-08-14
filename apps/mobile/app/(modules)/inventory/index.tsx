@@ -1,41 +1,43 @@
-import { View, FlatList, RefreshControl, Pressable } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { trpc } from "@/lib/trpc"
-import { useState, useCallback } from "react"
-import { useRouter } from "expo-router"
-import { formatCurrency } from "@/lib/utils"
-import { Plus } from "lucide-react-native"
-import { ErrorComponent } from "@/components/error-component"
+import { View, FlatList, RefreshControl, Pressable } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { trpc } from "@/lib/trpc";
+import { useState, useCallback } from "react";
+import { useRouter } from "expo-router";
+import { formatCurrency } from "@/lib/utils";
+import { Plus } from "lucide-react-native";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
 type InventoryItem = {
-  id: string
-  name: string
-  sku: string
-  category: string
-  qtyOnHand: number
-  reorderLevel: number
-  standardCost: number
-}
+  id: string;
+  name: string;
+  sku: string;
+  category: string;
+  qtyOnHand: number;
+  reorderLevel: number;
+  standardCost: number;
+};
 
 export default function InventoryScreen() {
-  const router = useRouter()
-  const [refreshing, setRefreshing] = useState(false)
-  const { data: items, refetch, isLoading, error } = trpc.inventory.listItems.useQuery()
+  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const {
+    data: items,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.inventory.listItems.useQuery();
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text>Loading...</Text>
-      </View>
-    )
+    return <ScreenSkeleton rows={6} />;
   }
 
   if (error) {
@@ -44,7 +46,7 @@ export default function InventoryScreen() {
         <Header title="Inventory" />
         <ErrorComponent message={error.message} onRetry={refetch} />
       </View>
-    )
+    );
   }
 
   return (
@@ -62,9 +64,11 @@ export default function InventoryScreen() {
       <FlatList
         data={items || []}
         renderItem={({ item }) => {
-          const isLow = item.qtyOnHand < item.reorderLevel
+          const isLow = item.qtyOnHand < item.reorderLevel;
           return (
-            <Pressable onPress={() => router.push(`/(modules)/inventory/${item.id}`)}>
+            <Pressable
+              onPress={() => router.push(`/(modules)/inventory/${item.id}`)}
+            >
               <Card variant="elevated" className="mx-4 mb-3">
                 <CardContent>
                   <View className="flex-row items-center justify-between">
@@ -82,7 +86,9 @@ export default function InventoryScreen() {
                       </Text>
                       <Text
                         variant="bodySmall"
-                        className={isLow ? "text-danger font-medium" : "text-success"}
+                        className={
+                          isLow ? "text-danger font-medium" : "text-success"
+                        }
                       >
                         Qty: {item.qtyOnHand}
                         {isLow ? " ⚠" : ""}
@@ -95,7 +101,7 @@ export default function InventoryScreen() {
                 </CardContent>
               </Card>
             </Pressable>
-          )
+          );
         }}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingTop: 0 }}
@@ -114,5 +120,5 @@ export default function InventoryScreen() {
         }
       />
     </View>
-  )
+  );
 }

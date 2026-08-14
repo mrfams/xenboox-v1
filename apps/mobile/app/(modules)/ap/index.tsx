@@ -1,42 +1,44 @@
-import { View, FlatList, RefreshControl, Pressable } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { trpc } from "@/lib/trpc"
-import { useState, useCallback } from "react"
-import { useRouter } from "expo-router"
-import { Plus } from "lucide-react-native"
-import { ErrorComponent } from "@/components/error-component"
+import { View, FlatList, RefreshControl, Pressable } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc";
+import { useState, useCallback } from "react";
+import { useRouter } from "expo-router";
+import { Plus } from "lucide-react-native";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
 type Supplier = {
-  id: string
-  name: string
-  contactEmail: string | null
-  contactPhone: string | null
-  paymentTerms: string
-  isActive: boolean
-}
+  id: string;
+  name: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  paymentTerms: string;
+  isActive: boolean;
+};
 
 export default function APScreen() {
-  const [refreshing, setRefreshing] = useState(false)
-  const [search, setSearch] = useState("")
-  const router = useRouter()
-  const { data: suppliers, refetch, isLoading, error } = trpc.ap.listSuppliers.useQuery()
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
+  const router = useRouter();
+  const {
+    data: suppliers,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.ap.listSuppliers.useQuery();
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text>Loading...</Text>
-      </View>
-    )
+    return <ScreenSkeleton rows={6} />;
   }
 
   if (error) {
@@ -45,13 +47,13 @@ export default function APScreen() {
         <Header title="Accounts Payable" />
         <ErrorComponent message={error.message} onRetry={refetch} />
       </View>
-    )
+    );
   }
 
   const filtered = (suppliers || []).filter((s: Supplier) => {
-    const term = search.toLowerCase()
-    return !term || s.name.toLowerCase().includes(term)
-  })
+    const term = search.toLowerCase();
+    return !term || s.name.toLowerCase().includes(term);
+  });
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-900">
@@ -92,7 +94,9 @@ export default function APScreen() {
                     <Text variant="bodySmall">{item.paymentTerms}</Text>
                     <Text
                       variant="caption"
-                      className={item.isActive ? "text-success" : "text-slate-500"}
+                      className={
+                        item.isActive ? "text-success" : "text-slate-500"
+                      }
                     >
                       {item.isActive ? "Active" : "Inactive"}
                     </Text>
@@ -119,5 +123,5 @@ export default function APScreen() {
         }
       />
     </View>
-  )
+  );
 }

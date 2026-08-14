@@ -1,13 +1,21 @@
-import { View, ScrollView, RefreshControl } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { trpc } from "@/lib/trpc"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { useState, useCallback } from "react"
-import { formatCurrency } from "@/lib/utils"
+import { View, ScrollView, RefreshControl } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { trpc } from "@/lib/trpc";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState, useCallback } from "react";
+import { formatCurrency } from "@/lib/utils";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
-function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | number | null;
+}) {
   return (
     <View className="mb-3 flex-row justify-between">
       <Text variant="caption">{label}</Text>
@@ -15,27 +23,45 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
         {value ?? "—"}
       </Text>
     </View>
-  )
+  );
 }
 
 export default function InventoryItemDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const router = useRouter()
-  const [refreshing, setRefreshing] = useState(false)
-  const { data: item, refetch } = trpc.inventory.getItemById.useQuery({ id: id! })
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const {
+    data: item,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.inventory.getItemById.useQuery({ id: id! });
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  if (isLoading) {
+    return <ScreenSkeleton rows={3} />;
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-slate-50 dark:bg-slate-900">
+        <Header title="Inventory Item" />
+        <ErrorComponent message={error.message} onRetry={() => refetch()} />
+      </View>
+    );
+  }
 
   if (!item) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <Text variant="bodySmall">Loading...</Text>
+        <Text variant="bodySmall">Item not found.</Text>
       </View>
-    )
+    );
   }
 
   return (
@@ -43,7 +69,11 @@ export default function InventoryItemDetailScreen() {
       <Header
         title={item.name}
         leftAction={
-          <Text variant="body" className="text-primary-600" onPress={() => router.back()}>
+          <Text
+            variant="body"
+            className="text-primary-600"
+            onPress={() => router.back()}
+          >
             ← Back
           </Text>
         }
@@ -74,14 +104,20 @@ export default function InventoryItemDetailScreen() {
               <Text variant="h3">Stock & Pricing</Text>
             </CardHeader>
             <CardContent>
-              <DetailRow label="Standard Cost" value={formatCurrency(item.standardCost)} />
+              <DetailRow
+                label="Standard Cost"
+                value={formatCurrency(item.standardCost)}
+              />
               <DetailRow label="Qty on Hand" value={item.qtyOnHand} />
               <DetailRow label="Reorder Level" value={item.reorderLevel} />
-              <DetailRow label="Reorder Quantity" value={item.reorderQuantity} />
+              <DetailRow
+                label="Reorder Quantity"
+                value={item.reorderQuantity}
+              />
             </CardContent>
           </Card>
         </View>
       </ScrollView>
     </View>
-  )
+  );
 }

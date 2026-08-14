@@ -1,42 +1,44 @@
-import { View, FlatList, RefreshControl, Pressable } from "react-native"
-import { Text } from "@/components/ui/text"
-import { Card, CardContent } from "@/components/ui/card"
-import { Header } from "@/components/layout/header"
-import { Input } from "@/components/ui/input"
-import { trpc } from "@/lib/trpc"
-import { useState, useCallback } from "react"
-import { useRouter } from "expo-router"
-import { Plus } from "lucide-react-native"
-import { ErrorComponent } from "@/components/error-component"
+import { View, FlatList, RefreshControl, Pressable } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent } from "@/components/ui/card";
+import { Header } from "@/components/layout/header";
+import { Input } from "@/components/ui/input";
+import { trpc } from "@/lib/trpc";
+import { useState, useCallback } from "react";
+import { useRouter } from "expo-router";
+import { Plus } from "lucide-react-native";
+import { ErrorComponent } from "@/components/error-component";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 
 type Customer = {
-  id: string
-  name: string
-  contactEmail: string | null
-  contactPhone: string | null
-  paymentTerms: string
-  creditLimit: string | null
-  isActive: boolean
-}
+  id: string;
+  name: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  paymentTerms: string;
+  creditLimit: string | null;
+  isActive: boolean;
+};
 
 export default function ARScreen() {
-  const [refreshing, setRefreshing] = useState(false)
-  const [search, setSearch] = useState("")
-  const router = useRouter()
-  const { data: customers, refetch, isLoading, error } = trpc.ar.listCustomers.useQuery()
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
+  const router = useRouter();
+  const {
+    data: customers,
+    refetch,
+    isLoading,
+    error,
+  } = trpc.ar.listCustomers.useQuery();
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
-  }, [refetch])
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text>Loading...</Text>
-      </View>
-    )
+    return <ScreenSkeleton rows={6} />;
   }
 
   if (error) {
@@ -45,13 +47,13 @@ export default function ARScreen() {
         <Header title="Accounts Receivable" />
         <ErrorComponent message={error.message} onRetry={refetch} />
       </View>
-    )
+    );
   }
 
   const filtered = (customers || []).filter((c: Customer) => {
-    const term = search.toLowerCase()
-    return !term || c.name.toLowerCase().includes(term)
-  })
+    const term = search.toLowerCase();
+    return !term || c.name.toLowerCase().includes(term);
+  });
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-900">
@@ -92,7 +94,9 @@ export default function ARScreen() {
                     <Text variant="bodySmall">{item.paymentTerms}</Text>
                     <Text
                       variant="caption"
-                      className={item.isActive ? "text-success" : "text-slate-500"}
+                      className={
+                        item.isActive ? "text-success" : "text-slate-500"
+                      }
                     >
                       {item.isActive ? "Active" : "Inactive"}
                     </Text>
@@ -119,5 +123,5 @@ export default function ARScreen() {
         }
       />
     </View>
-  )
+  );
 }
