@@ -11,6 +11,7 @@ import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
+  rlsMutateProcedure,
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
@@ -403,7 +404,7 @@ export const ingestionRouter = router({
    * Approve a pending review, posting the proposed journal entry.
    * Can optionally edit the proposed entry before posting.
    */
-  approveReview: rlsProtectedProcedure
+  approveReview: rlsMutateProcedure
     .input(
       z.object({
         documentId: z.string().uuid(),
@@ -600,7 +601,7 @@ export const ingestionRouter = router({
   /**
    * Reject a pending review. The document will not be posted.
    */
-  rejectReview: rlsProtectedProcedure
+  rejectReview: rlsMutateProcedure
     .input(
       z.object({
         documentId: z.string().uuid(),
@@ -680,7 +681,7 @@ export const ingestionRouter = router({
    * Re-run the ingestion pipeline for a document. Useful if
    * data was corrected or new accounts were created.
    */
-  rerunIngestion: rlsProtectedProcedure
+  rerunIngestion: rlsMutateProcedure
     .input(z.object({ documentId: z.string().uuid() }))
     .mutation(
       async ({

@@ -3,6 +3,10 @@
 import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
 
 import type { AppRouter } from "@/server/routers/_app";
+import {
+  deriveIdempotencyKey,
+  idempotencySourceForBatch,
+} from "@/lib/trpc/idempotency-key";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -12,28 +16,27 @@ function getBaseUrl() {
   return `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
-function generateIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 export function createTRPCClient() {
   return trpc.createClient({
     links: [
       httpBatchLink({
         url: `${getBaseUrl()}/api/trpc`,
         maxURLLength: 2048,
-        headers() {
+        async headers({ opList }) {
           const entityId =
             typeof window !== "undefined" && typeof localStorage !== "undefined"
               ? localStorage.getItem("currentEntityId")
               : null;
-          return {
+          const headers: Record<string, string> = {
             "x-entity-id": entityId || "",
-            "x-idempotency-key": generateIdempotencyKey(),
           };
+          // Stable per-mutation key so retries/double-clicks dedupe on the
+          // server (§19.2). Fresh random keys defeat the middleware.
+          const source = idempotencySourceForBatch(entityId || "", opList);
+          if (source) {
+            headers["x-idempotency-key"] = await deriveIdempotencyKey(source);
+          }
+          return headers;
         },
       }),
     ],

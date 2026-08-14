@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { verifyMonoSignature } from "@/lib/webhook-verify";
 import { logger } from "@/lib/logger";
+import { claimWebhookEvent, shortHash } from "@/lib/webhooks/dedup";
 
 const log = logger.child({ module: "mono-webhook" });
 
@@ -22,6 +23,13 @@ export async function POST(request: NextRequest) {
     const { event, data } = body;
 
     log.info({ event, connectionId: data?.id }, "Received webhook event");
+
+    // At-least-once delivery: drop retried events so they never double-apply.
+    const eventKey = `mono:${event}:${data?.id ?? shortHash(rawBody)}`;
+    if (!(await claimWebhookEvent(eventKey))) {
+      log.info({ eventKey }, "Duplicate webhook event — skipping");
+      return NextResponse.json({ received: true, duplicate: true });
+    }
 
     switch (event) {
       case "mono.account.connected":

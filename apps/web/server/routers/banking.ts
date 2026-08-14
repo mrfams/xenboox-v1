@@ -3,6 +3,7 @@ import { eq, and, asc, desc, sql, count, sum, gte, lte } from "drizzle-orm";
 import {
   handleMutationError,
   router,
+  rlsMutateProcedure,
   rlsProtectedProcedure,
   requirePermission,
 } from "@/lib/trpc/server";
@@ -558,7 +559,7 @@ export const bankingRouter = router({
     }),
 
   // ── Account management (Settings tab) ──
-  updateAccount: rlsProtectedProcedure
+  updateAccount: rlsMutateProcedure
     .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
@@ -628,7 +629,7 @@ export const bankingRouter = router({
     return withStats;
   }),
 
-  createRule: rlsProtectedProcedure
+  createRule: rlsMutateProcedure
     .use(requirePermission("bank_reconciliation", "create"))
     .input(
       z.object({
@@ -676,7 +677,7 @@ export const bankingRouter = router({
       }
     }),
 
-  updateRule: rlsProtectedProcedure
+  updateRule: rlsMutateProcedure
     .use(requirePermission("bank_reconciliation", "edit"))
     .input(
       z.object({
@@ -725,7 +726,7 @@ export const bankingRouter = router({
       }
     }),
 
-  deleteRule: rlsProtectedProcedure
+  deleteRule: rlsMutateProcedure
     .use(requirePermission("bank_reconciliation", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

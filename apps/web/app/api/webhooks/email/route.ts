@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { triggerClient } from "@/lib/trigger";
 import { verifyWebhookSignature } from "@/lib/webhook-verify";
 import { logger } from "@/lib/logger";
+import { claimWebhookEvent, shortHash } from "@/lib/webhooks/dedup";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +27,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = JSON.parse(rawBody);
+
+    // At-least-once delivery: drop retried events so a message never creates
+    // duplicate inbound email records or double job triggers.
+    const eventId = body.data?.id ?? body.id ?? shortHash(rawBody);
+    const eventKey = `email:${eventId}`;
+    if (!(await claimWebhookEvent(eventKey))) {
+      logger.info({ eventKey }, "Duplicate email webhook event — skipping");
+      return NextResponse.json({ received: true, duplicate: true });
+    }
 
     const {
       from,
