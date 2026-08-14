@@ -362,6 +362,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ? "bg-primary/15 text-primary"
             : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
         )}
+        aria-current={isActive(item) ? "page" : undefined}
         {...(item.attrs ?? {})}
       >
         <span className="relative">

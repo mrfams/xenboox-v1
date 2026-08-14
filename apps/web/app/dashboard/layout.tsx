@@ -100,6 +100,13 @@ export default function DashboardLayout({
         <WhiteLabelProvider>
           <PermissionAwareLayout>
             <SimulationProvider>
+              {/* Skip link — first tab stop jumps past the sidebar/top-nav to content */}
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
+              >
+                Skip to content
+              </a>
               <div data-dashboard className="flex h-screen overflow-hidden">
                 {/* Left Sidebar */}
                 <AISidebar
@@ -122,8 +129,10 @@ export default function DashboardLayout({
                       chatOpen={chatOpen}
                     />
                     <main
+                      id="main-content"
+                      tabIndex={-1}
                       className={cn(
-                        "flex-1 overflow-y-auto",
+                        "flex-1 overflow-y-auto focus:outline-none",
                         isPaddedPage && "p-6",
                       )}
                     >

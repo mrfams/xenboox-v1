@@ -160,25 +160,46 @@ export function ArtifactList({
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200">
-            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+            <th
+              scope="col"
+              className="text-left py-3 px-4 text-sm font-medium text-slate-600"
+            >
               Artifact
             </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+            <th
+              scope="col"
+              className="text-left py-3 px-4 text-sm font-medium text-slate-600"
+            >
               Kind
             </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+            <th
+              scope="col"
+              className="text-left py-3 px-4 text-sm font-medium text-slate-600"
+            >
               Status
             </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+            <th
+              scope="col"
+              className="text-left py-3 px-4 text-sm font-medium text-slate-600"
+            >
               Created By
             </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+            <th
+              scope="col"
+              className="text-left py-3 px-4 text-sm font-medium text-slate-600"
+            >
               Date
             </th>
-            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+            <th
+              scope="col"
+              className="text-right py-3 px-4 text-sm font-medium text-slate-600"
+            >
               Size
             </th>
-            <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
+            <th
+              scope="col"
+              className="text-right py-3 px-4 text-sm font-medium text-slate-600"
+            >
               Actions
             </th>
           </tr>

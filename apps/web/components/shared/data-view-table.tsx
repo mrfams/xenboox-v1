@@ -29,6 +29,8 @@ interface DataViewTableProps<T> {
   rowActions?: (item: T) => React.ReactNode;
   className?: string;
   emptyMessage?: string;
+  /** Screen-reader caption describing the table's contents (a11y). */
+  caption?: string;
 }
 
 export function DataViewTable<T>({
@@ -39,6 +41,7 @@ export function DataViewTable<T>({
   rowActions,
   className,
   emptyMessage = "No records found.",
+  caption,
 }: DataViewTableProps<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -105,10 +108,11 @@ export function DataViewTable<T>({
 
       <div className="overflow-x-auto">
         <table className="w-full">
+          {caption && <caption className="sr-only">{caption}</caption>}
           <thead>
             <tr className="border-b bg-muted/30">
               {onSelectionChange && (
-                <th className="w-8 px-2 py-2.5">
+                <th scope="col" className="w-8 px-2 py-2.5">
                   <button
                     onClick={toggleAll}
                     className="flex items-center justify-center"
@@ -131,6 +135,7 @@ export function DataViewTable<T>({
               {columns.map((col) => (
                 <th
                   key={col.key}
+                  scope="col"
                   className={cn(
                     "px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground",
                     col.align === "right" && "text-right",
@@ -160,7 +165,10 @@ export function DataViewTable<T>({
                 </th>
               ))}
               {rowActions && (
-                <th className="w-16 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th
+                  scope="col"
+                  className="w-16 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Actions
                 </th>
               )}

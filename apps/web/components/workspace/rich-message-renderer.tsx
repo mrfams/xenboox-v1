@@ -189,6 +189,7 @@ function TableBlockRenderer({ data }: { data: Record<string, unknown> }) {
                 {columns.map((col) => (
                   <th
                     key={col.key}
+                    scope="col"
                     className={cn(
                       "px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider",
                       col.align === "right" ? "text-right" : "text-left",
@@ -428,6 +429,7 @@ function MarkdownTableRenderer({
               {headers.map((header, idx) => (
                 <th
                   key={idx}
+                  scope="col"
                   className="px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-left"
                 >
                   {header}

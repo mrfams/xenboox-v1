@@ -1283,10 +1283,18 @@ export function OnboardingLiveness({
           <table className="w-full text-left text-[10px]">
             <thead>
               <tr className="border-b text-muted-foreground/60">
-                <th className="py-1.5 pr-2 font-medium">Condition</th>
-                <th className="py-1.5 pr-2 font-medium">Escalates to</th>
-                <th className="py-1.5 pr-2 font-medium">What user sees</th>
-                <th className="py-1.5 font-medium">Blocking?</th>
+                <th scope="col" className="py-1.5 pr-2 font-medium">
+                  Condition
+                </th>
+                <th scope="col" className="py-1.5 pr-2 font-medium">
+                  Escalates to
+                </th>
+                <th scope="col" className="py-1.5 pr-2 font-medium">
+                  What user sees
+                </th>
+                <th scope="col" className="py-1.5 font-medium">
+                  Blocking?
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1432,9 +1440,15 @@ export function OnboardingLiveness({
             <table className="w-full text-left text-[10px]">
               <thead>
                 <tr className="border-b text-muted-foreground/60">
-                  <th className="px-4 py-2 font-medium">Timestamp</th>
-                  <th className="px-4 py-2 font-medium">State</th>
-                  <th className="px-4 py-2 font-medium">Detail</th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Timestamp
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    State
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Detail
+                  </th>
                 </tr>
               </thead>
               <tbody>

@@ -202,13 +202,27 @@ export function ActivityLogView({
           <table className="w-full text-left text-sm">
             <thead className="bg-muted/50 text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 font-medium">#</th>
-                <th className="px-3 py-2 font-medium">When</th>
-                <th className="px-3 py-2 font-medium">Who</th>
-                <th className="px-3 py-2 font-medium">Action</th>
-                <th className="px-3 py-2 font-medium">Record</th>
-                <th className="px-3 py-2 font-medium">Change</th>
-                <th className="px-3 py-2 font-medium">Reason</th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  #
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  When
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Who
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Action
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Record
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Change
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Reason
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">

@@ -264,6 +264,7 @@ export function DataTable({ columns, rows, caption }: DataTableProps) {
               {columns.map((col) => (
                 <th
                   key={col.key}
+                  scope="col"
                   className={cn(
                     "px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider",
                     col.align === "right" ? "text-right" : "text-left",

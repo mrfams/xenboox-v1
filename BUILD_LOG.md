@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-14] — Accessibility: skip links, aria-current, table scope/captions, a11y regression tests (§13.2)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/__tests__/a11y-static.test.ts` (14 tests)
+**Files Modified:** `app/dashboard/layout.tsx` + `app/(marketing)/layout.tsx` (skip links → #main-content, focusable main), `components/layout/sidebar.tsx` (aria-current), 9 table components (th scope="col" + sr-only caption on DataViewTable), `ROADTOPRODUCTION.md` §13.2
+
+**What was done (autoplan):**
+
+1. **Skip links** — visible-on-focus "Skip to content" at the top of both the dashboard and marketing layouts, targeting `#main-content` (tabIndex=-1 + focus:outline-none on `<main>`).
+2. **aria-current="page"** — the sidebar's active nav item now announces its state to screen readers.
+3. **Table semantics** — `scope="col"` on every `<th>` across 9 table components (data-view-table, artifact-list, activity-log, chat-panel, hero-home, onboarding-liveness, taxes-section, rich-responses, rich-message-renderer) + optional sr-only `<caption>` on the shared DataViewTable.
+4. **Reduced-motion** — verified the existing `prefers-reduced-motion` block in globals.css.
+5. **Automated a11y regression suite** (`a11y-static.test.ts`) — 14 static assertions that fail the build if any of these patterns regress (same pattern as the security static suites).
+
+**Verification:** web typecheck clean, build green, 954 passed / 15 pre-existing DB-env failures / 19 skipped (+14 new tests).
+
+---
+
 ### [2026-08-14] — UI/UX fixes: live chat financials + ⌘K binding + Share label (§6.4, §6.5, §6.7)
 
 **Agent:** Buffy (Autonomous Engineer)

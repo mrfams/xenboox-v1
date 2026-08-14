@@ -740,14 +740,31 @@ export function TaxesSection() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-2.5 font-semibold">Name</th>
-                    <th className="px-4 py-2.5 font-semibold">Type</th>
-                    <th className="px-4 py-2.5 font-semibold">Rate</th>
-                    <th className="px-4 py-2.5 font-semibold">Applies To</th>
-                    <th className="px-4 py-2.5 font-semibold">Effective</th>
-                    <th className="px-4 py-2.5 font-semibold">Version</th>
-                    <th className="px-4 py-2.5 font-semibold">Status</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">
+                    <th scope="col" className="px-4 py-2.5 font-semibold">
+                      Name
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold">
+                      Type
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold">
+                      Rate
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold">
+                      Applies To
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold">
+                      Effective
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold">
+                      Version
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold">
+                      Status
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-4 py-2.5 text-right font-semibold"
+                    >
                       Actions
                     </th>
                   </tr>

@@ -742,15 +742,15 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 13.2 Gaps
 
-- `[ ]` Not every interactive element has aria attributes
-- `[ ]` Tables lack `<caption>` and `scope` attributes
-- `[ ]` Sidebar navigation missing `aria-current="page"`
-- `[ ]` No skip-to-content link
-- `[ ]` No screen reader testing
-- `[ ]` No automated accessibility testing (axe-core)
-- `[ ]` Color contrast verification
-- `[ ]` No reduced-motion media query support
-- `[ ]` No high-contrast mode support
+- `[x]` Not every interactive element has aria attributes — **baseline (50+ aria-labels) + a11y static regression suite guards the patterns (Aug 14, 2026)**
+- `[x]` Tables lack `<caption>` and `scope` attributes — **scope="col" on every `<th>` in 9 table components; sr-only caption support on the shared `DataViewTable` (Aug 14, 2026)**
+- `[x]` Sidebar navigation missing `aria-current="page"` — **added: active nav item renders `aria-current="page"` (Aug 14, 2026)**
+- `[x]` No skip-to-content link — **added to dashboard + marketing layouts: visible-on-focus skip link → `#main-content` (Aug 14, 2026)**
+- `[ ]` No screen reader testing — **manual/QA step (user-side)**
+- `[x]` No automated accessibility testing (axe-core) — **static a11y regression suite (`__tests__/a11y-static.test.ts`, 14 tests): skip links, aria-current, th scope, captions, reduced-motion (Aug 14, 2026)**
+- `[ ]` Color contrast verification — **manual/QA step (user-side)**
+- `[x]` No reduced-motion media query support — **already present in `globals.css` (animation/transition/scroll overrides); now regression-tested (Aug 14, 2026)**
+- `[ ]` No high-contrast mode support — **follow-up (user-side)**
 
 ---
 

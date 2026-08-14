@@ -118,6 +118,7 @@ function renderBlock(block: StructuredContent, bi: number): ReactNode {
                   {block.columns.map((col) => (
                     <th
                       key={col.key}
+                      scope="col"
                       className="px-3 py-2 text-left font-medium text-muted-foreground"
                     >
                       {col.label}

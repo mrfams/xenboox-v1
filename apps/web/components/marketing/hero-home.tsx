@@ -203,10 +203,24 @@ function ProductPreview() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <th className="px-3.5 py-2 font-semibold">Date</th>
-                    <th className="px-3.5 py-2 font-semibold">Account</th>
-                    <th className="px-3.5 py-2 text-right font-semibold">Dr</th>
-                    <th className="px-3.5 py-2 text-right font-semibold">Cr</th>
+                    <th scope="col" className="px-3.5 py-2 font-semibold">
+                      Date
+                    </th>
+                    <th scope="col" className="px-3.5 py-2 font-semibold">
+                      Account
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-2 text-right font-semibold"
+                    >
+                      Dr
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3.5 py-2 text-right font-semibold"
+                    >
+                      Cr
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
