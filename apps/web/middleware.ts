@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { edgeAuth as auth } from "@/lib/auth/edge";
 import { edgeAdminAuth } from "@/lib/auth/admin-edge";
 import { getClientIp } from "@/lib/security/client-ip";
+import { validateOrigin } from "@/lib/security/origin";
 import {
   applySecurityHeaders,
   buildCSP,
@@ -48,31 +49,6 @@ function isAuthRoute(pathname: string): boolean {
     pathname === "/reset-password" ||
     pathname.startsWith("/api/auth/callback/credentials")
   );
-}
-
-function validateOrigin(req: Request): boolean {
-  const origin = req.headers.get("origin");
-  const host = req.headers.get("host");
-
-  if (!host) return false;
-  if (!origin) {
-    const method = req.method;
-    if (method === "GET" || method === "HEAD") return true;
-    const contentType = req.headers.get("content-type") ?? "";
-    if (
-      contentType.includes("application/json") ||
-      contentType.includes("multipart/form-data")
-    )
-      return true;
-    return false;
-  }
-
-  try {
-    const originHost = new URL(origin).host;
-    return originHost === host;
-  } catch {
-    return false;
-  }
 }
 
 async function getRateLimiter() {

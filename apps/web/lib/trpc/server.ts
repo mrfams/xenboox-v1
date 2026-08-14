@@ -1,5 +1,5 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import {
   userEntityAccess,
   entities,
@@ -120,22 +120,19 @@ export const t = initTRPC.context<Context>().create({
 // Uses SET LOCAL so variables persist for the current transaction only.
 // Requires Neon WebSocket mode (Pool-based driver) — HTTP driver cannot use session variables.
 //
-// NOTE: values MUST be single-quoted string literals. JSON.stringify produces
-// double quotes, which Postgres parses as identifiers, not literals — the
-// query then fails with "column ... does not exist".
-function sqlLiteral(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
-}
-
+// Context values are bound as real parameters via Drizzle's `sql` template.
+// Hand-rolled quote-doubling (the old sqlLiteral helper) breaks on
+// non-standard string literals (backslashes) and is the classic SQLi
+// footgun — never inline user or session values into statement text.
 export async function setRlsContext(
   userId: string,
   entityId: string,
 ): Promise<void> {
   await db.execute(
-    `SELECT set_config('app.current_user_id', ${sqlLiteral(userId)}, true)`,
+    sql`SELECT set_config('app.current_user_id', ${userId}, true)`,
   );
   await db.execute(
-    `SELECT set_config('app.current_entity_id', ${sqlLiteral(entityId)}, true)`,
+    sql`SELECT set_config('app.current_entity_id', ${entityId}, true)`,
   );
 }
 

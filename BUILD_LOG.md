@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-14] — Security headers / CSRF / XSS / SQLi automated tests (§1.6–1.9)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/security/origin.ts` (extracted `validateOrigin`), `apps/web/__tests__/security-headers.test.ts` (14 tests), `apps/web/__tests__/csrf-origin.test.ts` (10 tests), `apps/web/__tests__/xss.test.ts` (30 vectors), `apps/web/__tests__/sqli-static.test.ts` (5 structural scans)
+**Files Modified:** `apps/web/middleware.ts` (use extracted origin), `apps/web/lib/security/sanitization.ts`, `apps/web/lib/trpc/server.ts` (`setRlsContext` → Drizzle `sql` params), `ROADTOPRODUCTION.md`
+
+**What was done (autoplan):**
+
+1. **Security headers pinned** — `security-headers.test.ts` locks the exact prod CSP (nonce script-src, no unsafe-inline/eval, frame-ancestors none, object-src none) + all 10 OWASP headers + dev/prod split + nonce uniqueness.
+2. **CSRF edge defense tested** — `validateOrigin` extracted to `lib/security/origin.ts` (pure, testable); 10 tests: same-origin allow, cross-origin/DNS-rebinding/port-trick reject, form-POST signature (no Origin + urlencoded/text-plain), JSON/multipart carve-outs. Test uses duck-typed request because happy-dom enforces the fetch-spec forbidden `host` header (undici doesn't) — env-independent.
+3. **XSS hardening + 30-vector suite** — `sanitizeHTML` gaps closed: unquoted event handlers (explicit handler allow-list — no prose false positives), object/embed/applet/base tags, unclosed-tag pass (catches `<scr<script>ipt>` nesting splits), href/src javascript: attribute stripping, entity-encoded scheme decoding (&#106;/&#97;).
+4. **SQLi static scan** — verified against installed drizzle-orm source that plain-string chunks in `sql\`${'x'}`` become `$n`bound params (not raw SQL).`sqli-static.test.ts`fails CI on string-concat SQL, sql.raw with interpolation, or raw-string`db.execute`. **Real bug found + fixed**: `setRlsContext` hand-rolled quote-doubling (`'`→`''`) → now Drizzle `sql` parameters.
+
+**Verification:** web typecheck clean, build green, 63/63 new tests pass, full suite 875 passed / 15 pre-existing DB-env failures (unchanged) / 19 skipped.
+
+---
+
 ### [2026-08-14] — File-upload validation defense-in-depth (§20.3, §1.7)
 
 **Agent:** Buffy (Autonomous Engineer)

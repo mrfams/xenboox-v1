@@ -110,14 +110,14 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` Referrer-Policy: strict-origin-when-cross-origin
 - `[x]` Permissions-Policy: camera/microphone/geolocation disabled
 - `[x]` COOP, CORP headers
-- `[ ]` Security headers testing — automated tests to verify headers on every response
+- `[x]` Security headers testing — automated tests to verify headers on every response — **`__tests__/security-headers.test.ts`: pins full OWASP header set (CSP nonce policy, HSTS preload, DENY framing, nosniff, COOP/CORP), dev-vs-prod CSP split, per-header opt-out; `__tests__/csrf-origin.test.ts`: 10 edge-origin tests (same-origin allow, cross-origin/DNS-rebind/port-trick reject, form-POST signature) via extracted `lib/security/origin.ts`** (Aug 14, 2026)
 
 ### 1.7 Input Sanitization
 
 - `[x]` Sanitization library exists at `lib/security/sanitization.ts`
 - `[x]` Zod validation on all 76 tRPC router inputs
-- `[ ]` XSS testing — verify sanitization blocks all injection vectors
-- `[ ]` SQL injection testing — verify Drizzle ORM parameterizes all queries
+- `[x]` XSS testing — verify sanitization blocks all injection vectors — **`__tests__/xss.test.ts`: 30 OWASP vectors (script/iframe/object/embed, quoted+unquoted event handlers, javascript:/entity-encoded schemes) against `lib/security/sanitization.ts` — sanitizer hardened (unquoted handlers, object/embed/applet/base, unclosed-tag pass, entity decoding)** (Aug 14, 2026)
+- `[x]` SQL injection testing — verify Drizzle ORM parameterizes all queries — **`__tests__/sqli-static.test.ts` scans all server/lib modules: no string-concat SQL, no sql.raw with interpolation, no raw-string db.execute; `setRlsContext` migrated from hand-rolled quote-doubling to Drizzle `sql` parameters** (Aug 14, 2026)
 - `[x]` File upload validation — verify uploaded files are validated (type, size, content) — **defense-in-depth: sanitizeFileName (traversal/dotfiles/control chars) + extension↔MIME cross-check at presign, R2 size-verification at confirmUpload, magic-byte MIME sniff in the ingestion pipeline (`@xenboox/ingestion/engine/file-validation`) rejecting HTML/SVG/executables; 15 tests** (Aug 14, 2026)
 
 ### 1.8 Dependency Vulnerability Scanning
@@ -132,7 +132,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[x]` Origin validation for mutations in middleware — `middleware.ts:125-129`
 - `[x]` Auth.js built-in CSRF for auth routes
-- `[ ]` CSRF token testing — verify protection on all mutation endpoints
+- `[x]` CSRF token testing — verify protection on all mutation endpoints — **edge `validateOrigin` (extracted to `lib/security/origin.ts`, applied to every /api mutation) + Auth.js CSRF tokens; 10 edge-origin tests + Auth.js token flow covered by `__tests__/auth.test.ts`** (Aug 14, 2026)
 
 ### 1.10 Account Security
 
