@@ -77,6 +77,7 @@
 ## 1. Auth Tables
 
 ### users
+
 ```sql
 CREATE TABLE users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -91,6 +92,7 @@ CREATE TABLE users (
 ```
 
 ### accounts (OAuth providers)
+
 ```sql
 CREATE TABLE accounts (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -112,6 +114,7 @@ CREATE TABLE accounts (
 ```
 
 ### sessions
+
 ```sql
 CREATE TABLE sessions (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -124,6 +127,7 @@ CREATE TABLE sessions (
 ```
 
 ### verification_tokens
+
 ```sql
 CREATE TABLE verification_tokens (
   identifier TEXT NOT NULL,
@@ -138,6 +142,7 @@ CREATE TABLE verification_tokens (
 ## 2. Organization Layer
 
 ### organizations
+
 ```sql
 CREATE TYPE org_type AS ENUM (
   'business', 'nonprofit', 'government', 'accounting_firm'
@@ -161,6 +166,7 @@ CREATE TABLE organizations (
 ```
 
 ### entities
+
 ```sql
 CREATE TYPE entity_type AS ENUM (
   'company', 'subsidiary', 'branch', 'client'
@@ -183,6 +189,7 @@ CREATE TABLE entities (
 ```
 
 ### user_entity_access
+
 ```sql
 CREATE TYPE entity_role AS ENUM (
   'owner', 'admin', 'finance_director', 'accountant',
@@ -207,6 +214,7 @@ CREATE TABLE user_entity_access (
 ## 3. Accounting Core
 
 ### chart_of_accounts
+
 ```sql
 CREATE TYPE account_type AS ENUM (
   'asset', 'liability', 'equity', 'revenue', 'expense'
@@ -248,6 +256,7 @@ CREATE INDEX idx_coa_type ON chart_of_accounts(entity_id, type);
 ```
 
 ### journal_entries
+
 ```sql
 CREATE TYPE journal_status AS ENUM (
   'draft', 'pending_review', 'posted', 'reversed', 'voided'
@@ -279,6 +288,7 @@ CREATE INDEX idx_je_status ON journal_entries(entity_id, status);
 ```
 
 ### journal_entry_lines
+
 ```sql
 CREATE TABLE journal_entry_lines (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -298,6 +308,7 @@ CREATE INDEX idx_jel_account ON journal_entry_lines(account_id);
 ```
 
 ### fiscal_periods
+
 ```sql
 CREATE TYPE period_status AS ENUM (
   'open', 'closing', 'closed', 'locked'
@@ -322,6 +333,7 @@ CREATE INDEX idx_fp_entity ON fiscal_periods(entity_id);
 ```
 
 ### trial_balance_snapshots
+
 ```sql
 CREATE TABLE trial_balance_snapshots (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -342,6 +354,7 @@ CREATE TABLE trial_balance_snapshots (
 ## 4. Accounts Payable
 
 ### suppliers
+
 ```sql
 CREATE TABLE suppliers (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -365,6 +378,7 @@ CREATE INDEX idx_suppliers_entity ON suppliers(entity_id);
 ```
 
 ### purchase_orders
+
 ```sql
 CREATE TYPE po_status AS ENUM (
   'draft', 'sent', 'confirmed', 'received', 'cancelled'
@@ -395,6 +409,7 @@ CREATE INDEX idx_po_status ON purchase_orders(entity_id, status);
 ```
 
 ### po_lines
+
 ```sql
 CREATE TABLE po_lines (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -411,6 +426,7 @@ CREATE TABLE po_lines (
 ```
 
 ### invoices_ap
+
 ```sql
 CREATE TYPE ap_status AS ENUM (
   'draft', 'pending_approval', 'approved', 'scheduled',
@@ -452,6 +468,7 @@ CREATE INDEX idx_ap_due ON invoices_ap(entity_id, due_date);
 ```
 
 ### invoice_ap_lines
+
 ```sql
 CREATE TABLE invoice_ap_lines (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -468,6 +485,7 @@ CREATE TABLE invoice_ap_lines (
 ```
 
 ### payments_ap
+
 ```sql
 CREATE TYPE payment_method AS ENUM (
   'bank_transfer', 'mobile_money', 'cash', 'cheque'
@@ -505,6 +523,7 @@ CREATE INDEX idx_pay_ap_invoice ON payments_ap(invoice_ap_id);
 ## 5. Accounts Receivable
 
 ### customers
+
 ```sql
 CREATE TABLE customers (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -528,6 +547,7 @@ CREATE INDEX idx_customers_entity ON customers(entity_id);
 ```
 
 ### sales_invoices
+
 ```sql
 CREATE TYPE ar_status AS ENUM (
   'draft', 'sent', 'viewed', 'partially_paid',
@@ -564,6 +584,7 @@ CREATE INDEX idx_ar_due ON sales_invoices(entity_id, due_date);
 ```
 
 ### sales_invoice_lines
+
 ```sql
 CREATE TABLE sales_invoice_lines (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -580,6 +601,7 @@ CREATE TABLE sales_invoice_lines (
 ```
 
 ### payments_ar
+
 ```sql
 CREATE TABLE payments_ar (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -609,6 +631,7 @@ CREATE INDEX idx_pay_ar_invoice ON payments_ar(sales_invoice_id);
 ## 6. Treasury
 
 ### bank_accounts
+
 ```sql
 CREATE TYPE bank_account_type AS ENUM (
   'checking', 'savings', 'money_market', 'other'
@@ -635,6 +658,7 @@ CREATE INDEX idx_bank_entity ON bank_accounts(entity_id);
 ```
 
 ### bank_transactions
+
 ```sql
 CREATE TYPE bank_tx_type AS ENUM (
   'debit', 'credit'
@@ -666,6 +690,7 @@ CREATE INDEX idx_btx_reconciled ON bank_transactions(entity_id, reconciled);
 ```
 
 ### reconciliations
+
 ```sql
 CREATE TYPE recon_status AS ENUM (
   'in_progress', 'pending_review', 'completed', 'disputed'
@@ -697,6 +722,7 @@ CREATE INDEX idx_recon_account ON reconciliations(entity_id, bank_account_id);
 ```
 
 ### reconciliation_items
+
 ```sql
 CREATE TYPE recon_item_status AS ENUM (
   'matched', 'unmatched', 'disputed', 'ignored'
@@ -724,6 +750,7 @@ CREATE INDEX idx_ri_recon ON reconciliation_items(reconciliation_id);
 ## 7. Cash & Imprest
 
 ### cash_accounts
+
 ```sql
 CREATE TABLE cash_accounts (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -743,6 +770,7 @@ CREATE INDEX idx_cash_entity ON cash_accounts(entity_id);
 ```
 
 ### imprest_floats
+
 ```sql
 CREATE TYPE imprest_status AS ENUM (
   'issued', 'partial_retirement', 'retired', 'overdue'
@@ -773,6 +801,7 @@ CREATE INDEX idx_imprest_person ON imprest_floats(entity_id, issued_to);
 ```
 
 ### imprest_receipts
+
 ```sql
 CREATE TABLE imprest_receipts (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -793,6 +822,7 @@ CREATE INDEX idx_ir_float ON imprest_receipts(imprest_float_id);
 ```
 
 ### petty_cash_ledger
+
 ```sql
 CREATE TABLE petty_cash_ledger (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -818,6 +848,7 @@ CREATE INDEX idx_pcl_account ON petty_cash_ledger(entity_id, cash_account_id);
 ## 8. Mobile Money
 
 ### mobile_money_accounts
+
 ```sql
 CREATE TYPE mobile_money_provider AS ENUM (
   'wave', 'orange_money', 'mtn_momo', 'mpesa', 'airtel_money'
@@ -842,6 +873,7 @@ CREATE INDEX idx_mm_provider ON mobile_money_accounts(entity_id, provider);
 ```
 
 ### mobile_money_transactions
+
 ```sql
 CREATE TYPE mm_tx_type AS ENUM (
   'send', 'receive', 'pay_bill', 'buy_goods', 'withdraw', 'deposit', 'transfer'
@@ -886,6 +918,7 @@ CREATE INDEX idx_mtx_status ON mobile_money_transactions(entity_id, status);
 ## 9. Multi-Currency
 
 ### currencies
+
 ```sql
 CREATE TABLE currencies (
   code        TEXT PRIMARY KEY,             -- ISO 4217
@@ -899,6 +932,7 @@ CREATE TABLE currencies (
 ```
 
 ### exchange_rates
+
 ```sql
 CREATE TABLE exchange_rates (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -920,6 +954,7 @@ CREATE INDEX idx_er_pair ON exchange_rates(base_currency, quote_currency);
 ## 10. Documents
 
 ### documents
+
 ```sql
 CREATE TYPE doc_type AS ENUM (
   'invoice', 'receipt', 'bank_statement', 'contract',
@@ -956,6 +991,7 @@ CREATE INDEX idx_docs_status ON documents(entity_id, status);
 ```
 
 ### document_links
+
 ```sql
 CREATE TABLE document_links (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -975,6 +1011,7 @@ CREATE INDEX idx_dl_linked ON document_links(linked_type, linked_id);
 ## 11. Audit & Activity
 
 ### audit_log
+
 ```sql
 CREATE TABLE audit_log (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1000,6 +1037,7 @@ CREATE INDEX idx_audit_date ON audit_log(entity_id, created_at);
 ```
 
 ### agent_activity
+
 ```sql
 CREATE TABLE agent_activity (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1028,6 +1066,7 @@ CREATE INDEX idx_aa_confidence ON agent_activity(entity_id, confidence);
 ## 9. Payroll
 
 ### employees
+
 ```sql
 CREATE TYPE employment_type AS ENUM (
   'full_time', 'part_time', 'contractor', 'intern'
@@ -1066,6 +1105,7 @@ CREATE INDEX idx_employees_dept ON employees(entity_id, department);
 ```
 
 ### employee_contracts
+
 ```sql
 CREATE TABLE employee_contracts (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1086,6 +1126,7 @@ CREATE INDEX idx_emp_contracts_emp ON employee_contracts(employee_id);
 ```
 
 ### payroll_deduction_types
+
 ```sql
 CREATE TYPE deduction_type AS ENUM (
   'tax', 'social_security', 'benefit', 'loan', 'other'
@@ -1111,6 +1152,7 @@ CREATE INDEX idx_payroll_ded_code ON payroll_deduction_types(entity_id, code);
 ```
 
 ### payroll_runs
+
 ```sql
 CREATE TYPE payroll_run_status AS ENUM (
   'draft', 'validated', 'approved', 'paid', 'closed'
@@ -1141,6 +1183,7 @@ CREATE INDEX idx_payroll_runs_status ON payroll_runs(entity_id, status);
 ```
 
 ### payroll_line_items
+
 ```sql
 CREATE TABLE payroll_line_items (
   id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1168,6 +1211,7 @@ CREATE INDEX idx_payroll_line_emp ON payroll_line_items(employee_id);
 ```
 
 ### payslips
+
 ```sql
 CREATE TABLE payslips (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1187,6 +1231,7 @@ CREATE INDEX idx_payslips_emp ON payslips(employee_id);
 ```
 
 ### staff_loans
+
 ```sql
 CREATE TABLE staff_loans (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1211,6 +1256,7 @@ CREATE INDEX idx_staff_loans_emp ON staff_loans(employee_id);
 ## 10. Inventory
 
 ### warehouses
+
 ```sql
 CREATE TABLE warehouses (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1227,6 +1273,7 @@ CREATE INDEX idx_warehouses_entity ON warehouses(entity_id);
 ```
 
 ### inventory_items
+
 ```sql
 CREATE TYPE inventory_tx_type AS ENUM (
   'receipt', 'issue', 'adjustment', 'transfer', 'return'
@@ -1267,6 +1314,7 @@ CREATE INDEX idx_inv_items_category ON inventory_items(entity_id, category);
 ```
 
 ### inventory_transactions
+
 ```sql
 CREATE TABLE inventory_transactions (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1294,6 +1342,7 @@ CREATE INDEX idx_inv_tx_type ON inventory_transactions(inventory_item_id, type);
 ```
 
 ### inventory_valuations
+
 ```sql
 CREATE TABLE inventory_valuations (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1318,6 +1367,7 @@ CREATE INDEX idx_inv_val_period ON inventory_valuations(period_id);
 ## 11. Fixed Assets
 
 ### fixed_assets
+
 ```sql
 CREATE TYPE asset_status AS ENUM (
   'active', 'disposed', 'fully_depreciated', 'under_maintenance'
@@ -1364,6 +1414,7 @@ CREATE INDEX idx_fixed_assets_status ON fixed_assets(entity_id, status);
 ```
 
 ### depreciation_schedule
+
 ```sql
 CREATE TABLE depreciation_schedule (
   id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1389,6 +1440,7 @@ CREATE INDEX idx_depr_sched_period ON depreciation_schedule(period_id);
 ## 12. Chat
 
 ### conversations
+
 ```sql
 CREATE TYPE chat_role AS ENUM ('user', 'assistant', 'system');
 CREATE TYPE conversation_status AS ENUM ('active', 'archived', 'pinned');
@@ -1417,6 +1469,7 @@ CREATE INDEX idx_conversations_user ON conversations(user_id);
 ```
 
 ### chat_messages
+
 ```sql
 CREATE TABLE chat_messages (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1440,6 +1493,7 @@ CREATE INDEX idx_chat_messages_created ON chat_messages(created_at);
 ```
 
 ### chat_attachments
+
 ```sql
 CREATE TABLE chat_attachments (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1465,6 +1519,7 @@ CREATE INDEX idx_chat_attachments_message ON chat_attachments(message_id);
 ```
 
 ### chat_agent_activity
+
 ```sql
 CREATE TABLE chat_agent_activity (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1487,6 +1542,7 @@ CREATE INDEX idx_chat_agent_activity_message ON chat_agent_activity(message_id);
 ```
 
 ### chat_message_reactions
+
 ```sql
 CREATE TABLE chat_message_reactions (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1502,6 +1558,7 @@ CREATE INDEX idx_chat_reactions_user ON chat_message_reactions(user_id);
 ```
 
 ### conversation_shares
+
 ```sql
 CREATE TABLE conversation_shares (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1523,6 +1580,7 @@ CREATE INDEX idx_shares_shared_with ON conversation_shares(shared_with_user_id);
 ## 13. Security & Integrity
 
 ### encrypted_fields
+
 ```sql
 CREATE TYPE security_level AS ENUM (
   'public', 'internal', 'confidential', 'restricted'
@@ -1543,6 +1601,7 @@ CREATE TABLE encrypted_fields (
 ```
 
 ### security_audit_log
+
 ```sql
 CREATE TABLE security_audit_log (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1562,6 +1621,7 @@ CREATE TABLE security_audit_log (
 ```
 
 ### idempotency_keys
+
 ```sql
 CREATE TABLE idempotency_keys (
   key            VARCHAR(255) PRIMARY KEY,
@@ -1599,23 +1659,25 @@ CREATE POLICY entity_isolation ON invoices_ap
 ## 15. Common Query Patterns
 
 ### Entity-Scoped List with Pagination
+
 ```typescript
 const invoices = await db.query.invoices_ap.findMany({
   where: and(
     eq(invoicesAp.entityId, ctx.entityId),
-    eq(invoicesAp.status, "pending_approval")
+    eq(invoicesAp.status, "pending_approval"),
   ),
   orderBy: desc(invoicesAp.createdAt),
   limit: 50,
   offset: 0,
   with: {
     supplier: true,
-    invoiceApLines: true
-  }
-})
+    invoiceApLines: true,
+  },
+});
 ```
 
 ### Aging Report Query
+
 ```sql
 -- AP Aging: invoices grouped by age bucket
 SELECT
@@ -1638,6 +1700,7 @@ ORDER BY i.due_date;
 ```
 
 ### Trial Balance Generation
+
 ```sql
 SELECT
   a.code,
@@ -1662,6 +1725,7 @@ ORDER BY a.code;
 ## 16. Seed Data Templates
 
 ### Chart of Accounts — General Business (Gambia)
+
 ```
 1000 - Cash on Hand
 1010 - Petty Cash
@@ -1708,5 +1772,30 @@ ORDER BY a.code;
 
 ---
 
-*Last updated: July 2026*
-*Reference: XENBOOX_PRD.md Section 9 for multi-tenancy architecture*
+## Partitioning & Performance Settings
+
+### Range-partitioned append-heavy tables
+
+`audit_log_partitioned`, `bank_transactions_partitioned`, `journal_entries_partitioned` are monthly range-partitioned (migration `0029_partition_append_heavy_tables.sql`), managed by pg_partman via `packages/db/seed/manage-partitions.ts`. Composite primary keys include the partition key (`PRIMARY KEY (entity_id, id, created_at)`) — Postgres requires every unique index on a partitioned table to include the partition key.
+
+### Partition-wise settings (enable for ledger rollups)
+
+Run once against the production database (environment config, not migration DDL):
+
+```sql
+ALTER DATABASE xenboox SET enable_partitionwise_join = on;
+ALTER DATABASE xenboox SET enable_partitionwise_aggregate = on;
+```
+
+These let Postgres join/aggregate partitions independently instead of appending all partitions first — important for trial-balance and ledger rollups across monthly partitions.
+
+### Index conventions (enforced by review)
+
+- **Leading column:** every composite index used in entity-scoped queries leads with `entity_id` — RLS predicates force index scans otherwise.
+- **Partial indexes for hot states:** tiny indexes covering only the hot rows — `approvals_pending_idx (entity_id, created_at) WHERE status = 'pending'`, `notifications_unread_idx (user_id, created_at) WHERE read = false` (migration `0029_partial_indexes_hot_states.sql`).
+- **GIN only where JSONB operators exist:** adding GIN to JSONB columns that are only read/written in JS (never filtered with `@>`/`?`/`->>`) is pure index bloat — audit before adding.
+
+---
+
+_Last updated: August 2026_
+_Reference: XENBOOX_PRD.md Section 9 for multi-tenancy architecture_

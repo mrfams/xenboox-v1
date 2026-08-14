@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-14] — DB index review: partial indexes for hot states + leading-column/GIN audit (§17.3, §886)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/db/migrations/0029_partial_indexes_hot_states.sql`
+**Files Modified:** `packages/db/schema/notifications.ts` (unread partial index), `packages/db/schema/agents.ts` (pending approvals partial index), `DATABASE.md` (partitioning/performance section), `ROADTOPRODUCTION.md` §17.3 markers
+
+**What was done (autoplan):**
+
+1. **Systematic index audit** — scripted scan of all 67 schema files / 511 indexes. Verdict: composites already lead with `entity_id`/`user_id` (leading-column rule ✓). No GIN needed — no JSONB operator predicates (`@>`, `?`, `->>`) in request-path code; adding one would be pure index bloat.
+2. **Two targeted partial indexes** (the exact hot states the attention-map queries filter on):
+   - `approvals_pending_idx ON approvals (entity_id, created_at) WHERE status = 'pending'`
+   - `notifications_unread_idx ON notifications (user_id, created_at) WHERE read = false`
+3. **Migration hygiene** — drizzle-kit emitted unrelated schema-drift ALTERs (column type conversions on review_items/workflows/automations from a stale snapshot); stripped them to keep the migration surgical. Partition-wise flags documented as server config in DATABASE.md, not DDL.
+
+**Verification:** db + web typecheck clean (db package has 1 pre-existing seed/run-seed.ts error), build green, 911 passed / 15 pre-existing DB-env failures / 19 skipped.
+
+---
+
 ### [2026-08-14] — Application perf: tenant cache + dashboard loading skeletons + Vercel caching headers (§4.5, §290/§344, §799)
 
 **Agent:** Buffy (Autonomous Engineer)

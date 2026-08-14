@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   boolean,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { uuidId, entityId, timestamps } from "./helpers";
 import { organizations } from "./organization";
 import { entities } from "./organization";
@@ -178,6 +178,12 @@ export const approvals = pgTable(
     index("approvals_target").on(t.targetRecordType, t.targetRecordId),
     index("approvals_assigned").on(t.assignedToUserId),
     index("approvals_created").on(t.entityId, t.createdAt),
+    // §886 partial index — the attention map / approval inbox queries filter
+    // on status = 'pending'; covering only pending rows keeps the index tiny
+    // and the hot path index-only.
+    index("approvals_pending_idx")
+      .on(t.entityId, t.createdAt)
+      .where(sql`status = 'pending'`),
   ],
 );
 

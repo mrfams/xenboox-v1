@@ -7,6 +7,7 @@ import {
   index,
   foreignKey,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { uuidId, timestamps } from "./helpers";
 import { users } from "./auth";
 import { entities } from "./organization";
@@ -68,6 +69,12 @@ export const notifications = pgTable(
     index("notifications_entity_idx").on(t.entityId),
     index("notifications_status_idx").on(t.status),
     index("notifications_created_idx").on(t.createdAt),
+    // §886 partial index — the unread badge/list filters on read = false;
+    // a partial index is a fraction of the size of the full index and the
+    // rows it covers are exactly the ones the attention map queries.
+    index("notifications_unread_idx")
+      .on(t.userId, t.createdAt)
+      .where(sql`read = false`),
     foreignKey({
       columns: [t.entityId],
       foreignColumns: [entities.id],

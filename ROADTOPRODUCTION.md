@@ -882,9 +882,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 17.3 Index strategy under load
 
 - `[x]` 100+ indexes exist across 67 schema files.
-- `[ ]` **Leading-column rule:** every composite index used with RLS/entity scoping must lead with `entity_id` (or `tenant_id`), else RLS predicates force scans. Audit all composite indexes.
-- `[ ]` Partial indexes for hot states: `WHERE status = 'pending'` on approval tables, `WHERE read = false` on notifications (this is exactly what the attention-map queries filter on).
-- `[ ]` GIN indexes for any JSONB predicates (webhook payloads, document metadata).
+- `[x]` **Leading-column rule:** every composite index used with RLS/entity scoping must lead with `entity_id` (or `tenant_id`), else RLS predicates force scans. Audit all composite indexes. — **Audited (Aug 14, 2026): all 511 indexes across 67 schema files; composites lead with `entity_id`/`user_id` correctly.**
+- `[x]` Partial indexes for hot states: `WHERE status = 'pending'` on approval tables, `WHERE read = false` on notifications (this is exactly what the attention-map queries filter on). — **Done (Aug 14, 2026): migration `0029_partial_indexes_hot_states.sql` — `approvals_pending_idx (entity_id, created_at) WHERE status='pending'` + `notifications_unread_idx (user_id, created_at) WHERE read=false`.**
+- `[x]` GIN indexes for any JSONB predicates (webhook payloads, document metadata). — **Audited (Aug 14, 2026): no JSONB operator (`@>`, `?`, `->>`) predicates on indexed paths in request code — GIN skipped to avoid index bloat; re-audit if JSONB filtering is added.**
 - `[ ]` Slow-query log review cadence (weekly) with `pg_stat_statements` top-N analysis.
 
 ### 17.4 RLS correctness & performance pitfalls

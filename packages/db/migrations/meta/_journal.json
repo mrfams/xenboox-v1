@@ -204,6 +204,13 @@
       "when": 1786463761028,
       "tag": "0028_parallel_ezekiel_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1786729055924,
+      "tag": "0029_partial_indexes_hot_states",
+      "breakpoints": true
     }
   ]
 }
