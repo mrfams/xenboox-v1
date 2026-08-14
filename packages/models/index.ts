@@ -17,6 +17,10 @@ export {
   estimateCostUsd,
 } from "./gateway";
 export type { SpendAlert, UsageSnapshot } from "./gateway";
+
+// Semantic cache — repeated-question dedup for chat surfaces (§22.1)
+export { SemanticCache, semanticCache } from "./semantic-cache";
+export type { SemanticCacheLookup } from "./semantic-cache";
 export {
   getAssignment,
   invalidateAssignment,

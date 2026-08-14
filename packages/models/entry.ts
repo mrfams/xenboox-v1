@@ -2,6 +2,7 @@ import { getModelRouter } from "./router";
 import { getLangfuse } from "./langfuse";
 import { recordAgentActivity } from "./telemetry";
 import { aiGateway } from "./gateway";
+import { semanticCache } from "./semantic-cache";
 
 // Boot: surface spend alerts as in-app notifications (idempotent — the
 // gateway is a singleton, so re-registering the default handler is a no-op).
@@ -92,6 +93,28 @@ export async function callModel(
   // ─── AI gateway: per-tenant budget + kill-switch (hard backstop) ──
   aiGateway.assertBudgetAllowed(params.entityId);
 
+  // ─── Semantic cache (§22.1): repeated questions skip inference ─────
+  // Only for read-style chat tasks, no tools (tool-assisted calls are
+  // stateful — their answers depend on live DB state, not just the
+  // question). The cache is entity-scoped and TTL-bounded.
+  const cacheableTask =
+    params.taskType === "chat_response" || params.taskType === "summarization";
+  const userQuestion = lastUserMessage(params.messages);
+  if (cacheableTask && !params.tools?.length && userQuestion) {
+    const cached = semanticCache.lookup(params.entityId, userQuestion);
+    if (cached.hit && cached.answer) {
+      return {
+        content: cached.answer,
+        toolCalls: [],
+        confidence: 1.0,
+        tokensUsed: { input: 0, output: 0, total: 0 },
+        latencyMs: 0,
+        modelId: cached.model ?? "cache",
+        providerId: (cached.provider as ProviderId) ?? "anthropic",
+      };
+    }
+  }
+
   const router = getModelRouter();
   const langfuse = getLangfuse();
 
@@ -152,6 +175,22 @@ export async function callModel(
         fromCache: result.fromCache,
       },
     });
+
+    // ─── Semantic cache: store the answer for repeated questions ────
+    if (
+      cacheableTask &&
+      !params.tools?.length &&
+      userQuestion &&
+      result.content
+    ) {
+      semanticCache.store(
+        params.entityId,
+        userQuestion,
+        result.content,
+        result.model,
+        result.provider,
+      );
+    }
 
     // ─── AI gateway: record spend + fire threshold alerts ───────────
     aiGateway.recordUsage(
@@ -292,4 +331,33 @@ export async function streamModel(
     modelId: result.model,
     providerId: result.provider,
   };
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Extract the last user message as plain text (the question to cache).
+ * Returns undefined when the last user message is a content block (tool call)
+ * or the message array is empty.
+ */
+function lastUserMessage(
+  messages: CallModelParams["messages"],
+): string | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "user") continue;
+    if (typeof m.content === "string") return m.content;
+    // Content blocks: take the first text block if present, else skip.
+    if (Array.isArray(m.content)) {
+      const text = m.content.find(
+        (b) =>
+          b &&
+          typeof b === "object" &&
+          (b as { type?: string }).type === "text" &&
+          typeof (b as { text?: unknown }).text === "string",
+      );
+      if (text) return (text as { text: string }).text;
+    }
+  }
+  return undefined;
 }

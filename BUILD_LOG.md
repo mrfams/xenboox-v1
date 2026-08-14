@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-14] — Semantic caching for repeated chat questions (§22.1)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/models/semantic-cache.ts`, `apps/web/__tests__/semantic-cache.test.ts` (10 tests)
+**Files Modified:** `packages/models/entry.ts` (cache lookup before inference, store after success), `packages/models/index.ts` (exports), `ROADTOPRODUCTION.md` §22.1
+
+**What was done (autoplan):**
+
+1. **Entity-scoped semantic cache** (`semantic-cache.ts`) — deterministic normalized-intent matching with no external embedding API on the hot path:
+   - Normalize: lowercase, strip punctuation, drop stopwords.
+   - Similarity: Jaccard over character 3-grams; hit at ≥0.92 by default.
+   - "what was my cash balance?" and "Show me my cash balance please" normalize to the same intent → same cached answer.
+2. **Safety**: tenant-isolated keys (`entityId:` prefix — cross-tenant hit structurally impossible), TTL 15m, LRU cap 2K entries, and never throws (cache failure degrades to a normal model call).
+3. **Wired into `callModel`** — for `chat_response`/`summarization` tasks without tools (tool-assisted calls are stateful and depend on live DB state): lookup before inference (a hit returns 0-token, 0-latency), store after success. Exported for reuse.
+
+**Verification:** models + web typecheck clean, build green, 940 passed / 15 pre-existing DB-env failures / 19 skipped (+10 new tests).
+
+---
+
 ### [2026-08-14] — Autonomy policy: policy-as-code HITL enforcement + autonomy slider (§22.3)
 
 **Agent:** Buffy (Autonomous Engineer)
