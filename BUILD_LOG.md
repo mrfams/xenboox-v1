@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-14] — Autonomy policy: policy-as-code HITL enforcement + autonomy slider (§22.3)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/agents/core/autonomy-policy.ts`, `packages/agents/core/__tests__/autonomy-policy.test.ts` (12 tests)
+**Files Modified:** `packages/agents/core/tool-executor.ts` (policy gate on every write), `packages/agents/core/index.ts` (exports), `.env.example` (XENBOOX_AUTONOMY_LEVEL + AUTO_APPROVE_MAX mock keys), `ROADTOPRODUCTION.md` §22.3
+
+**What was done (autoplan):**
+
+1. **Deterministic policy-as-code engine** (`autonomy-policy.ts`) — the formalized "autonomy slider":
+   - `XENBOOX_AUTONOMY_LEVEL`: suggest → low → standard → full (default suggest = suggestions only).
+   - **Money movement is hard-denied at EVERY level** — bank_transfer, make_payment, disburse, pay_salary, move_funds, send_money, schedule_payment_execution, execute_payment are on a deny-list no env can weaken. Agents never execute payments autonomously (§22.3).
+   - Sensitive writes auto-approve only within an amount band (standard: 1M minor units, full: 10M — never unlimited), and the 0.85 confidence floor is fixed — the slider widens the band, never lowers the bar.
+   - Fail-closed: unclassified risk → human review.
+2. **Wired into the tool executor** — every non-readonly tool call now passes `evaluateAutonomy` before executing; a non-allow verdict converts the call into a review item (audit-logged with the policy reason) instead of running the tool.
+
+**Verification:** agents + web typecheck clean (pre-existing api-platform errors untouched), agents 12/12 new tests pass, web build green, 930 web tests pass / 15 pre-existing DB-env failures.
+
+---
+
 ### [2026-08-14] — AI gateway: per-tenant budgets + cost ceilings + kill-switch + spend alerts (§22.1)
 
 **Agent:** Buffy (Autonomous Engineer)

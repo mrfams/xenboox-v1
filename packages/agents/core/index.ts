@@ -65,6 +65,19 @@ export {
 } from "./state";
 export type { BaseAgentStateType, AuditEntry, AgentMessage } from "./state";
 
+// ─── Autonomy Policy (§22.3) — policy-as-code HITL enforcement ───
+export {
+  evaluateAutonomy,
+  resolveAutonomyLevel,
+  autonomyLevelLabel,
+} from "./autonomy-policy";
+export type {
+  AutonomyLevel,
+  ActionRisk,
+  AutonomyVerdict,
+  AutonomyPolicyInput,
+} from "./autonomy-policy";
+
 // ─── Accounting Rules ─────────────────────────
 export {
   validateDoubleEntry,

@@ -26,6 +26,8 @@ import type {
   ToolCallResult,
 } from "./tool-contract";
 import { DEFAULT_AGENT_TOOL_CONFIGS } from "./tool-contract";
+import { evaluateAutonomy } from "./autonomy-policy";
+import type { ActionRisk } from "./autonomy-policy";
 
 // ─── Grant Checking ────────────────────────────────────────────────────────
 
@@ -173,7 +175,41 @@ export async function executeTool(
     };
   }
 
-  // 4. Execute the tool
+  // 4. Autonomy policy gate (§22.3) — deterministic HITL enforcement.
+  // Money movement is hard-denied; sensitive writes are amount-bounded;
+  // reads pass. A non-allow verdict converts the call into a review item
+  // instead of executing — the policy engine, not the model, decides.
+  if (!tool.readOnly) {
+    const risk: ActionRisk = tool.writes ? "safe_write" : "sensitive_write";
+    const amount = extractAmountFromArgs(args);
+    const verdict = evaluateAutonomy({
+      entityId: ctx.entityId,
+      agentName: ctx.agentName,
+      risk: tool.writes ? "safe_write" : "sensitive_write",
+      action: toolName,
+      amountMinorUnits: amount,
+      confidence: (args as { confidence?: number }).confidence,
+    });
+
+    if (verdict.decision !== "allow") {
+      await logDeniedToolCall(ctx, toolName, args, verdict.reason);
+      return {
+        toolName,
+        args,
+        result: {
+          success: false,
+          error: `Autonomy policy: ${verdict.reason}`,
+          confidence: 0,
+          requiresValidation: true,
+        },
+        durationMs: Date.now() - startTime,
+        grantFound,
+        allowed: true, // grant OK — policy, not access, blocked it
+      };
+    }
+  }
+
+  // 5. Execute the tool
   let result: ToolResult;
   try {
     result = await tool.execute(validatedInput, ctx);
@@ -187,7 +223,7 @@ export async function executeTool(
 
   const durationMs = Date.now() - startTime;
 
-  // 5. Log to audit trail
+  // 6. Log to audit trail
   await logToolExecution(ctx, toolName, args, result, durationMs);
 
   return {
@@ -276,6 +312,7 @@ async function logDeniedToolCall(
   ctx: ToolExecutionContext,
   toolName: string,
   args: Record<string, unknown>,
+  reason = "grant_denied",
 ): Promise<void> {
   try {
     await db.insert(auditLog).values({
@@ -287,12 +324,29 @@ async function logDeniedToolCall(
         toolName,
         agentName: ctx.agentName,
         args,
-        reason: "grant_denied",
+        reason,
       },
     });
   } catch {
     console.warn(`[tool-executor] Failed to log denied tool call: ${toolName}`);
   }
+}
+
+// ─── Helper: Extract monetary amount from tool args (minor units) ─────────
+
+const AMOUNT_KEYS = ["amount", "amountMinorUnits", "value", "totalAmount"];
+
+function extractAmountFromArgs(
+  args: Record<string, unknown>,
+): number | undefined {
+  for (const key of AMOUNT_KEYS) {
+    const v = args[key];
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) return v;
+    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
+      return Number(v);
+    }
+  }
+  return undefined;
 }
 
 // ─── Helper: Build tool list for callModel ─────────────────────────────────
