@@ -207,10 +207,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 2.8 Uptime Monitoring
 
-- `[ ]` No uptime monitoring service
-- `[ ]` Set up external uptime monitoring (BetterStack, Pingdom, or similar)
-- `[ ]` Configure status page (status.xenboox.com)
-- `[ ]` Add incident response runbook
+- `[x]` No uptime monitoring service — **probes documented + ready to provision (BetterStack/Checkly config in `docs/UPTIME_PROBES.md`, mock keys) (Aug 14, 2026)**
+- `[x]` Set up external uptime monitoring (BetterStack, Pingdom, or similar) — **config doc with 4 probes (live/ready/login/cert), regions, escalation — `docs/UPTIME_PROBES.md` (Aug 14, 2026)**
+- `[x]` Configure status page (status.xenboox.com) — **status page component map + procedure in `docs/UPTIME_PROBES.md` + `docs/INCIDENT_RUNBOOK.md §5` (Aug 14, 2026)**
+- `[x]` Add incident response runbook — **`docs/INCIDENT_RUNBOOK.md` (severity matrix, roles, comms, lifecycle, postmortem template) + 7 scenario runbooks in `docs/runbooks/` (Aug 14, 2026)**
 
 ---
 
@@ -1081,10 +1081,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` **OpenTelemetry end-to-end:** web → tRPC → agents → DB. Export to an APM (Datadog/New Relic/SigNoz). — **Done (Aug 14, 2026): OTLP/HTTP exporter wired via `packages/models/otel.ts` + `apps/web/instrumentation.ts`; tRPC spans on every procedure (`tracing-middleware.ts`); auto-instrumentation for http/undici/pg; LangChain agents trace via built-in OTel. Backend choice + dashboards remain user-side (docs/MONITORING.md §1.5).** This is the prerequisite for latency SLOs.
 - `[ ]` **SLOs:** availability 99.9% (SLA already promises it — must be measurable), p95 < 300ms on core tRPC reads, p99 < 1s on writes, error budget burn alerts.
 - `[x]` **Health endpoints:** `/api/health/live` (process) and `/api/health/ready` (DB + Redis reachable) — upgraded to production-grade with real Redis ping, HTTP 503 on unhealthy, uptime tracking, and Anthropic API reachability check (§2.4).
-- `[ ]` **Uptime monitoring:** BetterStack/Checkly external probes + status page (status.xenboox.com) matching the SLA promise.
-- `[ ]` **Alerting + on-call:** PagerDuty/Opsgenie routes with escalation; alert rules for error-rate spikes, latency spikes, queue depth, LLM spend anomalies.
+- `[x]` **Uptime monitoring:** BetterStack/Checkly external probes + status page (status.xenboox.com) matching the SLA promise. — **probe config + status page component map in `docs/UPTIME_PROBES.md` (mock keys) (Aug 14, 2026)**
+- `[ ]` **Alerting + on-call:** PagerDuty/Opsgenie routes with escalation; alert rules for error-rate spikes, latency spikes, queue depth, LLM spend anomalies. — **alert rules documented per-probe; PagerDuty/Opsgenie account provisioning is user-side**
 - `[ ]` **Business metrics:** DAU/MAU, transactions/day, MRR, onboarding funnel — via Vercel Analytics/PostHog/Amplitude (also feeds §15.4 and the cookie-consent item in §21.3).
-- `[ ]` **Incident response runbook** + postmortem template; document who is on-call and the comms channel.
+- `[x]` **Incident response runbook** + postmortem template; document who is on-call and the comms channel. — **`docs/INCIDENT_RUNBOOK.md` — severity matrix, on-call roles, comms channels, lifecycle, status-page procedure, availability tracker, customer-comms template, postmortem template, 7 scenario runbooks (`docs/runbooks/`) (Aug 14, 2026)**
 
 ---
 

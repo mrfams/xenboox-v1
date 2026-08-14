@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-14] — Ops: incident runbook + status page config + uptime probe docs (§2.8, §24.2)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `docs/INCIDENT_RUNBOOK.md`, `docs/UPTIME_PROBES.md`, `docs/runbooks/{README,llm-outage,redis-down,db-failover,r2-outage,job-backlog,email-outage,security-incident}.md`
+**Files Modified:** `ROADTOPRODUCTION.md` (§2.8 + §24.2 markers)
+
+**What was done (autoplan):**
+
+1. **Incident response runbook** (`docs/INCIDENT_RUNBOOK.md`) — enterprise-grade IR: 4-level severity matrix (SEV-1 15min / SEV-2 1hr acknowledgement), on-call roles + escalation path, comms channels + golden rule, full incident lifecycle (detect → triage → probe → mitigate → resolve), status-page procedure, availability tracker vs the 99.9% SLA, customer-comms template, and a blameless postmortem template.
+2. **Uptime probe config** (`docs/UPTIME_PROBES.md`) — 4 external probes (live/ready/login/cert-expiry) with regions + escalation, BetterStack mock env keys, Checkly alternative, status.xenboox.com component map, local verification curl commands, launch-gate checklist.
+3. **7 scenario runbooks** (`docs/runbooks/`) — llm-outage (never queue into a dead provider; degrade deterministically), redis-down (in-memory fallbacks are by design), db-failover (Neon failover / pool exhaustion / broken migration), r2-outage, job-backlog (read the DLQ first), email-outage, security-incident (contain first). Each cross-references the code that implements the mitigation (autonomy policy, AI gateway kill-switch, DLQ, idempotency keys, RLS).
+
+**Note:** This closes the documentation half of §24.2; the provisioning half (creating the BetterStack account + status page) is user-side with mock keys listed in `docs/UPTIME_PROBES.md`.
+
+**Verification:** docs-only change — no code, no typecheck needed.
+
+---
+
 ### [2026-08-14] — Semantic caching for repeated chat questions (§22.1)
 
 **Agent:** Buffy (Autonomous Engineer)
