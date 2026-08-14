@@ -17,6 +17,7 @@ import { generateMfaSecret, verifyTOTP } from "@/lib/auth/totp";
 import { encryptSecret, decryptSecret } from "@/lib/admin/totp";
 import { buildAuditEntry, writeAdminAudit } from "@/lib/admin/audit";
 import { canManageAdminUsers, canRevokeAnySession } from "@/lib/admin/roles";
+import { revokeAdminSessions } from "@/lib/auth/session-revocation";
 import {
   LOCKOUT_DURATION_MS,
   shouldLockAccount,
@@ -488,6 +489,10 @@ export const adminAccessRouter = router({
             }),
           );
         });
+        // Role change terminates every session of the affected admin so no
+        // session issued under the previous role survives (defense-in-depth:
+        // admin sessions are DB-backed and verified per request).
+        await revokeAdminSessions(input.userId);
         return { ok: true };
       }),
 

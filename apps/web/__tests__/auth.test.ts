@@ -10,11 +10,17 @@ vi.mock("@/lib/db", () => ({
     update: vi.fn().mockReturnThis(),
     set: vi.fn().mockReturnThis(),
     where: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockReturnThis(),
     query: {
       users: { findFirst: vi.fn() },
       userEntityAccess: { findFirst: vi.fn() },
     },
   },
+}));
+
+vi.mock("@/lib/auth/session-revocation", () => ({
+  revokeUserSessions: vi.fn().mockResolvedValue(0),
+  revokeAdminSessions: vi.fn().mockResolvedValue(0),
 }));
 
 vi.mock("@/lib/auth", () => ({

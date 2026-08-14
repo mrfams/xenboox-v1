@@ -141,7 +141,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` MFA/TOTP support — `twoFactorEnabled` check
 - `[x]` Session management: IP tracking, user agent logging, max 10 sessions
 - `[ ]` Password complexity requirements — verify minimum length, complexity rules
-- `[ ]` Session invalidation on password change
+- `[x]` Session invalidation on password change — **JWT `sid` rows deleted server-side: `changePassword` keeps only the actor's current session (all other devices die on their next call), `resetPassword` revokes ALL sessions; `lib/auth/session-revocation.ts` + 25 tests (policy, helper, router wiring)** (Aug 14, 2026)
 - `[ ]` Concurrent session limits enforcement testing
 
 ---
@@ -955,7 +955,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[x]` MFA/TOTP, account lockout, max sessions, email verification gate all exist.
 - `[ ]` **Phishing-resistant MFA:** add WebAuthn/FIDO2 passkeys as a second factor option.
-- `[ ]` **Session termination on password change** and on role revocation (kill all sessions of the user).
+- `[x]` **Session termination on password change** and on role revocation (kill all sessions of the user). — **`lib/auth/session-revocation.ts`: `revokeUserSessions(userId, keepSid?)` wired into changePassword (keep current) + resetPassword (kill all); `revokeAdminSessions` wired into admin `updateRole` so a demoted admin's sessions die immediately. 21 tests (password-policy + session-revocation + auth-session-invalidation). Password policy hardened with leetspeak normalization (P@ssw0rd caught).** (Aug 14, 2026)
 - `[ ]` Verify session cookies are `HttpOnly`, `Secure`, `SameSite=Strict` (Auth.js defaults — confirm in `lib/auth`).
 - `[ ]` Idle session timeout (configurable per plan; default 30–60 min for financial apps).
 

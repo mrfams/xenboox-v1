@@ -39,6 +39,11 @@ import {
 } from "@/lib/auth/totp";
 import { logger } from "@/lib/logger";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
+import {
+  getPasswordStrength,
+  meetsPasswordPolicy,
+} from "@/lib/security/password-policy";
+import { revokeUserSessions } from "@/lib/auth/session-revocation";
 
 const LOCKOUT_THRESHOLD = 5;
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes
@@ -113,47 +118,6 @@ async function verifyMfaToken(token: string): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-function getPasswordStrength(password: string): {
-  score: number;
-  errors: string[];
-} {
-  const errors: string[] = [];
-  let score = 0;
-
-  if (password.length >= 12) score += 2;
-  else if (password.length >= 8) score += 1;
-  else errors.push("At least 8 characters");
-
-  if (/[a-z]/.test(password)) score += 1;
-  else errors.push("One lowercase letter");
-
-  if (/[A-Z]/.test(password)) score += 1;
-  else errors.push("One uppercase letter");
-
-  if (/[0-9]/.test(password)) score += 1;
-  else errors.push("One number");
-
-  if (/[^a-zA-Z0-9]/.test(password)) score += 1;
-  else errors.push("One special character");
-
-  const common: string[] = [
-    "password",
-    "12345678",
-    "qwerty123",
-    "admin123",
-    "letmein",
-    "welcome1",
-    "monkey123",
-    "abc12345",
-  ];
-  if (common.some((p) => password.toLowerCase().includes(p))) {
-    score = Math.max(0, score - 2);
-    errors.push("Contains a common password pattern");
-  }
-
-  return { score: Math.min(5, score), errors };
 }
 
 export const authRouter = router({
@@ -525,6 +489,11 @@ export const authRouter = router({
           })
           .where(eq(users.id, user.id));
 
+        // A password reset revokes EVERY session — there is no actor session
+        // to preserve (the reset is driven by a one-time token), and the old
+        // password's sessions must all die.
+        await revokeUserSessions(user.id);
+
         return {
           success: true,
           message: "Password has been reset successfully",
@@ -606,6 +575,14 @@ export const authRouter = router({
         .update(users)
         .set({ passwordHash: newHash })
         .where(eq(users.id, ctx.session!.user!.id!));
+
+      // Kill every OTHER session — the actor's current session survives, but
+      // every other device is signed out immediately so a compromised or
+      // forgotten copy dies with the old password. JWT `sid` rows are
+      // verified on every tRPC request, so revocation takes effect on the
+      // next authenticated call.
+      const currentSid = (ctx.session as unknown as { sid?: string }).sid;
+      await revokeUserSessions(user.id, currentSid);
 
       return { success: true, message: "Password changed successfully" };
     }),

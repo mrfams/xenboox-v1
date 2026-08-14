@@ -6,6 +6,22 @@
 
 ---
 
+### [2026-08-14] — Password policy + session invalidation on password change / role revocation (§1.144, §20.958)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/security/password-policy.ts` (extracted from auth.ts, leetspeak normalization added), `apps/web/lib/auth/session-revocation.ts`, `apps/web/__tests__/password-policy.test.ts` (9 tests), `apps/web/__tests__/session-revocation.test.ts` (7 tests), `apps/web/__tests__/auth-session-invalidation.test.ts` (4 router-wiring tests)
+**Files Modified:** `apps/web/server/routers/auth.ts` (changePassword + resetPassword revoke sessions), `apps/web/server/routers/admin-access.ts` (updateRole revokes target admin sessions), `apps/web/__tests__/auth.test.ts` (mock extended), `ROADTOPRODUCTION.md`
+
+**What was done (autoplan):**
+
+1. **Password policy** extracted to pure `lib/security/password-policy.ts` (8+ chars, 4 classes, common-pattern list, 128 cap) + **leetspeak normalization** (P@ssw0rd, p@55w0rd caught) — real hardening, enterprise standard.
+2. **Session invalidation** — Auth.js uses JWT strategy, so no central store to purge; the login-time `sid` row verified on every tRPC request is the revocation mechanism. `revokeUserSessions(userId, keepSid?)` deletes rows server-side → sessions die within one request. `changePassword` keeps the actor's current session (industry standard), `resetPassword` kills all (token flow, no actor session), admin `updateRole` revokes the demoted admin's `admin_sessions`.
+3. **Tests** — policy matrix, helper query-shape (and() chunk counts), router wiring via spies (changePassword → revoke(user.id, sid-current); reset → revoke(user.id)). Learned: drizzle `and()` wraps single-condition as 1 chunk / two-conditions as 3 chunks.
+
+**Verification:** web typecheck clean, build green, 896 passed / 15 pre-existing DB-env failures (unchanged) / 19 skipped. Existing auth.test.ts restored (its db mock lacked `delete`).
+
+---
+
 ### [2026-08-14] — Security headers / CSRF / XSS / SQLi automated tests (§1.6–1.9)
 
 **Agent:** Buffy (Autonomous Engineer)
