@@ -3,34 +3,30 @@ import { View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { Text } from "@/components/ui/text";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { trpc } from "@/lib/trpc";
-import { setToken, setCurrentEntityId } from "@/lib/auth";
 
-export default function LoginScreen() {
-  const router = useRouter();
+export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const loginMutation = trpc.auth.login.useMutation();
+  const [sent, setSent] = useState(false);
+  const resetMutation = trpc.auth.requestPasswordReset.useMutation();
 
-  async function handleLogin() {
-    if (!email || !password) {
-      setError("Email and password are required");
+  async function handleSubmit() {
+    if (!email) {
+      setError("Enter your account email");
       return;
     }
 
     setError("");
-
     try {
-      const result = await loginMutation.mutateAsync({ email, password });
-      await setToken(result.token);
-      if (result.entityId) {
-        await setCurrentEntityId(result.entityId);
-      }
-      router.replace("/(tabs)");
+      const result = await resetMutation.mutateAsync({ email });
+      // Server always returns the same message whether or not the account
+      // exists (no account enumeration). Surface it verbatim.
+      setSent(true);
+      setError(result?.message ?? "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Request failed");
     }
   }
 
@@ -44,12 +40,12 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View className="flex-1 justify-center px-6 bg-white dark:bg-slate-900">
-          <View className="mb-8 items-center">
+          <View className="mb-8">
             <Text variant="h1" className="mb-2">
-              Xenboox
+              Reset password
             </Text>
             <Text variant="body" className="text-slate-500">
-              Your AI accounting workforce
+              Enter your account email and we'll send a reset link.
             </Text>
           </View>
 
@@ -64,38 +60,32 @@ export default function LoginScreen() {
               autoComplete="email"
             />
 
-            <Input
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-            />
-
             {error ? (
               <Text variant="caption" className="mb-2 text-danger">
                 {error}
               </Text>
             ) : null}
 
+            {sent ? (
+              <Text variant="caption" className="mb-2 text-success">
+                {error && error.length > 0
+                  ? error
+                  : "If the email exists, a reset link has been sent."}
+              </Text>
+            ) : null}
+
             <Button
-              onPress={handleLogin}
-              loading={loginMutation.isPending}
+              onPress={handleSubmit}
+              loading={resetMutation.isPending}
               className="mt-2"
             >
-              Sign In
+              Send reset link
             </Button>
 
-            <View className="mt-3 items-center">
-              <Link href="/(auth)/forgot-password" asChild>
+            <View className="mt-6 items-center">
+              <Link href="/(auth)/login" asChild>
                 <Button variant="ghost" size="sm">
-                  Forgot password?
-                </Button>
-              </Link>
-              <Link href="/(auth)/register" asChild>
-                <Button variant="ghost" size="sm">
-                  Don't have an account? Sign up
+                  Back to sign in
                 </Button>
               </Link>
             </View>

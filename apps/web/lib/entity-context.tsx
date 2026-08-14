@@ -19,6 +19,8 @@ type EntityContextValue = {
   clearEntityId: () => void;
   isLoaded: boolean;
   entityRole: string | null;
+  /** ISO currency code of the active entity (e.g. "GMD") — drives form defaults */
+  entityCurrency: string | null;
 };
 
 type AccessibleEntity = { id: string; role?: string };
@@ -71,6 +73,7 @@ const EntityContext = createContext<EntityContextValue>({
   clearEntityId: () => {},
   isLoaded: false,
   entityRole: null,
+  entityCurrency: null,
 });
 
 export function useEntity() {
@@ -84,6 +87,7 @@ export function useEntity() {
 export function EntityProvider({ children }: { children: ReactNode }) {
   const [entityId, setEntityIdState] = useState<string | null>(null);
   const [entityRole, setEntityRole] = useState<string | null>(null);
+  const [entityCurrency, setEntityCurrency] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const { data: session, status } = useSession();
   const hasInitialized = useRef(false);
@@ -150,6 +154,13 @@ export function EntityProvider({ children }: { children: ReactNode }) {
         setEntityRole(resolved.role);
       }
       setEntityIdState(resolved.id);
+      // Resolve the active entity's currency for form defaults (§6.3).
+      const active = (listEntitiesQuery.data ?? []).find(
+        (e: { id: string }) => e.id === resolved.id,
+      );
+      setEntityCurrency(
+        (active as { currency?: string } | undefined)?.currency ?? null,
+      );
     } else {
       // No accessible entity — clear any stale selection so downstream
       // entity-scoped queries fail cleanly instead of 403ing on a ghost id.
@@ -157,6 +168,7 @@ export function EntityProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("currentEntityRole");
       setEntityIdState(null);
       setEntityRole(null);
+      setEntityCurrency(null);
     }
     setIsLoaded(true);
   }, [
@@ -184,10 +196,17 @@ export function EntityProvider({ children }: { children: ReactNode }) {
         setEntityRole(role);
       }
       setEntityIdState(id);
+      // Resolve the active entity's currency for form defaults (§6.3).
+      const active = (listEntitiesQuery.data ?? []).find(
+        (e: { id: string }) => e.id === id,
+      );
+      setEntityCurrency(
+        (active as { currency?: string } | undefined)?.currency ?? null,
+      );
       // Persist to server for cross-device sync
       setLastUsedEntityMutation.mutate({ entityId: id });
     },
-    [setLastUsedEntityMutation],
+    [setLastUsedEntityMutation, listEntitiesQuery.data],
   );
 
   const clearEntityId = useCallback(() => {
@@ -195,11 +214,19 @@ export function EntityProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("currentEntityRole");
     setEntityIdState(null);
     setEntityRole(null);
+    setEntityCurrency(null);
   }, []);
 
   return (
     <EntityContext.Provider
-      value={{ entityId, setEntityId, clearEntityId, isLoaded, entityRole }}
+      value={{
+        entityId,
+        setEntityId,
+        clearEntityId,
+        isLoaded,
+        entityRole,
+        entityCurrency,
+      }}
     >
       {children}
     </EntityContext.Provider>

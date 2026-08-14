@@ -53,6 +53,8 @@ export type Context = {
   headers?: Record<string, string>;
   requestId?: string;
   log?: typeof logger;
+  /** Populated by rate-limit middleware; emitted as X-RateLimit-* headers (§19.4) */
+  rateLimitInfo?: { limit: number; remaining: number; reset: number };
 };
 
 export function createTRPCContext(
@@ -685,6 +687,14 @@ const planAwareRateLimitMiddleware = t.middleware(async ({ ctx, next }) => {
 
   const limiter = getRateLimiter();
   const result = await limiter.checkApiRateLimitForPlan(identifier, plan);
+
+  // Expose the current window's state so the response carries standard
+  // X-RateLimit-* headers (§19.4) — even on success, so clients can back off.
+  ctx.rateLimitInfo = {
+    limit: result.limit,
+    remaining: Math.max(0, result.remaining),
+    reset: result.reset,
+  };
 
   if (!result.success) {
     throw new TRPCError({

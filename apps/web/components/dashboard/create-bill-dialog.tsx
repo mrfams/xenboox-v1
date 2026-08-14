@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Receipt, Loader2, AlertCircle } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
 import {
   CreateRecordModal,
   modalInputCls,
@@ -25,6 +26,7 @@ const defaultBillNumber = () =>
 
 export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
   const utils = trpc.useUtils();
+  const { entityCurrency } = useEntity();
 
   const { data: suppliers } = trpc.ap.listSuppliers.useQuery(undefined, {
     enabled: open,
@@ -37,7 +39,7 @@ export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
   const [invoiceNumber, setInvoiceNumber] = useState(defaultBillNumber());
   const [invoiceDate, setInvoiceDate] = useState(today());
   const [dueDate, setDueDate] = useState(inDays(30));
-  const [currency, setCurrency] = useState("GMD");
+  const [currency, setCurrency] = useState(entityCurrency ?? "GMD");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [error, setError] = useState<string | null>(null);

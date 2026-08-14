@@ -29,7 +29,7 @@ describe("A11y — skip links (§13.2)", () => {
     const layout = read("app/(marketing)/layout.tsx");
     expect(layout).toMatch(/Skip to content/);
     expect(layout).toMatch(/href="#main-content"/);
-    expect(layout).toMatch(/<main id="main-content"/);
+    expect(layout).toMatch(/<main[^>]*id="main-content"/s);
   });
 });
 

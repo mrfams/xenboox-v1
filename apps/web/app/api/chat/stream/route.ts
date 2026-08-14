@@ -16,6 +16,10 @@ import {
 } from "@/lib/chat/page-context";
 
 export const runtime = "nodejs";
+// §17.6 — chat routes run full agent pipelines (LLM + tool calls) and can
+// exceed the default function budget on first turn; 300s is the Vercel Pro
+// ceiling, sufficient for a multi-step agent response.
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   const session = await auth();

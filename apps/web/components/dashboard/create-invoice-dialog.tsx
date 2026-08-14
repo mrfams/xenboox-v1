@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText, Loader2, AlertCircle } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
 import {
   CreateRecordModal,
   modalInputCls,
@@ -28,6 +29,7 @@ export function CreateInvoiceDialog({
   onClose,
 }: CreateInvoiceDialogProps) {
   const utils = trpc.useUtils();
+  const { entityCurrency } = useEntity();
 
   const { data: customers } = trpc.invoicing.getCustomers.useQuery(undefined, {
     enabled: open,
@@ -40,7 +42,7 @@ export function CreateInvoiceDialog({
   const [invoiceNumber, setInvoiceNumber] = useState(defaultInvoiceNumber());
   const [invoiceDate, setInvoiceDate] = useState(today());
   const [dueDate, setDueDate] = useState(inDays(30));
-  const [currency, setCurrency] = useState("GMD");
+  const [currency, setCurrency] = useState(entityCurrency ?? "GMD");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [error, setError] = useState<string | null>(null);

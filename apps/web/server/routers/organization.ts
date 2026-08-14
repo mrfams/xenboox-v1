@@ -52,12 +52,13 @@ export const organizationRouter = router({
     const orgEntityPromises = userOrgRoles.map(async (r) => {
       const orgEntities = await db.query.entities.findMany({
         where: eq(entities.organizationId, r.orgId),
-        columns: { id: true, name: true },
+        columns: { id: true, name: true, currency: true },
       });
       return orgEntities.map((e) => ({
         id: e.id,
         name: e.name,
         role: r.role,
+        currency: e.currency,
       }));
     });
     const orgEntities = (await Promise.all(orgEntityPromises)).flat();
@@ -83,6 +84,7 @@ export const organizationRouter = router({
           id: entity.id,
           name: entity.name,
           role: acc?.role ?? "member",
+          currency: entity.currency,
         };
       });
 

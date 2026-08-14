@@ -468,12 +468,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 7.1 Offline Support
 
-- `[~]` SQLite offline storage infrastructure exists — `lib/offline-storage.ts`
-- `[~]` Sync service with 60-second polling — `lib/sync-service.ts`
+- `[x]` SQLite offline storage infrastructure exists — `lib/offline-storage.ts` — **typed callbacks via `expo-sqlite/legacy`, `read_cache` table (entity-scoped, 24h TTL)** (Aug 15, 2026)
+- `[x]` Sync service with 60-second polling — `lib/sync-service.ts` — **also sweeps expired read-cache rows; missing `saveTransaction` import fixed** (Aug 15, 2026)
 - `[x]` `queueOfflineTransaction()` is **never called** from any screen — **fixed: now gets entityId from auth context instead of hardcoded empty string** (Aug 12, 2026)
 - `[x]` Entity ID hardcoded to `""` in `queueOfflineTransaction` — **fixed: now uses `getCurrentEntityId()`** (Aug 12, 2026)
-- `[ ]` No offline data caching (no read-through cache for list screens)
-- `[ ]` Offline indicator shows but no actual offline functionality
+- `[x]` No offline data caching (no read-through cache for list screens) — **implemented: `read_cache` table + `read-cache-link.ts` tRPC link (caches successful queries, serves stale-while-offline on network failure, entity-scoped keys, 24h TTL)** (Aug 15, 2026)
+- `[x]` Offline indicator shows but no actual offline functionality — **offline reads now actually work: cached list/detail data renders when the network is down** (Aug 15, 2026)
 
 ### 7.2 Push Notifications
 
@@ -488,18 +488,18 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - [x]` ErrorBoundary catches render errors
 - [x]` Per-screen error components with retry
-- `[ ]` Detail screens (`[id].tsx`) show "Loading..." forever on query failure — no error state or retry
+- `[x]` Detail screens (`[id].tsx`) show "Loading..." forever on query failure — no error state or retry — **fixed: all 6 detail screens now show `ErrorComponent` with retry on query failure** (Aug 15, 2026)
 - `[ ]` No network error differentiation (401 vs 500 vs timeout)
-- `[ ]` No automatic retry logic on network failures
+- `[x]` No automatic retry logic on network failures — **read-cache link serves cached data (stale-while-offline) when the network request fails** (Aug 15, 2026)
 - `[ ]` ErrorBoundary doesn't log to observability service (just `console.error`)
 
 ### 7.4 Loading States
 
 - [x]` Loading state on all screens
-- `[ ]` No skeleton/placeholder UIs — just plain "Loading..." text
-- `[ ]` No shimmer effects
+- `[x]` No skeleton/placeholder UIs — just plain "Loading..." text — **implemented: `ui/skeleton.tsx` (animated pulse) + `CardSkeleton`; all list/tab screens now render skeletons while loading** (Aug 15, 2026)
+- `[x]` No shimmer effects — **skeleton pulse animation added** (Aug 15, 2026)
 - `[ ]` No optimistic UI updates
-- `[ ]` Detail screens use `!data` check which conflates "still loading" with "query failed"
+- `[x]` Detail screens use `!data` check which conflates "still loading" with "query failed" — **fixed: `isLoading` → skeleton, `isError` → `ErrorComponent` with retry** (Aug 15, 2026)
 
 ### 7.5 Auth Flow
 
@@ -508,8 +508,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 - [x]` Auth gate with redirect logic
 - `[ ]` No OAuth/social login
 - `[ ]` No biometric auth (Face ID / fingerprint)
-- `[ ]` No password reset / forgot password flow
-- `[ ]` No email verification flow
+- `[x]` No password reset / forgot password flow — **implemented: `(auth)/forgot-password.tsx` + `(auth)/reset-password.tsx` wired to `trpc.auth.requestPasswordReset`/`resetPassword` (rate-limited, no account enumeration); login screen links to it** (Aug 15, 2026)
+- `[x]` No email verification flow — **implemented: `(auth)/verify-email.tsx` wired to `trpc.auth.verifyEmail` (supports deep-link token + manual code entry)** (Aug 15, 2026)
 - `[ ]` No token refresh mechanism (relies on 30-day expiry only)
 
 ### 7.6 App Store Readiness
@@ -724,8 +724,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 12.5 Code Duplication
 
 - `[ ]` Two tool systems coexist: legacy `tool()` pattern and new `ToolDefinition` registry
-- `[ ]` `lib/api.ts` `apiFetch()` defined but unused in mobile
-- `[ ]` `constants/theme.ts` exports unused in mobile
+- `[x]` `lib/api.ts` `apiFetch()` defined but unused in mobile — **removed: dead code (mobile uses the tRPC client + read-cache link)** (Aug 15, 2026)
+- `[x]` `constants/theme.ts` exports unused in mobile — **removed: design tokens already live in `tailwind.config.js` via NativeWind** (Aug 15, 2026)
 - `[ ]` Date formatting inconsistencies (en-GB vs en-US) across files
 
 ---
@@ -762,7 +762,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - [x]`Browser-native`Intl.DateTimeFormat`and`toLocaleString()` used for formatting
 - [x]`Currency formatting with`Intl.NumberFormat("en-GM")`
 - `[~]` All strings hardcoded in English — **foundation laid**: common, nav, auth, dashboard, invoices, settings, marketing keys translated to English and French. Remaining strings need extraction. (Aug 12, 2026)
-- `[ ]` Default currency hardcoded as "GMD" in many places
+- `[x]` Default currency hardcoded as "GMD" in many places — **`listUserEntities` now returns `currency`; `entity-context` exposes `entityCurrency`; create-invoice/bill/bank-account dialogs default to the active entity's currency (fallback GMD)** (Aug 15, 2026). Remaining `GMD` strings are intentional defaults/seed data.
 
 ### 14.2 Required for Scale
 
@@ -908,7 +908,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 18.1 Know the hard limits (they are smaller than you think)
 
-- `[ ]` **Function timeout:** default 300s; extend with `export const maxDuration = 900` only where needed (document-processing, month-end close, report generation).
+- `[x]` **Function timeout:** default 300s; extend with `export const maxDuration = 900` only where needed — **chat stream + seed-demo routes set `maxDuration = 300` (agent pipelines / full-entity seeding); document-processing + month-end close run on Trigger.dev with no function ceiling** (Aug 15, 2026).
 - `[ ]` **Memory/vCPU ceiling:** 4 GB RAM / 2 vCPU per function — LLM pipelines and PDF/report generation must stay under this; move heavy work to Trigger.dev containers (they have no such ceiling).
 - `[ ]` **Payload cap 4.5 MB** (`413: FUNCTION_PAYLOAD_TOO_LARGE`) — enforce on file uploads (R2 presigned URLs already avoid this; verify document ingestion paths).
 - `[ ]` **1,024 file-descriptor cap** shared across concurrent executions — keep DB/Redis clients global and pooled (verify `lib/db.ts`, `lib/trigger.ts` module singletons).
@@ -943,7 +943,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` **Trusted-proxy discipline:** rate-limit keys derived from `x-forwarded-for` are spoofable if the client can set the header — only trust it when set by Vercel. Verify current key derivation. — **Done (Aug 14, 2026): `getClientIp()` in `lib/security/client-ip.ts` — `x-vercel-forwarded-for` first (edge-injected, not client-writable), else the rightmost hop of `x-forwarded-for`; spoofed prefixes ignored; 7 tests.**
 - `[x]` **Per-tenant tiers:** limits must scale with plan (free 1K/min, pro 10K/min, enterprise custom) instead of one global ceiling. — **Done:** `TIER_LIMITS` map in rate-limiter.ts with 5 tiers (free/starter/growth/pro/firm). `planAwareProcedure` type resolves org plan via entityScopingMiddleware and applies tier-specific limits. API 200→10K, agent 5→100, chat 10→120, webhook 20→500 per minute.
 - `[x]` **Concurrent-request limiter** for heavy endpoints (report generation, bulk export) so one tenant can't starve the pool. — **Done (Aug 14, 2026): `ConcurrencyLimiter` (Upstash INCR/EXPIRE with in-memory fallback) + `concurrencyLimitedProcedure(2)` wired into all 4 heavy report procedures (P&L, balance sheet, cash flow, budget-vs-actual). Slot TTL 120s bounds crashes; `finally` release; 5 unit tests.**
-- `[ ]` **Return standard headers** `X-RateLimit-Limit/Remaining/Reset` and a `Retry-After` on 429 (currently missing — §1.5).
+- `[x]` **Return standard headers** `X-RateLimit-Limit/Remaining/Reset` and a `Retry-After` on 429 — **edge middleware already sets them; tRPC responses now do too via `rate-limit-responseMeta` (middleware stores `ctx.rateLimitInfo`, `lib/trpc/rate-limit-headers.ts` emits headers, 5 unit tests)** (Aug 15, 2026).
 - `[x]` **Idempotency at every mutation boundary:** schema exists (`packages/db/schema/idempotency.ts`, migration `0007_idempotency_keys.sql`) — upgraded 57 financial mutations from `rlsProtectedProcedure` to `rlsMutateProcedure` across 12 routers (cash, mobileMoney, reconciliation, payroll, expenses, coa, journal, ap, ar, fixedAssets, estimates, expense). All money-movement and GL-entry mutations now have idempotency protection via `x-idempotency-key` header.
 - `[x]` **Outbound webhooks:** signing (HMAC-SHA256), per-tenant secrets, retry with exponential backoff, event catalog, and a management UI (§10.2 — elevate priority). — **Done:** `dispatchWebhookEvent` wired into 8 financial mutation paths (AP/AR invoice.paid, invoice.overdue, journal transaction.created, reconciliation.flagged, payroll.completed, document.processed). Vercel cron processes pending deliveries every 5 min. HMAC signing, exponential backoff, dedup, management UI all pre-existed.
 

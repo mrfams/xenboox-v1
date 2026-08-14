@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Building2, Loader2, AlertCircle } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
 import {
   CreateRecordModal,
   modalInputCls,
@@ -23,11 +24,12 @@ export function CreateBankAccountDialog({
   onClose,
 }: CreateBankAccountDialogProps) {
   const utils = trpc.useUtils();
+  const { entityCurrency } = useEntity();
 
   const [name, setName] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
-  const [currency, setCurrency] = useState("GMD");
+  const [currency, setCurrency] = useState(entityCurrency ?? "GMD");
   const [type, setType] = useState<(typeof ACCOUNT_TYPES)[number]>("checking");
   const [openingBalance, setOpeningBalance] = useState("0");
   const [notes, setNotes] = useState("");

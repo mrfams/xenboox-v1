@@ -4,6 +4,10 @@ import * as schema from "@xenboox/db/schema";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
+// §17.6 — seeding a full demo entity touches dozens of tables; allow the
+// extended function budget so large seeds don't time out.
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -846,7 +850,11 @@ export async function POST(request: Request) {
                 : inv.amount,
           currency: "GMD",
           status: inv.status as
-            "pending" | "partial" | "paid" | "overdue" | "voided",
+            | "pending"
+            | "partial"
+            | "paid"
+            | "overdue"
+            | "voided",
         })
         .onConflictDoNothing();
 
@@ -890,7 +898,11 @@ export async function POST(request: Request) {
                 : inv.amount,
           currency: "GMD",
           status: inv.status as
-            "pending" | "partial" | "paid" | "overdue" | "voided",
+            | "pending"
+            | "partial"
+            | "paid"
+            | "overdue"
+            | "voided",
         })
         .onConflictDoNothing();
 
@@ -921,7 +933,11 @@ export async function POST(request: Request) {
         bankAccountId: bankAccountIds[tx.aIdx],
         transactionDate: tx.date,
         type: tx.type as
-          "deposit" | "withdrawal" | "transfer" | "fee" | "interest",
+          | "deposit"
+          | "withdrawal"
+          | "transfer"
+          | "fee"
+          | "interest",
         amount: tx.amount,
         description: tx.desc,
         isReconciled: false,
@@ -935,7 +951,11 @@ export async function POST(request: Request) {
         inventoryItemId: inventoryItemIds[tx.item],
         warehouseId: warehouseIds[tx.wh],
         type: tx.type as
-          "receipt" | "issue" | "adjustment" | "transfer" | "return",
+          | "receipt"
+          | "issue"
+          | "adjustment"
+          | "transfer"
+          | "return",
         quantity: tx.qty,
         unitCost: tx.cost,
         totalCost: String(Math.abs(tx.qty) * parseFloat(tx.cost)),
