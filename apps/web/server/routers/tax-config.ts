@@ -18,6 +18,7 @@ import {
   taxRateOverrides,
   taxRuleTypeEnum,
 } from "@xenboox/db/schema/tax-compliance";
+import { cachedDomain } from "@/lib/cache/tenant-cache";
 import { entities } from "@xenboox/db/schema/organization";
 import {
   calculateTax,
@@ -202,6 +203,11 @@ async function getRule(entityId: string, ruleId: string) {
 
 // ─── Router ─────────────────────────────────────────────────────────────────
 
+// Tax rules change only when an admin edits a rate (versioned) — a 60s
+// entity-scoped cache serves the Settings tax list and payroll-time lookups
+// without going stale past a tick. Mutations invalidate it explicitly.
+const taxRulesCache = cachedDomain("tax-rules", 60_000);
+
 export const taxConfigRouter = router({
   // ── Read ─────────────────────────────────────────────────────────────
 
@@ -217,7 +223,15 @@ export const taxConfigRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const where = [eq(jurisdictionTaxRules.entityId, ctx.entityId!)];
+      const entityId = ctx.entityId!;
+      const cacheKey = JSON.stringify(input ?? {});
+      const cached = taxRulesCache.get<{
+        rules: (typeof jurisdictionTaxRules.$inferSelect)[];
+        count: number;
+      }>(entityId, cacheKey);
+      if (cached) return cached;
+
+      const where = [eq(jurisdictionTaxRules.entityId, entityId)];
       if (input?.country) {
         where.push(eq(jurisdictionTaxRules.country, input.country));
       }
@@ -239,10 +253,9 @@ export const taxConfigRouter = router({
         ],
       });
 
-      return {
-        rules,
-        count: rules.length,
-      };
+      const result = { rules, count: rules.length };
+      taxRulesCache.set(entityId, cacheKey, result);
+      return result;
     }),
 
   listRulesWithHistory: protectedProcedure
@@ -300,6 +313,9 @@ export const taxConfigRouter = router({
         })
         .returning();
 
+      // Tax rules are cached — invalidate so the Settings list reflects
+      // the new/updated rule immediately.
+      taxRulesCache.invalidate(ctx.entityId!);
       return rule;
     }),
 
@@ -357,6 +373,9 @@ export const taxConfigRouter = router({
         })
         .returning();
 
+      // Tax rules are cached — invalidate so the Settings list reflects
+      // the new/updated rule immediately.
+      taxRulesCache.invalidate(ctx.entityId!);
       return rule;
     }),
 
@@ -390,6 +409,7 @@ export const taxConfigRouter = router({
             .join(" | ") as unknown as string,
         })
         .where(eq(jurisdictionTaxRules.id, input.ruleId));
+      taxRulesCache.invalidate(ctx.entityId!);
       return { success: true };
     }),
 
@@ -402,6 +422,7 @@ export const taxConfigRouter = router({
         .update(jurisdictionTaxRules)
         .set({ status: "active", effectiveTo: null })
         .where(eq(jurisdictionTaxRules.id, input.ruleId));
+      taxRulesCache.invalidate(ctx.entityId!);
       return { success: true };
     }),
 

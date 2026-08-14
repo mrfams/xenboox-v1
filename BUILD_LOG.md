@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-14] — Application perf: tenant cache + dashboard loading skeletons + Vercel caching headers (§4.5, §290/§344, §799)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/cache/tenant-cache.ts`, `apps/web/__tests__/tenant-cache.test.ts` (9 tests), `apps/web/vercel.json`, `app/dashboard/{reports,payroll,documents,reconciliation,close,invoicing,banking,customers}/loading.tsx`
+**Files Modified:** `apps/web/server/routers/fiscal.ts`, `apps/web/server/routers/tax-config.ts`, `apps/web/components/shared/loading.tsx` (added DashboardTableLoading)
+
+**What was done (autoplan, application-first per user direction):**
+
+1. **Tenant cache** (`lib/cache/tenant-cache.ts`) — entity-scoped, TTL-bounded, LRU-capped in-memory cache. Key is structurally prefixed with entityId (cross-tenant leak impossible), hash-keyed inputs, hit/miss telemetry. **Financial statement data deliberately excluded** — only rarely-changing config reads cached.
+2. **Wired into `fiscal.list` + `taxConfig.listRules`** (60s TTL) with invalidation on every relevant mutation (fiscal.create, createRule, updateRule, deactivateRule, reactivateRule).
+3. **Dashboard loading skeletons** — shared `DashboardTableLoading` + loading.tsx for the 8 heavy segments (reports, payroll, documents, reconciliation, close, invoicing, banking, customers).
+4. **Vercel CDN headers** (`vercel.json`) — immutable 1y for `/_next/static`, 1d favicon/robots, no-store for all /api.
+
+**Note:** Marketing ISR/SSG was attempted (removed root `force-dynamic` + `headers()` nonce read, hash-allowlisted next-themes script) but exposed a docs prerender bug and was reverted per user priority (dashboard first, marketing later). Work remains documented in this entry only.
+
+**Verification:** web typecheck clean, build green, 911 passed / 15 pre-existing DB-env failures / 19 skipped.
+
+---
+
 ### [2026-08-14] — Observability: per-env log levels + request-ID propagation + console sweep (§2.3, §20)
 
 **Agent:** Buffy (Autonomous Engineer)

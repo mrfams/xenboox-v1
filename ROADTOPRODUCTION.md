@@ -285,9 +285,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 4.1 Caching Strategy
 
-- `[ ]` No Redis caching layer for application data
+- `[~]` No Redis caching layer for application data — **in-process entity-scoped TTL cache (`lib/cache/tenant-cache.ts`) for rarely-changing config reads (fiscal periods, tax rules) with LRU cap, hit/miss telemetry, mutation invalidation; Redis/Upstash remains for cross-instance + semantic caching**
 - `[x]` Upstash Redis used for rate limiting only
-- `[ ]` Implement caching for:
+- `[~]` Implement caching for: — **config reads done (fiscal, tax rules, 60s TTL, entity-isolated); financial statement data deliberately EXCLUDED (freshness sacred)**
   - `[ ]` Dashboard data (frequently accessed, rarely updated)
   - `[ ]` Chart of accounts (read-heavy)
   - `[ ]` User permissions and roles
@@ -333,7 +333,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[~]` `force-dynamic` on root layout — all pages are dynamically rendered
 - `[ ]` Marketing pages should be statically generated (SSG) for performance
 - `[ ]` Dashboard could use streaming SSR with `<Suspense>` boundaries
-- `[ ]` Add `loading.tsx` files for route-level loading states
+- `[x]` Add `loading.tsx` files for route-level loading states — **shared `DashboardTableLoading` skeleton (header + table) + loading.tsx for the 8 heavy segments: reports, payroll, documents, reconciliation, close, invoicing, banking, customers** (Aug 14, 2026)
 
 ### 4.6 API Performance
 
@@ -341,7 +341,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` No response compression configured at application level (Vercel handles this)
 - `[ ]` Add pagination to all list endpoints (some may return unbounded results)
 - `[ ]` Implement cursor-based pagination for large datasets
-- `[ ]` Add query result caching for read-heavy endpoints
+- `[x]` Add query result caching for read-heavy endpoints — **entity-scoped tenant cache wired into fiscal.list + taxConfig.listRules (60s TTL, LRU-capped, invalidated on every relevant mutation); 9 unit tests pin isolation/TTL/eviction/invalidation** (Aug 14, 2026)
 
 ### 4.7 Frontend Performance
 
@@ -796,7 +796,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` No preview deployment config
 - `[ ]` No environment-specific configuration
 - `[ ]` No cron jobs configured (daily digest, month-end close triggers)
-- `[ ]` No caching headers configured at Vercel level
+- `[x]` No caching headers configured at Vercel level — **`vercel.json`: immutable 1y for `/_next/static`, 1d for favicon/robots, `no-store` for all /api (auth included)** (Aug 14, 2026)
 
 ### 15.3 SEO
 

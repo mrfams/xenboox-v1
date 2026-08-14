@@ -18,24 +18,40 @@ import {
 } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
 import { triggerClient } from "@/lib/trigger";
+import { cachedDomain } from "@/lib/cache/tenant-cache";
 import {
   executeClosePipeline,
   getCloseStatus,
 } from "@xenboox/agents/core/close-pipeline";
 
+// Fiscal periods change rarely (created annually); a 60s entity-scoped cache
+// makes the calendar widget's repeated reads free while never going stale
+// beyond a single tick. getCurrent is deliberately NOT cached (time-bound).
+const fiscalCache = cachedDomain("fiscal", 60_000);
+
 export const fiscalRouter = router({
   list: rlsProtectedProcedure
     .input(z.object({ year: z.number().int().optional() }))
     .query(async ({ ctx, input }) => {
-      return db.query.fiscalPeriods.findMany({
+      const entityId = ctx.entityId!;
+      const cacheKey = JSON.stringify(input ?? {});
+      const cached = fiscalCache.get<(typeof fiscalPeriods.$inferSelect)[]>(
+        entityId,
+        cacheKey,
+      );
+      if (cached) return cached;
+
+      const periods = await db.query.fiscalPeriods.findMany({
         where: input.year
           ? and(
-              eq(fiscalPeriods.entityId, ctx.entityId!),
+              eq(fiscalPeriods.entityId, entityId),
               eq(fiscalPeriods.year, input.year),
             )
-          : eq(fiscalPeriods.entityId, ctx.entityId!),
+          : eq(fiscalPeriods.entityId, entityId),
         orderBy: [desc(fiscalPeriods.year), asc(fiscalPeriods.month)],
       });
+      fiscalCache.set(entityId, cacheKey, periods);
+      return periods;
     }),
 
   getCurrent: rlsProtectedProcedure.query(async ({ ctx }) => {
@@ -89,6 +105,10 @@ export const fiscalRouter = router({
             endDate,
           })
           .returning();
+
+        // Periods are cached for 60s — drop the entity's fiscal entries so
+        // the calendar reflects the new period immediately.
+        fiscalCache.invalidate(ctx.entityId!);
 
         return period;
       } catch (error) {
