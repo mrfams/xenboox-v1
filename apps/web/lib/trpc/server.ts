@@ -16,7 +16,10 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { isSessionActive } from "@/lib/admin/session";
-import { getRateLimiter } from "@/lib/security/rate-limiter";
+import {
+  getRateLimiter,
+  getConcurrencyLimiter,
+} from "@/lib/security/rate-limiter";
 import { tracingMiddleware } from "@/lib/trpc/tracing-middleware";
 import {
   hasAdminPermission,
@@ -698,6 +701,44 @@ export const planAwareProcedure = t.procedure
     await setRlsContext(ctx.session!.user!.id!, ctx.entityId!);
     return next({ ctx });
   });
+
+// ─── Concurrent-Request Limiter (§19.2) ────────────────────────────────────
+//
+// Heavy endpoints (report generation, bulk export, document OCR pipelines)
+// get a per-tenant concurrency cap so one tenant can't starve the pool.
+// Acquires a slot before the handler runs and releases it in `finally` so a
+// throwing handler can never leak a slot (the TTL bounds crashes anyway).
+
+export const concurrencyLimitedProcedure = (maxConcurrent: number) =>
+  t.procedure
+    .use(tracingMiddleware)
+    .use(loggingMiddleware)
+    .use(authMiddleware)
+    .use(entityScopingMiddleware)
+    .use(
+      t.middleware(async ({ ctx, next }) => {
+        const entityId = ctx.entityId ?? "unknown";
+        const userId = ctx.session?.user?.id ?? "anonymous";
+        const key = `${entityId}:${userId}`;
+        const acquired = await getConcurrencyLimiter().acquire(
+          key,
+          maxConcurrent,
+          120, // slot TTL — a crashed handler frees itself in 2 minutes
+        );
+        if (!acquired) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message:
+              "Too many heavy operations in flight for this workspace. Wait a moment and retry.",
+          });
+        }
+        try {
+          return await next({ ctx });
+        } finally {
+          await getConcurrencyLimiter().release(key);
+        }
+      }),
+    );
 
 // ─────────────────────────────────────────────
 // Admin control-plane procedures

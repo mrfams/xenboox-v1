@@ -126,6 +126,13 @@ const apiLimiter = hasRedis()
   ? createRatelimit("api", DEFAULT_LIMIT, "60 s")
   : null;
 
+// Read ceiling — batch tRPC reads are the hottest path; this only stops
+// scrapers/abuse, never legit reads (Vercel batches collapse ~N calls into
+// one HTTP request, and per-batch they consume a single window entry).
+const apiReadLimiter = hasRedis()
+  ? createRatelimit("api:read", 5000, "60 s")
+  : null;
+
 const agentLimiter = hasRedis() ? createRatelimit("agent", 10, "60 s") : null;
 
 const authLoginLimiter = hasRedis()
@@ -156,6 +163,10 @@ export class RateLimiter {
       DEFAULT_LIMIT,
       DEFAULT_WINDOW_SECONDS,
     );
+  }
+
+  async checkApiReadRateLimit(identifier: string): Promise<RateLimitResult> {
+    return tryUpstash(apiReadLimiter, identifier, 5000, 60);
   }
 
   async checkAuthLoginRateLimit(identifier: string): Promise<RateLimitResult> {
@@ -248,6 +259,100 @@ export class RateLimiter {
       : null;
     return tryUpstash(limiter, prefixedKey, limits.webhook, 60);
   }
+}
+
+// ─── Concurrent-Request Limiter (§19.2) ────────────────────────────────────
+//
+// Heavy endpoints (report generation, bulk export) get a per-tenant
+// concurrency cap so one tenant can't starve the pool. The limiter tracks
+// ACTIVE (in-flight) requests — distinct from the windowed request-count
+// limits above. Falls back to in-memory when Upstash is unreachable.
+
+class InMemoryConcurrencyLimiter {
+  private active = new Map<string, { count: number; expiresAt: number }>();
+
+  /** Returns true when the slot was acquired. */
+  acquire(key: string, max: number, ttlSeconds: number): boolean {
+    const now = Date.now();
+    const entry = this.active.get(key);
+    if (!entry || now >= entry.expiresAt) {
+      this.active.set(key, {
+        count: 1,
+        expiresAt: now + ttlSeconds * 1000,
+      });
+      return 1 <= max;
+    }
+    if (entry.count >= max) return false;
+    entry.count++;
+    return true;
+  }
+
+  release(key: string): void {
+    const entry = this.active.get(key);
+    if (!entry) return;
+    entry.count = Math.max(0, entry.count - 1);
+  }
+}
+
+const fallbackConcurrency = new InMemoryConcurrencyLimiter();
+
+export class ConcurrencyLimiter {
+  /**
+   * Acquire a slot for `key`. `max` is the per-key ceiling of concurrent
+   * in-flight operations; slots auto-expire after `ttlSeconds` so a crashed
+   * handler can never leak a permanently-held slot.
+   */
+  async acquire(
+    key: string,
+    max: number,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    if (hasRedis()) {
+      try {
+        const client = getRedis()!;
+        // Lua-free approach: INCR + EXPIRE (first incr sets the TTL). An
+        // EXPIRE race is harmless — worst case a slot lives slightly longer
+        // than intended and the TTL still bounds it.
+        const count = await client.incr(`concurrent:${key}`);
+        if (count === 1) {
+          await client.expire(`concurrent:${key}`, ttlSeconds);
+        }
+        if (count > max) {
+          await client.decr(`concurrent:${key}`);
+          return false;
+        }
+        return true;
+      } catch {
+        // Upstash failed — fall through to in-memory
+      }
+    }
+    return fallbackConcurrency.acquire(key, max, ttlSeconds);
+  }
+
+  async release(key: string): Promise<void> {
+    if (hasRedis()) {
+      try {
+        const client = getRedis()!;
+        const count = await client.decr(`concurrent:${key}`);
+        if (count <= 0) {
+          await client.del(`concurrent:${key}`);
+        }
+        return;
+      } catch {
+        // ignore — TTL bounds the slot anyway
+      }
+    }
+    fallbackConcurrency.release(key);
+  }
+}
+
+let concurrencyLimiter: ConcurrencyLimiter | null = null;
+
+export function getConcurrencyLimiter(): ConcurrencyLimiter {
+  if (!concurrencyLimiter) {
+    concurrencyLimiter = new ConcurrencyLimiter();
+  }
+  return concurrencyLimiter;
 }
 
 let rateLimiter: RateLimiter | null = null;

@@ -5,6 +5,7 @@ import {
   router,
   rlsProtectedProcedure,
   rlsMutateProcedure,
+  concurrencyLimitedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { eq, and, asc, inArray, desc, sql, count, sum } from "drizzle-orm";
@@ -573,7 +574,7 @@ export const reportsRouter = router({
     return insights;
   }),
 
-  getProfitAndLoss: rlsProtectedProcedure
+  getProfitAndLoss: concurrencyLimitedProcedure(2)
     .input(
       z.object({
         periodId: z.string().uuid().optional(),
@@ -686,7 +687,7 @@ export const reportsRouter = router({
       }
     }),
 
-  getBalanceSheet: rlsProtectedProcedure
+  getBalanceSheet: concurrencyLimitedProcedure(2)
     .input(
       z.object({
         periodId: z.string().uuid().optional(),
@@ -839,7 +840,7 @@ export const reportsRouter = router({
 
   // ─── Cash Flow Statement ──────────────────────────────────────────────
 
-  getCashFlow: rlsProtectedProcedure
+  getCashFlow: concurrencyLimitedProcedure(2)
     .input(z.object({ periodId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return generateCashFlow(ctx.entityId!, input.periodId);
@@ -847,7 +848,7 @@ export const reportsRouter = router({
 
   // ─── Budget vs Actual ─────────────────────────────────────────────────
 
-  getBudgetVsActual: rlsProtectedProcedure
+  getBudgetVsActual: concurrencyLimitedProcedure(2)
     .input(z.object({ periodId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return generateBudgetVsActual(ctx.entityId!, input.periodId);

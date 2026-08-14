@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { edgeAuth as auth } from "@/lib/auth/edge";
 import { edgeAdminAuth } from "@/lib/auth/admin-edge";
+import { getClientIp } from "@/lib/security/client-ip";
 import {
   applySecurityHeaders,
   buildCSP,
@@ -128,21 +129,25 @@ export default auth(async (req) => {
     }
   }
 
-  // Rate limiting — apply only to mutations, not page views or redirects.
-  // The credentials callback IS the brute-force surface (login form POSTs
-  // here), so it must be rate limited — the earlier blanket exclusion left
-  // password guessing unbounded when the DB lockout wasn't reachable.
-  // OAuth callbacks (google/azure/okta/sso) are server-to-server redirects
-  // and stay excluded.
+  // Edge rate limiting — applies to ALL /api/* traffic (reads AND mutations)
+  // plus auth routes, so abusive traffic is rejected at the edge before it
+  // ever reaches a function invocation. The credentials callback IS the
+  // brute-force surface (login form POSTs here), so it must be rate limited
+  // — the earlier blanket exclusion left password guessing unbounded when the
+  // DB lockout wasn't reachable. OAuth callbacks (google/azure/okta/sso) are
+  // server-to-server redirects and stay excluded.
   const isCredentialsCallback = pathname.startsWith(
     "/api/auth/callback/credentials",
   );
   const isOAuthCallback =
     pathname.startsWith("/api/auth/callback/") && !isCredentialsCallback;
-  if (isMutation && (isOnApi || isOnAuthRoute) && !isOAuthCallback) {
+  if (isOnApi && !isOAuthCallback && !pathname.startsWith("/api/health")) {
     try {
       const limiter = await getRateLimiter();
-      const ip = req.headers.get("x-forwarded-for") ?? "anonymous";
+      // Trusted-proxy-safe: x-vercel-forwarded-for, else the rightmost hop of
+      // x-forwarded-for (client-prepended spoofs sit left of the proxy's own
+      // observation). Never use the raw header as the key.
+      const ip = getClientIp(req.headers);
       const identifier = req.auth?.user?.id || ip;
 
       let result: Awaited<ReturnType<typeof limiter.checkApiRateLimit>>;
@@ -162,6 +167,11 @@ export default auth(async (req) => {
       } else if (pathname.startsWith("/api/webhooks/")) {
         result = await limiter.checkWebhookRateLimit(identifier);
         response.headers.set("X-RateLimit-Category", "webhook");
+      } else if (!isMutation) {
+        // Reads: generous ceiling so legit batch reads are never throttled,
+        // but a scraper hammering GET endpoints still dies at the edge.
+        result = await limiter.checkApiReadRateLimit(identifier);
+        response.headers.set("X-RateLimit-Category", "api-read");
       } else {
         result = await limiter.checkApiRateLimit(identifier);
         response.headers.set("X-RateLimit-Category", "api");
@@ -197,8 +207,6 @@ export default auth(async (req) => {
       // Rate limiter completely unavailable — in-memory fallback handles this,
       // but if even that fails, allow the request through
     }
-
-    if (isOnApi) return response;
   }
 
   // Pass through all /api/* routes — Auth.js and tRPC handle auth themselves

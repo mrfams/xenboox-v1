@@ -96,9 +96,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` Rate limiting implemented with Upstash Redis + in-memory fallback — `lib/security/rate-limiter.ts`
 - `[x]` Auth rate limits: login (5/60s), register (3/300s), password reset (3/300s)
 - `[x]` API rate limits: 1000/min general, 100/min webhooks, 10/min agent, 30/min chat stream
-- `[~]` Rate limiting documentation — limits are hardcoded, should be documented and configurable per tier
-- `[ ]` Rate limiting bypass testing — verify `x-forwarded-for` spoofing is prevented
-- `[ ]` Add rate limit headers in responses (`X-RateLimit-Remaining`, `X-RateLimit-Reset`)
+- `[x]` Rate limiting documentation — limits are hardcoded, should be documented and configurable per tier — **documented + configurable: `TIER_LIMITS` map in `lib/security/rate-limiter.ts` (5 tiers), edge ceilings in `middleware.ts`, read ceiling 5K/min** (Aug 14, 2026)
+- `[x]` Rate limiting bypass testing — verify `x-forwarded-for` spoofing is prevented — **trusted-proxy-safe IP extraction: `lib/security/client-ip.ts` prefers `x-vercel-forwarded-for`, else the RIGHTMOST hop of `x-forwarded-for` (client-prepended spoofs sit left); 7 unit tests in `__tests__/client-ip.test.ts`** (Aug 14, 2026)
+- `[x]` Add rate limit headers in responses (`X-RateLimit-Remaining`, `X-RateLimit-Reset`) — **`X-RateLimit-Limit/Remaining/Reset` + `Retry-After` on every edge-limited /api response and 429s** (Aug 14, 2026)
 
 ### 1.6 Security Headers
 
@@ -939,10 +939,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 19.2 Gaps to close before scale
 
-- `[ ]` **Move auth+API rate limiting to the Edge** (middleware) so abusive traffic never reaches a function invocation — Upstash ratelimit supports edge.
-- `[ ]` **Trusted-proxy discipline:** rate-limit keys derived from `x-forwarded-for` are spoofable if the client can set the header — only trust it when set by Vercel. Verify current key derivation.
+- `[x]` **Move auth+API rate limiting to the Edge** (middleware) so abusive traffic never reaches a function invocation — Upstash ratelimit supports edge. — **Done (Aug 14, 2026): ALL `/api/*` traffic (reads + mutations) is edge-limited in `middleware.ts` — reads 5K/min, writes 1K/min, auth 5/60s, webhooks 100/min — before any function invocation; OAuth callbacks excluded.**
+- `[x]` **Trusted-proxy discipline:** rate-limit keys derived from `x-forwarded-for` are spoofable if the client can set the header — only trust it when set by Vercel. Verify current key derivation. — **Done (Aug 14, 2026): `getClientIp()` in `lib/security/client-ip.ts` — `x-vercel-forwarded-for` first (edge-injected, not client-writable), else the rightmost hop of `x-forwarded-for`; spoofed prefixes ignored; 7 tests.**
 - `[x]` **Per-tenant tiers:** limits must scale with plan (free 1K/min, pro 10K/min, enterprise custom) instead of one global ceiling. — **Done:** `TIER_LIMITS` map in rate-limiter.ts with 5 tiers (free/starter/growth/pro/firm). `planAwareProcedure` type resolves org plan via entityScopingMiddleware and applies tier-specific limits. API 200→10K, agent 5→100, chat 10→120, webhook 20→500 per minute.
-- `[ ]` **Concurrent-request limiter** for heavy endpoints (report generation, bulk export) so one tenant can't starve the pool.
+- `[x]` **Concurrent-request limiter** for heavy endpoints (report generation, bulk export) so one tenant can't starve the pool. — **Done (Aug 14, 2026): `ConcurrencyLimiter` (Upstash INCR/EXPIRE with in-memory fallback) + `concurrencyLimitedProcedure(2)` wired into all 4 heavy report procedures (P&L, balance sheet, cash flow, budget-vs-actual). Slot TTL 120s bounds crashes; `finally` release; 5 unit tests.**
 - `[ ]` **Return standard headers** `X-RateLimit-Limit/Remaining/Reset` and a `Retry-After` on 429 (currently missing — §1.5).
 - `[x]` **Idempotency at every mutation boundary:** schema exists (`packages/db/schema/idempotency.ts`, migration `0007_idempotency_keys.sql`) — upgraded 57 financial mutations from `rlsProtectedProcedure` to `rlsMutateProcedure` across 12 routers (cash, mobileMoney, reconciliation, payroll, expenses, coa, journal, ap, ar, fixedAssets, estimates, expense). All money-movement and GL-entry mutations now have idempotency protection via `x-idempotency-key` header.
 - `[x]` **Outbound webhooks:** signing (HMAC-SHA256), per-tenant secrets, retry with exponential backoff, event catalog, and a management UI (§10.2 — elevate priority). — **Done:** `dispatchWebhookEvent` wired into 8 financial mutation paths (AP/AR invoice.paid, invoice.overdue, journal transaction.created, reconciliation.flagged, payroll.completed, document.processed). Vercel cron processes pending deliveries every 5 min. HMAC signing, exponential backoff, dedup, management UI all pre-existed.
@@ -1130,12 +1130,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## DEEP-DIVE SEVERITY SUMMARY
 
-| Severity    | Count | Description                                                                                                                                                                                                                                                                         |
-| ----------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                            |
-| 🟠 HIGH     | 3     | Required before enterprise launch: edge rate limiting, load tests, multi-region. ~~per-tenant tiers~~, ~~DSAR/export~~, ~~SAST/dependency scanning~~, ~~RLS DB-layer tests~~, ~~partitioning~~, ~~LLM injection defense~~, ~~outbound webhooks~~, ~~cookie consent~~, ~~APM/OTel~~. |
-| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                               |
-| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                        |
+| Severity    | Count | Description                                                                                                                                                                                                                                                                             |
+| ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                                |
+| 🟠 HIGH     | 2     | Required before enterprise launch: load tests, multi-region. ~~edge rate limiting~~, ~~per-tenant tiers~~, ~~DSAR/export~~, ~~SAST/dependency scanning~~, ~~RLS DB-layer tests~~, ~~partitioning~~, ~~LLM injection defense~~, ~~outbound webhooks~~, ~~cookie consent~~, ~~APM/OTel~~. |
+| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                                   |
+| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                            |
 
 ### Top Deep-Dive Actions (blocking, in order)
 

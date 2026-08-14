@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-14] — Edge rate limiting complete — HIGH 3→2 (§19.2, §1.5)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/security/client-ip.ts`, `apps/web/__tests__/client-ip.test.ts` (7 tests), `apps/web/__tests__/concurrency-limiter.test.ts` (5 tests)
+**Files Modified:** `apps/web/middleware.ts`, `apps/web/lib/security/rate-limiter.ts`, `apps/web/lib/trpc/server.ts`, `apps/web/server/routers/reports.ts`, `ROADTOPRODUCTION.md`
+
+**Request (session sprint):** take ROADTOPRODUCTION.md to enterprise production level — issue by issue, autoplan methodology, typecheck+build+tests before each commit+push.
+
+**What was built:**
+
+1. **Edge rate limiting for ALL /api traffic** (§19.2): middleware now limits reads (5K/min) AND mutations (1K/min) on every `/api/*` path before a function invocation — abusive traffic dies at the edge. Auth (5/60s login), register (3/300s), webhook (100/min) ceilings unchanged; OAuth callbacks + health excluded.
+2. **Trusted-proxy discipline** (§19.2): new `lib/security/client-ip.ts` — `getClientIp()` prefers `x-vercel-forwarded-for` (edge-injected, never client-writable), else the RIGHTMOST hop of `x-forwarded-for` (client-prepended spoofs sit left of the proxy's own observation). Strips ports/zone-ids/brackets, rejects junk (`unknown`, `::`, `0.0.0.0`). 7 unit tests incl. spoofed-prefix chains.
+3. **Concurrent-request limiter** (§19.2): `ConcurrencyLimiter` (Upstash `INCR`/`EXPIRE` with in-memory fallback, slot TTL bounds crashed handlers) + `concurrencyLimitedProcedure(2)` wired into all 4 heavy report procedures (getProfitAndLoss, getBalanceSheet, getCashFlow, getBudgetVsActual) — one tenant can't starve the pool. 5 unit tests (max cap, release, per-tenant isolation, TTL expiry, idempotent release).
+4. **Standard headers everywhere**: `X-RateLimit-Limit/Remaining/Reset` + `Retry-After` on every edge-limited response and 429 (was mutations-only before).
+
+**Verification:** web typecheck clean ✓ · production build GREEN ✓ · new suites 12/12 ✓ · full web suite 790 passed / 15 pre-existing DB-env failures (harness-injected stale DATABASE_URL) / 19 skipped ✓.
+
+---
+
 ### [2026-08-14] — APM/OpenTelemetry verified + build unblocked — the web build was broken (3 real bugs + env)
 
 **Agent:** Buffy (Autonomous Engineer)
