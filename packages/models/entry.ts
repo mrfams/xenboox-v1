@@ -1,6 +1,11 @@
 import { getModelRouter } from "./router";
 import { getLangfuse } from "./langfuse";
 import { recordAgentActivity } from "./telemetry";
+import { aiGateway } from "./gateway";
+
+// Boot: surface spend alerts as in-app notifications (idempotent — the
+// gateway is a singleton, so re-registering the default handler is a no-op).
+aiGateway.enableNotificationAlerts();
 import type {
   CallModelParams,
   NormalizedModelResponse,
@@ -84,6 +89,9 @@ export async function callModel(
     throw new Error(`Agent security violation: ${authCheck.reason}`);
   }
 
+  // ─── AI gateway: per-tenant budget + kill-switch (hard backstop) ──
+  aiGateway.assertBudgetAllowed(params.entityId);
+
   const router = getModelRouter();
   const langfuse = getLangfuse();
 
@@ -144,6 +152,14 @@ export async function callModel(
         fromCache: result.fromCache,
       },
     });
+
+    // ─── AI gateway: record spend + fire threshold alerts ───────────
+    aiGateway.recordUsage(
+      params.entityId,
+      result.model,
+      result.tokensUsed.input,
+      result.tokensUsed.output,
+    );
 
     // §4.4 — Record agent activity with model telemetry
     await recordAgentActivity({
@@ -232,6 +248,9 @@ export async function streamModel(
     throw new Error(`Agent security violation: ${authCheck.reason}`);
   }
 
+  // ─── AI gateway: per-tenant budget + kill-switch (hard backstop) ──
+  aiGateway.assertBudgetAllowed(params.entityId);
+
   const router = getModelRouter();
 
   // For streaming, we still use the router's execute path but
@@ -251,6 +270,14 @@ export async function streamModel(
       maxTokens: params.maxTokens,
       temperature: params.temperature,
     },
+  );
+
+  // ─── AI gateway: record spend + fire threshold alerts ───────────
+  aiGateway.recordUsage(
+    params.entityId,
+    result.model,
+    result.tokensUsed.input,
+    result.tokensUsed.output,
   );
 
   // Emit accumulated content as if streamed

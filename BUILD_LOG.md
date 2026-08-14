@@ -6,6 +6,26 @@
 
 ---
 
+### [2026-08-14] — AI gateway: per-tenant budgets + cost ceilings + kill-switch + spend alerts (§22.1)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `packages/models/gateway.ts`, `apps/web/__tests__/ai-gateway.test.ts` (10 tests)
+**Files Modified:** `packages/models/entry.ts` (gateway checks in `callModel` + `streamModel`, boot-registered alert handler), `packages/models/index.ts` (gateway exports), `.env.example` (mock AI_GATEWAY keys), `ROADTOPRODUCTION.md` §22.1
+
+**What was done (autoplan):**
+
+1. **First-party AI gateway** (`packages/models/gateway.ts`) — the control-plane layer in front of every LLM call. Enforces per entity (tenant):
+   - Hard kill-switch: `AI_KILL_SWITCH=true` blocks ALL calls immediately.
+   - Daily token ceiling (`AI_BUDGET_DAILY_TOKENS`, default 500K) and daily cost ceiling (`AI_BUDGET_DAILY_COST_USD`, default $50) — both synchronous checks on the hot path, zero DB round-trips.
+   - Cost computed from per-model pricing (built-in mock table, env-overridable per model).
+   - Spend alerts at 80%/100% thresholds, deduped per day per entity, surfaced as in-app notifications to every user with entity access (DB write is failure-safe — never throws).
+2. **Wired into both entry points** — `callModel` (non-stream) and `streamModel` check `assertBudgetAllowed` before inference and `recordUsage` after, so every agent call is gated and accounted.
+3. **Multi-tenant isolation tested** — entity A exhausting its budget never affects entity B.
+
+**Verification:** models + web typecheck clean, build green, 930 passed / 15 pre-existing DB-env failures / 19 skipped (+10 new tests).
+
+---
+
 ### [2026-08-14] — Jobs: Trigger.dev v4 upgrade + per-tenant concurrency + job idempotency + DLQ (§23.1)
 
 **Agent:** Buffy (Autonomous Engineer)

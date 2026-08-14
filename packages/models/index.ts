@@ -8,6 +8,15 @@
 export { getModelRouter, ModelRouter } from "./router";
 export type { RouterConfig } from "./router";
 export { callModel, streamModel } from "./entry";
+
+// AI Gateway — per-tenant budgets, kill-switch, spend alerts (§22.1)
+export {
+  AiGateway,
+  AiBudgetExceededError,
+  aiGateway,
+  estimateCostUsd,
+} from "./gateway";
+export type { SpendAlert, UsageSnapshot } from "./gateway";
 export {
   getAssignment,
   invalidateAssignment,
