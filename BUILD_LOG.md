@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-14] — APM/OpenTelemetry verified + build unblocked — the web build was broken (3 real bugs + env)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `packages/models/otel.ts`, `apps/web/next.config.ts`, `apps/web/server/routers/payroll.ts`, `apps/web/__tests__/audit-router.test.ts`, `apps/web/__tests__/entity-scoping.test.ts`, `apps/web/__tests__/pagination.test.ts`
+
+**Request (session kickoff):** take ROADTOPRODUCTION.md to full enterprise production level — one issue at a time, autoplan methodology, typecheck+build+tests before each commit+push, mock keys for anything user-side (R2 etc.) listed in a md file.
+
+**What was found & fixed (baseline):**
+
+1. **The web production build was BROKEN on master** — `next build` failed with a masked webpack minify error. Root causes: (a) `packages/models/otel.ts` used `new Resource()` from `@opentelemetry/resources` v2 — `Resource` is now type-only, must use `resourceFromAttributes()`; (b) `new Headers(OTEL_EXPORTER_OTLP_HEADERS)` is invalid — added spec-compliant `parseOtlpHeaders()` (comma-separated `key=value`, URI-decoded, tolerant of malformed pairs) + 4 tests; (c) partial OTel externalization left `@opentelemetry/*` ESM packages in the webpack bundle → `SyntaxError: Invalid or unexpected token` in the minifier — fixed by externalizing the **whole `@opentelemetry/` scope** on the server graph (Next.js official guidance: server-only packages run from node_modules).
+2. **Pre-existing type error unblocked** — `payroll.ts:1183` compared `result.status === "completed"` where the `PayrollRunResult` union has no `"completed"` (it's `"paid"` for a completed run). Fixed; this was the last typecheck error and was blocking every build.
+3. **3 test suites recovered** — `audit-router`, `entity-scoping`, `pagination` were failing because `entityScopingMiddleware` (per-tenant tier work) now calls `db.query.organizations.findFirst`, which their db mocks didn't provide. Added `organizations` to the mocks. Web suite: 28 → 15 failures (all remaining are DB-integration suites hitting `ECONNREFUSED` from the harness-injected stale `DATABASE_URL` — documented machine limitation, not code).
+
+**Verification:** web typecheck clean (0 errors) ✓ · web production build **GREEN** (EXIT 0) ✓ · OTel suites 16/16 ✓ · web suite 778 passed / 15 DB-env failures / 19 skipped ✓.
+
+---
+
 ### [2026-08-14] — LLM injection defense + DB partitioning — HIGH 6→4
 
 **Agent:** Opencode (Autonomous Engineer)

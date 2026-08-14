@@ -16,6 +16,7 @@ vi.mock("@/lib/db", () => ({
     query: {
       sessions: { findFirst: vi.fn() },
       orgRoles: { findFirst: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
+      organizations: { findFirst: vi.fn() },
       entities: { findFirst: vi.fn() },
       userEntityAccess: { findFirst: vi.fn() },
       users: { findFirst: vi.fn() },
@@ -181,6 +182,10 @@ describe("auditRouter — tamper-evident chain", () => {
       id: "session-1",
     } as never);
     vi.mocked(db.query.orgRoles.findFirst).mockResolvedValue(null as never);
+    vi.mocked(db.query.organizations.findFirst).mockResolvedValue({
+      id: "org-1",
+      plan: "free",
+    } as never);
     vi.mocked(db.query.entities.findFirst).mockResolvedValue({
       id: "entity-1",
       organizationId: "org-1",

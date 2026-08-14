@@ -15,6 +15,7 @@ import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { useNotificationMutations } from "@/lib/hooks/use-notification-mutations";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 type Filter = "all" | "unread";
 
@@ -161,15 +162,21 @@ export default function NotificationsPage() {
               : "You're all caught up"}
           </p>
         </div>
-        {unreadTotal > 0 && (
-          <button
-            onClick={() => markAllRead.mutate()}
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
-          >
-            <CheckCheck className="h-4 w-4 text-primary" />
-            Mark all read
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <AiSimulationTrigger
+            traceId="agent-health-check"
+            label="Watch agents work"
+          />
+          {unreadTotal > 0 && (
+            <button
+              onClick={() => markAllRead.mutate()}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+            >
+              <CheckCheck className="h-4 w-4 text-primary" />
+              Mark all read
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter */}

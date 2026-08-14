@@ -1179,8 +1179,9 @@ export const payrollRouter = router({
           },
         });
 
-        // Fire-and-forget webhook dispatch
-        if (result.status === "completed" || result.status === "paid") {
+        // Fire-and-forget webhook dispatch — a completed run is terminal
+        // status "paid". (The PayrollRunResult union has no "completed".)
+        if (result.status === "paid") {
           try {
             void dispatchWebhookEvent({
               entityId: ctx.entityId!,

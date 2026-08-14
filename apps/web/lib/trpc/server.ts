@@ -17,6 +17,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { isSessionActive } from "@/lib/admin/session";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
+import { tracingMiddleware } from "@/lib/trpc/tracing-middleware";
 import {
   hasAdminPermission,
   type AdminEpic,
@@ -621,6 +622,7 @@ const idempotencyMiddleware = t.middleware(async ({ ctx, next, path }) => {
 // RLS-aware procedure that sets session context before queries.
 // Always sets RLS context — entity scoping is enforced at the DB layer as defense-in-depth.
 export const rlsProtectedProcedure = t.procedure
+  .use(tracingMiddleware)
   .use(loggingMiddleware)
   .use(authMiddleware)
   .use(entityScopingMiddleware)
@@ -631,6 +633,7 @@ export const rlsProtectedProcedure = t.procedure
 
 // RLS-aware mutation procedure (email verification + idempotency + RLS)
 export const rlsMutateProcedure = t.procedure
+  .use(tracingMiddleware)
   .use(loggingMiddleware)
   .use(authMiddleware)
   .use(requireVerifiedEmail)
@@ -642,11 +645,13 @@ export const rlsMutateProcedure = t.procedure
   });
 
 export const protectedProcedure = t.procedure
+  .use(tracingMiddleware)
   .use(loggingMiddleware)
   .use(authMiddleware)
   .use(entityScopingMiddleware);
 
 export const adminProcedure = t.procedure
+  .use(tracingMiddleware)
   .use(loggingMiddleware)
   .use(authMiddleware)
   .use(entityScopingMiddleware)
@@ -682,6 +687,7 @@ const planAwareRateLimitMiddleware = t.middleware(async ({ ctx, next }) => {
 });
 
 export const planAwareProcedure = t.procedure
+  .use(tracingMiddleware)
   .use(loggingMiddleware)
   .use(authMiddleware)
   .use(requireVerifiedEmail)
@@ -776,6 +782,7 @@ const adminSessionMiddleware = t.middleware(async ({ ctx, next }) => {
 });
 
 export const adminProtectedProcedure = t.procedure
+  .use(tracingMiddleware)
   .use(loggingMiddleware)
   .use(adminSessionMiddleware);
 
@@ -798,10 +805,12 @@ export const adminPermissionProcedure = (
 // Authenticated procedure that DOES NOT require entity scoping.
 // Use for operations like entity creation where no entity exists yet.
 export const authProcedure = t.procedure
+  .use(tracingMiddleware)
   .use(loggingMiddleware)
   .use(authMiddleware);
 
 export const mutateProcedure = t.procedure
+  .use(tracingMiddleware)
   .use(loggingMiddleware)
   .use(authMiddleware)
   .use(requireVerifiedEmail)

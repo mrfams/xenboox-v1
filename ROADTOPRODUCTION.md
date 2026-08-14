@@ -159,10 +159,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 2.2 Application Performance Monitoring (APM)
 
 - `[ ]` No Datadog, New Relic, or Dynatrace
-- `[ ]` No OpenTelemetry integration (despite `@opentelemetry/api` pinned in overrides)
-- `[ ]` Implement OpenTelemetry for request tracing
-- `[ ]` Set up performance dashboards (request latency, throughput, error rates)
-- `[ ]` Configure slow-query alerts
+- `[x]` No OpenTelemetry integration (despite `@opentelemetry/api` pinned in overrides) — **implemented** (Aug 14, 2026)
+- `[x]` Implement OpenTelemetry for request tracing — **NodeSDK + BatchSpanProcessor + auto-instrumentation (http/undici/pg) + tRPC tracing middleware on every procedure + LangChain agent spans. Env-gated, sampled, OTLP/HTTP export.** (`packages/models/otel.ts`, `apps/web/instrumentation.ts`, `apps/web/lib/trpc/tracing-middleware.ts`) (Aug 14, 2026)
+- `[ ]` Set up performance dashboards (request latency, throughput, error rates) — **needs the APM backend chosen + configured (user-side: SigNoz/Tempo/New Relic/Datadog — see docs/MONITORING.md §1.5)**
+- `[ ]` Configure slow-query alerts — **in the APM once configured**
 
 ### 2.3 Structured Logging
 
@@ -200,10 +200,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 2.7 Distributed Tracing
 
-- `[ ]` No distributed tracing across services
+- `[x]` No distributed tracing across services — **implemented** (Aug 14, 2026)
 - [x]` LangFuse traces agent operations
-- `[ ]` Add trace context propagation from web → tRPC → agents → database
-- `[ ]` Implement trace sampling strategy (head-based or tail-based)
+- `[x]` Add trace context propagation from web → tRPC → agents → database — **tRPC middleware spans + auto-instrumented DB/HTTP + LangChain agent spans, all in one trace via W3C traceparent** (Aug 14, 2026)
+- `[x]` Implement trace sampling strategy (head-based or tail-based) — **env-configurable `parentbased_traceidratio` sampler** (Aug 14, 2026)
 
 ### 2.8 Uptime Monitoring
 
@@ -1078,7 +1078,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 24.2 Gaps to close (in priority order)
 
-- `[ ]` **OpenTelemetry end-to-end:** web → tRPC → agents → DB. Export to an APM (Datadog/New Relic/SigNoz). This is the prerequisite for latency SLOs.
+- `[x]` **OpenTelemetry end-to-end:** web → tRPC → agents → DB. Export to an APM (Datadog/New Relic/SigNoz). — **Done (Aug 14, 2026): OTLP/HTTP exporter wired via `packages/models/otel.ts` + `apps/web/instrumentation.ts`; tRPC spans on every procedure (`tracing-middleware.ts`); auto-instrumentation for http/undici/pg; LangChain agents trace via built-in OTel. Backend choice + dashboards remain user-side (docs/MONITORING.md §1.5).** This is the prerequisite for latency SLOs.
 - `[ ]` **SLOs:** availability 99.9% (SLA already promises it — must be measurable), p95 < 300ms on core tRPC reads, p99 < 1s on writes, error budget burn alerts.
 - `[x]` **Health endpoints:** `/api/health/live` (process) and `/api/health/ready` (DB + Redis reachable) — upgraded to production-grade with real Redis ping, HTTP 503 on unhealthy, uptime tracking, and Anthropic API reachability check (§2.4).
 - `[ ]` **Uptime monitoring:** BetterStack/Checkly external probes + status page (status.xenboox.com) matching the SLA promise.
@@ -1130,12 +1130,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ## DEEP-DIVE SEVERITY SUMMARY
 
-| Severity    | Count | Description                                                                                                                                                                                                                                                                     |
-| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                        |
-| 🟠 HIGH     | 4     | Required before enterprise launch: edge rate limiting, APM/OTel, load tests, multi-region. ~~per-tenant tiers~~, ~~DSAR/export~~, ~~SAST/dependency scanning~~, ~~RLS DB-layer tests~~, ~~partitioning~~, ~~LLM injection defense~~, ~~outbound webhooks~~, ~~cookie consent~~. |
-| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                           |
-| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                    |
+| Severity    | Count | Description                                                                                                                                                                                                                                                                         |
+| ----------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                            |
+| 🟠 HIGH     | 3     | Required before enterprise launch: edge rate limiting, load tests, multi-region. ~~per-tenant tiers~~, ~~DSAR/export~~, ~~SAST/dependency scanning~~, ~~RLS DB-layer tests~~, ~~partitioning~~, ~~LLM injection defense~~, ~~outbound webhooks~~, ~~cookie consent~~, ~~APM/OTel~~. |
+| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                               |
+| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                        |
 
 ### Top Deep-Dive Actions (blocking, in order)
 
@@ -1144,8 +1144,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 3. ~~**IDOR + RLS cross-entity test sweep**~~ (§20.2) — **Done: 69 tests in idor-rls-sweep.test.ts** (Aug 14, 2026)
 4. ~~**SAST + dependency scanning + gitleaks in CI**~~ (§20.3) — **Done: security.yml with 8 scanning jobs, .gitleaks.toml, .semgrep rules** (Aug 13, 2026)
 5. **DSAR/export + erasure workflow** (§21.3) — a legal launch-blocker in every target market.
-6. **LLM gateway with per-tenant budgets + prompt-injection envelope discipline** (§22.1, §22.3) — protects both P&L and the money.
-7. **k6 load test suite** (§25.1) — turn "should scale" into measured p95 numbers.
+6. ~~**APM/OpenTelemetry end-to-end**~~ (§24.2) — **Done: OTLP exporter + tRPC/DB/agent spans, sampled, env-gated** (Aug 14, 2026)
+7. **LLM gateway with per-tenant budgets** (§22.1) — protects both P&L and the money.
+8. **k6 load test suite** (§25.1) — turn "should scale" into measured p95 numbers.
 
 ---
 
@@ -1165,7 +1166,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 3. ~~**Internal spec references in UI**~~ — All developer annotations removed. (Aug 12)
 4. ~~**No error tracking**~~ — Sentry installed and configured. Error boundaries capture to Sentry. (Aug 12)
 5. ~~**No CI/CD**~~ — GitHub Actions pipeline already exists with lint, typecheck, test, build. (Aug 12)
-6. ~~**`localhost` in auth emails~~** — Production-safe `getAppUrl()` helper added. (Aug 12)
+6. ~~\*\*`localhost` in auth emails~~\*\* — Production-safe `getAppUrl()` helper added. (Aug 12)
 7. ~~**Console.log stubs in dashboard**~~ — Wired to chat.sendMessage(). (Aug 12)
 8. ~~**No structured logging**~~ — Critical paths migrated to Pino. Remaining `.catch(console.error)` patterns are low-risk fire-and-forget. (Aug 12)
 9. ~~**ESLint disabled in builds**~~ — Lint now runs during `next build`. (Aug 12)

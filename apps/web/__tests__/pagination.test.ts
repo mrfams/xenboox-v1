@@ -56,6 +56,9 @@ vi.mock("@/lib/db", () => ({
         findFirst: vi.fn().mockResolvedValue({ id: "access-1" }),
       },
       orgRoles: { findFirst: vi.fn().mockResolvedValue(null) },
+      organizations: {
+        findFirst: vi.fn().mockResolvedValue({ plan: "free" }),
+      },
       sessions: { findFirst: vi.fn().mockResolvedValue({ id: "session-1" }) },
     },
     insert: vi.fn().mockReturnThis(),

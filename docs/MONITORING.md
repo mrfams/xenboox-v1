@@ -17,7 +17,8 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development",
-  tracesSampleRate: process.env.NEXT_PUBLIC_VERCEL_ENV === "production" ? 0.2 : 1.0,
+  tracesSampleRate:
+    process.env.NEXT_PUBLIC_VERCEL_ENV === "production" ? 0.2 : 1.0,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
   integrations: [Sentry.prismaIntegration()],
@@ -26,21 +27,21 @@ Sentry.init({
 
 ### Plan
 
-| Tier | Plan | Monthly Cost | Notes |
-|------|------|-------------|-------|
-| Development | Sentry Developer (Free) | $0 | 5K errors, 1 user |
-| Production (launch) | Sentry Team | $26/mo | 50K errors, 5M spans |
-| Growth (100+ entities) | Sentry Business | $80/mo | SSO, dashboards, anomaly detection |
-| Scale (1000+ entities) | Sentry Enterprise | Custom | TAM, custom retention |
+| Tier                   | Plan                    | Monthly Cost | Notes                              |
+| ---------------------- | ----------------------- | ------------ | ---------------------------------- |
+| Development            | Sentry Developer (Free) | $0           | 5K errors, 1 user                  |
+| Production (launch)    | Sentry Team             | $26/mo       | 50K errors, 5M spans               |
+| Growth (100+ entities) | Sentry Business         | $80/mo       | SSO, dashboards, anomaly detection |
+| Scale (1000+ entities) | Sentry Enterprise       | Custom       | TAM, custom retention              |
 
 ### Key Monitors
 
-| Monitor | What It Tracks | Alert Threshold |
-|---------|---------------|----------------|
-| Error Rate | 5xx responses, unhandled exceptions | >1% of requests |
-| p95 Response Time | API endpoint latency | >2s for tRPC calls |
-| Crash-Free Rate | Sessions without fatal errors | <99.5% |
-| tRPC Error Rate | Failed procedure calls | >5% per procedure |
+| Monitor           | What It Tracks                      | Alert Threshold    |
+| ----------------- | ----------------------------------- | ------------------ |
+| Error Rate        | 5xx responses, unhandled exceptions | >1% of requests    |
+| p95 Response Time | API endpoint latency                | >2s for tRPC calls |
+| Crash-Free Rate   | Sessions without fatal errors       | <99.5%             |
+| tRPC Error Rate   | Failed procedure calls              | >5% per procedure  |
 
 ### Performance Tracing
 
@@ -48,6 +49,54 @@ Sentry.init({
 - Transaction names follow pattern: `trpc.{router}.{procedure}`
 - Database queries captured via Prisma/SQL instrumentation
 - External API calls (Merge, Wave, Resend) tagged with `http.target`
+
+---
+
+## 1.5 Distributed Tracing (OpenTelemetry)
+
+> This is the distributed-request pillar (§24.2): one trace from browser → edge →
+> tRPC → database → LLM. Sentry covers errors, Pino covers logs, LangFuse covers
+> agent traces — OTel ties them to a single request. It is the prerequisite for
+> measuring the latency SLOs (p95 < 300ms reads, p99 < 1s writes).
+
+### What is instrumented
+
+| Layer                      | How                                                                                                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP request (inbound)     | Next.js 15 auto-instrumentation once `register()` boots the SDK (`apps/web/instrumentation.ts`)                                                                              |
+| Outbound HTTP / fetch / DB | `getNodeAutoInstrumentations()` — http, undici (covers the Neon fetch driver), pg                                                                                            |
+| tRPC procedure             | `tracingMiddleware` (`apps/web/lib/trpc/tracing-middleware.ts`) — outermost middleware on every procedure chain; span `trpc.{path}` with `user.id`, `entity.id`, `trpc.type` |
+| Agent / LLM runs           | LangChain/LangGraph emit spans via `@opentelemetry/api` once a provider is registered — no agent code changes needed                                                         |
+
+### Environment variables (set in Vercel for production)
+
+| Variable                      | Example (mock)                                   | Notes                                                                                |
+| ----------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://otel-collector.example.com`             | Base URL of any OTLP/HTTP collector. **Unset = OTel fully disabled (silent no-op).** |
+| `OTEL_EXPORTER_OTLP_HEADERS`  | `Authorization=Bearer MOCK_OTEL_COLLECTOR_TOKEN` | `Key=Value` pairs, `;` or `&` separated (e.g. Grafana `X-Scope-OrgID` too)           |
+| `OTEL_SERVICE_NAME`           | `xenboox-web`                                    | Span service name. Defaults to `xenboox-web`.                                        |
+| `OTEL_TRACES_SAMPLER`         | `parentbased_traceidratio`                       | `always_on` (default), `always_off`, `parentbased_traceidratio`                      |
+| `OTEL_TRACES_SAMPLER_ARG`     | `0.1`                                            | Ratio when `*traceidratio*` — 0.1 = 10% of traces.                                   |
+| `OTEL_SDK_DISABLED`           | `true`                                           | Hard kill-switch (overrides everything).                                             |
+
+> Replace the mock values above with the real collector credentials before launch.
+> Recommended production start: `parentbased_always_on` for the first week (full
+> fidelity while validating), then `parentbased_traceidratio` / `0.1` once volume
+> is understood. The exporter stream is standard OTLP/HTTP — SigNoz, Grafana
+> Tempo, New Relic, Datadog, and Honeycomb all accept it.
+
+### Latency SLOs (measured from these spans)
+
+- Availability 99.9% (matches the public SLA) — error-rate alert on tRPC spans.
+- p95 < 300ms on core tRPC reads; p99 < 1s on writes.
+- Error budget burn alerts once the APM backend is configured (see §24.2).
+
+### Follow-ons (not yet wired)
+
+- **Trigger.dev jobs** run in a separate process — bootstrap `initOtel()` in the
+  job worker entrypoint with the same env vars to trace document processing,
+  close orchestration, and report generation.
+- **Mobile (Expo)** — OTel RN instrumentation; not needed before launch.
 
 ---
 
@@ -80,7 +129,7 @@ export function createAgentTrace(agentName: string, entityId: string) {
 export function createAgentSpan(
   trace: LangfuseTraceClient,
   name: string,
-  input: unknown
+  input: unknown,
 ) {
   return trace.span({ name, input });
 }
@@ -88,26 +137,26 @@ export function createAgentSpan(
 
 ### What We Trace
 
-| Event | LangFuse Object | Metadata |
-|-------|----------------|----------|
-| Agent invocation | Trace | agentName, entityId, confidence |
-| LLM call | Generation | model, prompt, response, tokens, latency |
-| Tool execution | Span | toolName, input, output, duration |
-| Agent decision | Span | decisionType, confidence, reasoning |
-| Error | Span (error) | errorType, message, stack |
-| Human escalation | Event | reason, context, assignedTo |
+| Event            | LangFuse Object | Metadata                                 |
+| ---------------- | --------------- | ---------------------------------------- |
+| Agent invocation | Trace           | agentName, entityId, confidence          |
+| LLM call         | Generation      | model, prompt, response, tokens, latency |
+| Tool execution   | Span            | toolName, input, output, duration        |
+| Agent decision   | Span            | decisionType, confidence, reasoning      |
+| Error            | Span (error)    | errorType, message, stack                |
+| Human escalation | Event           | reason, context, assignedTo              |
 
 ### LangFuse Dashboard Widgets
 
-| Dashboard | Purpose |
-|-----------|---------|
-| Daily Agent Volume | Traces per agent per day |
-| Avg Response Time | Mean + p95 latency per agent |
-| Token Consumption | Total tokens per agent, per model |
-| Cost by Agent | Estimated LLM cost per agent per day |
-| Error Rate by Agent | Failed traces / total traces |
-| Confidence Distribution | Histogram of confidence scores |
-| Human Escalation Rate | Escalations per 100 traces |
+| Dashboard               | Purpose                              |
+| ----------------------- | ------------------------------------ |
+| Daily Agent Volume      | Traces per agent per day             |
+| Avg Response Time       | Mean + p95 latency per agent         |
+| Token Consumption       | Total tokens per agent, per model    |
+| Cost by Agent           | Estimated LLM cost per agent per day |
+| Error Rate by Agent     | Failed traces / total traces         |
+| Confidence Distribution | Histogram of confidence scores       |
+| Human Escalation Rate   | Escalations per 100 traces           |
 
 ---
 
@@ -117,15 +166,15 @@ export function createAgentSpan(
 
 Neon provides a built-in Monitoring dashboard plus OpenTelemetry export.
 
-| Metric | Source | Warning | Critical | Action |
-|--------|--------|---------|----------|--------|
-| Active connections | Neon dashboard | >80% of max | >95% of max | Scale compute, check pool |
-| CPU utilization | Neon dashboard | >70% | >90% | Optimize queries, scale |
-| RAM usage | Neon dashboard | >80% | >95% | Scale compute |
-| Cache hit rate | Neon dashboard | <95% | <90% | Review query patterns |
-| Deadlocks | Neon dashboard | >0/min | >5/min | Review transaction ordering |
-| Replication lag | Neon dashboard | >5s | >30s | Check primary compute health |
-| Database size | Neon dashboard | >80% of plan | >95% of plan | Archive old data |
+| Metric             | Source         | Warning      | Critical     | Action                       |
+| ------------------ | -------------- | ------------ | ------------ | ---------------------------- |
+| Active connections | Neon dashboard | >80% of max  | >95% of max  | Scale compute, check pool    |
+| CPU utilization    | Neon dashboard | >70%         | >90%         | Optimize queries, scale      |
+| RAM usage          | Neon dashboard | >80%         | >95%         | Scale compute                |
+| Cache hit rate     | Neon dashboard | <95%         | <90%         | Review query patterns        |
+| Deadlocks          | Neon dashboard | >0/min       | >5/min       | Review transaction ordering  |
+| Replication lag    | Neon dashboard | >5s          | >30s         | Check primary compute health |
+| Database size      | Neon dashboard | >80% of plan | >95% of plan | Archive old data             |
 
 ### Neon OpenTelemetry Export
 
@@ -142,12 +191,12 @@ custom_headers:
 
 Monitor the PgBouncer pooler continuously:
 
-| Metric | Healthy | Warning | Critical |
-|--------|---------|---------|----------|
-| Pooler waiting connections | 0 | >10 | >50 |
-| Pooler max wait time | <100ms | >500ms | >2s |
-| Pooler server active | <70% of pool | >85% | >95% |
-| Connection acquisition time | <5ms | >20ms | >100ms |
+| Metric                      | Healthy      | Warning | Critical |
+| --------------------------- | ------------ | ------- | -------- |
+| Pooler waiting connections  | 0            | >10     | >50      |
+| Pooler max wait time        | <100ms       | >500ms  | >2s      |
+| Pooler server active        | <70% of pool | >85%    | >95%     |
+| Connection acquisition time | <5ms         | >20ms   | >100ms   |
 
 ---
 
@@ -155,25 +204,25 @@ Monitor the PgBouncer pooler continuously:
 
 ### Vercel Analytics
 
-| Metric | Dashboard | Alert |
-|--------|-----------|-------|
-| Function execution time | Vercel Speed Insights | p95 > 5s |
-| Function invocation count | Vercel Analytics | >100K/day per function |
-| Edge function duration | Vercel Speed Insights | p95 > 500ms |
-| Bandwidth | Vercel Usage | >500 GB/mo |
-| Build time | Vercel Deployments | >10 min |
-| Cold start frequency | Custom log analysis | >5% of invocations |
+| Metric                    | Dashboard             | Alert                  |
+| ------------------------- | --------------------- | ---------------------- |
+| Function execution time   | Vercel Speed Insights | p95 > 5s               |
+| Function invocation count | Vercel Analytics      | >100K/day per function |
+| Edge function duration    | Vercel Speed Insights | p95 > 500ms            |
+| Bandwidth                 | Vercel Usage          | >500 GB/mo             |
+| Build time                | Vercel Deployments    | >10 min                |
+| Cold start frequency      | Custom log analysis   | >5% of invocations     |
 
 ### Function Execution Budgets
 
-| Function Type | Timeout | Max Memory | Max Duration (p99) |
-|--------------|---------|-----------|-------------------|
-| tRPC procedure | 30s | 512MB | 2s |
-| Server Action | 60s | 1GB | 5s |
-| Webhook handler | 30s | 512MB | 3s |
-| Agent execution | 300s | 2GB | 120s |
-| CSV import | 300s | 2GB | 60s |
-| Background job | 900s | 2GB | 300s |
+| Function Type   | Timeout | Max Memory | Max Duration (p99) |
+| --------------- | ------- | ---------- | ------------------ |
+| tRPC procedure  | 30s     | 512MB      | 2s                 |
+| Server Action   | 60s     | 1GB        | 5s                 |
+| Webhook handler | 30s     | 512MB      | 3s                 |
+| Agent execution | 300s    | 2GB        | 120s               |
+| CSV import      | 300s    | 2GB        | 60s                |
+| Background job  | 900s    | 2GB        | 300s               |
 
 ### Vercel Logs
 
@@ -183,7 +232,11 @@ All serverless function logs are shipped to Vercel Logs (via `@vercel/otel`) and
 // apps/web/lib/otel.ts
 import { trace } from "@opentelemetry/api";
 
-export function recordFunctionMetric(name: string, durationMs: number, tags?: Record<string, string>) {
+export function recordFunctionMetric(
+  name: string,
+  durationMs: number,
+  tags?: Record<string, string>,
+) {
   const meter = trace.getMeter("xenboox");
   const histogram = meter.createHistogram(`vercel.function.${name}`, {
     description: "Duration of serverless function",
@@ -199,15 +252,15 @@ export function recordFunctionMetric(name: string, durationMs: number, tags?: Re
 
 ### Agent Success Rate
 
-| Agent | Expected Success Rate | Alert if Below |
-|-------|---------------------|----------------|
-| CFO Agent (strategic) | 95% | 90% |
-| Controller | 97% | 92% |
-| Treasury | 99% | 95% |
-| Payroll Manager | 99% | 95% |
-| Compliance | 95% | 90% |
-| Worker agents | 98% | 93% |
-| Ledger Agent | 99.9% | 99% |
+| Agent                 | Expected Success Rate | Alert if Below |
+| --------------------- | --------------------- | -------------- |
+| CFO Agent (strategic) | 95%                   | 90%            |
+| Controller            | 97%                   | 92%            |
+| Treasury              | 99%                   | 95%            |
+| Payroll Manager       | 99%                   | 95%            |
+| Compliance            | 95%                   | 90%            |
+| Worker agents         | 98%                   | 93%            |
+| Ledger Agent          | 99.9%                 | 99%            |
 
 ### Per-Agent Metrics Tracked
 
@@ -233,14 +286,17 @@ export async function GET() {
     checkAgent("ledger_agent"),
   ]);
 
-  const healthy = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
+  const healthy = results.filter(
+    (r) => r.status === "fulfilled" && r.value.ok,
+  ).length;
   const total = results.length;
 
   return Response.json({
     status: healthy === total ? "healthy" : "degraded",
     agents: results.map((r, i) => ({
       name: ["cfo_agent", "controller", "ledger_agent"][i],
-      ok: r.status === "fulfilled" && (r as PromiseFulfilledResult<any>).value.ok,
+      ok:
+        r.status === "fulfilled" && (r as PromiseFulfilledResult<any>).value.ok,
     })),
     healthyAgents: healthy,
     totalAgents: total,
@@ -254,40 +310,43 @@ export async function GET() {
 
 ### Key Business Metrics Dashboard
 
-| Metric | Definition | Refresh | Target |
-|--------|-----------|---------|--------|
-| Active Entities | Entities with transactions in last 7 days | Real-time | Growth week-on-week |
-| Transactions Processed | Total ledger entries (debits + credits) | Real-time | — |
-| Monthly Close Rate | % of entities that completed month-end close within 5 business days | Daily | >90% |
-| Average Close Time | Hours from month-end to close completion | Daily | <48h |
-| Invoices Generated | Total invoices created via system | Real-time | — |
-| Payments Matched | % of payments auto-reconciled | Real-time | >85% |
-| LLM Cost per Entity | Avg daily LLM spend per entity | Daily | <$0.50 |
-| Human Escalations | Actions escalated to human review | Daily | <5% of actions |
-| Onboarding Completion | % of signups that complete data migration | Weekly | >70% |
-| MRR (if applicable) | Monthly recurring revenue | Real-time | — |
+| Metric                 | Definition                                                          | Refresh   | Target              |
+| ---------------------- | ------------------------------------------------------------------- | --------- | ------------------- |
+| Active Entities        | Entities with transactions in last 7 days                           | Real-time | Growth week-on-week |
+| Transactions Processed | Total ledger entries (debits + credits)                             | Real-time | —                   |
+| Monthly Close Rate     | % of entities that completed month-end close within 5 business days | Daily     | >90%                |
+| Average Close Time     | Hours from month-end to close completion                            | Daily     | <48h                |
+| Invoices Generated     | Total invoices created via system                                   | Real-time | —                   |
+| Payments Matched       | % of payments auto-reconciled                                       | Real-time | >85%                |
+| LLM Cost per Entity    | Avg daily LLM spend per entity                                      | Daily     | <$0.50              |
+| Human Escalations      | Actions escalated to human review                                   | Daily     | <5% of actions      |
+| Onboarding Completion  | % of signups that complete data migration                           | Weekly    | >70%                |
+| MRR (if applicable)    | Monthly recurring revenue                                           | Real-time | —                   |
 
 ### Business Metric Implementation
 
 ```typescript
 // packages/agents/platform/reporting/business-metrics.ts
 export async function collectBusinessMetrics(entityId: string) {
-  const [transactionCount, activeAgents, closeStatus, llmCost] = await Promise.all([
-    db.query.ledgerEntries.count({ where: eq(ledgerEntries.entityId, entityId) }),
-    db.query.agentTraces.count({
-      where: and(
-        eq(agentTraces.entityId, entityId),
-        gte(agentTraces.createdAt, subDays(new Date(), 1))
-      ),
-    }),
-    db.query.monthlyCloses.findFirst({
-      where: and(
-        eq(monthlyCloses.entityId, entityId),
-        eq(monthlyCloses.period, format(lastMonth, "yyyy-MM"))
-      ),
-    }),
-    getDailyLLMCost(entityId),
-  ]);
+  const [transactionCount, activeAgents, closeStatus, llmCost] =
+    await Promise.all([
+      db.query.ledgerEntries.count({
+        where: eq(ledgerEntries.entityId, entityId),
+      }),
+      db.query.agentTraces.count({
+        where: and(
+          eq(agentTraces.entityId, entityId),
+          gte(agentTraces.createdAt, subDays(new Date(), 1)),
+        ),
+      }),
+      db.query.monthlyCloses.findFirst({
+        where: and(
+          eq(monthlyCloses.entityId, entityId),
+          eq(monthlyCloses.period, format(lastMonth, "yyyy-MM")),
+        ),
+      }),
+      getDailyLLMCost(entityId),
+    ]);
 
   return {
     entityId,
@@ -307,30 +366,30 @@ export async function collectBusinessMetrics(entityId: string) {
 
 ### Alert Severity Levels
 
-| Level | Color | Response Time | Notification Channel |
-|-------|-------|--------------|---------------------|
-| P0 - Critical | Red | 15 min | PagerDuty phone call + Slack |
-| P1 - High | Orange | 1 hour | Slack @channel |
-| P2 - Medium | Yellow | 4 hours | Slack @agent-team |
-| P3 - Low | Blue | 24 hours | Email digest |
+| Level         | Color  | Response Time | Notification Channel         |
+| ------------- | ------ | ------------- | ---------------------------- |
+| P0 - Critical | Red    | 15 min        | PagerDuty phone call + Slack |
+| P1 - High     | Orange | 1 hour        | Slack @channel               |
+| P2 - Medium   | Yellow | 4 hours       | Slack @agent-team            |
+| P3 - Low      | Blue   | 24 hours      | Email digest                 |
 
 ### Alert Definitions
 
-| Alert | Severity | Condition | Who Gets Notified |
-|-------|----------|-----------|-------------------|
-| Sentry error rate spike | P1 | Error rate >5% for 5 min | Engineering on-call |
-| tRPC procedure failure >10% | P1 | Any procedure failing >10% of calls | Engineering on-call |
-| Agent trace failure cascade | P1 | >20% of agent traces failing in 10 min | Engineering on-call |
-| Database connection saturation | P0 | Pooler waiting connections >100 | Engineering on-call + DevOps |
-| Database replication lag | P1 | Lag >30s | Engineering on-call |
-| LLM cost spike per entity | P2 | >$5/day for a single entity | Engineering + Product |
-| Monthly close completion rate drop | P2 | <80% of entities closed by day 5 | Product + Customer Success |
-| Merge.dev sync failure | P2 | Sync stuck for >1 hour | Engineering on-call |
-| Wave API token expiring | P3 | Token expiry <7 days | Engineering |
-| Entity onboarding stuck | P2 | Migration in "syncing" for >4 hours | Customer Success |
-| Vercel function timeout | P2 | p95 >10s for any function | Engineering |
-| Low agent confidence cascade | P2 | >10% of agent decisions with confidence <0.7 | Engineering + Product |
-| Compliance check failure | P1 | Entity fails mandatory compliance check | Compliance officer + Customer Success |
+| Alert                              | Severity | Condition                                    | Who Gets Notified                     |
+| ---------------------------------- | -------- | -------------------------------------------- | ------------------------------------- |
+| Sentry error rate spike            | P1       | Error rate >5% for 5 min                     | Engineering on-call                   |
+| tRPC procedure failure >10%        | P1       | Any procedure failing >10% of calls          | Engineering on-call                   |
+| Agent trace failure cascade        | P1       | >20% of agent traces failing in 10 min       | Engineering on-call                   |
+| Database connection saturation     | P0       | Pooler waiting connections >100              | Engineering on-call + DevOps          |
+| Database replication lag           | P1       | Lag >30s                                     | Engineering on-call                   |
+| LLM cost spike per entity          | P2       | >$5/day for a single entity                  | Engineering + Product                 |
+| Monthly close completion rate drop | P2       | <80% of entities closed by day 5             | Product + Customer Success            |
+| Merge.dev sync failure             | P2       | Sync stuck for >1 hour                       | Engineering on-call                   |
+| Wave API token expiring            | P3       | Token expiry <7 days                         | Engineering                           |
+| Entity onboarding stuck            | P2       | Migration in "syncing" for >4 hours          | Customer Success                      |
+| Vercel function timeout            | P2       | p95 >10s for any function                    | Engineering                           |
+| Low agent confidence cascade       | P2       | >10% of agent decisions with confidence <0.7 | Engineering + Product                 |
+| Compliance check failure           | P1       | Entity fails mandatory compliance check      | Compliance officer + Customer Success |
 
 ### Alert Routing Configuration
 
@@ -357,7 +416,7 @@ export const alertRules = [
     condition: {
       metric: "agent_failure_rate",
       operator: ">" as const,
-      value: 0.20,
+      value: 0.2,
       windowMinutes: 10,
     },
     channels: ["pagerduty", "slack-engineering"],
@@ -461,7 +520,7 @@ route:
 // packages/agents/core/cost-tracker.ts
 const MODEL_COSTS = {
   "claude-sonnet-4-6": {
-    input: 0.003 / 1000,  // $ per token
+    input: 0.003 / 1000, // $ per token
     output: 0.015 / 1000,
   },
   "claude-haiku-4-5": {
@@ -473,22 +532,22 @@ const MODEL_COSTS = {
 export function calculateLLMCost(
   model: keyof typeof MODEL_COSTS,
   inputTokens: number,
-  outputTokens: number
+  outputTokens: number,
 ): number {
   const pricing = MODEL_COSTS[model];
-  return (inputTokens * pricing.input) + (outputTokens * pricing.output);
+  return inputTokens * pricing.input + outputTokens * pricing.output;
 }
 ```
 
 ### Budget Alerts
 
-| Alert | Threshold | Action |
-|-------|-----------|--------|
-| Daily LLM spend per entity | >$2 | Notify entity admin (usage warning) |
-| Daily LLM spend per entity | >$5 | Restrict to haiku-only, notify admin |
-| Monthly total LLM spend | >80% of budget | Notify engineering + product |
-| Monthly total LLM spend | >100% of budget | Auto-downgrade entities to haiku |
-| Unexpected cost spike | >5x daily average | PagerDuty alert (possible runaway agent) |
+| Alert                      | Threshold         | Action                                   |
+| -------------------------- | ----------------- | ---------------------------------------- |
+| Daily LLM spend per entity | >$2               | Notify entity admin (usage warning)      |
+| Daily LLM spend per entity | >$5               | Restrict to haiku-only, notify admin     |
+| Monthly total LLM spend    | >80% of budget    | Notify engineering + product             |
+| Monthly total LLM spend    | >100% of budget   | Auto-downgrade entities to haiku         |
+| Unexpected cost spike      | >5x daily average | PagerDuty alert (possible runaway agent) |
 
 ### Cost Dashboard
 
@@ -510,13 +569,13 @@ Row: Infrastructure Cost Breakdown:
 
 ### Health Check Endpoints
 
-| Endpoint | Purpose | Expected Response | Interval |
-|----------|---------|-----------------|----------|
-| `GET /api/health` | Overall system health | `{"status":"healthy"}` | 30s |
-| `GET /api/health/db` | Database connectivity | `{"postgres":"ok","pooler":"ok"}` | 30s |
-| `GET /api/health/agents` | Agent runtime health | `{"cfo":"ok","ledger":"ok","controller":"ok"}` | 60s |
-| `GET /api/health/merge` | Merge.dev sync status | `{"connected":true,"lastSync":"..."}` | 5min |
-| `GET /api/health/langfuse` | LangFuse connectivity | `{"reachable":true}` | 5min |
+| Endpoint                   | Purpose               | Expected Response                              | Interval |
+| -------------------------- | --------------------- | ---------------------------------------------- | -------- |
+| `GET /api/health`          | Overall system health | `{"status":"healthy"}`                         | 30s      |
+| `GET /api/health/db`       | Database connectivity | `{"postgres":"ok","pooler":"ok"}`              | 30s      |
+| `GET /api/health/agents`   | Agent runtime health  | `{"cfo":"ok","ledger":"ok","controller":"ok"}` | 60s      |
+| `GET /api/health/merge`    | Merge.dev sync status | `{"connected":true,"lastSync":"..."}`          | 5min     |
+| `GET /api/health/langfuse` | LangFuse connectivity | `{"reachable":true}`                           | 5min     |
 
 ### Status Page
 
@@ -530,18 +589,19 @@ xenboox.status/api/uptime   → Uptime percentages (24h, 7d, 30d)
 
 Uptime targets:
 
-| Component | Target | Measured By |
-|-----------|--------|------------|
-| Web application | 99.9% | Vercel uptime checks + external monitoring |
-| API (tRPC) | 99.9% | Health check endpoint |
-| Database | 99.95% | Neon SLA |
-| Agent runtime | 99.5% | Internal health checks |
-| LLM inference | 99.0% | Anthropic API status |
-| Merge.dev sync | 99.5% | Merge status page |
+| Component       | Target | Measured By                                |
+| --------------- | ------ | ------------------------------------------ |
+| Web application | 99.9%  | Vercel uptime checks + external monitoring |
+| API (tRPC)      | 99.9%  | Health check endpoint                      |
+| Database        | 99.95% | Neon SLA                                   |
+| Agent runtime   | 99.5%  | Internal health checks                     |
+| LLM inference   | 99.0%  | Anthropic API status                       |
+| Merge.dev sync  | 99.5%  | Merge status page                          |
 
 ### External Monitoring
 
 Use a third-party uptime monitor (Better Uptime or Checkly) for synthetic checks:
+
 - HTTP check on `https://app.xenboox.com/api/health` every 30s from 3 regions
 - Playwright transaction flow check: login → create invoice → generate report (every 5min)
 - SSL certificate expiry alert (30 days before)
