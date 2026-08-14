@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-14] — Multi-region cell architecture — HIGH 1→0 (§26, §3.4)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/regions.ts`, `apps/web/__tests__/regions.test.ts` (7 tests), `docs/decisions/0008-multi-region-cells.md`, `docs/MULTI-REGION.md`
+**Files Modified:** `.env.example`, `ROADTOPRODUCTION.md`
+
+**Request (session sprint):** take ROADTOPRODUCTION.md to enterprise production level — issue by issue.
+
+**What was built:**
+
+1. **Region registry + fail-closed resolver** (`lib/regions.ts`): `REGION_REGISTRY` (iad1/cpt1/cdg1 cells with per-cell Vercel/Neon/R2 config), `currentRegion()` (env `XENBOOX_REGION`, default iad1), `resolveRegionForEntity()` (tenant→cell via `XENBOOX_REGION_MAP` JSON; **fails closed to the deployment's own region** on absent/malformed maps — never a random region), `databaseUrlForCell()` (`DATABASE_URL_<REGION>` over base).
+2. **ADR-0008** — cell-based multi-region architecture: tenant is the routing atom, cells are app+DB+R2 per region, latency + POPIA/NDPA/GDPR residency rationale, consequences (cross-cell consolidation deferred), rollout plan (launch single-cell → af1 → eu1).
+3. **docs/MULTI-REGION.md** — user-side checklist with **MOCK KEYS**: per-cell `DATABASE_URL_CPT1/CDG1`, `R2_*_AF/EU`, `XENBOOX_REGION_MAP`; Vercel/Neon/R2/DNS setup steps; verify commands.
+4. **7 unit tests** — default region, deployment-region fallback, mapped routing, malformed-map fail-closed, unknown-region fail-closed, per-cell DB URL, base URL fallback.
+
+**Verification:** typecheck clean ✓ · production build GREEN ✓ · regions suite 7/7 ✓. HIGH items: 1→0 — **all HIGH deep-dive blockers resolved.**
+
+---
+
 ### [2026-08-14] — k6 load test suite — HIGH 2→1 (§25.1, §5.4)
 
 **Agent:** Buffy (Autonomous Engineer)

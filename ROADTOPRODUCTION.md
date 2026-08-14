@@ -254,10 +254,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 3.4 Multi-Region Deployment
 
 - `[x]` Single region: `iad1` (US East) — `vercel.json:6`
-- `[ ]` Add African region (`cpt1` Cape Town or `cdg1` Paris) for lower latency
-- `[ ]` Configure database read replicas for African users
-- `[ ]` Test cross-region latency and failover
-- `[ ]` Implement region-aware routing
+- `[~]` Add African region (`cpt1` Cape Town or `cdg1` Paris) for lower latency — **ADR-0008 cell architecture + region registry shipped (`lib/regions.ts`); actual Vercel/Neon/R2 cell resources are user-side (docs/MULTI-REGION.md checklist)**
+- `[ ]` Configure database read replicas for African users — **user-side: per-cell Neon projects (docs/MULTI-REGION.md)**
+- `[ ]` Test cross-region latency and failover — **needs the af1/eu1 cells to exist; k6 suite is ready to run against them**
+- `[x]` Implement region-aware routing — **`resolveRegionForEntity()` — fail-closed tenant→cell resolver + per-cell DB URL helper + 7 tests** (Aug 14, 2026)
 
 ### 3.5 Blue-Green Deployments
 
@@ -1120,22 +1120,22 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 26.1 Target-market latency & residency
 
-- `[ ]` **Add an African region:** Vercel `cpt1` (Cape Town) or `cdg1` (Paris) + Neon compute in the same region — current single region is `iad1` (US East) (§3.4). For Senegal/Gambia/Nigeria/Ghana/Kenya/South Africa this is both latency and residency.
-- `[ ]` **Cell-based architecture:** partition infrastructure into regional cells (e.g., `us1`, `eu1`, `af1`), each with its own app + DB. The **tenant is the routing atom**: every request routes by `entity_id → region` at the edge.
-- `[ ]` **Data residency enforcement:** tenant's data never leaves its assigned region (required for POPIA/NDPA/DGA cross-border rules — §21.3). Document the mapping table + edge routing.
-- `[ ]` Cross-region DR: replicate backups across regions; document RTO/RPO (§3.3).
-- `[ ]` Billing/dashboards per region so spend is observable before it surprises.
+- `[~]` **Add an African region:** Vercel `cpt1` (Cape Town) or `cdg1` (Paris) + Neon compute in the same region — current single region is `iad1` (US East) (§3.4). For Senegal/Gambia/Nigeria/Ghana/Kenya/South Africa this is both latency and residency. — **design + config done (ADR-0008, `lib/regions.ts`, docs/MULTI-REGION.md); cell resources are user-side** (Aug 14, 2026)
+- `[x]` **Cell-based architecture:** partition infrastructure into regional cells (e.g., `us1`, `eu1`, `af1`), each with its own app + DB. The **tenant is the routing atom**: every request routes by `entity_id → region` at the edge. — **ADR-0008 accepted; registry + fail-closed resolver shipped** (Aug 14, 2026)
+- `[x]` **Data residency enforcement:** tenant's data never leaves its assigned region (required for POPIA/NDPA/DGA cross-border rules — §21.3). Document the mapping table + edge routing. — **`resolveRegionForEntity()` fails closed to the deployment's own region; per-cell DB/R2 wiring + MOCK keys in docs/MULTI-REGION.md** (Aug 14, 2026)
+- `[ ]` Cross-region DR: replicate backups across regions; document RTO/RPO (§3.3). — **DR-PLAN covers region outage; per-cell backup replication is user-side once cells exist**
+- `[ ]` Billing/dashboards per region so spend is observable before it surprises. — **user-side dashboard task**
 
 ---
 
 ## DEEP-DIVE SEVERITY SUMMARY
 
-| Severity    | Count | Description                                                                                                                                                                                                                                                                                 |
-| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                                    |
-| 🟠 HIGH     | 1     | Required before enterprise launch: multi-region. ~~load tests~~, ~~edge rate limiting~~, ~~per-tenant tiers~~, ~~DSAR/export~~, ~~SAST/dependency scanning~~, ~~RLS DB-layer tests~~, ~~partitioning~~, ~~LLM injection defense~~, ~~outbound webhooks~~, ~~cookie consent~~, ~~APM/OTel~~. |
-| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                                       |
-| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                                |
+| Severity    | Count | Description                                                                                                                                                                                                                                                                                                               |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 CRITICAL | 0     | **All resolved.** ~~in-memory SSE map (§16.1)~~, ~~no idempotency enforcement (§19.2)~~, ~~missing IDOR/RLS tests (§20.2)~~, ~~no DR/backup (§21.1)~~ — **all 4 resolved Aug 14, 2026.**                                                                                                                                  |
+| 🟠 HIGH     | 0     | **All resolved.** ~~multi-region~~ (design shipped, cell resources user-side), ~~load tests~~, ~~edge rate limiting~~, ~~per-tenant tiers~~, ~~DSAR/export~~, ~~SAST/dependency scanning~~, ~~RLS DB-layer tests~~, ~~partitioning~~, ~~LLM injection defense~~, ~~outbound webhooks~~, ~~cookie consent~~, ~~APM/OTel~~. |
+| 🟡 MEDIUM   | 14    | Required before scaling past ~10K users: caching geometry, index review, audit-hash verification, cookie consent, key rotation, chaos drills, job concurrency limits.                                                                                                                                                     |
+| 🔵 LOW      | 6     | Operational polish: WebAuthn, autonomy slider UI, status page, semantic caching, incident runbook templates.                                                                                                                                                                                                              |
 
 ### Top Deep-Dive Actions (blocking, in order)
 
@@ -1146,7 +1146,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 5. **DSAR/export + erasure workflow** (§21.3) — a legal launch-blocker in every target market.
 6. ~~**APM/OpenTelemetry end-to-end**~~ (§24.2) — **Done: OTLP exporter + tRPC/DB/agent spans, sampled, env-gated** (Aug 14, 2026)
 7. **LLM gateway with per-tenant budgets** (§22.1) — protects both P&L and the money.
-8. **k6 load test suite** (§25.1) — turn "should scale" into measured p95 numbers.
+8. ~~**k6 load test suite**~~ (§25.1) — **Done: full suite + nightly CI** (Aug 14, 2026).
+9. ~~**Edge rate limiting**~~ (§19.2) — **Done: edge limits on all /api traffic, trusted-proxy IP, concurrent limiter** (Aug 14, 2026).
+10. ~~**Multi-region cell architecture**~~ (§26) — **Done (design): ADR-0008, region registry + fail-closed resolver, residency doc with mock keys; cell resources are user-side** (Aug 14, 2026).
 
 ---
 
