@@ -222,4 +222,4 @@ SEV-1/2 (SEV-3 optional). Fill every section — a blank section is a finding.
 | LLM spend anomaly / budget breach              | see AI gateway §22.1 + `docs/MONITORING.md` |
 
 > The Chaos Drill scripts (`docs/runbooks/drills/`) exercise several of these
-> in a controlled environment — see `docs/runbooks/README.md`.
+> in a controlled environment — see `docs/runbooks/drills/README.md`.

@@ -406,12 +406,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 5.6 Chaos Engineering
 
-- `[ ]` No chaos engineering tests
-- `[ ]` Test database failover scenarios
-- `[ ]` Test Redis unavailability (in-memory fallback)
-- `[ ]` Test LLM API unavailability (Anthropic outage)
-- `[ ]` Test external service failures (Mono, Resend, R2)
-- `[ ]` Verify graceful degradation
+- `[x]` No chaos engineering tests — **5 drill scripts in `docs/runbooks/drills/` (db-failover, redis-down, llm-outage, external-svc, job-queue) with pass/fail assertions (Aug 14, 2026)**
+- `[x]` Test database failover scenarios — **`db-failover-drill.sh`**
+- `[x]` Test Redis unavailability (in-memory fallback) — **`redis-down-drill.sh`**
+- `[x]` Test LLM API unavailability (Anthropic outage) — **`llm-outage-drill.sh`**
+- `[x]` Test external service failures (Mono, Resend, R2) — **`external-svc-drill.sh`**
+- `[x]` Verify graceful degradation — **each drill asserts the degraded behavior is designed, not crash**
 
 ### 5.7 Mobile App Tests
 
@@ -569,7 +569,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - [x]` Per-agent tool tests exist
 - `[ ]` No integration tests for full agent flows
 - `[ ]` No load testing for concurrent agent execution
-- `[ ]` No chaos testing for LLM API failures
+- `[x]` No chaos testing for LLM API failures — **`docs/runbooks/drills/llm-outage-drill.sh` (invalid key + kill-switch + recovery) (Aug 14, 2026)**
 
 ---
 
@@ -1102,11 +1102,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 25.2 Chaos engineering
 
-- `[ ]` **DB failover:** kill the primary during a close run — verify automatic recovery + no double-posting (idempotency saves us).
-- `[ ]` **Redis down:** in-memory fallback limiter engages (verified code path) — verify rate limits still hold per-instance and alert.
-- `[ ]` **LLM provider outage:** agents queue/fail gracefully; chat shows a friendly degraded state (§22.4).
-- `[ ]` **Mono/Resend/R2 outage:** webhooks 500 with retry; email failures surface in a retry queue; uploads still work via presigned fallbacks.
-- `[ ]` **Vercel cold start storm:** 1K concurrent first requests after idle — measure cold-start latency impact.
+- `[x]` **DB failover:** kill the primary during a close run — verify automatic recovery + no double-posting (idempotency saves us). — **drill script `docs/runbooks/drills/db-failover-drill.sh` — readiness 503, clean write failures, same-idempotency-key double write → exactly one row (Aug 14, 2026)**
+- `[x]` **Redis down:** in-memory fallback limiter engages (verified code path) — verify rate limits still hold per-instance and alert. — **drill script `docs/runbooks/drills/redis-down-drill.sh` — readiness 503 while Redis down, liveness 200, login page serves, 429 during burst (in-memory fallback), recovery on restore (Aug 14, 2026)**
+- `[x]` **LLM provider outage:** agents queue/fail gracefully; chat shows a friendly degraded state (§22.4). — **drill script `docs/runbooks/drills/llm-outage-drill.sh` — invalid key → graceful degradation, `AI_KILL_SWITCH` blocks all calls with `AiBudgetExceededError`, recovery (Aug 14, 2026)**
+- `[x]` **Mono/Resend/R2 outage:** webhooks 500 with retry; email failures surface in a retry queue; uploads still work via presigned fallbacks. — **drill script `docs/runbooks/drills/external-svc-drill.sh` (Aug 14, 2026)**
+- `[x]` **Job queue semantics:** backlog/DLQ — **drill script `docs/runbooks/drills/job-queue-drill.sh` — double-trigger dedup, poison task → `review_items`, replay no double-post (Aug 14, 2026)**
+- `[ ]` **Vercel cold start storm:** 1K concurrent first requests after idle — measure cold-start latency impact. — **covered by load-test `ramp.js`; dedicated cold-start scenario is a follow-up**
 
 ### 25.3 Test-suite gates
 

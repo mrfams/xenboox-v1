@@ -6,6 +6,27 @@
 
 ---
 
+### [2026-08-14] — Chaos drills: outage scripts for Redis / LLM / DB / jobs / external services (§25.2, §5.6)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `docs/runbooks/drills/{README,redis-down-drill,llm-outage-drill,db-failover-drill,job-queue-drill,external-svc-drill}.sh`
+**Files Modified:** `ROADTOPRODUCTION.md` (§25.2 + §5.6 + §22.4 markers), `docs/INCIDENT_RUNBOOK.md` (drills link)
+
+**What was done (autoplan):**
+
+1. **5 runnable chaos drills** with pass/fail assertions, staging-only guard rails, env backup/restore via `trap`, and recovery verification:
+   - `redis-down-drill.sh` — readiness 503, liveness 200, app serves, 429 during burst (in-memory limiter fallback), recovery on restore.
+   - `llm-outage-drill.sh` — invalid provider key → graceful degradation (no crash); `AI_KILL_SWITCH=true` blocks every call with `AiBudgetExceededError`; recovery.
+   - `db-failover-drill.sh` — readiness 503, clean write failures, same-idempotency-key double write → exactly one row.
+   - `job-queue-drill.sh` — double-trigger dedup (idempotencyKey), poison task → `review_items` DLQ, replay no double-post.
+   - `external-svc-drill.sh` — webhooks 500-with-retry, email retry queue, presigned upload fallback.
+2. **Drills README** — safety rules, run instructions (`DRILL_BASE_URL`), CI/cadence suggestion (nightly staging mirror of `load-test.yml`).
+3. All scripts `bash -n` syntax-verified and chmod +x.
+
+**Verification:** docs + shell scripts only — `bash -n` clean on all 5; no typecheck needed.
+
+---
+
 ### [2026-08-14] — Ops: incident runbook + status page config + uptime probe docs (§2.8, §24.2)
 
 **Agent:** Buffy (Autonomous Engineer)
