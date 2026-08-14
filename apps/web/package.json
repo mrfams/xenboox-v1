@@ -15,7 +15,15 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report playwright-report",
-    "admin:create": "node scripts/create-admin.mjs"
+    "admin:create": "node scripts/create-admin.mjs",
+    "load-test:smoke": "k6 run ../load-tests/smoke.js",
+    "load-test:auth": "k6 run ../load-tests/auth-flow.js",
+    "load-test:reads": "k6 run ../load-tests/read-heavy.js",
+    "load-test:writes": "k6 run ../load-tests/write-heavy.js",
+    "load-test:realtime": "k6 run ../load-tests/realtime.js",
+    "load-test:ramp": "k6 run ../load-tests/ramp.js",
+    "load-test:full": "k6 run ../load-tests/smoke.js && k6 run ../load-tests/auth-flow.js && k6 run ../load-tests/read-heavy.js && k6 run ../load-tests/write-heavy.js",
+    "load-test:summary": "k6 run --summary-export=load-test-results.json ../load-tests/ramp.js"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.7.0",

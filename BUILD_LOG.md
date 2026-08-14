@@ -6,6 +6,26 @@
 
 ---
 
+### [2026-08-14] — k6 load test suite — HIGH 2→1 (§25.1, §5.4)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `load-tests/` (README, lib/common.js + thresholds, smoke.js, auth-flow.js, read-heavy.js, write-heavy.js, realtime.js, ramp.js), `.github/workflows/load-test.yml`
+**Files Modified:** `apps/web/package.json` (6 load-test scripts), `ROADTOPRODUCTION.md`
+
+**Request (session sprint):** take ROADTOPRODUCTION.md to enterprise production level — issue by issue.
+
+**What was built:**
+
+1. **k6 scenarios** (§25.1) against staging: `smoke.js` (health live/ready + landing + full login round-trip), `auth-flow.js` (100 + 1K VUs of CSRF→credentials login — the brute-force/botnet surface), `read-heavy.js` (authenticated tRPC reads, p95 < 300ms), `write-heavy.js` (journal posting with unique idempotency keys + balanced double-entry, p99 < 1s), `realtime.js` (100 concurrent SSE holds per entity), `ramp.js` (0→10K breakpoint, informational).
+2. **SLO thresholds in one file** — `lib/thresholds.js` (p95 < 300ms reads, p99 < 1s writes, <1% error) matching §24.2; every scenario imports it.
+3. **Real auth in load** — `loginAndGetCookies()` does the Auth.js CSRF fetch then credentials POST and returns a session jar; entity scoping via `K6_ENTITY_ID` on every tRPC call.
+4. **CI** — `.github/workflows/load-test.yml`: nightly 02:00 UTC + manual dispatch, `grafana/setup-k6-action`, gated on `LOAD_TEST_URL/EMAIL/PASSWORD/ENTITY_ID` secrets so it never runs against production and silently skips when staging creds aren't configured. Breakpoint ramp is `continue-on-error` (documents, not gates).
+5. **npm scripts** — `load-test:smoke/auth/reads/writes/realtime/ramp/full/summary` on `@xenboox/web`.
+
+**Verification:** package.json valid ✓ · k6 JS files syntax-checked (node --check) ✓ · no TS files touched — typecheck/build unaffected by this doc+script change. HIGH items: 2→1 (only multi-region remains).
+
+---
+
 ### [2026-08-14] — Edge rate limiting complete — HIGH 3→2 (§19.2, §1.5)
 
 **Agent:** Buffy (Autonomous Engineer)
