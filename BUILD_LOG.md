@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-14] — File-upload validation defense-in-depth (§20.3, §1.7)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/lib/security/file-validation.ts`, `apps/web/__tests__/file-validation.test.ts` (15 tests), `packages/ingestion/engine/file-validation.ts`
+**Files Modified:** `apps/web/server/routers/document.ts`, `apps/web/lib/r2.ts`, `packages/jobs/document-processing.ts`, `packages/ingestion/package.json`, `ROADTOPRODUCTION.md`
+
+**What was done (autoplan: 4-layer defense):**
+
+1. `sanitizeFileName` — strips path traversal (`../`, drive letters), dotfiles, control chars; enforces allow-listed extension.
+2. Extension↔MIME cross-check at presign time in `getUploadUrl` (rejects mismatches like `.html` claiming `image/png`).
+3. R2 integrity verification in `confirmUpload` — HEAD the object, verify content-length matches declared size before recording (blocks truncated/oversized uploads).
+4. Magic-byte content sniffing in the ingestion pipeline (`stageProcessing`) — `@xenboox/ingestion/engine/file-validation.ts` (shared module, exported via `@xenboox/ingestion/engine/file-validation`) — reads the first bytes from R2 and rejects HTML/SVG/executables before any LLM processing.
+
+**Verification:** web typecheck clean, build green, 15/15 file-validation tests pass. Jobs/ingestion package typecheck errors are all pre-existing (trigger.dev v4 SDK type drift) — none in the touched ranges.
+
+**Housekeeping:** a stray `git stash pop` applied an unrelated old branch stash (revamp/marketing-pages); restored AGENTS.md + seed files to HEAD, removed the orphaned `multi-entity-data.ts`, dropped no user stashes.
+
+---
+
 ### [2026-08-14] — Multi-region cell architecture — HIGH 1→0 (§26, §3.4)
 
 **Agent:** Buffy (Autonomous Engineer)

@@ -9,6 +9,7 @@ import { classifyDocument } from "./lib/classification";
 import { extractStructuredData } from "./lib/extraction";
 import { runTrustGuard } from "@xenboox/ingestion/engine/trust-guard";
 import type { IngestionState } from "@xenboox/ingestion/core/types";
+import { assertMimeMatches } from "@xenboox/ingestion/engine/file-validation";
 import {
   updateIngestionStatus,
   updateTerminalStatus,
@@ -86,6 +87,24 @@ async function stageProcessing(
   const fileBuffer = await response.Body?.transformToByteArray();
   if (!fileBuffer) {
     throw new Error("Failed to read file from R2");
+  }
+
+  // §20.3 defense in depth: the presigned URL trusted the client's declared
+  // MIME; here we sniff the ACTUAL bytes. A file that claims application/pdf
+  // but is actually HTML/SVG/executable is rejected before it ever reaches
+  // the LLM pipeline.
+  try {
+    assertMimeMatches(new Uint8Array(fileBuffer), mimeType);
+  } catch (error) {
+    logger.error("File content MIME mismatch — rejecting upload", {
+      documentId,
+      mimeType,
+      reason: error instanceof Error ? error.message : String(error),
+    });
+    await updateIngestionStatus(documentId, entityId, "failed", {
+      error: error instanceof Error ? error.message : "MIME mismatch",
+    });
+    throw error;
   }
 
   logger.info("File downloaded from R2", {

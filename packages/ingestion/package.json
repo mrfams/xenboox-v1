@@ -42,6 +42,10 @@
       "import": "./engine/trust-guard.ts",
       "default": "./engine/trust-guard.ts"
     },
+    "./engine/file-validation": {
+      "import": "./engine/file-validation.ts",
+      "default": "./engine/file-validation.ts"
+    },
     "./engine/status-tracker": {
       "import": "./engine/status-tracker.ts",
       "default": "./engine/status-tracker.ts"

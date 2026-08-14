@@ -118,7 +118,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` Zod validation on all 76 tRPC router inputs
 - `[ ]` XSS testing — verify sanitization blocks all injection vectors
 - `[ ]` SQL injection testing — verify Drizzle ORM parameterizes all queries
-- `[ ]` File upload validation — verify uploaded files are validated (type, size, content)
+- `[x]` File upload validation — verify uploaded files are validated (type, size, content) — **defense-in-depth: sanitizeFileName (traversal/dotfiles/control chars) + extension↔MIME cross-check at presign, R2 size-verification at confirmUpload, magic-byte MIME sniff in the ingestion pipeline (`@xenboox/ingestion/engine/file-validation`) rejecting HTML/SVG/executables; 15 tests** (Aug 14, 2026)
 
 ### 1.8 Dependency Vulnerability Scanning
 
@@ -970,7 +970,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` Zod on all 76 routers; Drizzle parameterizes queries; sanitization helper exists.
 - `[x]` Add a CI **SAST** step (e.g., Semgrep or CodeQL) + `pnpm audit`/Dependabot/Snyk for dependency CVEs (§1.8 — elevate priority: this is a launch-blocker for enterprise buyers). — **Semgrep + CodeQL + pnpm audit in security.yml workflow** (Aug 13, 2026)
 - `[x]` Add **gitleaks** secret-scanning to CI and audit git history for committed secrets (`.env.bak-*` noted in §1.3). — **gitleaks with 25+ custom rules in .gitleaks.toml** (Aug 13, 2026)
-- `[ ]` File-upload validation (type allow-list, size cap, content sniffing) for document ingestion.
+- `[x]` File-upload validation (type allow-list, size cap, content sniffing) for document ingestion. — **sanitize + extension↔MIME at presign, R2 HEAD size check at confirm, magic-byte sniff in pipeline — `lib/security/file-validation.ts` + `@xenboox/ingestion/engine/file-validation.ts`; 15 unit tests** (Aug 14, 2026)
 - `[ ]` Annual third-party penetration test (recorded for SOC 2 evidence).
 
 ### 20.4 Secrets & key management

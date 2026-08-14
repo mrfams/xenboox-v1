@@ -31,10 +31,15 @@ import { triggerClient } from "@/lib/trigger";
 import {
   getPresignedUploadUrl,
   getPresignedDownloadUrl,
+  getObjectHead,
   generateStoragePath,
   ALLOWED_MIME_TYPES,
   FILE_SIZE_LIMITS,
 } from "@/lib/r2";
+import {
+  sanitizeFileName,
+  extensionMatchesMime,
+} from "@/lib/security/file-validation";
 import {
   sendDocumentUploadedEmail,
   sendDocumentProcessedEmail,
@@ -151,7 +156,27 @@ export const documentRouter = router({
         });
       }
 
-      const storagePath = generateStoragePath(ctx.entityId!, input.fileName);
+      // §20.3 file-upload validation: sanitize the filename (strip traversal /
+      // dotfiles / control chars) and cross-check extension ↔ MIME so a
+      // claimed application/pdf with a .html name is rejected before presigning.
+      let safeName: string;
+      try {
+        safeName = sanitizeFileName(input.fileName);
+      } catch {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid file name.",
+        });
+      }
+      if (!extensionMatchesMime(safeName, input.mimeType)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "File type not allowed — extension and content type must match.",
+        });
+      }
+
+      const storagePath = generateStoragePath(ctx.entityId!, safeName);
 
       const uploadUrl = await getPresignedUploadUrl(
         storagePath,
@@ -187,6 +212,28 @@ export const documentRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // §20.3 upload integrity: the client PUTs directly to R2, so verify
+        // the object actually landed with the declared size before recording
+        // it (catches aborted/partial uploads; content-type is bound at
+        // presign time and re-verified by the ingestion pipeline's magic-byte
+        // sniff).
+        if (input.fileSize) {
+          const head = await getObjectHead(input.r2Key);
+          if (!head) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Upload not found in storage — re-upload the file.",
+            });
+          }
+          if (head.size !== input.fileSize) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Upload size mismatch — the file did not upload completely.",
+            });
+          }
+        }
+
         const [doc] = await db
           .insert(documents)
           .values({
