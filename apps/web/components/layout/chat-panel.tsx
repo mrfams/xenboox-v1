@@ -19,6 +19,8 @@ import {
 
 import { Button, Badge } from "@/components/ui";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useEntity } from "@/lib/entity-context";
+import { trpc } from "@/lib/trpc/client";
 
 // ─── Rich Content Types (Architecture Doc §4 — Structured Inline Results) ────
 
@@ -278,6 +280,25 @@ export function ChatPanel({
   open: boolean;
   onClose: () => void;
 }) {
+  const { entityId } = useEntity();
+  // Live cash position — the welcome card and cash-keyword answers render real
+  // data, not demo numbers. Fails silently to a neutral placeholder.
+  const { data: cashPosition } = trpc.banking.getCashPosition.useQuery(
+    {},
+    {
+      enabled: !!entityId,
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  );
+  const liveBalance = cashPosition?.currentBalance;
+  // Live P&L — replaces the fabricated demo table with real numbers.
+  const { data: pnl } = trpc.reports.getPnlOverview.useQuery(undefined, {
+    enabled: !!entityId,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -290,7 +311,8 @@ export function ChatPanel({
         {
           type: "metric",
           label: "Cash Position",
-          value: formatCurrency(45280),
+          // Placeholder until the live query resolves; patched below.
+          value: "…",
           trend: "up",
         },
         {
@@ -312,29 +334,45 @@ export function ChatPanel({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
+  // Patch the welcome card with the real cash position once loaded.
+  useEffect(() => {
+    if (liveBalance === undefined) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === "welcome" && Array.isArray(m.content)
+          ? {
+              ...m,
+              content: m.content.map((c) =>
+                c.type === "metric" && c.label === "Cash Position"
+                  ? { ...c, value: formatCurrency(liveBalance) }
+                  : c,
+              ),
+            }
+          : m,
+      ),
+    );
+  }, [liveBalance]);
+
   function getDemoResponse(query: string): StructuredContent[] {
     const q = query.toLowerCase();
 
     if (q.includes("cash") || q.includes("position") || q.includes("balance")) {
+      // Real data from banking.getCashPosition when available; never invent
+      // demo numbers for a user's actual financials.
+      const total = liveBalance;
       return [
         {
           type: "text",
-          text: "Here's your current cash position across all accounts:",
+          text:
+            total !== undefined
+              ? "Here's your current cash position:"
+              : "Here's where your cash position will appear (live data loading):",
         },
         {
-          type: "table",
-          columns: [
-            { key: "account", label: "Account" },
-            { key: "type", label: "Type" },
-            { key: "balance", label: "Balance", format: "currency" },
-          ],
-          rows: [
-            { account: "Main Operating", type: "Bank", balance: 28500 },
-            { account: "Petty Cash", type: "Cash", balance: 450 },
-            { account: "Wave Wallet", type: "Mobile", balance: 12300 },
-            { account: "Savings", type: "Bank", balance: 75000 },
-          ],
-          caption: "Total: GMD 116,250 · Updated 2 minutes ago",
+          type: "metric",
+          label: "Current Cash Position",
+          value: total !== undefined ? formatCurrency(total) : "…",
+          trend: "up",
         },
         {
           type: "actions",
@@ -402,18 +440,38 @@ export function ChatPanel({
             { key: "amount", label: "Amount", format: "currency" },
             { key: "vs", label: "vs Budget" },
           ],
-          rows: [
-            { item: "Revenue", amount: 284500, vs: "+12%" },
-            { item: "Cost of Goods Sold", amount: 118000, vs: "-5%" },
-            { item: "Gross Profit", amount: 166500, vs: "+8%" },
-            { item: "Operating Expenses", amount: 92400, vs: "+3%" },
-            { item: "Net Income", amount: 74100, vs: "+15%" },
-          ],
+          rows: pnl?.current
+            ? [
+                { item: "Revenue", amount: pnl.current.revenue, vs: "—" },
+                {
+                  item: "Cost of Goods Sold",
+                  amount: pnl.current.cogs,
+                  vs: "—",
+                },
+                {
+                  item: "Gross Profit",
+                  amount: pnl.current.grossProfit,
+                  vs: "—",
+                },
+                {
+                  item: "Operating Expenses",
+                  amount: pnl.current.opExpenses,
+                  vs: "—",
+                },
+                { item: "Net Income", amount: pnl.current.netProfit, vs: "—" },
+              ]
+            : [
+                { item: "Revenue", amount: 0, vs: "…" },
+                { item: "Net Income", amount: 0, vs: "…" },
+              ],
         },
         {
           type: "metric",
           label: "Net Profit Margin",
-          value: "26%",
+          value:
+            pnl?.current && pnl.current.revenue > 0
+              ? `${Math.round((pnl.current.netProfit / pnl.current.revenue) * 100)}%`
+              : "…",
           trend: "up",
         },
         {
@@ -461,8 +519,8 @@ export function ChatPanel({
       },
       {
         type: "metric",
-        label: "Revenue This Month",
-        value: formatCurrency(284500),
+        label: "Current Cash Position",
+        value: liveBalance !== undefined ? formatCurrency(liveBalance) : "…",
         trend: "up",
       },
       {

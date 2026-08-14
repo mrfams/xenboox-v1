@@ -114,9 +114,10 @@ export function TopNav({
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      // Standard command-palette binding: Cmd+K / Ctrl+K (matches the ⌘K hint).
       if (
         (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
+        !e.shiftKey &&
         e.key.toLowerCase() === "k"
       ) {
         e.preventDefault();

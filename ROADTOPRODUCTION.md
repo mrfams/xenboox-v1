@@ -444,15 +444,15 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 6.4 Non-Functional Dashboard Features
 
 - `[x]` Text selection menu actions ("Ask AI", "Explain", "Correct") — wired to `chat.sendMessage()` with contextual prompts. (Aug 12, 2026)
-- `[ ]` Hardcoded demo currency values in chat panel:
-  - `components/layout/chat-panel.tsx:293` — `formatCurrency(45280)`
-  - `components/layout/chat-panel.tsx:465` — `formatCurrency(284500)`
+- `[x]` Hardcoded demo currency values in chat panel: — **fixed (Aug 14, 2026): welcome cash card, cash-keyword answer, fallback response, and P&L table now render live data (`banking.getCashPosition` + `reports.getPnlOverview`) with a graceful `…` placeholder while loading — no invented financials**
+  - `components/layout/chat-panel.tsx:293` — `formatCurrency(45280)` → live `currentBalance`
+  - `components/layout/chat-panel.tsx:465` — `formatCurrency(284500)` → live `pnl.current.revenue` / net profit margin
 
 ### 6.5 Keyboard Shortcut Inconsistency
 
-- `[ ]` Command palette footer displays `⌘K` but actual binding is `Ctrl+Shift+K` / `Cmd+Shift+K`:
-  - `components/shared/command-palette.tsx:654` (display)
-  - `components/layout/top-nav.tsx:100-103` (binding)
+- `[x]` Command palette footer displays `⌘K` but actual binding is `Ctrl+Shift+K` / `Cmd+Shift+K`: — **fixed (Aug 14, 2026): binding changed to standard `Cmd+K` / `Ctrl+K` (no Shift) to match the `⌘K` hint — the conventional command-palette shortcut**
+  - `components/shared/command-palette.tsx:654` (display — unchanged, now correct)
+  - `components/layout/top-nav.tsx:100-103` (binding — Shift removed)
 
 ### 6.6 Data Retention Inconsistency
 
@@ -460,7 +460,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 6.7 Share Button Label
 
-- `[ ]` Button says "Share Role" but component is generic — `components/marketing/share-button.tsx:19`
+- `[x]` Button says "Share Role" but component is generic — **fixed (Aug 14, 2026): `ShareButton` takes a `label` prop (default `"Share"`); the careers page passes `"Share Job"`**
 
 ---
 

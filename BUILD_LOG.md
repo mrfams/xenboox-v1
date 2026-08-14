@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-14] — UI/UX fixes: live chat financials + ⌘K binding + Share label (§6.4, §6.5, §6.7)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Modified:** `apps/web/components/layout/chat-panel.tsx`, `apps/web/components/layout/top-nav.tsx`, `apps/web/components/marketing/share-button.tsx`, `apps/web/app/(marketing)/careers/[slug]/page.tsx`, `ROADTOPRODUCTION.md`
+
+**What was done (autoplan):**
+
+1. **No more invented financials (§6.4)** — the chat panel's welcome card, cash-keyword answer, generic fallback, and P&L table all rendered hardcoded demo currency values (45280, 284500, GMD 116,250 …) as if they were the user's real data. All four now source live data:
+   - `banking.getCashPosition` → welcome cash card + cash answers + fallback metric (`currentBalance`).
+   - `reports.getPnlOverview` → P&L table rows (revenue, COGS, gross profit, op expenses, net income) + net profit margin computed from live revenue.
+   - Graceful `…` placeholder while loading; `retry: false` so a failed query degrades silently instead of spamming.
+2. **⌘K binding (§6.5)** — footer advertised `⌘K` but the binding required `Cmd/Ctrl+Shift+K`. Changed to the standard `Cmd+K`/`Ctrl+K` (no Shift) so the shortcut matches the hint.
+3. **Share label (§6.7)** — generic `ShareButton` hardcoded "Share Role"; now takes a `label` prop and the careers page passes "Share Job".
+
+**Verification:** web typecheck clean, build green, 940 passed / 15 pre-existing DB-env failures / 19 skipped.
+
+---
+
 ### [2026-08-14] — Chaos drills: outage scripts for Redis / LLM / DB / jobs / external services (§25.2, §5.6)
 
 **Agent:** Buffy (Autonomous Engineer)

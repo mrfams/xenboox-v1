@@ -135,7 +135,7 @@ export default async function JobDetailPage({
                 <Send className="mr-2 h-4 w-4" />
                 Apply Now
               </a>
-              <ShareButton title={job.title} />
+              <ShareButton title={job.title} label="Share Job" />
             </div>
           </FadeInUp>
         </div>
