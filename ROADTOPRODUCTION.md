@@ -806,7 +806,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` `sitemap.ts` — **updated (Aug 15, 2026): removed auth pages (`/login`, `/register`, `/forgot-password`) with no SEO value; added all 47 static docs pages (agents, modules, quickstart, security, webhooks, etc.)**
 - `[x]` Auth pages in sitemap (no SEO value) — **removed: `/login`, `/register`, `/forgot-password` excluded from sitemap** (Aug 15, 2026)
 - `[x]` Missing OpenGraph image verification (`/og-image.png`) — **fixed (Aug 15, 2026): created `apps/web/app/opengraph-image.ts` using `next/og` `ImageResponse` (edge runtime, 1200×630); removed hardcoded `/og-image.png` reference from root layout metadata so Next.js uses the generated image automatically**
-- `[ ]` No structured data (JSON-LD) for marketing pages
+- `[x]` No structured data (JSON-LD) for marketing pages — **fixed (Aug 15, 2026): added Organization JSON-LD schema to root layout (`apps/web/app/layout.tsx`) with name, description, url, and logo**
 - `[ ]` No Google Search Console verification
 
 ### 15.4 Analytics

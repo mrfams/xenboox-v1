@@ -127,6 +127,21 @@ export default async function RootLayout({
         <ThemeProvider nonce={nonce}>
           <TRPCProvider>{children}</TRPCProvider>
         </ThemeProvider>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Xenboox",
+              description:
+                "AI-native full-stack accounting platform for African businesses",
+              url: baseUrl,
+              logo: `${baseUrl}/favicon.svg`,
+              sameAs: [],
+            }),
+          }}
+        />
       </body>
     </html>
   );
