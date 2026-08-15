@@ -1,5 +1,6 @@
 import { getModelRouter } from "./router";
 import { getLangfuse } from "./langfuse";
+import { redactPii } from "@xenboox/agents/core/security/injection-defense";
 import { recordAgentActivity } from "./telemetry";
 import { aiGateway } from "./gateway";
 import { semanticCache } from "./semantic-cache";
@@ -161,7 +162,10 @@ export async function callModel(
 
     await span.update({
       output: {
-        content: result.content.substring(0, 500),
+        // §22.2 — PII discipline: even the 500-char output snippet is scrubbed
+        // before it reaches LangFuse (model output can echo account numbers,
+        // tax IDs, phones back verbatim). LangFuse must never carry raw PII.
+        content: redactPii(result.content.substring(0, 500)).text,
         toolCalls: result.toolCalls.length,
         provider: result.provider,
         model: result.model,

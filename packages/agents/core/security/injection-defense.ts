@@ -60,6 +60,11 @@ interface PiiPattern {
   replacement: string;
 }
 
+// ─── ORDERING IS A SECURITY PROPERTY ─────────────────────────────────────
+// Most-specific, longest identifiers run FIRST. Generic patterns like phone
+// numbers must run LAST — a phone pattern run early will swallow the middle
+// of a card number or tax ID and leak partial raw digits (regression-tested
+// in `__tests__/injection-defense.test.ts`).
 const PII_PATTERNS: PiiPattern[] = [
   // Email addresses
   {
@@ -67,11 +72,19 @@ const PII_PATTERNS: PiiPattern[] = [
     pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
     replacement: "[REDACTED:EMAIL]",
   },
-  // US phone numbers (various formats)
+  // Credit card numbers: exact 4-4-4-4 (16-digit) and AMEX 4-6-5 (15-digit)
+  // layouts, with optional space/dash separators. Runs before bank accounts so
+  // a 16-digit run is classified as a card, not a bank number.
   {
-    type: "phone",
-    pattern: /\b(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}\b/g,
-    replacement: "[REDACTED:PHONE]",
+    type: "credit_card",
+    pattern: /\b(?:\d{4}[ -]?){3}\d{4}\b|\b\d{4}[ -]?\d{6}[ -]?\d{5}\b/g,
+    replacement: "[REDACTED:CREDIT_CARD]",
+  },
+  // Bank account numbers (8-16 consecutive digits)
+  {
+    type: "bank_account",
+    pattern: /\b\d{8,16}\b/g,
+    replacement: "[REDACTED:BANK_ACCOUNT]",
   },
   // US SSN (XXX-XX-XXXX)
   {
@@ -79,23 +92,17 @@ const PII_PATTERNS: PiiPattern[] = [
     pattern: /\b\d{3}-\d{2}-\d{4}\b/g,
     replacement: "[REDACTED:SSN]",
   },
-  // Bank account numbers (8-17 digits, often with dashes)
-  {
-    type: "bank_account",
-    pattern: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{0,4}\b/g,
-    replacement: "[REDACTED:BANK_ACCOUNT]",
-  },
-  // Credit card numbers (13-19 digits with optional dashes/spaces)
-  {
-    type: "credit_card",
-    pattern: /\b(?:\d{4}[-\s]?){3}\d{1,7}\b/g,
-    replacement: "[REDACTED:CREDIT_CARD]",
-  },
   // US EIN / Tax IDs (XX-XXXXXXX)
   {
     type: "tax_id",
     pattern: /\b\d{2}-\d{7}\b/g,
     replacement: "[REDACTED:TAX_ID]",
+  },
+  // Passport numbers (generic: 1-2 letters + 6-9 digits)
+  {
+    type: "passport",
+    pattern: /\b[A-Z]{1,2}\d{6,9}\b/g,
+    replacement: "[REDACTED:PASSPORT]",
   },
   // IP addresses (v4)
   {
@@ -103,11 +110,12 @@ const PII_PATTERNS: PiiPattern[] = [
     pattern: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
     replacement: "[REDACTED:IP]",
   },
-  // Passport numbers (generic: 1-2 letters + 6-9 digits)
+  // Phone numbers — LAST on purpose (most ambiguous, must never mask
+  // a longer identifier that a more specific pattern already claimed).
   {
-    type: "passport",
-    pattern: /\b[A-Z]{1,2}\d{6,9}\b/g,
-    replacement: "[REDACTED:PASSPORT]",
+    type: "phone",
+    pattern: /\b(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}\b/g,
+    replacement: "[REDACTED:PHONE]",
   },
 ];
 

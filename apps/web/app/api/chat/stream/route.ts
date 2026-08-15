@@ -14,6 +14,7 @@ import {
   buildPageContextBlock,
   type PageContextPayload,
 } from "@/lib/chat/page-context";
+import { redactPii } from "@xenboox/agents/core/security/injection-defense";
 
 export const runtime = "nodejs";
 // §17.6 — chat routes run full agent pipelines (LLM + tool calls) and can
@@ -154,11 +155,16 @@ export async function POST(req: NextRequest) {
       .map((f: any) => {
         const doc = f?.documentId ? ownedById.get(f.documentId) : undefined;
         if (!doc) return null;
-        const excerpt = (doc.ocrText ?? "")
-          .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 1500);
+        // §22.2 — PII discipline: OCR text is untrusted document content that
+        // may carry bank numbers, tax IDs, phones, SSNs. Scrubbed deterministically
+        // BEFORE it enters the prompt — never rely on the model to self-redact.
+        const excerpt = redactPii(
+          (doc.ocrText ?? "")
+            .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 1500),
+        ).text;
         const line = `[Attached document: ${doc.name} (${doc.type})]`;
         return excerpt
           ? `${line} Extracted text: "${excerpt}"`
