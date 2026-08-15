@@ -181,7 +181,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` Health check returns basic status — needs to check database connectivity, Redis connectivity, and external service health — **verified complete: `apps/web/app/api/health/route.ts` has full implementation with `basic` (always 200), `live` (liveness), `ready` (DB + Redis, 503 on failure), and `detailed` (DB + Redis + Anthropic API + memory) checks** (Aug 15, 2026)
 - `[x]` Add database health check to `/api/health` — **`checkDatabase()` in `route.ts:139-154` pings DB with `SELECT 1`, returns pass/fail with latency** (Aug 15, 2026)
 - `[x]` Add Redis health check to `/api/health` — **`checkRedis()` in `route.ts:157-184` pings Upstash REST `/ping`, returns pass/fail/warn with latency** (Aug 15, 2026)
-- `[ ]` Add detailed `/api/health/ready` (readiness) and `/api/health/live` (liveness) endpoints
+- `[x]` Add detailed `/api/health/ready` (readiness) and `/api/health/live` (liveness) endpoints — **already implemented in `apps/web/app/api/health/route.ts`: `?check=ready` returns 200 if DB+Redis reachable, 503 if not; `?check=live` always 200 if process alive; `?check=detailed` adds Anthropic API + memory checks** (Aug 15, 2026)
 - `[ ]` Configure uptime monitoring (BetterStack, Checkly, or similar)
 
 ### 2.5 Business Metrics Dashboards
