@@ -6,6 +6,19 @@
 
 ---
 
+### [2026-08-15] — Dependabot auto-PR + exact version pinning (§20.5)
+
+**Agent:** Kilo
+**Files Created:** `.github/dependabot.yml`
+**Files Modified:** `.npmrc`, `ROADTOPRODUCTION.md`
+
+1. **Dependabot config** — `.github/dependabot.yml`: weekly npm version updates for root workspace, grouped by dev/prod, patch/minor only, 10 PR limit.
+2. **Exact version pinning** — `.npmrc` updated with `save-exact=true` so `pnpm add` records exact versions in `package.json`.
+3. **Lockfile integrity** — verified all CI jobs already use `pnpm install --frozen-lockfile`.
+4. **ROADTOPRODUCTION.md** — marked §20.5 supply-chain items `[x]`.
+
+---
+
 ### [2026-08-15] — Logger redaction for secrets (§20.4)
 
 **Agent:** Kilo

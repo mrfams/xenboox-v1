@@ -982,9 +982,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 20.5 Supply chain & dependency hygiene
 
-- `[ ]` Dependabot/Renovate auto-PR on dependency updates (monorepo: enable for `pnpm-lock.yaml`).
-- `[ ]` Pin exact versions in production (`.npmrc` already pins? verify `save-exact=true`).
-- `[ ]` Verify `pnpm-lock.yaml` integrity in CI (`pnpm install --frozen-lockfile`).
+- `[x]` Dependabot/Renovate auto-PR on dependency updates (monorepo: enable for `pnpm-lock.yaml`). — **`.github/dependabot.yml` added: weekly npm version updates for root workspace, grouped by dev/prod, patch/minor only, 10 PR limit** (Aug 15, 2026)
+- `[x]` Pin exact versions in production (`.npmrc` already pins? verify `save-exact=true`). — **`.npmrc` updated with `save-exact=true`** (Aug 15, 2026)
+- `[x]` Verify `pnpm-lock.yaml` integrity in CI (`pnpm install --frozen-lockfile`). — **all CI jobs already use `pnpm install --frozen-lockfile`** (Aug 15, 2026)
 
 ---
 
