@@ -24,9 +24,13 @@ import {
 
 export const treasuryRouter = router({
   listBankAccounts: rlsProtectedProcedure.query(({ ctx }) => {
+    // §4.6 — bounded: never return an unbounded row set from a list query.
+    // 500 is a generous safety cap (dropdowns/selectors rarely exceed it);
+    // consumers that need true pagination use the paginated endpoints.
     return db.query.bankAccounts.findMany({
       where: eq(bankAccounts.entityId, ctx.entityId!),
       orderBy: [desc(bankAccounts.createdAt)],
+      limit: 500,
     });
   }),
 
@@ -170,6 +174,7 @@ export const treasuryRouter = router({
       return db.query.bankTransactions.findMany({
         where: and(...conditions),
         orderBy: [desc(bankTransactions.createdAt)],
+        limit: 500,
       });
     }),
 
@@ -228,6 +233,7 @@ export const treasuryRouter = router({
       return db.query.reconciliations.findMany({
         where: and(...conditions),
         orderBy: [desc(reconciliations.createdAt)],
+        limit: 500,
       });
     }),
 

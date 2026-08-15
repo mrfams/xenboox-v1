@@ -115,6 +115,7 @@ export const inventoryRouter = router({
     return db.query.inventoryItems.findMany({
       where: eq(inventoryItems.entityId, ctx.entityId!),
       orderBy: [desc(inventoryItems.createdAt)],
+      limit: 500,
     });
   }),
 

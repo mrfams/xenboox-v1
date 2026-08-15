@@ -339,8 +339,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - [x]` tRPC batch links configured for efficient batching
 - `[ ]` No response compression configured at application level (Vercel handles this)
-- `[ ]` Add pagination to all list endpoints (some may return unbounded results)
-- `[ ]` Implement cursor-based pagination for large datasets
+- `[x]` Add pagination to all list endpoints (some may return unbounded results) — **audited + bounded (Aug 15, 2026): transactions, journal, banking.listTransactions, ar.listCustomers already paginated (limit/offset, max 100); all previously-unbounded list procedures now carry a 500-row safety cap: treasury.listBankAccounts/listBankTransactions/listReconciliations, inventory.listItems, fixedAssets.listAssets, ap.listSuppliers, mobileMoney.listAccounts/listTransactions**
+- `[ ]` Implement cursor-based pagination for large datasets — **follow-up: offset pagination (capped at 100) covers current UI; cursor-based is warranted when a dataset exceeds ~10K rows/entity**
 - `[x]` Add query result caching for read-heavy endpoints — **entity-scoped tenant cache wired into fiscal.list + taxConfig.listRules (60s TTL, LRU-capped, invalidated on every relevant mutation); 9 unit tests pin isolation/TTL/eviction/invalidation** (Aug 14, 2026)
 
 ### 4.7 Frontend Performance

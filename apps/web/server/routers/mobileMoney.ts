@@ -24,6 +24,7 @@ export const mobileMoneyRouter = router({
     return db.query.mobileMoneyAccounts.findMany({
       where: eq(mobileMoneyAccounts.entityId, ctx.entityId!),
       orderBy: [desc(mobileMoneyAccounts.createdAt)],
+      limit: 500,
     });
   }),
 
@@ -92,6 +93,7 @@ export const mobileMoneyRouter = router({
     return db.query.mobileMoneyTransactions.findMany({
       where: eq(mobileMoneyTransactions.entityId, ctx.entityId!),
       orderBy: [desc(mobileMoneyTransactions.createdAt)],
+      limit: 500,
     });
   }),
 

@@ -27,6 +27,7 @@ export const fixedAssetsRouter = router({
     return db.query.fixedAssets.findMany({
       where: eq(fixedAssets.entityId, ctx.entityId!),
       orderBy: [desc(fixedAssets.createdAt)],
+      limit: 500,
     });
   }),
 

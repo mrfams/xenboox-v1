@@ -629,6 +629,7 @@ export const apRouter = router({
     return db.query.suppliers.findMany({
       where: eq(suppliers.entityId, ctx.entityId!),
       orderBy: [desc(suppliers.createdAt)],
+      limit: 500,
     });
   }),
 

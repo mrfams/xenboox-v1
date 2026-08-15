@@ -80,3 +80,6 @@ apps/web/scripts/investigate-drift.mjs
 
 # Local gstack tooling state
 .gstack/
+
+# Agent scratch/planning directories
+.kilo/
