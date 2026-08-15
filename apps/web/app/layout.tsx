@@ -75,14 +75,6 @@ export const metadata: Metadata = {
     title: "Xenboox — AI-Native Accounting for Africa",
     description:
       "Full-stack accounting platform for African businesses. Multi-entity, multi-currency, AI-powered.",
-    images: [
-      {
-        url: `${baseUrl}/og-image.png`,
-        width: 1200,
-        height: 630,
-        alt: "Xenboox",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",

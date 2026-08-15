@@ -71,6 +71,6 @@ export default [
     },
   },
   {
-    ignores: ['.next/**', 'node_modules/**', 'dist/**'],
+    ignores: ['.next/**', 'node_modules/**', 'dist/**', 'app/opengraph-image.ts'],
   },
 ];
