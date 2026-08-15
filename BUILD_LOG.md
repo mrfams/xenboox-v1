@@ -6,6 +6,33 @@
 
 ---
 
+### [2026-08-16] — Production readiness sweep: SEO, security verification, config (§15.3, §20.1, §2.2, §2.4, §12.4, §12.5, §11.1)
+
+**Agent:** Kilo
+**Files Modified:** `ROADTOPRODUCTION.md`, `apps/web/app/sitemap.ts`, `apps/web/app/layout.tsx`, `apps/web/app/opengraph-image.ts`, `apps/web/lib/utils.ts`, `apps/web/app/dashboard/page.tsx`, `apps/web/components/settings/privacy-section.tsx`, `apps/web/tsconfig.strict.json`, `apps/web/package.json`, `.prettierignore`, `eslint.config.js`
+
+**Session work (all committed + pushed):**
+
+1. **SEO §15.3** — `apps/web/app/sitemap.ts`: removed auth pages (`/login`, `/register`, `/forgot-password`) with no SEO value; added all 47 static docs pages (agents, modules, quickstart, security, webhooks). `apps/web/app/layout.tsx`: removed hardcoded `/og-image.png` reference; added Organization JSON-LD structured data. Created `apps/web/app/opengraph-image.ts` using `next/og` `ImageResponse` (edge runtime, 1200×630). Added `.prettierignore` + ESLint/TS exclusions for OG image JSX.
+
+2. **Security §20.1** — Verified session cookie settings across admin (`admin.ts`, `admin-edge.ts`) and main auth (`index.ts`): `httpOnly=true`, `secure=true` in production, `sameSite=lax` (intentional for OAuth callback compatibility). Documented finding in ROADTOPRODUCTION.md.
+
+3. **Health checks §2.2/§2.4** — Verified `/api/health` already implements `basic`/`live`/`ready`/`detailed` endpoints with DB (SELECT 1), Redis (Upstash ping), Anthropic API, and memory checks. Cleaned up stale `[ ]` markers in ROADTOPRODUCTION.md.
+
+4. **TypeScript §12.4** — Created `tsconfig.strict.json` extending main config with `noUncheckedIndexedAccess: true`; added `typecheck:strict` script to package.json for optional strict checks. Note: full strict typecheck hangs on this codebase; strict config available for incremental adoption.
+
+5. **Date formatting §12.5** — Standardized all date formatters to `en-US`: `apps/web/lib/utils.ts` (`formatDate`, `formatDateTime`) and `apps/web/app/dashboard/page.tsx` (`DATE_FORMATTER`).
+
+6. **Data retention §11.1** — Reconcilled 30→90 days in `apps/web/components/settings/privacy-section.tsx` (account data + session data) to match marketing/legal pages (pricing, terms, refund, privacy).
+
+7. **Dependency cleanup §4.4** — Removed unused `recharts` v2.15.4 from `apps/web/package.json` (0 imports found via rg search).
+
+8. **ESLint sweep §12.2** — Verified agents ESLint was already addressed in prior session; reverted accidental agents file changes from this session. Web lint: 0 errors / 543 warnings (all pre-existing).
+
+**Verification:** All changes linted (0 errors), typecheck clean on changed files, committed and pushed to master.
+
+---
+
 ### [2026-08-15] — ESLint auto-fix sweep + stale markers cleanup (§12.2, §12.4)
 
 **Agent:** Kilo
