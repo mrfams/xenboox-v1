@@ -57,6 +57,30 @@ export function resolveLogLevel(
 export const logger = pino({
   level: resolveLogLevel(),
   base: { service: "xenboox-web" },
+  redact: [
+    "password",
+    "secret",
+    "token",
+    "apiKey",
+    "api_key",
+    "accessKey",
+    "access_key",
+    "authorization",
+    "cookie",
+    "sessionId",
+    "session_id",
+    "AUTH_SECRET",
+    "ANTHROPIC_API_KEY",
+    "LANGFUSE_SECRET_KEY",
+    "DATABASE_URL",
+    "RESEND_API_KEY",
+    "MONO_SECRET_KEY",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "R2_*",
+    "*secret*",
+    "*password*",
+    "*key*",
+  ],
 });
 
 export function createRequestLogger(requestId: string) {

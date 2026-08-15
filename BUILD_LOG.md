@@ -6,6 +6,20 @@
 
 ---
 
+### [2026-08-15] — Logger redaction for secrets (§20.4)
+
+**Agent:** Kilo
+**Files Created:** `apps/web/__tests__/logger-redaction.test.ts` (3 tests)
+**Files Modified:** `apps/web/lib/logger.ts`, `ROADTOPRODUCTION.md`
+
+1. **Pino redact config** — added `redact` array to `apps/web/lib/logger.ts` covering 7 known secret env vars (`AUTH_SECRET`, `ANTHROPIC_API_KEY`, `LANGFUSE_SECRET_KEY`, `DATABASE_URL`, `RESEND_API_KEY`, `MONO_SECRET_KEY`, `UPSTASH_REDIS_REST_TOKEN`), 8 common field names (`password`, `secret`, `token`, `apiKey`, `authorization`, `cookie`, `sessionId`, `accessKey`), and 3 wildcard patterns (`*secret*`, `*password*`, `*key*`).
+2. **Config smoke test** — `__tests__/logger-redaction.test.ts` pins that all entries exist in `logger.ts` source.
+3. **ROADTOPRODUCTION.md** — marked §20.4 "Verify no API keys are ever logged" item `[x]`.
+
+**Verification:** test 3/3 pass.
+
+---
+
 ### [2026-08-15] — Agent eval suite wired into CI (§22.4)
 
 **Agent:** Kilo

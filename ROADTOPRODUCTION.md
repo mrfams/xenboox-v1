@@ -978,7 +978,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[ ]` Move from Vercel dashboard env vars to a secrets manager (Vault, Doppler, or Infisical) with audit trail and role-scoped access.
 - `[ ]` Key rotation schedule: data-encryption keys 90 days, key-encryption keys annually, TLS certs ≤ 398 days. Automate where possible.
-- `[ ]` Verify no API keys (Anthropic, LangFuse, Mono, Resend, Upstash) are ever logged — add a logger redaction list.
+- `[x]` Verify no API keys (Anthropic, LangFuse, Mono, Resend, Upstash) are ever logged — add a logger redaction list. — **`apps/web/lib/logger.ts`: pino `redact` array covers 7 known secret env vars + 8 common field names + 3 wildcard patterns (`*secret*`, `*password*`, `*key*`); `__tests__/logger-redaction.test.ts` pins config presence** (Aug 15, 2026)
 
 ### 20.5 Supply chain & dependency hygiene
 
