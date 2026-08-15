@@ -57,17 +57,6 @@ export interface AutonomyPolicyInput {
 // ─── Hard Rules (never configurable down) ──────────────────────────────────
 
 /**
- * Money-movement actions are hard-denied at every autonomy level. No env can
- * weaken this — the constant is the policy.
- */
-const MONEY_MOVEMENT_DENY: AutonomyLevel[] = [
-  "suggest",
-  "low",
-  "standard",
-  "full",
-];
-
-/**
  * Below this confidence, even a "safe_write" is never auto-approved — the
  * autonomy slider widens the band but the floor is fixed.
  */

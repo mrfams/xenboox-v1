@@ -6,6 +6,22 @@
 
 ---
 
+### [2026-08-15] — Final sweep: field-encryption crypto proven + lint audit (web-only focus)
+
+**Agent:** Buffy (Autonomous Engineer)
+**Files Created:** `apps/web/__tests__/field-encryption.test.ts` (11 tests)
+**Files Modified:** `packages/agents/core/autonomy-policy.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+1. **§8.2 field encryption — crypto core proven.** `packages/db/lib/encryption.ts` (AES-256-GCM) had ZERO tests and the service was unwired. Added 11 unit tests: roundtrip, wrong-key + tamper rejection (GCM auth tag), unique IVs, key versions, deterministic hash, isEncrypted. The full write/read wiring (encryptRecord/decryptRecords across payroll/treasury/mobileMoney/AP/AR routers) + plaintext backfill needs a live-DB migration — documented as deployment-time work in ROADTOPRODUCTION §8.2.
+2. **Lint audit (§12.2).** Found + removed a real dead-code lint error: `MONEY_MOVEMENT_DENY` unused const in `autonomy-policy.ts` (the deny logic actually lives in `HARD_DENY_ACTIONS` + risk-class check). 12/12 autonomy tests still pass. Decided: ESLint stays CI-enforced (already in `ci.yml`), not pre-commit — agents package has pre-existing `any`/require-import errors that would block all commits until a full sweep.
+3. **§11.x console.log audit** — verified remaining `console.*` are the structured loggers themselves + OTel bootstrap + dev-only eval tooling; no raw user-data logging in app code.
+
+**Per user direction: mobile/desktop work STOPPED — web only from here.** Reverted in-flight mobile error-handling batch (error classifier + client diagnostics router) — web already has Sentry.
+
+**Verification:** web tests 970 passed / 15 pre-existing DB failures; build green; autonomy-policy lint clean.
+
+---
+
 ### [2026-08-15] — Final sweep: PII redaction hardened at every boundary + injection-defense test suite + pattern-ordering security fix
 
 **Agent:** Buffy (Autonomous Engineer)
