@@ -1654,6 +1654,8 @@ CREATE POLICY entity_isolation ON invoices_ap
 -- SET app.current_entity_id = '<entity-uuid>';
 ```
 
+> **Neon HTTP driver limitation:** The Neon serverless HTTP driver (`@neondatabase/serverless`) does **not** support PostgreSQL session variables (`SET`, `SET LOCAL`, `current_setting`). RLS policies that rely on `current_setting('app.current_user_id')` or `current_setting('app.current_entity_id')` will **fail** when queries execute over the HTTP driver. Always scope queries at the application layer (`WHERE entity_id = $1`) when using the HTTP driver. RLS policies provide defense-in-depth only when using a traditional TCP connection (e.g., via PgBouncer or direct Postgres client).
+
 ---
 
 ## 15. Common Query Patterns

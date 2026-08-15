@@ -892,10 +892,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 17.4 RLS correctness & performance pitfalls
 
 - `[x]` RLS enabled via migrations `0006_enable_rls.sql` + `0010_rls_remaining_tables.sql`.
-- `[ ]` **Policy functions must be `STABLE`/`IMMUTABLE`** — `VOLATILE` functions inside RLS policies evaluate per row and destroy performance.
-- `[ ]` `ALTER TABLE … FORCE ROW LEVEL SECURITY` so table owners don't bypass policies (currently app role is restricted; make it explicit).
+- `[x]` **Policy functions must be `STABLE`/`IMMUTABLE`** — `VOLATILE` functions inside RLS policies evaluate per row and destroy performance. — **`set_app_context` marked `STABLE` in migration 0030; no VOLATILE functions used inside policy expressions (policies use `current_setting()` + plain SQL subqueries)** (Aug 15, 2026)
+- `[x]` `ALTER TABLE … FORCE ROW LEVEL SECURITY` so table owners don't bypass policies (currently app role is restricted; make it explicit). — **Migration `0030_force_rls.sql`: `FORCE ROW LEVEL SECURITY` applied to all 42 RLS-enabled tables** (Aug 15, 2026)
 - `[x]` RLS integration tests: prove cross-entity access returns 403/empty both at the DB layer and the tRPC layer (§1.1 gap — elevate to HIGH). — **Done:** `__tests__/rls-db-layer.test.ts` (12 tests: SELECT/INSERT/UPDATE/DELETE enforcement, fail-closed on missing session vars, cross-entity blocked) + `__tests__/idor-rls-sweep.test.ts` (69 tests: entity-scoping contract, financial query isolation, mutation scoping, attack scenarios).
-- `[ ]` Document the Neon-HTTP limitation (no session vars) in DATABASE.md so future agents never assume DB-layer tenant context.
+- `[x]` Document the Neon-HTTP limitation (no session vars) in DATABASE.md so future agents never assume DB-layer tenant context. — **Warning added to `DATABASE.md` §14: HTTP driver does not support `SET`/`current_setting`; app-layer scoping is mandatory for HTTP driver, RLS is defense-in-depth for TCP connections only** (Aug 15, 2026)
 
 ### 17.5 NUMERIC integrity & JSONB discipline
 
