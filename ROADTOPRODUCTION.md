@@ -325,7 +325,7 @@ Every item below has a status marker. **Agents must update these markers when wo
   - `[ ]` Admin pages — **routes already split per page; remaining heavy in-page islands (agent-monitor, model-ops, workflow-builder) queued in §12.5/§4.4 follow-up**
   - `[x]` Settings sections — **all 17 section components → per-tab `next/dynamic` lazy chunks (`ssr:false`); TaxesSection alone is ~1.4K lines, now downloaded only when the Taxes tab is opened**
   - `[ ]` Marketing pages (separate from dashboard) — **deferred per user priority: application first, marketing later**
-- `[ ]` Add `@next/bundle-analyzer` to monitor bundle size — **scheduled (§15.5/§4.4 next pass)**
+- `[x]` Add `@next/bundle-analyzer` to monitor bundle size — **wired + documented in §15.5; run `pnpm analyze` pre-release** (Aug 15, 2026)
 - `[x]` Configure code splitting for route-based chunks — **App Router already route-splits; in-page islands above now chunk too**
 - `[ ]` Remove unused dependencies — **recharts not referenced by any app page (only package.json) — remove in dependency sweep (§1.8)**
 
@@ -820,9 +820,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 - [x]` `turbo.json` with proper task pipeline
 - [x]` `tsconfig.json` with strict mode
 - `[~]` ESLint disabled during builds
-- `[ ]` No bundle analyzer
-- `[ ]` No build size monitoring
-- `[ ]` No build time monitoring
+- `[x]` No bundle analyzer — **`@next/bundle-analyzer` 15.5 wired in `next.config.ts`, gated behind `ANALYZE=true` (zero cost on normal builds); scripts: `pnpm analyze`, `analyze:server`, `analyze:client` → emits .next/analyze interactive reports** (Aug 15, 2026)
+- `[x]` No build size monitoring — **analyzer reports give per-route server+client sizes; run `pnpm analyze` before each release (CI size-check is a follow-up)**
+- `[ ]` No build time monitoring — **user-side: Vercel build telemetry; CI already logs build duration**
 
 ---
 

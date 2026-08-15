@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const nextConfig: NextConfig = {
+// §4.4/§15.5 — bundle-size monitoring. `ANALYZE=true` (or =1) makes `next
+// build` emit the interactive bundle analyzer report to .next/analyze
+// (server + client trees) so regressions are visible pre-launch. Off by
+// default — zero impact on normal builds.
+const withBundleAnalyzer =
+  process.env.ANALYZE === "true" || process.env.ANALYZE === "1"
+    ? require("@next/bundle-analyzer")({ enabled: true })
+    : (config: NextConfig) => config;
+
+const baseConfig: NextConfig = {
   transpilePackages: [
     "@xenboox/ui",
     "@xenboox/db",
@@ -101,6 +110,8 @@ const nextConfig: NextConfig = {
         }
       : undefined,
 };
+
+const nextConfig = withBundleAnalyzer(baseConfig);
 
 export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,

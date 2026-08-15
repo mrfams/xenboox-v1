@@ -6,6 +6,9 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
+    "analyze": "ANALYZE=true next build",
+    "analyze:server": "ANALYZE=true ANALYZE_MODE=server next build",
+    "analyze:client": "ANALYZE=true ANALYZE_MODE=client next build",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -71,6 +74,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.5.23",
     "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^15.0.0",
