@@ -958,7 +958,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` MFA/TOTP, account lockout, max sessions, email verification gate all exist.
 - `[ ]` **Phishing-resistant MFA:** add WebAuthn/FIDO2 passkeys as a second factor option.
 - `[x]` **Session termination on password change** and on role revocation (kill all sessions of the user). — **`lib/auth/session-revocation.ts`: `revokeUserSessions(userId, keepSid?)` wired into changePassword (keep current) + resetPassword (kill all); `revokeAdminSessions` wired into admin `updateRole` so a demoted admin's sessions die immediately. 21 tests (password-policy + session-revocation + auth-session-invalidation). Password policy hardened with leetspeak normalization (P@ssw0rd caught).** (Aug 14, 2026)
-- `[ ]` Verify session cookies are `HttpOnly`, `Secure`, `SameSite=Strict` (Auth.js defaults — confirm in `lib/auth`).
+- `[x]` Verify session cookies are `HttpOnly`, `Secure`, `SameSite=Strict` (Auth.js defaults — confirm in `lib/auth`). — **verified (Aug 15, 2026): admin auth (`admin.ts`, `admin-edge.ts`) explicitly sets `httpOnly: true`, `sameSite: "lax"`, `secure: useSecureCookies` (true in production); main auth (`index.ts`) uses Auth.js v5 defaults (`httpOnly: true`, `sameSite: "lax"`, `secure: true` in production). `SameSite=lax` is intentional — `strict` would break OAuth callbacks (Google, Azure, SSO redirects require cross-site cookies). All session cookies are properly secured.**
 - `[ ]` Idle session timeout (configurable per plan; default 30–60 min for financial apps).
 
 ### 20.2 Authorization (ASVS Ch. 4) — the IDOR audit
@@ -1113,7 +1113,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 25.3 Test-suite gates
 
-- `[ ]` Coverage thresholds in CI (target ≥ 80% on new code; report total).
+- `[x]` Coverage thresholds in CI (target ≥ 80% on new code; report total). — **already done in §5.1: Vitest `--coverage` with 80% thresholds on lines/functions/branches/statements in both web and agents configs; CI `coverage` job uploads reports as artifacts** (Aug 15, 2026)
 - `[ ]` Integration tests against a real Neon branch DB (§5.2 — elevate priority: the RLS/IDOR tests in §20.2 require it).
 - `[ ]` E2E for the attention-map/notifications flows (the newest surface) to prevent regressions.
 
