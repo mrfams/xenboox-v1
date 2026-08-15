@@ -11,6 +11,7 @@
     "analyze:client": "ANALYZE=true ANALYZE_MODE=client next build",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "typecheck:strict": "tsc --noEmit -p tsconfig.strict.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
