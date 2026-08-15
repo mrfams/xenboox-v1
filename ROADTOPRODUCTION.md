@@ -178,9 +178,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 2.4 Health Check Endpoints
 
 - `[x]` `/api/health` endpoint exists — `middleware.ts:87-91`
-- `[~]` Health check returns basic status — needs to check database connectivity, Redis connectivity, and external service health
-- `[ ]` Add database health check to `/api/health`
-- `[ ]` Add Redis health check to `/api/health`
+- `[x]` Health check returns basic status — needs to check database connectivity, Redis connectivity, and external service health — **verified complete: `apps/web/app/api/health/route.ts` has full implementation with `basic` (always 200), `live` (liveness), `ready` (DB + Redis, 503 on failure), and `detailed` (DB + Redis + Anthropic API + memory) checks** (Aug 15, 2026)
+- `[x]` Add database health check to `/api/health` — **`checkDatabase()` in `route.ts:139-154` pings DB with `SELECT 1`, returns pass/fail with latency** (Aug 15, 2026)
+- `[x]` Add Redis health check to `/api/health` — **`checkRedis()` in `route.ts:157-184` pings Upstash REST `/ping`, returns pass/fail/warn with latency** (Aug 15, 2026)
 - `[ ]` Add detailed `/api/health/ready` (readiness) and `/api/health/live` (liveness) endpoints
 - `[ ]` Configure uptime monitoring (BetterStack, Checkly, or similar)
 
