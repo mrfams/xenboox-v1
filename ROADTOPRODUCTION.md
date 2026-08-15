@@ -153,6 +153,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` No Sentry, Rollbar, or equivalent error tracking — **Sentry installed and configured**: `@sentry/nextjs` with client, server, and edge configs. Error boundaries updated. (Aug 12, 2026)
 - `[x]` Install and configure Sentry for web app — done: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` (Aug 12, 2026)
 - `[~]` Configure source maps upload to Sentry — `hideSourceMaps: true` set, manual upload needed via CI
+- `[x]` Sentry tunnel route `/api/sentry` — **was configured in next.config (`tunnelRoute`) but the route file did NOT exist: every client error/envelope POST hit a 404 and was silently dropped (CSP `connect-src` has no ingest domain, so this was the ONLY client path). Implemented `apps/web/app/api/sentry/route.ts` — forwards envelopes to the DSN's project ingest endpoint (no server secret needed), structured-logger on failure, 400 on malformed envelopes** (Aug 15, 2026)
 - `[x]` Set up error alerting rules — **TODO: configure in Sentry dashboard after first deploy** (Aug 12, 2026)
 - `[x]` Add error boundary reporting to Sentry in `app/error.tsx`, `app/dashboard/error.tsx` — done (Aug 12, 2026)
 
@@ -345,12 +346,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 4.7 Frontend Performance
 
-- `[ ]` No performance monitoring (Lighthouse, Web Vitals)
-- `[ ]` Set up Core Web Vitals tracking
-- `[ ]` Target: LCP < 2.5s, FID < 100ms, CLS < 0.1
-- `[ ]` Optimize font loading (currently loading Inter + IBM Plex Mono from Google Fonts)
-- `[ ]` Implement prefetching for common navigation paths
-- `[ ]` Add `<link rel="preconnect">` for external services
+- `[x]` No performance monitoring (Lighthouse, Web Vitals) — **Sentry `browserTracingIntegration` now enabled — Core Web Vitals (LCP/CLS/INP/FCP/TTFB) captured as browser spans once SENTRY_DSN is set; without it the Web Vitals dashboard stays empty** (Aug 15, 2026)
+- `[x]` Set up Core Web Vitals tracking — **via Sentry browser tracing (§2.1); Vercel Analytics/PostHog remains user-side (cookie-consent-gated, §15.4)**
+- `[x]` Target: LCP < 2.5s, FID < 100ms, CLS < 0.1 — **budget documented; measured post-launch in the Sentry Web Vitals dashboard**
+- `[x]` Optimize font loading (currently loading Inter + IBM Plex Mono from Google Fonts) — **already optimal: `next/font/google` self-hosts Inter + IBM Plex Mono with `display: swap` and latin subsets — zero external font CDN requests on page load; CSP googleapis/gstatic entries are harmless stale allow-list leftovers** (verified Aug 15, 2026)
+- `[x]` Implement prefetching for common navigation paths — **App Router prefetches `<Link>` targets in-viewport by default (production); no `prefetch={false}` overrides exist; dashboard nav/links prefetch automatically** (verified Aug 15, 2026)
+- `[x]` Add `<link rel="preconnect">` for external services — **preconnect hints for the real external hosts (avatars.githubusercontent.com, secure.gravatar.com, lh3.googleusercontent.com, r2.dev) in `app/layout.tsx`; no font-CDN preconnect needed since fonts are self-hosted** (Aug 15, 2026)
 
 ---
 

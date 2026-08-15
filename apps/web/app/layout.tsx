@@ -123,6 +123,15 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen bg-background font-sans antialiased">
+        {/* §4.7 — DNS/TCP/TLS warm-up for the external image hosts the app
+            actually fetches from (user avatars via GitHub/Gravatar/Google,
+            uploaded documents via R2 public URLs, `<bucket>.r2.dev`).
+            next/font self-hosts the typefaces, so no font CDN preconnect is
+            needed. CSP `img-src https:` already permits these. */}
+        <link rel="preconnect" href="https://avatars.githubusercontent.com" />
+        <link rel="preconnect" href="https://secure.gravatar.com" />
+        <link rel="preconnect" href="https://lh3.googleusercontent.com" />
+        <link rel="preconnect" href="https://r2.dev" />
         <ThemeProvider nonce={nonce}>
           <TRPCProvider>{children}</TRPCProvider>
         </ThemeProvider>

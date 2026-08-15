@@ -12,6 +12,12 @@ Sentry.init({
 
   enabled: process.env.NODE_ENV === "production" && !!process.env.SENTRY_DSN,
 
+  // §4.7 — Core Web Vitals (LCP/CLS/INP/FCP/TTFB) are captured as browser
+  // spans only when tracing is active. Without this integration Sentry
+  // reports errors but NO performance data — the Web Vitals dashboard stays
+  // empty. Enables navigation spans + vitals instrumentation automatically.
+  integrations: [Sentry.browserTracingIntegration()],
+
   ignoreErrors: [
     "AbortError",
     "ResizeObserver loop",
