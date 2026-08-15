@@ -6,6 +6,20 @@
 
 ---
 
+### [2026-08-15] — Agent eval suite wired into CI (§22.4)
+
+**Agent:** Kilo
+**Files Created:** none
+**Files Modified:** `packages/agents/package.json`, `.github/workflows/ci.yml`, `ROADTOPRODUCTION.md`
+
+1. **Agents eval script** — added `test:eval` (`tsx core/eval/runner.ts`) to `packages/agents/package.json`.
+2. **CI eval job** — added `eval` job to `.github/workflows/ci.yml` (needs `typecheck`, runs `pnpm --filter=@xenboox/agents test:eval`, path-filtered to `packages/agents/**`, `packages/models/**`, `packages/jobs/**`).
+3. **ROADTOPRODUCTION.md** — marked §22.4 "Evals in CI" item `[x]`.
+
+**Verification:** CI workflow syntax valid.
+
+---
+
 ### [2026-08-15] — Coverage reporting + thresholds wired into CI (§5.1)
 
 **Agent:** Kilo

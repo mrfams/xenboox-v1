@@ -8,6 +8,7 @@
     "eval": "tsx core/eval/runner.ts --help",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:eval": "tsx core/eval/runner.ts",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts"

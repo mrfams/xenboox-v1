@@ -1046,7 +1046,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` **Fallback chains:** provider 1 → provider 2 → deterministic degraded mode (e.g., template answers, queue for later). — **Done (Aug 15, 2026): `packages/models/router.ts` executes live → traffic-split → fallback provider routes with per-route timeout (30s), exponential-backoff retries, circuit breaker (≥3 consecutive errors → skip), and rate-limit awareness; semantic cache (`semantic-cache.ts`) serves cached answers as degraded mode when inference is down; chat route degrades gracefully with persisted failed message.**
 - `[ ]` **Circuit breakers:** trip on consecutive 5xx/429 storms; half-open probes; never queue into a dead provider.
 - `[ ]` Timeouts on every LLM call (connect/read), with queueing to Trigger.dev for long pipelines.
-- `[ ]` **Evals in CI:** run the golden eval suites (§8.4) on every PR that touches prompts/models so regressions are caught pre-merge (framework exists — `pnpm test:eval`).
+- `[x]` **Evals in CI:** run the golden eval suites (§8.4) on every PR that touches prompts/models so regressions are caught pre-merge (framework exists — `pnpm test:eval`). — **`test:eval` script added to `packages/agents/package.json` (`tsx core/eval/runner.ts`); CI `eval` job in `.github/workflows/ci.yml` runs on push + PRs touching `packages/agents/**`, `packages/models/**`, `packages/jobs/**`, needs `typecheck`\*\* (Aug 15, 2026)
 
 ---
 
