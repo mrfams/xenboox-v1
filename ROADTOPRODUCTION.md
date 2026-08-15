@@ -708,11 +708,11 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 12.3 Git Hooks
 
-- [x]`Pre-commit hook runs`lint-staged` (Prettier only)
-- `[ ]` No `commit-msg` hook for conventional commit enforcement
-- `[ ]` No `pre-push` hook for running tests
-- `[ ]` Add commitlint for conventional commits
-- `[ ]` Add test runner to pre-push hook
+- `[x]` Pre-commit hook runs `lint-staged` (Prettier only)
+- `[x]` No `commit-msg` hook for conventional commit enforcement — **added `.husky/commit-msg` running `@commitlint/cli` with `@commitlint/config-conventional`; `commitlint.config.js` enforces type enum (feat/fix/docs/style/refactor/perf/test/build/ci/chore/revert), subject-case relaxed** (Aug 15, 2026)
+- `[x]` No `pre-push` hook for running tests — **added `.husky/pre-push` running `pnpm --filter=@xenboox/web test -- --run`** (Aug 15, 2026)
+- `[x]` Add commitlint for conventional commits — **`@commitlint/cli` + `@commitlint/config-conventional` installed as workspace-root devDependencies** (Aug 15, 2026)
+- `[x]` Add test runner to pre-push hook — **pre-push runs web package tests** (Aug 15, 2026)
 
 ### 12.4 TypeScript
 
