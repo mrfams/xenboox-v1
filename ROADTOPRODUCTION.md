@@ -927,7 +927,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[x]` Keep Vercel Fluid Compute enabled (default) — container reuse.
 - `[x]` Global singletons for DB/Redis/Trigger clients to reuse TCP connections across warm invocations. — **verified: `db` singleton in `packages/db/index.ts` (module-level `drizzle(neon(...))`); `redisClient` singleton in `apps/web/lib/sse/broadcast.ts` + `apps/web/lib/security/rate-limiter.ts` (lazy-init, module-scoped); `triggerClient` singleton in `apps/web/lib/trigger.ts` (module-level `new TriggerClient(...)`); `r2` singleton in `apps/web/lib/r2.ts`; `resend` singleton in `apps/web/lib/resend.ts`** (Aug 15, 2026)
-- `[ ]` Edge runtime only for middleware/redirects/geolocation — never DB or heavy crypto in middleware.
+- `[x]` Edge runtime only for middleware/redirects/geolocation — never DB or heavy crypto in middleware. — **verified: `middleware.ts` uses `edgeAuth` + `edgeAdminAuth` (edge-compatible), no DB queries, no heavy crypto; only auth/rate-limit/security-headers/redirects** (Aug 15, 2026)
 - `[ ]` Set budget alerts on Vercel spend + function invocations before launch.
 
 ---
