@@ -728,7 +728,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` Two tool systems coexist: legacy `tool()` pattern and new `ToolDefinition` registry
 - `[x]` `lib/api.ts` `apiFetch()` defined but unused in mobile — **removed: dead code (mobile uses the tRPC client + read-cache link)** (Aug 15, 2026)
 - `[x]` `constants/theme.ts` exports unused in mobile — **removed: design tokens already live in `tailwind.config.js` via NativeWind** (Aug 15, 2026)
-- `[ ]` Date formatting inconsistencies (en-GB vs en-US) across files
+- `[x]` Date formatting inconsistencies (en-GB vs en-US) across files — **fixed (Aug 15, 2026): standardized all date formatters to `en-US`; `apps/web/lib/utils.ts` (`formatDate`, `formatDateTime`) and `apps/web/app/dashboard/page.tsx` (`DATE_FORMATTER`) changed from `en-GB` to `en-US` to match the rest of the codebase**
 
 ---
 

@@ -142,7 +142,7 @@ function MiniSparkline({
 // ─── Greeting Component ──────────────────────────────────────────────────
 
 // Module-scope formatter — hoisted so it isn't re-allocated on every render.
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
   day: "numeric",
   month: "long",
