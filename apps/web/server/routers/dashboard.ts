@@ -50,6 +50,27 @@ const filingTypeLabels: Record<string, string> = {
   social_security: "SSNIT Due",
 };
 
+// Fills the trailing N-month window (index 0 = N months back, last = current)
+// from a single GROUP BY-month query — the replacement for the old
+// per-month-query sparkline loops (7 round-trips × 3 series = 21 queries).
+function fillMonthlyWindow(
+  rows: Array<{ month: string | null; total: string | null }>,
+  monthsBack: number,
+  now: Date,
+): number[] {
+  const byMonth = new Map<string, number>();
+  for (const r of rows) {
+    if (r.month) byMonth.set(r.month, parseFloat(r.total ?? "0"));
+  }
+  const out: number[] = [];
+  for (let i = monthsBack; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    out.push(byMonth.get(key) ?? 0);
+  }
+  return out;
+}
+
 // ─── Safe query helper ─────────────────────────────────────────────────────
 // Wraps a DB query in try/catch so a single failing table doesn't crash the
 // entire dashboard endpoint. Returns the fallback on error.
@@ -312,130 +333,91 @@ export const dashboardRouter = router({
           : 0;
 
       // ── Sparkline Data (Last 6 months) ────────────────────────────────────
-      const getMonthlyData = async (monthsBack: number) => {
-        const results: number[] = [];
-        for (let i = monthsBack; i >= 0; i--) {
-          const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const monthEnd = new Date(
-            now.getFullYear(),
-            now.getMonth() - i + 1,
-            0,
-          );
+      // One GROUP BY-month query per series (was 7 sequential per-month
+      // queries per series — 21 round-trips on the hottest endpoint).
+      // `to_char(..., 'YYYY-MM')` keys match the window fill below; a missing
+      // month simply fills 0 rather than erroring.
+      const SPARKLINE_MONTHS = 6;
+      const sparklineStart = new Date(
+        now.getFullYear(),
+        now.getMonth() - SPARKLINE_MONTHS,
+        1,
+      )
+        .toISOString()
+        .split("T")[0];
 
-          const revenueRes = await safeQuery(
-            `revenue-month-${i}`,
-            () =>
-              db
-                .select({ total: sum(salesInvoices.totalAmount) })
-                .from(salesInvoices)
-                .where(
-                  and(
-                    eq(salesInvoices.entityId, entityId),
-                    gte(
-                      salesInvoices.invoiceDate,
-                      monthStart.toISOString().split("T")[0],
-                    ),
-                    lte(
-                      salesInvoices.invoiceDate,
-                      monthEnd.toISOString().split("T")[0],
-                    ),
-                  ),
-                ),
-            [{ total: null }],
-          );
-          results.push(parseFloat(revenueRes[0]?.total ?? "0"));
-        }
-        return results;
-      };
-
-      const monthlyRevenues = await safeQuery(
+      const revenueRows = await safeQuery(
         "monthlyRevenues",
-        () => getMonthlyData(6),
-        [0, 0, 0, 0, 0, 0, 0],
+        () =>
+          db
+            .select({
+              month: sql<string>`to_char(${salesInvoices.invoiceDate}::date, 'YYYY-MM')`,
+              total: sum(salesInvoices.totalAmount),
+            })
+            .from(salesInvoices)
+            .where(
+              and(
+                eq(salesInvoices.entityId, entityId),
+                gte(salesInvoices.invoiceDate, sparklineStart),
+              ),
+            )
+            .groupBy(sql`1`),
+        [],
+      );
+      const monthlyRevenues = fillMonthlyWindow(
+        revenueRows as Array<{ month: string | null; total: string | null }>,
+        SPARKLINE_MONTHS,
+        now,
       );
 
-      const getMonthlyExpenses = async (monthsBack: number) => {
-        const results: number[] = [];
-        for (let i = monthsBack; i >= 0; i--) {
-          const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const monthEnd = new Date(
-            now.getFullYear(),
-            now.getMonth() - i + 1,
-            0,
-          );
-
-          const expensesRes = await safeQuery(
-            `expenses-month-${i}`,
-            () =>
-              db
-                .select({ total: sum(invoicesAp.totalAmount) })
-                .from(invoicesAp)
-                .where(
-                  and(
-                    eq(invoicesAp.entityId, entityId),
-                    gte(
-                      invoicesAp.invoiceDate,
-                      monthStart.toISOString().split("T")[0],
-                    ),
-                    lte(
-                      invoicesAp.invoiceDate,
-                      monthEnd.toISOString().split("T")[0],
-                    ),
-                  ),
-                ),
-            [{ total: null }],
-          );
-          results.push(parseFloat(expensesRes[0]?.total ?? "0"));
-        }
-        return results;
-      };
-
-      const monthlyExpenses = await safeQuery(
+      const expenseRows = await safeQuery(
         "monthlyExpenses",
-        () => getMonthlyExpenses(6),
-        [0, 0, 0, 0, 0, 0, 0],
+        () =>
+          db
+            .select({
+              month: sql<string>`to_char(${invoicesAp.invoiceDate}::date, 'YYYY-MM')`,
+              total: sum(invoicesAp.totalAmount),
+            })
+            .from(invoicesAp)
+            .where(
+              and(
+                eq(invoicesAp.entityId, entityId),
+                gte(invoicesAp.invoiceDate, sparklineStart),
+              ),
+            )
+            .groupBy(sql`1`),
+        [],
+      );
+      const monthlyExpenses = fillMonthlyWindow(
+        expenseRows as Array<{ month: string | null; total: string | null }>,
+        SPARKLINE_MONTHS,
+        now,
       );
 
       // ── Cash Balance Sparkline (real data from bank transactions) ──────
-      const getMonthlyNetCashFlow = async (monthsBack: number) => {
-        const results: number[] = [];
-        for (let i = monthsBack; i >= 0; i--) {
-          const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const monthEnd = new Date(
-            now.getFullYear(),
-            now.getMonth() - i + 1,
-            0,
-          );
-          const flowRes = await safeQuery(
-            `cashflow-month-${i}`,
-            () =>
-              db
-                .select({ total: sum(bankTransactions.amount) })
-                .from(bankTransactions)
-                .where(
-                  and(
-                    eq(bankTransactions.entityId, entityId),
-                    gte(
-                      bankTransactions.transactionDate,
-                      monthStart.toISOString().split("T")[0],
-                    ),
-                    lte(
-                      bankTransactions.transactionDate,
-                      monthEnd.toISOString().split("T")[0],
-                    ),
-                  ),
-                ),
-            [{ total: null }],
-          );
-          results.push(parseFloat(flowRes[0]?.total ?? "0"));
-        }
-        return results;
-      };
-
-      const monthlyCashFlows = await safeQuery(
+      // Single grouped query (was 7 per-month queries).
+      const cashFlowRows = await safeQuery(
         "monthlyCashFlows",
-        () => getMonthlyNetCashFlow(6),
-        [0, 0, 0, 0, 0, 0, 0],
+        () =>
+          db
+            .select({
+              month: sql<string>`to_char(${bankTransactions.transactionDate}::date, 'YYYY-MM')`,
+              total: sum(bankTransactions.amount),
+            })
+            .from(bankTransactions)
+            .where(
+              and(
+                eq(bankTransactions.entityId, entityId),
+                gte(bankTransactions.transactionDate, sparklineStart),
+              ),
+            )
+            .groupBy(sql`1`),
+        [],
+      );
+      const monthlyCashFlows = fillMonthlyWindow(
+        cashFlowRows as Array<{ month: string | null; total: string | null }>,
+        SPARKLINE_MONTHS,
+        now,
       );
 
       // Build sparkline backwards from current balance

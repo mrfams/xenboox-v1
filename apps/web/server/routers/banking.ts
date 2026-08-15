@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { eq, and, asc, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import {
+  eq,
+  and,
+  asc,
+  desc,
+  sql,
+  count,
+  sum,
+  gte,
+  lte,
+  inArray,
+} from "drizzle-orm";
 import {
   handleMutationError,
   router,
@@ -97,27 +108,48 @@ export const bankingRouter = router({
       limit: 10,
     });
 
-    // Get accounts with transaction counts
-    const accountsWithStats = await Promise.all(
-      accounts.map(async (account) => {
-        const txCount = await db
-          .select({ count: count() })
+    // Get accounts with transaction counts — two grouped queries instead of
+    // 2×N round-trips (N accounts × count + last-tx).
+    const accountIds = accounts.map((a) => a.id);
+
+    const txCounts = accountIds.length
+      ? await db
+          .select({
+            bankAccountId: bankTransactions.bankAccountId,
+            count: count(),
+          })
           .from(bankTransactions)
-          .where(eq(bankTransactions.bankAccountId, account.id));
-
-        const lastTx = await db.query.bankTransactions.findFirst({
-          where: eq(bankTransactions.bankAccountId, account.id),
-          orderBy: [desc(bankTransactions.transactionDate)],
-        });
-
-        return {
-          ...account,
-          transactionCount: txCount[0]?.count ?? 0,
-          lastTransactionDate: lastTx?.transactionDate ?? null,
-          maskedNumber: `**** **** **** ${account.accountNumber.slice(-4)}`,
-        };
-      }),
+          .where(inArray(bankTransactions.bankAccountId, accountIds))
+          .groupBy(bankTransactions.bankAccountId)
+      : [];
+    const countByAccount = new Map(
+      txCounts.map((r) => [r.bankAccountId, Number(r.count)]),
     );
+
+    // Last transaction date per account via DISTINCT ON (one query).
+    const lastTxRows = accountIds.length
+      ? await db
+          .selectDistinctOn([bankTransactions.bankAccountId], {
+            bankAccountId: bankTransactions.bankAccountId,
+            transactionDate: bankTransactions.transactionDate,
+          })
+          .from(bankTransactions)
+          .where(inArray(bankTransactions.bankAccountId, accountIds))
+          .orderBy(
+            desc(bankTransactions.bankAccountId),
+            desc(bankTransactions.transactionDate),
+          )
+      : [];
+    const lastTxByAccount = new Map(
+      lastTxRows.map((r) => [r.bankAccountId, r.transactionDate]),
+    );
+
+    const accountsWithStats = accounts.map((account) => ({
+      ...account,
+      transactionCount: countByAccount.get(account.id) ?? 0,
+      lastTransactionDate: lastTxByAccount.get(account.id) ?? null,
+      maskedNumber: `**** **** **** ${account.accountNumber.slice(-4)}`,
+    }));
 
     return {
       summary: {
@@ -383,26 +415,38 @@ export const bankingRouter = router({
       limit: 5,
     });
 
-    // Get account names for each transaction
-    const activities = await Promise.all(
-      recentTransactions.map(async (tx) => {
-        const account = await db.query.bankAccounts.findFirst({
-          where: eq(bankAccounts.id, tx.bankAccountId),
-          columns: { name: true, bankName: true },
-        });
+    // Get account names for each transaction — one IN query instead of N
+    // per-transaction lookups.
+    const accountIds = [
+      ...new Set(
+        recentTransactions
+          .map((tx) => tx.bankAccountId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const accountsById = accountIds.length
+      ? await db
+          .select({
+            id: bankAccounts.id,
+            name: bankAccounts.name,
+            bankName: bankAccounts.bankName,
+          })
+          .from(bankAccounts)
+          .where(inArray(bankAccounts.id, accountIds))
+      : [];
+    const accountMap = new Map(accountsById.map((a) => [a.id, a]));
 
-        return {
-          id: tx.id,
-          bankName: account?.bankName ?? "Unknown Bank",
-          accountName: account?.name ?? "Unknown Account",
-          action:
-            tx.type === "deposit"
-              ? "Transactions synced"
-              : "Statement imported",
-          date: new Date(tx.createdAt),
-        };
-      }),
-    );
+    const activities = recentTransactions.map((tx) => {
+      const account = accountMap.get(tx.bankAccountId) ?? null;
+      return {
+        id: tx.id,
+        bankName: account?.bankName ?? "Unknown Bank",
+        accountName: account?.name ?? "Unknown Account",
+        action:
+          tx.type === "deposit" ? "Transactions synced" : "Statement imported",
+        date: new Date(tx.createdAt),
+      };
+    });
 
     return activities;
   }),

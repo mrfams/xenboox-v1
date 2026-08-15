@@ -308,12 +308,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[x]` 100+ indexes defined across 67 schema files
 - `[x]` CHECK constraints for financial integrity (30+ constraints)
-- `[ ]` Analyze slow query logs — identify N+1 queries
+- `[x]` Analyze slow query logs — identify N+1 queries — **N+1 audit done (Aug 15, 2026): dashboard sparklines were 21 sequential per-month queries (3 series × 7) → 3 single GROUP BY-month queries; banking.getOverview was 2×N account queries (count + last-tx per account) → grouped count + DISTINCT ON last-tx; banking recent-activity was N per-transaction account lookups → 1 IN query. Reports router verified already batched (inArray lines + accountMap, no N+1).**
 - [x]` Entity scoping on all queries — prevents full table scans
-- `[ ]` Add connection pooling (currently using Neon's built-in pooling)
-- `[ ]` Set up query performance monitoring
-- `[ ]` Analyze and optimize the largest router queries (dashboard: 994 lines, banking: 798 lines)
-- `[ ]` Consider materialized views for complex aggregations (trial balance, aging reports)
+- `[ ]` Add connection pooling (currently using Neon's built-in pooling) — **Neon pooler already in use (§17.1); app-side pooling documented there**
+- `[ ]` Set up query performance monitoring — **slow-query alerts in the APM once configured (§2.2)**
+- `[x]` Analyze and optimize the largest router queries (dashboard: 994 lines, banking: 798 lines) — **done: N+1 elimination above (dashboard 21→3, banking 2N→2 and N→1); remaining per-router work is feature scope, not hot-path queries**
+- `[ ]` Consider materialized views for complex aggregations (trial balance, aging reports) — **deferred: aggregation queries currently bounded and indexed; revisit at >10K rows/entity (§17.5)**
 
 ### 4.4 Bundle Size Optimization
 
