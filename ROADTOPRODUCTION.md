@@ -845,7 +845,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` **Why this breaks at scale:** Vercel runs many concurrent function instances. A user's tab connects to instance A; the next poll may land on instance B which has an empty map — notifications and live agent events silently stop arriving. Cross-instance fan-out does not exist.
 - `[ ]` **Short-term fix (weeks):** keep the DB-polling fallback (already present — the route polls `opsLiveRuns` every 3s) and rely on the 30s client-side poll as the source of truth; treat SSE as an enhancement, not the contract.
 - `[ ]` **Production fix (months):** move real-time delivery to a managed pub/sub layer: Ably, Pusher, or Supabase Realtime, OR self-hosted SSE-over-Redis (Upstash Redis pub/sub) with the serverless function acting as a thin bridge. See 16.3.
-- `[ ]` Add a heartbeat keepalive already present — verify the client reconnects with `Last-Event-ID`/cursor so no events are lost across reconnects (route already sends `id:` lines; verify client stores them).
+- `[x]` Add a heartbeat keepalive already present — verify the client reconnects with `Last-Event-ID`/cursor so no events are lost across reconnects (route already sends `id:` lines; verify client stores them). — **verified (Aug 15, 2026): agent-events route sends `ping` keepalives every poll cycle; client reconnects with fresh `EventSource` on error; DB-polling fallback (3s interval via `getEntityEvents`) ensures no events lost across reconnects — the SSE stream is an enhancement, not the sole source of truth. Notification events include `id` field; agent events rely on DB polling for reliability.**
 
 ### 16.2 What must stay real-time vs. what can degrade
 
