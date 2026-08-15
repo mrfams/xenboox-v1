@@ -149,7 +149,7 @@ export function PrivacySection() {
             {[
               {
                 type: "Account data",
-                retention: "Kept while account is active + 30 days",
+                retention: "Kept while account is active + 90 days",
                 icon: Shield,
               },
               {
@@ -164,7 +164,7 @@ export function PrivacySection() {
               },
               {
                 type: "Session data",
-                retention: "30 days after logout",
+                retention: "90 days after logout",
                 icon: Shield,
               },
             ].map((item) => {

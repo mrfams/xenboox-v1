@@ -665,7 +665,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - [x]` Privacy Policy — comprehensive, 11 sections, GDPR-style rights
 - [x]` SLA — 99.9% uptime commitment, service credits
 - [x]` Refund Policy — monthly/annual/enterprise terms
-- `[ ]` Data retention inconsistency (30 vs 90 days) — needs reconciliation
+- `[x]` Data retention inconsistency (30 vs 90 days) — needs reconciliation — **fixed (Aug 15, 2026): pricing/terms/refund pages already said 90 days; settings privacy-section.tsx said 30 days — updated to 90 days for account data + session data to match marketing/legal pages**
 
 ### 11.2 Compliance
 
