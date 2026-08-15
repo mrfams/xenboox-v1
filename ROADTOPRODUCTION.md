@@ -802,9 +802,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 15.3 SEO
 
-- [x]` `robots.ts`— disallows`/dashboard/`, `/admin/`, `/api/`
-- [~]` `sitemap.ts` — only static pages, missing blog/docs
-- `[ ]` Auth pages in sitemap (no SEO value)
+- `[x]` `robots.ts` — disallows `/dashboard/`, `/admin/`, `/api/`
+- `[x]` `sitemap.ts` — **updated (Aug 15, 2026): removed auth pages (`/login`, `/register`, `/forgot-password`) with no SEO value; added all 47 static docs pages (agents, modules, quickstart, security, webhooks, etc.)**
+- `[x]` Auth pages in sitemap (no SEO value) — **removed: `/login`, `/register`, `/forgot-password` excluded from sitemap** (Aug 15, 2026)
 - `[ ]` Missing OpenGraph image verification (`/og-image.png`)
 - `[ ]` No structured data (JSON-LD) for marketing pages
 - `[ ]` No Google Search Console verification
