@@ -15,6 +15,7 @@ declare module "expo-router" {
             pathname: Router.ExternalPathString;
             params?: Router.UnknownInputParams;
           }
+        | { pathname: `/notifications`; params?: Router.UnknownInputParams }
         | { pathname: `/_sitemap`; params?: Router.UnknownInputParams }
         | {
             pathname: `${"/(auth)"}/forgot-password` | `/forgot-password`;
@@ -138,6 +139,7 @@ declare module "expo-router" {
             pathname: Router.ExternalPathString;
             params?: Router.UnknownOutputParams;
           }
+        | { pathname: `/notifications`; params?: Router.UnknownOutputParams }
         | { pathname: `/_sitemap`; params?: Router.UnknownOutputParams }
         | {
             pathname: `${"/(auth)"}/forgot-password` | `/forgot-password`;
@@ -258,6 +260,7 @@ declare module "expo-router" {
       href:
         | Router.RelativePathString
         | Router.ExternalPathString
+        | `/notifications${`?${string}` | `#${string}` | ""}`
         | `/_sitemap${`?${string}` | `#${string}` | ""}`
         | `${"/(auth)"}/forgot-password${`?${string}` | `#${string}` | ""}`
         | `/forgot-password${`?${string}` | `#${string}` | ""}`
@@ -311,6 +314,7 @@ declare module "expo-router" {
             pathname: Router.ExternalPathString;
             params?: Router.UnknownInputParams;
           }
+        | { pathname: `/notifications`; params?: Router.UnknownInputParams }
         | { pathname: `/_sitemap`; params?: Router.UnknownInputParams }
         | {
             pathname: `${"/(auth)"}/forgot-password` | `/forgot-password`;

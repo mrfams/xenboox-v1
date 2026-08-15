@@ -480,8 +480,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[~]` Notification permission flow and token registration exists — `lib/notifications.tsx`
 - `[~]` Push token sent to backend via `trpc.auth.updatePushToken`
 - `[x]` `configurePushNotifications()` — **fixed: now called inside `setupNotifications()` with deep linking** (Aug 12, 2026)
-- `[ ]` No notification list screen in the UI
-- `[ ]` No badge count display
+- `[x]` No notification list screen in the UI — **implemented: `apps/mobile/app/notifications.tsx` — unread highlighting, mark-as-read on tap, mark-all-as-read in header, pull-to-refresh, empty state** (Aug 15, 2026)
+- `[x]` No badge count display — **implemented: bell icon with live unread-count badge (9+ cap) on the dashboard header, deep-links to the notifications screen** (Aug 15, 2026)
 - `[x]` Deep linking from notifications — **fixed: notification listener now opens URLs via `Linking.openURL()`** (Aug 12, 2026)
 
 ### 7.3 Error Handling
@@ -528,8 +528,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` No onboarding/welcome flow
 - `[ ]` No search functionality (web has Cmd+K command palette)
 - `[ ]` No keyboard shortcuts
-- `[ ]` `lib/api.ts` `apiFetch()` defined but unused
-- `[ ]` `constants/theme.ts` exports Colors/Spacing/BorderRadius/FontSize but never imported
+- `[x]` `lib/api.ts` `apiFetch()` defined but unused — **removed: dead code (mobile uses the tRPC client + read-cache link)** (Aug 15, 2026)
+- `[x]` `constants/theme.ts` exports Colors/Spacing/BorderRadius/FontSize but never imported — **removed: design tokens already live in `tailwind.config.js` via NativeWind** (Aug 15, 2026)
 
 ---
 

@@ -1,4 +1,6 @@
-import { View, ScrollView, RefreshControl } from "react-native";
+import { View, ScrollView, RefreshControl, Pressable } from "react-native";
+import { useRouter } from "expo-router";
+import { Bell } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Header } from "@/components/layout/header";
@@ -6,6 +8,36 @@ import { trpc } from "@/lib/trpc";
 import { useState, useCallback } from "react";
 import { ErrorComponent } from "@/components/error-component";
 import { ScreenSkeleton } from "@/components/ui/skeleton";
+import { useNotifications } from "@/lib/notifications";
+
+function NotificationBell() {
+  const router = useRouter();
+  const { unreadCount } = useNotifications();
+
+  return (
+    <Pressable
+      onPress={() => router.push("/notifications")}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={
+        unreadCount > 0
+          ? `Notifications, ${unreadCount} unread`
+          : "Notifications"
+      }
+    >
+      <View className="relative">
+        <Bell size={22} color="#2563eb" />
+        {unreadCount > 0 && (
+          <View className="absolute -right-1.5 -top-1.5 min-w-[18px] items-center rounded-full bg-red-500 px-1">
+            <Text variant="caption" className="text-[10px] text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </Text>
+          </View>
+        )}
+      </View>
+    </Pressable>
+  );
+}
 
 function StatCard({
   title,
@@ -55,7 +87,7 @@ export default function DashboardScreen() {
   if (error) {
     return (
       <View className="flex-1 bg-white dark:bg-slate-900">
-        <Header title="Dashboard" />
+        <Header title="Dashboard" rightAction={<NotificationBell />} />
         <ErrorComponent message={error.message} onRetry={refetch} />
       </View>
     );
@@ -63,7 +95,7 @@ export default function DashboardScreen() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-900">
-      <Header title="Dashboard" />
+      <Header title="Dashboard" rightAction={<NotificationBell />} />
 
       <ScrollView
         className="flex-1"
