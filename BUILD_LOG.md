@@ -6,6 +6,21 @@
 
 ---
 
+### [2026-08-15] — ESLint auto-fix sweep + stale markers cleanup (§12.2, §12.4)
+
+**Agent:** Kilo
+**Files Modified:** `apps/web/scripts/cleanup-test-data.mjs`, `apps/web/scripts/investigate-drift.mjs`, 155 source/test files (import ordering, unused var prefixes), `ROADTOPRODUCTION.md`
+
+1. **ESLint --fix sweep** — reduced web package problems from 1012 (2 errors, 1010 warnings) to 543 (0 errors, 543 warnings):
+   - Fixed 2 `no-empty` errors in `.mjs` scripts (empty `catch {}` blocks)
+   - Auto-fixed 470 warnings: import group ordering, unused variable prefixes (`_`)
+2. **Stale ROADTOPRODUCTION markers** — marked §1.10 password complexity + concurrent session limits `[x]` (already implemented, just not documented); marked §12.2/§12.4 with audit results.
+3. **Web-only scope** — added `Active Work Scope: Web only` instruction to ROADTOPRODUCTION.md header.
+
+**Verification:** ESLint 0 errors / 543 warnings remaining (all `any` types + test-file unused vars).
+
+---
+
 ### [2026-08-15] — Dependabot auto-PR + exact version pinning (§20.5)
 
 **Agent:** Kilo
