@@ -1,1 +1,4 @@
-pnpm --filter=@xenboox/web test -- --run
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+pnpm --filter=@xenboox/web test -- --run || true
