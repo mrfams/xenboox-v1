@@ -6,6 +6,7 @@
 // DNS-rebinding, and the content-type carve-outs.
 
 import { describe, it, expect } from "vitest";
+
 import { validateOrigin } from "@/lib/security/origin";
 
 // Duck-typed request: validateOrigin only reads req.headers.get(). Using a

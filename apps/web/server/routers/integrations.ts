@@ -7,12 +7,6 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
   bankConnections,
@@ -21,6 +15,13 @@ import {
   csvMappings,
 } from "@xenboox/db/schema/integrations";
 import { entities } from "@xenboox/db/schema/organization";
+
+import { db } from "@/lib/db";
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+} from "@/lib/trpc/server";
 import { tenantJobOptions, triggerClient } from "@/lib/trigger";
 
 // ─── CSV Mapping Helpers ───────────────────────────────────────────────────

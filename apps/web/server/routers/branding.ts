@@ -4,13 +4,16 @@
 // Core constraint: white-labeling changes presentation only, never data
 // isolation, RBAC, or agent behavior.
 
+import crypto from "crypto";
+
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 import { firmBrandingConfig, customDomains } from "@xenboox/db/schema";
 import { entities, organizations } from "@xenboox/db/schema/organization";
 import { auditLog } from "@xenboox/db/schema/documents";
+
+import { db } from "@/lib/db";
 import {
   handleMutationError,
   router,
@@ -18,7 +21,6 @@ import {
   mutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
-import crypto from "crypto";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 

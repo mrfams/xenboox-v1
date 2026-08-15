@@ -11,13 +11,14 @@ import {
 } from "@xenboox/db/schema/expense";
 import { runExpensePipeline, getExpenseStatus } from "@xenboox/agents";
 import type { ClaimSource } from "@xenboox/agents";
+import { entities } from "@xenboox/db/schema/organization";
+
 import {
   router,
   protectedProcedure,
   mutateProcedure,
   requireRole,
 } from "../../lib/trpc/server";
-import { entities } from "@xenboox/db/schema/organization";
 
 // ─── Expense Router ─────────────────────────────────────────────────────
 

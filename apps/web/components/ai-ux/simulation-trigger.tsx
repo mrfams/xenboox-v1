@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 
-import { useSimulation } from "@/lib/ai-ux/simulation-provider";
 import { SimulationOverlay } from "./simulation-overlay";
 
+import { useSimulation } from "@/lib/ai-ux/simulation-provider";
 import { cn } from "@/lib/utils";
 
 type Variant = "primary" | "outline" | "ghost" | "inverse";

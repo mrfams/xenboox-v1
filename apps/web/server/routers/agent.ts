@@ -1,18 +1,19 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-} from "@/lib/trpc/server";
-import { logger } from "@/lib/logger";
-import {
   processChatInput,
   seedDefaultThresholds,
   runCFOPipeline,
   createInputEvent,
 } from "@xenboox/agents/core/pipeline";
 import type { AgentTaskType } from "@xenboox/agents/core/orchestrator";
+
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+} from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 
 const agentTaskTypeSchema = z.enum([

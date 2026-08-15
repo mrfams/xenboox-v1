@@ -13,6 +13,7 @@ import {
   useAiUxSimulation,
   type UseAiUxSimulationResult,
 } from "./use-ai-ux-simulation";
+
 import { SimulationOverlay } from "@/components/ai-ux/simulation-overlay";
 import { AgentsAtWorkPill } from "@/components/ai-ux/agents-at-work-pill";
 

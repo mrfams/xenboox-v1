@@ -7,6 +7,7 @@
 // sandbox, React escaping, CSP) are additional, independent defenses.
 
 import { describe, it, expect } from "vitest";
+
 import {
   sanitizeHTML,
   sanitizeText,

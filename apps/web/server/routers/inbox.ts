@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum } from "drizzle-orm";
-import { router, protectedProcedure } from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import {
   journalEntries,
   invoicesAp,
@@ -14,6 +12,9 @@ import {
   auditLog,
   agentRoutingLogs,
 } from "@xenboox/db/schema";
+
+import { router, protectedProcedure } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
 
 // ─── Inbox Router ──────────────────────────────────────────────────────────
 

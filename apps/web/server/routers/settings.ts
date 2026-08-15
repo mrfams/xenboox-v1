@@ -1,6 +1,6 @@
+import { createHash, randomBytes } from "crypto";
+
 import { z } from "zod";
-import { router, protectedProcedure } from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { entitySettings } from "@xenboox/db/schema/entity-settings";
 import { users } from "@xenboox/db/schema/auth";
@@ -25,8 +25,10 @@ import {
   bankTransactions,
 } from "@xenboox/db/schema";
 import { employees, payrollRuns } from "@xenboox/db/schema/payroll";
+
+import { db } from "@/lib/db";
+import { router, protectedProcedure } from "@/lib/trpc/server";
 import { handleMutationError } from "@/lib/trpc/server";
-import { createHash, randomBytes } from "crypto";
 
 export const settingsRouter = router({
   // ─── Profile ──────────────────────────────────────────────────────────────

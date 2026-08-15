@@ -9,6 +9,7 @@
 //       Trial Balance (verify balanced) → Bank Transaction → Reconcile → Close
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import { db } from "@/lib/db";
 
 // ── Database Mock ──────────────────────────────────────────────────────────

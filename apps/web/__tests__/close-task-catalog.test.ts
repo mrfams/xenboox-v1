@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-
 import {
   CLOSE_PHASES,
   DEFAULT_CLOSE_TASKS,

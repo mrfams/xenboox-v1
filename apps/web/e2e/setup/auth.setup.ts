@@ -1,6 +1,7 @@
-import { test as setup, expect } from "@playwright/test";
 import fs from "fs";
 import path from "path";
+
+import { test as setup, expect } from "@playwright/test";
 
 const TEST_EMAIL = process.env.TEST_EMAIL || "demo@xenboox.com";
 const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo1234";

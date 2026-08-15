@@ -1,11 +1,4 @@
 import { z } from "zod";
-import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-  adminProcedure,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
   modelAssignments,
@@ -20,6 +13,14 @@ import {
   runGate4,
   rollbackModel,
 } from "@xenboox/agents";
+
+import { db } from "@/lib/db";
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+  adminProcedure,
+} from "@/lib/trpc/server";
 
 // ─── Schemas ────────────────────────────────────
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+
 import { Button } from "@/components/ui";
 
 const CONSENT_KEY = "xenboox-cookie-consent";

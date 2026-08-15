@@ -12,14 +12,6 @@ import {
   inArray,
 } from "drizzle-orm";
 import {
-  handleMutationError,
-  router,
-  rlsMutateProcedure,
-  rlsProtectedProcedure,
-  requirePermission,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
-import {
   bankAccounts,
   bankTransactions,
   bankConnections,
@@ -28,6 +20,15 @@ import {
   statementLines,
   auditLog,
 } from "@xenboox/db/schema";
+
+import {
+  handleMutationError,
+  router,
+  rlsMutateProcedure,
+  rlsProtectedProcedure,
+  requirePermission,
+} from "@/lib/trpc/server";
+import { db } from "@/lib/db";
 
 // ─── Banking Router ────────────────────────────────────────────────────────
 

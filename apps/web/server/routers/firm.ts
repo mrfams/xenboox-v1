@@ -16,7 +16,6 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { clientEngagements, firmDashboardSnapshots } from "@xenboox/db/schema";
 import {
@@ -29,6 +28,8 @@ import { salesInvoices, invoicesAp } from "@xenboox/db/schema/ap-ar";
 import { bankAccounts, bankTransactions } from "@xenboox/db/schema/treasury";
 import { journalEntries } from "@xenboox/db/schema/accounting";
 import { consolidationRuns } from "@xenboox/db/schema/consolidation";
+import { withRetry, withTimeout, redactPIIFromObject } from "@xenboox/agents"; // ─── Helpers ──────────────────────────────────────────────────────────
+
 import {
   handleMutationError,
   router,
@@ -36,7 +37,7 @@ import {
   mutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
-import { withRetry, withTimeout, redactPIIFromObject } from "@xenboox/agents"; // ─── Helpers ──────────────────────────────────────────────────────────
+import { db } from "@/lib/db";
 
 /** Compute health status from dashboard snapshot fields */
 function computeHealthStatus(snapshot: {

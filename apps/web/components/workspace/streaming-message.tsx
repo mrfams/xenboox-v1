@@ -2,13 +2,13 @@
 
 import { Bot, ThumbsUp, ThumbsDown, Copy } from "lucide-react";
 
-import type { ThinkingEvent, ToolTrace } from "@/lib/hooks/use-streaming-chat";
-
 import { RichMessageRenderer } from "./rich-message-renderer";
 import { AgentActivityBlock } from "./agent-activity-block";
 import { ThinkingReveal } from "./thinking-reveal";
 import { DocumentCard, type ArtifactCardItem } from "./document-card";
 import { ApprovalPrompt } from "./approval-prompt";
+
+import type { ThinkingEvent, ToolTrace } from "@/lib/hooks/use-streaming-chat";
 
 interface StreamingMessageProps {
   content: string;

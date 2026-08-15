@@ -17,8 +17,8 @@ import { journalEntries, chartOfAccounts } from "@xenboox/db/schema/accounting";
 import { salesInvoices, invoicesAp } from "@xenboox/db/schema/ap-ar";
 import { customers, suppliers } from "@xenboox/db/schema/ap-ar";
 import { bankAccounts, bankTransactions } from "@xenboox/db/schema/treasury";
-import { logger } from "@/lib/logger";
 
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 

@@ -36,12 +36,13 @@ vi.mock("@/lib/logger", () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+import { sessions } from "@xenboox/db/schema/auth";
+import { adminSessions } from "@xenboox/db/schema/admin";
+
 import {
   revokeUserSessions,
   revokeAdminSessions,
 } from "@/lib/auth/session-revocation";
-import { sessions } from "@xenboox/db/schema/auth";
-import { adminSessions } from "@xenboox/db/schema/admin";
 
 function chunkCount(expr: unknown): number {
   return (expr as { queryChunks: unknown[] }).queryChunks.length;

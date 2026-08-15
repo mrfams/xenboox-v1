@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { router, adminProcedure } from "@/lib/trpc/server";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import {
   customerIssues,
@@ -11,6 +10,8 @@ import {
   diagnosticsInsights,
 } from "@xenboox/db/schema";
 import { db } from "@xenboox/db";
+
+import { router, adminProcedure } from "@/lib/trpc/server";
 
 export const customerDiagnosticsRouter = router({
   // Get dashboard overview with KPIs and all data

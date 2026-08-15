@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { Building2, Loader2, AlertCircle } from "lucide-react";
 
-import { trpc } from "@/lib/trpc/client";
-import { useEntity } from "@/lib/entity-context";
 import {
   CreateRecordModal,
   modalInputCls,
   modalLabelCls,
   modalSelectCls,
 } from "./create-record-modal";
+
+import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
 
 interface CreateBankAccountDialogProps {
   open: boolean;

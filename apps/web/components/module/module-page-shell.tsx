@@ -5,9 +5,9 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { ModulePageCopilot } from "./module-page-copilot";
 import type { ModulePageShellProps } from "./module-page-shell.types";
+import { ModuleAiProvider, useModuleAi } from "./module-ai-context";
 
 import type { PageContextPayload } from "@/lib/chat/page-context";
-import { ModuleAiProvider, useModuleAi } from "./module-ai-context";
 import { cn } from "@/lib/utils";
 
 /**

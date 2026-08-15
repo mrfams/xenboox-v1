@@ -67,9 +67,10 @@ vi.mock("@/lib/logger", () => ({
   },
 }));
 
+import { idempotencyKeys } from "@xenboox/db/schema";
+
 import { claimWebhookEvent } from "@/lib/webhooks/dedup";
 import { db } from "@/lib/db";
-import { idempotencyKeys } from "@xenboox/db/schema";
 import { POST as monoPOST } from "@/app/api/webhooks/mono/route";
 import { POST as emailPOST } from "@/app/api/webhooks/email/route";
 

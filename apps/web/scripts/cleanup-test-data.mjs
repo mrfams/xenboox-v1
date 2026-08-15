@@ -9,11 +9,11 @@ const candidates = [
 ];
 let env = "";
 for (const p of candidates) {
-  try {
-    if (!existsSync(p)) continue;
-    env = readFileSync(p, "utf8");
-    if (env.includes("DATABASE_URL")) break;
-  } catch {}
+   try {
+     if (!existsSync(p)) continue;
+     env = readFileSync(p, "utf8");
+     if (env.includes("DATABASE_URL")) break;
+   } catch { /* ignore unreadable env files */ }
 }
 const line = env.split("\n").find((l) => l.trim().startsWith("DATABASE_URL="));
 const url = line.slice(line.indexOf("=") + 1).trim().replace(/^"|"$/g, "").replace(/;$/, "");

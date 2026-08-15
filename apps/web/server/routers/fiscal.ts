@@ -1,12 +1,5 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-  requireRole,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { entities } from "@xenboox/db/schema/organization";
@@ -17,12 +10,20 @@ import {
   journalEntryLines,
 } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
-import { tenantJobOptions, triggerClient } from "@/lib/trigger";
-import { cachedDomain } from "@/lib/cache/tenant-cache";
 import {
   executeClosePipeline,
   getCloseStatus,
 } from "@xenboox/agents/core/close-pipeline";
+
+import { tenantJobOptions, triggerClient } from "@/lib/trigger";
+import { cachedDomain } from "@/lib/cache/tenant-cache";
+import { db } from "@/lib/db";
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+  requireRole,
+} from "@/lib/trpc/server";
 
 // Fiscal periods change rarely (created annually); a 60s entity-scoped cache
 // makes the calendar widget's repeated reads free while never going stale

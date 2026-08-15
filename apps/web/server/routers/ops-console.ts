@@ -1,6 +1,4 @@
 import { z } from "zod";
-import { router, adminProcedure } from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, sql, count, gte, lte } from "drizzle-orm";
 import {
   opsSystemHealth,
@@ -12,6 +10,9 @@ import {
 } from "@xenboox/db/schema/ops-console";
 import { organizations } from "@xenboox/db/schema/organization";
 import { users } from "@xenboox/db/schema/auth";
+
+import { db } from "@/lib/db";
+import { router, adminProcedure } from "@/lib/trpc/server";
 
 // ─── Helper: compute date range strings ─────────────────────────────────────
 

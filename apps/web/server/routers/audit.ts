@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { eq, desc, asc, and, or, gte, lte, like, sql } from "drizzle-orm";
+import { auditLog } from "@xenboox/db/schema/documents";
+
 import {
   handleMutationError,
   router,
@@ -7,8 +10,6 @@ import {
   requireRole,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { eq, desc, asc, and, or, gte, lte, like, sql } from "drizzle-orm";
-import { auditLog } from "@xenboox/db/schema/documents";
 import { verifyChain, type ChainEvent } from "@/lib/audit/chain";
 import { rowToChainPayload } from "@/lib/audit/backfill";
 

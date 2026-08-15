@@ -1,16 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
 import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-  rlsMutateProcedure,
-  requireRole,
-  requirePermission,
-} from "@/lib/trpc/server";
-import { logger } from "@/lib/logger";
-import { db } from "@/lib/db";
-import {
   suppliers,
   purchaseOrders,
   poLines,
@@ -20,14 +10,25 @@ import {
   auditLog,
 } from "@xenboox/db/schema";
 import { TRPCError } from "@trpc/server";
-import { sendPaymentSentEmail } from "@/lib/email";
-import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
-import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 import {
   validateInvoice,
   logTrustGuardResult,
   trustGuardToError,
 } from "@xenboox/agents";
+
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
+  requireRole,
+  requirePermission,
+} from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
+import { db } from "@/lib/db";
+import { sendPaymentSentEmail } from "@/lib/email";
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
+import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 
 // ─── AP Router ───────────────────────────────────────────────────────────────
 

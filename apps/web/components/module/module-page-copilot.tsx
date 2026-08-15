@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bot, ChevronRight, Send, Sparkles, X } from "lucide-react";
 
+import type { FocusRequest } from "./module-ai-context";
+
 import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
 import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
 import { StreamingMessage } from "@/components/workspace/streaming-message";
 import type { PageContextPayload, PageFocus } from "@/lib/chat/page-context";
-import type { FocusRequest } from "./module-ai-context";
 
 type Suggestion = { label: string; prompt: string };
 

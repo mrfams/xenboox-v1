@@ -10,9 +10,10 @@
  */
 
 import { eq, and, ne } from "drizzle-orm";
-import { db } from "@/lib/db";
 import { sessions } from "@xenboox/db/schema/auth";
 import { adminSessions } from "@xenboox/db/schema/admin";
+
+import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
 /**

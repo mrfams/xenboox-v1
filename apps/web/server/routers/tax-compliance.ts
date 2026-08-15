@@ -13,10 +13,11 @@ import {
   runTaxCompliancePipeline,
   getTaxComplianceStatus,
 } from "@xenboox/agents";
-import { aggregate1099 } from "@/lib/accounting/estimates";
 import { entities } from "@xenboox/db/schema/organization";
 
 import { router, protectedProcedure, requireRole } from "../../lib/trpc/server";
+
+import { aggregate1099 } from "@/lib/accounting/estimates";
 
 // ─── Tax & Compliance Router ────────────────────────────────────────────
 

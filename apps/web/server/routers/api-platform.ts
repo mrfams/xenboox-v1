@@ -3,9 +3,10 @@
 // External API access for Pro/Firm tier organizations.
 // Management endpoints for API keys, webhooks, and usage monitoring.
 
+import crypto from "crypto";
+
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, count, gte, inArray } from "drizzle-orm";
 import {
   apiKeys,
@@ -16,6 +17,8 @@ import {
 } from "@xenboox/db/schema";
 import { organizations } from "@xenboox/db/schema/organization";
 import { auditLog } from "@xenboox/db/schema/documents";
+import { entities } from "@xenboox/db/schema/organization";
+
 import {
   handleMutationError,
   router,
@@ -23,8 +26,7 @@ import {
   mutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
-import crypto from "crypto";
-import { entities } from "@xenboox/db/schema/organization";
+import { db } from "@/lib/db";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 

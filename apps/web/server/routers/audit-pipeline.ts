@@ -11,8 +11,9 @@ import {
   auditorQueries,
 } from "@xenboox/db/schema/audit-pipeline";
 import { runAuditPipeline, getAuditStatus } from "@xenboox/agents";
-import { router, rlsProtectedProcedure, requireRole } from "@/lib/trpc/server";
 import { entities } from "@xenboox/db/schema/organization";
+
+import { router, rlsProtectedProcedure, requireRole } from "@/lib/trpc/server";
 
 // ─── Audit Pipeline Router ──────────────────────────────────────────────
 

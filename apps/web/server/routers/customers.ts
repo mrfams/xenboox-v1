@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import { customers, salesInvoices, paymentsAr } from "@xenboox/db/schema";
+
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { customers, salesInvoices, paymentsAr } from "@xenboox/db/schema";
 
 // ─── Customers Router ──────────────────────────────────────────────────────
 

@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { BookOpen, Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
 
-import { trpc } from "@/lib/trpc/client";
 import {
   CreateRecordModal,
   modalInputCls,
   modalLabelCls,
   modalSelectCls,
 } from "./create-record-modal";
+
+import { trpc } from "@/lib/trpc/client";
 
 interface CreateJournalEntryDialogProps {
   open: boolean;

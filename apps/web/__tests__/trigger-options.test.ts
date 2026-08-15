@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+
 import { tenantJobOptions } from "@/lib/trigger";
 
 describe("tenantJobOptions", () => {

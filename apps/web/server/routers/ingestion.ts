@@ -8,14 +8,6 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import {
-  handleMutationError,
-  router,
-  rlsMutateProcedure,
-  rlsProtectedProcedure,
-} from "@/lib/trpc/server";
-import { logger } from "@/lib/logger";
-import { db } from "@/lib/db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import {
   documents,
@@ -36,6 +28,15 @@ import {
 } from "@xenboox/ingestion";
 import { postJournalEntry } from "@xenboox/ingestion/engine/journal-generator";
 import { propagatePosting } from "@xenboox/ingestion/engine/propagation";
+
+import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import {
+  handleMutationError,
+  router,
+  rlsMutateProcedure,
+  rlsProtectedProcedure,
+} from "@/lib/trpc/server";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

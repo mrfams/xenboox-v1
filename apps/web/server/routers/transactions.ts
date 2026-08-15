@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import {
   bankTransactions,
   bankAccounts,
@@ -9,6 +7,9 @@ import {
   journalEntryLines,
   chartOfAccounts,
 } from "@xenboox/db/schema";
+
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
 
 // ─── Transactions Router ───────────────────────────────────────────────────
 

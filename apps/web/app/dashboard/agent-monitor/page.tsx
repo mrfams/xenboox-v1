@@ -1,6 +1,7 @@
 "use client";
 
 import { Activity, Bot, Clock, AlertTriangle, TrendingUp } from "lucide-react";
+
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 
 export default function AgentMonitorPage() {

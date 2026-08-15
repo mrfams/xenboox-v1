@@ -12,7 +12,6 @@ import {
   ParentBasedSampler,
   TraceIdRatioBasedSampler,
 } from "@opentelemetry/sdk-trace-base";
-
 import {
   isOtelEnabled,
   resolveSampler,

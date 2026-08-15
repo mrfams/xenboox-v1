@@ -1,6 +1,20 @@
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import {
+  customers,
+  salesInvoices,
+  salesInvoiceLines,
+  paymentsAr,
+  auditLog,
+} from "@xenboox/db/schema";
+import { TRPCError } from "@trpc/server";
+import {
+  validateInvoice,
+  logTrustGuardResult,
+  trustGuardToError,
+} from "@xenboox/agents";
+
+import {
   handleMutationError,
   router,
   rlsProtectedProcedure,
@@ -10,22 +24,9 @@ import {
 } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
-import {
-  customers,
-  salesInvoices,
-  salesInvoiceLines,
-  paymentsAr,
-  auditLog,
-} from "@xenboox/db/schema";
-import { TRPCError } from "@trpc/server";
 import { sendPaymentReceivedEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
-import {
-  validateInvoice,
-  logTrustGuardResult,
-  trustGuardToError,
-} from "@xenboox/agents";
 
 // ─── AR Router ───────────────────────────────────────────────────────────────
 

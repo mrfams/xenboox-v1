@@ -9,9 +9,10 @@
  */
 
 import { z } from "zod";
+import { auditLog } from "@xenboox/db/schema/documents";
+
 import { router, adminProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { auditLog } from "@xenboox/db/schema/documents";
 import {
   getSsoSettings,
   isSsoEnabled,

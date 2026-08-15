@@ -2,15 +2,6 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
 import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-  rlsMutateProcedure,
-  requirePermission,
-} from "@/lib/trpc/server";
-import { logger } from "@/lib/logger";
-import { db } from "@/lib/db";
-import {
   employees,
   employeeContracts,
   payrollRuns,
@@ -20,10 +11,20 @@ import {
   staffLoans,
   auditLog,
 } from "@xenboox/db/schema";
-import { sendEmployeeCreatedEmail } from "@/lib/email";
-import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { runPayrollPipeline, getPayrollStatus } from "@xenboox/agents";
 import type { ExceptionIntakeItem } from "@xenboox/agents";
+
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
+  requirePermission,
+} from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
+import { db } from "@/lib/db";
+import { sendEmployeeCreatedEmail } from "@/lib/email";
+import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 
 // ─── Payroll Router ────────────────────────────────────────────────────────

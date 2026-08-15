@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { CalendarClock, Loader2, AlertCircle } from "lucide-react";
 
-import { trpc } from "@/lib/trpc/client";
 import {
   CreateRecordModal,
   modalInputCls,
   modalLabelCls,
 } from "./create-record-modal";
+
+import { trpc } from "@/lib/trpc/client";
 
 interface CreatePayrollRunDialogProps {
   open: boolean;

@@ -19,6 +19,7 @@ import {
   FileCheck2,
   Scale,
 } from "lucide-react";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";

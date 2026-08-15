@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { conversations, chatMessages, documents } from "@xenboox/db/schema";
 import { processChatInput, type PipelineStepEvent } from "@xenboox/agents";
+import { redactPii } from "@xenboox/agents/core/security/injection-defense";
 
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -14,7 +15,6 @@ import {
   buildPageContextBlock,
   type PageContextPayload,
 } from "@/lib/chat/page-context";
-import { redactPii } from "@xenboox/agents/core/security/injection-defense";
 
 export const runtime = "nodejs";
 // §17.6 — chat routes run full agent pipelines (LLM + tool calls) and can

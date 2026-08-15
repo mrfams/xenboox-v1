@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, inArray, isNull } from "drizzle-orm";
 import {
   consolidationRuns,
@@ -20,6 +19,8 @@ import {
   createEntityRelationship,
   listEntityRelationships,
 } from "@xenboox/agents";
+
+import { db } from "@/lib/db";
 import {
   handleMutationError,
   router,

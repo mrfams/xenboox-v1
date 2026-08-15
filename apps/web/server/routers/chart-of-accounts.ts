@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, gte } from "drizzle-orm";
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import {
   chartOfAccounts,
   journalEntryLines,
   auditLog,
 } from "@xenboox/db/schema";
+
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
 
 // ─── Chart of Accounts Router ──────────────────────────────────────────────
 

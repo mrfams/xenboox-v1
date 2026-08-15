@@ -1,13 +1,5 @@
 import { z } from "zod";
 import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
-import {
-  router,
-  rlsProtectedProcedure,
-  rlsMutateProcedure,
-  requirePermission,
-  handleMutationError,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import { closePeriods, closeTasks } from "@xenboox/db/schema";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
@@ -17,6 +9,15 @@ import {
   dueDateForPeriod,
   type CloseTaskPhase,
 } from "@xenboox/db/seed/close-task-catalog";
+
+import { db } from "@/lib/db";
+import {
+  router,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
+  requirePermission,
+  handleMutationError,
+} from "@/lib/trpc/server";
 
 const PERIOD_REGEX = /^\d{4}-\d{2}$/;
 

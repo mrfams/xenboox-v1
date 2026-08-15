@@ -1,12 +1,5 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import {
-  handleMutationError,
-  router,
-  publicProcedure,
-  protectedProcedure,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 import { users, sessions, verificationTokens } from "@xenboox/db/schema/auth";
 import { entities, userEntityAccess } from "@xenboox/db/schema/organization";
@@ -28,8 +21,16 @@ function getAppUrl(): string {
 }
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
-import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import { SignJWT, jwtVerify } from "jose";
+
+import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
+import { db } from "@/lib/db";
+import {
+  handleMutationError,
+  router,
+  publicProcedure,
+  protectedProcedure,
+} from "@/lib/trpc/server";
 import {
   generateMfaSecret,
   verifyTOTP,

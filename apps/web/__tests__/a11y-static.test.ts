@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+
+import { describe, it, expect } from "vitest";
 
 // Vitest runs with cwd = apps/web. Resolve robustly whether cwd is the app
 // dir or the repo root.

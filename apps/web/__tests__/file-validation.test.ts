@@ -1,6 +1,7 @@
 // ─── §20.3 File upload validation — sanitize, extension↔MIME, magic bytes ──
 
 import { describe, it, expect } from "vitest";
+
 import {
   sanitizeFileName,
   getExtension,

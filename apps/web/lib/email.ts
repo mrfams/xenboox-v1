@@ -1,5 +1,4 @@
 import { render } from "@react-email/render";
-import { logger } from "@/lib/logger";
 import { CloseCompleteEmail } from "@xenboox/email";
 import { InvoiceOverdueEmail } from "@xenboox/email";
 import { AgentEscalationEmail } from "@xenboox/email";
@@ -13,6 +12,8 @@ import { PasswordResetEmail } from "@xenboox/email";
 import { VerificationEmail } from "@xenboox/email";
 
 import { resend, EMAIL_FROM } from "./resend";
+
+import { logger } from "@/lib/logger";
 
 // ─── Email Types ────────────────────────────────────────────────────────────
 

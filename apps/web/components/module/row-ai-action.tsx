@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 
-import type { PageFocus } from "@/lib/chat/page-context";
-import { cn } from "@/lib/utils";
 import { useModuleAi } from "./module-ai-context";
 import {
   RowAiMenu,
   rowActionPrompt,
   type RowAiAction as RowMenuAction,
 } from "./row-ai-menu";
+
+import type { PageFocus } from "@/lib/chat/page-context";
+import { cn } from "@/lib/utils";
 
 /**
  * RowAI —— the hover-reveal "ask about this row" action (Cursor/VSCode style).

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+
 import { rateLimitResponseMeta } from "@/lib/trpc/rate-limit-headers";
 
 describe("§19.4 rate-limit response headers", () => {

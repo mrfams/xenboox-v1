@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { UserPlus, Loader2, AlertCircle } from "lucide-react";
 
-import { trpc } from "@/lib/trpc/client";
 import {
   CreateRecordModal,
   modalInputCls,
   modalLabelCls,
   modalSelectCls,
 } from "./create-record-modal";
+
+import { trpc } from "@/lib/trpc/client";
 
 interface CreateCustomerDialogProps {
   open: boolean;

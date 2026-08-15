@@ -2,13 +2,6 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, asc, lte, ilike, or, ne, sql } from "drizzle-orm";
 import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-} from "@/lib/trpc/server";
-import { logger } from "@/lib/logger";
-import { db } from "@/lib/db";
-import {
   conversations,
   chatMessages,
   chatAttachments,
@@ -20,6 +13,14 @@ import {
   processChatInput,
   seedDefaultThresholds,
 } from "@xenboox/agents/core/pipeline";
+
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+} from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
+import { db } from "@/lib/db";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { generateConversationTitle } from "@/lib/chat/conversation-title";
 import { generateConversationSummary } from "@/lib/chat/conversation-summary";

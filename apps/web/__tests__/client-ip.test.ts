@@ -6,6 +6,7 @@
 // (client-prepended values sit left of the proxy's own observation).
 
 import { describe, it, expect } from "vitest";
+
 import { getClientIp } from "@/lib/security/client-ip";
 
 const H = (obj: Record<string, string>) => ({

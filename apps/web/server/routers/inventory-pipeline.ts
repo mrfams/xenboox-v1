@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
   inventoryPipelineRuns,
@@ -13,6 +12,8 @@ import {
   runInventoryPipeline,
   getInventoryPipelineStatus,
 } from "@xenboox/agents";
+import { entities } from "@xenboox/db/schema/organization";
+
 import {
   handleMutationError,
   router,
@@ -20,7 +21,7 @@ import {
   mutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
-import { entities } from "@xenboox/db/schema/organization";
+import { db } from "@/lib/db";
 
 export const inventoryPipelineRouter = router({
   // ── Pipeline Execution ──────────────────────────────────────────────

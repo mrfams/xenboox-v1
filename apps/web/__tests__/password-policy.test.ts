@@ -4,6 +4,7 @@
 // 8+ chars, all four character classes, no common patterns, 128-char cap.
 
 import { describe, it, expect } from "vitest";
+
 import {
   getPasswordStrength,
   meetsPasswordPolicy,

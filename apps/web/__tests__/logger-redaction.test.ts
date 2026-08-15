@@ -7,6 +7,7 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readFileSync } from "node:fs";
+
 import { describe, it, expect } from "vitest";
 
 describe("logger redaction config", () => {

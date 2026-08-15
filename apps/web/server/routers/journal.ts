@@ -1,14 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-  rlsMutateProcedure,
-  requirePermission,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
-import {
   eq,
   and,
   asc,
@@ -34,6 +26,15 @@ import {
   logTrustGuardResult,
   trustGuardToError,
 } from "@xenboox/agents";
+
+import { db } from "@/lib/db";
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
+  requirePermission,
+} from "@/lib/trpc/server";
 import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 import { logger } from "@/lib/logger";
 

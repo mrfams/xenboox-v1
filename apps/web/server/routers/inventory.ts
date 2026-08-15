@@ -2,14 +2,6 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc } from "drizzle-orm";
 import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-  requirePermission,
-} from "@/lib/trpc/server";
-import { logger } from "@/lib/logger";
-import { db } from "@/lib/db";
-import {
   inventoryItems,
   inventoryTransactions,
   inventoryValuations,
@@ -17,6 +9,15 @@ import {
   auditLog,
 } from "@xenboox/db/schema";
 import { userEntityAccess } from "@xenboox/db/schema/organization";
+
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+  requirePermission,
+} from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
+import { db } from "@/lib/db";
 import { sendInventoryAlertEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 

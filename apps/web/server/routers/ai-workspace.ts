@@ -1,8 +1,5 @@
 import { z } from "zod";
 import { eq, and, desc, sql, gte, lte, count, sum } from "drizzle-orm";
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
-import { db } from "@/lib/db";
-import { generateConversationSummary } from "@/lib/chat/conversation-summary";
 import {
   bankAccounts,
   bankTransactions,
@@ -15,6 +12,10 @@ import {
   auditLog,
   agentRoutingLogs,
 } from "@xenboox/db/schema";
+
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
+import { generateConversationSummary } from "@/lib/chat/conversation-summary";
 
 // ─── AI Workspace Router ──────────────────────────────────────────────────
 

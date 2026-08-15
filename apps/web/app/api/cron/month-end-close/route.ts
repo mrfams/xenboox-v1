@@ -18,7 +18,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull, lt } from "drizzle-orm";
-
 import { db } from "@xenboox/db";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { userEntityAccess } from "@xenboox/db/schema/organization";

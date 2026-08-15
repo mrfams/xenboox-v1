@@ -16,7 +16,6 @@
 // preset ids.
 
 import { describe, it, expect } from "vitest";
-
 import { GM_TAX_RULES } from "@xenboox/db/seed/gm-tax-rules";
 import { SN_TAX_RULES } from "@xenboox/db/seed/sn-tax-rules";
 import { US_TAX_RULES } from "@xenboox/db/seed/us-tax-rules";

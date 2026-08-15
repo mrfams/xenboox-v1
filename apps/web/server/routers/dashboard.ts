@@ -11,8 +11,6 @@ import {
   asc,
   inArray,
 } from "drizzle-orm";
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
-import { db } from "@/lib/db";
 import {
   bankAccounts,
   cashAccounts,
@@ -29,6 +27,9 @@ import {
   complianceDeadlines,
   payrollRuns,
 } from "@xenboox/db/schema";
+
+import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import {
   buildRunwayBriefing,

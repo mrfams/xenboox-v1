@@ -11,12 +11,13 @@ import {
   benchmarkCohorts,
 } from "@xenboox/db/schema/analytics";
 import { runAnalyticsPipeline, getAnalyticsStatus } from "@xenboox/agents";
+import { entities } from "@xenboox/db/schema/organization";
+
 import {
   router,
   rlsProtectedProcedure,
   requireRole,
 } from "../../lib/trpc/server";
-import { entities } from "@xenboox/db/schema/organization";
 
 // ─── Analytics Router ───────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, publicProcedure } from "@/lib/trpc/server";
+
 import { organizationRouter } from "./organization";
 import { coaRouter } from "./coa";
 import { fiscalRouter } from "./fiscal";
@@ -75,6 +75,8 @@ import { settingsRouter } from "./settings";
 import { artifactRouter } from "./artifact";
 import { ssoRouter } from "./sso";
 import { currencyRouter } from "./currency";
+
+import { router, publicProcedure } from "@/lib/trpc/server";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ status: "ok" })),

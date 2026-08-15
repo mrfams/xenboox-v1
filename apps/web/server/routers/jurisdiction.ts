@@ -5,7 +5,6 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
   jurisdictionExpansionRequests,
@@ -17,6 +16,8 @@ import {
   runJurisdictionExpansionPipeline,
   getExpansionStatus,
 } from "@xenboox/agents";
+
+import { db } from "@/lib/db";
 import {
   handleMutationError,
   router,

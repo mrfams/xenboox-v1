@@ -11,14 +11,12 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
   jurisdictionTaxRules,
   taxRateOverrides,
   taxRuleTypeEnum,
 } from "@xenboox/db/schema/tax-compliance";
-import { cachedDomain } from "@/lib/cache/tenant-cache";
 import { entities } from "@xenboox/db/schema/organization";
 import {
   calculateTax,
@@ -27,6 +25,9 @@ import {
   type TaxRateConfig,
   type TaxPreset,
 } from "@xenboox/agents";
+
+import { cachedDomain } from "@/lib/cache/tenant-cache";
+import { db } from "@/lib/db";
 import { installPresetsForEntity } from "@/server/lib/tax-install";
 import {
   router,

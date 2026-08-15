@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { Receipt, Loader2, AlertCircle } from "lucide-react";
 
-import { trpc } from "@/lib/trpc/client";
-import { useEntity } from "@/lib/entity-context";
 import {
   CreateRecordModal,
   modalInputCls,
@@ -12,6 +10,9 @@ import {
   modalSelectCls,
 } from "./create-record-modal";
 import { InvoiceLinesEditor, type InvoiceLine } from "./invoice-lines-editor";
+
+import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
 
 interface CreateBillDialogProps {
   open: boolean;

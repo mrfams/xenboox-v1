@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
   budgets,
@@ -14,6 +13,9 @@ import {
   getBudgetStatus,
   checkBudgetImpact,
 } from "@xenboox/agents";
+import { entities } from "@xenboox/db/schema/organization";
+import { chartOfAccounts } from "@xenboox/db/schema/accounting";
+
 import {
   handleMutationError,
   router,
@@ -21,8 +23,7 @@ import {
   rlsMutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
-import { entities } from "@xenboox/db/schema/organization";
-import { chartOfAccounts } from "@xenboox/db/schema/accounting";
+import { db } from "@/lib/db";
 
 // ─── Budget Pipeline Router ─────────────────────────────────────────────────
 

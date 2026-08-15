@@ -14,7 +14,6 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { eq } from "drizzle-orm";
 import { artifactRegistry, fiscalPeriods } from "@xenboox/db/schema";
-import { logger } from "@/lib/logger";
 import {
   generateProfitLoss,
   generateBalanceSheet,
@@ -26,6 +25,7 @@ import {
 
 import type { ChatArtifactRef } from "./artifact-types";
 
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { r2, R2_BUCKET } from "@/lib/r2";
 

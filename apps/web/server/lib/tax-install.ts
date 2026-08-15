@@ -6,10 +6,10 @@
 // can't drift between the two surfaces.
 
 import { and, eq, sql } from "drizzle-orm";
-
-import { db } from "@/lib/db";
 import { jurisdictionTaxRules } from "@xenboox/db/schema/tax-compliance";
 import type { TaxPreset } from "@xenboox/agents";
+
+import { db } from "@/lib/db";
 
 /**
  * Install tax presets for an entity, exactly like the Settings UI does:

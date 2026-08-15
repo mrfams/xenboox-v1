@@ -11,10 +11,11 @@
 //   2. Every `traceId="…"` used on any page resolves to a real trace in
 //      lib/ai-ux/traces.ts — a typo'd trace id would render a broken trigger.
 
-import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { describe, it, expect } from "vitest";
 
 import { getAiUxTrace } from "@/lib/ai-ux/traces";
 

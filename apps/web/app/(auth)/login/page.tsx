@@ -13,7 +13,7 @@ function isSafeRedirect(value: string): boolean {
   if (!value.startsWith("/")) return false;
   if (value.startsWith("//")) return false;
   if (value.includes("\\")) return false;
-  // eslint-disable-next-line no-control-regex
+
   if (/[\u0000-\u001f\u007f]/.test(value)) return false;
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) return false;
   return true;

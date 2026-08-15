@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+
 import { GENESIS_HASH } from "@/lib/audit/chain";
 import { backfillAuditChain, type AuditRowInput } from "@/lib/audit/backfill";
 

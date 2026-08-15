@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+
 import { logger } from "@/lib/logger";
 
 const log = logger.child({ module: "api-newsletter" });

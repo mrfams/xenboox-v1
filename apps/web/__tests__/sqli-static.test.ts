@@ -10,9 +10,10 @@
 // fails CI if a dangerous pattern appears. It is a structural guard, not a
 // proof — it pins the "no hand-rolled SQL" convention.
 
-import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+
+import { describe, it, expect } from "vitest";
 
 const ROOT = join(__dirname, "..");
 const SCAN_DIRS = ["server", "lib"];

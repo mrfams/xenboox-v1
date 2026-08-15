@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+
 import { encryptSecret, decryptSecret } from "@/lib/admin/totp";
 
 describe("admin TOTP secret encryption", () => {

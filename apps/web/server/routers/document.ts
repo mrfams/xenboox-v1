@@ -1,21 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import {
-  handleMutationError,
-  router,
-  rlsMutateProcedure,
-  rlsProtectedProcedure,
-} from "@/lib/trpc/server";
-import { logger } from "@/lib/logger";
-import { db } from "@/lib/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { callModel } from "@xenboox/models";
-import {
-  applySpliceEdit,
-  applySpliceEditByLine,
-  extractSelectionContext,
-  stripCodeFences,
-} from "@/lib/chat/artifact-edit";
 import {
   documents,
   documentLinks,
@@ -27,6 +13,21 @@ import {
   userEntityAccess,
   docTypeEnum,
 } from "@xenboox/db/schema";
+
+import {
+  handleMutationError,
+  router,
+  rlsMutateProcedure,
+  rlsProtectedProcedure,
+} from "@/lib/trpc/server";
+import { logger } from "@/lib/logger";
+import { db } from "@/lib/db";
+import {
+  applySpliceEdit,
+  applySpliceEditByLine,
+  extractSelectionContext,
+  stripCodeFences,
+} from "@/lib/chat/artifact-edit";
 import { tenantJobOptions, triggerClient } from "@/lib/trigger";
 import {
   getPresignedUploadUrl,

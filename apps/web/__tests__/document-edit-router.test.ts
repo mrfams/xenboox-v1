@@ -70,6 +70,7 @@ vi.mock("@xenboox/models", () => ({
 }));
 
 import { callModel } from "@xenboox/models";
+
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { appRouter } from "@/server/routers/_app";

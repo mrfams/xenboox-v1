@@ -1,14 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, notInArray } from "drizzle-orm";
 import {
-  handleMutationError,
-  router,
-  rlsProtectedProcedure,
-  rlsMutateProcedure,
-  requirePermission,
-} from "@/lib/trpc/server";
-import { db } from "@/lib/db";
-import {
   bankAccounts,
   bankTransactions,
   reconciliations,
@@ -21,6 +13,15 @@ import {
   runReconciliationPipeline,
   getReconciliationStatus,
 } from "@xenboox/agents";
+
+import { db } from "@/lib/db";
+import {
+  handleMutationError,
+  router,
+  rlsProtectedProcedure,
+  rlsMutateProcedure,
+  requirePermission,
+} from "@/lib/trpc/server";
 
 export const treasuryRouter = router({
   listBankAccounts: rlsProtectedProcedure.query(({ ctx }) => {

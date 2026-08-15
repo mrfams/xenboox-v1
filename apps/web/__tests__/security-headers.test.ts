@@ -5,6 +5,7 @@
 // (e.g. adding 'unsafe-eval' to production script-src) fails CI.
 
 import { describe, it, expect } from "vitest";
+
 import {
   applySecurityHeaders,
   buildCSP,

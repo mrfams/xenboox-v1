@@ -13,10 +13,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
-import { logger } from "@/lib/logger";
 import { artifactRegistry, auditLog } from "@xenboox/db/schema";
 import { callModel } from "@xenboox/models";
 
+import { logger } from "@/lib/logger";
 import {
   applySpliceEdit,
   applySpliceEditByLine,

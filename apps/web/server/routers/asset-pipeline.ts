@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
   assetPipelineRuns,
@@ -10,6 +9,8 @@ import {
   depreciationSchedule,
 } from "@xenboox/db/schema";
 import { runAssetPipeline, getAssetPipelineStatus } from "@xenboox/agents";
+import { entities } from "@xenboox/db/schema/organization";
+
 import {
   handleMutationError,
   router,
@@ -17,7 +18,7 @@ import {
   rlsMutateProcedure,
   requireRole,
 } from "@/lib/trpc/server";
-import { entities } from "@xenboox/db/schema/organization";
+import { db } from "@/lib/db";
 
 // ─── Asset Pipeline Router ─────────────────────────────────────────────────
 

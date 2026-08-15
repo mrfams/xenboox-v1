@@ -102,9 +102,6 @@ vi.mock("@xenboox/agents/core/onboarding-pipeline", async (importOriginal) => {
   };
 });
 
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { appRouter } from "@/server/routers/_app";
 import {
   confirmOpeningBalance as pipelineConfirm,
   confirmOpeningBalanceEscape as pipelineEscape,
@@ -113,6 +110,10 @@ import {
   completeOnboarding as pipelineComplete,
   getOpeningBalanceSummary as pipelineGetOpeningBalanceSummary,
 } from "@xenboox/agents/core/onboarding-pipeline";
+
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { appRouter } from "@/server/routers/_app";
 
 describe("Onboarding Router — five-category flow", () => {
   beforeEach(() => {

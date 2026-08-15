@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
+
 import { db } from "@/lib/db";
 
 const hasDb = !!process.env.DATABASE_URL;

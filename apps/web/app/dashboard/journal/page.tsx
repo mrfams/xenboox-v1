@@ -16,10 +16,10 @@ import {
   Clock,
   Sparkles,
 } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
-import { BookOpen } from "lucide-react";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import type { SummaryCardItem } from "@/components/module/module-page-shell.types";
 import { RowAiAction } from "@/components/module/row-ai-action";

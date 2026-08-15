@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { eq, and, asc } from "drizzle-orm";
+import { chartOfAccounts } from "@xenboox/db/schema/accounting";
+
 import {
   handleMutationError,
   router,
@@ -8,8 +11,6 @@ import {
   requireRole,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
-import { eq, and, asc } from "drizzle-orm";
-import { chartOfAccounts } from "@xenboox/db/schema/accounting";
 
 export const coaRouter = router({
   list: rlsProtectedProcedure.query(async ({ ctx }) => {

@@ -1,5 +1,6 @@
 import { getRequestConfig } from "next-intl/server";
 import { cookies } from "next/headers";
+
 import { locales, type Locale } from "./config";
 
 export default getRequestConfig(async () => {

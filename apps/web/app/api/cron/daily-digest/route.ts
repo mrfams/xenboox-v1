@@ -17,7 +17,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
-
 import { db } from "@xenboox/db";
 import { userEntityAccess } from "@xenboox/db/schema/organization";
 import { users } from "@xenboox/db/schema/auth";
