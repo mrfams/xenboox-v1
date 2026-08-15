@@ -328,7 +328,7 @@ Every item below has a status marker. **Agents must update these markers when wo
   - `[ ]` Marketing pages (separate from dashboard) — **deferred per user priority: application first, marketing later**
 - `[x]` Add `@next/bundle-analyzer` to monitor bundle size — **wired + documented in §15.5; run `pnpm analyze` pre-release** (Aug 15, 2026)
 - `[x]` Configure code splitting for route-based chunks — **App Router already route-splits; in-page islands above now chunk too**
-- `[ ]` Remove unused dependencies — **recharts not referenced by any app page (only package.json) — remove in dependency sweep (§1.8)**
+- `[x]` Remove unused dependencies — **recharts removed from `apps/web/package.json` (v2.15.4, deprecated 2.x branch, 0 imports in codebase)** (Aug 15, 2026)
 
 ### 4.5 Server-Side Rendering Strategy
 
