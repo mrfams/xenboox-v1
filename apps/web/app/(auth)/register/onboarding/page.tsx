@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   Check,
   Circle,
@@ -25,9 +26,20 @@ import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui";
 import { Card, CardContent } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
-import { OnboardingLiveness } from "@/components/onboarding/onboarding-liveness";
 import { CountryPicker } from "@/components/shared/country-picker";
 import { cn } from "@/lib/utils";
+
+// §4.4 — the liveness panel (~1.5K lines of agent-progress UI) only appears
+// below the wizard once a routing category is chosen. It ships as its own
+// lazy chunk so the onboarding route payload excludes it on first paint.
+// ssr:false is safe — the panel renders only client-side once mutations fire.
+const OnboardingLiveness = dynamic(
+  () =>
+    import("@/components/onboarding/onboarding-liveness").then(
+      (m) => m.OnboardingLiveness,
+    ),
+  { ssr: false },
+);
 
 type OnboardingSourceType =
   | "brand_new"

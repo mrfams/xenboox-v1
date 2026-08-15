@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   TrendingUp,
@@ -41,13 +42,32 @@ import {
 import { DashboardSkeleton } from "@/components/shared/skeletons";
 import { dashboardQueryOptions } from "@/lib/trpc/query-options";
 import { Button } from "@/components/ui";
-import { TextSelectionMenu } from "@/components/dashboard/text-selection-menu";
-import { DashboardChatScreen } from "@/components/dashboard/dashboard-chat-screen";
 import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import {
   PageEmptyState,
   getPageEmptyState,
 } from "@/components/shared/page-empty-state";
+
+// §4.4 — the chat screen (and its workspace component chain: StreamingMessage,
+// ArtifactViewer, approval prompts) only renders once a chat session is
+// active, and the text-selection menu only appears on user text selection.
+// Both ship as separate lazy chunks so the initial dashboard payload stays
+// lean. ssr:false is safe: neither is ever visible during SSR (chat mounts
+// on interaction, the menu renders nothing until a selection event fires).
+const DashboardChatScreen = dynamic(
+  () =>
+    import("@/components/dashboard/dashboard-chat-screen").then(
+      (m) => m.DashboardChatScreen,
+    ),
+  { ssr: false },
+);
+const TextSelectionMenu = dynamic(
+  () =>
+    import("@/components/dashboard/text-selection-menu").then(
+      (m) => m.TextSelectionMenu,
+    ),
+  { ssr: false },
+);
 
 // The Business Health period selector drives real server-side period ranges.
 type HealthPeriod = "this_month" | "last_month" | "this_quarter";

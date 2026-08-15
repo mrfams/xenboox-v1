@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import {
   User,
   Building2,
@@ -21,23 +22,127 @@ import {
 
 import { cn } from "@/lib/utils";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
-import { ProfileSection } from "@/components/settings/profile-section";
-import { OrganizationSection } from "@/components/settings/organization-section";
-import { TeamSection } from "@/components/settings/team-section";
-import { InviteMemberSection } from "@/components/settings/invite-member-section";
-import { NotificationsSection } from "@/components/settings/notifications-section";
-import { SecuritySection } from "@/components/settings/security-section";
-import { EntitySettingsSection } from "@/components/settings/entity-settings-section";
-import { AppearanceSection } from "@/components/settings/appearance-section";
-import { BillingSection } from "@/components/settings/billing-section";
-import { ApiKeysSection } from "@/components/settings/api-keys-section";
-import { AuditLogSection } from "@/components/settings/audit-log-section";
-import { PrivacySection } from "@/components/settings/privacy-section";
-import { IntegrationsSection } from "@/components/settings/integrations-section";
-import { WebhooksSection } from "@/components/settings/webhooks-section";
-import { SsoSection } from "@/components/settings/sso-section";
-import { CurrencySection } from "@/components/settings/currency-section";
-import { TaxesSection } from "@/components/settings/taxes-section";
+
+// §4.4 — every section is a lazy chunk: only the ACTIVE tab's component is
+// ever downloaded. The settings shell (nav + header) stays in the initial
+// route chunk; TaxesSection alone is ~1.4K lines, so this keeps the Settings
+// route payload to a fraction of what a static import map would ship.
+// ssr:false is safe — the active tab is a client-side interaction and each
+// section renders its own data-fetching state once mounted.
+const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
+  profile: dynamic(
+    () =>
+      import("@/components/settings/profile-section").then(
+        (m) => m.ProfileSection,
+      ),
+    { ssr: false },
+  ),
+  organization: dynamic(
+    () =>
+      import("@/components/settings/organization-section").then(
+        (m) => m.OrganizationSection,
+      ),
+    { ssr: false },
+  ),
+  team: dynamic(
+    () =>
+      import("@/components/settings/team-section").then((m) => m.TeamSection),
+    { ssr: false },
+  ),
+  "invite-member": dynamic(
+    () =>
+      import("@/components/settings/invite-member-section").then(
+        (m) => m.InviteMemberSection,
+      ),
+    { ssr: false },
+  ),
+  notifications: dynamic(
+    () =>
+      import("@/components/settings/notifications-section").then(
+        (m) => m.NotificationsSection,
+      ),
+    { ssr: false },
+  ),
+  security: dynamic(
+    () =>
+      import("@/components/settings/security-section").then(
+        (m) => m.SecuritySection,
+      ),
+    { ssr: false },
+  ),
+  "entity-settings": dynamic(
+    () =>
+      import("@/components/settings/entity-settings-section").then(
+        (m) => m.EntitySettingsSection,
+      ),
+    { ssr: false },
+  ),
+  appearance: dynamic(
+    () =>
+      import("@/components/settings/appearance-section").then(
+        (m) => m.AppearanceSection,
+      ),
+    { ssr: false },
+  ),
+  billing: dynamic(
+    () =>
+      import("@/components/settings/billing-section").then(
+        (m) => m.BillingSection,
+      ),
+    { ssr: false },
+  ),
+  "api-keys": dynamic(
+    () =>
+      import("@/components/settings/api-keys-section").then(
+        (m) => m.ApiKeysSection,
+      ),
+    { ssr: false },
+  ),
+  webhooks: dynamic(
+    () =>
+      import("@/components/settings/webhooks-section").then(
+        (m) => m.WebhooksSection,
+      ),
+    { ssr: false },
+  ),
+  sso: dynamic(
+    () => import("@/components/settings/sso-section").then((m) => m.SsoSection),
+    { ssr: false },
+  ),
+  "audit-log": dynamic(
+    () =>
+      import("@/components/settings/audit-log-section").then(
+        (m) => m.AuditLogSection,
+      ),
+    { ssr: false },
+  ),
+  privacy: dynamic(
+    () =>
+      import("@/components/settings/privacy-section").then(
+        (m) => m.PrivacySection,
+      ),
+    { ssr: false },
+  ),
+  integrations: dynamic(
+    () =>
+      import("@/components/settings/integrations-section").then(
+        (m) => m.IntegrationsSection,
+      ),
+    { ssr: false },
+  ),
+  currency: dynamic(
+    () =>
+      import("@/components/settings/currency-section").then(
+        (m) => m.CurrencySection,
+      ),
+    { ssr: false },
+  ),
+  taxes: dynamic(
+    () =>
+      import("@/components/settings/taxes-section").then((m) => m.TaxesSection),
+    { ssr: false },
+  ),
+};
 
 interface TabGroup {
   label: string;
@@ -173,26 +278,6 @@ const TABS = TAB_GROUPS.flatMap((g) => g.tabs) as readonly {
 }[];
 
 type TabId = (typeof TABS)[number]["id"];
-
-const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
-  profile: ProfileSection,
-  organization: OrganizationSection,
-  team: TeamSection,
-  "invite-member": InviteMemberSection,
-  notifications: NotificationsSection,
-  security: SecuritySection,
-  "entity-settings": EntitySettingsSection,
-  appearance: AppearanceSection,
-  billing: BillingSection,
-  "api-keys": ApiKeysSection,
-  webhooks: WebhooksSection,
-  sso: SsoSection,
-  "audit-log": AuditLogSection,
-  privacy: PrivacySection,
-  integrations: IntegrationsSection,
-  currency: CurrencySection,
-  taxes: TaxesSection,
-};
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("profile");

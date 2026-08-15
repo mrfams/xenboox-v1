@@ -317,16 +317,16 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 4.4 Bundle Size Optimization
 
 - `[~]` Next.js Image optimization configured with AVIF/WebP — `next.config.ts:16-40`
-- `[ ]` No `React.lazy` or `dynamic()` imports anywhere — entire app ships as one bundle
-- `[ ]` Add dynamic imports for:
-  - `[ ]` Onboarding wizard (1,400+ lines)
-  - `[ ]` Dashboard page (1,521 lines, fully client-side)
-  - `[ ]` Admin pages
-  - `[ ]` Settings sections
-  - `[ ]` Marketing pages (separate from dashboard)
-- `[ ]` Add `@next/bundle-analyzer` to monitor bundle size
-- `[ ]` Configure code splitting for route-based chunks
-- `[ ]` Remove unused dependencies
+- `[x]` No `React.lazy` or `dynamic()` imports anywhere — entire app ships as one bundle — **fixed (Aug 15, 2026): lazy chunks wired on the highest-traffic app surfaces**
+- `[x]` Add dynamic imports for:
+  - `[x]` Onboarding wizard (1,400+ lines) — **`OnboardingLiveness` (~1.5K lines) → `next/dynamic` lazy chunk (only mounts after a routing category is chosen)**
+  - `[x]` Dashboard page (1,521 lines, fully client-side) — **`DashboardChatScreen` (chat screen + StreamingMessage/ArtifactViewer/approval chain, ~1.1K transitive lines) and `TextSelectionMenu` → separate lazy chunks, `ssr:false` (both render only on interaction)**
+  - `[ ]` Admin pages — **routes already split per page; remaining heavy in-page islands (agent-monitor, model-ops, workflow-builder) queued in §12.5/§4.4 follow-up**
+  - `[x]` Settings sections — **all 17 section components → per-tab `next/dynamic` lazy chunks (`ssr:false`); TaxesSection alone is ~1.4K lines, now downloaded only when the Taxes tab is opened**
+  - `[ ]` Marketing pages (separate from dashboard) — **deferred per user priority: application first, marketing later**
+- `[ ]` Add `@next/bundle-analyzer` to monitor bundle size — **scheduled (§15.5/§4.4 next pass)**
+- `[x]` Configure code splitting for route-based chunks — **App Router already route-splits; in-page islands above now chunk too**
+- `[ ]` Remove unused dependencies — **recharts not referenced by any app page (only package.json) — remove in dependency sweep (§1.8)**
 
 ### 4.5 Server-Side Rendering Strategy
 
