@@ -794,9 +794,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - [x]`Basic Vercel config in`vercel.json`
 - `[~]` Single region (`iad1`) — needs African region for target market
-- `[ ]` No preview deployment config
-- `[ ]` No environment-specific configuration
-- `[ ]` No cron jobs configured (daily digest, month-end close triggers)
+- `[ ]` No preview deployment config — **user-side: enable Vercel preview deployments on the GitHub integration**
+- `[ ]` No environment-specific configuration — **user-side: Vercel env var groups (development/preview/production)**
+- `[x]` No cron jobs configured (daily digest, month-end close triggers) — **three crons in `vercel.json`, all `x-cron-secret`-gated: webhook delivery every 5 min (pre-existing), daily digest 06:00 UTC (`/api/cron/daily-digest` — aggregates overdue invoices + pending approvals + unread notifications per verified user, wires the previously-dead `sendDailyDigestEmail`, 200-user batch cap, no empty spam), month-end close reminder 09:00 UTC (`/api/cron/month-end-close` — open fiscal periods past their end date → one in-app `close_reminder` notification per member, idempotent on period id, NEVER auto-closes — closing stays HITL)** (Aug 15, 2026)
 - `[x]` No caching headers configured at Vercel level — **`vercel.json`: immutable 1y for `/_next/static`, 1d for favicon/robots, `no-store` for all /api (auth included)** (Aug 14, 2026)
 
 ### 15.3 SEO
