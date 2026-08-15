@@ -6,6 +6,21 @@
 
 ---
 
+### [2026-08-15] — Coverage reporting + thresholds wired into CI (§5.1)
+
+**Agent:** Kilo
+**Files Created:** none
+**Files Modified:** `apps/web/vitest.config.js`, `packages/agents/vitest.config.ts`, `packages/agents/package.json`, `.github/workflows/ci.yml`, `ROADTOPRODUCTION.md`
+
+1. **Vitest coverage config** — added `coverage` block (provider: v8, reporter: text/json/html, 80% thresholds on lines/functions/branches/statements) to both `apps/web/vitest.config.js` and `packages/agents/vitest.config.ts`.
+2. **Agents coverage script** — added `test:coverage` (`vitest run --coverage`) to `packages/agents/package.json`; web already had it.
+3. **CI coverage job** — added `coverage` job to `.github/workflows/ci.yml` (needs `test`, runs `pnpm --filter=@xenboox/web test:coverage` + `pnpm --filter=@xenboox/agents test:coverage`, uploads `coverage/` artifacts with 7-day retention).
+4. **ROADTOPRODUCTION.md** — marked §5.1 coverage items `[x]` (CI reporting + thresholds).
+
+**Verification:** configs parse correctly; CI workflow syntax valid.
+
+---
+
 ### [2026-08-15] — Final sweep: field-encryption crypto proven + lint audit (web-only focus)
 
 **Agent:** Buffy (Autonomous Engineer)

@@ -60,6 +60,30 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter=@xenboox/web test:coverage
+      - run: pnpm --filter=@xenboox/agents test:coverage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            apps/web/coverage/
+            packages/agents/coverage/
+          retention-days: 7
+
   build:
     name: Build
     runs-on: ubuntu-latest

@@ -6,13 +6,22 @@ export default defineConfig({
     globals: true,
     deps: {
       fallbackCJS: true,
-      // Inline workspace packages to avoid ESM directory import issues
-      // with the @xenboox/db package which uses `import * as schema from "./schema"` pattern
       inline: [/@xenboox\/db/],
     },
     server: {
       deps: {
         fallbackCJS: true,
+      },
+    },
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: ["node_modules/", "**/__tests__/**"],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
       },
     },
   },

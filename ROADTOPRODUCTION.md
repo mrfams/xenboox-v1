@@ -361,8 +361,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[~]` ~90+ unit test files across web, agents, and ingestion
 - `[~]` 21 E2E test files with Playwright
-- `[ ]` No coverage reporting configured in CI
-- `[ ]` Set up Vitest coverage thresholds (target: 80%+)
+- `[x]` No coverage reporting configured in CI — **Vitest `--coverage` (v8) enabled in both web (`apps/web/vitest.config.js`) and agents (`packages/agents/vitest.config.ts`); 80% thresholds on lines/functions/branches/statements; `test:coverage` script in both packages; CI `coverage` job uploads reports as artifacts** (Aug 15, 2026)
+- `[x]` Set up Vitest coverage thresholds (target: 80%+) — **done: `coverage.thresholds` in both vitest configs**
 - `[ ]` Add coverage badges to README
 - `[ ]` Identify untested critical paths and add tests
 
