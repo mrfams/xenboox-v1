@@ -18,12 +18,7 @@
  */
 
 export type RichBlockType =
-  | "approval"
-  | "document"
-  | "table"
-  | "alert"
-  | "summary"
-  | "timeline";
+  "approval" | "document" | "table" | "alert" | "summary" | "timeline";
 
 export interface RichBlock {
   type: RichBlockType;
@@ -225,9 +220,24 @@ function parseTableRow(row: string): string[] {
 /**
  * Simple markdown renderer for basic formatting
  */
+/** Escape raw HTML so agent/user content can never inject markup. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function renderMarkdownSimple(text: string): string {
+  // §5.5 OWASP A03 — this output is injected via dangerouslySetInnerHTML, so
+  // the input (LLM/user chat content) MUST be escaped before the markdown
+  // regexes run. Escaping first keeps any raw HTML inert; the regexes below
+  // only emit hardcoded safe tags around already-escaped captures.
+  const escaped = escapeHtml(text);
   return (
-    text
+    escaped
       // Bold
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       // Italic

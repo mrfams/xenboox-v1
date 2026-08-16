@@ -403,8 +403,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` Add SAST (Static Application Security Testing) to CI — **Semgrep SAST with 12 custom rules + CodeQL semantic analysis in security.yml workflow** (Aug 13, 2026)
 - `[x]` Add DAST (Dynamic Application Security Testing) — **CodeQL taint-mode analysis covers data-flow vulnerabilities** (Aug 13, 2026)
 - `[ ]` Penetration testing (external engagement)
-- `[ ]` OWASP Top 10 testing for all endpoints
-- `[ ]` Fuzz testing for input validation
+- `[x]` OWASP Top 10 testing for all endpoints — **`__tests__/owasp-top10-sweep.test.ts`: maps every OWASP Top 10 (2021) category to its enforced control — A01 protected procedures + entity scoping (delegates to rbac/idor sweeps), A02 AES-256-GCM field encryption + httpOnly/secure admin cookies, A03 no raw SQL interpolation (every `db.execute` must use the drizzle `sql` tag) + no eval/new Function/document.write + chat markdown escapes before `dangerouslySetInnerHTML`, A04 rate limiting, A05 security headers + poweredByHeader off, A06 CI audit gate, A07 password policy + lockout, A08 webhook HMAC, A09 logger redaction, A10 no router fetches user-supplied URLs. Sweep caught a real stored-XSS vector: `renderMarkdownSimple` injected raw LLM chat content unescaped — now HTML-escapes before markdown rendering. 12 tests** (Aug 16, 2026)
+- `[x]` Fuzz testing for input validation — **`__tests__/fuzz-input-validation.test.ts`: deterministic seeded-PRNG fuzzing (500 samples each) of `renderMarkdownSimple` (never emits executable markup), `sanitizeText`/`sanitizeEmail`/`sanitizeFileName` (total functions — never throw, never leak control chars), and the pagination zod schema (rejects garbage, bounds enforced). 10 tests** (Aug 16, 2026)
 
 ### 5.6 Chaos Engineering
 

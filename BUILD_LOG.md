@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §5.5 OWASP Top 10 sweep + fuzz tests + stored-XSS fix
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/__tests__/owasp-top10-sweep.test.ts` (new), `apps/web/__tests__/fuzz-input-validation.test.ts` (new), `apps/web/lib/chat/message-parser.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** (1) **OWASP Top 10 sweep** — 12 tests mapping every OWASP 2021 category to its enforced control in code (protected procedures, AES-256-GCM, `sql`-tag parameterization, no eval/new Function, rate limiting, security headers, audit gate, password policy/lockout, webhook HMAC, logger redaction, no SSRF fetch of user URLs). (2) **Stored-XSS fix found by the sweep**: `renderMarkdownSimple` fed raw LLM/user chat content into `dangerouslySetInnerHTML` with NO escaping — `<img onerror>` in a chat message executed. Now HTML-escapes input before applying markdown regexes (regexes only emit hardcoded safe tags). (3) **Fuzz tests** — deterministic seeded-PRNG (mulberry32) fuzzing of the chat renderer (never emits executable markup), sanitization helpers (total functions), and the pagination zod schema (rejects garbage, bounds enforced).
+
+**Verification:** 22 new tests pass; existing xss + chat suites (41 tests) pass unbroken. Committed + pushed.
+
+---
+
 ### [2026-08-16] — §15.1 localhost fallbacks fixed (desktop + mobile) + mock R2 keys
 
 **Agent:** Buffy
