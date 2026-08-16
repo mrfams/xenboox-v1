@@ -166,8 +166,21 @@ const nextConfig = withBundleAnalyzer(baseConfig);
 export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Release = commit SHA so source maps and stack traces line up per deploy.
+  // Vercel exposes it as VERCEL_GIT_COMMIT_SHA; fall back to git for local.
+  release: {
+    create: true,
+    name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE,
+  },
   silent: !process.env.CI,
   widenClientFileUpload: true,
   disableLogger: true,
   tunnelRoute: "/api/sentry",
+  sourcemaps: {
+    // §2.1 — upload happens at build time (Vercel build) via the webpack
+    // plugin when SENTRY_ORG/PROJECT/AUTH_TOKEN are set; delete the maps
+    // from the bundle after upload so they never ship to the browser.
+    deleteSourcemapsAfterUpload: true,
+  },
 });

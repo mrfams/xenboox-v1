@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §2.1 Sentry source maps (automated) + §24.2 SLOs doc
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/next.config.ts`, `docs/SLOs.md` (new), `docs/SENTRY_SOURCEMAPS.md` (new), `apps/web/__tests__/sentry-sourcemaps.test.ts` (new), `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** (1) **Sentry source maps automated** — `withSentryConfig` now sets `authToken` (SENTRY_AUTH_TOKEN), pins release to `VERCEL_GIT_COMMIT_SHA` (deploy↔map alignment), and sets `sourcemaps.deleteSourcemapsAfterUpload: true`; the webpack plugin uploads at Vercel build time, then strips maps from the bundle. `docs/SENTRY_SOURCEMAPS.md` documents env vars (SENTRY_ORG/PROJECT/AUTH_TOKEN on Vercel), verification steps, and a manual `sentry-cli` fallback. Contract test pins the config. (2) **SLOs doc** — `docs/SLOs.md`: SLO table (availability 99.9%/30d, read p95<300ms, write p99<1s, error rate <0.1%, LLM cost anomaly), error-budget math (43.2 min/mo, burn-rate rules, deploy freeze at exhaustion), burn-alert thresholds, per-layer latency budget, measurement via the existing OTel tRPC spans.
+
+**Verification:** 3 new tests pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — §16.2 realtime surfaces classification + degraded modes
 
 **Agent:** Buffy
