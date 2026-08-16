@@ -162,7 +162,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[ ]` No Datadog, New Relic, or Dynatrace
 - `[x]` No OpenTelemetry integration (despite `@opentelemetry/api` pinned in overrides) — **implemented** (Aug 14, 2026)
-- `[x]` Implement OpenTelemetry for request tracing — **NodeSDK + BatchSpanProcessor + auto-instrumentation (http/undici/pg) + tRPC tracing middleware on every procedure + LangChain agent spans. Env-gated, sampled, OTLP/HTTP export.** (`packages/models/otel.ts`, `apps/web/instrumentation.ts`, `apps/web/lib/trpc/tracing-middleware.ts`) (Aug 14, 2026)
+- `[x]` Implement OpenTelemetry for request tracing — **NodeSDK + BatchSpanProcessor + auto-instrumentation (http/undici/pg) + tRPC tracing middleware on every procedure + LangChain agent spans. Env-gated, sampled, OTLP/HTTP export.** (`packages/models/otel.ts`, `apps/web/instrumentation.ts`, `apps/web/lib/trpc/tracing-middleware.ts`) (Aug 14, 2026) — **BUILD BLOCKER FIXED (Aug 16, 2026): OTel packages were statically imported in `otel.ts` → edge bundle (opengraph-image) failed loading `@opentelemetry/sdk-node`/`semantic-conventions` native modules. All OTel imports now dynamic (load only when a collector endpoint is configured); `resolveSampler()`/`initOtel()` async.**
 - `[ ]` Set up performance dashboards (request latency, throughput, error rates) — **needs the APM backend chosen + configured (user-side: SigNoz/Tempo/New Relic/Datadog — see docs/MONITORING.md §1.5)**
 - `[ ]` Configure slow-query alerts — **in the APM once configured**
 
@@ -544,9 +544,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 - [x]` 19 versioned, complete system prompts
 - [x]` Eval framework with 16 golden datasets and 6 flow definitions
 - [x]` Hierarchical orchestration with fan-out, escalation, confidence thresholds
-- `[ ]` Audit, Expense, and Analytics agents are pipeline delegates returning hardcoded confidence values — need real implementations
-- `[ ]` Agent timeout handling — verify agents don't hang indefinitely
-- `[ ]` Agent retry logic — verify circuit breaker works under sustained failure
+- `[x]` Audit, Expense, and Analytics agents are pipeline delegates returning hardcoded confidence values — need real implementations — **fixed (Aug 16, 2026): orchestrator now wires the REAL audit/expense LangGraph agents (was: fake delegates returning hardcoded 0.9/0.85 confidence with empty audit trails); added task-type→op mapping so registered tasks (audit_sampling, drift_analysis, independent_recomputation, anomaly_detection, submit_expense, approve_expense, reimburse_expense, expense_report) route to real nodes; fixed the tier gate (`getAgentTier` now knows audit/expense — it previously THREW; analytics tasks were being DENIED by model-task vocabulary); audit agent gained 3 real ops (drift analysis, independent recomputation, anomaly detection) + 2 stub tools replaced (golden-dataset comparison now queries `golden_dataset_scenarios`, auditor-query response now gathers real supporting docs); expense agent gained `expense_report` op; analytics now computes REAL balances from posted journal entries (was hardcoded `+ 0`). 8 new tests in `__tests__/production-agent-wiring.test.ts`.**
+- `[x]` Agent timeout handling — verify agents don't hang indefinitely — **verified: `withTimeout` on every orchestrate call in pipeline.ts (maxAgentInvokeMs); tool-execution loop has timeouts; see §22.4 router fallbacks** (Aug 16, 2026)
+- `[ ]` Agent retry logic — verify circuit breaker works under sustained failure — **in progress: router.ts circuit breaker verified per §22.4; dedicated sustained-failure test is a follow-up**
 
 ### 8.2 Agent Observability
 
@@ -721,7 +721,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - [x]` Incremental compilation
 - `[x]` No `any` types in agents package (enforced) — **`no-explicit-any: error` in agents, CI-enforced**
 - `[x]` Audit web package for `any` types (currently `warn`) — **`no-explicit-any: warn` in web; `any` types concentrated in test files + a few routers (`feature-flags`, `infrastructure`, `logs-traces`, `permissions-admin`, `review-queue`, `workflow-builder`); safe to tighten post-launch** (Aug 15, 2026)
-- `[x]` Add TypeScript `noUncheckedIndexedAccess` for stricter checks — **added `tsconfig.strict.json` extending main config with `noUncheckedIndexedAccess: true`; `typecheck:strict` script in package.json for optional strict checks (note: full strict typecheck causes TypeScript to hang on this codebase — strict config available for incremental adoption)**
+- `[x]` Add TypeScript `noUncheckedIndexedAccess` for stricter checks — **added `tsconfig.strict.json` extending main config with `noUncheckedIndexedAccess: true`; `typecheck:strict` script in package.json; strict typecheck completes with ~200 pre-existing errors (mostly `Object is possibly 'undefined'` in routers/agents) — strict config available for incremental adoption, not blocking main typecheck**
 
 ### 12.5 Code Duplication
 
@@ -805,7 +805,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` `robots.ts` — disallows `/dashboard/`, `/admin/`, `/api/`
 - `[x]` `sitemap.ts` — **updated (Aug 15, 2026): removed auth pages (`/login`, `/register`, `/forgot-password`) with no SEO value; added all 47 static docs pages (agents, modules, quickstart, security, webhooks, etc.)**
 - `[x]` Auth pages in sitemap (no SEO value) — **removed: `/login`, `/register`, `/forgot-password` excluded from sitemap** (Aug 15, 2026)
-- `[x]` Missing OpenGraph image verification (`/og-image.png`) — **fixed (Aug 15, 2026): created `apps/web/app/opengraph-image.ts` using `next/og` `ImageResponse` (edge runtime, 1200×630); removed hardcoded `/og-image.png` reference from root layout metadata so Next.js uses the generated image automatically**
+- `[x]` Missing OpenGraph image verification (`/og-image.png`) — **fixed (Aug 15, 2026): created `apps/web/app/opengraph-image.ts` using `next/og` `ImageResponse` (edge runtime, 1200×630); removed hardcoded `/og-image.png` reference from root layout metadata so Next.js uses the generated image automatically** — **BUILD BLOCKER FIXED (Aug 16, 2026): file was `.ts` containing JSX → `next build` failed (`Expected '>', got 'style'`). Renamed to `opengraph-image.tsx` + updated `.prettierignore`/eslint/tsconfig excludes.**
 - `[x]` No structured data (JSON-LD) for marketing pages — **fixed (Aug 15, 2026): added Organization JSON-LD schema to root layout (`apps/web/app/layout.tsx`) with name, description, url, and logo**
 - `[ ]` No Google Search Console verification
 

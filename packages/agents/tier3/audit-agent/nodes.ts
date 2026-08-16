@@ -6,8 +6,10 @@ import {
   prepareAuditPackage as packageTool,
   respondToAuditorQuery as respondTool,
   detectPatternDeviations,
+  performIndependentRecomputation as recomputeTool,
+  detectAnomalies as anomaliesTool,
 } from "./tools";
-import type { AuditStateType } from "./state";
+import type { AuditSample, AuditStateType } from "./state";
 
 export async function nodeParseInput(state: AuditStateType) {
   const trace = await langfuse.trace({
@@ -243,6 +245,175 @@ export async function nodeRespondQuery(state: AuditStateType) {
     const msg = error instanceof Error ? error.message : String(error);
     return {
       errors: [`Query response error: ${msg}`],
+      confidence: 0,
+      reasoning: msg,
+    };
+  }
+}
+
+export async function nodeDetectDeviations(state: AuditStateType) {
+  const trace = await langfuse.span({
+    name: "audit-detect-deviations",
+    input: { entityId: state.entityId },
+  });
+
+  try {
+    const result = await detectPatternDeviations(state.entityId);
+    await trace.update({
+      output: {
+        hasDeviation: result.hasDeviation,
+        deviationCount: result.deviations.length,
+      },
+    });
+
+    const audit = createAuditEntry({
+      agentId: "audit-agent",
+      action: result.hasDeviation
+        ? "pattern_deviations_detected"
+        : "pattern_deviations_clean",
+      details: { deviations: result.deviations },
+      confidence: result.confidence,
+    });
+
+    return {
+      patternDeviations: result,
+      confidence: result.confidence,
+      reasoning: result.hasDeviation
+        ? `Pattern deviations detected: ${result.deviations.map((d) => d.detail).join("; ")}`
+        : "No pattern deviations detected in sampled transactions",
+      auditTrail: [audit],
+      errors: result.hasDeviation
+        ? [
+            `Pattern deviations detected: ${result.deviations.map((d) => d.detail).join("; ")}`,
+          ]
+        : [],
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return {
+      errors: [`Deviation detection error: ${msg}`],
+      confidence: 0,
+      reasoning: msg,
+    };
+  }
+}
+
+export async function nodeIndependentRecomputation(state: AuditStateType) {
+  const trace = await langfuse.span({
+    name: "audit-independent-recomputation",
+    input: {
+      entityId: state.entityId,
+      sampleSize: state.auditSample?.sampleSize,
+    },
+  });
+
+  const input = state.currentOperation?.input as
+    Record<string, unknown> | undefined;
+  const sample =
+    state.auditSample ??
+    (input?.sample as AuditSample | undefined) ??
+    (await sampleTool(state.entityId, {
+      sampleSize: (input?.sampleSize as number) ?? 50,
+    }));
+
+  try {
+    const results = await recomputeTool(state.entityId, sample);
+    const discrepancies = results.filter((r) => !r.matchesOriginal);
+    await trace.update({
+      output: {
+        recomputed: results.length,
+        discrepancies: discrepancies.length,
+      },
+    });
+
+    const confidence =
+      results.length === 0
+        ? 0
+        : Math.round(
+            ((results.length - discrepancies.length) / results.length) * 1000,
+          ) / 1000;
+
+    const audit = createAuditEntry({
+      agentId: "audit-agent",
+      action:
+        discrepancies.length > 0
+          ? "recomputation_discrepancies_found"
+          : "independent_recomputation_passed",
+      details: {
+        recomputed: results.length,
+        discrepancies: discrepancies.length,
+      },
+      confidence,
+    });
+
+    return {
+      recomputationResults: results,
+      confidence,
+      reasoning: `Independent recomputation of ${results.length} transactions: ${discrepancies.length} discrepancies`,
+      auditTrail: [audit],
+      errors:
+        discrepancies.length > 0
+          ? [
+              `${discrepancies.length} recomputation discrepancies found: ${discrepancies.map((d) => d.transactionRef.slice(0, 8)).join(", ")}`,
+            ]
+          : [],
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return {
+      errors: [`Recomputation error: ${msg}`],
+      confidence: 0,
+      reasoning: msg,
+    };
+  }
+}
+
+export async function nodeAnomalyDetection(state: AuditStateType) {
+  const trace = await langfuse.span({
+    name: "audit-anomaly-detection",
+    input: { entityId: state.entityId },
+  });
+
+  const recomputation = state.recomputationResults ?? [];
+
+  try {
+    const anomalies = await anomaliesTool(state.entityId, recomputation);
+    await trace.update({
+      output: { anomalyCount: anomalies.length },
+    });
+
+    const hasCritical = anomalies.some(
+      (a) => a.severity === "medium" || a.severity === "high",
+    );
+    const confidence = anomalies.length === 0 ? 0.95 : hasCritical ? 0.6 : 0.8;
+
+    const audit = createAuditEntry({
+      agentId: "audit-agent",
+      action:
+        anomalies.length > 0 ? "anomalies_detected" : "anomaly_scan_clean",
+      details: { anomalies: anomalies.map((a) => a.description) },
+      confidence,
+    });
+
+    return {
+      anomalyResults: anomalies,
+      confidence,
+      reasoning:
+        anomalies.length === 0
+          ? "No anomalies detected in sampled transactions"
+          : `${anomalies.length} anomalies detected (${anomalies.filter((a) => a.severity === "medium").length} computational, ${anomalies.filter((a) => a.severity === "low").length} pattern)`,
+      auditTrail: [audit],
+      errors:
+        anomalies.length > 0
+          ? [
+              `Anomalies detected: ${anomalies.map((a) => `${a.type}: ${a.description}`).join("; ")}`,
+            ]
+          : [],
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return {
+      errors: [`Anomaly detection error: ${msg}`],
       confidence: 0,
       reasoning: msg,
     };

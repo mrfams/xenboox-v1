@@ -214,24 +214,47 @@ async function extractFromCsv(buffer: Uint8Array): Promise<OcrResult> {
 }
 
 // ─── Excel Extraction ──────────────────────────────────────────────────────
+//
+// Uses exceljs (maintained, no known advisories) instead of the deprecated
+// npm `xlsx` package (CVE-2023-30533 — prototype pollution/ReDoS; removed
+// from npm, fails `pnpm audit --audit-level=high`). Text extraction is
+// read-only: values are stringified per cell, never evaluated as formulas.
 
 async function extractFromExcel(buffer: Uint8Array): Promise<OcrResult> {
   try {
-    const XLSX = await import("xlsx");
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const { Workbook } = await import("exceljs");
+    const workbook = new Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+
+    const sheets = workbook.worksheets;
     let fullText = "";
 
-    for (const sheetName of workbook.SheetNames) {
-      const sheet = workbook.Sheets[sheetName];
-      const csv = XLSX.utils.sheet_to_csv(sheet);
-      fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
+    for (const sheet of sheets) {
+      const rows: string[] = [];
+      sheet.eachRow({ includeEmpty: false }, (row) => {
+        const values = (row.values as unknown[])
+          .slice(1)
+          .map((v) => {
+            if (v === null || v === undefined) return "";
+            if (v instanceof Date) return v.toISOString().slice(0, 10);
+            if (typeof v === "object") {
+              // exceljs rich-text / hyperlink cells
+              const anyV = v as { text?: string; hyperlink?: string };
+              return anyV.text ?? anyV.hyperlink ?? "";
+            }
+            return String(v);
+          })
+          .join(",");
+        if (values.trim()) rows.push(values);
+      });
+      fullText += `--- Sheet: ${sheet.name} ---\n${rows.join("\n")}\n\n`;
     }
 
     return {
       text: fullText.trim(),
       confidence: 1.0,
       method: "pdf_text",
-      pageCount: workbook.SheetNames.length,
+      pageCount: sheets.length,
     };
   } catch {
     return { text: "", confidence: 0, method: "pdf_text", pageCount: 0 };

@@ -19,6 +19,8 @@ const AGENT_TIER_MAP: Record<string, AgentTierLevel> = {
   cash: "worker",
   mobile_money: "worker",
   payroll_worker: "worker",
+  audit: "worker",
+  expense: "worker",
   reporting: "platform",
   document: "platform",
   budget: "platform",

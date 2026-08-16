@@ -6,6 +6,9 @@ import {
   nodeCompareDataset,
   nodePreparePackage,
   nodeRespondQuery,
+  nodeDetectDeviations,
+  nodeIndependentRecomputation,
+  nodeAnomalyDetection,
   nodeEscalate,
 } from "./nodes";
 
@@ -16,6 +19,9 @@ function routeAfterParse(state: typeof AuditState.State) {
   if (opType === "compare_to_golden_dataset") return "compare_dataset";
   if (opType === "prepare_audit_package") return "prepare_package";
   if (opType === "respond_to_auditor_query") return "respond_query";
+  if (opType === "detect_pattern_deviations") return "detect_deviations";
+  if (opType === "independent_recomputation") return "recomputation";
+  if (opType === "anomaly_detection") return "anomaly_detection";
   return "escalate";
 }
 
@@ -30,6 +36,9 @@ const workflow = new StateGraph(AuditState)
   .addNode("compare_dataset", nodeCompareDataset)
   .addNode("prepare_package", nodePreparePackage)
   .addNode("respond_query", nodeRespondQuery)
+  .addNode("detect_deviations", nodeDetectDeviations)
+  .addNode("recomputation", nodeIndependentRecomputation)
+  .addNode("anomaly_detection", nodeAnomalyDetection)
   .addNode("escalate", nodeEscalate)
   .addEdge(START, "parse_input")
   .addConditionalEdges("parse_input", routeAfterParse, {
@@ -37,6 +46,9 @@ const workflow = new StateGraph(AuditState)
     compare_dataset: "compare_dataset",
     prepare_package: "prepare_package",
     respond_query: "respond_query",
+    detect_deviations: "detect_deviations",
+    recomputation: "recomputation",
+    anomaly_detection: "anomaly_detection",
     escalate: "escalate",
   })
   .addConditionalEdges("sample_transactions", routeAfterOperation, {
@@ -52,6 +64,18 @@ const workflow = new StateGraph(AuditState)
     [END]: END,
   })
   .addConditionalEdges("respond_query", routeAfterOperation, {
+    escalate: "escalate",
+    [END]: END,
+  })
+  .addConditionalEdges("detect_deviations", routeAfterOperation, {
+    escalate: "escalate",
+    [END]: END,
+  })
+  .addConditionalEdges("recomputation", routeAfterOperation, {
+    escalate: "escalate",
+    [END]: END,
+  })
+  .addConditionalEdges("anomaly_detection", routeAfterOperation, {
     escalate: "escalate",
     [END]: END,
   })

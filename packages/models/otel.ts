@@ -19,24 +19,23 @@
 // Exports a plain OTLP/HTTP trace stream — any OTLP-compatible backend
 // (SigNoz, Grafana Tempo, New Relic, Datadog, Honeycomb…) can consume it.
 
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import {
-  ATTR_SERVICE_NAME,
-  ATTR_SERVICE_VERSION,
-} from "@opentelemetry/semantic-conventions";
-import {
-  AlwaysOffSampler,
-  AlwaysOnSampler,
-  BatchSpanProcessor,
-  ParentBasedSampler,
-  TraceIdRatioBasedSampler,
-  type Sampler,
-} from "@opentelemetry/sdk-trace-base";
+// ⚠️ NO STATIC @opentelemetry IMPORTS ALLOWED in this module.
+//
+// instrumentation.ts imports this module, and Next.js bundles it into the
+// edge runtime (where opengraph-image and other edge routes run). OTel SDK
+// packages (@opentelemetry/sdk-node, @opentelemetry/semantic-conventions,
+// etc.) fail to load on edge — so every OTel import below is a dynamic
+// import that only executes when a collector endpoint is configured.
+//
+// The two attribute names are plain string constants ("service.name",
+// "service.version") — inlined here to avoid importing semantic-conventions.
+const ATTR_SERVICE_NAME = "service.name";
+const ATTR_SERVICE_VERSION = "service.version";
 
-let sdk: NodeSDK | null = null;
+// `sdk` holds the live SDK instance once started. Typed via the dynamic
+// import's module type (import type is erased at runtime — no top-level load).
+type NodeSdkInstance = import("@opentelemetry/sdk-node").NodeSDK;
+let sdk: NodeSdkInstance | null = null;
 /** Guards against double registration (dev hot-reload, multiple register() calls). */
 let initialized = false;
 
@@ -49,8 +48,20 @@ export function isOtelEnabled(): boolean {
 /**
  * Resolve the sampler from OTEL_TRACES_SAMPLER / OTEL_TRACES_SAMPLER_ARG
  * (standard OTel env names). Default: parentbased_always_on.
+ *
+ * The sampler classes come from a dynamic import so the edge bundle never
+ * loads @opentelemetry/sdk-trace-base. Async because of the dynamic import.
  */
-export function resolveSampler(): Sampler {
+export async function resolveSampler(): Promise<
+  import("@opentelemetry/sdk-trace-base").Sampler
+> {
+  const {
+    AlwaysOffSampler,
+    AlwaysOnSampler,
+    ParentBasedSampler,
+    TraceIdRatioBasedSampler,
+  } = await import("@opentelemetry/sdk-trace-base");
+
   const name = process.env.OTEL_TRACES_SAMPLER || "parentbased_always_on";
   const rawArg = Number(process.env.OTEL_TRACES_SAMPLER_ARG);
   const ratio =
@@ -79,13 +90,29 @@ export function resolveSampler(): Sampler {
  * Initialize the OTel SDK. Call once at app boot (Next.js instrumentation
  * hook). No-op when no collector endpoint is configured.
  */
-export function initOtel(): void {
+export async function initOtel(): Promise<void> {
   if (initialized) return;
   initialized = true;
 
   if (!isOtelEnabled()) {
     return; // Silent no-op in dev / when no collector is configured
   }
+
+  // Lazy-load the SDK pieces only when actually enabled. Keeps the OTel SDK
+  // (with its native deps) out of the bundle/process when no collector is
+  // configured — faster cold starts and avoids build-time native load errors.
+  const [
+    { NodeSDK },
+    { getNodeAutoInstrumentations },
+    { OTLPTraceExporter },
+    { resourceFromAttributes },
+  ] = await Promise.all([
+    import("@opentelemetry/sdk-node"),
+    import("@opentelemetry/auto-instrumentations-node"),
+    import("@opentelemetry/exporter-trace-otlp-http"),
+    import("@opentelemetry/resources"),
+  ]);
+  const { BatchSpanProcessor } = await import("@opentelemetry/sdk-trace-base");
 
   const endpoint = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT as string).replace(
     /\/+$/,
@@ -113,7 +140,7 @@ export function initOtel(): void {
         exportTimeoutMillis: 30_000,
       }),
     ],
-    sampler: resolveSampler(),
+    sampler: await resolveSampler(),
     instrumentations: [
       getNodeAutoInstrumentations({
         // Filesystem/DNS/socket noise — not useful in traces, skip the overhead.

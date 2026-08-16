@@ -54,28 +54,39 @@ describe("isOtelEnabled", () => {
 });
 
 describe("resolveSampler", () => {
-  it("defaults to parentbased_always_on", () => {
-    expect(resolveSampler()).toBeInstanceOf(ParentBasedSampler);
+  // NOTE: resolveSampler() imports its sampler classes via dynamic import,
+  // so the instances come from a *second* module copy of sdk-trace-base and
+  // fail `toBeInstanceOf` against the statically-imported classes here.
+  // Assert on constructor.name instead (stable across module copies).
+
+  it("defaults to parentbased_always_on", async () => {
+    expect((await resolveSampler()).constructor.name).toBe(
+      "ParentBasedSampler",
+    );
   });
 
-  it("maps always_on / always_off", () => {
+  it("maps always_on / always_off", async () => {
     process.env.OTEL_TRACES_SAMPLER = "always_on";
-    expect(resolveSampler()).toBeInstanceOf(AlwaysOnSampler);
+    expect((await resolveSampler()).constructor.name).toBe("AlwaysOnSampler");
 
     process.env.OTEL_TRACES_SAMPLER = "always_off";
-    expect(resolveSampler()).toBeInstanceOf(AlwaysOffSampler);
+    expect((await resolveSampler()).constructor.name).toBe("AlwaysOffSampler");
   });
 
-  it("maps parentbased_traceidratio with an arg", () => {
+  it("maps parentbased_traceidratio with an arg", async () => {
     process.env.OTEL_TRACES_SAMPLER = "parentbased_traceidratio";
     process.env.OTEL_TRACES_SAMPLER_ARG = "0.1";
-    expect(resolveSampler()).toBeInstanceOf(ParentBasedSampler);
+    expect((await resolveSampler()).constructor.name).toBe(
+      "ParentBasedSampler",
+    );
   });
 
-  it("maps traceidratio and defaults the ratio to 0.1 when the arg is invalid", () => {
+  it("maps traceidratio and defaults the ratio to 0.1 when the arg is invalid", async () => {
     process.env.OTEL_TRACES_SAMPLER = "traceidratio";
     process.env.OTEL_TRACES_SAMPLER_ARG = "not-a-number";
-    expect(resolveSampler()).toBeInstanceOf(TraceIdRatioBasedSampler);
+    expect((await resolveSampler()).constructor.name).toBe(
+      "TraceIdRatioBasedSampler",
+    );
   });
 });
 
@@ -109,8 +120,8 @@ describe("parseOtlpHeaders", () => {
 });
 
 describe("initOtel", () => {
-  it("is a silent no-op without a collector endpoint (global tracer stays no-op)", () => {
-    expect(() => initOtel()).not.toThrow();
+  it("is a silent no-op without a collector endpoint (global tracer stays no-op)", async () => {
+    await expect(initOtel()).resolves.not.toThrow();
 
     // The no-op tracer produces non-recording spans (invalid trace id) — proof
     // the provider was NOT registered, so span creation is free in dev.

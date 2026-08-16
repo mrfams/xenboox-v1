@@ -1,60 +1,100 @@
 import { db } from "@xenboox/db";
-import { eq, and } from "drizzle-orm";
-import { chartOfAccounts } from "@xenboox/db/schema/accounting";
+import { eq, and, sql } from "drizzle-orm";
+import {
+  chartOfAccounts,
+  journalEntryLines,
+  journalEntries,
+} from "@xenboox/db/schema/accounting";
 import type { FinancialRatio, AnalyticsSummary } from "./state";
+
+// ─── Real Balances from Journal Entry Lines ────────────────────────────────
+//
+// Balances are computed by aggregating posted journal entry lines per
+// account, then bucketing by account type. Debit-normal accounts (asset,
+// expense) carry debit - credit; credit-normal accounts (liability, equity,
+// revenue) carry credit - debit. This is the single source of truth for
+// analytics — never hardcoded zeros.
+
+type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
+
+const DEBIT_NORMAL: AccountType[] = ["asset", "expense"];
+const CREDIT_NORMAL: AccountType[] = ["liability", "equity", "revenue"];
+
+async function getBalancesByType(
+  entityId: string,
+): Promise<Record<AccountType, number>> {
+  const accounts = await db.query.chartOfAccounts.findMany({
+    where: and(
+      eq(chartOfAccounts.entityId, entityId),
+      eq(chartOfAccounts.isActive, true),
+    ),
+  });
+
+  const accountTypeMap = new Map<string, AccountType>();
+  for (const account of accounts) {
+    accountTypeMap.set(account.id, account.type as AccountType);
+  }
+
+  // Aggregate debit/credit per account from posted journal entries only.
+  const rows = await db
+    .select({
+      accountId: journalEntryLines.accountId,
+      debitTotal: sql<string>`COALESCE(SUM(${journalEntryLines.debit}), 0)`,
+      creditTotal: sql<string>`COALESCE(SUM(${journalEntryLines.credit}), 0)`,
+    })
+    .from(journalEntryLines)
+    .innerJoin(
+      journalEntries,
+      eq(journalEntryLines.journalEntryId, journalEntries.id),
+    )
+    .where(
+      and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.status, "posted"),
+      ),
+    )
+    .groupBy(journalEntryLines.accountId);
+
+  const balances: Record<AccountType, number> = {
+    asset: 0,
+    liability: 0,
+    equity: 0,
+    revenue: 0,
+    expense: 0,
+  };
+
+  for (const row of rows) {
+    const type = accountTypeMap.get(row.accountId);
+    if (!type) continue; // orphaned line or account deactivated — skip
+    const debit = Number(row.debitTotal);
+    const credit = Number(row.creditTotal);
+    balances[type] += DEBIT_NORMAL.includes(type)
+      ? debit - credit
+      : credit - debit;
+  }
+
+  // Round to 2 decimals to avoid float drift in ratios.
+  for (const key of Object.keys(balances) as AccountType[]) {
+    balances[key] = Math.round(balances[key] * 100) / 100;
+  }
+
+  return balances;
+}
 
 // ─── Financial Ratios ──────────────────────────────────────────────────────
 
 export async function getFinancialRatios(
   entityId: string,
 ): Promise<FinancialRatio[]> {
-  // Get account balances by type
-  const assetAccounts = await db.query.chartOfAccounts.findMany({
-    where: and(
-      eq(chartOfAccounts.entityId, entityId),
-      eq(chartOfAccounts.type, "asset"),
-      eq(chartOfAccounts.isActive, true),
-    ),
-  });
+  const b = await getBalancesByType(entityId);
 
-  const liabilityAccounts = await db.query.chartOfAccounts.findMany({
-    where: and(
-      eq(chartOfAccounts.entityId, entityId),
-      eq(chartOfAccounts.type, "liability"),
-      eq(chartOfAccounts.isActive, true),
-    ),
-  });
+  const totalAssets = b.asset;
+  const totalLiabilities = b.liability;
+  const totalEquity = b.equity;
+  const totalRevenue = b.revenue;
+  const totalExpenses = b.expense;
 
-  const equityAccounts = await db.query.chartOfAccounts.findMany({
-    where: and(
-      eq(chartOfAccounts.entityId, entityId),
-      eq(chartOfAccounts.type, "equity"),
-      eq(chartOfAccounts.isActive, true),
-    ),
-  });
-
-  const revenueAccounts = await db.query.chartOfAccounts.findMany({
-    where: and(
-      eq(chartOfAccounts.entityId, entityId),
-      eq(chartOfAccounts.type, "revenue"),
-      eq(chartOfAccounts.isActive, true),
-    ),
-  });
-
-  const expenseAccounts = await db.query.chartOfAccounts.findMany({
-    where: and(
-      eq(chartOfAccounts.entityId, entityId),
-      eq(chartOfAccounts.type, "expense"),
-      eq(chartOfAccounts.isActive, true),
-    ),
-  });
-
-  // Compute totals (balances default to 0 until journal entries exist)
-  const totalAssets = assetAccounts.reduce((s, _a) => s + 0, 0);
-  const totalLiabilities = liabilityAccounts.reduce((s, _a) => s + 0, 0);
-  const totalEquity = equityAccounts.reduce((s, _a) => s + 0, 0);
-  const totalRevenue = revenueAccounts.reduce((s, _a) => s + 0, 0);
-  const totalExpenses = expenseAccounts.reduce((s, _a) => s + 0, 0);
+  const netIncome = totalRevenue - totalExpenses;
 
   const ratios: FinancialRatio[] = [
     {
@@ -79,27 +119,23 @@ export async function getFinancialRatios(
     },
     {
       name: "Net Profit Margin",
-      value:
-        totalRevenue > 0
-          ? ((totalRevenue - totalExpenses) / totalRevenue) * 100
-          : 0,
+      value: totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0,
       description: "Profitability per unit of revenue",
       benchmark: "> 10%",
       status:
-        totalRevenue > 0 &&
-        ((totalRevenue - totalExpenses) / totalRevenue) * 100 >= 10
+        totalRevenue > 0 && (netIncome / totalRevenue) * 100 >= 10
           ? "good"
           : "warning",
     },
     {
       name: "Return on Assets",
-      value:
-        totalAssets > 0
-          ? ((totalRevenue - totalExpenses) / totalAssets) * 100
-          : 0,
+      value: totalAssets > 0 ? (netIncome / totalAssets) * 100 : 0,
       description: "Efficiency in using assets",
       benchmark: "> 5%",
-      status: "warning",
+      status:
+        totalAssets > 0 && (netIncome / totalAssets) * 100 >= 5
+          ? "good"
+          : "warning",
     },
     {
       name: "Working Capital",
@@ -119,6 +155,7 @@ export async function getKpiDashboard(
   entityId: string,
 ): Promise<AnalyticsSummary> {
   const ratios = await getFinancialRatios(entityId);
+  const b = await getBalancesByType(entityId);
 
   const insights: string[] = [];
 
@@ -132,16 +169,19 @@ export async function getKpiDashboard(
   ) {
     insights.push("Net profit margin below target — analyze cost structure");
   }
+  if (b.expense > b.revenue && b.revenue > 0) {
+    insights.push("Expenses exceed revenue — operating at a loss");
+  }
 
   return {
     period: new Date().toISOString().slice(0, 7),
     ratios,
     insights,
     kpis: {
-      totalAssets: 0,
-      totalLiabilities: 0,
-      totalEquity: 0,
-      netIncome: 0,
+      totalAssets: b.asset,
+      totalLiabilities: b.liability,
+      totalEquity: b.equity,
+      netIncome: b.revenue - b.expense,
     },
   };
 }
@@ -153,13 +193,23 @@ export async function getTrendAnalysis(
   periods: number = 6,
 ): Promise<AnalyticsSummary> {
   const ratios = await getFinancialRatios(entityId);
+  const b = await getBalancesByType(entityId);
 
   return {
     period: `Last ${periods} periods`,
     ratios,
-    insights: ["Trend analysis requires historical journal entry data"],
+    insights:
+      ratios.length > 0
+        ? [
+            `Current liquidity: ${b.asset - b.liability > 0 ? "positive" : "negative"} working capital`,
+            `Net income: ${b.revenue - b.expense >= 0 ? "positive" : "negative"} (${Math.abs(Math.round(b.revenue - b.expense))} minor units)`,
+          ]
+        : ["Trend analysis requires historical journal entry data"],
     kpis: {
       periodCount: periods,
+      totalAssets: b.asset,
+      totalLiabilities: b.liability,
+      netIncome: b.revenue - b.expense,
     },
   };
 }
@@ -170,6 +220,46 @@ export async function getCashFlowAnalysis(
   entityId: string,
 ): Promise<AnalyticsSummary> {
   const ratios = await getFinancialRatios(entityId);
+  const b = await getBalancesByType(entityId);
+
+  // Cash position approximated from cash/bank accounts (asset subtype cash).
+  const accounts = await db.query.chartOfAccounts.findMany({
+    where: and(
+      eq(chartOfAccounts.entityId, entityId),
+      eq(chartOfAccounts.isActive, true),
+    ),
+  });
+  const cashAccountIds = new Set(
+    accounts
+      .filter((a) => ["cash", "bank_account"].includes(a.subtype))
+      .map((a) => a.id),
+  );
+
+  const rows = await db
+    .select({
+      accountId: journalEntryLines.accountId,
+      debitTotal: sql<string>`COALESCE(SUM(${journalEntryLines.debit}), 0)`,
+      creditTotal: sql<string>`COALESCE(SUM(${journalEntryLines.credit}), 0)`,
+    })
+    .from(journalEntryLines)
+    .innerJoin(
+      journalEntries,
+      eq(journalEntryLines.journalEntryId, journalEntries.id),
+    )
+    .where(
+      and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.status, "posted"),
+      ),
+    )
+    .groupBy(journalEntryLines.accountId);
+
+  let cashBalance = 0;
+  for (const row of rows) {
+    if (cashAccountIds.has(row.accountId)) {
+      cashBalance += Number(row.debitTotal) - Number(row.creditTotal);
+    }
+  }
 
   return {
     period: new Date().toISOString().slice(0, 7),
@@ -177,13 +267,16 @@ export async function getCashFlowAnalysis(
       ["Current Ratio", "Working Capital"].includes(r.name),
     ),
     insights: [
-      "Cash flow analysis requires bank and cash account transaction data",
+      `Cash balance: ${Math.round(cashBalance * 100) / 100} minor units across ${cashAccountIds.size} cash account(s)`,
+      b.revenue > 0
+        ? `Net income: ${b.revenue - b.expense} minor units`
+        : "No revenue posted yet in this period",
     ],
     kpis: {
-      operatingCashFlow: 0,
+      operatingCashFlow: Math.round(cashBalance * 100) / 100,
       investingCashFlow: 0,
       financingCashFlow: 0,
-      netCashFlow: 0,
+      netCashFlow: Math.round(cashBalance * 100) / 100,
     },
   };
 }

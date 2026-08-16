@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-16] — §8.1 real agent implementations + 3 build blockers fixed
+
+**Agent:** Buffy
+**Files Modified:** `packages/agents/core/orchestrator.ts`, `packages/agents/tier3/audit-agent/{state,nodes,tools,graph}.ts`, `packages/agents/tier3/expense-agent/{state,nodes,graph}.ts`, `packages/agents/platform/analytics-agent/tools.ts`, `packages/models/task-policy.ts`, `packages/models/otel.ts`, `apps/web/instrumentation.ts`, `apps/web/app/opengraph-image.ts→.tsx`, `packages/jobs/lib/ocr.ts`, `packages/jobs/package.json`, `apps/web/__tests__/otel.test.ts`, `packages/agents/__tests__/production-agent-wiring.test.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:**
+
+1. **§8.1 Real agent implementations** — Orchestrator was bypassing the real audit/expense LangGraph agents with fake delegates returning hardcoded confidence (`0.9`/`0.85`, empty audit trails). Wired real graphs + added task-type→op mapping so all registered tasks route to real nodes. Fixed tier gate: `getAgentTier` now knows `audit`/`expense` (previously THREW); analytics tasks were being DENIED (model-task vocabulary mismatch). Audit agent: 3 new real ops (drift analysis, independent recomputation, anomaly detection) + 2 stub tools replaced (golden-dataset comparison queries `golden_dataset_scenarios`; auditor-query response gathers real supporting docs). Expense agent: new `expense_report` op. Analytics: real balance aggregation from posted journal entries (was hardcoded `+ 0`). 8 new tests, zero regressions in agents suite.
+
+2. **Build blocker: opengraph-image** — `apps/web/app/opengraph-image.ts` contained JSX → `next build` failed (`Expected '>', got 'style'`). Renamed to `.tsx` + updated excludes.
+
+3. **Build blocker: undeclared `xlsx`** — `packages/jobs/lib/ocr.ts` imported `xlsx` but it was never in any package.json (build failed; also deprecated + CVE-2023-30533). Replaced with `exceljs@4.4.0`.
+
+4. **Build blocker: OTel edge bundle** — `packages/models/otel.ts` statically imported `@opentelemetry/sdk-node`/`semantic-conventions`, which fail on the edge runtime (opengraph-image route). All OTel imports now dynamic (lazy load only when collector configured); `resolveSampler()`/`initOtel()` async; tests updated.
+
+**Verification:** agents suite 199 pre-existing failures (unchanged), 8 new tests pass; models/jobs typecheck clean (91 pre-existing errors unchanged); otel tests 12/12 pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — Production readiness sweep: SEO, security verification, config (§15.3, §20.1, §2.2, §2.4, §12.4, §12.5, §11.1)
 
 **Agent:** Kilo

@@ -7,6 +7,9 @@ export const AuditOperationEnum = z.enum([
   "compare_to_golden_dataset",
   "prepare_audit_package",
   "respond_to_auditor_query",
+  "detect_pattern_deviations",
+  "independent_recomputation",
+  "anomaly_detection",
 ]);
 
 export const AuditOperationStatusEnum = z.enum([
@@ -97,6 +100,21 @@ export const AuditState = Annotation.Root({
   goldenDatasetComparison: Annotation<GoldenDatasetComparison | null>,
   auditPackage: Annotation<AuditPackage | null>,
   auditorQueryResponse: Annotation<AuditorQueryResponse | null>,
+  patternDeviations: Annotation<{
+    hasDeviation: boolean;
+    deviations: Array<{ type: string; detail: string; severity: string }>;
+    confidence: number;
+  } | null>,
+  recomputationResults: Annotation<Array<{
+    transactionRef: string;
+    recomputedResult: Record<string, unknown>;
+    matchesOriginal: boolean;
+  }> | null>,
+  anomalyResults: Annotation<Array<{
+    type: string;
+    description: string;
+    severity: string;
+  }> | null>,
 
   auditTrail: Annotation<AuditEntry[]>({
     reducer: (curr, prev) => [...curr, ...prev],

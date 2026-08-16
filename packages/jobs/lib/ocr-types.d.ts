@@ -34,20 +34,6 @@ declare module "tesseract.js" {
   export function createWorker(lang: string): Promise<Worker>;
 }
 
-declare module "xlsx" {
-  export interface WorkBook {
-    SheetNames: string[];
-    Sheets: Record<string, unknown>;
-  }
-  export function read(
-    data: Buffer | Uint8Array,
-    opts?: { type?: string },
-  ): WorkBook;
-  export const utils: {
-    sheet_to_csv(sheet: unknown): string;
-  };
-}
-
 declare module "mammoth" {
   export interface ExtractResult {
     value: string;

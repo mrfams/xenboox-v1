@@ -5,6 +5,7 @@ import {
   nodeExtractReceipt,
   nodeCheckPolicy,
   nodeRouteApproval,
+  nodeExpenseReport,
   nodeEscalate,
 } from "./nodes";
 
@@ -14,6 +15,7 @@ function routeAfterParse(state: typeof ExpenseState.State) {
   if (opType === "extract_receipt") return "extract_receipt";
   if (opType === "check_policy_compliance") return "check_policy";
   if (opType === "route_for_approval") return "route_approval";
+  if (opType === "expense_report") return "expense_report";
   return "escalate";
 }
 
@@ -27,12 +29,14 @@ const workflow = new StateGraph(ExpenseState)
   .addNode("extract_receipt", nodeExtractReceipt)
   .addNode("check_policy", nodeCheckPolicy)
   .addNode("route_approval", nodeRouteApproval)
+  .addNode("expense_report", nodeExpenseReport)
   .addNode("escalate", nodeEscalate)
   .addEdge(START, "parse_input")
   .addConditionalEdges("parse_input", routeAfterParse, {
     extract_receipt: "extract_receipt",
     check_policy: "check_policy",
     route_approval: "route_approval",
+    expense_report: "expense_report",
     escalate: "escalate",
   })
   .addConditionalEdges("extract_receipt", routeAfterOperation, {
@@ -44,6 +48,10 @@ const workflow = new StateGraph(ExpenseState)
     [END]: END,
   })
   .addConditionalEdges("route_approval", routeAfterOperation, {
+    escalate: "escalate",
+    [END]: END,
+  })
+  .addConditionalEdges("expense_report", routeAfterOperation, {
     escalate: "escalate",
     [END]: END,
   })

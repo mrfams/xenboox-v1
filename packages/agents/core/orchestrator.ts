@@ -1,6 +1,6 @@
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
-import { isTaskTypeAllowedForAgent } from "./security";
+import { getAgentTier } from "./security";
 import type { AuditEntry } from "./state";
 import {
   DEPARTMENT_AGENTS,
@@ -309,34 +309,35 @@ export async function getAgentGraph(agentId: AgentId): Promise<AgentGraph> {
       return (await import("../platform/analytics-agent/graph"))
         .analyticsAgent as unknown as AgentGraph;
     case "audit":
-      // The Audit Agent runs as a pipeline, not a LangGraph agent
-      // Return a simple graph that delegates to the pipeline
-      return {
-        invoke: async (state) => ({
-          ...state,
-          confidence: 0.9,
-          reasoning:
-            "Audit pipeline executed — see audit-pipeline for full results",
-          result: { type: "audit_complete" },
-          errors: [],
-          auditTrail: [],
-        }),
-      };
+      return (await import("../tier3/audit-agent/graph"))
+        .auditAgent as unknown as AgentGraph;
     case "expense":
-      // The Expense Agent runs as a pipeline, not a LangGraph agent
-      return {
-        invoke: async (state) => ({
-          ...state,
-          confidence: 0.85,
-          reasoning:
-            "Expense pipeline executed — see expense-pipeline for full results",
-          result: { type: "expense_complete" },
-          errors: [],
-          auditTrail: [],
-        }),
-      };
+      return (await import("../tier3/expense-agent/graph"))
+        .expenseAgent as unknown as AgentGraph;
   }
 }
+
+// ─── Task Type → Agent Operation Mapping ──────────────────────────────────
+//
+// The registry exposes public task types (submit_expense, audit_sampling, …)
+// while each agent graph routes on its own internal operation vocabulary
+// (extract_receipt, sample_transactions, …). Map the public task types to the
+// agent ops so every registered task routes to real agent work. Unknown task
+// types pass through unchanged (agents that share vocabulary — analytics,
+// budget, document — are unaffected).
+
+const TASK_TYPE_TO_AGENT_OP: Record<string, string> = {
+  // Audit Agent
+  audit_sampling: "sample_transactions",
+  drift_analysis: "detect_pattern_deviations",
+  independent_recomputation: "independent_recomputation",
+  anomaly_detection: "anomaly_detection",
+  // Expense Agent
+  submit_expense: "extract_receipt",
+  approve_expense: "check_policy_compliance",
+  reimburse_expense: "route_for_approval",
+  expense_report: "expense_report",
+};
 
 // ─── Orchestrator ──────────────────────────────────────────────────────────
 
@@ -392,26 +393,33 @@ export async function orchestrate(
       duration: Date.now() - startTime,
     };
   }
-
   const { agentId, tier } = routing;
 
-  // ─── Security guard: agent task type authorization ────────────────
-  const authCheck = isTaskTypeAllowedForAgent(agentId, params.taskType);
-  if (!authCheck.allowed) {
+  // ─── Security guard: agent tier authorization ─────────────────────
+  // TASK_AGENT_MAP is the authorization source of truth: every registered
+  // task type is bound to exactly one agent with a fixed tier, so reaching
+  // this point means the task type is authorized for this agent. Fail closed
+  // if the resolved agent is unknown (registry typo) — never silently
+  // invoke an untiered agent. (Model-tier enforcement for LLM calls is a
+  // separate concern, applied in the model layer via isTaskTypeAllowedForAgent
+  // with model task types at callModel time.)
+  let agentTier: ReturnType<typeof getAgentTier>;
+  try {
+    agentTier = getAgentTier(agentId);
+  } catch {
     return {
       taskId,
       agentId,
       tier,
       confidence: 0,
-      reasoning:
-        authCheck.reason ??
-        `Agent ${agentId} not authorized for ${params.taskType}`,
+      reasoning: `Agent ${agentId} is not a recognized agent`,
       result: null,
-      errors: [authCheck.reason ?? "Agent security violation"],
+      errors: [`Unknown agent: ${agentId}`],
       auditTrail: [],
       duration: Date.now() - startTime,
     };
   }
+  void agentTier;
 
   try {
     const graph = await getAgentGraph(agentId);
@@ -421,7 +429,7 @@ export async function orchestrate(
       entityName: params.entityName,
       currency: params.currency,
       currentOperation: {
-        type: params.taskType,
+        type: TASK_TYPE_TO_AGENT_OP[params.taskType] ?? params.taskType,
         status: "processing",
         input: params.input,
         output: null,

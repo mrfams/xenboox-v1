@@ -6,6 +6,7 @@ export const ExpenseOperationEnum = z.enum([
   "extract_receipt",
   "check_policy_compliance",
   "route_for_approval",
+  "expense_report",
 ]);
 
 export const ExpenseOperationStatusEnum = z.enum([
@@ -70,6 +71,12 @@ export const ExpenseState = Annotation.Root({
   extractedReceipt: Annotation<ExtractedReceipt | null>,
   policyCheckResult: Annotation<PolicyCheckResult | null>,
   approvalRouteResult: Annotation<ApprovalRouteResult | null>,
+  expenseReportResult: Annotation<{
+    claimCount: number;
+    byStatus: Record<string, number>;
+    totalAmount: number;
+    pendingApproval: number;
+  } | null>,
 
   auditTrail: Annotation<AuditEntry[]>({
     reducer: (curr, prev) => [...curr, ...prev],

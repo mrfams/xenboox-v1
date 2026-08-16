@@ -1,5 +1,8 @@
 import { langfuse } from "../../core/langfuse";
 import { createAuditEntry } from "../../core/state";
+import { db } from "@xenboox/db";
+import { eq, desc } from "drizzle-orm";
+import { expenseClaims } from "@xenboox/db/schema";
 import {
   extractReceipt as extractReceiptTool,
   checkPolicyCompliance as checkPolicyTool,
@@ -207,6 +210,64 @@ export async function nodeRouteApproval(state: ExpenseStateType) {
     const msg = error instanceof Error ? error.message : String(error);
     await trace.update({ output: { success: false, error: msg } });
     return { errors: [`Routing error: ${msg}`], confidence: 0, reasoning: msg };
+  }
+}
+
+export async function nodeExpenseReport(state: ExpenseStateType) {
+  const trace = await langfuse.span({
+    name: "expense-report",
+    input: { entityId: state.entityId },
+  });
+
+  try {
+    const claims = await db.query.expenseClaims.findMany({
+      where: eq(expenseClaims.entityId, state.entityId),
+      orderBy: [desc(expenseClaims.createdAt)],
+      limit: 500,
+    });
+
+    const byStatus: Record<string, number> = {};
+    let totalAmount = 0;
+    for (const claim of claims) {
+      byStatus[claim.status] = (byStatus[claim.status] ?? 0) + 1;
+      totalAmount += Number(claim.totalAmount);
+    }
+
+    const pendingApproval = byStatus["submitted"] ?? 0;
+    const report = {
+      claimCount: claims.length,
+      byStatus,
+      totalAmount: Math.round(totalAmount * 100) / 100,
+      pendingApproval,
+    };
+
+    await trace.update({ output: report });
+
+    const audit = createAuditEntry({
+      agentId: "expense-agent",
+      action: "expense_report_generated",
+      details: {
+        claimCount: claims.length,
+        pendingApproval,
+      },
+      confidence: 0.95,
+    });
+
+    return {
+      expenseReportResult: report,
+      result: { type: "expense_report", ...report },
+      confidence: 0.95,
+      reasoning: `Expense report: ${claims.length} claims totaling ${totalAmount} minor units, ${pendingApproval} pending approval`,
+      auditTrail: [audit],
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    await trace.update({ output: { success: false, error: msg } });
+    return {
+      errors: [`Expense report error: ${msg}`],
+      confidence: 0,
+      reasoning: msg,
+    };
   }
 }
 
