@@ -15,9 +15,13 @@ import {
   Activity,
 } from "lucide-react";
 
+import { useState } from "react";
+
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
+import { cn } from "@/lib/utils";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
+import { runwayTone, runwayStatusLabel } from "@/lib/dashboard-runway";
 
 const insightSections = [
   {
@@ -86,6 +90,189 @@ const insightSections = [
   },
 ];
 
+function ScenarioPlanner() {
+  const { data } = trpc.dashboard.getScenarioData.useQuery();
+  const [revenueGrowth, setRevenueGrowth] = useState(0); // %
+  const [expenseCut, setExpenseCut] = useState(0); // %
+  const [months, setMonths] = useState(6);
+
+  const cash = data?.cashBalance ?? 0;
+  const burn = data?.avgMonthlyBurn ?? 0;
+  const revenues = data?.monthlyRevenues ?? [];
+  const expenses = data?.monthlyExpenses ?? [];
+
+  const avgRevenue = revenues.length
+    ? revenues.reduce((s, v) => s + v, 0) / revenues.length
+    : 0;
+  const avgExpense = expenses.length
+    ? expenses.reduce((s, v) => s + v, 0) / expenses.length
+    : 0;
+
+  // Projected burn under the assumptions: expenses cut by X%, revenue grows
+  // by Y% → net burn = expense' − revenue'.
+  const projectedExpense = avgExpense * (1 - expenseCut / 100);
+  const projectedRevenue = avgRevenue * (1 + revenueGrowth / 100);
+  const projectedBurn = projectedExpense - projectedRevenue;
+  const projectedRunway = projectedBurn > 0 ? cash / projectedBurn : null;
+
+  const tone = runwayTone(projectedRunway);
+  const label = runwayStatusLabel(projectedRunway);
+
+  // Cash projection curve across the selected horizon.
+  const projection: Array<{ month: number; cash: number }> = [];
+  let running = cash;
+  for (let m = 1; m <= months; m++) {
+    running -= projectedBurn;
+    projection.push({ month: m, cash: Math.max(0, running) });
+  }
+  const maxCash = Math.max(cash, ...projection.map((p) => p.cash), 1);
+  const currentRunway = burn > 0 ? cash / burn : null;
+
+  const toneStyles: Record<string, string> = {
+    positive: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    warning: "bg-amber-50 text-amber-700 border-amber-200",
+    negative: "bg-rose-50 text-rose-700 border-rose-200",
+  };
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <TrendingUp className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold text-foreground">
+          Scenario planning
+        </h3>
+        <span className="text-[11px] text-muted-foreground">
+          What-if projections on your real cash position
+        </span>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+        {/* Controls */}
+        <div className="space-y-5">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between text-xs">
+              <span className="font-medium text-foreground">
+                Revenue growth
+              </span>
+              <span className="font-semibold text-primary">
+                {revenueGrowth > 0 ? "+" : ""}
+                {revenueGrowth}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={-20}
+              max={50}
+              value={revenueGrowth}
+              onChange={(e) => setRevenueGrowth(Number(e.target.value))}
+              className="w-full accent-indigo-600"
+            />
+          </div>
+          <div>
+            <div className="mb-1.5 flex items-center justify-between text-xs">
+              <span className="font-medium text-foreground">
+                Expense reduction
+              </span>
+              <span className="font-semibold text-primary">{expenseCut}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={50}
+              value={expenseCut}
+              onChange={(e) => setExpenseCut(Number(e.target.value))}
+              className="w-full accent-indigo-600"
+            />
+          </div>
+          <div>
+            <div className="mb-1.5 flex items-center justify-between text-xs">
+              <span className="font-medium text-foreground">Horizon</span>
+              <span className="font-semibold text-primary">
+                {months} months
+              </span>
+            </div>
+            <input
+              type="range"
+              min={3}
+              max={12}
+              value={months}
+              onChange={(e) => setMonths(Number(e.target.value))}
+              className="w-full accent-indigo-600"
+            />
+          </div>
+
+          <div className={`rounded-lg border px-4 py-3 ${toneStyles[tone]}`}>
+            <p className="text-[11px] font-semibold uppercase tracking-wider opacity-80">
+              Projected runway
+            </p>
+            <p className="mt-0.5 text-2xl font-bold">
+              {projectedRunway === null
+                ? "Sustainable"
+                : `${projectedRunway.toFixed(1)} months`}
+            </p>
+            <p className="mt-1 text-[11px] opacity-80">
+              {label}
+              {currentRunway !== null &&
+                projectedRunway !== null &&
+                ` · currently ${currentRunway.toFixed(1)} months`}
+            </p>
+          </div>
+        </div>
+
+        {/* Projection chart */}
+        <div>
+          <div className="flex h-48 items-end gap-1 rounded-lg border border-border/50 bg-background p-3">
+            {projection.map((p) => (
+              <div
+                key={p.month}
+                className="flex flex-1 flex-col items-center gap-1"
+              >
+                <div
+                  className={cn(
+                    "w-full rounded-t",
+                    p.cash <= 0
+                      ? "bg-rose-400"
+                      : p.cash < cash / 2
+                        ? "bg-amber-400"
+                        : "bg-primary/70",
+                  )}
+                  style={{
+                    height: `${Math.max(2, (p.cash / maxCash) * 100)}%`,
+                  }}
+                  title={`Month ${p.month}: GMD ${p.cash.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                />
+                <span className="text-[9px] text-muted-foreground">
+                  M{p.month}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-sm bg-primary/70" /> Cash on hand
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-sm bg-amber-400" /> Below half
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-sm bg-rose-400" /> Depleted
+            </span>
+          </div>
+          <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+            Baseline: GMD{" "}
+            {cash.toLocaleString(undefined, { maximumFractionDigits: 0 })} cash
+            · GMD{" "}
+            {Math.abs(burn).toLocaleString(undefined, {
+              maximumFractionDigits: 0,
+            })}{" "}
+            {burn >= 0 ? "net burn" : "net income"} / month (3-mo average).
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function InsightsPage() {
   const { entityId } = useEntity();
 
@@ -115,6 +302,9 @@ export default function InsightsPage() {
           variant="outline"
         />
       </div>
+
+      {/* Scenario Planning */}
+      <ScenarioPlanner />
 
       {/* AI-Generated Insights */}
       {insights.length > 0 && (
