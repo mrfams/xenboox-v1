@@ -792,7 +792,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 >
 > ```
 > R2_BUCKET_NAME=xenboox-mock-bucket
-> R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+> R2_ACCOUNT_ID=mock-account-id
 > R2_ACCESS_KEY_ID=mock-access-key-id
 > R2_SECRET_ACCESS_KEY=mock-secret-access-key
 > ```
