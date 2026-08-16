@@ -73,6 +73,7 @@ import { featureFlagsRouter } from "./feature-flags";
 import { contentRouter } from "./content";
 import { companyBrainRouter } from "./company-brain";
 import { automationStudioRouter } from "./automation-studio";
+import { automationRouter } from "./automation";
 import { settingsRouter } from "./settings";
 import { artifactRouter } from "./artifact";
 import { ssoRouter } from "./sso";
@@ -156,6 +157,7 @@ export const appRouter = router({
   content: contentRouter,
   companyBrain: companyBrainRouter,
   automationStudio: automationStudioRouter,
+  automation: automationRouter,
   settings: settingsRouter,
   artifact: artifactRouter,
   sso: ssoRouter,

@@ -66,3 +66,4 @@ export * from "./artifacts";
 export * from "./tool-grants";
 export * from "./knowledge-rag";
 export * from "./fx";
+export * from "./automation";
