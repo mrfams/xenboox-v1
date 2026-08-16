@@ -1,6 +1,16 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
-import { conversations, chatMessages, documents } from "@xenboox/db/schema";
+import {
+  conversations,
+  chatMessages,
+  documents,
+  journalEntries,
+  salesInvoices,
+  invoicesAp,
+  chartOfAccounts,
+  customers,
+  suppliers,
+} from "@xenboox/db/schema";
 import { processChatInput, type PipelineStepEvent } from "@xenboox/agents";
 import { redactPii } from "@xenboox/agents/core/security/injection-defense";
 
@@ -15,6 +25,7 @@ import {
   buildPageContextBlock,
   type PageContextPayload,
 } from "@/lib/chat/page-context";
+import type { PinnedContext } from "@/lib/chat/mention-types";
 
 export const runtime = "nodejs";
 // §17.6 — chat routes run full agent pipelines (LLM + tool calls) and can
@@ -40,13 +51,15 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { message, conversationId, entityId, files, pageContext } = body as {
-    message?: string;
-    conversationId?: string;
-    entityId?: string;
-    files?: Array<{ documentId: string; name: string; type: string }>;
-    pageContext?: PageContextPayload;
-  };
+  const { message, conversationId, entityId, files, pageContext, pinned } =
+    body as {
+      message?: string;
+      conversationId?: string;
+      entityId?: string;
+      files?: Array<{ documentId: string; name: string; type: string }>;
+      pageContext?: PageContextPayload;
+      pinned?: PinnedContext[];
+    };
 
   if (!message || !entityId) {
     return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -114,17 +127,6 @@ export async function POST(req: NextRequest) {
     convId = conv.id;
   }
 
-  // Save user message
-  await db
-    .insert(chatMessages)
-    .values({
-      conversationId: convId,
-      role: "user",
-      content: message,
-      status: "completed",
-    })
-    .returning();
-
   // Build file context if files were attached — entity-scoped: only documents
   // that belong to this entity are loaded, so a crafted documentId can never
   // leak another entity's file into the prompt. Each attached document
@@ -180,6 +182,200 @@ export async function POST(req: NextRequest) {
   // (module copilot). Bounded + sanitized by the builder; omitted entirely
   // when the client sent nothing.
   const pageContextBlock = buildPageContextBlock(pageContext);
+
+  // Resolve '@'-mentioned context pins — every id is re-validated against the
+  // entity here (the client label is display-only; the record is loaded fresh
+  // and entity-scoped, so a forged pin can never leak another entity's data
+  // into the prompt). Unresolvable pins are dropped silently.
+  let pinnedContextBlock = "";
+  const resolvedPins: PinnedContext[] = [];
+  if (pinned && Array.isArray(pinned) && pinned.length > 0) {
+    const byKind = new Map<string, string[]>();
+    for (const p of pinned) {
+      if (!p?.kind || !p?.id) continue;
+      const list = byKind.get(p.kind) ?? [];
+      list.push(p.id);
+      byKind.set(p.kind, list);
+    }
+    const lines: string[] = [];
+    for (const [kind, ids] of byKind) {
+      const owned = ids.filter((id) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        ),
+      );
+      if (owned.length === 0) continue;
+      switch (kind) {
+        case "document": {
+          const rows = await db.query.documents.findMany({
+            where: and(
+              eq(documents.entityId, entityId),
+              inArray(documents.id, owned),
+            ),
+            columns: { id: true, name: true, type: true, ocrText: true },
+          });
+          for (const r of rows) {
+            const excerpt = redactPii(
+              (r.ocrText ?? "")
+                .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 1200),
+            ).text;
+            lines.push(
+              `• Document: ${r.name} (${r.type})${excerpt ? ` — excerpt: "${excerpt}"` : ""}`,
+            );
+            resolvedPins.push({ kind, id: r.id, label: r.name });
+          }
+          break;
+        }
+        case "transaction": {
+          const rows = await db.query.journalEntries.findMany({
+            where: and(
+              eq(journalEntries.entityId, entityId),
+              inArray(journalEntries.id, owned),
+            ),
+            columns: {
+              id: true,
+              description: true,
+              date: true,
+              status: true,
+              reference: true,
+            },
+          });
+          for (const r of rows) {
+            lines.push(
+              `• Transaction (${r.date}, ${r.status}): ${r.description}${r.reference ? ` [ref: ${r.reference}]` : ""}`,
+            );
+            resolvedPins.push({ kind, id: r.id, label: r.description });
+          }
+          break;
+        }
+        case "invoice": {
+          const rows = await db.query.salesInvoices.findMany({
+            where: and(
+              eq(salesInvoices.entityId, entityId),
+              inArray(salesInvoices.id, owned),
+            ),
+            columns: {
+              id: true,
+              invoiceNumber: true,
+              invoiceDate: true,
+              status: true,
+              totalAmount: true,
+              currency: true,
+            },
+          });
+          for (const r of rows) {
+            lines.push(
+              `• Invoice ${r.invoiceNumber} (${r.invoiceDate}, ${r.status}): ${r.currency} ${r.totalAmount}`,
+            );
+            resolvedPins.push({ kind, id: r.id, label: r.invoiceNumber });
+          }
+          break;
+        }
+        case "bill": {
+          const rows = await db.query.invoicesAp.findMany({
+            where: and(
+              eq(invoicesAp.entityId, entityId),
+              inArray(invoicesAp.id, owned),
+            ),
+            columns: {
+              id: true,
+              invoiceNumber: true,
+              invoiceDate: true,
+              status: true,
+              totalAmount: true,
+              currency: true,
+            },
+          });
+          for (const r of rows) {
+            lines.push(
+              `• Bill ${r.invoiceNumber} (${r.invoiceDate}, ${r.status}): ${r.currency} ${r.totalAmount}`,
+            );
+            resolvedPins.push({ kind, id: r.id, label: r.invoiceNumber });
+          }
+          break;
+        }
+        case "account": {
+          const rows = await db.query.chartOfAccounts.findMany({
+            where: and(
+              eq(chartOfAccounts.entityId, entityId),
+              inArray(chartOfAccounts.id, owned),
+            ),
+            columns: { id: true, code: true, name: true, type: true },
+          });
+          for (const r of rows) {
+            lines.push(`• Account: ${r.code} · ${r.name} (${r.type})`);
+            resolvedPins.push({
+              kind,
+              id: r.id,
+              label: `${r.code} · ${r.name}`,
+            });
+          }
+          break;
+        }
+        case "customer": {
+          const rows = await db.query.customers.findMany({
+            where: and(
+              eq(customers.entityId, entityId),
+              inArray(customers.id, owned),
+            ),
+            columns: {
+              id: true,
+              name: true,
+              contactEmail: true,
+              paymentTerms: true,
+            },
+          });
+          for (const r of rows) {
+            lines.push(
+              `• Customer: ${r.name}${r.contactEmail ? ` (${r.contactEmail})` : ""}${r.paymentTerms ? ` · terms ${r.paymentTerms}` : ""}`,
+            );
+            resolvedPins.push({ kind, id: r.id, label: r.name });
+          }
+          break;
+        }
+        case "supplier": {
+          const rows = await db.query.suppliers.findMany({
+            where: and(
+              eq(suppliers.entityId, entityId),
+              inArray(suppliers.id, owned),
+            ),
+            columns: {
+              id: true,
+              name: true,
+              contactEmail: true,
+              paymentTerms: true,
+            },
+          });
+          for (const r of rows) {
+            lines.push(
+              `• Supplier: ${r.name}${r.contactEmail ? ` (${r.contactEmail})` : ""}${r.paymentTerms ? ` · terms ${r.paymentTerms}` : ""}`,
+            );
+            resolvedPins.push({ kind, id: r.id, label: r.name });
+          }
+          break;
+        }
+      }
+    }
+    if (lines.length > 0) {
+      pinnedContextBlock = `\n\nUser pinned these records with '@' — anchor your reasoning to them and refer to them by name:\n${lines.join("\n")}`;
+    }
+  }
+
+  // Save user message — resolved pins persist on the row's metadata so the
+  // history renderer can show what the user anchored to this message.
+  await db
+    .insert(chatMessages)
+    .values({
+      conversationId: convId,
+      role: "user",
+      content: message,
+      status: "completed",
+      metadata: resolvedPins.length > 0 ? { pinned: resolvedPins } : {},
+    })
+    .returning();
 
   // Insert a pending assistant message row (status: streaming) so the UI can
   // render a typing indicator tied to a real DB row, survive reconnects, and
@@ -288,7 +484,8 @@ export async function POST(req: NextRequest) {
         const fullMessage =
           message +
           fileContext +
-          (pageContextBlock ? `\n\n${pageContextBlock}` : "");
+          (pageContextBlock ? `\n\n${pageContextBlock}` : "") +
+          pinnedContextBlock;
 
         // Stream tool events as they happen
         const toolEvents: Array<{

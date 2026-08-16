@@ -35,6 +35,7 @@ import {
   Download,
   Shield,
   Zap,
+  AtSign,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -57,6 +58,7 @@ import {
   parseChatArtifacts,
   type ChatArtifactRef,
 } from "@/lib/chat/artifact-types";
+import type { PinnedContext } from "@/lib/chat/mention-types";
 
 // ─── Active AI Tasks Component ────────────────────────────────────────────
 
@@ -1272,6 +1274,9 @@ function ChatMessages({
       {messages && messages.length > 0 ? (
         messages.map((msg) => {
           const artifacts = parseChatArtifacts(msg.metadata);
+          const pinned = Array.isArray(msg.metadata?.pinned)
+            ? (msg.metadata.pinned as PinnedContext[])
+            : [];
           return (
             <div
               key={msg.id}
@@ -1280,6 +1285,19 @@ function ChatMessages({
                 msg.role === "user" ? "items-end" : "items-start",
               )}
             >
+              {msg.role === "user" && pinned.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 justify-end max-w-[80%]">
+                  {pinned.map((p) => (
+                    <span
+                      key={`${p.kind}:${p.id}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[9px] text-primary"
+                    >
+                      <AtSign className="h-2.5 w-2.5" />
+                      <span className="max-w-[160px] truncate">{p.label}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
               {msg.role === "assistant" && (
                 <div className="flex items-center gap-1.5 mb-1">
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
@@ -2038,6 +2056,7 @@ function AIWorkspaceContent() {
   const handleCommandSubmit = async (
     message?: string,
     files?: Array<{ documentId?: string; name: string; type: string }>,
+    pinned?: PinnedContext[],
   ) => {
     // Use the message that came from the composer itself — typing directly in
     // the composer must send that text (inputValue is only populated by the
@@ -2049,7 +2068,13 @@ function AIWorkspaceContent() {
       (f): f is { documentId: string; name: string; type: string } =>
         !!f.documentId,
     );
-    sendStreamingMessage(text, activeConversationId ?? undefined, validFiles);
+    sendStreamingMessage(
+      text,
+      activeConversationId ?? undefined,
+      validFiles,
+      undefined,
+      pinned,
+    );
     setInputValue("");
   };
 
@@ -2108,10 +2133,11 @@ function AIWorkspaceContent() {
           {/* AI Composer */}
           <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4">
             <AIComposer
-              onSend={(message, files) => {
-                handleCommandSubmit(message, files);
+              onSend={(message, files, pinned) => {
+                handleCommandSubmit(message, files, pinned);
               }}
               isStreaming={isStreaming}
+              entityId={entityId ?? undefined}
               placeholder="Ask follow up..."
             />
           </div>
@@ -2144,10 +2170,11 @@ function AIWorkspaceContent() {
           <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4 flex-shrink-0">
             <div className="mx-auto w-full max-w-3xl">
               <AIComposer
-                onSend={(message, files) => {
-                  handleCommandSubmit(message, files);
+                onSend={(message, files, pinned) => {
+                  handleCommandSubmit(message, files, pinned);
                 }}
                 isStreaming={isStreaming}
+                entityId={entityId ?? undefined}
                 placeholder="What would you like Xenboox to do?"
               />
             </div>

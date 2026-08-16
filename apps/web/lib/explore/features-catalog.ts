@@ -394,8 +394,9 @@ export const FEATURES: Feature[] = [
     name: "@-mention context anchoring",
     category: "Agent Workforce",
     description:
-      "Pin a document, transaction, or policy into a chat with '@' so the AI anchors its reasoning to that exact record.",
-    status: "planned",
+      "Pin a document, transaction, or policy into a chat with '@' so the AI anchors its reasoning to that exact record. Type '@' in the AI Command Center composer to pin documents, transactions, invoices, bills, accounts, customers, or suppliers — every pin is re-resolved entity-scoped before it reaches the agent, and pinned chips persist in message history.",
+    status: "shipped",
+    href: "/dashboard/chat",
     source: "Notion AI · GitHub Copilot chat",
   },
   {

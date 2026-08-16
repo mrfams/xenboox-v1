@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 
 import type { PageContextPayload } from "@/lib/chat/page-context";
+import type { PinnedContext } from "@/lib/chat/mention-types";
 
 // ─── Event Types ───────────────────────────────────────────────────────────
 
@@ -165,6 +166,7 @@ export function useStreamingChat({
       conversationId?: string,
       files?: Array<{ documentId: string; name: string; type: string }>,
       pageContext?: PageContextPayload,
+      pinned?: PinnedContext[],
     ) => {
       if (isStreaming) return;
 
@@ -191,6 +193,7 @@ export function useStreamingChat({
             entityId,
             files,
             pageContext,
+            pinned,
           }),
           signal: abortControllerRef.current.signal,
         });

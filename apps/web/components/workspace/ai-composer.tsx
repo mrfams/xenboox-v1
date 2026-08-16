@@ -14,11 +14,22 @@ import {
   Check,
   Command,
   Sparkles,
+  AtSign,
+  Receipt,
+  FileDigit,
+  Wallet,
+  Users,
+  Truck,
   type LucideIcon,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import {
+  MENTION_KIND_LABELS,
+  type MentionItem,
+  type PinnedContext,
+} from "@/lib/chat/mention-types";
 
 // ─── File Types ──────────────────────────────────────────────────────────
 
@@ -235,10 +246,85 @@ function SlashCommandMenu({
   );
 }
 
+// ─── Mention Picker ──────────────────────────────────────────────────────
+
+const MENTION_ICONS: Record<MentionItem["kind"], LucideIcon> = {
+  document: FileText,
+  transaction: FileDigit,
+  invoice: Receipt,
+  bill: Receipt,
+  account: Wallet,
+  customer: Users,
+  supplier: Truck,
+};
+
+function MentionPicker({
+  results,
+  query,
+  fetching,
+  onSelect,
+}: {
+  results: MentionItem[];
+  query: string;
+  fetching: boolean;
+  onSelect: (item: MentionItem) => void;
+}) {
+  return (
+    <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border/50 bg-card shadow-xl overflow-hidden z-50">
+      <div className="p-2">
+        <p className="text-[10px] font-medium text-muted-foreground px-2 py-1">
+          Pin context — documents, transactions, accounts…
+        </p>
+        {fetching && results.length === 0 ? (
+          <div className="flex items-center gap-2 px-3 py-3">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Searching…</span>
+          </div>
+        ) : results.length === 0 ? (
+          <p className="px-3 py-3 text-xs text-muted-foreground">
+            No matches for “{query}”.
+          </p>
+        ) : (
+          results.map((item) => {
+            const Icon = MENTION_ICONS[item.kind] ?? FileText;
+            return (
+              <button
+                key={`${item.kind}:${item.id}`}
+                type="button"
+                onClick={() => onSelect(item)}
+                className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-accent transition-colors text-left"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+                  <Icon className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">
+                    {item.label}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {item.subtitle}
+                  </p>
+                </div>
+                <span className="text-[9px] font-medium text-primary bg-primary/10 rounded px-1.5 py-0.5 flex-shrink-0">
+                  {MENTION_KIND_LABELS[item.kind]}
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Composer Component ─────────────────────────────────────────────
 
 interface AIComposerProps {
-  onSend: (message: string, files?: UploadedFile[]) => void;
+  onSend: (
+    message: string,
+    files?: UploadedFile[],
+    pinned?: PinnedContext[],
+  ) => void;
   isStreaming?: boolean;
   onCancel?: () => void;
   placeholder?: string;
@@ -252,17 +338,32 @@ export function AIComposer({
   onCancel,
   placeholder = "Ask Xenboox anything or assign work...",
   disabled = false,
+  entityId,
 }: AIComposerProps) {
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [pinned, setPinned] = useState<PinnedContext[]>([]);
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionActive, setMentionActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
+
+  // Entity-scoped search for '@'-mentions. Empty query returns recent
+  // documents/accounts so the picker has something to show on first '@'.
+  const { data: mentionResults, isFetching: mentionsFetching } =
+    trpc.chat.searchMentions.useQuery(
+      { query: mentionQuery, limit: 6 },
+      {
+        enabled: mentionActive && !!entityId,
+        keepPreviousData: true,
+      },
+    );
 
   // tRPC mutations for file upload
   const getUploadUrl = trpc.document.getUploadUrl.useMutation();
@@ -270,13 +371,36 @@ export function AIComposer({
 
   // Handle slash commands
   useEffect(() => {
-    if (inputValue.startsWith("/")) {
+    if (inputValue.startsWith("/") && !mentionActive) {
       setShowSlashMenu(true);
       setSlashQuery(inputValue);
     } else {
       setShowSlashMenu(false);
     }
-  }, [inputValue]);
+  }, [inputValue, mentionActive]);
+
+  // Handle '@'-mentions — detect the token after the last '@' (bounded to a
+  // single word) and open the entity-scoped picker. Typing a space or sending
+  // closes it.
+  useEffect(() => {
+    if (disabled || isStreaming) {
+      setMentionActive(false);
+      return;
+    }
+    const at = inputValue.lastIndexOf("@");
+    if (at === -1) {
+      setMentionActive(false);
+      return;
+    }
+    const after = inputValue.slice(at + 1);
+    if (after.includes(" ")) {
+      // '@' followed by a full word already committed — not an active trigger.
+      setMentionActive(false);
+      return;
+    }
+    setMentionActive(true);
+    setMentionQuery(after.trim());
+  }, [inputValue, disabled, isStreaming]);
 
   // Handle drag and drop
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -469,9 +593,14 @@ export function AIComposer({
   const handleSend = () => {
     if ((!inputValue.trim() && uploadedFiles.length === 0) || isStreaming)
       return;
-    onSend(inputValue, uploadedFiles.length > 0 ? uploadedFiles : undefined);
+    onSend(
+      inputValue,
+      uploadedFiles.length > 0 ? uploadedFiles : undefined,
+      pinned.length > 0 ? pinned : undefined,
+    );
     setInputValue("");
     setUploadedFiles([]);
+    setPinned([]);
   };
 
   const handleSlashSelect = (command: string) => {
@@ -480,7 +609,37 @@ export function AIComposer({
     inputRef.current?.focus();
   };
 
+  /**
+   * Selecting a mention replaces the raw '@word' trigger with the pinned
+   * label inline (readable in the sent message) and pins the record itself
+   * as structured context the stream route re-resolves entity-scoped.
+   */
+  const handleMentionSelect = (item: MentionItem) => {
+    const at = inputValue.lastIndexOf("@");
+    const before = at > 0 ? inputValue.slice(0, at) : "";
+    // Trim a stray space left before '@' so the pin reads naturally inline.
+    const prefix = before.replace(/\s+$/, "");
+    const next = (prefix ? prefix + " " : "") + "@" + item.label + " ";
+    setInputValue(next);
+    setPinned((prev) => [
+      ...prev.filter((p) => !(p.kind === item.kind && p.id === item.id)),
+      { kind: item.kind, id: item.id, label: item.label },
+    ]);
+    setMentionActive(false);
+    inputRef.current?.focus();
+  };
+
+  const removePinned = (kind: PinnedContext["kind"], id: string) => {
+    setPinned((prev) => prev.filter((p) => !(p.kind === kind && p.id === id)));
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Esc closes the mention picker without sending.
+    if (e.key === "Escape" && mentionActive) {
+      e.preventDefault();
+      setMentionActive(false);
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -502,11 +661,21 @@ export function AIComposer({
       onDrop={handleDrop}
     >
       {/* Slash Command Menu */}
-      {showSlashMenu && (
+      {showSlashMenu && !mentionActive && (
         <SlashCommandMenu
           commands={slashCommands}
           onSelect={handleSlashSelect}
           query={slashQuery}
+        />
+      )}
+
+      {/* @-mention Picker */}
+      {mentionActive && (
+        <MentionPicker
+          results={mentionResults ?? []}
+          query={mentionQuery}
+          fetching={mentionsFetching}
+          onSelect={handleMentionSelect}
         />
       )}
 
@@ -520,6 +689,35 @@ export function AIComposer({
               PDF, Excel, CSV, Images, and more
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Pinned Context Chips */}
+      {pinned.length > 0 && (
+        <div className="p-3 pb-0 flex flex-wrap gap-1.5">
+          {pinned.map((p) => {
+            const Icon = MENTION_ICONS[p.kind] ?? FileText;
+            return (
+              <span
+                key={`${p.kind}:${p.id}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] text-primary"
+              >
+                <Icon className="h-3 w-3" />
+                <AtSign className="h-3 w-3" />
+                <span className="max-w-[180px] truncate font-medium">
+                  {p.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removePinned(p.kind, p.id)}
+                  className="ml-0.5 rounded-full hover:bg-primary/10 p-0.5 transition-colors"
+                  aria-label={`Remove ${p.label}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -623,7 +821,13 @@ export function AIComposer({
             <kbd className="px-1 py-0.5 rounded bg-muted text-[9px] font-mono">
               /
             </kbd>{" "}
-            for commands
+            commands
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            <kbd className="px-1 py-0.5 rounded bg-muted text-[9px] font-mono">
+              @
+            </kbd>{" "}
+            pin context
           </span>
           <span className="text-[10px] text-muted-foreground">
             <kbd className="px-1 py-0.5 rounded bg-muted text-[9px] font-mono">

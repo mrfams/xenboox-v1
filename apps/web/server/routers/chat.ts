@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, asc, lte, ilike, or, ne, sql } from "drizzle-orm";
+import { eq, and, desc, asc, lte, ilike, or, sql } from "drizzle-orm";
 import {
   conversations,
   chatMessages,
@@ -9,6 +9,16 @@ import {
   conversationShares,
 } from "@xenboox/db/schema/chat";
 import { users } from "@xenboox/db/schema/auth";
+import { documents } from "@xenboox/db/schema/documents";
+import { journalEntries, chartOfAccounts } from "@xenboox/db/schema/accounting";
+import {
+  salesInvoices,
+  invoicesAp,
+  customers,
+  suppliers,
+} from "@xenboox/db/schema/ap-ar";
+
+import type { MentionItem } from "@/lib/chat/mention-types";
 import {
   processChatInput,
   seedDefaultThresholds,
@@ -1306,5 +1316,213 @@ export const chatRouter = router({
         .returning();
 
       return deleted;
+    }),
+
+  /**
+   * Entity-scoped search for '@'-mention context anchoring. Every result is
+   * scoped to the caller's entity and returns only enough to render a picker
+   * row — the stream route re-resolves each pinned id with fresh entity
+   * scoping before anything enters a prompt, so labels here are display-only.
+   */
+  searchMentions: rlsProtectedProcedure
+    .input(
+      z.object({
+        query: z.string().max(80).default(""),
+        limit: z.number().int().min(1).max(12).default(6),
+      }),
+    )
+    .query(async ({ ctx, input }): Promise<MentionItem[]> => {
+      const entityId = ctx.entityId!;
+      const q = `%${input.query.trim()}%`;
+      const cap = input.limit;
+
+      const [docs, txs, ar, ap, coa, custs, sups] = await Promise.all([
+        // Documents
+        input.query.trim()
+          ? db.query.documents.findMany({
+              where: and(
+                eq(documents.entityId, entityId),
+                or(ilike(documents.name, q), ilike(documents.type, q)),
+              ),
+              columns: { id: true, name: true, type: true },
+              limit: cap,
+            })
+          : Promise.resolve([]),
+        // Journal entries (transactions)
+        input.query.trim()
+          ? db.query.journalEntries.findMany({
+              where: and(
+                eq(journalEntries.entityId, entityId),
+                or(
+                  ilike(journalEntries.description, q),
+                  ilike(journalEntries.reference, q),
+                ),
+              ),
+              columns: {
+                id: true,
+                description: true,
+                date: true,
+                status: true,
+              },
+              limit: cap,
+            })
+          : Promise.resolve([]),
+        // Sales invoices
+        input.query.trim()
+          ? db.query.salesInvoices.findMany({
+              where: and(
+                eq(salesInvoices.entityId, entityId),
+                or(
+                  ilike(salesInvoices.invoiceNumber, q),
+                  ilike(salesInvoices.status, q),
+                ),
+              ),
+              columns: {
+                id: true,
+                invoiceNumber: true,
+                invoiceDate: true,
+                status: true,
+                totalAmount: true,
+                currency: true,
+              },
+              limit: cap,
+            })
+          : Promise.resolve([]),
+        // AP bills
+        input.query.trim()
+          ? db.query.invoicesAp.findMany({
+              where: and(
+                eq(invoicesAp.entityId, entityId),
+                or(
+                  ilike(invoicesAp.invoiceNumber, q),
+                  ilike(invoicesAp.status, q),
+                ),
+              ),
+              columns: {
+                id: true,
+                invoiceNumber: true,
+                invoiceDate: true,
+                status: true,
+                totalAmount: true,
+                currency: true,
+              },
+              limit: cap,
+            })
+          : Promise.resolve([]),
+        // Chart of accounts
+        input.query.trim()
+          ? db.query.chartOfAccounts.findMany({
+              where: and(
+                eq(chartOfAccounts.entityId, entityId),
+                or(
+                  ilike(chartOfAccounts.name, q),
+                  ilike(chartOfAccounts.code, q),
+                ),
+              ),
+              columns: { id: true, code: true, name: true, type: true },
+              limit: cap,
+            })
+          : Promise.resolve([]),
+        // Customers
+        input.query.trim()
+          ? db.query.customers.findMany({
+              where: and(
+                eq(customers.entityId, entityId),
+                or(ilike(customers.name, q), ilike(customers.contactEmail, q)),
+              ),
+              columns: {
+                id: true,
+                name: true,
+                contactEmail: true,
+                paymentTerms: true,
+              },
+              limit: cap,
+            })
+          : Promise.resolve([]),
+        // Suppliers
+        input.query.trim()
+          ? db.query.suppliers.findMany({
+              where: and(
+                eq(suppliers.entityId, entityId),
+                or(ilike(suppliers.name, q), ilike(suppliers.contactEmail, q)),
+              ),
+              columns: {
+                id: true,
+                name: true,
+                contactEmail: true,
+                paymentTerms: true,
+              },
+              limit: cap,
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const items: MentionItem[] = [];
+
+      for (const d of docs) {
+        items.push({
+          kind: "document",
+          id: d.id,
+          label: d.name,
+          subtitle: `Document · ${d.type}`,
+        });
+      }
+      for (const t of txs) {
+        items.push({
+          kind: "transaction",
+          id: t.id,
+          label: `${t.description.slice(0, 60)}${t.description.length > 60 ? "…" : ""}`,
+          subtitle: `Transaction · ${t.date} · ${t.status}`,
+        });
+      }
+      for (const i of ar) {
+        items.push({
+          kind: "invoice",
+          id: i.id,
+          label: i.invoiceNumber,
+          subtitle: `Invoice · ${i.invoiceDate} · ${i.status} · ${i.currency} ${i.totalAmount}`,
+        });
+      }
+      for (const b of ap) {
+        items.push({
+          kind: "bill",
+          id: b.id,
+          label: b.invoiceNumber,
+          subtitle: `Bill · ${b.invoiceDate} · ${b.status} · ${b.currency} ${b.totalAmount}`,
+        });
+      }
+      for (const a of coa) {
+        items.push({
+          kind: "account",
+          id: a.id,
+          label: `${a.code} · ${a.name}`,
+          subtitle: `Account · ${a.type}`,
+        });
+      }
+      for (const c of custs) {
+        items.push({
+          kind: "customer",
+          id: c.id,
+          label: c.name,
+          subtitle: `Customer · ${c.contactEmail ?? "no email"} · ${c.paymentTerms ?? ""}`,
+        });
+      }
+      for (const s of sups) {
+        items.push({
+          kind: "supplier",
+          id: s.id,
+          label: s.name,
+          subtitle: `Supplier · ${s.contactEmail ?? "no email"} · ${s.paymentTerms ?? ""}`,
+        });
+      }
+
+      // Deterministic order: shorter labels first (typing a fuzzy prefix tends
+      // to surface exact matches), then kind, then label.
+      return items
+        .sort(
+          (a, b) =>
+            a.label.length - b.label.length || a.kind.localeCompare(b.kind),
+        )
+        .slice(0, input.limit * 3);
     }),
 });
