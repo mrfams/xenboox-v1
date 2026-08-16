@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §9.2 migration testing in CI + rollback strategy + journal gap fix
+
+**Agent:** Buffy
+**Files Modified:** `.github/workflows/ci.yml`, `docs/SCHEMA_MIGRATIONS.md` (new), `packages/db/migrations/meta/_journal.json`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** (1) **CI migration testing** — new `Migrations` job: fresh PostgreSQL 16 service container → `pnpm db:migrate` applies every journaled migration → drift check (post-migrate `drizzle-kit generate` must produce no new migrations, else CI fails). (2) **Rollback strategy** — `docs/SCHEMA_MIGRATIONS.md`: forward-only expand/contract policy, Neon PITR backup before deploys, per-failure-scenario rollback table, 4-5-3 review rule, journaling rules. (3) **Real gap found while wiring it**: `0030_force_rls.sql` (FORCE ROW LEVEL SECURITY on all RLS tables — critical hardening) was on disk but MISSING from `meta/_journal.json`, so fresh environments (incl. CI, staging, any new Neon branch) silently skipped it. Journaled it (appends at end with fresh timestamp — the migrator tracks by `created_at`, so it applies on both fresh and existing DBs on next migrate). Partitioning migration deliberately NOT journaled (its header says DO NOT run automatically — manual oversight required).
+
+**Verification:** journal validated (all 32 entries resolve to SQL files); `drizzle-kit generate` confirms zero drift after the change; workflow YAML parses. Committed + pushed.
+
+---
+
 ### [2026-08-16] — §2.1 Sentry source maps (automated) + §24.2 SLOs doc
 
 **Agent:** Buffy

@@ -123,3 +123,45 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+
+  Migrations:
+    name: Migrations (apply on fresh Postgres + drift check)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: xenboox
+          POSTGRES_PASSWORD: xenboox
+          POSTGRES_DB: xenboox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U xenboox"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://xenboox:xenboox@localhost:5432/xenboox
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply every migration to a fresh database
+        run: pnpm db:migrate
+      - name: Verify schema is in sync with migrations (no drift)
+        run: |
+          before=$(find packages/db/migrations -maxdepth 1 -name "*.sql" | wc -l)
+          pnpm --filter=@xenboox/db generate --name drift_check > /tmp/gen.log 2>&1 || true
+          after=$(find packages/db/migrations -maxdepth 1 -name "*.sql" | wc -l)
+          echo "migration files before=$before after=$after"
+          if [ "$after" -gt "$before" ]; then
+            echo "::error::Schema drift detected — run pnpm db:generate and commit the new migration"
+            exit 1
+          fi

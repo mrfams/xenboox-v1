@@ -593,9 +593,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 - [x]` RLS migrations (0006, 0010)
 - [x]` Financial check constraints (0013)
 - [x]` Unique constraints and indexes (0014)
-- `[ ]` No migration testing in CI
-- `[ ]` No migration rollback strategy documented
-- `[ ]` Schema drift detection exists but needs automation
+- `[x]` No migration testing in CI — **new `Migrations` job in `ci.yml`: fresh PostgreSQL 16 service container → `pnpm db:migrate` applies every journaled migration → drift check (`drizzle-kit generate` must produce zero new migrations, else CI fails)** (Aug 16, 2026)
+- `[x]` No migration rollback strategy documented — **`docs/SCHEMA_MIGRATIONS.md`: forward-only policy with expand/contract, Neon PITR backup before deploys, per-failure-scenario rollback table (SQL error / app broken / data corruption / partial application), 4-5-3 review rule, journaling rules for hand-written migrations** (Aug 16, 2026)
+- `[x]` Schema drift detection exists but needs automation — **automated in the CI Migrations job (post-migrate `generate` diff). Also fixed a real journal gap found while wiring it: `0030_force_rls.sql` (FORCE ROW LEVEL SECURITY — critical hardening) existed on disk but was NOT in `meta/_journal.json`, so fresh environments silently skipped it — now journaled (applies on next migrate). The partitioning migration stays un-journaled by design (its header says DO NOT run automatically)** (Aug 16, 2026)
 
 ### 9.3 Seed Data
 
