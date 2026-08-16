@@ -63,6 +63,7 @@ import { liveRunsRouter } from "./live-runs";
 import { llmRouter } from "./llm-router";
 import { costAnalyticsRouter } from "./cost-analytics";
 import { tokenUsageRouter } from "./token-usage";
+import { workflowBuilderRouter } from "./workflow-builder";
 import { promptLibraryRouter } from "./prompt-library";
 import { reviewQueueRouter } from "./review-queue";
 import { customerDiagnosticsRouter } from "./customer-diagnostics";
@@ -141,6 +142,7 @@ export const appRouter = router({
   opsConsole: opsConsoleRouter,
   agentMonitor: agentMonitorRouter,
   liveRuns: liveRunsRouter,
+  workflowBuilder: workflowBuilderRouter,
   llmRouter: llmRouter,
   costAnalytics: costAnalyticsRouter,
   tokenUsage: tokenUsageRouter,

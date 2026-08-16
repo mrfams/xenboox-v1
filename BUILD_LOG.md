@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §20.2 RBAC role→procedure sweep + workflow-builder router mounted
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/__tests__/rbac-sweep.test.ts` (new), `apps/web/server/routers/_app.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Added `rbac-sweep.test.ts` — a static sweep over all 77 router files enforcing the RBAC contract: (1) every query/mutation must be chained on a protected procedure (rlsProtected/rlsMutate/protected/mutate/admin*/auth/concurrencyLimited/planAware); `publicProcedure` allowed only for the explicit pre-auth auth-flow keys (mfaChallenge, verifyMfa, login, register, resetPassword, accept, health, …); (2) `requireRole` gates reference only known roles (owner/admin/finance_director/accountant/manager/viewer) + canonical owner-only and viewer-tier gates must exist; (3) every router file must be mounted in `_app.ts`. The sweep caught a real gap: **`workflowBuilderRouter` was a complete, admin-only router that was never mounted** (dead code at best, evades protection review at worst) — now mounted in `_app.ts`. 4 tests pass.
+
+**Verification:** `npx vitest run __tests__/rbac-sweep.test.ts` — 4/4 pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — §8.2 agent execution history + per-entity cost tracking
 
 **Agent:** Buffy
