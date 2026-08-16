@@ -18,6 +18,7 @@ import {
   Calendar,
   CreditCard,
   Link,
+  Link2,
   BarChart3,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ import type { SummaryCardItem } from "@/components/module/module-page-shell.type
 import { CreateBillDialog } from "@/components/dashboard/create-bill-dialog";
 import { RowActionsMenu } from "@/components/module/row-actions-menu";
 import { RowAiAction } from "@/components/module/row-ai-action";
+import { Button } from "@/components/ui";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -107,6 +109,7 @@ function BillsTable({
   selectedId,
   onSelect,
   isLoading,
+  onMatchPo,
 }: {
   bills: Array<{
     id: string;
@@ -119,10 +122,12 @@ function BillsTable({
     status: string;
     dueStatus: string;
     daysUntilDue: number;
+    purchaseOrderId: string | null;
   }>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   isLoading: boolean;
+  onMatchPo: (bill: { id: string; billNumber: string }) => void;
 }) {
   const statusColors: Record<string, string> = {
     pending: "bg-amber-100 text-amber-700",
@@ -186,6 +191,9 @@ function BillsTable({
             </th>
             <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
               Status
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+              PO
             </th>
             <th className="text-right py-3 px-4 text-sm font-medium text-slate-600">
               Due In / Overdue
@@ -294,6 +302,26 @@ function BillsTable({
                   >
                     {statusLabels[bill.status] || bill.status}
                   </span>
+                </td>
+                <td className="py-3 px-4">
+                  {bill.purchaseOrderId ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
+                      <CheckCircle2 className="h-3 w-3" />
+                      PO linked
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMatchPo({ id: bill.id, billNumber: bill.billNumber });
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600"
+                    >
+                      <Link2 className="h-3 w-3" />
+                      Match PO
+                    </button>
+                  )}
                 </td>
                 <td className="py-3 px-4 text-right">
                   <span
@@ -862,6 +890,10 @@ export default function BillsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
+  const [poMatchBill, setPoMatchBill] = useState<{
+    id: string;
+    billNumber: string;
+  } | null>(null);
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -1042,12 +1074,131 @@ export default function BillsPage() {
           selectedId={selectedBillId}
           onSelect={setSelectedBillId}
           isLoading={billsLoading}
+          onMatchPo={(bill) => setPoMatchBill(bill)}
         />
       )}
       <CreateBillDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}
       />
+
+      {/* Bill-to-PO matching dialog */}
+      {poMatchBill && (
+        <BillPoMatchDialog
+          bill={poMatchBill}
+          onClose={() => setPoMatchBill(null)}
+        />
+      )}
     </ModulePageShell>
+  );
+}
+
+function BillPoMatchDialog({
+  bill,
+  onClose,
+}: {
+  bill: { id: string; billNumber: string };
+  onClose: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const { data, isLoading } = trpc.bills.getPoMatches.useQuery(
+    { billId: bill.id },
+    { enabled: !!bill.id },
+  );
+  const linkMutation = trpc.bills.linkPo.useMutation({
+    onSuccess: () => {
+      void utils.bills.listBills.invalidate();
+      onClose();
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-900">
+            Match bill to purchase order
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="mt-1 text-sm text-slate-500">
+          Finding open purchase orders from the same vendor for bill{" "}
+          <span className="font-semibold text-slate-700">
+            {bill.billNumber}
+          </span>
+          .
+        </p>
+
+        <div className="mt-5 space-y-3">
+          {isLoading ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-400">
+              Scanning purchase orders…
+            </div>
+          ) : !data?.matches || data.matches.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
+              No approved purchase orders found for this vendor. Create a PO or
+              leave the bill unlinked.
+            </div>
+          ) : (
+            data.matches.map((match) => (
+              <div
+                key={match.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {match.poNumber}
+                    </p>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                        match.score >= 0.75
+                          ? "bg-emerald-50 text-emerald-700"
+                          : match.score >= 0.5
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-slate-100 text-slate-500",
+                      )}
+                    >
+                      {match.score >= 0.75
+                        ? "Strong match"
+                        : match.score >= 0.5
+                          ? "Possible match"
+                          : "Weak match"}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    PO amount: GMD {match.amount.toLocaleString()}
+                  </p>
+                  {match.flag && (
+                    <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
+                      <AlertTriangle className="h-3 w-3" />
+                      {match.flag}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant={match.score >= 0.75 ? undefined : "outline"}
+                  onClick={() =>
+                    linkMutation.mutate({ billId: bill.id, poId: match.id })
+                  }
+                  disabled={linkMutation.isPending}
+                >
+                  <Link2 className="h-3.5 w-3.5 mr-1" />
+                  Link
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

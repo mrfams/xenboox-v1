@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Mail, Clipboard, RefreshCw, CalendarClock } from "lucide-react";
 import {
   Search,
   Plus,
@@ -881,6 +882,7 @@ export default function CustomersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCollections, setShowCollections] = useState(false);
 
   // Fetch overview data
   const { data: overviewData, isLoading: overviewLoading } =
@@ -999,6 +1001,13 @@ export default function CustomersPage() {
             label="AI Review Credit"
             variant="outline"
           />
+          <button
+            onClick={() => setShowCollections(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Mail className="h-4 w-4 text-indigo-600" />
+            Collections
+          </button>
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
@@ -1122,6 +1131,180 @@ export default function CustomersPage() {
         open={showCreate}
         onClose={() => setShowCreate(false)}
       />
+      <CollectionsModal
+        open={showCollections}
+        onClose={() => setShowCollections(false)}
+      />
     </ModulePageShell>
+  );
+}
+
+// ─── Collections queue (ai-reminders / collections-agent) ──────────────────
+
+function CollectionsModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { data, isLoading, refetch, isFetching } =
+    trpc.ar.listCollections.useQuery(undefined, { enabled: open });
+  const [draftingId, setDraftingId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const draftQuery = trpc.ar.draftReminder.useQuery(
+    { invoiceId: draftingId ?? "" },
+    { enabled: !!draftingId },
+  );
+
+  if (!open) return null;
+
+  const items = data?.items ?? [];
+  const totals = data?.totals;
+  const draft = draftQuery.data?.draft;
+
+  const copyDraft = async () => {
+    if (!draft) return;
+    await navigator.clipboard.writeText(
+      `To: ${draft.to ?? ""}\nSubject: ${draft.subject}\n\n${draft.body}`,
+    );
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">
+              Collections queue
+            </h3>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {totals
+                ? `${totals.count} open invoices · GMD ${totals.totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding`
+                : "Loading…"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+              title="Refresh"
+            >
+              <RefreshCw
+                className={cn("h-4 w-4", isFetching && "animate-spin")}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+          {isLoading ? (
+            <div className="py-10 text-center text-sm text-slate-400">
+              Loading collections…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="py-10 text-center text-sm text-slate-500">
+              No outstanding invoices — you&apos;re all caught up.
+            </div>
+          ) : (
+            items.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-slate-200 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {item.invoiceNumber}
+                      </p>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                          item.daysOverdue === 0
+                            ? "bg-blue-50 text-blue-700"
+                            : item.daysOverdue <= 7
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-red-50 text-red-700",
+                        )}
+                      >
+                        <CalendarClock className="mr-1 h-2.5 w-2.5" />
+                        {item.daysOverdue === 0
+                          ? "Due soon"
+                          : `${item.daysOverdue}d overdue`}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {item.customerName} · due {item.dueDate}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-slate-900">
+                      GMD{" "}
+                      {item.balance.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                      })}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDraftingId(item.id)}
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                      draftingId === item.id
+                        ? "bg-indigo-600 text-white"
+                        : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
+                    )}
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    Draft reminder
+                  </button>
+                </div>
+
+                {draftingId === item.id && draft && (
+                  <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">
+                        AI-drafted reminder
+                      </p>
+                      <button
+                        type="button"
+                        onClick={copyDraft}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <Clipboard className="h-3 w-3" />
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                    <div className="mt-2 space-y-1.5 text-[12px] leading-5 text-slate-700">
+                      <p>
+                        <span className="font-medium">To:</span>{" "}
+                        {draft.to ?? "(no email on file)"}
+                      </p>
+                      <p>
+                        <span className="font-medium">Subject:</span>{" "}
+                        {draft.subject}
+                      </p>
+                      <p className="whitespace-pre-wrap rounded-lg bg-white p-3">
+                        {draft.body}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

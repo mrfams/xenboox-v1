@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import {
   customers,
   salesInvoices,
@@ -622,4 +622,162 @@ export const arRouter = router({
         handleMutationError(error, "Failed to delete payment");
       }
     }),
+
+  // ── AI-drafted invoice reminders + collections (ai-reminders) ──────────
+  // Draft a personalized collection email from real invoice data. The draft
+  // is deterministic and production-safe: no LLM call, everything traceable
+  // to the invoice. Tone escalates with how overdue the invoice is.
+
+  draftReminder: rlsProtectedProcedure
+    .input(z.object({ invoiceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const [invoice] = await db
+        .select({
+          id: salesInvoices.id,
+          invoiceNumber: salesInvoices.invoiceNumber,
+          dueDate: salesInvoices.dueDate,
+          balance: salesInvoices.balance,
+          totalAmount: salesInvoices.totalAmount,
+          status: salesInvoices.status,
+          customerId: salesInvoices.customerId,
+        })
+        .from(salesInvoices)
+        .where(
+          and(
+            eq(salesInvoices.id, input.invoiceId),
+            eq(salesInvoices.entityId, entityId),
+          ),
+        )
+        .limit(1);
+      if (!invoice) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invoice not found",
+        });
+      }
+
+      const [customer] = await db
+        .select({
+          name: customers.name,
+          contactEmail: customers.contactEmail,
+        })
+        .from(customers)
+        .where(eq(customers.id, invoice.customerId))
+        .limit(1);
+
+      const customerName = customer?.name ?? "Customer";
+      const balance = parseFloat(invoice.balance);
+      const due = new Date(invoice.dueDate);
+      const daysOverdue = Math.max(
+        0,
+        Math.floor((Date.now() - due.getTime()) / 86_400_000),
+      );
+      const dueLabel = due.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+
+      const tone =
+        daysOverdue === 0
+          ? {
+              subject: `Friendly reminder: Invoice ${invoice.invoiceNumber}`,
+              opener: `Just a friendly reminder that invoice ${invoice.invoiceNumber} (${dueLabel}) is coming due.`,
+              closing:
+                "Thanks for your prompt attention — it keeps things simple on both sides.",
+            }
+          : daysOverdue <= 7
+            ? {
+                subject: `Payment reminder: Invoice ${invoice.invoiceNumber}`,
+                opener: `Our records show invoice ${invoice.invoiceNumber} (${dueLabel}) is now ${daysOverdue} day${daysOverdue > 1 ? "s" : ""} overdue.`,
+                closing:
+                  "Could you confirm the payment date? Happy to help with any questions.",
+              }
+            : {
+                subject: `Second notice: Invoice ${invoice.invoiceNumber} is ${daysOverdue} days overdue`,
+                opener: `Invoice ${invoice.invoiceNumber} (${dueLabel}) is now ${daysOverdue} days past due.`,
+                closing:
+                  "Please arrange payment of the outstanding balance, or reach out so we can resolve any issue together.",
+              };
+
+      const body = `Hi ${customerName},\n\n${tone.opener}\n\nInvoice: ${invoice.invoiceNumber}\nDue date: ${dueLabel}\nOutstanding balance: GMD ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n${tone.closing}\n\nBest regards,\nThe Xenboox team`;
+
+      return {
+        draft: {
+          to: customer?.contactEmail ?? null,
+          subject: tone.subject,
+          body,
+          daysOverdue,
+          balance,
+        },
+      };
+    }),
+
+  // Collections queue — invoices needing a reminder, ranked by aging.
+  listCollections: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const rows = await db
+      .select({
+        id: salesInvoices.id,
+        invoiceNumber: salesInvoices.invoiceNumber,
+        dueDate: salesInvoices.dueDate,
+        balance: salesInvoices.balance,
+        status: salesInvoices.status,
+        customerName: customers.name,
+        customerEmail: customers.contactEmail,
+      })
+      .from(salesInvoices)
+      .leftJoin(customers, eq(salesInvoices.customerId, customers.id))
+      .where(
+        and(
+          eq(salesInvoices.entityId, entityId),
+          sql`${salesInvoices.balance}::numeric > 0`,
+        ),
+      )
+      .orderBy(desc(salesInvoices.dueDate));
+
+    const now = Date.now();
+    const aged = rows
+      .map((r) => {
+        const daysOverdue = Math.max(
+          0,
+          Math.floor((now - new Date(r.dueDate).getTime()) / 86_400_000),
+        );
+        return {
+          id: r.id,
+          invoiceNumber: r.invoiceNumber,
+          dueDate: r.dueDate,
+          balance: parseFloat(r.balance),
+          status: r.status,
+          customerName: r.customerName ?? "Customer",
+          customerEmail: r.customerEmail,
+          daysOverdue,
+          bucket:
+            daysOverdue === 0
+              ? "due_soon"
+              : daysOverdue <= 7
+                ? "overdue_7"
+                : daysOverdue <= 30
+                  ? "overdue_30"
+                  : "overdue_90",
+        };
+      })
+      .sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+    const totalOutstanding = aged.reduce((s, r) => s + r.balance, 0);
+    return {
+      items: aged,
+      totals: {
+        totalOutstanding,
+        count: aged.length,
+        buckets: {
+          due_soon: aged.filter((r) => r.bucket === "due_soon").length,
+          overdue_7: aged.filter((r) => r.bucket === "overdue_7").length,
+          overdue_30: aged.filter((r) => r.bucket === "overdue_30").length,
+          overdue_90: aged.filter((r) => r.bucket === "overdue_90").length,
+        },
+      },
+    };
+  }),
 });

@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte } from "drizzle-orm";
-import { invoicesAp, suppliers, paymentsAp } from "@xenboox/db/schema";
+import {
+  invoicesAp,
+  suppliers,
+  paymentsAp,
+  purchaseOrders,
+} from "@xenboox/db/schema";
 
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -316,6 +321,7 @@ export const billsRouter = router({
           status: invoicesAp.status,
           supplierId: invoicesAp.supplierId,
           supplierName: suppliers.name,
+          purchaseOrderId: invoicesAp.purchaseOrderId,
         })
         .from(invoicesAp)
         .leftJoin(suppliers, eq(invoicesAp.supplierId, suppliers.id))
@@ -368,6 +374,7 @@ export const billsRouter = router({
           status: bill.status,
           dueStatus,
           daysUntilDue,
+          purchaseOrderId: bill.purchaseOrderId,
         };
       });
 
@@ -378,6 +385,123 @@ export const billsRouter = router({
         pageSize: input.limit,
         totalPages: Math.ceil(totalCount / input.limit),
       };
+    }),
+
+  // ── Bill-to-PO matching (§ bill-po-matching) ───────────────────────────
+  // Find open purchase orders from the same supplier and score how closely
+  // the bill amount matches each PO, so the user can link a bill to its PO
+  // (price/quantity mismatch flags) in one click.
+
+  getPoMatches: rlsProtectedProcedure
+    .input(z.object({ billId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const [bill] = await db
+        .select({
+          id: invoicesAp.id,
+          supplierId: invoicesAp.supplierId,
+          totalAmount: invoicesAp.totalAmount,
+          invoiceNumber: invoicesAp.invoiceNumber,
+          purchaseOrderId: invoicesAp.purchaseOrderId,
+        })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.id, input.billId),
+            eq(invoicesAp.entityId, entityId),
+          ),
+        )
+        .limit(1);
+      if (!bill) return { bill: null, matches: [] };
+      if (bill.purchaseOrderId)
+        return {
+          bill: {
+            id: bill.id,
+            invoiceNumber: bill.invoiceNumber,
+            purchaseOrderId: bill.purchaseOrderId,
+          },
+          matches: [],
+        };
+
+      const billAmount = parseFloat(bill.totalAmount);
+      const pos = await db
+        .select({
+          id: purchaseOrders.id,
+          poNumber: purchaseOrders.poNumber,
+          totalAmount: purchaseOrders.totalAmount,
+          status: purchaseOrders.status,
+          orderDate: purchaseOrders.orderDate,
+        })
+        .from(purchaseOrders)
+        .where(
+          and(
+            eq(purchaseOrders.entityId, entityId),
+            eq(purchaseOrders.supplierId, bill.supplierId),
+            eq(purchaseOrders.status, "approved"),
+          ),
+        )
+        .orderBy(desc(purchaseOrders.orderDate));
+
+      const matches = pos
+        .map((po) => {
+          const poAmount = parseFloat(po.totalAmount);
+          const delta =
+            poAmount > 0 ? Math.abs(billAmount - poAmount) / poAmount : 1;
+          const score =
+            delta <= 0.01
+              ? 1
+              : delta <= 0.1
+                ? 0.75
+                : delta <= 0.25
+                  ? 0.5
+                  : 0.25;
+          return {
+            id: po.id,
+            poNumber: po.poNumber,
+            orderDate: po.orderDate,
+            amount: poAmount,
+            status: po.status,
+            score,
+            delta,
+            flag:
+              delta > 0.1
+                ? (("Price/quantity mismatch — bill differs from PO by " +
+                    Math.round(delta * 100) +
+                    "%") as string)
+                : null,
+          };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+
+      return {
+        bill: {
+          id: bill.id,
+          invoiceNumber: bill.invoiceNumber,
+          purchaseOrderId: null,
+        },
+        matches,
+      };
+    }),
+
+  linkPo: rlsProtectedProcedure
+    .input(z.object({ billId: z.string().uuid(), poId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const [bill] = await db
+        .update(invoicesAp)
+        .set({ purchaseOrderId: input.poId })
+        .where(
+          and(
+            eq(invoicesAp.id, input.billId),
+            eq(invoicesAp.entityId, entityId),
+          ),
+        )
+        .returning({
+          id: invoicesAp.id,
+          purchaseOrderId: invoicesAp.purchaseOrderId,
+        });
+      return bill;
     }),
 
   /**
