@@ -31,6 +31,7 @@ import { useRealtimeAgentEvents } from "@/lib/hooks/use-realtime-agent-events";
 import { trpc } from "@/lib/trpc/client";
 import { Progress } from "@/components/shared/progress";
 import { PageEmptyState } from "@/components/shared/page-empty-state";
+import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { Button } from "@/components/ui";
 
 function StatusBadge({ status }: { status: string }) {
@@ -182,6 +183,11 @@ export default function AgentMonitorPage() {
               )}
               {isConnected ? "Live" : "Reconnecting…"}
             </div>
+            <AiSimulationTrigger
+              traceId="agent-health-check"
+              label="Run demo"
+              variant="outline"
+            />
             <Button variant="outline" size="sm" onClick={refresh}>
               <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
               Refresh

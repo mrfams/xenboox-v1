@@ -87,7 +87,6 @@ export const PAGES: PageEntry[] = [
       "Your task center — inbox items, approvals, and agent-generated work queued for you.",
     icon: Inbox,
     group: "Overview & AI",
-    copilot: true,
   },
   {
     href: "/dashboard/inbox",
@@ -172,6 +171,7 @@ export const PAGES: PageEntry[] = [
     description: "Match bank lines to your books and keep accounts in balance.",
     icon: ScanSearch,
     group: "Money",
+    copilot: true,
   },
   {
     href: "/dashboard/reconciliation/center",
