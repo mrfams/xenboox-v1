@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
+import { eq, and, ne, desc, sql, gte, lte } from "drizzle-orm";
 import { closePeriods, closeTasks } from "@xenboox/db/schema";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
@@ -269,7 +269,11 @@ export const closeCenterRouter = router({
         }
 
         const isCompleted = input.status === "completed";
-        await db
+        // §20.2 — atomic transition: only update when the state actually
+        // changes (`status != input.status`). Two users racing to mark the
+        // same task completed: one wins, the loser affects 0 rows and gets an
+        // idempotent no-op — no duplicate audit rows, no lost completedBy.
+        const [updated] = await db
           .update(closeTasks)
           .set({
             status: input.status,
@@ -284,7 +288,23 @@ export const closeCenterRouter = router({
             autoCompleted: false,
             updatedAt: new Date(),
           })
-          .where(eq(closeTasks.id, input.id));
+          .where(
+            and(
+              eq(closeTasks.id, input.id),
+              eq(closeTasks.entityId, ctx.entityId!),
+              ne(closeTasks.status, input.status),
+            ),
+          )
+          .returning();
+
+        if (!updated) {
+          // Already in the requested state (double-complete / double-block) —
+          // idempotent success, no duplicate audit row.
+          return {
+            success: true,
+            message: `"${existing.name}" is already ${input.status.replace("_", " ")}`,
+          };
+        }
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,

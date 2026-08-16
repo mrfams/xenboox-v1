@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { journalEntries } from "@xenboox/db/schema/accounting";
 import { agentRoutingLogs } from "@xenboox/db/schema/agents";
 import { notifications } from "@xenboox/db/schema/notifications";
@@ -151,7 +151,9 @@ export const approvalsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         if (input.itemType === "agent_escalation") {
-          // Update the routing log
+          // §20.2 — atomic resolve: only an unresolved escalation (humanResponse
+          // still null) can be resolved. Concurrent double-resolution loses the
+          // race and gets CONFLICT instead of a duplicate notification.
           const log = await db.query.agentRoutingLogs.findFirst({
             where: eq(agentRoutingLogs.id, input.itemId),
           });
@@ -163,12 +165,29 @@ export const approvalsRouter = router({
             });
           }
 
-          // Record resolution
           const resolution = `[${input.action.toUpperCase()}] ${input.reason ?? "No reason provided"}`;
+
+          const [claimed] = await db
+            .update(agentRoutingLogs)
+            .set({ humanResponse: resolution })
+            .where(
+              and(
+                eq(agentRoutingLogs.id, input.itemId),
+                eq(agentRoutingLogs.decision, "escalated"),
+                sql`${agentRoutingLogs.humanResponse} IS NULL`,
+              ),
+            )
+            .returning();
+
+          if (!claimed) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Escalation already resolved by another user",
+            });
+          }
 
           // For approved items, create a success notification
           if (input.action === "approved") {
-            // In production, this would trigger the underlying action
             await db.insert(notifications).values({
               userId: ctx.session!.user!.id!,
               entityId: ctx.entityId,
@@ -203,22 +222,53 @@ export const approvalsRouter = router({
             });
           }
 
+          // §20.2 — atomic status-guarded transition: only a draft (pending
+          // approval) entry can be approved/rejected. The conditional UPDATE
+          // wins the race atomically — a second concurrent approve (or an
+          // approve-after-reject) affects 0 rows and gets CONFLICT instead of
+          // silently double-posting or flipping an already-decided entry.
           if (input.action === "approved") {
-            await db
+            const [updated] = await db
               .update(journalEntries)
               .set({
                 status: "posted",
                 postedBy: ctx.session!.user!.id!,
                 postedAt: new Date(),
               })
-              .where(eq(journalEntries.id, input.itemId));
+              .where(
+                and(
+                  eq(journalEntries.id, input.itemId),
+                  eq(journalEntries.entityId, ctx.entityId!),
+                  eq(journalEntries.status, "draft"),
+                ),
+              )
+              .returning();
+            if (!updated) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message:
+                  "Journal entry is no longer pending approval — it may have already been approved or rejected",
+              });
+            }
           } else if (input.action === "rejected") {
-            await db
+            const [updated] = await db
               .update(journalEntries)
-              .set({
-                status: "voided",
-              })
-              .where(eq(journalEntries.id, input.itemId));
+              .set({ status: "voided" })
+              .where(
+                and(
+                  eq(journalEntries.id, input.itemId),
+                  eq(journalEntries.entityId, ctx.entityId!),
+                  eq(journalEntries.status, "draft"),
+                ),
+              )
+              .returning();
+            if (!updated) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message:
+                  "Journal entry is no longer pending approval — it may have already been approved or rejected",
+              });
+            }
           } else {
             // needs_correction — leave as draft for editing
             // The frontend should open the entry for editing
@@ -257,6 +307,7 @@ export const approvalsRouter = router({
         where: and(
           eq(agentRoutingLogs.entityId, ctx.entityId!),
           eq(agentRoutingLogs.decision, "escalated"),
+          sql`${agentRoutingLogs.humanResponse} IS NULL`,
         ),
         columns: { id: true },
       })

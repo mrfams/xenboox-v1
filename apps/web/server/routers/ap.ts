@@ -867,6 +867,10 @@ export const apRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
+        // §20.2 — atomic status-guarded transition: only a draft PO can be
+        // approved. The conditional UPDATE wins the double-approval race — a
+        // second concurrent approve affects 0 rows and gets CONFLICT instead
+        // of silently "succeeding" with an undefined result.
         const [updated] = await db
           .update(purchaseOrders)
           .set({
@@ -882,6 +886,13 @@ export const apRouter = router({
             ),
           )
           .returning();
+        if (!updated) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Purchase order is not pending approval — it may already be approved",
+          });
+        }
         return updated;
       } catch (error) {
         handleMutationError(error, "Failed to approve purchase order");

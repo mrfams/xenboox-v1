@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-16] — §20.2 approval-workflow race conditions: atomic transitions + tests
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/server/routers/approvals.ts`, `apps/web/server/routers/close-center.ts`, `apps/web/server/routers/ap.ts`, `apps/web/__tests__/approval-race.test.ts` (new), `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Reviewed the 3 approval surfaces and found real race conditions — all used unconditional read-then-write, so concurrent double-approval or approve-after-reject could double-post, flip an already-decided entry, or duplicate audit rows. Fixed with atomic conditional UPDATEs:
+
+1. **`approvals.resolve` (journal entries)** — was `UPDATE journal_entries SET status='posted'` with no status guard; two concurrent approves both posted, and approve-after-reject silently flipped the entry. Now `WHERE status='draft'` (atomic — the loser affects 0 rows) → TRPCError CONFLICT. Same for rejected. Agent escalations: resolution now persisted to `humanResponse` (was never written!) guarded by `IS NULL` claim → double-resolution → CONFLICT; `getPendingCount` excludes resolved escalations.
+2. **`closeCenter.updateTaskStatus`** — double-complete raced and duplicated audit rows + lost `completedBy`. Now `WHERE status != input.status` → same-state updates are idempotent no-ops (no duplicate audit).
+3. **`ap.approvePO`** — already had `WHERE status='draft'` but returned `undefined` (silent success) on 0 rows → now throws CONFLICT.
+
+**Tests:** `__tests__/approval-race.test.ts` — 7 tests driving the REAL routers via `createCaller` with a mocked db: double-approve → CONFLICT, approve-after-reject → CONFLICT, reject-after-approve → CONFLICT, escalation double-resolve → CONFLICT, close double-complete → idempotent no-op with exactly one audit row.
+
+**Verification:** 7/7 pass; eslint clean on changed files (also removed pre-existing unused `asc` import); close-task-catalog suite 11/11 pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — QA session: live verification of xenboox.vercel.app (authenticated)
 
 **Agent:** Buffy
