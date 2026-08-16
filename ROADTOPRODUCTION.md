@@ -908,8 +908,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 17.5 NUMERIC integrity & JSONB discipline
 
 - `[x]` `NUMERIC` types + 30+ CHECK constraints (debit+credit=0 style) already enforced.
-- `[ ]` Never use `FLOAT`/`DOUBLE` for money in new schema (add a lint rule or review checklist item).
-- `[ ]` Restrict JSONB to extensible/metadata payloads (webhook bodies, custom fields) — not core ledger data. Document the rule.
+- `[x]` Never use `FLOAT`/`DOUBLE` for money in new schema (add a lint rule or review checklist item). — **enforced in CI: `__tests__/schema-discipline.test.ts` scans every `packages/db/schema/*.ts` and fails on any `real`/`doublePrecision` column with a money name (amount/balance/rate/price/total/debit/credit/value/charge/fee/salary/tax/…). REAL remains legal only for statistical fields (agent `confidence`, `ocrConfidence`). Zero violations today — money is NUMERIC across the schema** (Aug 16, 2026)
+- `[x]` Restrict JSONB to extensible/metadata payloads (webhook bodies, custom fields) — not core ledger data. Document the rule. — **rule documented + enforced in the same sweep: JSONB on ledger tables (journal/invoices/COA/treasury/payroll/assets/budget) must use a metadata-style name (metadata/data/payload/breakdown/output/basis/…); current uses are all compliant (journal metadata, audit before/after snapshots, agent eval outputs, analytics snapshot data)** (Aug 16, 2026)
 - `[ ]` Consider materialized views (refreshed by Trigger.dev job) for trial balance / aging reports instead of on-the-fly aggregation (listed in §4.3 — elevate priority).
 
 ---
@@ -919,9 +919,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 18.1 Know the hard limits (they are smaller than you think)
 
 - `[x]` **Function timeout:** default 300s; extend with `export const maxDuration = 900` only where needed — **chat stream + seed-demo routes set `maxDuration = 300` (agent pipelines / full-entity seeding); document-processing + month-end close run on Trigger.dev with no function ceiling** (Aug 15, 2026).
-- `[ ]` **Memory/vCPU ceiling:** 4 GB RAM / 2 vCPU per function — LLM pipelines and PDF/report generation must stay under this; move heavy work to Trigger.dev containers (they have no such ceiling).
-- `[ ]` **Payload cap 4.5 MB** (`413: FUNCTION_PAYLOAD_TOO_LARGE`) — enforce on file uploads (R2 presigned URLs already avoid this; verify document ingestion paths).
-- `[ ]` **1,024 file-descriptor cap** shared across concurrent executions — keep DB/Redis clients global and pooled (verify `lib/db.ts`, `lib/trigger.ts` module singletons).
+- `[x]` **Memory/vCPU ceiling:** 4 GB RAM / 2 vCPU per function — LLM pipelines and PDF/report generation must stay under this; move heavy work to Trigger.dev containers (they have no such ceiling). — **documented; heavy work (document processing, month-end close) already runs on Trigger.dev with no function ceiling** (Aug 16, 2026)
+- `[x]` **Payload cap 4.5 MB** (`413: FUNCTION_PAYLOAD_TOO_LARGE`) — enforce on file uploads (R2 presigned URLs already avoid this; verify document ingestion paths). — **verified: `server/routers/document.ts` presigns an R2 upload URL (`getPresignedUploadUrl`) and returns it to the client — bytes go straight to R2, never through a serverless function, so the 4.5 MB function-payload cap is never hit; size/type re-verified post-upload by the ingestion pipeline** (Aug 16, 2026)
+- `[x]` **1,024 file-descriptor cap** shared across concurrent executions — keep DB/Redis clients global and pooled (verify `lib/db.ts`, `lib/trigger.ts` module singletons). — **verified: `packages/db/index.ts` exports a single module-level `drizzle` client; `apps/web/lib/trigger.ts` exports a single module-level `triggerClient` — both are process singletons, no per-request client creation** (Aug 16, 2026)
 
 ### 18.2 Caching geometry (what to cache, what never to cache)
 

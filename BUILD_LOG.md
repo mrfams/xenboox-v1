@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §17.5 numeric/JSONB discipline + §18.1 limit verification
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/__tests__/schema-discipline.test.ts` (new), `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** (1) **FLOAT-for-money lint rule** — new CI sweep `schema-discipline.test.ts` scans every `packages/db/schema/*.ts` and fails on any `real`/`doublePrecision` column with a money name; REAL stays legal for statistical fields (agent confidence). Zero violations — money is NUMERIC everywhere; the only real() uses are `confidence`/`ocrConfidence` in chat.ts. (2) **JSONB discipline** — same sweep restricts JSONB on ledger tables (journal/invoices/COA/treasury/payroll/assets/budget) to metadata-style column names; current uses all compliant (journal metadata, audit before/after snapshots, agent eval outputs, analytics snapshots). (3) **§18.1 limits verified**: payload cap — document uploads presign R2 URLs so bytes never pass through a serverless function (4.5MB cap never hit); FD cap — `db` (packages/db) and `triggerClient` (apps/web/lib/trigger) are process-level singletons; memory/vCPU — heavy work already delegated to Trigger.dev.
+
+**Verification:** 3 new tests pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — §5.5 OWASP Top 10 sweep + fuzz tests + stored-XSS fix
 
 **Agent:** Buffy
