@@ -6,6 +6,34 @@
 
 ---
 
+### [2026-08-16] — QA session: live verification of xenboox.vercel.app (authenticated)
+
+**Agent:** Buffy
+**Files Modified:** `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Browser-level QA against the deployed production app using the seeded demo account (`demo@xenboox.com`, `db:seed`-managed):
+
+**Passed (live):**
+
+- Marketing root + login: 200; dashboard redirects to login unauthenticated (correct)
+- Credentials login: 302 → session cookie live-verified `HttpOnly; Secure; SameSite=Lax`; dashboard 200 with session
+- `organization.getEntitySummary`: real balances (cash 670,000 / AP 250,000 / AR 477,000 / period 2026-08)
+- `coa.list` + `coa.listHierarchy`: real account tree (1010 Cash on Hand etc.) — my §4.1 cache path
+- `currency.getSettings` + `listRates`: baseCurrency GMD
+- `currency.convert` (my §4.1 cached rate resolution): USD→GMD rate 67.5, converted 6750, source "global"
+- `journal.getRecentActivity` + `getOverview`: real AI-posted entries (JE-2025-0021, System (AI))
+- **Entity isolation**: `coa.list` with a foreign/bogus entity id → 403 FORBIDDEN "You do not have access to this entity" (middleware-level RLS enforcement works)
+- **Agent chat SSE**: full pipeline streams live — conversation created, CFO Agent `input_intake`/`session_load` thinking steps, token stream, `done` with confidence 95, agentsInvolved [cfo-agent], 1008ms
+- Health: `/api/health?check=live` 200 healthy, `?check=ready` 200
+
+**Bug found & fixed:**
+
+- [doc] ROADTOPRODUCTION §24.2 cited health endpoints as `/api/health/live` + `/api/health/ready` — those paths 404 in production; the real endpoints are `/api/health?check=live|ready` (probes doc already correct). Corrected the roadmap note so monitoring probes are configured against working paths.
+
+**Note:** verified with the demo account only — the seeded demo data (cash/AR/AP/invoices) confirms the whole stack (auth → RLS → tRPC → cache → DB → agents) is live and healthy on the deployed build.
+
+---
+
 ### [2026-08-16] — Production-readiness final pass (markers, RLS contract, full-doc sweep)
 
 **Agent:** Buffy
