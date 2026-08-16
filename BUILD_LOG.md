@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §4.1 caching: COA, exchange rates, entity summary, cache headers
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/server/routers/coa.ts`, `apps/web/server/routers/currency.ts`, `apps/web/server/routers/organization.ts`, `apps/web/next.config.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Extended the entity-scoped `TenantCache` pattern (already on fiscal/tax rules) to the remaining §4.1 read-heavy domains: (1) **COA** — `coa.list` + `coa.listHierarchy` now share one cached account fetch (60s TTL); invalidated on every COA mutation (create/update/delete/importTemplate). (2) **Exchange rates** — `getSettings`, `listRates`, and the `convert` rate-resolution path cached (60s TTL); invalidated on `upsertRate` so manual corrections surface immediately. (3) **Entity summary** (`organization.getEntitySummary` — sidebar header on every page) cached at 30s TTL. (4) **User permissions** were already cached (in-memory RBAC matrix 60s TTL + `clearPermissionCache()` — documented, no change needed). (5) **Cache headers** — `next.config.ts` now emits `Cache-Control: public, max-age=31536000, immutable` for `/_next/static/*` + `/static/*` (content-hashed filenames), 1h for favicon/robots/sitemap; pages/API stay uncached (session/entity data never cached at edge).
+
+**Verification:** eslint clean on all 4 changed files; cache core invariants covered by existing 9 tenant-cache tests; types verified against fx schema (runAt nullable timestamp). Committed + pushed.
+
+---
+
 ### [2026-08-16] — §20.4 key rotation schedule + secrets hygiene
 
 **Agent:** Buffy

@@ -11,20 +11,34 @@ import {
   requireRole,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { cachedDomain } from "@/lib/cache/tenant-cache";
+
+// §4.1 — COA is read-heavy (loaded by every journal-entry form, invoice
+// line, report builder) and changes rarely. Entity-scoped 60s cache; every
+// mutation below invalidates the entity's entry so edits surface immediately.
+const coaCache = cachedDomain("coa", 60_000);
+
+type Account = (typeof chartOfAccounts.$inferSelect)[];
+
+async function fetchAccounts(entityId: string): Promise<Account> {
+  const cacheKey = "accounts";
+  const cached = coaCache.get<Account>(entityId, cacheKey);
+  if (cached) return cached;
+  const accounts = await db.query.chartOfAccounts.findMany({
+    where: eq(chartOfAccounts.entityId, entityId),
+    orderBy: [asc(chartOfAccounts.code)],
+  });
+  coaCache.set(entityId, cacheKey, accounts);
+  return accounts;
+}
 
 export const coaRouter = router({
   list: rlsProtectedProcedure.query(async ({ ctx }) => {
-    return db.query.chartOfAccounts.findMany({
-      where: eq(chartOfAccounts.entityId, ctx.entityId!),
-      orderBy: [asc(chartOfAccounts.code)],
-    });
+    return fetchAccounts(ctx.entityId!);
   }),
 
   listHierarchy: rlsProtectedProcedure.query(async ({ ctx }) => {
-    const accounts = await db.query.chartOfAccounts.findMany({
-      where: eq(chartOfAccounts.entityId, ctx.entityId!),
-      orderBy: [asc(chartOfAccounts.code)],
-    });
+    const accounts = await fetchAccounts(ctx.entityId!);
 
     const map = new Map<
       string,
@@ -126,6 +140,7 @@ export const coaRouter = router({
           })
           .returning();
 
+        coaCache.invalidate(ctx.entityId!);
         return account;
       } catch (error) {
         handleMutationError(error, "Failed to create account");
@@ -173,6 +188,7 @@ export const coaRouter = router({
           ),
         )
         .returning();
+      coaCache.invalidate(ctx.entityId!);
       return updated;
     }),
 
@@ -212,6 +228,7 @@ export const coaRouter = router({
               eq(chartOfAccounts.entityId, ctx.entityId!),
             ),
           );
+        coaCache.invalidate(ctx.entityId!);
         return { success: true };
       } catch (error) {
         handleMutationError(error, "Failed to delete account");
@@ -292,6 +309,7 @@ export const coaRouter = router({
         inserted.push(created);
       }
 
+      coaCache.invalidate(ctx.entityId!);
       return { imported: inserted.length };
     }),
 });

@@ -24,6 +24,13 @@ import {
   mutateProcedure,
 } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
+import { cachedDomain } from "@/lib/cache/tenant-cache";
+
+// §4.1 — entity header summary (cash/AP/AR/period) is rendered on every
+// page via the sidebar header. Short 30s TTL — a summary, not a statement;
+// live numbers settle within a tick and the DB cost saved on the hot path
+// is significant.
+const summaryCache = cachedDomain("summary", 30_000);
 
 export const organizationRouter = router({
   // ─── CURRENT USER ──────────────────────────────
@@ -109,6 +116,15 @@ export const organizationRouter = router({
       };
     const entityId = ctx.entityId;
 
+    const cacheKey = "summary";
+    const cached = summaryCache.get<{
+      cashBalance: number;
+      apOutstanding: number;
+      arOutstanding: number;
+      currentPeriod: string;
+    }>(entityId, cacheKey);
+    if (cached) return cached;
+
     // Get cash balance from bank accounts
     const bankAccs = await db.query.bankAccounts.findMany({
       where: eq(bankAccounts.entityId, entityId),
@@ -155,7 +171,9 @@ export const organizationRouter = router({
       ? `${current.year}-${String(current.month).padStart(2, "0")}`
       : "No period";
 
-    return { cashBalance, apOutstanding, arOutstanding, currentPeriod };
+    const result = { cashBalance, apOutstanding, arOutstanding, currentPeriod };
+    summaryCache.set(entityId, cacheKey, result);
+    return result;
   }),
 
   // ─── ORGANIZATIONS ─────────────────────────────

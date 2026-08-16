@@ -91,9 +91,59 @@ const baseConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
-  // Security headers handled by middleware (with nonce support)
+  // §4.1 — cache headers. Static hashed assets are immutable (Next.js emits
+  // content-hashed filenames under /_next/static, so a 1-year cache is safe);
+  // public /static assets get the same treatment. Everything else (pages,
+  // API, tRPC, auth) stays uncached at the edge — session/entity data must
+  // never be cached. Security headers are handled by middleware (with nonce).
   async headers() {
-    return [];
+    return [
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/favicon.ico",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400",
+          },
+        ],
+      },
+      {
+        source: "/robots.txt",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400",
+          },
+        ],
+      },
+      {
+        source: "/sitemap.xml",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400",
+          },
+        ],
+      },
+    ];
   },
   // Security & performance optimizations
   compress: true,

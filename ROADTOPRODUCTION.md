@@ -289,14 +289,14 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[~]` No Redis caching layer for application data — **in-process entity-scoped TTL cache (`lib/cache/tenant-cache.ts`) for rarely-changing config reads (fiscal periods, tax rules) with LRU cap, hit/miss telemetry, mutation invalidation; Redis/Upstash remains for cross-instance + semantic caching**
 - `[x]` Upstash Redis used for rate limiting only
-- `[~]` Implement caching for: — **config reads done (fiscal, tax rules, 60s TTL, entity-isolated); financial statement data deliberately EXCLUDED (freshness sacred)**
-  - `[ ]` Dashboard data (frequently accessed, rarely updated)
-  - `[ ]` Chart of accounts (read-heavy)
-  - `[ ]` User permissions and roles
-  - `[ ]` Exchange rates (cache between daily updates)
-  - `[ ]` Entity summaries
-- `[ ]` Define cache invalidation strategy
-- `[ ]` Add cache headers for static assets
+- `[x]` Implement caching for: — **config reads done (fiscal, tax rules) + COA (list/listHierarchy share one entity-scoped entry), exchange rates (settings/listRates/convert — invalidated on upsertRate), entity summary (30s TTL); user permissions already cached (in-memory RBAC matrix, 60s TTL + `clearPermissionCache()` on mutation); financial statement data deliberately EXCLUDED (freshness sacred)** (Aug 16, 2026)
+  - `[x]` Dashboard data (frequently accessed, rarely updated)
+  - `[x]` Chart of accounts (read-heavy)
+  - `[x]` User permissions and roles
+  - `[x]` Exchange rates (cache between daily updates)
+  - `[x]` Entity summaries
+- `[x]` Define cache invalidation strategy — **per-domain entity-scoped invalidation on every mutation touching the domain (fiscal.create → fiscal._, coa create/update/delete/importTemplate → coa._, currency.upsertRate → fx.\*); TTL-bounded (30–60s) so even missed invalidations self-heal within a tick; entity-prefixed keys make cross-tenant leakage structurally impossible** (Aug 16, 2026)
+- `[x]` Add cache headers for static assets — **`next.config.ts` headers: `/_next/static/*` + `/static/*` → `public, max-age=31536000, immutable` (hashed filenames), `/favicon.ico` `/robots.txt` `/sitemap.xml` → 1h; pages/API/auth remain uncached at the edge (session/entity data never cached)** (Aug 16, 2026)
 
 ### 4.2 CDN
 

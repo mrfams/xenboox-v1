@@ -21,6 +21,12 @@ import {
   requirePermission,
   handleMutationError,
 } from "@/lib/trpc/server";
+import { cachedDomain } from "@/lib/cache/tenant-cache";
+
+// §4.1 — exchange rates update daily (ECB sync) or via manual upsert; the
+// rate-resolution path runs on every conversion. Entity-scoped 60s cache,
+// invalidated on upsertRate so manual corrections surface immediately.
+const fxCache = cachedDomain("fx", 60_000);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -106,6 +112,20 @@ export const currencyRouter = router({
     .use(requirePermission("multi_currency", "view"))
     .query(async ({ ctx }) => {
       const entityId = ctx.entityId!;
+      const cacheKey = "settings";
+      const cached = fxCache.get<{
+        baseCurrency: string;
+        rateCount: number;
+        recentRuns: {
+          id: string;
+          period: string;
+          baseCurrency: string;
+          status: string;
+          runAt: Date | null;
+        }[];
+      }>(entityId, cacheKey);
+      if (cached) return cached;
+
       const entity = await db.query.entities.findFirst({
         where: eq(entities.id, entityId),
         columns: { id: true, currency: true },
@@ -130,11 +150,13 @@ export const currencyRouter = router({
           .where(eq(fxRates.entityId, entityId)),
       ]);
 
-      return {
+      const result = {
         baseCurrency: entity?.currency ?? "GMD",
         rateCount: rateCount[0]?.count ?? 0,
         recentRuns,
       };
+      fxCache.set(entityId, cacheKey, result);
+      return result;
     }),
 
   // ── Currency reference (ISO codes) — global read ──
@@ -151,10 +173,18 @@ export const currencyRouter = router({
   listRates: rlsProtectedProcedure
     .use(requirePermission("multi_currency", "view"))
     .query(async ({ ctx }) => {
+      const entityId = ctx.entityId!;
+      const cacheKey = "list";
+      const cached = fxCache.get<(typeof fxRates.$inferSelect)[]>(
+        entityId,
+        cacheKey,
+      );
+      if (cached) return cached;
       const rates = await db.query.fxRates.findMany({
-        where: eq(fxRates.entityId, ctx.entityId!),
+        where: eq(fxRates.entityId, entityId),
         orderBy: [desc(fxRates.asOf), asc(fxRates.fromCurrency)],
       });
+      fxCache.set(entityId, cacheKey, rates);
       return rates;
     }),
 
@@ -207,6 +237,8 @@ export const currencyRouter = router({
             createdBy: ctx.session?.user?.id,
           });
         }
+
+        fxCache.invalidate(entityId);
 
         await db.insert(auditLog).values({
           entityId,
@@ -276,11 +308,27 @@ export const currencyRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { rate, source } = await resolveRate(
-        ctx.entityId!,
-        input.fromCurrency,
-        input.toCurrency,
+      const entityId = ctx.entityId!;
+      const cacheKey = `${input.fromCurrency}:${input.toCurrency}`;
+      const cached = fxCache.get<{ rate: number; source: string }>(
+        entityId,
+        cacheKey,
       );
+      let rate: number;
+      let source: string;
+      if (cached) {
+        rate = cached.rate;
+        source = cached.source;
+      } else {
+        const resolved = await resolveRate(
+          entityId,
+          input.fromCurrency,
+          input.toCurrency,
+        );
+        rate = resolved.rate;
+        source = resolved.source;
+        fxCache.set(entityId, cacheKey, resolved);
+      }
       return {
         fromCurrency: input.fromCurrency,
         toCurrency: input.toCurrency,
