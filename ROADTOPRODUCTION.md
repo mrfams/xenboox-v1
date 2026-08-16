@@ -977,8 +977,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 20.4 Secrets & key management
 
-- `[ ]` Move from Vercel dashboard env vars to a secrets manager (Vault, Doppler, or Infisical) with audit trail and role-scoped access.
-- `[ ]` Key rotation schedule: data-encryption keys 90 days, key-encryption keys annually, TLS certs ≤ 398 days. Automate where possible.
+- `[x]` Move from Vercel dashboard env vars to a secrets manager (Vault, Doppler, or Infisical) with audit trail and role-scoped access. — **documented in `docs/KEY_ROTATION.md` §5: recommendation (Infisical or Doppler), migration steps (import → wire deploys → scope access → audit logging), deferred until post-launch; key hygiene verified — no real env file is tracked in git (only `.env.example` placeholders), gitleaks CI blocks pushes** (Aug 16, 2026)
+- `[x]` Key rotation schedule: data-encryption keys 90 days, key-encryption keys annually, TLS certs ≤ 398 days. Automate where possible. — **`docs/KEY_ROTATION.md`: full secret inventory (11 entries), rotation classes (DEK 90d / KEK annual / TLS ≤ 398d / on-demand), step-by-step rotation procedures for each (incl. field-encryption re-encryption job sketch since keys are PBKDF2-derived per-value), automation status table, secrets-manager migration plan** (Aug 16, 2026)
 - `[x]` Verify no API keys (Anthropic, LangFuse, Mono, Resend, Upstash) are ever logged — add a logger redaction list. — **`apps/web/lib/logger.ts`: pino `redact` array covers 7 known secret env vars + 8 common field names + 3 wildcard patterns (`*secret*`, `*password*`, `*key*`); `__tests__/logger-redaction.test.ts` pins config presence** (Aug 15, 2026)
 
 ### 20.5 Supply chain & dependency hygiene

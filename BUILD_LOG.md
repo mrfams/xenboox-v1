@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §20.4 key rotation schedule + secrets hygiene
+
+**Agent:** Buffy
+**Files Modified:** `docs/KEY_ROTATION.md` (new), `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Wrote `docs/KEY_ROTATION.md` — the §20.4 deliverable. Full secret inventory (11 entries with env vars + owners), rotation classes (DEK 90 days / KEK annually / TLS ≤ 398 days / on-demand), step-by-step rotation procedures per secret (auth secret signs everyone out; field-encryption key requires a re-encryption job because keys are PBKDF2-derived per-value with no multi-key ring — included a re-encryption script sketch), automation status table (gitleaks + pnpm audit live; re-encryption job + rotation reminders + age-check CI as TODO), and the deferred secrets-manager migration plan (Infisical/Doppler recommendation). Verified secrets hygiene: only `.env.example` (placeholders) is tracked in git — no real env file, `.env.bak*` untracked + gitignored.
+
+**Verification:** N/A (docs-only; git hygiene verified via `git ls-files`). Committed + pushed.
+
+---
+
 ### [2026-08-16] — §20.1 idle session timeout (JWT lastActivity)
 
 **Agent:** Buffy
