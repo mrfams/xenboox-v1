@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §12.5 tool-system dedup: legacy LangChain tools removed
+
+**Agent:** Buffy
+**Files Modified:** `packages/agents/core/tools.ts` (deleted), `packages/agents/core/index.ts`, `packages/agents/index.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** The legacy `core/tools.ts` (LangChain `tool()` wrappers: validateDoubleEntry, getAccountBalance, getJournalEntryLines, getRecentJournalEntries, getAccountByCode) was verified dead — re-exported via `core/index.ts` + `agents/index.ts` but with ZERO production consumers anywhere (web/mobile/jobs/ingestion all clean); the `ToolDefinition` registry already provided equivalent tools for all 5 backed by the same accounting-rules engine. Deleted the file and removed the re-exports. Tool-system test files: 110 passed / 19 pre-existing skips, zero regressions. Typecheck: 78 pre-existing errors, unchanged.
+
+**Verification:** tool-system tests 110 pass; agents typecheck unchanged (78 pre-existing). Committed + pushed.
+
+---
+
 ### [2026-08-16] — §8.1 real agent implementations + 3 build blockers fixed
 
 **Agent:** Buffy

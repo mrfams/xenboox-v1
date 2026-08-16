@@ -79,14 +79,9 @@ export type {
 } from "./autonomy-policy";
 
 // ─── Accounting Rules ─────────────────────────
-export {
-  validateDoubleEntry,
-  getAccountBalance,
-  getJournalEntryLines,
-  getRecentJournalEntries,
-  getAccountByCode,
-} from "./tools";
-
+// NOTE: the legacy LangChain `tool()` wrappers in core/tools.ts were removed
+// (§12.5 dedup) — the ToolDefinition registry (core/tool-registry.ts) is the
+// single tool system. Only the pure rule functions are exported here.
 export {
   postJournalEntryValidation,
   validateDoubleEntry as validateDoubleEntryRule,

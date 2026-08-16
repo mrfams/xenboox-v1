@@ -725,7 +725,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 12.5 Code Duplication
 
-- `[ ]` Two tool systems coexist: legacy `tool()` pattern and new `ToolDefinition` registry
+- `[x]` Two tool systems coexist: legacy `tool()` pattern and new `ToolDefinition` registry — **fixed (Aug 16, 2026): legacy `packages/agents/core/tools.ts` (LangChain `tool()` wrappers: validateDoubleEntry, getAccountBalance, getJournalEntryLines, getRecentJournalEntries, getAccountByCode) was dead code — re-exported but zero consumers; the `ToolDefinition` registry (`core/tool-registry.ts`) already had equivalent tools for all 5. Deleted `tools.ts` + removed the re-exports from `core/index.ts` and `agents/index.ts`. Tool-system tests: 110 pass, zero regressions.**
 - `[x]` `lib/api.ts` `apiFetch()` defined but unused in mobile — **removed: dead code (mobile uses the tRPC client + read-cache link)** (Aug 15, 2026)
 - `[x]` `constants/theme.ts` exports unused in mobile — **removed: design tokens already live in `tailwind.config.js` via NativeWind** (Aug 15, 2026)
 - `[x]` Date formatting inconsistencies (en-GB vs en-US) across files — **fixed (Aug 15, 2026): standardized all date formatters to `en-US`; `apps/web/lib/utils.ts` (`formatDate`, `formatDateTime`) and `apps/web/app/dashboard/page.tsx` (`DATE_FORMATTER`) changed from `en-GB` to `en-US` to match the rest of the codebase**
