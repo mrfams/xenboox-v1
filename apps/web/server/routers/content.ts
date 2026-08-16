@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, desc, count, sql } from "drizzle-orm";
-import { blogPosts, jobPostings, type BlogPost } from "@xenboox/db/schema";
+import { blogPosts, jobPostings } from "@xenboox/db/schema";
 import { db } from "@xenboox/db";
 
 import { demoPosts, demoJobs } from "@xenboox/db/seed/content-demo";
@@ -358,7 +358,10 @@ export const contentRouter = router({
       const conditions = [];
       if (input.status && input.status !== "All") {
         conditions.push(
-          eq(blogPosts.status, input.status as BlogPost["status"]),
+          eq(
+            blogPosts.status,
+            input.status as (typeof blogPosts.$inferSelect)["status"],
+          ),
         );
       }
       if (input.query) {

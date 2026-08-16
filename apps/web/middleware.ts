@@ -34,6 +34,13 @@ const PUBLIC_ROUTES = [
   "/reset-password",
   "/verify-email",
   "/admin-login",
+  // Metadata/file routes must stay public — search-engine crawlers and
+  // social-media link previews don't authenticate. Without these, the auth
+  // redirect sends robots.txt/sitemap.xml/opengraph-image to /login (307),
+  // which blocks indexing and breaks OG image previews entirely.
+  "/robots.txt",
+  "/sitemap.xml",
+  "/opengraph-image",
 ];
 
 function isPublicRoute(pathname: string): boolean {

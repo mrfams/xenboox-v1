@@ -6,16 +6,16 @@
   "regions": ["iad1"],
   "crons": [
     {
-      "path": "/api/webhooks/process?batch=50",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/daily-digest",
       "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/month-end-close",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/webhooks/process?batch=200",
+      "schedule": "0 5 * * *"
     }
   ]
 }

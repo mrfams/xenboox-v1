@@ -94,7 +94,15 @@ export default function AgentMonitorPage() {
   // for the next poll: a completed/failed run leaves the active section
   // immediately, a new run appears at the top.
   const [localActive, setLocalActive] = useState<
-    { runId: string; agentName: string; status: string }[]
+    {
+      runId: string;
+      agentName: string;
+      agentDisplayName?: string;
+      status: string;
+      startedAt?: string;
+      progress?: number;
+      currentStep?: string;
+    }[]
   >([]);
   useEffect(() => {
     if (!lastEvent?.runId) return;

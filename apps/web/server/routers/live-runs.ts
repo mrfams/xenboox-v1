@@ -257,7 +257,16 @@ export const liveRunsRouter = router({
     .input(
       z
         .object({
-          status: z.string().optional(),
+          status: z
+            .enum([
+              "queued",
+              "in_progress",
+              "waiting",
+              "completed",
+              "failed",
+              "cancelled",
+            ])
+            .optional(),
           agentName: z.string().optional(),
           limit: z.number().min(1).max(100).default(20),
           offset: z.number().min(0).default(0),

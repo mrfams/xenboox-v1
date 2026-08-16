@@ -119,7 +119,12 @@ export default function BlogAdminPage() {
   };
 
   const handleSavePost = () => {
+    const slug = formData.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     const payload = {
+      slug: slug || `post-${Date.now()}`,
       title: formData.title,
       excerpt: formData.excerpt,
       content: formData.content,

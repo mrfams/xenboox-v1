@@ -159,12 +159,17 @@ export async function getJobBySlug(slug: string): Promise<PublicJob | null> {
     tags: job.tags,
   };
 }
-
 export async function getRelatedJobs(
   slug: string,
   limit = 3,
 ): Promise<
-  Array<{ slug: string; title: string; department: string; location: string }>
+  Array<{
+    id: string;
+    slug: string;
+    title: string;
+    department: string;
+    location: string;
+  }>
 > {
   const [current] = await db
     .select({ department: jobPostings.department })
@@ -195,6 +200,7 @@ export async function getRelatedJobs(
         .limit(limit);
 
   return rows.map((j) => ({
+    id: j.id,
     slug: j.slug,
     title: j.title,
     department: j.department,

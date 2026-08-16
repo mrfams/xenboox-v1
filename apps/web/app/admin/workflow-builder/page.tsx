@@ -112,7 +112,7 @@ const NODE_COLORS: Record<string, string> = {
   review: "bg-indigo-100 border-indigo-300",
 };
 
-export function useWorkflowBuilderData() {
+function useWorkflowBuilderData() {
   const workflows = trpc.workflowBuilder.getWorkflows.useQuery(undefined, {
     refetchInterval: 30_000,
   });
@@ -213,6 +213,7 @@ export function useWorkflowBuilderData() {
     runStatuses,
     totalRuns,
     successRate,
+    avgDuration,
     isLoading: workflows.isLoading || (!!workflowId && detail.isLoading),
     refetch: () => {
       void workflows.refetch();

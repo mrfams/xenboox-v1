@@ -158,7 +158,12 @@ export default function CareersAdminPage() {
   };
 
   const handleSaveJob = () => {
+    const slug = formData.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     const payload = {
+      slug: slug || `position-${Date.now()}`,
       title: formData.title,
       department: formData.department,
       location: formData.location,

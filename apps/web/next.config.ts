@@ -11,6 +11,13 @@ const withBundleAnalyzer =
     : (config: NextConfig) => config;
 
 const baseConfig: NextConfig = {
+  // ESLint runs as its own CI gate (`pnpm lint` — 0 errors). Running it again
+  // inside `next build` on Vercel's container OOM-kills the build worker on
+  // this codebase (hundreds of files, ~560 warnings; the flat-config run never
+  // reaches its summary line). Standard practice: lint in CI, not in the build.
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   transpilePackages: [
     "@xenboox/ui",
     "@xenboox/db",
@@ -20,7 +27,7 @@ const baseConfig: NextConfig = {
   // Disk-constrained environments: the webpack filesystem cache grows ~3.5 GB
   // per build and can fill the disk mid-build (ENOSPC, seen repeatedly on this
   // dev machine). Disable it — costs a slower cold compile, saves the disk.
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, nextRuntime }) => {
     config.cache = false;
     // OpenTelemetry: the NodeSDK barrel statically imports the gRPC exporter
     // chain, which webpack cannot bundle under pnpm's strict layout, and the
@@ -29,12 +36,28 @@ const baseConfig: NextConfig = {
     // guidance these server-only packages must run from node_modules at
     // runtime, not be bundled (we only use the OTLP/HTTP exporter). Missing
     // externals = "Module not found: '@grpc/grpc-js'" / parse errors.
-    if (isServer) {
-      const existing = Array.isArray(config.externals)
-        ? config.externals
-        : config.externals && typeof config.externals === "object"
-          ? [config.externals]
-          : [];
+    //
+    // Runtimes are handled separately:
+    //
+    // NODEJS — the whole @opentelemetry/* scope is externalized so the
+    // SDK runs from node_modules at runtime (the NodeSDK barrel statically
+    // imports the gRPC exporter chain; missing externals = "Module not
+    // found: '@grpc/grpc-js'" / parse errors under pnpm's strict layout).
+    //
+    // EDGE — @sentry/nextjs's edge entry statically imports the pure-JS
+    // @opentelemetry/api / core / sdk-trace-base, and an externalized
+    // require would fail at runtime with "Native module not found:
+    // @opentelemetry/api" (edge has no node_modules). So on edge those
+    // packages are BUNDLED, and only the NodeSDK chain (@opentelemetry/
+    // sdk-node and its gRPC deps) is externalized — it requires Node
+    // builtins that don't exist on edge, and it is only reachable through
+    // register()'s node-only dynamic import, so it is never executed there.
+    const existing = Array.isArray(config.externals)
+      ? config.externals
+      : config.externals && typeof config.externals === "object"
+        ? [config.externals]
+        : [];
+    if (isServer && nextRuntime === "nodejs") {
       config.externals = [
         ...existing,
         // Whole @opentelemetry/* scope — every package runs from node_modules.
@@ -52,6 +75,23 @@ const baseConfig: NextConfig = {
         "@grpc/grpc-js",
         "@grpc/proto-loader",
       ];
+    } else if (isServer && nextRuntime === "edge") {
+      // Edge bundle: keep ONLY the heavy NodeSDK chain out. These are never
+      // required at runtime on edge (register() skips the nodejs branch), so
+      // externalizing them is safe and prevents webpack from bundling
+      // grpc-js's Node-builtin requires. Everything else @opentelemetry/*
+      // (api, core, sdk-trace-base) must BUNDLE — Sentry's edge entry
+      // imports them and edge cannot require from node_modules.
+      config.externals = [
+        ...existing,
+        "@opentelemetry/sdk-node",
+        "@opentelemetry/auto-instrumentations-node",
+        "@opentelemetry/otlp-grpc-exporter-base",
+        "@grpc/grpc-js",
+        "@grpc/proto-loader",
+      ];
+    }
+    if (isServer && nextRuntime === "nodejs") {
       // Scope-hoisting (module concatenation) cannot inline namespace imports
       // of the externalized OTel packages — disable it on the server graph.
       if (config.optimization && typeof config.optimization === "object") {

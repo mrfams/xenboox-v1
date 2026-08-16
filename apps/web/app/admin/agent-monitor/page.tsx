@@ -41,16 +41,16 @@ interface Agent {
   lastRunAt: string | null;
   isActive: boolean;
   currentTask: string | null;
-  currentTaskProgress: number;
+  currentTaskProgress: number | null;
   currentTaskEta: string | null;
   currentTaskStartedAt: string | null;
   model: string | null;
-  toolsCount: number;
+  toolsCount: number | null;
   memoryUsageGb: string | null;
-  tasksRunning: number;
-  tasksCompleted: number;
-  tasksReview: number;
-  tasksFailed: number;
+  tasksRunning: number | null;
+  tasksCompleted: number | null;
+  tasksReview: number | null;
+  tasksFailed: number | null;
 }
 
 interface Alert {
@@ -70,17 +70,17 @@ interface SystemResources {
   memoryTotalGb: string;
   workerQueueJobs: number;
   allSystemsOperational: boolean;
-  activeWorkflows: number;
-  queueLength: number;
+  activeWorkflows: number | null;
+  queueLength: number | null;
 }
 
 interface WorkloadDistribution {
-  completed: number;
-  inProgress: number;
-  review: number;
-  scheduled: number;
-  failed: number;
-  totalTasks: number;
+  completed: number | null;
+  inProgress: number | null;
+  review: number | null;
+  scheduled: number | null;
+  failed: number | null;
+  totalTasks: number | null;
 }
 
 interface Activity {
@@ -97,7 +97,7 @@ interface TopPerformer {
   successRate: string;
 }
 // --- Live Data (agentMonitor.getOverview) ---
-export function useAgentMonitorData() {
+function useAgentMonitorData() {
   const { data, isLoading, refetch, isRefetching } =
     trpc.agentMonitor.getOverview.useQuery(
       { hours: 24 },
@@ -116,11 +116,14 @@ export function useAgentMonitorData() {
   const activeAgents =
     summary?.activeAgents ?? agents.filter((a) => a.isActive).length;
   const tasksRunning =
-    summary?.tasksRunning ?? agents.reduce((s, a) => s + a.tasksRunning, 0);
+    summary?.tasksRunning ??
+    agents.reduce((s, a) => s + (a.tasksRunning ?? 0), 0);
   const tasksCompleted =
-    summary?.tasksCompleted ?? agents.reduce((s, a) => s + a.tasksCompleted, 0);
+    summary?.tasksCompleted ??
+    agents.reduce((s, a) => s + (a.tasksCompleted ?? 0), 0);
   const humanReviewCount =
-    summary?.humanReviewCount ?? agents.reduce((s, a) => s + a.tasksReview, 0);
+    summary?.humanReviewCount ??
+    agents.reduce((s, a) => s + (a.tasksReview ?? 0), 0);
   const successRate = summary?.successRate ?? "0";
   const timeSavedHours = summary?.timeSavedHours ?? "0";
 
@@ -466,11 +469,13 @@ export default function AgentMonitorPage() {
                           <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-indigo-500 rounded-full"
-                              style={{ width: `${agent.currentTaskProgress}%` }}
+                              style={{
+                                width: `${agent.currentTaskProgress ?? 0}%`,
+                              }}
                             />
                           </div>
                           <span className="text-sm text-gray-600">
-                            {agent.currentTaskProgress}%
+                            {agent.currentTaskProgress ?? 0}%
                           </span>
                         </div>
                       </td>
@@ -727,12 +732,12 @@ export default function AgentMonitorPage() {
                       <div
                         className="h-full bg-indigo-500 rounded-full"
                         style={{
-                          width: `${selectedAgent.currentTaskProgress}%`,
+                          width: `${selectedAgent.currentTaskProgress ?? 0}%`,
                         }}
                       />
                     </div>
                     <span className="text-sm font-medium text-gray-900">
-                      {selectedAgent.currentTaskProgress}%
+                      {selectedAgent.currentTaskProgress ?? 0}%
                     </span>
                   </div>
                 )}
@@ -782,7 +787,7 @@ export default function AgentMonitorPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Tools</span>
                     <span className="text-sm font-medium text-gray-900">
-                      {selectedAgent.toolsCount}{" "}
+                      {selectedAgent.toolsCount ?? 0}{" "}
                       <ChevronRight className="inline h-3 w-3" />
                     </span>
                   </div>
