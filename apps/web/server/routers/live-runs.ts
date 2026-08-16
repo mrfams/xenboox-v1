@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, count, gte, lte } from "drizzle-orm";
+import { eq, and, desc, count, gte, lte, inArray } from "drizzle-orm";
 import {
   opsLiveRuns,
   opsLiveRunSteps,
@@ -380,6 +380,92 @@ export const liveRunsRouter = router({
         totalCostUsd: Math.round(totalCostUsd * 1000000) / 1000000,
         byAgent: byAgentList,
         windowDays: days,
+      };
+    }),
+
+  // ── Entity Live Status (tenant-facing agent monitor) ──────────────────
+  //
+  // Users see THEIR entity's agent executions in real time: what is running
+  // right now (fed by the Redis-backed SSE channel + a DB poll backstop) and
+  // the full detail of any of their runs — steps and events. Every query is
+  // entity-scoped by construction; a runId from another entity resolves to
+  // null, never another tenant's data.
+
+  getActiveEntityRuns: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const runs = await db.query.opsLiveRuns.findMany({
+      where: and(
+        eq(opsLiveRuns.entityId, ctx.entityId!),
+        inArray(opsLiveRuns.status, ["queued", "in_progress", "waiting"]),
+      ),
+      orderBy: [desc(opsLiveRuns.startedAt)],
+    });
+
+    return runs.map((r) => ({
+      id: r.id,
+      runId: r.runId,
+      agentName: r.agentName,
+      agentDisplayName: r.agentDisplayName,
+      status: r.status,
+      progress: r.progress,
+      currentStep: r.currentStep,
+      startedAt: r.startedAt,
+      model: r.model,
+    }));
+  }),
+
+  getEntityRunDetail: rlsProtectedProcedure
+    .input(z.object({ runId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Entity-scoped lookup: only the owning entity's run is visible.
+      const run = await db.query.opsLiveRuns.findFirst({
+        where: and(
+          eq(opsLiveRuns.runId, input.runId),
+          eq(opsLiveRuns.entityId, ctx.entityId!),
+        ),
+      });
+
+      if (!run) {
+        return null;
+      }
+
+      const [steps, events] = await Promise.all([
+        db.query.opsLiveRunSteps.findMany({
+          where: eq(opsLiveRunSteps.runId, input.runId),
+          orderBy: [opsLiveRunSteps.stepNumber],
+        }),
+        db.query.opsLiveRunEvents.findMany({
+          where: eq(opsLiveRunEvents.runId, input.runId),
+          orderBy: [desc(opsLiveRunEvents.createdAt)],
+          limit: 50,
+        }),
+      ]);
+
+      return {
+        id: run.id,
+        runId: run.runId,
+        agentName: run.agentName,
+        agentDisplayName: run.agentDisplayName,
+        status: run.status,
+        progress: run.progress,
+        currentStep: run.currentStep,
+        durationMs: run.durationMs,
+        duration: formatDuration(run.durationMs),
+        startedAt: run.startedAt,
+        completedAt: run.completedAt,
+        model: run.model,
+        error: run.error,
+        costUsd: run.costUsd,
+        steps: steps.map((s) => ({
+          stepNumber: s.stepNumber,
+          name: s.name,
+          status: s.status,
+          duration: s.durationMs ? formatDuration(s.durationMs) : "--",
+        })),
+        events: events.map((e) => ({
+          eventType: e.eventType,
+          message: e.message,
+          createdAt: e.createdAt,
+        })),
       };
     }),
 

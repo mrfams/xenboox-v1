@@ -6,6 +6,20 @@
 
 ---
 
+### [2026-08-16] — Entity-scoped live agent status view (`/dashboard/agent-monitor`)
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/server/routers/live-runs.ts`, `apps/web/app/dashboard/agent-monitor/page.tsx` (rewrote the "Coming Soon" placeholder), `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Built the tenant-facing live agent monitor that closes the §8.2 observability loop for users (admin monitor was mock data; tenant page was a placeholder):
+
+1. **Router (`live-runs.ts`)** — added `getActiveEntityRuns` (queued/in_progress/waiting runs for the caller's `entityId`, via `inArray` status filter) and `getEntityRunDetail` (steps + last-50 events for a runId, **entity-scoped** — a foreign runId resolves to `null`, never another tenant's data). Both use `rlsProtectedProcedure` like the existing `listEntityRuns`/`getEntityCostSummary`.
+2. **Page (`app/dashboard/agent-monitor/page.tsx`)** — live surface with: SSE live events (`useRealtimeAgentEvents`) merged with a 10s DB-poll backstop (per §16.2 degraded modes), active-runs section with progress bars + current step, recent-executions table, 30-day per-entity cost/success-rate/agent-count stat chips, and a run-detail drawer (status/duration/model/cost/steps/event log/error).
+
+**Verification:** eslint clean on both files (removed an unused type); rbac-sweep (4/4, imports the full app router → proves module-load OK), cfo-liveness (24/24 across 2 suites) pass. Full web `tsc` hangs in this env (pre-existing, exit 124 on 90s timeout) — verified shapes against schema + adjacent suites instead. Committed + pushed.
+
+---
+
 ### [2026-08-16] — §20.2 approval-workflow race conditions: atomic transitions + tests
 
 **Agent:** Buffy
