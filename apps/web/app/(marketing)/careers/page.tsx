@@ -20,12 +20,32 @@ import {
 } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
-import {
-  jobListings,
-  departments,
-  locations,
-  jobTypes,
-} from "@/lib/careers-data";
+import { trpc } from "@/lib/trpc/client";
+
+const departments = [
+  "All",
+  "Engineering",
+  "Product",
+  "Design",
+  "Marketing",
+  "Operations",
+  "Customer Success",
+  "Finance",
+  "Legal",
+  "People",
+];
+
+const locations = [
+  "All",
+  "Remote",
+  "Remote (US/EU)",
+  "Remote (Africa)",
+  "New York",
+  "London",
+  "Lagos",
+];
+
+const jobTypes = ["All", "Full-time", "Part-time", "Contract", "Internship"];
 
 const valueProps = [
   {
@@ -84,10 +104,17 @@ export default function CareersPage() {
   const [selectedType, setSelectedType] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
 
+  const { data, isLoading } = trpc.content.listJobs.useQuery({
+    department: selectedDepartment === "All" ? undefined : selectedDepartment,
+    location: selectedLocation === "All" ? undefined : selectedLocation,
+    type: selectedType === "All" ? undefined : selectedType,
+    query: searchQuery || undefined,
+  });
+
+  const jobListings = useMemo(() => data ?? [], [data]);
+
   const filteredJobs = useMemo(() => {
     return jobListings.filter((job) => {
-      if (!job.isActive) return false;
-
       const matchesSearch =
         searchQuery === "" ||
         job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -106,7 +133,13 @@ export default function CareersPage() {
         matchesSearch && matchesDepartment && matchesLocation && matchesType
       );
     });
-  }, [searchQuery, selectedDepartment, selectedLocation, selectedType]);
+  }, [
+    jobListings,
+    searchQuery,
+    selectedDepartment,
+    selectedLocation,
+    selectedType,
+  ]);
 
   const activeFiltersCount =
     (selectedDepartment !== "All" ? 1 : 0) +
@@ -381,14 +414,24 @@ export default function CareersPage() {
           {/* Results Count */}
           <FadeInUp delay={0.15}>
             <p className="mb-4 text-sm text-muted-foreground">
-              Showing {filteredJobs.length} position
-              {filteredJobs.length !== 1 ? "s" : ""}
+              {isLoading
+                ? "Loading positions..."
+                : `Showing ${filteredJobs.length} position${filteredJobs.length !== 1 ? "s" : ""}`}
             </p>
           </FadeInUp>
 
           {/* Job Listings */}
           <div className="space-y-3">
-            {filteredJobs.length === 0 ? (
+            {isLoading ? (
+              <FadeInUp>
+                <div className="rounded-2xl border border-border bg-card p-12 text-center">
+                  <Briefcase className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4 animate-pulse" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    Loading positions...
+                  </h3>
+                </div>
+              </FadeInUp>
+            ) : filteredJobs.length === 0 ? (
               <FadeInUp>
                 <div className="rounded-2xl border border-border bg-card p-12 text-center">
                   <Briefcase className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />

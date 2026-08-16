@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Calendar, Search, Tag, Sparkles } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
-import { blogPosts, getFeaturedPosts } from "@/lib/blog-data";
+import { trpc } from "@/lib/trpc/client";
 
 const categories = [
   "All",
@@ -20,7 +20,14 @@ export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const featuredPosts = getFeaturedPosts();
+  const { data, isLoading } = trpc.content.listPosts.useQuery({
+    category: selectedCategory === "All" ? undefined : selectedCategory,
+    query: searchQuery || undefined,
+    limit: 50,
+  });
+
+  const blogPosts = data?.posts ?? [];
+  const featuredPosts = blogPosts.filter((post) => post.featured);
 
   const filteredPosts = blogPosts.filter((post) => {
     const matchesCategory =
@@ -160,7 +167,11 @@ export default function BlogPage() {
             </h2>
           </FadeInUp>
 
-          {filteredPosts.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p className="text-slate-400">Loading posts...</p>
+            </div>
+          ) : filteredPosts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-slate-500">
                 No posts found matching your criteria.

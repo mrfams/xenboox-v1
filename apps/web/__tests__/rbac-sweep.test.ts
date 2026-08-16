@@ -47,6 +47,13 @@ describe("§20.2 RBAC — every mutation is protected", () => {
     "accept", // invitation acceptance (token-based, pre-auth)
     "checkByEmail", // invitation lookup (token-scoped, no entity data)
     "health",
+    // Marketing content (public marketing pages — reads only, no entity data).
+    "listPosts",
+    "getPostBySlug",
+    "getRelatedPosts",
+    "listJobs",
+    "getJobBySlug",
+    "getRelatedJobs",
   ]);
 
   const violations: string[] = [];

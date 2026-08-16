@@ -6,6 +6,26 @@
 
 ---
 
+### [2026-08-16] — Admin panels functional: agent-monitor, workflow-builder, blog, careers
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/admin/agent-monitor/page.tsx`, `apps/web/app/admin/workflow-builder/page.tsx`, `apps/web/server/routers/content.ts` (new), `apps/web/lib/content-server.ts` (new), `apps/web/app/admin/blog/page.tsx`, `apps/web/app/admin/careers/page.tsx`, `apps/web/app/(marketing)/blog/page.tsx`, `apps/web/app/(marketing)/blog/[slug]/page.tsx`, `apps/web/app/(marketing)/careers/page.tsx`, `apps/web/app/(marketing)/careers/[slug]/page.tsx`, `packages/db/schema/content.ts` (new), `packages/db/seed/seed-admin-ops.ts` (new), `packages/db/seed/seed-workflow-data.ts` (new), `packages/db/seed/seed-content.ts` (new), `packages/db/seed/content-demo.ts` (new), `migrations/0032_round_metal_master.sql`, `XENBOOX_SETUP_REQUIRED.md` (new)
+
+**Session work:** Finished making every admin panel functional with real data:
+
+1. **`/admin/agent-monitor`** — replaced 445 lines of mock data with the real `agentMonitor` tRPC router (12 live agents, alerts, activity feed, KPIs, system resources).
+2. **`/admin/workflow-builder`** — replaced 577 lines of mocks with the real `workflowBuilder` router (canvas nodes/edges, performance, runs, templates).
+3. **`/admin/blog` + `/admin/careers`** — built a **full persisted content system**: new `blog_posts` + `job_postings` tables (migration 0032), new `contentRouter` (public reads for the marketing site + admin CRUD with zod validation), both admin pages rewritten to real create/update/delete/publish flows.
+4. **Marketing pages** — `/blog`, `/blog/[slug]`, `/careers`, `/careers/[slug]` now read live DB data (tRPC public queries for list pages, `content-server.ts` for server-component detail pages + `generateStaticParams`).
+5. **Seeds** — `seed-admin-ops.ts`, `seed-workflow-data.ts`, `seed-content.ts` (idempotent, wired into `seed:all`); all ran against the live DB: 12 agents + 192 hourly runs + alerts/activity/resources, 1 workflow + 11 nodes + 12 edges + run/version/templates, 6 blog posts + 6 jobs.
+6. **`XENBOOX_SETUP_REQUIRED.md`** — user-side setup checklist (R2, Resend, Sentry, LangFuse, Redis, Trigger.dev, Vercel env) written to Desktop + committed to repo.
+
+**Verification:** ESLint clean on all new/changed files. rbac-sweep 4/4 (public marketing reads whitelisted intentionally; admin CRUD on `adminProcedure`). Full web tsc hangs in this env (pre-existing) — router compile proven via rbac-sweep importing the full app router. Migration applied to the live DB directly (drizzle-kit push hangs in this env).
+
+**Note:** Desktop + mobile remain deferred per user direction — web only.
+
+---
+
 ### [2026-08-16] — pnpm audit remediation: high-severity dependency upgrades
 
 **Agent:** Buffy

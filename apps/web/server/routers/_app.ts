@@ -70,6 +70,7 @@ import { customerDiagnosticsRouter } from "./customer-diagnostics";
 import { infrastructureRouter } from "./infrastructure";
 import { logsTracesRouter } from "./logs-traces";
 import { featureFlagsRouter } from "./feature-flags";
+import { contentRouter } from "./content";
 import { companyBrainRouter } from "./company-brain";
 import { automationStudioRouter } from "./automation-studio";
 import { settingsRouter } from "./settings";
@@ -152,6 +153,7 @@ export const appRouter = router({
   infrastructure: infrastructureRouter,
   logsTraces: logsTracesRouter,
   featureFlags: featureFlagsRouter,
+  content: contentRouter,
   companyBrain: companyBrainRouter,
   automationStudio: automationStudioRouter,
   settings: settingsRouter,

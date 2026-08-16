@@ -334,7 +334,11 @@ export async function seedWorkflowData() {
 }
 
 // Direct-run entry (pnpm tsx seed/seed-workflow-data.ts)
-if (import.meta.url === new URL(process.argv[1] ?? "", "file:").href) {
+// Basename comparison is Windows-safe (new URL() mangles drive-letter paths).
+const isDirectRun =
+  (import.meta.url.split(/[\\/]/).pop() ?? "") ===
+  (process.argv[1]?.split(/[\\/]/).pop() ?? "");
+if (isDirectRun) {
   seedWorkflowData().catch((e) => {
     console.error("Seed failed:", e);
     process.exit(1);

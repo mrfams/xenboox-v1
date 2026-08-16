@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -15,79 +15,99 @@ import {
   FileText,
   TrendingUp,
   MessageSquare,
+  Loader2,
 } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
-import { blogPosts, type BlogPost } from "@/lib/blog-data";
+import { trpc } from "@/lib/trpc/client";
 
-// Admin state management (client-side for demo)
-type AdminBlogPost = BlogPost & {
-  isPublished: boolean;
-  views: number;
-  comments: number;
+const categories = [
+  "All",
+  "Product",
+  "Engineering",
+  "Company",
+  "Tutorials",
+  "Accounting",
+];
+
+type EditorForm = {
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  tags: string;
 };
 
-const initialPosts: AdminBlogPost[] = blogPosts.map((post, _index) => ({
-  ...post,
-  isPublished: true,
-  views: Math.floor(Math.random() * 5000) + 500,
-  comments: Math.floor(Math.random() * 50),
-}));
+const emptyForm: EditorForm = {
+  title: "",
+  excerpt: "",
+  content: "",
+  category: "Product",
+  tags: "",
+};
 
 export default function BlogAdminPage() {
-  const [posts, setPosts] = useState<AdminBlogPost[]>(initialPosts);
+  const utils = trpc.useUtils();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showEditor, setShowEditor] = useState(false);
-  const [editingPost, setEditingPost] = useState<AdminBlogPost | null>(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    excerpt: "",
-    content: "",
-    category: "Product",
-    tags: "",
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<EditorForm>(emptyForm);
+
+  const { data, isLoading } = trpc.content.adminListPosts.useQuery({
+    status: selectedCategory === "All" ? undefined : selectedCategory,
+    query: searchQuery || undefined,
   });
 
-  const categories = [
-    "All",
-    "Product",
-    "Engineering",
-    "Company",
-    "Tutorials",
-    "Accounting",
-  ];
-
-  const filteredPosts = posts.filter((post) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "All" || post.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+  const createPost = trpc.content.adminCreatePost.useMutation({
+    onSuccess: () => {
+      utils.content.adminListPosts.invalidate();
+      setShowEditor(false);
+    },
+  });
+  const updatePost = trpc.content.adminUpdatePost.useMutation({
+    onSuccess: () => utils.content.adminListPosts.invalidate(),
+  });
+  const deletePost = trpc.content.adminDeletePost.useMutation({
+    onSuccess: () => utils.content.adminListPosts.invalidate(),
+  });
+  const seedDemo = trpc.content.seedDemoContent.useMutation({
+    onSuccess: () => utils.content.adminListPosts.invalidate(),
   });
 
-  const stats = {
-    totalPosts: posts.length,
-    published: posts.filter((p) => p.isPublished).length,
-    totalViews: posts.reduce((sum, p) => sum + p.views, 0),
-    totalComments: posts.reduce((sum, p) => sum + p.comments, 0),
-  };
+  const posts = useMemo(() => data?.posts ?? [], [data]);
+  const stats = useMemo(
+    () =>
+      data?.stats ?? {
+        total: 0,
+        published: 0,
+        drafts: 0,
+        views: 0,
+        comments: 0,
+      },
+    [data],
+  );
+
+  const filteredPosts = useMemo(() => {
+    return posts.filter((post) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        post.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory =
+        selectedCategory === "All" || post.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [posts, searchQuery, selectedCategory]);
 
   const handleCreatePost = () => {
-    setEditingPost(null);
-    setFormData({
-      title: "",
-      excerpt: "",
-      content: "",
-      category: "Product",
-      tags: "",
-    });
+    setEditingId(null);
+    setFormData(emptyForm);
     setShowEditor(true);
   };
 
-  const handleEditPost = (post: AdminBlogPost) => {
-    setEditingPost(post);
+  const handleEditPost = (post: (typeof posts)[number]) => {
+    setEditingId(post.id);
     setFormData({
       title: post.title,
       excerpt: post.excerpt,
@@ -99,62 +119,45 @@ export default function BlogAdminPage() {
   };
 
   const handleSavePost = () => {
-    const newPost: AdminBlogPost = {
-      id: editingPost?.id || String(Date.now()),
-      slug: formData.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, ""),
+    const payload = {
       title: formData.title,
       excerpt: formData.excerpt,
       content: formData.content,
       category: formData.category,
-      date: new Date().toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-      readTime: `${Math.max(1, Math.ceil(formData.content.split(" ").length / 200))} min`,
-      author: {
-        name: "Admin",
-        role: "Editor",
-      },
       tags: formData.tags
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
-      featured: false,
-      isPublished: true,
-      views: 0,
-      comments: 0,
+      readTimeMinutes: Math.max(
+        1,
+        Math.ceil(formData.content.split(/\s+/).filter(Boolean).length / 200),
+      ),
+      authorName: "Admin",
+      authorRole: "Editor",
+      status: "published" as const,
     };
 
-    if (editingPost) {
-      setPosts(
-        posts.map((p) =>
-          p.id === editingPost.id
-            ? { ...newPost, views: p.views, comments: p.comments }
-            : p,
-        ),
-      );
+    if (editingId) {
+      updatePost.mutate({ id: editingId, data: payload });
+      setShowEditor(false);
     } else {
-      setPosts([newPost, ...posts]);
+      createPost.mutate(payload);
     }
-    setShowEditor(false);
   };
 
   const handleDeletePost = (postId: string) => {
     if (confirm("Are you sure you want to delete this post?")) {
-      setPosts(posts.filter((p) => p.id !== postId));
+      deletePost.mutate({ id: postId });
     }
   };
 
-  const handleTogglePublish = (postId: string) => {
-    setPosts(
-      posts.map((p) =>
-        p.id === postId ? { ...p, isPublished: !p.isPublished } : p,
-      ),
-    );
+  const handleTogglePublish = (post: (typeof posts)[number]) => {
+    updatePost.mutate({
+      id: post.id,
+      data: {
+        status: post.status === "published" ? "draft" : "published",
+      },
+    });
   };
 
   return (
@@ -180,13 +183,29 @@ export default function BlogAdminPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleCreatePost}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500"
-            >
-              <Plus className="h-4 w-4" />
-              New Post
-            </button>
+            <div className="flex items-center gap-3">
+              {posts.length === 0 && !isLoading && (
+                <button
+                  onClick={() => seedDemo.mutate()}
+                  disabled={seedDemo.isPending}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  {seedDemo.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4" />
+                  )}
+                  Seed Demo Content
+                </button>
+              )}
+              <button
+                onClick={handleCreatePost}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500"
+              >
+                <Plus className="h-4 w-4" />
+                New Post
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -198,7 +217,7 @@ export default function BlogAdminPage() {
             {[
               {
                 label: "Total Posts",
-                value: stats.totalPosts,
+                value: stats.total,
                 icon: FileText,
                 color: "blue",
               },
@@ -210,13 +229,13 @@ export default function BlogAdminPage() {
               },
               {
                 label: "Total Views",
-                value: stats.totalViews.toLocaleString(),
+                value: stats.views.toLocaleString(),
                 icon: TrendingUp,
                 color: "purple",
               },
               {
                 label: "Comments",
-                value: stats.totalComments,
+                value: stats.comments,
                 icon: MessageSquare,
                 color: "amber",
               },
@@ -226,8 +245,8 @@ export default function BlogAdminPage() {
                 className="rounded-xl border border-slate-200 bg-white p-4"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg bg-${stat.color}-100`}>
-                    <stat.icon className={`h-5 w-5 text-${stat.color}-600`} />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <stat.icon className="h-5 w-5 text-slate-600" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-slate-900">
@@ -268,7 +287,9 @@ export default function BlogAdminPage() {
               </select>
             </div>
             <p className="text-sm text-slate-500">
-              {filteredPosts.length} post{filteredPosts.length !== 1 ? "s" : ""}
+              {isLoading
+                ? "Loading..."
+                : `${filteredPosts.length} post${filteredPosts.length !== 1 ? "s" : ""}`}
             </p>
           </div>
         </FadeInUp>
@@ -301,94 +322,124 @@ export default function BlogAdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredPosts.map((post) => (
-                    <tr
-                      key={post.id}
-                      className="hover:bg-slate-50 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div>
-                          <Link
-                            href={`/blog/${post.slug}`}
-                            className="font-medium text-slate-900 hover:text-blue-600 transition-colors"
-                          >
-                            {post.title}
-                          </Link>
-                          <p className="mt-1 text-sm text-slate-500 line-clamp-1">
-                            {post.excerpt}
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {post.tags.slice(0, 3).map((tag) => (
-                              <span
-                                key={tag}
-                                className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                          {post.category}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleTogglePublish(post.id)}
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                            post.isPublished
-                              ? "bg-green-50 text-green-700 hover:bg-green-100"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                        >
-                          {post.isPublished ? (
-                            <>
-                              <Eye className="h-3 w-3" />
-                              Published
-                            </>
-                          ) : (
-                            <>
-                              <EyeOff className="h-3 w-3" />
-                              Draft
-                            </>
-                          )}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        {post.views.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">
-                        {post.date}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/blog/${post.slug}`}
-                            className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                            title="View"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                          <button
-                            onClick={() => handleEditPost(post)}
-                            className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeletePost(post.id)}
-                            className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center">
+                        <Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-400" />
+                        <p className="mt-2 text-sm text-slate-500">
+                          Loading posts...
+                        </p>
                       </td>
                     </tr>
-                  ))}
+                  ) : filteredPosts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center">
+                        <FileText className="mx-auto h-8 w-8 text-slate-300" />
+                        <p className="mt-2 text-sm text-slate-500">
+                          No posts found. Create your first post or seed demo
+                          content.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredPosts.map((post) => (
+                      <tr
+                        key={post.id}
+                        className="hover:bg-slate-50 transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          <div>
+                            <Link
+                              href={`/blog/${post.slug}`}
+                              className="font-medium text-slate-900 hover:text-blue-600 transition-colors"
+                            >
+                              {post.title}
+                            </Link>
+                            <p className="mt-1 text-sm text-slate-500 line-clamp-1">
+                              {post.excerpt}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {post.tags.slice(0, 3).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                            {post.category}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => handleTogglePublish(post)}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                              post.status === "published"
+                                ? "bg-green-50 text-green-700 hover:bg-green-100"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {post.status === "published" ? (
+                              <>
+                                <Eye className="h-3 w-3" />
+                                Published
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="h-3 w-3" />
+                                {post.status === "draft" ? "Draft" : "Archived"}
+                              </>
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {post.views.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-500">
+                          {post.publishedAt
+                            ? new Date(post.publishedAt).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                },
+                              )
+                            : "—"}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Link
+                              href={`/blog/${post.slug}`}
+                              className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              title="View"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                            <button
+                              onClick={() => handleEditPost(post)}
+                              className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePost(post.id)}
+                              className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -402,7 +453,7 @@ export default function BlogAdminPage() {
           <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
               <h2 className="text-lg font-semibold text-slate-900">
-                {editingPost ? "Edit Post" : "New Post"}
+                {editingId ? "Edit Post" : "New Post"}
               </h2>
               <button
                 onClick={() => setShowEditor(false)}
@@ -500,11 +551,19 @@ export default function BlogAdminPage() {
               </button>
               <button
                 onClick={handleSavePost}
-                disabled={!formData.title || !formData.content}
+                disabled={
+                  !formData.title ||
+                  !formData.content ||
+                  createPost.isPending ||
+                  updatePost.isPending
+                }
                 className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                {(createPost.isPending || updatePost.isPending) && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
                 <Save className="h-4 w-4" />
-                {editingPost ? "Save Changes" : "Create Post"}
+                {editingId ? "Save Changes" : "Create Post"}
               </button>
             </div>
           </div>

@@ -13,13 +13,16 @@ import {
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { NewsletterForm } from "@/components/marketing/newsletter-form";
-import { blogPosts, getBlogPostBySlug, getRelatedPosts } from "@/lib/blog-data";
+import {
+  getAllPublishedPostSlugs,
+  getPostBySlug,
+  getRelatedPosts,
+} from "@/lib/content-server";
 
 // Generate static paths for all blog posts
 export async function generateStaticParams() {
-  return blogPosts.map((post) => ({
-    slug: post.slug,
-  }));
+  const slugs = await getAllPublishedPostSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 // Generate metadata for SEO
@@ -29,7 +32,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const post = await getPostBySlug(slug);
   if (!post) return { title: "Post Not Found" };
 
   return {
@@ -118,13 +121,13 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const post = await getPostBySlug(slug);
 
   if (!post) {
     notFound();
   }
 
-  const relatedPosts = getRelatedPosts(post.slug, 3);
+  const relatedPosts = await getRelatedPosts(post.slug, 3);
   const contentHtml = renderMarkdown(post.content);
 
   return (

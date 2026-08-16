@@ -17,15 +17,16 @@ import type { Metadata } from "next";
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { ShareButton } from "@/components/marketing/share-button";
-import { jobListings, getJobBySlug, getRelatedJobs } from "@/lib/careers-data";
+import {
+  getAllActiveJobSlugs,
+  getJobBySlug,
+  getRelatedJobs,
+} from "@/lib/content-server";
 
 // Generate static paths for all job listings
 export async function generateStaticParams() {
-  return jobListings
-    .filter((job) => job.isActive)
-    .map((job) => ({
-      slug: job.slug,
-    }));
+  const slugs = await getAllActiveJobSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 // Generate metadata for SEO
@@ -35,7 +36,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const job = getJobBySlug(slug);
+  const job = await getJobBySlug(slug);
   if (!job) return { title: "Job Not Found" };
 
   return {
@@ -55,13 +56,13 @@ export default async function JobDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const job = getJobBySlug(slug);
+  const job = await getJobBySlug(slug);
 
   if (!job) {
     notFound();
   }
 
-  const relatedJobs = getRelatedJobs(job.slug, 3);
+  const relatedJobs = await getRelatedJobs(job.slug, 3);
 
   return (
     <>

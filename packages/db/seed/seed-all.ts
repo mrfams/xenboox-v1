@@ -21,6 +21,7 @@ import { seedYc } from "./yc-3months";
 import { seedCloseTasks, latestPeriodLabel } from "./close-tasks";
 import { seedAdminOps } from "./seed-admin-ops";
 import { seedWorkflowData } from "./seed-workflow-data";
+import { seedContent } from "./seed-content";
 import { findOrCreateUser, removeOtherEntities } from "./seed-lib";
 
 function currentMonthLabel(): string {
@@ -144,6 +145,9 @@ async function main() {
   console.log("\n  Seeding admin ops + workflow data...");
   await seedAdminOps();
   await seedWorkflowData();
+
+  // Marketing content (blog + careers).
+  await seedContent();
 
   console.log("\n════════════════════════════════════════════════════════");
   console.log("SEED COMPLETE — both accounts verified");
