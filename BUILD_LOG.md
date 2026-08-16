@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §16.2 realtime surfaces classification + degraded modes
+
+**Agent:** Buffy
+**Files Modified:** `docs/REALTIME.md` (new), `apps/web/__tests__/realtime-degraded-modes.test.ts` (new), `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Verified every realtime surface already carries its degraded mode (Redis-backed SSE from §16.1, reconnect paths in all three SSE hooks, 30s poll backstop in notifications, stateless per-request chat stream) and made the classification + guarantees explicit. `docs/REALTIME.md` classifies the 6 surfaces (agent-run progress, notifications, chat streaming, attention signals, month-end close, bank sync) with per-surface degraded modes and design rules (Redis is cross-instance, DB is always the backstop, no in-memory map dependency). New contract test `realtime-degraded-modes.test.ts` (5 tests) pins the guarantees at source level so a refactor that drops reconnect or reintroduces in-memory-only broadcast fails CI.
+
+**Verification:** 5 new tests pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — §17.5 numeric/JSONB discipline + §18.1 limit verification
 
 **Agent:** Buffy

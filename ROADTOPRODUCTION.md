@@ -857,9 +857,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 16.2 What must stay real-time vs. what can degrade
 
-- `[ ]` Classify every real-time surface: agent-run progress (opsLiveRuns), notifications, chat streaming, month-end close progress, bank sync status.
-- `[ ]` Define degraded modes for each: when the realtime channel is down, show a `Reconnecting…` indicator and fall back to polling (never silently stale).
-- `[ ]` Chat streaming (`/api/chat/stream`) already uses SSE — verify it streams from a single request (it does — fine on serverless) and does NOT depend on the in-memory map.
+- `[x]` Classify every real-time surface: agent-run progress (opsLiveRuns), notifications, chat streaming, month-end close progress, bank sync status. — **`docs/REALTIME.md`: 6 surfaces classified — agent-run progress (SSE + opsLiveRuns polling), notifications (SSE + 30s poll backstop + focus refetch), chat streaming (stateless per-request SSE), attention signals (piggybacks agent channel), month-end close + bank sync (DB polling, async by design)** (Aug 16, 2026)
+- `[x]` Define degraded modes for each: when the realtime channel is down, show a `Reconnecting…` indicator and fall back to polling (never silently stale). — **`docs/REALTIME.md` §2: per-surface degraded modes (reconnect with exponential backoff, DB-poll backstops; runs persisted by §8.2 so no event is lost); `__tests__/realtime-degraded-modes.test.ts` pins the contract — every SSE hook has an onerror reconnect path, notifications has the 30s poll backstop, Redis broadcast no-ops without Redis, chat stream has no in-memory map** (Aug 16, 2026)
+- `[x]` Chat streaming (`/api/chat/stream`) already uses SSE — verify it streams from a single request (it does — fine on serverless) and does NOT depend on the in-memory map. — **verified + pinned by test: one `ReadableStream` per request, zero module-level connection map — stateless, serverless-safe, retry is the only degraded mode needed** (Aug 16, 2026)
 
 ### 16.3 Recommended architecture: SSE over distributed pub/sub
 
