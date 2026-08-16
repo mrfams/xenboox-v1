@@ -785,11 +785,19 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 15.1 Environment Variables
 
 - `[x]` `localhost` fallback in auth emails — replaced with `getAppUrl()` helper that throws in production if `NEXT_PUBLIC_APP_URL` is unset. (Aug 12, 2026)
-- `[ ]` Desktop app has hardcoded `http://localhost:3000` URLs:
-  - `apps/desktop/src/lib/entity-context.tsx:56`
-  - `apps/desktop/src/components/entity-switcher.tsx:23`
-  - `apps/desktop/src/lib/trpc.ts:7`
-- `[ ]` Mobile app fallback: `http://localhost:3000` — `apps/mobile/constants/config.ts:4`
+- `[x]` Desktop app has hardcoded `http://localhost:3000` URLs — **fixed (Aug 16, 2026): new `apps/desktop/src/lib/config.ts` (`getApiUrl()`) — resolves `VITE_API_URL` (build-time) → dev fallback `http://localhost:3000` → production build THROWS with a clear message if unset (webview serves from a custom protocol so relative URLs never worked). All 3 hardcoded call sites (entity-context, entity-switcher, trpc client) now use it. Added `src/vite-env.d.ts` (Vite client types) + `.env.example`.**
+- `[x]` Mobile app fallback: `http://localhost:3000` — **fixed (Aug 16, 2026): `constants/config.ts` keeps the smart dev-server-host resolution, but production no longer silently falls back to localhost — it THROWS with a clear message when `EXPO_PUBLIC_API_URL` is unset. Added `.env.example`.**
+
+> **§15.1 — MOCK R2 KEYS (user will replace before launch):**
+>
+> ```
+> R2_BUCKET_NAME=xenboox-mock-bucket
+> R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+> R2_ACCESS_KEY_ID=mock-access-key-id
+> R2_SECRET_ACCESS_KEY=mock-secret-access-key
+> ```
+>
+> Listed in `apps/mobile/.env.example` + `apps/desktop/.env.example`; the web app's existing `.env.example` R2 block is the canonical copy. Replace all `mock-*` values with real Cloudflare R2 credentials before launch — nothing in the codebase reads these at runtime today.
 
 ### 15.2 Vercel Configuration
 

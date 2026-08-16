@@ -1,29 +1,25 @@
-import { createTRPCReact, httpBatchLink } from "@trpc/react-query"
-import type { AppRouter } from "@xenboox/api/app-router"
-import { getCurrentEntityId, getToken } from "./auth"
+import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
+import type { AppRouter } from "@xenboox/api/app-router";
+import { getCurrentEntityId, getToken } from "./auth";
+import { getApiUrl } from "./config";
 
-function getBaseUrl() {
-  if (typeof window !== "undefined") return ""
-  return "http://localhost:3000"
-}
-
-export const trpc = createTRPCReact<AppRouter>()
+export const trpc = createTRPCReact<AppRouter>();
 
 export function createTRPCClient() {
   return trpc.createClient({
     links: [
       httpBatchLink({
-        url: `${getBaseUrl()}/api/trpc`,
+        url: `${getApiUrl()}/api/trpc`,
         async headers() {
-          const token = await getToken()
-          const entityId = await getCurrentEntityId()
+          const token = await getToken();
+          const entityId = await getCurrentEntityId();
 
           return {
             Authorization: token ? `Bearer ${token}` : "",
-            "x-entity-id": entityId || ""
-          }
-        }
-      })
-    ]
-  })
+            "x-entity-id": entityId || "",
+          };
+        },
+      }),
+    ],
+  });
 }

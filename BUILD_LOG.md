@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §15.1 localhost fallbacks fixed (desktop + mobile) + mock R2 keys
+
+**Agent:** Buffy
+**Files Modified:** `apps/desktop/src/lib/config.ts` (new), `apps/desktop/src/lib/trpc.ts`, `apps/desktop/src/lib/entity-context.tsx`, `apps/desktop/src/components/entity-switcher.tsx`, `apps/desktop/src/vite-env.d.ts` (new), `apps/desktop/.env.example` (new), `apps/mobile/constants/config.ts`, `apps/mobile/.env.example` (new), `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Desktop had 3 hardcoded `http://localhost:3000` URLs; mobile silently fell back to localhost in production. Desktop: new `lib/config.ts` `getApiUrl()` — `VITE_API_URL` (build-time) → dev localhost fallback → production THROWS if unset (webview serves from custom protocol, relative URLs never worked); all 3 call sites wired; added `vite-env.d.ts` for `import.meta.env` typing. Mobile: keeps the dev-server-host resolution, but production now THROWS when `EXPO_PUBLIC_API_URL` is unset instead of calling localhost. Added `.env.example` for both with the mock R2 keys (per user directive: mock keys listed in ROADTOPRODUCTION.md §15.1 for the user to replace).
+
+**Verification:** desktop `tsc --noEmit` — my files add zero new errors (config.ts clean after vite-env.d.ts; the 2 remaining errors in touched files are pre-existing — confirmed via git stash). Committed + pushed.
+
+---
+
 ### [2026-08-16] — §4.1 caching: COA, exchange rates, entity summary, cache headers
 
 **Agent:** Buffy
