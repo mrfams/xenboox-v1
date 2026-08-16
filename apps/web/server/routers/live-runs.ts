@@ -6,7 +6,11 @@ import {
   opsLiveRunEvents,
 } from "@xenboox/db/schema/ops-live-runs";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import {
+  router,
+  adminProcedure,
+  rlsProtectedProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── Live Runs Router ───────────────────────────────────────────────────────
@@ -242,6 +246,143 @@ export const liveRunsRouter = router({
       }));
     }),
 
+  // ── Entity-Scoped Execution History (§8.2) ────────────────────────────
+  //
+  // Regular users see THEIR entity's agent runs — the tenant-facing surface
+  // for the agent monitor, distinct from the cross-tenant admin view above.
+  // Every query is filtered by the caller's entityId (entity scoping is
+  // non-negotiable).
+
+  listEntityRuns: rlsProtectedProcedure
+    .input(
+      z
+        .object({
+          status: z.string().optional(),
+          agentName: z.string().optional(),
+          limit: z.number().min(1).max(100).default(20),
+          offset: z.number().min(0).default(0),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const conditions = [eq(opsLiveRuns.entityId, ctx.entityId!)];
+      if (input?.status) conditions.push(eq(opsLiveRuns.status, input.status));
+      if (input?.agentName)
+        conditions.push(eq(opsLiveRuns.agentName, input.agentName));
+
+      const [items, total] = await Promise.all([
+        db.query.opsLiveRuns.findMany({
+          where: and(...conditions),
+          orderBy: [desc(opsLiveRuns.startedAt)],
+          limit: input?.limit ?? 20,
+          offset: input?.offset ?? 0,
+        }),
+        db
+          .select({ count: count() })
+          .from(opsLiveRuns)
+          .where(and(...conditions))
+          .then((r) => r[0]?.count ?? 0),
+      ]);
+
+      return {
+        items: items.map((r) => ({
+          id: r.id,
+          runId: r.runId,
+          agentName: r.agentName,
+          agentDisplayName: r.agentDisplayName,
+          status: r.status,
+          progress: r.progress,
+          durationMs: r.durationMs,
+          duration: formatDuration(r.durationMs),
+          startedAt: r.startedAt,
+          completedAt: r.completedAt,
+          model: r.model,
+          error: r.error,
+        })),
+        total,
+        limit: input?.limit ?? 20,
+        offset: input?.offset ?? 0,
+      };
+    }),
+
+  // ── Entity Cost Summary (§8.2) ────────────────────────────────────────
+  //
+  // Per-entity agent cost tracking: runs, failure rate, and estimated USD
+  // spend bucketed by agent over the requested window. Reads ops_live_runs,
+  // which the orchestrator now populates on every run.
+
+  getEntityCostSummary: rlsProtectedProcedure
+    .input(
+      z
+        .object({
+          days: z.number().min(1).max(90).default(30),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const days = input?.days ?? 30;
+      const since = new Date(Date.now() - days * 86400000);
+
+      const rows = await db.query.opsLiveRuns.findMany({
+        where: and(
+          eq(opsLiveRuns.entityId, ctx.entityId!),
+          gte(opsLiveRuns.startedAt, since),
+        ),
+        orderBy: [desc(opsLiveRuns.startedAt)],
+      });
+
+      const byAgent: Record<
+        string,
+        {
+          runs: number;
+          inputTokens: number;
+          outputTokens: number;
+          costUsd: number;
+          failed: number;
+        }
+      > = {};
+      let totalRuns = 0;
+      let totalFailed = 0;
+      let totalCostUsd = 0;
+
+      for (const run of rows) {
+        totalRuns++;
+        if (run.status === "failed") totalFailed++;
+        totalCostUsd += Number(run.costUsd ?? 0);
+
+        const bucket = byAgent[run.agentName] ?? {
+          runs: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+          failed: 0,
+        };
+        bucket.runs++;
+        bucket.inputTokens += run.inputTokens ?? 0;
+        bucket.outputTokens += run.outputTokens ?? 0;
+        bucket.costUsd += Number(run.costUsd ?? 0);
+        if (run.status === "failed") bucket.failed++;
+        byAgent[run.agentName] = bucket;
+      }
+
+      const byAgentList = Object.entries(byAgent)
+        .map(([agentName, v]) => ({
+          agentName,
+          ...v,
+          costUsd: Math.round(v.costUsd * 1000000) / 1000000,
+        }))
+        .sort((a, b) => b.runs - a.runs);
+
+      return {
+        totalRuns,
+        totalFailed,
+        successRate: totalRuns > 0 ? (totalRuns - totalFailed) / totalRuns : 1,
+        totalCostUsd: Math.round(totalCostUsd * 1000000) / 1000000,
+        byAgent: byAgentList,
+        windowDays: days,
+      };
+    }),
+
   // ── Seed demo data ────────────────────────────────────────────────────
 
   seedLiveRunsData: adminProcedure.mutation(async () => {
@@ -386,6 +527,9 @@ export const liveRunsRouter = router({
           agentDisplayName: agent.displayName,
           agentCategory: agent.category,
           organizationName: orgs[i],
+          // Demo seed: attach to a stable placeholder entity UUID so the
+          // entity-scoped views have rows to render.
+          entityId: "00000000-0000-0000-0000-000000000001",
           status: statuses[i],
           progress,
           currentStep: steps[Math.floor(progress / 20)] ?? steps[0],

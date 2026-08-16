@@ -552,9 +552,9 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - [x]` LangFuse traces for every agent action
 - [x]` Confidence scoring with escalation thresholds
-- `[ ]` No real-time agent status dashboard for users (agent-monitor page exists but needs verification)
-- `[ ]` No agent execution history visualization
-- `[ ]` No agent cost tracking per entity
+- `[ ]` No real-time agent status dashboard for users (agent-monitor page exists but needs verification) — **verification pending: admin agent-monitor page renders from ops_live_runs; tenant-facing live status surface is a follow-up**
+- `[x]` No agent execution history visualization — **fixed (Aug 16, 2026): the orchestrator previously had NO writers to `ops_live_runs` — the agent-monitor UI and SSE live-updates polled an EMPTY table. `orchestrate()` now persists every run (success + failure) via `persistAgentRun` (fire-and-forget, never fails the agent run). Added entity-scoped `liveRuns.listEntityRuns` (paginated history for the caller's entityId).**
+- `[x]` No agent cost tracking per entity — **fixed (Aug 16, 2026): added `entity_id` to `ops_live_runs` (migration `0031_ops_live_runs_entity.sql` + index) so per-entity cost is queryable; orchestrator persists cost/token/duration metadata per run; `liveRuns.getEntityCostSummary` exposes runs, success rate, and per-agent USD spend for a tenant.**
 
 ### 8.3 Agent Security
 

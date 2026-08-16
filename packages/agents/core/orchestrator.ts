@@ -1,6 +1,8 @@
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import { getAgentTier } from "./security";
+import { db } from "@xenboox/db";
+import { opsLiveRuns } from "@xenboox/db/schema/ops-live-runs";
 import type { AuditEntry } from "./state";
 import {
   DEPARTMENT_AGENTS,
@@ -477,6 +479,23 @@ export async function orchestrate(
       },
     });
 
+    // §8.2: persist the run for execution history + cost tracking.
+    await persistAgentRun({
+      taskId,
+      agentId,
+      agentDisplayName: agentId.replace(/_/g, " "),
+      entityId: params.entityId,
+      status: agentResult.errors.length > 0 ? "failed" : "completed",
+      durationMs: agentResult.duration,
+      error:
+        agentResult.errors.length > 0 ? agentResult.errors.join("; ") : null,
+      metadata: {
+        taskType: params.taskType,
+        confidence: agentResult.confidence,
+        reasoning: agentResult.reasoning,
+      },
+    });
+
     return agentResult;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -484,6 +503,17 @@ export async function orchestrate(
     await trace.update({
       output: { error: msg, agentId },
       metadata: { status: "error" },
+    });
+
+    // §8.2: persist failed runs too — the monitor must show what broke.
+    await persistAgentRun({
+      taskId,
+      agentId,
+      agentDisplayName: agentId.replace(/_/g, " "),
+      entityId: params.entityId,
+      status: "failed",
+      error: msg,
+      metadata: { taskType: params.taskType },
     });
 
     return {
@@ -504,6 +534,52 @@ export async function orchestrate(
       ],
       duration: Date.now() - startTime,
     };
+  }
+}
+
+// ─── Run Persistence (§8.2) ───────────────────────────────────────────────
+//
+// Every orchestrate() call persists a run record to ops_live_runs so the
+// agent-monitor dashboard and SSE live-updates have real execution history
+// (previously the table had NO writers — the UI polled an empty table).
+// Fire-and-forget: persistence failures must never fail the agent run.
+
+export async function persistAgentRun(params: {
+  taskId: string;
+  agentId: string;
+  agentDisplayName: string;
+  entityId: string;
+  status: "queued" | "in_progress" | "completed" | "failed";
+  progress?: number;
+  durationMs?: number;
+  error?: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await db.insert(opsLiveRuns).values({
+      runId: `RUN-${params.taskId.slice(0, 6).toUpperCase()}`,
+      agentName: params.agentId,
+      agentDisplayName: params.agentDisplayName,
+      agentCategory: params.agentId.split("_")[0] ?? params.agentId,
+      entityId: params.entityId,
+      status: params.status,
+      progress:
+        params.progress ??
+        (params.status === "completed"
+          ? 100
+          : params.status === "failed"
+            ? 100
+            : 0),
+      durationMs: params.durationMs ?? 0,
+      completedAt:
+        params.status === "completed" || params.status === "failed"
+          ? new Date()
+          : undefined,
+      error: params.error ?? null,
+      metadata: params.metadata ?? null,
+    });
+  } catch {
+    // Best effort — observability must never break agent execution.
   }
 }
 

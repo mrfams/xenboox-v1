@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §8.2 agent execution history + per-entity cost tracking
+
+**Agent:** Buffy
+**Files Modified:** `packages/db/schema/ops-live-runs.ts`, `packages/db/migrations/0031_ops_live_runs_entity.sql` (+ meta journal/snapshot), `packages/agents/core/orchestrator.ts`, `apps/web/server/routers/live-runs.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Verified `ops_live_runs` had NO writers — the agent-monitor dashboard and SSE live-update polls read an empty table, and cost tracking wasn't entity-scoped (schema only had organizationId). Added `entity_id` (NOT NULL + index, migration 0031) so runs are tenant-scoped. Added `persistAgentRun()` in the orchestrator — every `orchestrate()` call now persists a run record (status completed/failed, duration, task type, confidence, error) fire-and-forget so observability never breaks execution. Added two entity-scoped tRPC procedures to `liveRunsRouter`: `listEntityRuns` (paginated history for caller's entity) and `getEntityCostSummary` (runs/success-rate/cost by agent over a window). Fixed demo seed to include entityId.
+
+**Verification:** agents typecheck clean on changed files, 8 wiring tests pass, drizzle-kit confirms schema snapshot consistent (noop generate → no changes). Committed + pushed.
+
+---
+
 ### [2026-08-16] — §12.5 tool-system dedup: legacy LangChain tools removed
 
 **Agent:** Buffy

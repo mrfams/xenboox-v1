@@ -53,6 +53,10 @@ export const opsLiveRuns = pgTable(
     agentCategory: text("agent_category").notNull(),
     organizationName: text("organization_name"),
     organizationId: uuid("organization_id"),
+    // Entity scoping (§8.2): every run belongs to exactly one tenant entity.
+    // Required for per-entity execution history + cost tracking; the
+    // organization columns above are denormalized display fields.
+    entityId: uuid("entity_id").notNull(),
     status: liveRunStatusEnum("status").notNull().default("queued"),
     progress: integer("progress").notNull().default(0), // 0-100
     currentStep: text("current_step"),
@@ -77,6 +81,7 @@ export const opsLiveRuns = pgTable(
     index("ops_live_runs_agent").on(t.agentName),
     index("ops_live_runs_started").on(t.startedAt),
     index("ops_live_runs_org").on(t.organizationId),
+    index("ops_live_runs_entity").on(t.entityId),
   ],
 );
 
