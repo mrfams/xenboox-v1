@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-16] — pnpm audit remediation: high-severity dependency upgrades
+
+**Agent:** Buffy
+**Files Modified:** `package.json` (pnpm overrides), `pnpm-lock.yaml`, `drizzle-orm` 0.44.2→0.45.2 in 6 package.jsons (agents, db, ingestion, jobs, models, web), `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Ran `pnpm audit --prod` (66 findings: 41 high, 1 critical) and remediated every production-runtime vulnerability:
+
+1. **drizzle-orm 0.44.2 → 0.45.2** (HIGH — SQL-identifier injection) — direct dep in 6 packages; 0.45.2 is the patched line.
+2. **socket.io chain via @trigger.dev/sdk** (HIGH — ws memory-exhaustion DoS, engine.io, socket.io-parser, cookie) — overrides: socket.io 4.8.3, engine.io 6.6.9, ws 8.21.0, socket.io-parser 4.2.7, cookie 0.7.2.
+3. **sharp → 0.35.3** (HIGH — libvips CVEs) — next optional dep.
+4. **langsmith → 0.6.3** (HIGH — public prompt-pull manifest deserialization) — loaded via @langchain/core singletons; verified no agent breakage.
+5. **react-router → 7.18.2** (HIGH, desktop), **postcss → 8.5.26**, plus fast-uri 3.1.5 / brace-expansion 1.1.18 / js-yaml 3.15.1 / undici 6.28.0 / nanoid(<4) 3.3.18 / @opentelemetry/core 2.10.0 / prismjs 1.30.0.
+
+**Verification:** 66 → 24 findings. Web suite identical before/after (1025 pass, 16 pre-existing DB/LLM-dependent failures) — zero regressions. Agents suite identical (197 pre-existing pipeline-test failures from ESM directory-import in test config, before & after). `packages/db` typecheck clean vs 0.45.2 + `drizzle-kit generate` reports "No schema changes" (drift intact).
+
+**Remaining 5 (deferred, documented §22.1):** `tar` (critical) + `@xmldom/xmldom` + `uuid` — Expo-CLI mobile build tooling pinned to major versions with no safe patch (never deployed to web); `image-size` — **abandoned, no patched version exists (`<0.0.0`)**; `fast-xml-parser` (moderate) — langchain pins `^4.4.1`, fix requires 5.x major jump, forcing would risk the agent XML tool-call runtime.
+
+---
+
 ### [2026-08-16] — Entity-scoped live agent status view (`/dashboard/agent-monitor`)
 
 **Agent:** Buffy
@@ -180,7 +199,7 @@
 **Agent:** Buffy
 **Files Modified:** `apps/web/__tests__/rbac-sweep.test.ts` (new), `apps/web/server/routers/_app.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
 
-**Session work:** Added `rbac-sweep.test.ts` — a static sweep over all 77 router files enforcing the RBAC contract: (1) every query/mutation must be chained on a protected procedure (rlsProtected/rlsMutate/protected/mutate/admin*/auth/concurrencyLimited/planAware); `publicProcedure` allowed only for the explicit pre-auth auth-flow keys (mfaChallenge, verifyMfa, login, register, resetPassword, accept, health, …); (2) `requireRole` gates reference only known roles (owner/admin/finance_director/accountant/manager/viewer) + canonical owner-only and viewer-tier gates must exist; (3) every router file must be mounted in `_app.ts`. The sweep caught a real gap: **`workflowBuilderRouter` was a complete, admin-only router that was never mounted** (dead code at best, evades protection review at worst) — now mounted in `_app.ts`. 4 tests pass.
+**Session work:** Added `rbac-sweep.test.ts` — a static sweep over all 77 router files enforcing the RBAC contract: (1) every query/mutation must be chained on a protected procedure (rlsProtected/rlsMutate/protected/mutate/admin\*/auth/concurrencyLimited/planAware); `publicProcedure` allowed only for the explicit pre-auth auth-flow keys (mfaChallenge, verifyMfa, login, register, resetPassword, accept, health, …); (2) `requireRole` gates reference only known roles (owner/admin/finance_director/accountant/manager/viewer) + canonical owner-only and viewer-tier gates must exist; (3) every router file must be mounted in `_app.ts`. The sweep caught a real gap: **`workflowBuilderRouter` was a complete, admin-only router that was never mounted** (dead code at best, evades protection review at worst) — now mounted in `_app.ts`. 4 tests pass.
 
 **Verification:** `npx vitest run __tests__/rbac-sweep.test.ts` — 4/4 pass. Committed + pushed.
 
