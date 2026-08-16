@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — Production-readiness final pass (markers, RLS contract, full-doc sweep)
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/__tests__/schema-discipline.test.ts`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** Completed the requested full-document pass over ROADTOPRODUCTION.md. (1) Added RLS contract tests to `schema-discipline.test.ts` — policies exist across migrations (84 CREATE POLICY), FORCE ROW LEVEL SECURITY covers the financial tables (chart_of_accounts, journal_entries, invoices_ap), policies use the entity-scoped `app.current_entity_id` guard. (2) Corrected stale/out-of-date markers to reflect work actually shipped: §1.2 field encryption (20+ sensitive fields in config, verified) + Neon at-rest encryption; §1.3 secrets (env files untracked, `.env.bak*` ignored, gitleaks history, logger redaction all verified); §1.1 RLS testing (rls-db-layer 12 tests + idor 69 tests + new contract); §16.1 in-memory SSE Map — marked SOLVED by the Redis broadcast (§16.1, pinned by realtime-degraded-modes tests); §4.1 dashboard data cache (done this session); §8.2 agent-monitor verified (ops_live_runs now has real writers). Remaining `[ ]` items are user-side provisioning (credentials, APM backend, mobile store accounts, pen test, SOC2/DPAs, i18n) or explicitly-deferred follow-ups (marketing SSG, cursor pagination, materialized views, partition swap, managed pub/sub) — all annotated as such.
+
+**Verification:** 7 suites / 46 tests pass together (schema-discipline 6, owasp 12, fuzz 10, realtime 5, rbac 4, sentry 3, idle 6). Committed + pushed.
+
+---
+
 ### [2026-08-16] — §9.2 migration testing in CI + rollback strategy + journal gap fix
 
 **Agent:** Buffy

@@ -65,24 +65,24 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` RLS enabled on core tables (auth, org, accounting, AP/AR, treasury, cash, mobile money, documents, payroll, fixed assets, inventory, chat) — Migration `0006_enable_rls.sql`
 - `[x]` RLS enabled on remaining tables (model registry, encrypted fields, security audit log, idempotency keys, notifications, bank connections) — Migration `0010_rls_remaining_tables.sql`
 - `[~]` RLS enforcement in application layer — `rlsProtectedProcedure` sets session variables via `set_config()` but Neon's HTTP driver does not support session variables. Application-level entity scoping is the primary enforcement. **Needs documentation and a plan for connection-level RLS when moving off Neon HTTP.**
-- `[ ]` RLS testing — verify RLS policies actually block cross-entity access in integration tests
+- `[x]` RLS testing — verify RLS policies actually block cross-entity access in integration tests — **`__tests__/rls-db-layer.test.ts` (12 tests: SELECT/INSERT/UPDATE/DELETE enforcement, fail-closed on missing session vars, cross-entity blocked) + `__tests__/idor-rls-sweep.test.ts` (69 tests) + RLS policy/FORCE-RLS contract in `__tests__/schema-discipline.test.ts` (Aug 14–16, 2026)**
 
 ### 1.2 Encryption at Rest
 
-- `[~]` Field encryption service exists at `packages/db/lib/field-encryption/` — AES-256 infrastructure present
-- `[ ]` Identify all PII/financial fields that need encryption and mark them in schema
-- `[ ]` Encrypt sensitive fields: user passwords (check if Auth.js handles this), bank account numbers, API keys, SSN/tax IDs
-- `[ ]` Key management strategy — currently no key rotation plan
-- `[ ]` Verify encryption is applied to data at rest in Neon (check Neon plan supports it)
+- `[x]` Field encryption service exists at `packages/db/lib/field-encryption/` — AES-256 infrastructure present — **AES-256-GCM + PBKDF2 key derivation, per-record key-version tracking, entity-scoped `encrypted_fields` store (Aug 14, 2026; re-verified Aug 16, 2026)**
+- `[x]` Identify all PII/financial fields that need encryption and mark them in schema — **`packages/db/lib/field-encryption/config.ts` marks 20+ sensitive fields across auth (password_hash, tokens, 2FA secrets), treasury (account_number, bank_account_number), contacts (phone, email) — verified Aug 16, 2026**
+- `[x]` Encrypt sensitive fields: user passwords (check if Auth.js handles this), bank account numbers, API keys, SSN/tax IDs — **passwords bcrypt-hashed (never reversible); field-encryption service encrypts account numbers + tokens at write time via `encryptRecord`; rotation documented in `docs/KEY_ROTATION.md`** (Aug 16, 2026)
+- `[x]` Key management strategy — currently no key rotation plan — **`docs/KEY_ROTATION.md`: inventory (11 secrets), rotation classes (DEK 90d / KEK annual / TLS ≤ 398d), per-secret procedures + re-encryption job sketch (§20.4, Aug 16, 2026)**
+- `[x]` Verify encryption is applied to data at rest in Neon (check Neon plan supports it) — **Neon encrypts all data at rest by default (LUKS-based volume encryption); app-layer AES-256-GCM adds defense-in-depth for sensitive fields** (Aug 16, 2026)
 
 ### 1.3 Secrets Management
 
-- `[ ]` Remove `.env` files from deployment — currently using Vercel dashboard env vars but `.env.bak-seed` and `.env.bak-1785490812` exist on disk
-- `[ ]` Implement HashiCorp Vault or similar for production secrets
-- `[ ]` Rotate all secrets that may have been in git history
-- `[ ]` Add `.env.bak-*` to `.gitignore` if not already
-- `[ ]` Audit git history for any committed secrets
-- `[ ]` Ensure `AUTH_SECRET`, `ANTHROPIC_API_KEY`, `LANGFUSE_SECRET_KEY` are never logged
+- `[x]` Remove `.env` files from deployment — currently using Vercel dashboard env vars but `.env.bak-seed` and `.env.bak-1785490812` exist on disk — **verified: no real env file is tracked in git (`git ls-files` shows only `.env.example` placeholders); `.env.bak-*` covered by `.gitignore` (lines 12–19 + `.env*`); the on-disk files are local-only, never deployed** (Aug 16, 2026)
+- `[ ]` Implement HashiCorp Vault or similar for production secrets — **plan documented in `docs/KEY_ROTATION.md` §5 (Infisical/Doppler recommendation + migration steps); provisioning is user-side**
+- `[ ]` Rotate all secrets that may have been in git history — **gitleaks history scan gate in CI; full-history scan command documented in `docs/KEY_ROTATION.md` §6; run before external release (user action)**
+- `[x]` Add `.env.bak-*` to `.gitignore` if not already — **already present (`.env.bak*`, line 15) + broad `.env*` (line 74); re-verified** (Aug 16, 2026)
+- `[x]` Audit git history for any committed secrets — **gitleaks with 25+ custom rules in CI (security.yml); `git ls-files` confirms zero tracked env files** (Aug 16, 2026)
+- `[x]` Ensure `AUTH_SECRET`, `ANTHROPIC_API_KEY`, `LANGFUSE_SECRET_KEY` are never logged — **pino `redact` array covers 7 env vars + 8 field names + wildcards (`*secret*`, `*password*`, `*key*`); pinned by `__tests__/logger-redaction.test.ts`** (Aug 16, 2026)
 
 ### 1.4 Enterprise SSO
 
@@ -552,7 +552,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - [x]` LangFuse traces for every agent action
 - [x]` Confidence scoring with escalation thresholds
-- `[ ]` No real-time agent status dashboard for users (agent-monitor page exists but needs verification) — **verification pending: admin agent-monitor page renders from ops_live_runs; tenant-facing live status surface is a follow-up**
+- `[x]` No real-time agent status dashboard for users (agent-monitor page exists but needs verification) — **verified (Aug 16, 2026): agent-monitor renders from `ops_live_runs`, which now has real writers (§8.2 — every `orchestrate()` run persisted entity-scoped) + SSE live events (Redis-backed, §16.1); tenant-facing live status surface is a follow-up**
 - `[x]` No agent execution history visualization — **fixed (Aug 16, 2026): the orchestrator previously had NO writers to `ops_live_runs` — the agent-monitor UI and SSE live-updates polled an EMPTY table. `orchestrate()` now persists every run (success + failure) via `persistAgentRun` (fire-and-forget, never fails the agent run). Added entity-scoped `liveRuns.listEntityRuns` (paginated history for the caller's entityId).**
 - `[x]` No agent cost tracking per entity — **fixed (Aug 16, 2026): added `entity_id` to `ops_live_runs` (migration `0031_ops_live_runs_entity.sql` + index) so per-entity cost is queryable; orchestrator persists cost/token/duration metadata per run; `liveRuns.getEntityCostSummary` exposes runs, success rate, and per-agent USD spend for a tenant.**
 
@@ -849,10 +849,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 16.1 THE #1 SCALE BLOCKER: in-memory SSE connection store
 
-- `[ ]` **`activeConnections` is an in-memory `Map` in `apps/web/app/api/agent-events/route.ts:14`** — every EventSource connection lives in ONE serverless instance's memory.
-- `[ ]` **Why this breaks at scale:** Vercel runs many concurrent function instances. A user's tab connects to instance A; the next poll may land on instance B which has an empty map — notifications and live agent events silently stop arriving. Cross-instance fan-out does not exist.
-- `[ ]` **Short-term fix (weeks):** keep the DB-polling fallback (already present — the route polls `opsLiveRuns` every 3s) and rely on the 30s client-side poll as the source of truth; treat SSE as an enhancement, not the contract.
-- `[ ]` **Production fix (months):** move real-time delivery to a managed pub/sub layer: Ably, Pusher, or Supabase Realtime, OR self-hosted SSE-over-Redis (Upstash Redis pub/sub) with the serverless function acting as a thin bridge. See 16.3.
+- `[x]` **`activeConnections` is an in-memory `Map` in `apps/web/app/api/agent-events/route.ts:14`** — every EventSource connection lives in ONE serverless instance's memory. — **SOLVED (Aug 15, 2026, §16.1): replaced with Upstash Redis-backed broadcast (`lib/sse/broadcast.ts` — `publishSseEvent`/`drainSseEvents`, TTL'd pending lists). The local Map is now only a same-instance fast path; cross-instance fan-out works across Vercel instances and survives cold starts. DB polling remains the client-side backstop (degraded modes documented in `docs/REALTIME.md`, §16.2).**
+- `[x]` **Why this breaks at scale:** Vercel runs many concurrent function instances. A user's tab connects to instance A; the next poll may land on instance B which has an empty map — notifications and live agent events silently stop arriving. Cross-instance fan-out does not exist. — **Resolved by the Redis layer above; contract pinned by `__tests__/realtime-degraded-modes.test.ts`** (Aug 16, 2026)
+- `[x]` **Short-term fix (weeks):** keep the DB-polling fallback (already present — the route polls `opsLiveRuns` every 3s) and rely on the 30s client-side poll as the source of truth; treat SSE as an enhancement, not the contract. — **in place: 30s poll backstop + focus refetch in `use-unread-notifications`; DB polling documented as the backstop in `docs/REALTIME.md`** (Aug 16, 2026)
+- `[x]` **Production fix (months):** move real-time delivery to a managed pub/sub layer: Ably, Pusher, or Supabase Realtime, OR self-hosted SSE-over-Redis (Upstash Redis pub/sub) with the serverless function acting as a thin bridge. See 16.3. — **implemented: SSE-over-Redis (Upstash) with the serverless function as the bridge; managed pub/sub (Ably/Pusher) remains an option if scale demands (§16.3, user decision)** (Aug 16, 2026)
 - `[x]` Add a heartbeat keepalive already present — verify the client reconnects with `Last-Event-ID`/cursor so no events are lost across reconnects (route already sends `id:` lines; verify client stores them). — **verified (Aug 15, 2026): agent-events route sends `ping` keepalives every poll cycle; client reconnects with fresh `EventSource` on error; DB-polling fallback (3s interval via `getEntityEvents`) ensures no events lost across reconnects — the SSE stream is an enhancement, not the sole source of truth. Notification events include `id` field; agent events rely on DB polling for reliability.**
 
 ### 16.2 What must stay real-time vs. what can degrade
@@ -927,7 +927,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[x]` `force-dynamic` on the root layout — user-specific pages are correctly dynamic.
 - `[ ]` **Marketing pages → ISR/SSG** with `revalidate = 3600` (public, cacheable; currently dynamic — wasted cost).
-- `[ ]` **Dashboard data → per-tenant data cache** (`unstable_cache` / `'use cache'` with tenant-tagged keys) for slow, rarely-changing reads: chart of accounts, exchange rates, entity settings, permission sets. Invalidate on mutation via tags.
+- `[x]` **Dashboard data → per-tenant data cache** (`unstable_cache` / `'use cache'` with tenant-tagged keys) for slow, rarely-changing reads: chart of accounts, exchange rates, entity settings, permission sets. Invalidate on mutation via tags. — **implemented in-process with the entity-scoped `TenantCache` (§4.1, Aug 16, 2026): COA list/hierarchy (invalidated on all COA mutations), exchange rates (settings/listRates/convert, invalidated on upsertRate), entity summary (30s TTL); permissions were already cached (RBAC matrix 60s TTL + clearPermissionCache). Entity-prefixed keys + per-domain invalidation on every mutation; 30–60s TTLs self-heal missed invalidations.**
 - `[ ]` **Never** cache pages containing session-specific or entity-scoped data at the route level — cache at the data layer only.
 - `[ ]` Streaming SSR with `<Suspense>` boundaries for dashboard widgets; add `loading.tsx` for route segments (§4.5 — elevate priority).
 

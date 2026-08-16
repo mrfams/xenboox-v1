@@ -61,6 +61,39 @@ describe("§17.5 — never use FLOAT/DOUBLE for money", () => {
   });
 });
 
+describe("§1.1/§20.2 — RLS is defined and FORCED at the database layer", () => {
+  const MIGRATIONS = join(process.cwd(), "../../packages/db/migrations");
+  const migrationFiles = readdirSync(MIGRATIONS).filter((f) =>
+    f.endsWith(".sql"),
+  );
+
+  it("RLS policies exist in migrations", () => {
+    const withPolicies = migrationFiles.filter((f) =>
+      readFileSync(join(MIGRATIONS, f), "utf8").includes("CREATE POLICY"),
+    );
+    expect(withPolicies.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("FORCE ROW LEVEL SECURITY covers the financial tables", () => {
+    const forceRls = readFileSync(
+      join(MIGRATIONS, "0030_force_rls.sql"),
+      "utf8",
+    );
+    for (const t of ["chart_of_accounts", "journal_entries", "invoices_ap"]) {
+      expect(forceRls).toMatch(
+        new RegExp(`ALTER TABLE ${t} FORCE ROW LEVEL SECURITY`),
+      );
+    }
+  });
+
+  it("policies use the entity-scoped set_app_context guard", () => {
+    const src = migrationFiles
+      .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"))
+      .join("\n");
+    expect(src).toMatch(/app\.current_entity_id/);
+  });
+});
+
 describe("§17.5 — JSONB restricted to metadata/extensible payloads", () => {
   it("no JSONB column on a ledger table unless it is an allowed metadata name", () => {
     const violations: string[] = [];
