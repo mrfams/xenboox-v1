@@ -58,18 +58,6 @@ interface WorkflowEdge {
   type: "solid" | "dashed";
 }
 
-interface TestRunStep {
-  name: string;
-  status: "completed" | "running" | "pending" | "error";
-  duration: string;
-  description?: string;
-}
-
-interface ExtractedField {
-  label: string;
-  value: string;
-}
-
 interface WorkflowInsight {
   label: string;
   value: string;
@@ -103,238 +91,139 @@ interface RunStatus {
   color: string;
 }
 
-// --- Mock Data ---
-const mockNodes: WorkflowNode[] = [
-  {
-    id: "trigger-1",
-    name: "Trigger",
-    type: "trigger",
-    x: 50,
-    y: 180,
-    status: "completed",
-    icon: "email",
-    color: "bg-emerald-100 border-emerald-300",
-    description: "Invoice Received",
-    stepNumber: 1,
-  },
-  {
-    id: "extraction-1",
-    name: "Extraction Agent",
-    type: "ai_agent",
-    x: 200,
-    y: 180,
-    status: "completed",
-    icon: "bot",
-    color: "bg-purple-100 border-purple-300",
-    description: "Extract data (OCR + AI)",
-    confidence: 98,
-    stepNumber: 2,
-  },
-  {
-    id: "validation-1",
-    name: "Validation",
-    type: "condition",
-    x: 380,
-    y: 180,
-    status: "completed",
-    icon: "check",
-    color: "bg-amber-100 border-amber-300",
-    description: "Valid?",
-    stepNumber: 3,
-  },
-  {
-    id: "categorization-1",
-    name: "Categorization Agent",
-    type: "ai_agent",
-    x: 380,
-    y: 60,
-    status: "active",
-    icon: "layers",
-    color: "bg-blue-100 border-blue-300",
-    description: "Classify & Code",
-    confidence: 95,
-    stepNumber: 4,
-  },
-  {
-    id: "exception-1",
-    name: "Exception Agent",
-    type: "ai_agent",
-    x: 380,
-    y: 320,
-    status: "error",
-    icon: "alert",
-    color: "bg-red-100 border-red-300",
-    description: "Flag & Route for Review",
-    stepNumber: 5,
-  },
-  {
-    id: "create-entry-1",
-    name: "Create Entry",
-    type: "action",
-    x: 560,
-    y: 60,
-    status: "completed",
-    icon: "file",
-    color: "bg-emerald-100 border-emerald-300",
-    description: "Journal Entry Draft",
-    stepNumber: 6,
-  },
-  {
-    id: "human-review-1",
-    name: "Human Review",
-    type: "approval",
-    x: 740,
-    y: 60,
-    status: "pending",
-    icon: "users",
-    color: "bg-indigo-100 border-indigo-300",
-    description: "Approval Required",
-    stepNumber: 7,
-  },
-  {
-    id: "post-entry-1",
-    name: "Post Entry",
-    type: "action",
-    x: 740,
-    y: 200,
-    status: "completed",
-    icon: "check",
-    color: "bg-emerald-100 border-emerald-300",
-    description: "Post to Ledger",
-    stepNumber: 8,
-  },
-];
+// --- Live Data (workflowBuilder router) ---
+import { trpc } from "@/lib/trpc/client";
 
-const mockEdges: WorkflowEdge[] = [
-  { id: "e1", source: "trigger-1", target: "extraction-1", type: "solid" },
-  { id: "e2", source: "extraction-1", target: "validation-1", type: "solid" },
-  {
-    id: "e3",
-    source: "validation-1",
-    target: "categorization-1",
-    label: "Yes",
-    type: "solid",
-  },
-  {
-    id: "e4",
-    source: "validation-1",
-    target: "exception-1",
-    label: "No",
-    type: "dashed",
-  },
-  {
-    id: "e5",
-    source: "categorization-1",
-    target: "create-entry-1",
-    type: "solid",
-  },
-  {
-    id: "e6",
-    source: "create-entry-1",
-    target: "human-review-1",
-    type: "solid",
-  },
-  { id: "e7", source: "human-review-1", target: "post-entry-1", type: "solid" },
-];
+const NODE_ICONS: Record<string, string> = {
+  trigger: "email",
+  ai_agent: "bot",
+  action: "file",
+  condition: "check",
+  approval: "users",
+  review: "users",
+};
 
-const mockTestRunSteps: TestRunStep[] = [
-  {
-    name: "Trigger",
-    status: "completed",
-    duration: "2.1s",
-    description: "Invoice received from vendor@example.com",
-  },
-  {
-    name: "Extraction Agent",
-    status: "completed",
-    duration: "4.8s",
-    description: "Extracted 14 fields from invoice.pdf",
-  },
-  {
-    name: "Validation",
-    status: "completed",
-    duration: "1.2s",
-    description: "All required fields validated",
-  },
-  {
-    name: "Categorization",
-    status: "completed",
-    duration: "1.4s",
-    description: "Mapped to 6200 - Office Supplies",
-  },
-  {
-    name: "Create Entry",
-    status: "completed",
-    duration: "1.1s",
-    description: "Draft journal entry created",
-  },
-  { name: "Human Review", status: "pending", duration: "—" },
-  {
-    name: "Post Entry",
-    status: "completed",
-    duration: "0.9s",
-    description: "Posted to ledger successfully",
-  },
-];
+const NODE_COLORS: Record<string, string> = {
+  trigger: "bg-emerald-100 border-emerald-300",
+  ai_agent: "bg-purple-100 border-purple-300",
+  action: "bg-emerald-100 border-emerald-300",
+  condition: "bg-amber-100 border-amber-300",
+  approval: "bg-indigo-100 border-indigo-300",
+  review: "bg-indigo-100 border-indigo-300",
+};
 
-const mockExtractedData: ExtractedField[] = [
-  { label: "Invoice Number", value: "INV-2025-4821" },
-  { label: "Vendor", value: "GTBank Gambia Ltd" },
-  { label: "Amount", value: "GMD 25,600.00" },
-  { label: "Date", value: "May 19, 2025" },
-  { label: "Due Date", value: "Jun 18, 2025" },
-  { label: "Currency", value: "GMD" },
-  { label: "Tax (VAT)", value: "GMD 2,400.00" },
-  { label: "Category", value: "Bank Charges" },
-  { label: "Confidence Score", value: "98%" },
-];
+export function useWorkflowBuilderData() {
+  const workflows = trpc.workflowBuilder.getWorkflows.useQuery(undefined, {
+    refetchInterval: 30_000,
+  });
 
-const mockInsights: WorkflowInsight[] = [
-  {
-    label: "Success Prediction",
-    value: "High (97%)",
-    icon: <TrendingUp className="h-4 w-4" />,
-    color: "text-emerald-600",
-  },
-  {
-    label: "Estimated Time Saved",
-    value: "3.4 hrs / week",
-    icon: <Clock className="h-4 w-4" />,
-    color: "text-blue-600",
-  },
-  {
-    label: "Error Reduction",
-    value: "82%",
-    icon: <Target className="h-4 w-4" />,
-    color: "text-purple-600",
-  },
-  {
-    label: "Cost Impact",
-    value: "GMD 12,450 / month",
-    icon: <BarChart3 className="h-4 w-4" />,
-    color: "text-amber-600",
-  },
-];
+  const first = workflows.data?.[0];
+  const workflowId = first?.id ?? "";
 
-const mockSuggestions: Suggestion[] = [
-  {
-    title: "Add vendor duplicate check",
-    description: "Reduce duplicates by 64%",
-    impact: "High",
-  },
-  {
-    title: "Auto-match purchase orders",
-    description: "Increase accuracy by 17%",
-    impact: "Medium",
-  },
-  {
-    title: "Route high risk invoices",
-    description: "Reduce fraud risk",
-    impact: "High",
-  },
-];
+  const detail = trpc.workflowBuilder.getWorkflowDetail.useQuery(
+    { workflowId },
+    { enabled: !!workflowId, refetchInterval: 30_000 },
+  );
 
-const mockAgents: AgentComponent[] = [
+  const perf = trpc.workflowBuilder.getPerformance.useQuery(
+    { workflowId },
+    { enabled: !!workflowId, refetchInterval: 60_000 },
+  );
+
+  const wf = detail.data?.workflow;
+  const latestRun = detail.data?.latestRun;
+  const versions = detail.data?.versions ?? [];
+
+  const nodes: WorkflowNode[] = (detail.data?.nodes ?? []).map((n, i) => ({
+    id: n.id,
+    name: n.name,
+    type: n.type as WorkflowNode["type"],
+    x: n.x ?? 0,
+    y: n.y ?? 0,
+    status:
+      latestRun && i < (latestRun.completedSteps ?? 0)
+        ? "completed"
+        : latestRun && i === (latestRun.completedSteps ?? 0)
+          ? "running"
+          : "pending",
+    icon: NODE_ICONS[n.type] ?? "bot",
+    color: NODE_COLORS[n.type] ?? "bg-gray-100 border-gray-300",
+    description: (n.config as { description?: string })?.description ?? n.name,
+    confidence: n.confidenceThreshold ?? undefined,
+    stepNumber: n.stepNumber ?? i + 1,
+  }));
+
+  const edges: WorkflowEdge[] = (detail.data?.edges ?? []).map((e) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    label: e.label ?? undefined,
+    type: e.condition ? "dashed" : "solid",
+  }));
+
+  const totalRuns = perf.data?.totalRuns ?? 0;
+  const successRate = perf.data?.successRate ?? 0;
+  const avgDuration = perf.data?.avgDuration ?? "0";
+
+  const performanceMetrics: PerformanceMetric[] = [
+    {
+      label: "Success Rate",
+      value: `${successRate}%`,
+      color: "bg-emerald-500",
+    },
+    { label: "Avg Duration", value: `${avgDuration}s`, color: "bg-blue-500" },
+    { label: "Total Runs", value: String(totalRuns), color: "bg-purple-500" },
+    {
+      label: "Steps",
+      value: String(wf?.totalSteps ?? nodes.length),
+      color: "bg-amber-500",
+    },
+  ];
+
+  const runStatuses: RunStatus[] = latestRun
+    ? [
+        {
+          label: "Last Run",
+          count: 1,
+          percentage: latestRun.status === "completed" ? "100%" : "0%",
+          color:
+            latestRun.status === "completed"
+              ? "bg-emerald-500"
+              : "bg-amber-500",
+        },
+        {
+          label: "Steps Done",
+          count: latestRun.completedSteps ?? 0,
+          percentage: `${latestRun.completedSteps ?? 0}/${latestRun.totalSteps ?? 0}`,
+          color: "bg-blue-500",
+        },
+      ]
+    : [];
+
+  return {
+    workflows: workflows.data ?? [],
+    nodes,
+    edges,
+    versions,
+    latestRun,
+    workflowName: wf?.name ?? first?.name ?? "New Workflow",
+    workflowStatus: wf?.status ?? first?.status ?? "Active",
+    workflowVersion: wf?.version ?? versions[0]?.version ?? "v1.0",
+    performanceMetrics,
+    runStatuses,
+    totalRuns,
+    successRate,
+    isLoading: workflows.isLoading || (!!workflowId && detail.isLoading),
+    refetch: () => {
+      void workflows.refetch();
+      void detail.refetch();
+      void perf.refetch();
+    },
+  };
+}
+
+// --- Static builder chrome (component palette + copilot content) ---
+const paletteAgents: AgentComponent[] = [
   {
     name: "Extraction Agent",
     description: "Extract invoice data using OCR + AI",
@@ -373,24 +262,49 @@ const mockAgents: AgentComponent[] = [
   },
 ];
 
-const mockPerformanceMetrics: PerformanceMetric[] = [
-  { label: "Accuracy", value: "98.6%", color: "bg-emerald-500" },
-  { label: "Speed", value: "96.1%", color: "bg-blue-500" },
-  { label: "Automation Rate", value: "87.3%", color: "bg-purple-500" },
-  { label: "Human Touchpoints", value: "12.7%", color: "bg-amber-500" },
-  { label: "Error Rate", value: "1.4%", color: "bg-red-500" },
+const copilotInsights: WorkflowInsight[] = [
+  {
+    label: "Success Prediction",
+    value: "High (97%)",
+    icon: <TrendingUp className="h-4 w-4" />,
+    color: "text-emerald-600",
+  },
+  {
+    label: "Estimated Time Saved",
+    value: "3.4 hrs / week",
+    icon: <Clock className="h-4 w-4" />,
+    color: "text-blue-600",
+  },
+  {
+    label: "Error Reduction",
+    value: "82%",
+    icon: <Target className="h-4 w-4" />,
+    color: "text-purple-600",
+  },
+  {
+    label: "Cost Impact",
+    value: "GMD 12,450 / month",
+    icon: <BarChart3 className="h-4 w-4" />,
+    color: "text-amber-600",
+  },
 ];
 
-const mockRunStatuses: RunStatus[] = [
+const copilotSuggestions: Suggestion[] = [
   {
-    label: "Successful",
-    count: 2807,
-    percentage: "98.6%",
-    color: "bg-emerald-500",
+    title: "Add vendor duplicate check",
+    description: "Reduce duplicates by 64%",
+    impact: "High",
   },
-  { label: "Failed", count: 18, percentage: "0.6%", color: "bg-red-500" },
-  { label: "Pending", count: 21, percentage: "0.8%", color: "bg-amber-500" },
-  { label: "Cancelled", count: 0, percentage: "0%", color: "bg-gray-400" },
+  {
+    title: "Auto-match purchase orders",
+    description: "Increase accuracy by 17%",
+    impact: "Medium",
+  },
+  {
+    title: "Route high risk invoices",
+    description: "Reduce fraud risk",
+    impact: "High",
+  },
 ];
 
 // --- Helper Components ---
@@ -489,6 +403,23 @@ function CanvasNode({ node }: { node: WorkflowNode }) {
 
 // --- Main Page ---
 export default function WorkflowBuilderPage() {
+  const {
+    nodes,
+    edges,
+    versions,
+    latestRun,
+    workflowName,
+    workflowStatus,
+    workflowVersion,
+    performanceMetrics,
+    runStatuses,
+    totalRuns,
+    successRate,
+    avgDuration,
+    isLoading,
+    refetch,
+  } = useWorkflowBuilderData();
+
   const [activeTab, setActiveTab] = useState<
     "Builder" | "Config" | "Runs" | "Versions" | "Permissions" | "Audit Trail"
   >("Builder");
@@ -496,7 +427,7 @@ export default function WorkflowBuilderPage() {
     "Agents" | "Tools" | "Conditions" | "Integrations"
   >("Agents");
   const [autoSave, setAutoSave] = useState(true);
-  const [version, setVersion] = useState("v2.3");
+  const [version, setVersion] = useState(workflowVersion);
   const [showCopilot, setShowCopilot] = useState(true);
   const [testRunTab, setTestRunTab] = useState<"output" | "extracted">(
     "output",
@@ -571,13 +502,11 @@ export default function WorkflowBuilderPage() {
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <button className="text-gray-400 hover:text-gray-600">
               <ArrowLeft className="h-4 w-4" />
-            </button>
+            </button>{" "}
             <span>New Workflow</span>
             <ChevronRight className="h-4 w-4" />
-            <span className="font-medium text-gray-900">
-              Invoice Processing Automation
-            </span>
-            <StatusBadge status="Active" />
+            <span className="font-medium text-gray-900">{workflowName}</span>
+            <StatusBadge status={workflowStatus} />
             <button className="text-gray-400 hover:text-gray-600">
               <Pencil className="h-3.5 w-3.5" />
             </button>
@@ -588,7 +517,11 @@ export default function WorkflowBuilderPage() {
               Saved 2 min ago
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+              <button
+                onClick={() => refetch()}
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                aria-label="Refresh workflow data"
+              >
                 <RefreshCw className="h-4 w-4" />
               </button>
               <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
@@ -611,10 +544,12 @@ export default function WorkflowBuilderPage() {
               onChange={(e) => setVersion(e.target.value)}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
             >
-              <option value="v2.3">v2.3</option>
-              <option value="v2.2">v2.2</option>
-              <option value="v2.1">v2.1</option>
-              <option value="v1.0">v1.0</option>
+              <option value={workflowVersion}>{workflowVersion}</option>
+              {versions.slice(0, 4).map((v) => (
+                <option key={v.id} value={v.version}>
+                  {v.version}
+                </option>
+              ))}
             </select>
             <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
               <MoreHorizontal className="h-4 w-4" />
@@ -672,7 +607,7 @@ export default function WorkflowBuilderPage() {
               </div>
 
               <div className="space-y-2">
-                {mockAgents.map((agent, i) => (
+                {paletteAgents.map((agent, i) => (
                   <div
                     key={i}
                     className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 cursor-pointer transition-colors"
@@ -716,9 +651,9 @@ export default function WorkflowBuilderPage() {
               className="absolute inset-0 w-full h-full pointer-events-none"
               style={{ minWidth: 900, minHeight: 400 }}
             >
-              {mockEdges.map((edge) => {
-                const source = mockNodes.find((n) => n.id === edge.source);
-                const target = mockNodes.find((n) => n.id === edge.target);
+              {edges.map((edge) => {
+                const source = nodes.find((n) => n.id === edge.source);
+                const target = nodes.find((n) => n.id === edge.target);
                 if (!source || !target) return null;
 
                 const sx = source.x + 32;
@@ -754,7 +689,12 @@ export default function WorkflowBuilderPage() {
             </svg>
 
             {/* Nodes */}
-            {mockNodes.map((node) => (
+            {isLoading && nodes.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+                Loading workflow…
+              </div>
+            )}
+            {nodes.map((node) => (
               <CanvasNode key={node.id} node={node} />
             ))}
           </div>
@@ -794,7 +734,7 @@ export default function WorkflowBuilderPage() {
                   Workflow Insights
                 </h4>
                 <div className="space-y-2">
-                  {mockInsights.map((insight, i) => (
+                  {copilotInsights.map((insight, i) => (
                     <div
                       key={i}
                       className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
@@ -819,7 +759,7 @@ export default function WorkflowBuilderPage() {
                   Suggestions
                 </h4>
                 <div className="space-y-2">
-                  {mockSuggestions.map((s, i) => (
+                  {copilotSuggestions.map((s, i) => (
                     <div key={i} className="p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-start justify-between">
                         <div>
@@ -847,23 +787,37 @@ export default function WorkflowBuilderPage() {
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-gray-500">
-                      Last Run: 2 min ago
+                      {latestRun
+                        ? `Last run: ${latestRun.completedSteps ?? 0}/${latestRun.totalSteps ?? 0} steps`
+                        : "No runs yet"}
                     </span>
-                    <StatusBadge status="Success" />
+                    <StatusBadge
+                      status={
+                        latestRun?.status === "completed"
+                          ? "Success"
+                          : (latestRun?.status ?? "Pending")
+                      }
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div>
-                      <p className="text-xs text-gray-500">Processed</p>
-                      <p className="text-lg font-bold text-gray-900">124</p>
+                      <p className="text-xs text-gray-500">Total Runs</p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {totalRuns.toLocaleString()}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Avg. Processed</p>
-                      <p className="text-lg font-bold text-gray-900">12.4s</p>
+                      <p className="text-xs text-gray-500">Avg. Duration</p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {avgDuration}s
+                      </p>
                     </div>
                   </div>
                   <div className="mt-3">
                     <p className="text-xs text-gray-500">Success Rate</p>
-                    <p className="text-lg font-bold text-emerald-600">98.6%</p>
+                    <p className="text-lg font-bold text-emerald-600">
+                      {successRate}%
+                    </p>
                   </div>
                   {/* Mini chart */}
                   <div className="mt-3 h-16 bg-white rounded-lg border border-gray-200 flex items-end justify-between px-2 pb-2 gap-1">
@@ -893,7 +847,7 @@ export default function WorkflowBuilderPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  {mockPerformanceMetrics.map((metric, i) => (
+                  {performanceMetrics.map((metric, i) => (
                     <div key={i}>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">{metric.label}</span>
@@ -923,18 +877,8 @@ export default function WorkflowBuilderPage() {
                           fill="none"
                           stroke="#10b981"
                           strokeWidth="3"
-                          strokeDasharray="98.6 1.4"
+                          strokeDasharray={`${Math.min(successRate, 100)} ${Math.max(100 - successRate, 0)}`}
                           strokeDashoffset="25"
-                        />
-                        <circle
-                          cx="18"
-                          cy="18"
-                          r="15.915"
-                          fill="none"
-                          stroke="#ef4444"
-                          strokeWidth="3"
-                          strokeDasharray="0.6 99.4"
-                          strokeDashoffset="73.6"
                         />
                         <circle
                           cx="18"
@@ -943,14 +887,14 @@ export default function WorkflowBuilderPage() {
                           fill="none"
                           stroke="#f59e0b"
                           strokeWidth="3"
-                          strokeDasharray="0.8 99.2"
-                          strokeDashoffset="74.2"
+                          strokeDasharray={`${Math.max(100 - successRate, 0)} ${Math.min(successRate, 100)}`}
+                          strokeDashoffset="73.6"
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="text-center">
                           <p className="text-lg font-bold text-gray-900">
-                            2,846
+                            {totalRuns.toLocaleString()}
                           </p>
                           <p className="text-[10px] text-gray-500">Runs</p>
                         </div>
@@ -958,7 +902,7 @@ export default function WorkflowBuilderPage() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    {mockRunStatuses.map((status, i) => (
+                    {runStatuses.map((status, i) => (
                       <div
                         key={i}
                         className="flex items-center justify-between text-xs"
@@ -1029,7 +973,7 @@ export default function WorkflowBuilderPage() {
               )}
             </div>
             <div className="space-y-2">
-              {mockAgents.map((agent, i) => (
+              {paletteAgents.map((agent, i) => (
                 <div
                   key={i}
                   className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 cursor-pointer transition-colors"
@@ -1076,20 +1020,27 @@ export default function WorkflowBuilderPage() {
               </span>
             </div>
             <div className="space-y-1">
-              {mockTestRunSteps.map((step, i) => (
-                <div key={i} className="flex items-center gap-3 py-1.5">
-                  <StepIndicator step={i + 1} status={step.status} />
+              {nodes.map((node, i) => (
+                <div key={node.id} className="flex items-center gap-3 py-1.5">
+                  <StepIndicator
+                    step={i + 1}
+                    status={
+                      latestRun && i < (latestRun.completedSteps ?? 0)
+                        ? "completed"
+                        : "pending"
+                    }
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">
-                      {step.name}
+                      {node.name}
                     </p>
-                    {step.description && (
+                    {node.description && (
                       <p className="text-xs text-gray-500">
-                        {step.description}
+                        {node.description}
                       </p>
                     )}
                   </div>
-                  <span className="text-xs text-gray-500">{step.duration}</span>
+                  <span className="text-xs text-gray-500">—</span>
                 </div>
               ))}
             </div>
@@ -1114,17 +1065,48 @@ export default function WorkflowBuilderPage() {
               </div>
             </div>
             <div className="space-y-2">
-              {mockExtractedData.map((field, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0"
-                >
-                  <span className="text-sm text-gray-500">{field.label}</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {field.value}
-                  </span>
-                </div>
-              ))}
+              {!latestRun ? (
+                <p className="text-sm text-gray-500">
+                  No test run yet. Run the workflow to see extracted data.
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between py-1.5 border-b border-gray-100">
+                    <span className="text-sm text-gray-500">Status</span>
+                    <span className="text-sm font-medium text-gray-900 capitalize">
+                      {latestRun.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-gray-100">
+                    <span className="text-sm text-gray-500">Steps</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {latestRun.completedSteps ?? 0} /{" "}
+                      {latestRun.totalSteps ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-gray-100">
+                    <span className="text-sm text-gray-500">
+                      Fields Extracted
+                    </span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {latestRun.fieldsExtracted ?? 0} /{" "}
+                      {latestRun.fieldsTotal ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-gray-100">
+                    <span className="text-sm text-gray-500">Confidence</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {latestRun.confidence ?? "—"}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-gray-100">
+                    <span className="text-sm text-gray-500">Duration</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {latestRun.durationMinutes ?? "—"} min
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

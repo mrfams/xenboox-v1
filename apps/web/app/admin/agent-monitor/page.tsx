@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -21,6 +21,8 @@ import {
   ArrowRight,
   Send,
 } from "lucide-react";
+
+import { trpc } from "@/lib/trpc/client";
 
 // --- Types ---
 interface Agent {
@@ -94,320 +96,54 @@ interface TopPerformer {
   name: string;
   successRate: string;
 }
+// --- Live Data (agentMonitor.getOverview) ---
+export function useAgentMonitorData() {
+  const { data, isLoading, refetch, isRefetching } =
+    trpc.agentMonitor.getOverview.useQuery(
+      { hours: 24 },
+      { refetchInterval: 30_000 },
+    );
 
-// --- Mock Data (would come from API) ---
-const mockAgents: Agent[] = [
-  {
-    id: "1",
-    name: "bank_reconciler",
-    displayName: "Bank Reconciler",
-    category: "Reconciliation Agent",
-    status: "healthy",
-    healthScore: 96,
-    successRate: "98.9",
-    runs24h: 1245,
-    errors24h: 14,
-    avgLatencyMs: 1850,
-    avgLatency: "1.85",
-    trendData: [85, 92, 88, 95, 90, 94, 96],
-    lastRunAt: "2025-05-30T10:32:00Z",
-    isActive: true,
-    currentTask: "Reconcile GTBank **** 6789 May 2025 transactions",
-    currentTaskProgress: 78,
-    currentTaskEta: "2m",
-    currentTaskStartedAt: "2025-05-30T10:15:00Z",
-    model: "Claude 3.5 Sonnet",
-    toolsCount: 5,
-    memoryUsageGb: "1.2",
-    tasksRunning: 3,
-    tasksCompleted: 45,
-    tasksReview: 2,
-    tasksFailed: 0,
-  },
-  {
-    id: "2",
-    name: "invoice_processor",
-    displayName: "Invoice Processor",
-    category: "Document Agent",
-    status: "healthy",
-    healthScore: 94,
-    successRate: "98.1",
-    runs24h: 1980,
-    errors24h: 34,
-    avgLatencyMs: 2450,
-    avgLatency: "2.45",
-    trendData: [88, 90, 92, 89, 93, 91, 94],
-    lastRunAt: "2025-05-30T10:31:00Z",
-    isActive: true,
-    currentTask: "Process 23 uploaded invoices Extracting data with OCR",
-    currentTaskProgress: 45,
-    currentTaskEta: "6m",
-    currentTaskStartedAt: "2025-05-30T10:25:00Z",
-    model: "Claude 3.5 Sonnet",
-    toolsCount: 4,
-    memoryUsageGb: "0.8",
-    tasksRunning: 2,
-    tasksCompleted: 38,
-    tasksReview: 3,
-    tasksFailed: 1,
-  },
-  {
-    id: "3",
-    name: "payroll_assistant",
-    displayName: "Payroll Assistant",
-    category: "Payroll Agent",
-    status: "healthy",
-    healthScore: 93,
-    successRate: "96.8",
-    runs24h: 1320,
-    errors24h: 42,
-    avgLatencyMs: 1880,
-    avgLatency: "1.88",
-    trendData: [86, 89, 91, 88, 92, 90, 93],
-    lastRunAt: "2025-05-30T10:30:00Z",
-    isActive: true,
-    currentTask: "Prepare May 2025 payroll Calculating salaries & taxes",
-    currentTaskProgress: 62,
-    currentTaskEta: "12m",
-    currentTaskStartedAt: "2025-05-30T10:18:00Z",
-    model: "Claude 3.5 Sonnet",
-    toolsCount: 6,
-    memoryUsageGb: "0.9",
-    tasksRunning: 1,
-    tasksCompleted: 28,
-    tasksReview: 1,
-    tasksFailed: 0,
-  },
-  {
-    id: "4",
-    name: "journal_entry_agent",
-    displayName: "Journal Entry Agent",
-    category: "Accounting Agent",
-    status: "healthy",
-    healthScore: 97,
-    successRate: "97.6",
-    runs24h: 2842,
-    errors24h: 68,
-    avgLatencyMs: 2110,
-    avgLatency: "2.11",
-    trendData: [90, 93, 91, 95, 94, 96, 97],
-    lastRunAt: "2025-05-30T10:29:00Z",
-    isActive: true,
-    currentTask: "Categorize 18 transactions Auto-categorizing expenses",
-    currentTaskProgress: 88,
-    currentTaskEta: "1m",
-    currentTaskStartedAt: "2025-05-30T10:28:00Z",
-    model: "Claude 3.5 Sonnet",
-    toolsCount: 3,
-    memoryUsageGb: "0.6",
-    tasksRunning: 4,
-    tasksCompleted: 52,
-    tasksReview: 1,
-    tasksFailed: 0,
-  },
-  {
-    id: "5",
-    name: "ap_payment_scanner",
-    displayName: "AP Payment Scanner",
-    category: "Bill Processing Agent",
-    status: "healthy",
-    healthScore: 91,
-    successRate: "95.6",
-    runs24h: 1542,
-    errors24h: 68,
-    avgLatencyMs: 2090,
-    avgLatency: "2.09",
-    trendData: [84, 87, 89, 86, 90, 88, 91],
-    lastRunAt: "2025-05-30T10:28:00Z",
-    isActive: true,
-    currentTask: "Scan & process 12 bills Matching with POs",
-    currentTaskProgress: 35,
-    currentTaskEta: "8m",
-    currentTaskStartedAt: "2025-05-30T10:20:00Z",
-    model: "Claude 3.5 Haiku",
-    toolsCount: 4,
-    memoryUsageGb: "0.7",
-    tasksRunning: 2,
-    tasksCompleted: 32,
-    tasksReview: 2,
-    tasksFailed: 1,
-  },
-  {
-    id: "6",
-    name: "tax_compliance",
-    displayName: "Tax Compliance",
-    category: "Tax Agent",
-    status: "healthy",
-    healthScore: 95,
-    successRate: "95.7",
-    runs24h: 420,
-    errors24h: 18,
-    avgLatencyMs: 3200,
-    avgLatency: "3.20",
-    trendData: [88, 90, 92, 89, 93, 91, 95],
-    lastRunAt: "2025-05-30T10:27:00Z",
-    isActive: true,
-    currentTask: "VAT return preparation Collecting required data",
-    currentTaskProgress: 20,
-    currentTaskEta: "25m",
-    currentTaskStartedAt: "2025-05-30T10:02:00Z",
-    model: "Claude 3.5 Sonnet",
-    toolsCount: 5,
-    memoryUsageGb: "1.1",
-    tasksRunning: 1,
-    tasksCompleted: 18,
-    tasksReview: 1,
-    tasksFailed: 0,
-  },
-  {
-    id: "7",
-    name: "forecasting_agent",
-    displayName: "Forecasting Agent",
-    category: "Analytics Agent",
-    status: "review",
-    healthScore: 89,
-    successRate: "96.5",
-    runs24h: 580,
-    errors24h: 20,
-    avgLatencyMs: 2650,
-    avgLatency: "2.65",
-    trendData: [82, 85, 87, 84, 88, 86, 89],
-    lastRunAt: "2025-05-30T10:26:00Z",
-    isActive: true,
-    currentTask: "Cash flow forecast Analyzing trends",
-    currentTaskProgress: 90,
-    currentTaskEta: "3m",
-    currentTaskStartedAt: "2025-05-30T10:23:00Z",
-    model: "Claude 3.5 Sonnet",
-    toolsCount: 4,
-    memoryUsageGb: "1.4",
-    tasksRunning: 1,
-    tasksCompleted: 22,
-    tasksReview: 3,
-    tasksFailed: 0,
-  },
-  {
-    id: "8",
-    name: "expense_auditor",
-    displayName: "Expense Auditor",
-    category: "Audit Agent",
-    status: "review",
-    healthScore: 87,
-    successRate: "95.1",
-    runs24h: 380,
-    errors24h: 19,
-    avgLatencyMs: 2180,
-    avgLatency: "2.18",
-    trendData: [80, 83, 85, 82, 86, 84, 87],
-    lastRunAt: "2025-05-30T10:25:00Z",
-    isActive: true,
-    currentTask: "Review 30 flagged expenses Checking for duplicates",
-    currentTaskProgress: 70,
-    currentTaskEta: "5m",
-    currentTaskStartedAt: "2025-05-30T10:20:00Z",
-    model: "Claude 3.5 Haiku",
-    toolsCount: 3,
-    memoryUsageGb: "0.5",
-    tasksRunning: 1,
-    tasksCompleted: 15,
-    tasksReview: 4,
-    tasksFailed: 2,
-  },
-];
+  const agents: Agent[] = data?.agents ?? [];
+  const alerts: Alert[] = data?.recentAlerts ?? [];
+  const activity: Activity[] = data?.recentActivity ?? [];
+  const topPerformers: TopPerformer[] = data?.topPerformers ?? [];
+  const summary = data?.summary;
+  const systemResources: SystemResources | null = data?.systemResources ?? null;
+  const workload: WorkloadDistribution | null = data?.workload ?? null;
 
-const mockAlerts: Alert[] = [
-  {
-    id: "1",
-    agentName: "expense_auditor",
-    alertType: "high_error_rate",
-    severity: "critical",
-    title: "High error rate detected",
-    description: "Expense Auditor has 5 failed tasks",
-    createdAt: "2025-05-30T10:22:00Z",
-  },
-  {
-    id: "2",
-    agentName: "payroll_assistant",
-    alertType: "human_review_required",
-    severity: "warning",
-    title: "Human review required",
-    description: "7 tasks are waiting for your review",
-    createdAt: "2025-05-30T10:18:00Z",
-  },
-  {
-    id: "3",
-    agentName: "cash_flow_forecasting",
-    alertType: "agent_deployed",
-    severity: "info",
-    title: "New agent available",
-    description: "Fixed Asset Manager is ready to use",
-    createdAt: "2025-05-30T09:45:00Z",
-  },
-];
+  const totalAgents = summary?.totalAgents ?? agents.length;
+  const activeAgents =
+    summary?.activeAgents ?? agents.filter((a) => a.isActive).length;
+  const tasksRunning =
+    summary?.tasksRunning ?? agents.reduce((s, a) => s + a.tasksRunning, 0);
+  const tasksCompleted =
+    summary?.tasksCompleted ?? agents.reduce((s, a) => s + a.tasksCompleted, 0);
+  const humanReviewCount =
+    summary?.humanReviewCount ?? agents.reduce((s, a) => s + a.tasksReview, 0);
+  const successRate = summary?.successRate ?? "0";
+  const timeSavedHours = summary?.timeSavedHours ?? "0";
 
-const mockSystemResources: SystemResources = {
-  cpuUsagePercent: "24",
-  cpuCores: 16,
-  memoryUsagePercent: "48",
-  memoryTotalGb: "64.0",
-  workerQueueJobs: 7,
-  allSystemsOperational: true,
-  activeWorkflows: 18,
-  queueLength: 7,
-};
-
-const mockWorkload: WorkloadDistribution = {
-  completed: 68,
-  inProgress: 24,
-  review: 22,
-  scheduled: 28,
-  failed: 14,
-  totalTasks: 156,
-};
-
-const mockActivity: Activity[] = [
-  {
-    id: "1",
-    agentName: "bank_reconciler",
-    activityType: "matched",
-    title: "Matched 48 transactions",
-    description: "Auto-matched with high confidence",
-    createdAt: "2025-05-30T10:32:00Z",
-  },
-  {
-    id: "2",
-    agentName: "invoice_processor",
-    activityType: "identified",
-    title: "Identified 2 possible matches",
-    description: "Awaiting confirmation",
-    createdAt: "2025-05-30T10:30:00Z",
-  },
-  {
-    id: "3",
-    agentName: "bank_reconciler",
-    activityType: "downloaded",
-    title: "Downloaded 256 transactions",
-    description: "From GTBank **** 6789",
-    createdAt: "2025-05-30T10:28:00Z",
-  },
-  {
-    id: "4",
-    agentName: "bank_reconciler",
-    activityType: "connected",
-    title: "Connected to bank",
-    description: "Secure connection established",
-    createdAt: "2025-05-30T10:25:00Z",
-  },
-];
-
-const mockTopPerformers: TopPerformer[] = [
-  { name: "Bank Reconciler", successRate: "98.9" },
-  { name: "Invoice Processor", successRate: "98.1" },
-  { name: "Journal Entry Agent", successRate: "97.6" },
-  { name: "Payroll Assistant", successRate: "96.8" },
-  { name: "Tax Compliance", successRate: "95.7" },
-];
-
+  return {
+    agents,
+    alerts,
+    activity,
+    topPerformers,
+    summary,
+    systemResources,
+    workload,
+    totalAgents,
+    activeAgents,
+    tasksRunning,
+    tasksCompleted,
+    humanReviewCount,
+    successRate,
+    timeSavedHours,
+    isLoading,
+    isRefetching,
+    refetch,
+  };
+}
 // --- Helper Components ---
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -473,11 +209,33 @@ export default function AgentMonitorPage() {
     | "Logs"
     | "Performance"
   >("Overview");
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(
-    mockAgents[0],
-  );
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showAgentDetails, setShowAgentDetails] = useState(true);
   const [agentMessage, setAgentMessage] = useState("");
+
+  const {
+    agents,
+    alerts,
+    activity,
+    topPerformers,
+    totalAgents,
+    activeAgents,
+    tasksRunning,
+    tasksCompleted,
+    humanReviewCount,
+    successRate,
+    timeSavedHours,
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useAgentMonitorData();
+
+  // Preselect the first agent once real data arrives.
+  useEffect(() => {
+    if (!selectedAgent && agents.length > 0) {
+      setSelectedAgent(agents[0]!);
+    }
+  }, [agents, selectedAgent]);
 
   const tabs = [
     "Overview",
@@ -488,19 +246,6 @@ export default function AgentMonitorPage() {
     "Logs",
     "Performance",
   ] as const;
-
-  // Calculate stats
-  const activeAgents = mockAgents.filter((a) => a.isActive).length;
-  const totalAgents = 28;
-  const tasksRunning = mockAgents.reduce((sum, a) => sum + a.tasksRunning, 0);
-  const tasksCompleted = mockAgents.reduce(
-    (sum, a) => sum + a.tasksCompleted,
-    0,
-  );
-  const humanReviewCount = mockAgents.reduce(
-    (sum, a) => sum + a.tasksReview,
-    0,
-  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -526,8 +271,15 @@ export default function AgentMonitorPage() {
                 <Filter className="h-4 w-4" />
                 Filters
               </button>
-              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                <RefreshCw className="h-4 w-4" />
+              <button
+                onClick={() => void refetch()}
+                disabled={isRefetching}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                aria-label="Refresh agent data"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`}
+                />
               </button>
             </div>
           </div>
@@ -619,7 +371,7 @@ export default function AgentMonitorPage() {
                   <TrendingUp className="h-4 w-4 text-purple-600" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">98.6%</p>
+              <p className="text-2xl font-bold text-gray-900">{successRate}%</p>
               <p className="text-xs text-gray-500 mt-1">last 7 days</p>
               <p className="text-xs text-emerald-600 mt-1">
                 ↑ 1.2% vs last 7 days
@@ -633,7 +385,9 @@ export default function AgentMonitorPage() {
                   <Clock className="h-4 w-4 text-cyan-600" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">47.3 hrs</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {timeSavedHours} hrs
+              </p>
               <p className="text-xs text-gray-500 mt-1">this month</p>
               <p className="text-xs text-emerald-600 mt-1">↑ 12.7 hrs vs Apr</p>
             </div>
@@ -661,7 +415,27 @@ export default function AgentMonitorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {mockAgents.map((agent) => (
+                  {isLoading && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-4 py-8 text-center text-sm text-gray-500"
+                      >
+                        Loading agent data…
+                      </td>
+                    </tr>
+                  )}
+                  {!isLoading && agents.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-4 py-8 text-center text-sm text-gray-500"
+                      >
+                        No agent data yet. Run the seed to populate the monitor.
+                      </td>
+                    </tr>
+                  )}
+                  {agents.map((agent) => (
                     <tr
                       key={agent.id}
                       className={`hover:bg-gray-50 cursor-pointer ${selectedAgent?.id === agent.id ? "bg-indigo-50" : ""}`}
@@ -813,7 +587,7 @@ export default function AgentMonitorPage() {
                 </select>
               </div>
               <div className="space-y-3">
-                {mockTopPerformers.map((agent, i) => (
+                {topPerformers.map((agent, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <span className="text-sm font-medium text-gray-500 w-4">
                       {i + 1}
@@ -849,7 +623,7 @@ export default function AgentMonitorPage() {
                 </button>
               </div>
               <div className="space-y-3">
-                {mockAlerts.map((alert) => (
+                {alerts.map((alert) => (
                   <div
                     key={alert.id}
                     className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50"
@@ -1041,22 +815,20 @@ export default function AgentMonitorPage() {
                   Recent Activity
                 </h4>
                 <div className="space-y-3">
-                  {mockActivity
+                  {activity
                     .filter((a) => a.agentName === selectedAgent.name)
-                    .map((activity) => (
-                      <div key={activity.id} className="flex items-start gap-3">
-                        <ActivityIcon type={activity.activityType} />
+                    .map((a) => (
+                      <div key={a.id} className="flex items-start gap-3">
+                        <ActivityIcon type={a.activityType} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900">
-                            {activity.title}
-                          </p>
+                          <p className="text-sm text-gray-900">{a.title}</p>
                           <p className="text-xs text-gray-500">
-                            {activity.description}
+                            {a.description}
                           </p>
                         </div>
                         <span className="text-xs text-gray-400">
-                          {activity.createdAt
-                            ? new Date(activity.createdAt).toLocaleTimeString(
+                          {a.createdAt
+                            ? new Date(a.createdAt).toLocaleTimeString(
                                 "en-US",
                                 { hour: "numeric", minute: "2-digit" },
                               )

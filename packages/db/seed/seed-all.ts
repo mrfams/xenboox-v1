@@ -19,6 +19,8 @@ import { eq } from "drizzle-orm";
 import { seed } from "./index";
 import { seedYc } from "./yc-3months";
 import { seedCloseTasks, latestPeriodLabel } from "./close-tasks";
+import { seedAdminOps } from "./seed-admin-ops";
+import { seedWorkflowData } from "./seed-workflow-data";
 import { findOrCreateUser, removeOtherEntities } from "./seed-lib";
 
 function currentMonthLabel(): string {
@@ -137,6 +139,11 @@ async function main() {
     if (removed > 0)
       console.log(`\n🧹 Removed ${removed} stale entity(ies) from org ${o.id}`);
   }
+
+  // Admin ops + workflow-builder demo data (idempotent, platform-level).
+  console.log("\n  Seeding admin ops + workflow data...");
+  await seedAdminOps();
+  await seedWorkflowData();
 
   console.log("\n════════════════════════════════════════════════════════");
   console.log("SEED COMPLETE — both accounts verified");
