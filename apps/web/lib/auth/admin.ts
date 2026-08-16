@@ -13,6 +13,7 @@ import {
 import type { AdminRole } from "@/lib/admin/roles";
 import { verifyMfaChallenge } from "@/lib/admin/mfa-challenge";
 import { logger } from "@/lib/logger";
+import { applyIdleTimeout } from "./idle-session";
 
 const useSecureCookies = process.env.NODE_ENV === "production";
 
@@ -163,11 +164,14 @@ export const {
       if (user) {
         token.adminUserId = user.id;
         token.adminSid = (user as Record<string, unknown>).adminSid as
-          | string
-          | undefined;
+          string | undefined;
         token.adminRole = (user as Record<string, unknown>).role as
-          | AdminRole
-          | undefined;
+          AdminRole | undefined;
+        token.lastActivity = Date.now();
+      } else {
+        // §20.1 idle timeout: invalidate (null) when the idle window elapses
+        // without any request, otherwise refresh the activity stamp.
+        return applyIdleTimeout(token);
       }
       return token;
     },

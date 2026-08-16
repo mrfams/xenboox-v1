@@ -6,6 +6,17 @@
 
 ---
 
+### [2026-08-16] — §20.1 idle session timeout (JWT lastActivity)
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/lib/auth/idle-session.ts` (new), `apps/web/lib/auth/index.ts`, `apps/web/lib/auth/admin.ts`, `apps/web/__tests__/idle-session.test.ts` (new), `apps/web/.env.example`, `ROADTOPRODUCTION.md`, `BUILD_LOG.md`
+
+**Session work:** JWT sessions only had an absolute `maxAge` — no idle timeout. Added `applyIdleTimeout()`: stamps `lastActivity` into the token on every request (throttled to once per 60s so we don't emit Set-Cookie on every API call and defeat CDN caching), and returns `null` once the idle window elapses — wired into the `jwt` callback of BOTH main user auth (`lib/auth/index.ts`) and admin auth (`lib/auth/admin.ts`), so returning `null` invalidates the session. Window configurable via `AUTH_IDLE_TIMEOUT_MINUTES` (default 60 min) — added to `.env.example`.
+
+**Verification:** 6 new unit tests pass; all 29 existing auth/session tests pass (no regressions). Committed + pushed.
+
+---
+
 ### [2026-08-16] — §20.2 RBAC role→procedure sweep + workflow-builder router mounted
 
 **Agent:** Buffy

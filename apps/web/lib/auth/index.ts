@@ -18,6 +18,7 @@ import { buildSsoProviders, loadSsoConfig } from "./sso";
 
 import { isDomainEnforced } from "@/lib/sso-settings";
 import { logger } from "@/lib/logger";
+import { applyIdleTimeout } from "./idle-session";
 
 const JWT_SECRET = new TextEncoder().encode(process.env.AUTH_SECRET);
 
@@ -321,6 +322,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const resolvedEntityId = await ensureLastUsedEntity(user.id);
           token.lastUsedEntityId = resolvedEntityId;
         }
+        token.lastActivity = Date.now();
+      } else {
+        // §20.1 idle timeout: invalidate (null) when the idle window elapses
+        // without any request, otherwise refresh the activity stamp.
+        return applyIdleTimeout(token);
       }
       return token;
     },
