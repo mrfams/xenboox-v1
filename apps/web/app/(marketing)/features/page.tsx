@@ -17,6 +17,15 @@ import {
   Star,
 } from "lucide-react";
 
+import { Button } from "@/components/ui";
+import {
+  Section,
+  SectionHeading,
+  CheckItem,
+} from "@/components/marketing/section";
+import { FadeInUp } from "@/components/marketing/reveal";
+import { Cta } from "@/components/marketing/cta";
+
 // Animated counter component
 function AnimatedCounter({
   target,
@@ -88,13 +97,12 @@ const featureSections = [
       "Invoice processing with OCR",
       "Anomaly detection and alerts",
     ],
-    gradient: "from-blue-600 via-indigo-600 to-violet-600",
     visual: (
-      <div className="relative rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 shadow-2xl">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-3 w-3 rounded-full bg-red-500" />
-          <div className="h-3 w-3 rounded-full bg-yellow-500" />
-          <div className="h-3 w-3 rounded-full bg-green-500" />
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xl shadow-foreground/5">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="h-3 w-3 rounded-full bg-error-clay/70" />
+          <div className="h-3 w-3 rounded-full bg-attention-amber/70" />
+          <div className="h-3 w-3 rounded-full bg-balanced-green/70" />
         </div>
         <div className="space-y-3">
           {[
@@ -102,32 +110,34 @@ const featureSections = [
               label: "Invoice INV-2847",
               status: "Processed",
               time: "2s",
-              color: "text-emerald-400",
+              color: "text-balanced-green",
             },
             {
               label: "Bank reconciliation",
               status: "Running",
               time: "45s",
-              color: "text-blue-400",
+              color: "text-primary",
             },
             {
               label: "Payroll batch #142",
               status: "Queued",
               time: "—",
-              color: "text-amber-400",
+              color: "text-attention-amber",
             },
           ].map((item, i) => (
             <div
               key={i}
-              className="flex items-center justify-between rounded-lg bg-white/5 p-3"
+              className="flex items-center justify-between rounded-lg bg-muted/50 p-3"
             >
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center">
-                  <Zap className="h-4 w-4 text-white/60" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <Zap className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">{item.label}</p>
-                  <p className="text-xs text-white/50">{item.time}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {item.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{item.time}</p>
                 </div>
               </div>
               <span className={`text-xs font-medium ${item.color}`}>
@@ -136,11 +146,11 @@ const featureSections = [
             </div>
           ))}
         </div>
-        <div className="mt-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
+        <div className="mt-4 rounded-lg border border-balanced-green/20 bg-balanced-green/10 p-3">
           <div className="flex items-center gap-2">
-            <Bot className="h-4 w-4 text-emerald-400" />
-            <span className="text-sm text-emerald-300">
-              AI suggests: Categorize as "Office Supplies"
+            <Bot className="h-4 w-4 text-balanced-green" />
+            <span className="text-sm text-balanced-green">
+              AI suggests: Categorize as &quot;Office Supplies&quot;
             </span>
           </div>
         </div>
@@ -159,14 +169,13 @@ const featureSections = [
       "Custom report builder",
       "Export to PDF, Excel, CSV",
     ],
-    gradient: "from-emerald-600 via-teal-600 to-cyan-600",
     visual: (
-      <div className="relative rounded-2xl bg-white shadow-2xl p-6 border border-slate-200">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="font-semibold text-slate-900">Financial Overview</h4>
-          <span className="text-xs text-slate-500">Last 30 days</span>
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xl shadow-foreground/5">
+        <div className="mb-4 flex items-center justify-between">
+          <h4 className="font-semibold text-foreground">Financial Overview</h4>
+          <span className="text-xs text-muted-foreground">Last 30 days</span>
         </div>
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="mb-4 grid grid-cols-3 gap-4">
           {[
             {
               label: "Revenue",
@@ -187,22 +196,22 @@ const featureSections = [
               positive: true,
             },
           ].map((stat) => (
-            <div key={stat.label} className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">{stat.label}</p>
-              <p className="text-lg font-bold text-slate-900">{stat.value}</p>
+            <div key={stat.label} className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+              <p className="text-lg font-bold text-foreground">{stat.value}</p>
               <p
-                className={`text-xs font-medium ${stat.positive ? "text-emerald-600" : "text-red-600"}`}
+                className={`text-xs font-medium ${stat.positive ? "text-balanced-green" : "text-error-clay"}`}
               >
                 {stat.change}
               </p>
             </div>
           ))}
         </div>
-        <div className="h-32 flex items-end gap-1">
+        <div className="flex h-32 items-end gap-1">
           {[40, 55, 45, 60, 50, 65, 55, 70, 60, 75, 65, 80].map((h, i) => (
             <div
               key={i}
-              className="flex-1 bg-gradient-to-t from-blue-600 to-indigo-500 rounded-t"
+              className="flex-1 rounded-t bg-gradient-to-t from-primary to-indigo-500"
               style={{ height: `${h}%` }}
             />
           ))}
@@ -222,10 +231,11 @@ const featureSections = [
       "Automatic conversion",
       "Multi-currency reporting",
     ],
-    gradient: "from-amber-500 via-orange-500 to-red-500",
     visual: (
-      <div className="relative rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 shadow-2xl">
-        <h4 className="text-white font-semibold mb-4">Currency Dashboard</h4>
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xl shadow-foreground/5">
+        <h4 className="mb-4 font-semibold text-foreground">
+          Currency Dashboard
+        </h4>
         <div className="grid grid-cols-2 gap-3">
           {[
             { currency: "USD", flag: "🇺🇸", rate: "1.00", change: "+0.2%" },
@@ -233,13 +243,17 @@ const featureSections = [
             { currency: "GMD", flag: "🇬🇲", rate: "53.20", change: "+0.8%" },
             { currency: "EUR", flag: "🇪🇺", rate: "0.92", change: "+0.3%" },
           ].map((item) => (
-            <div key={item.currency} className="rounded-lg bg-white/5 p-3">
+            <div key={item.currency} className="rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{item.flag}</span>
-                <span className="text-white font-medium">{item.currency}</span>
+                <span className="font-medium text-foreground">
+                  {item.currency}
+                </span>
               </div>
-              <p className="text-white/60 text-sm mt-1">1 USD = {item.rate}</p>
-              <p className="text-emerald-400 text-xs">{item.change}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                1 USD = {item.rate}
+              </p>
+              <p className="text-xs text-balanced-green">{item.change}</p>
             </div>
           ))}
         </div>
@@ -258,16 +272,15 @@ const featureSections = [
       "Complete audit trail",
       "SOC 2 compliant",
     ],
-    gradient: "from-rose-600 via-pink-600 to-purple-600",
     visual: (
-      <div className="relative rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 shadow-2xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-            <Shield className="h-5 w-5 text-emerald-400" />
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xl shadow-foreground/5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-balanced-green/20">
+            <Shield className="h-5 w-5 text-balanced-green" />
           </div>
           <div>
-            <p className="text-white font-medium">Security Score</p>
-            <p className="text-emerald-400 text-sm">Excellent</p>
+            <p className="font-medium text-foreground">Security Score</p>
+            <p className="text-sm text-balanced-green">Excellent</p>
           </div>
         </div>
         <div className="space-y-2">
@@ -280,10 +293,12 @@ const featureSections = [
           ].map((item) => (
             <div
               key={item.label}
-              className="flex items-center justify-between rounded-lg bg-white/5 p-2"
+              className="flex items-center justify-between rounded-lg bg-muted/50 p-2"
             >
-              <span className="text-sm text-white/80">{item.label}</span>
-              <Check className="h-4 w-4 text-emerald-400" />
+              <span className="text-sm text-muted-foreground">
+                {item.label}
+              </span>
+              <Check className="h-4 w-4 text-balanced-green" />
             </div>
           ))}
         </div>
@@ -324,56 +339,80 @@ export default function FeaturesPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden bg-slate-950">
-        {/* Animated background */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[128px]" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-violet-500/20 rounded-full blur-[128px]" />
-        </div>
+      <section className="relative overflow-hidden bg-paper">
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden="true"
+          style={{
+            backgroundImage:
+              "radial-gradient(rgba(20, 33, 61, 0.06) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+            maskImage:
+              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-[480px]"
+          aria-hidden="true"
+          style={{
+            backgroundImage:
+              "radial-gradient(ellipse 70% 100% at 50% -10%, rgba(59, 79, 224, 0.12), transparent 70%)",
+          }}
+        />
 
-        <div className="relative z-10 mx-auto max-w-5xl px-4 text-center">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
-            Accounting that{" "}
-            <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
-              thinks for itself
-            </span>
-          </h1>
-
-          <p className="mt-6 text-xl text-white/60 max-w-2xl mx-auto leading-relaxed">
-            The first accounting platform where AI handles the work. Automated
-            reconciliations, intelligent categorization, and real-time insights
-            — so you can focus on growing your business.
-          </p>
-
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/register"
-              className="group relative inline-flex h-14 items-center rounded-2xl bg-white px-8 text-base font-semibold text-slate-900 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-white/20"
-            >
-              <span className="relative flex items-center gap-2">
-                Start Building Free
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 py-20 text-center sm:py-24 lg:py-28">
+            <FadeInUp>
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                Platform features
               </span>
-            </Link>
-            <Link
-              href="/demo"
-              className="inline-flex h-14 items-center rounded-2xl border border-white/20 bg-white/5 px-8 text-base font-medium text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/10"
-            >
-              Watch Demo
-            </Link>
-          </div>
-
-          {/* Stats */}
-          <div className="mt-16 grid grid-cols-2 gap-8 sm:grid-cols-4">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-3xl font-bold text-white">
-                  <AnimatedCounter target={stat.value} suffix={stat.suffix} />
-                </div>
-                <div className="mt-1 text-sm text-white/50">{stat.label}</div>
+            </FadeInUp>
+            <FadeInUp delay={0.05}>
+              <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Accounting that{" "}
+                <span className="text-primary">thinks for itself</span>
+              </h1>
+            </FadeInUp>
+            <FadeInUp delay={0.1}>
+              <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">
+                The first accounting platform where AI handles the work.
+                Automated reconciliations, intelligent categorization, and
+                real-time insights — so you can focus on growing your business.
+              </p>
+            </FadeInUp>
+            <FadeInUp delay={0.15}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button asChild size="lg" className="gap-2">
+                  <Link href="/onboarding">
+                    Start Building Free
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg">
+                  <Link href="/pricing">Watch Demo</Link>
+                </Button>
               </div>
-            ))}
+            </FadeInUp>
+            <FadeInUp delay={0.2}>
+              <div className="mt-10 grid w-full max-w-2xl grid-cols-2 gap-8 sm:grid-cols-4">
+                {stats.map((stat) => (
+                  <div key={stat.label} className="text-center">
+                    <div className="text-3xl font-bold text-foreground">
+                      <AnimatedCounter
+                        target={stat.value}
+                        suffix={stat.suffix}
+                      />
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </FadeInUp>
           </div>
         </div>
       </section>
@@ -382,75 +421,68 @@ export default function FeaturesPage() {
       {featureSections.map((section, index) => (
         <section
           key={section.id}
-          className={`py-24 sm:py-32 ${index % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
+          className={`${index % 2 === 0 ? "bg-paper" : "bg-paper-2/60"} py-20 sm:py-24 lg:py-28`}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div
-              className={`grid gap-16 lg:grid-cols-2 items-center ${
+              className={`grid items-center gap-16 lg:grid-cols-2 ${
                 index % 2 === 1 ? "lg:grid-flow-dense" : ""
               }`}
             >
               {/* Content */}
-              <div className={index % 2 === 1 ? "lg:col-start-2" : ""}>
-                <span
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r px-4 py-1.5 text-xs font-semibold text-white shadow-lg"
-                  style={{
-                    background: `linear-gradient(135deg, var(--tw-gradient-stops))`,
-                  }}
-                >
-                  <span
-                    className={`bg-gradient-to-r ${section.gradient} bg-clip-text text-transparent`}
-                  >
+              <FadeInUp className={index % 2 === 1 ? "lg:col-start-2" : ""}>
+                <div className="flex flex-col items-start gap-4">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                     {section.eyebrow}
                   </span>
-                </span>
-                <h2 className="mt-6 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                  {section.title}
-                </h2>
-                <p className="mt-6 text-lg text-slate-600 leading-relaxed">
-                  {section.description}
-                </p>
-                <ul className="mt-8 space-y-4">
-                  {section.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3">
-                      <Check className="mt-1 h-5 w-5 shrink-0 text-emerald-500" />
-                      <span className="text-slate-700">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                  <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                    {section.title}
+                  </h2>
+                  <p className="mt-2 text-lg leading-relaxed text-muted-foreground">
+                    {section.description}
+                  </p>
+                  <ul className="mt-4 space-y-3">
+                    {section.features.map((feature) => (
+                      <CheckItem key={feature}>{feature}</CheckItem>
+                    ))}
+                  </ul>
+                </div>
+              </FadeInUp>
 
               {/* Visual */}
-              <div className={index % 2 === 1 ? "lg:col-start-1" : ""}>
+              <FadeInUp
+                delay={0.15}
+                className={index % 2 === 1 ? "lg:col-start-1" : ""}
+              >
                 <div className="relative">
                   <div
-                    className={`absolute -inset-4 bg-gradient-to-r ${section.gradient} rounded-3xl opacity-20 blur-xl`}
+                    className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/15 via-transparent to-emerald-500/10 blur-xl"
+                    aria-hidden="true"
                   />
                   <div className="relative">{section.visual}</div>
                 </div>
-              </div>
+              </FadeInUp>
             </div>
           </div>
         </section>
       ))}
 
       {/* Bento Grid */}
-      <section className="py-24 sm:py-32 bg-white">
+      <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Everything you need,{" "}
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                nothing you don&apos;t
-              </span>
-            </h2>
-            <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-              Built for modern finance teams who want powerful tools without the
-              complexity.
-            </p>
-          </div>
+          <SectionHeading
+            eyebrow="Everything included"
+            title={
+              <>
+                Everything you need,{" "}
+                <span className="text-primary">nothing you don&apos;t</span>
+              </>
+            }
+            lead="Built for modern finance teams who want powerful tools without the complexity."
+          />
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: CreditCard,
@@ -489,103 +521,71 @@ export default function FeaturesPage() {
                 gradient: "from-cyan-500 to-cyan-600",
               },
             ].map((item) => (
-              <div
-                key={item.title}
-                className="group rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
-              >
-                <div
-                  className={`h-12 w-12 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-lg`}
-                >
-                  <item.icon className="h-6 w-6" />
+              <FadeInUp key={item.title}>
+                <div className="group h-full rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5">
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${item.gradient} text-white shadow-lg`}
+                  >
+                    <item.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold text-foreground">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {item.description}
+                  </p>
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">
-                  {item.title}
-                </h3>
-                <p className="mt-2 text-sm text-slate-600">
-                  {item.description}
-                </p>
-              </div>
+              </FadeInUp>
             ))}
           </div>
         </div>
-      </section>
+      </Section>
 
       {/* Testimonials */}
-      <section className="py-24 sm:py-32 bg-slate-50">
+      <Section className="bg-paper-2/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold tracking-tight text-slate-900">
-              Trusted by finance teams worldwide
-            </h2>
-          </div>
+          <SectionHeading
+            title="Trusted by finance teams worldwide"
+            lead="Hear from the teams that run their books with Xenboox."
+          />
 
-          <div className="grid gap-8 md:grid-cols-3">
+          <div className="mt-16 grid gap-8 md:grid-cols-3">
             {testimonials.map((testimonial, index) => (
-              <div
-                key={index}
-                className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm"
-              >
-                <div className="flex gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="h-5 w-5 fill-amber-400 text-amber-400"
-                    />
-                  ))}
-                </div>
-                <blockquote className="text-slate-700 leading-relaxed">
-                  &ldquo;{testimonial.quote}&rdquo;
-                </blockquote>
-                <div className="mt-6 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-sm">
-                    {testimonial.author.charAt(0)}
+              <FadeInUp key={index} delay={index * 0.1}>
+                <div className="h-full rounded-2xl border border-border bg-card p-8 shadow-sm">
+                  <div className="mb-4 flex gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className="h-5 w-5 fill-attention-amber text-attention-amber"
+                      />
+                    ))}
                   </div>
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {testimonial.author}
-                    </p>
-                    <p className="text-sm text-slate-500">{testimonial.role}</p>
+                  <blockquote className="leading-relaxed text-muted-foreground">
+                    &ldquo;{testimonial.quote}&rdquo;
+                  </blockquote>
+                  <div className="mt-6 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-500 text-sm font-semibold text-white">
+                      {testimonial.author.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {testimonial.author}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {testimonial.role}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </FadeInUp>
             ))}
           </div>
         </div>
-      </section>
+      </Section>
 
-      {/* CTA Section */}
-      <section className="py-24 sm:py-32 bg-slate-950 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[128px]" />
-        </div>
-        <div className="relative z-10 mx-auto max-w-4xl px-4 text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-white">
-            Ready to transform your accounting?
-          </h2>
-          <p className="mt-6 text-xl text-white/60">
-            Join thousands of businesses using Xenboox to automate their finance
-            operations.
-          </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/register"
-              className="group inline-flex h-14 items-center rounded-2xl bg-white px-8 text-base font-semibold text-slate-900 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
-            >
-              Get Started Free
-              <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex h-14 items-center rounded-2xl border border-white/20 px-8 text-base font-medium text-white transition-all duration-300 hover:bg-white/10"
-            >
-              View Pricing
-            </Link>
-          </div>
-          <p className="mt-6 text-sm text-white/40">
-            No credit card required · Free tier available · Setup in minutes
-          </p>
-        </div>
-      </section>
+      {/* CTA */}
+      <Cta />
     </>
   );
 }

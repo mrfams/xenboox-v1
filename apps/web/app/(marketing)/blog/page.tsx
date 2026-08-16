@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Calendar, Search, Tag, Sparkles } from "lucide-react";
 
+import { Button } from "@/components/ui";
+import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
 import { trpc } from "@/lib/trpc/client";
 
@@ -42,38 +44,55 @@ export default function BlogPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative min-h-[50vh] flex items-center justify-center overflow-hidden bg-slate-950">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-          <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-blue-500/15 rounded-full blur-[128px]" />
-          <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-violet-500/15 rounded-full blur-[128px]" />
-        </div>
+      <section className="relative overflow-hidden bg-paper">
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden="true"
+          style={{
+            backgroundImage:
+              "radial-gradient(rgba(20, 33, 61, 0.06) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+            maskImage:
+              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-[480px]"
+          aria-hidden="true"
+          style={{
+            backgroundImage:
+              "radial-gradient(ellipse 70% 100% at 50% -10%, rgba(59, 79, 224, 0.12), transparent 70%)",
+          }}
+        />
 
-        <div className="relative z-10 mx-auto max-w-5xl px-4 text-center">
-          <FadeInUp>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 mb-8">
-              <Sparkles className="h-4 w-4 text-blue-400" />
-              <span className="text-sm text-white/80">Xenboox Blog</span>
-            </div>
-
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
-              Insights &{" "}
-              <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
-                Updates
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 py-20 text-center sm:py-24">
+            <FadeInUp>
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Xenboox Blog
               </span>
-            </h1>
-
-            <p className="mt-6 text-xl text-white/60 max-w-2xl mx-auto leading-relaxed">
-              Product updates, engineering deep-dives, and insights from the
-              team building the future of accounting.
-            </p>
-          </FadeInUp>
+            </FadeInUp>
+            <FadeInUp delay={0.05}>
+              <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Insights & <span className="text-primary">Updates</span>
+              </h1>
+            </FadeInUp>
+            <FadeInUp delay={0.1}>
+              <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">
+                Product updates, engineering deep-dives, and insights from the
+                team building the future of accounting.
+              </p>
+            </FadeInUp>
+          </div>
         </div>
       </section>
 
       {/* Search & Filter */}
-      <section className="sticky top-14 z-30 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-        <div className="mx-auto max-w-6xl px-4 py-4">
+      <section className="sticky top-14 z-30 border-y border-border bg-paper/95 backdrop-blur supports-[backdrop-filter]:bg-paper/80">
+        <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-2">
               {categories.map((cat) => (
@@ -82,8 +101,8 @@ export default function BlogPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
                     selectedCategory === cat
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground"
                   }`}
                 >
                   {cat}
@@ -91,13 +110,13 @@ export default function BlogPage() {
               ))}
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search posts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm outline-none transition-colors focus:border-blue-400 focus:bg-white sm:w-64"
+                className="w-full rounded-lg border border-border bg-card py-2 pl-10 pr-4 text-sm outline-none transition-colors focus:border-primary sm:w-64"
               />
             </div>
           </div>
@@ -106,10 +125,10 @@ export default function BlogPage() {
 
       {/* Featured Posts */}
       {selectedCategory === "All" && searchQuery === "" && (
-        <section className="py-12 bg-white">
-          <div className="mx-auto max-w-6xl px-4">
+        <Section className="bg-paper">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <FadeInUp>
-              <h2 className="text-2xl font-bold text-slate-900 mb-8">
+              <h2 className="mb-8 text-2xl font-bold text-foreground">
                 Featured
               </h2>
             </FadeInUp>
@@ -118,34 +137,34 @@ export default function BlogPage() {
                 <FadeInUp key={post.slug} delay={index * 0.1}>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-8 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                    className="group relative block h-full overflow-hidden rounded-2xl border border-border bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5"
                   >
-                    <div className="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-gradient-to-br from-blue-500/10 to-violet-500/10 blur-3xl" />
+                    <div className="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-gradient-to-br from-primary/10 to-emerald-500/10 blur-3xl" />
                     <div className="relative">
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                      <div className="mb-4 flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                           <Tag className="h-3 w-3" />
                           {post.category}
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-muted-foreground">
                           {post.readTime}
                         </span>
                       </div>
-                      <h3 className="text-2xl font-bold text-slate-900 transition-colors group-hover:text-blue-600">
+                      <h3 className="text-2xl font-bold text-foreground transition-colors group-hover:text-primary">
                         {post.title}
                       </h3>
-                      <p className="mt-3 text-slate-600 leading-relaxed">
+                      <p className="mt-3 leading-relaxed text-muted-foreground">
                         {post.excerpt}
                       </p>
                       <div className="mt-6 flex items-center justify-between">
-                        <div className="flex items-center gap-4 text-sm text-slate-500">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
                             {post.date}
                           </span>
                           <span>By {post.author.name}</span>
                         </div>
-                        <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 opacity-0 transition-all group-hover:opacity-100">
+                        <span className="inline-flex items-center gap-1 text-sm font-medium text-primary opacity-0 transition-all group-hover:opacity-100">
                           Read more <ArrowRight className="h-4 w-4" />
                         </span>
                       </div>
@@ -155,25 +174,25 @@ export default function BlogPage() {
               ))}
             </div>
           </div>
-        </section>
+        </Section>
       )}
 
       {/* All Posts */}
-      <section className="py-12 bg-slate-50">
-        <div className="mx-auto max-w-6xl px-4">
+      <Section className="bg-paper-2/60">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <FadeInUp>
-            <h2 className="text-2xl font-bold text-slate-900 mb-8">
+            <h2 className="mb-8 text-2xl font-bold text-foreground">
               {selectedCategory === "All" ? "All Posts" : selectedCategory}
             </h2>
           </FadeInUp>
 
           {isLoading ? (
-            <div className="text-center py-12">
-              <p className="text-slate-400">Loading posts...</p>
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">Loading posts...</p>
             </div>
           ) : filteredPosts.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-slate-500">
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">
                 No posts found matching your criteria.
               </p>
             </div>
@@ -183,30 +202,30 @@ export default function BlogPage() {
                 <FadeInUp key={post.slug} delay={index * 0.05}>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="group flex flex-col h-full rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                    className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5"
                   >
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                    <div className="mb-4 flex items-center gap-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                         {post.category}
                       </span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-muted-foreground">
                         {post.readTime}
                       </span>
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900 transition-colors group-hover:text-blue-600 line-clamp-2">
+                    <h3 className="line-clamp-2 text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
                       {post.title}
                     </h3>
-                    <p className="mt-2 text-sm text-slate-600 line-clamp-3 flex-1">
+                    <p className="mt-2 line-clamp-3 flex-1 text-sm text-muted-foreground">
                       {post.excerpt}
                     </p>
-                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-sm text-slate-500">
+                    <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3.5 w-3.5" />
                           {post.date}
                         </span>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-slate-400 opacity-0 transition-all group-hover:opacity-100 group-hover:text-blue-600" />
+                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-hover:text-primary" />
                     </div>
                   </Link>
                 </FadeInUp>
@@ -214,43 +233,51 @@ export default function BlogPage() {
             </div>
           )}
         </div>
-      </section>
+      </Section>
 
       {/* Newsletter CTA */}
-      <section className="py-20 bg-slate-950 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[128px]" />
-        </div>
-        <div className="relative z-10 mx-auto max-w-2xl px-4 text-center">
+      <Section className="bg-paper">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <FadeInUp>
-            <h2 className="text-3xl font-bold text-white">Stay in the loop</h2>
-            <p className="mt-3 text-white/60">
-              Get product updates, engineering deep-dives, and insights
-              delivered to your inbox.
-            </p>
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="mx-auto mt-8 flex max-w-md gap-3"
-            >
-              <input
-                type="email"
-                placeholder="you@company.com"
-                required
-                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/40 outline-none backdrop-blur-sm transition-colors focus:border-blue-500/50"
+            <div className="relative overflow-hidden rounded-3xl bg-ledger-ink px-8 py-16 text-center sm:px-16">
+              <div
+                className="pointer-events-none absolute inset-0"
+                aria-hidden="true"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(ellipse 60% 90% at 80% 0%, rgba(59, 79, 224, 0.35), transparent 60%), radial-gradient(ellipse 50% 80% at 10% 100%, rgba(15, 113, 89, 0.25), transparent 60%)",
+                }}
               />
-              <button
-                type="submit"
-                className="shrink-0 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:bg-blue-500"
-              >
-                Subscribe
-              </button>
-            </form>
-            <p className="mt-4 text-xs text-white/40">
-              No spam. Unsubscribe anytime.
-            </p>
+              <div className="relative mx-auto max-w-xl">
+                <h2 className="text-3xl font-semibold tracking-tight text-paper">
+                  Stay in the loop
+                </h2>
+                <p className="mx-auto mt-3 text-paper/70">
+                  Get product updates, engineering deep-dives, and insights
+                  delivered to your inbox.
+                </p>
+                <form
+                  onSubmit={(e) => e.preventDefault()}
+                  className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row"
+                >
+                  <input
+                    type="email"
+                    placeholder="you@company.com"
+                    required
+                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-paper placeholder-paper/40 outline-none backdrop-blur-sm transition-colors focus:border-primary/50"
+                  />
+                  <Button type="submit" size="lg" className="shrink-0">
+                    Subscribe
+                  </Button>
+                </form>
+                <p className="mt-4 text-xs text-paper/40">
+                  No spam. Unsubscribe anytime.
+                </p>
+              </div>
+            </div>
           </FadeInUp>
         </div>
-      </section>
+      </Section>
     </>
   );
 }
