@@ -161,8 +161,8 @@ export const FEATURES: Feature[] = [
     name: "Auto-posting with review signals",
     category: "Automated Bookkeeping",
     description:
-      "Batch high-confidence items for one-click approval with clear confidence cues — green (safe), amber (verify), red (hold).",
-    status: "partial",
+      "Batch high-confidence items for one-click approval with clear confidence cues — green (safe), amber (verify), red (hold). Live in the review queues and journal approval flow with before/after diff confirmations.",
+    status: "shipped",
     href: "/dashboard/review-queue",
     source: "QuickBooks Ready to post · Review Signals",
   },
@@ -171,8 +171,8 @@ export const FEATURES: Feature[] = [
     name: "Bill-to-PO matching",
     category: "Automated Bookkeeping",
     description:
-      "Automatically match incoming bills against purchase orders and flag price or quantity mismatches.",
-    status: "planned",
+      "Automatically match incoming bills against purchase orders and flag price or quantity mismatches. Live on the Bills page with AI suggestions and one-click match.",
+    status: "shipped",
     source: "Sage AP automation",
   },
   {
@@ -180,8 +180,8 @@ export const FEATURES: Feature[] = [
     name: "Recurring & scheduled automation",
     category: "Automated Bookkeeping",
     description:
-      "Recurring transactions, scheduled payments, and reminder schedules that run without manual setup each time.",
-    status: "partial",
+      "Recurring transactions, scheduled payments, and reminder schedules that run without manual setup each time. Live in Automation Studio with AI-suggested schedules.",
+    status: "shipped",
     source: "Xero · QuickBooks",
   },
 
@@ -231,8 +231,8 @@ export const FEATURES: Feature[] = [
     name: "Scenario planning / what-if",
     category: "Insights & Forecasting",
     description:
-      "Model changes — 'what if churn rises 5%?' or 'what if we hire two more people?' — against cash flow and runway.",
-    status: "planned",
+      "Model changes — 'what if churn rises 5%?' or 'what if we hire two more people?' — against cash flow and runway. Live on Insights with runway projections on real cash data.",
+    status: "shipped",
     source: "QuickBooks scenario planning · Brex",
   },
 
@@ -242,8 +242,8 @@ export const FEATURES: Feature[] = [
     name: "AI-drafted invoice reminders",
     category: "Payments & Collections",
     description:
-      "Personalized overdue reminders drafted from invoice status and customer history.",
-    status: "planned",
+      "Personalized overdue reminders drafted from invoice status and customer history. Live in the AR collections flow with per-customer tone tuning.",
+    status: "shipped",
     source: "QuickBooks Payments AI (gets paid ~5 days faster)",
   },
   {
@@ -251,8 +251,8 @@ export const FEATURES: Feature[] = [
     name: "AR collections agent",
     category: "Payments & Collections",
     description:
-      "An agent that chases overdue invoices automatically, tuning tone per customer and escalating stubborn accounts.",
-    status: "planned",
+      "An agent that chases overdue invoices automatically, tuning tone per customer and escalating stubborn accounts. Live on the Customers page with aging queue and drafted reminders.",
+    status: "shipped",
     source: "Brex Agents · Intercom Fin",
   },
 

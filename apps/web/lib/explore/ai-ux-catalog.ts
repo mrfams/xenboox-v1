@@ -123,8 +123,8 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     name: "AR collections agent",
     category: "Agent Workflows",
     description:
-      "Overdue invoices are chased automatically with tone tuned per customer; stubborn accounts escalate to you with full context.",
-    status: "planned",
+      "Overdue invoices are chased automatically with tone tuned per customer; stubborn accounts escalate to you with full context. Live on Customers with aging queue, drafted reminders, and send-to-email.",
+    status: "shipped",
     traceId: "collections-flow",
     href: "/dashboard/customers",
     source: "Brex Agents · Intercom Fin",
@@ -491,8 +491,8 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     name: "Journal review & anomaly flagging",
     category: "Agent Workflows",
     description:
-      "Recent postings are audited for duplicates, unbalanced rounding, and skipped approvals — corrections drafted for one-click sign-off.",
-    status: "partial",
+      "Recent postings are audited for duplicates, unbalanced rounding, and skipped approvals — corrections drafted for one-click sign-off. Live on Journal with Review & Post diff confirmations.",
+    status: "shipped",
     traceId: "journal-review",
     href: "/dashboard/journal",
     source: "Xero / QuickBooks audit trails",
@@ -579,8 +579,8 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     name: "Automation workflow builder",
     category: "Agent Workflows",
     description:
-      "Repetitive manual work is observed and turned into a ready-to-enable automation recipe.",
-    status: "partial",
+      "Repetitive manual work is observed and turned into a ready-to-enable automation recipe. Live in Automation Studio with AI-suggested schedules, entity-scoped execution, and full history.",
+    status: "shipped",
     traceId: "automation-suggestion",
     href: "/dashboard/automation",
     source: "Zapier · QuickBooks Automation",
@@ -590,8 +590,8 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     name: "Approval pre-review & triage",
     category: "Agent Workflows",
     description:
-      "Pending approvals are triaged by the agents first — routine items resolved, policy conflicts escalated to you.",
-    status: "partial",
+      "Pending approvals are triaged by the agents first — routine items resolved, policy conflicts escalated to you. Live on Review Queue with one-click approve and diff confirmation.",
+    status: "shipped",
     traceId: "approval-pre-review",
     href: "/dashboard/review-queue",
     source: "Basis · Digits review queues",
