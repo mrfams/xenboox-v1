@@ -361,7 +361,7 @@ export function AIComposer({
       { query: mentionQuery, limit: 6 },
       {
         enabled: mentionActive && !!entityId,
-        keepPreviousData: true,
+        placeholderData: (prev) => prev,
       },
     );
 

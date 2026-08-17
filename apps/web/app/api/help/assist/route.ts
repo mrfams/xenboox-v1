@@ -155,8 +155,8 @@ ${catalog}
 You can also mention these pages: /dashboard/transactions, /dashboard/reports, /dashboard/vendors, /dashboard/customers, /dashboard/treasury, /dashboard/explore, /docs/faq.`;
 }
 
-function sse(event: string, data: unknown): string {
-  return `data: ${JSON.stringify({ event, ...data })}\n\n`;
+function sse(event: string, data?: Record<string, unknown>): string {
+  return `data: ${JSON.stringify({ event, ...(data ?? {}) })}\n\n`;
 }
 
 export async function POST(req: NextRequest) {

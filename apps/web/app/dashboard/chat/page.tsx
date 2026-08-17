@@ -1274,8 +1274,9 @@ function ChatMessages({
       {messages && messages.length > 0 ? (
         messages.map((msg) => {
           const artifacts = parseChatArtifacts(msg.metadata);
-          const pinned = Array.isArray(msg.metadata?.pinned)
-            ? (msg.metadata.pinned as PinnedContext[])
+          const rawMetadata = (msg.metadata ?? {}) as Record<string, unknown>;
+          const pinned = Array.isArray(rawMetadata.pinned)
+            ? (rawMetadata.pinned as PinnedContext[])
             : [];
           return (
             <div

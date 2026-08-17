@@ -1012,11 +1012,8 @@ export const dashboardRouter = router({
       );
 
     const now = new Date();
-    const sparklineStart = new Date(
-      now.getFullYear(),
-      now.getMonth() - (SPARKLINE_MONTHS - 1),
-      1,
-    )
+    // 6-month window, mirroring the main dashboard sparkline lookback.
+    const sparklineStart = new Date(now.getFullYear(), now.getMonth() - 5, 1)
       .toISOString()
       .slice(0, 10);
 
@@ -1040,7 +1037,7 @@ export const dashboardRouter = router({
     );
     const monthlyRevenues = fillMonthlyWindow(
       revenueRows as Array<{ month: string | null; total: string | null }>,
-      SPARKLINE_MONTHS,
+      6,
       now,
     );
 
@@ -1064,7 +1061,7 @@ export const dashboardRouter = router({
     );
     const monthlyExpenses = fillMonthlyWindow(
       expenseRows as Array<{ month: string | null; total: string | null }>,
-      SPARKLINE_MONTHS,
+      6,
       now,
     );
 
