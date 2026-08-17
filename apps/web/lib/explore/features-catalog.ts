@@ -404,8 +404,8 @@ export const FEATURES: Feature[] = [
     name: "Interactive diff confirmations",
     category: "Agent Workforce",
     description:
-      "Approve AI-proposed changes on a before/after diff card — see exactly what would change before it posts.",
-    status: "planned",
+      "Approve AI-proposed changes on a before/after diff card — see exactly what would change before it posts. Live in review queues and the journal approval flow.",
+    status: "shipped",
     source: "GitHub Copilot · Salesforce Agentforce",
   },
   {

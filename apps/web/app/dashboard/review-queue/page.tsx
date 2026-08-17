@@ -23,6 +23,7 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
+import { DiffConfirmationDialog } from "@/components/shared/diff-confirmation";
 
 type Tab = "all" | "pending" | "escalated" | "resolved";
 
@@ -36,6 +37,19 @@ const TAB_CONFIG: Record<Tab, { label: string; icon: React.ElementType }> = {
 export default function ReviewQueuePage() {
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
+  const [approvingItem, setApprovingItem] = useState<{
+    id: string;
+    title: string;
+    subtitle: string;
+  } | null>(null);
+
+  const utils = trpc.useUtils();
+  const postMutation = trpc.journal.post.useMutation({
+    onSuccess: () => {
+      utils.dashboard.getDashboardData.invalidate();
+      setApprovingItem(null);
+    },
+  });
 
   // Use the dashboard's pending approvals + escalations as a lightweight
   // review queue. The admin review-queue router is admin-only, so we surface
@@ -241,12 +255,67 @@ export default function ReviewQueuePage() {
                   >
                     {item.status === "review" ? "Escalated" : "Pending"}
                   </Badge>
+                  {item.type === "journal_entry" && (
+                    <button
+                      onClick={() =>
+                        setApprovingItem({
+                          id: item.id,
+                          title: item.title,
+                          subtitle: item.subtitle,
+                        })
+                      }
+                      disabled={postMutation.isPending}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Approve
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <DiffConfirmationDialog
+        open={approvingItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setApprovingItem(null);
+        }}
+        title="Approve Journal Entry"
+        description="Confirm the exact change before posting this entry to the general ledger. This action is audit-logged and irreversible once posted."
+        items={
+          approvingItem
+            ? [
+                {
+                  id: approvingItem.id,
+                  title: approvingItem.title,
+                  fields: [
+                    {
+                      label: "Status",
+                      before: "Pending",
+                      after: "Posted",
+                    },
+                    {
+                      label: "Entry",
+                      before: approvingItem.subtitle,
+                      after: approvingItem.subtitle,
+                    },
+                  ],
+                  reason:
+                    "Posting this entry moves it from pending approval to the general ledger. The change is audit-logged.",
+                  confidence: 95,
+                },
+              ]
+            : []
+        }
+        confirmLabel="Post Entry"
+        onConfirm={async () => {
+          if (!approvingItem) return;
+          await postMutation.mutateAsync({ id: approvingItem.id });
+        }}
+      />
     </div>
   );
 }

@@ -17,8 +17,11 @@ import {
   ChevronRight,
   MoreHorizontal,
   ExternalLink,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 
+import { DiffConfirmationDialog } from "@/components/shared/diff-confirmation";
 import { trpc } from "@/lib/trpc/client";
 
 // KPI Card Component
@@ -206,6 +209,118 @@ function DetailPanel({ item, onClose }: { item: any; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<
     "details" | "evidence" | "history"
   >("details");
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    | "approve_match"
+    | "create_new_record"
+    | "request_more_info"
+    | "escalate"
+    | null
+  >(null);
+
+  const utils = trpc.useUtils();
+  const performAction = trpc.reviewQueue.performAction.useMutation({
+    onSuccess: () => {
+      utils.reviewQueue.getOverview.invalidate();
+      utils.reviewQueue.getDetail.invalidate({ id: item.id });
+    },
+  });
+
+  const actionMeta: Record<
+    "approve_match" | "create_new_record" | "request_more_info" | "escalate",
+    {
+      label: string;
+      to: string;
+      fields: Array<{ label: string; before: string; after: string }>;
+    }
+  > = {
+    approve_match: {
+      label: "Approve Match",
+      to: "resolved",
+      fields: [
+        {
+          label: "Status",
+          before: item.status ?? "pending",
+          after: "resolved",
+        },
+        {
+          label: "Resolution",
+          before: "unresolved",
+          after: "match approved — agent's proposed record accepted",
+        },
+      ],
+    },
+    create_new_record: {
+      label: "Create New Record",
+      to: "resolved",
+      fields: [
+        {
+          label: "Status",
+          before: item.status ?? "pending",
+          after: "resolved",
+        },
+        {
+          label: "Resolution",
+          before: "unresolved",
+          after: "new record created from review item",
+        },
+      ],
+    },
+    request_more_info: {
+      label: "Request More Info",
+      to: "pending",
+      fields: [
+        {
+          label: "Status",
+          before: item.status ?? "pending",
+          after: "pending (awaiting more info)",
+        },
+        {
+          label: "Next step",
+          before: "—",
+          after: "agent re-sends with additional context",
+        },
+      ],
+    },
+    escalate: {
+      label: "Escalate",
+      to: "escalated",
+      fields: [
+        {
+          label: "Status",
+          before: item.status ?? "pending",
+          after: "escalated",
+        },
+        {
+          label: "Assignee",
+          before: item.assignedTo ?? "unassigned",
+          after: "human supervisor",
+        },
+      ],
+    },
+  };
+
+  const handleAction = async (
+    action:
+      | "approve_match"
+      | "create_new_record"
+      | "request_more_info"
+      | "escalate",
+  ) => {
+    setPendingAction(action);
+    setDiffOpen(true);
+  };
+
+  const confirmAction = async (_ids: string[]) => {
+    if (!pendingAction) return;
+    await performAction.mutateAsync({
+      reviewItemId: item.id,
+      action: pendingAction,
+      notes: `Reviewed from queue — ${pendingAction.replace(/_/g, " ")}`,
+    });
+    setDiffOpen(false);
+    setPendingAction(null);
+  };
 
   return (
     <div className="w-[400px] border-l bg-white flex flex-col">
@@ -344,24 +459,72 @@ function DetailPanel({ item, onClose }: { item: any; onClose: () => void }) {
         )}
       </div>
 
-      {/* Actions */}
+      {/* Actions — each opens a before/after diff confirmation so the
+          reviewer sees exactly what will change before it commits. */}
       <div className="p-4 border-t space-y-2">
-        <Button className="w-full bg-purple-600 hover:bg-purple-700">
+        <Button
+          className="w-full bg-purple-600 hover:bg-purple-700"
+          onClick={() => handleAction("approve_match")}
+          disabled={performAction.isPending}
+        >
+          {performAction.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+          )}
           Approve Match
         </Button>
-        <Button variant="outline" className="w-full">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => handleAction("create_new_record")}
+          disabled={performAction.isPending}
+        >
           Create New Record
         </Button>
-        <Button variant="outline" className="w-full">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => handleAction("request_more_info")}
+          disabled={performAction.isPending}
+        >
           Request More Info
         </Button>
         <Button
           variant="outline"
           className="w-full text-red-600 border-red-200 hover:bg-red-50"
+          onClick={() => handleAction("escalate")}
+          disabled={performAction.isPending}
         >
           Escalate
         </Button>
       </div>
+
+      {/* Diff confirmation dialog */}
+      {pendingAction && (
+        <DiffConfirmationDialog
+          open={diffOpen}
+          onOpenChange={(open) => {
+            setDiffOpen(open);
+            if (!open) setPendingAction(null);
+          }}
+          title={actionMeta[pendingAction].label}
+          description="Review the exact change this action will make before committing."
+          items={[
+            {
+              id: item.id,
+              title: item.title,
+              fields: actionMeta[pendingAction].fields,
+              reason:
+                item.aiRecommendation ??
+                `Confidence-weighted review of this ${item.type ?? "review"} item.`,
+              confidence: 90,
+            },
+          ]}
+          confirmLabel="Confirm"
+          onConfirm={confirmAction}
+        />
+      )}
     </div>
   );
 }

@@ -25,6 +25,7 @@ import type { SummaryCardItem } from "@/components/module/module-page-shell.type
 import { RowAiAction } from "@/components/module/row-ai-action";
 import { CreateJournalEntryDialog } from "@/components/dashboard/create-journal-entry-dialog";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
+import { DiffConfirmationDialog } from "@/components/shared/diff-confirmation";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
@@ -88,6 +89,7 @@ function buildSummaryCards(overview: {
 function JournalTable({
   entries,
   isLoading,
+  onApprove,
 }: {
   entries: Array<{
     id: string;
@@ -107,6 +109,19 @@ function JournalTable({
     isAiGenerated: boolean;
   }>;
   isLoading: boolean;
+  onApprove?: (entry: {
+    id: string;
+    entryNumber: string;
+    date: string;
+    description: string;
+    reference: string | null;
+    debit: number;
+    debitFormatted: string;
+    credit: number;
+    creditFormatted: string;
+    status: string;
+    source: string;
+  }) => void;
 }) {
   const statusColors: Record<string, string> = {
     Draft: "bg-slate-100 text-slate-600",
@@ -265,7 +280,22 @@ function JournalTable({
                   )}
                 </div>
               </td>
-              <td className="py-3 px-4" />
+              <td className="py-3 px-4">
+                {entry.status === "Pending Approval" && onApprove ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApprove(entry);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Review & Post
+                  </button>
+                ) : (
+                  <span className="text-xs text-slate-400">—</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -878,6 +908,25 @@ export default function JournalEntriesPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [showCreate, setShowCreate] = useState(false);
+  const [approvingEntry, setApprovingEntry] = useState<{
+    id: string;
+    entryNumber: string;
+    date: string;
+    description: string;
+    reference: string | null;
+    debitFormatted: string;
+    creditFormatted: string;
+    source: string;
+  } | null>(null);
+
+  const utils = trpc.useUtils();
+  const postMutation = trpc.journal.post.useMutation({
+    onSuccess: () => {
+      utils.journal.getOverview.invalidate();
+      utils.journal.getTabCounts.invalidate();
+      utils.journal.listWithDetails.invalidate();
+    },
+  });
 
   // Fetch overview
   const { data: overview } = trpc.journal.getOverview.useQuery({});
@@ -1067,11 +1116,91 @@ export default function JournalEntriesPage() {
         <JournalTable
           entries={entriesData?.entries ?? []}
           isLoading={entriesLoading}
+          onApprove={(entry) =>
+            setApprovingEntry({
+              id: entry.id,
+              entryNumber: entry.entryNumber,
+              date: entry.date,
+              description: entry.description,
+              reference: entry.reference,
+              debitFormatted: entry.debitFormatted,
+              creditFormatted: entry.creditFormatted,
+              source: entry.source,
+            })
+          }
         />
       )}
       <CreateJournalEntryDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}
+      />
+      <DiffConfirmationDialog
+        open={approvingEntry !== null}
+        onOpenChange={(open) => {
+          if (!open) setApprovingEntry(null);
+        }}
+        title={`Review & Post ${approvingEntry?.entryNumber ?? ""}`}
+        description="Confirm the exact change before posting this entry to the general ledger. This action is audit-logged and irreversible once posted."
+        items={
+          approvingEntry
+            ? [
+                {
+                  id: approvingEntry.id,
+                  title: approvingEntry.description,
+                  fields: [
+                    {
+                      label: "Status",
+                      before: "Pending Approval",
+                      after: "Posted",
+                    },
+                    {
+                      label: "Date",
+                      before: new Date(approvingEntry.date).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        },
+                      ),
+                      after: new Date(approvingEntry.date).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        },
+                      ),
+                    },
+                    {
+                      label: "Debit",
+                      before: approvingEntry.debitFormatted,
+                      after: approvingEntry.debitFormatted,
+                    },
+                    {
+                      label: "Credit",
+                      before: approvingEntry.creditFormatted,
+                      after: approvingEntry.creditFormatted,
+                    },
+                    {
+                      label: "Source",
+                      before: approvingEntry.source,
+                      after: approvingEntry.source,
+                    },
+                  ],
+                  reason:
+                    "This entry is being moved from pending approval to posted. The general ledger will reflect this posting immediately.",
+                  confidence: 95,
+                },
+              ]
+            : []
+        }
+        confirmLabel="Post Entry"
+        onConfirm={async () => {
+          if (!approvingEntry) return;
+          await postMutation.mutateAsync({ id: approvingEntry.id });
+          setApprovingEntry(null);
+        }}
       />
     </ModulePageShell>
   );
