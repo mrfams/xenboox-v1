@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Clipboard, RefreshCw, CalendarClock } from "lucide-react";
 import {
   Search,
   Plus,
@@ -20,6 +19,9 @@ import {
   CreditCard,
   BarChart3,
   Eye,
+  Mail,
+  Clipboard,
+  CalendarClock,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
