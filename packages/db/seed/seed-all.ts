@@ -23,6 +23,7 @@ import { seedAdminOps } from "./seed-admin-ops";
 import { seedWorkflowData } from "./seed-workflow-data";
 import { seedContent } from "./seed-content";
 import { seedAutomationRules } from "./seed-automation";
+import { seedSixMonths } from "./seed-six-months";
 import { findOrCreateUser, removeOtherEntities } from "./seed-lib";
 
 function currentMonthLabel(): string {
@@ -152,6 +153,10 @@ async function main() {
 
   // Tenant Automation Studio rules for the demo entity.
   await seedAutomationRules();
+
+  // 6 months of realistic operational history (AR/AP, payroll, bank,
+  // mobile money, estimates, expenses, documents, journal entries).
+  await seedSixMonths();
 
   console.log("\n════════════════════════════════════════════════════════");
   console.log("SEED COMPLETE — both accounts verified");
