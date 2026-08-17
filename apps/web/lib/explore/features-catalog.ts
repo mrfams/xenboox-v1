@@ -91,8 +91,8 @@ export const FEATURES: Feature[] = [
     name: "In-app help assistant",
     category: "AI Conversation",
     description:
-      "Ask 'how do I…' and get guided, product-aware answers instead of digging through help docs.",
-    status: "planned",
+      "Ask 'how do I…' and get guided, product-aware answers instead of digging through help docs. Live on the Help Center with streaming answers grounded in the help catalog.",
+    status: "shipped",
     source: "Xero JAX in-app help · Sage Search Help with Copilot",
   },
   {
