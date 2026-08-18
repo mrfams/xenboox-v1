@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { auditLog } from "@xenboox/db/schema/documents";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   getSsoSettings,
@@ -56,7 +56,7 @@ export const ssoRouter = router({
    * Get current SSO settings.
    * Returns the settings with source (config/env/default) and derived state.
    */
-  getSettings: adminProcedure.query(async ({ ctx }) => {
+  getSettings: adminProtectedProcedure.query(async ({ ctx }) => {
     const { settings, source } = getSsoSettings();
 
     // Derive status flags
@@ -81,10 +81,10 @@ export const ssoRouter = router({
    * Save SSO settings.
    * Validates input, persists to config file, logs to audit trail.
    */
-  saveSettings: adminProcedure
+  saveSettings: adminProtectedProcedure
     .input(saveSsoSettingsSchema)
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session?.user?.id ?? "admin";
+      const userId = ctx.adminUser.id;
 
       // Validate: if SSO is enabled, provider and credentials are required
       if (input.enabled && input.provider === "none") {
@@ -163,7 +163,7 @@ export const ssoRouter = router({
   /**
    * List available SSO providers with descriptions.
    */
-  getProviders: adminProcedure.query(async () => {
+  getProviders: adminProtectedProcedure.query(async () => {
     return [
       {
         value: "azure",
@@ -206,7 +206,7 @@ export const ssoRouter = router({
   /**
    * Get SSO status summary (lightweight, for nav/header).
    */
-  getStatus: adminProcedure.query(async () => {
+  getStatus: adminProtectedProcedure.query(async () => {
     const { settings, source } = getSsoSettings();
     const isConfigured =
       settings.enabled &&
@@ -226,7 +226,7 @@ export const ssoRouter = router({
    * Test SSO domain enforcement.
    * Returns whether the given email would be forced to use SSO.
    */
-  testDomainEnforcement: adminProcedure
+  testDomainEnforcement: adminProtectedProcedure
     .input(z.object({ email: z.string().email() }))
     .query(async ({ input }) => {
       const enforced = isDomainEnforced(input.email);

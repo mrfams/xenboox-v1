@@ -9,11 +9,11 @@ import {
 } from "@xenboox/db/schema";
 import { db } from "@xenboox/db";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 
 export const infrastructureRouter = router({
   // Get dashboard overview with KPIs and all data
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z.object({
         days: z.number().default(7),
@@ -166,7 +166,7 @@ export const infrastructureRouter = router({
     }),
 
   // Seed demo data
-  seedDemoData: adminProcedure.mutation(async () => {
+  seedDemoData: adminProtectedProcedure.mutation(async () => {
     // Clear existing data
     await db.delete(infraResourceUsage);
     await db.delete(infraIncidents);

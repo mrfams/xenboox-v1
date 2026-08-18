@@ -13,7 +13,7 @@ import {
   handleMutationError,
   router,
   protectedProcedure,
-  adminProcedure,
+  adminProtectedProcedure,
 } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
 
@@ -150,7 +150,7 @@ export const notificationsRouter = router({
       }
     }),
 
-  create: adminProcedure
+  create: adminProtectedProcedure
     .input(
       z.object({
         userId: z.string().optional(),
@@ -192,7 +192,7 @@ export const notificationsRouter = router({
       }
     }),
 
-  admin: adminProcedure
+  admin: adminProtectedProcedure
     .input(
       z.object({
         entityId: z.string().optional(),

@@ -7,11 +7,11 @@ import {
 } from "@xenboox/db/schema";
 import { db } from "@xenboox/db";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 
 export const featureFlagsRouter = router({
   // Get dashboard overview with KPIs
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z.object({
         days: z.number().default(7),
@@ -75,7 +75,7 @@ export const featureFlagsRouter = router({
     }),
 
   // Get flags list
-  getFlags: adminProcedure
+  getFlags: adminProtectedProcedure
     .input(
       z.object({
         search: z.string().optional(),
@@ -163,7 +163,7 @@ export const featureFlagsRouter = router({
     }),
 
   // Get flag detail
-  getFlagDetail: adminProcedure
+  getFlagDetail: adminProtectedProcedure
     .input(z.object({ flagId: z.string() }))
     .query(async ({ input }: { input: { flagId: string } }) => {
       const { flagId } = input;
@@ -234,7 +234,7 @@ export const featureFlagsRouter = router({
     }),
 
   // Seed demo data
-  seedDemoData: adminProcedure.mutation(async () => {
+  seedDemoData: adminProtectedProcedure.mutation(async () => {
     // Clear existing data
     await db.delete(featureFlagRolloutHistory);
     await db.delete(featureFlagAuditLog);

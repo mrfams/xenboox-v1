@@ -8,11 +8,11 @@ import {
 } from "@xenboox/db/schema";
 import { db } from "@xenboox/db";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 
 export const logsTracesRouter = router({
   // Get dashboard overview with KPIs
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z.object({
         days: z.number().default(7),
@@ -111,7 +111,7 @@ export const logsTracesRouter = router({
     }),
 
   // Get traces list
-  getTraces: adminProcedure
+  getTraces: adminProtectedProcedure
     .input(
       z.object({
         search: z.string().optional(),
@@ -202,7 +202,7 @@ export const logsTracesRouter = router({
     }),
 
   // Get trace detail with spans
-  getTraceDetail: adminProcedure
+  getTraceDetail: adminProtectedProcedure
     .input(z.object({ traceId: z.string() }))
     .query(async ({ input }: { input: { traceId: string } }) => {
       const { traceId } = input;
@@ -255,7 +255,7 @@ export const logsTracesRouter = router({
     }),
 
   // Get logs list
-  getLogs: adminProcedure
+  getLogs: adminProtectedProcedure
     .input(
       z.object({
         search: z.string().optional(),
@@ -336,7 +336,7 @@ export const logsTracesRouter = router({
     }),
 
   // Seed demo data
-  seedDemoData: adminProcedure.mutation(async () => {
+  seedDemoData: adminProtectedProcedure.mutation(async () => {
     // Clear existing data
     await db.delete(spans);
     await db.delete(traces);

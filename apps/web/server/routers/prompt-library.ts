@@ -7,7 +7,7 @@ import {
   opsPromptVersions,
 } from "@xenboox/db/schema/ops-prompt-library";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 /** Bump a semver string: 2.3.1 → 2.3.2, 2.3 → 2.3.1, 2 → 2.1. */
@@ -23,7 +23,7 @@ function bumpSemver(v: string): string {
 export const promptLibraryRouter = router({
   // ── Get Overview ──────────────────────────────────────────────────────
 
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z
         .object({
@@ -159,7 +159,7 @@ export const promptLibraryRouter = router({
 
   // ── Get Prompt Detail ─────────────────────────────────────────────────
 
-  getDetail: adminProcedure
+  getDetail: adminProtectedProcedure
     .input(z.object({ promptId: z.string() }))
     .query(async ({ input }) => {
       const prompt = await db.query.opsPrompts.findFirst({
@@ -201,7 +201,7 @@ export const promptLibraryRouter = router({
 
   // ── Create ────────────────────────────────────────────────────────────
 
-  create: adminProcedure
+  create: adminProtectedProcedure
     .input(
       z.object({
         name: z.string().min(1).max(200),
@@ -240,7 +240,7 @@ export const promptLibraryRouter = router({
 
   // ── Update ────────────────────────────────────────────────────────────
 
-  update: adminProcedure
+  update: adminProtectedProcedure
     .input(
       z.object({
         promptId: z.string(),
@@ -298,7 +298,7 @@ export const promptLibraryRouter = router({
 
   // ── Duplicate ─────────────────────────────────────────────────────────
 
-  duplicate: adminProcedure
+  duplicate: adminProtectedProcedure
     .input(z.object({ promptId: z.string() }))
     .mutation(async ({ input }) => {
       const existing = await db.query.opsPrompts.findFirst({
@@ -327,7 +327,7 @@ export const promptLibraryRouter = router({
 
   // ── Toggle favorite ───────────────────────────────────────────────────
 
-  toggleFavorite: adminProcedure
+  toggleFavorite: adminProtectedProcedure
     .input(z.object({ promptId: z.string() }))
     .mutation(async ({ input }) => {
       const existing = await db.query.opsPrompts.findFirst({
@@ -343,7 +343,7 @@ export const promptLibraryRouter = router({
 
   // ── Change status (activate / deprecate / draft) ──────────────────────
 
-  setStatus: adminProcedure
+  setStatus: adminProtectedProcedure
     .input(
       z.object({
         promptId: z.string(),
@@ -364,7 +364,7 @@ export const promptLibraryRouter = router({
 
   // ── Delete ────────────────────────────────────────────────────────────
 
-  remove: adminProcedure
+  remove: adminProtectedProcedure
     .input(z.object({ promptId: z.string() }))
     .mutation(async ({ input }) => {
       const existing = await db.query.opsPrompts.findFirst({
@@ -379,7 +379,7 @@ export const promptLibraryRouter = router({
 
   // ── Seed demo data ────────────────────────────────────────────────────
 
-  seedPromptLibraryData: adminProcedure.mutation(async () => {
+  seedPromptLibraryData: adminProtectedProcedure.mutation(async () => {
     const existing = await db
       .select({ count: count() })
       .from(opsPrompts)

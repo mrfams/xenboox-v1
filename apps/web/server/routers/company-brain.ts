@@ -12,11 +12,11 @@ import {
 } from "@xenboox/db/schema";
 import { db } from "@xenboox/db";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 
 export const companyBrainRouter = router({
   // Get dashboard overview with KPIs
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z.object({
         days: z.number().default(7),
@@ -87,7 +87,7 @@ export const companyBrainRouter = router({
     }),
 
   // Get knowledge sources
-  getSources: adminProcedure.query(async () => {
+  getSources: adminProtectedProcedure.query(async () => {
     const sources = await db
       .select()
       .from(knowledgeSources)
@@ -104,7 +104,7 @@ export const companyBrainRouter = router({
   }),
 
   // Get popular questions
-  getPopularQuestions: adminProcedure.query(async () => {
+  getPopularQuestions: adminProtectedProcedure.query(async () => {
     const questions = await db
       .select()
       .from(knowledgePopularQuestions)
@@ -120,7 +120,7 @@ export const companyBrainRouter = router({
   }),
 
   // Get recent activity
-  getActivity: adminProcedure
+  getActivity: adminProtectedProcedure
     .input(z.object({ limit: z.number().default(6) }))
     .query(async ({ input }: { input: { limit: number } }) => {
       const { limit } = input;
@@ -141,7 +141,7 @@ export const companyBrainRouter = router({
     }),
 
   // Get top connected topics
-  getTopTopics: adminProcedure.query(async () => {
+  getTopTopics: adminProtectedProcedure.query(async () => {
     const topics = await db
       .select()
       .from(knowledgeTopTopics)
@@ -157,7 +157,7 @@ export const companyBrainRouter = router({
   }),
 
   // Get knowledge graph nodes
-  getGraphNodes: adminProcedure.query(async () => {
+  getGraphNodes: adminProtectedProcedure.query(async () => {
     const nodes = await db
       .select()
       .from(knowledgeNodes)
@@ -175,7 +175,7 @@ export const companyBrainRouter = router({
   }),
 
   // Get knowledge graph edges
-  getGraphEdges: adminProcedure.query(async () => {
+  getGraphEdges: adminProtectedProcedure.query(async () => {
     const edges = await db.select().from(knowledgeConnections);
 
     return edges.map((e: any) => ({
@@ -188,7 +188,7 @@ export const companyBrainRouter = router({
   }),
 
   // Seed demo data
-  seedDemoData: adminProcedure.mutation(async () => {
+  seedDemoData: adminProtectedProcedure.mutation(async () => {
     // Clear existing data
     await db.delete(knowledgeTopTopics);
     await db.delete(knowledgeActivity);

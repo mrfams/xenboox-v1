@@ -5,7 +5,11 @@ import { db } from "@xenboox/db";
 
 import { demoPosts, demoJobs } from "@xenboox/db/seed/content-demo";
 
-import { router, publicProcedure, adminProcedure } from "@/lib/trpc/server";
+import {
+  router,
+  publicProcedure,
+  adminProtectedProcedure,
+} from "@/lib/trpc/server";
 
 // ─── Shared input schemas ─────────────────────────────────────────────────
 
@@ -345,7 +349,7 @@ export const contentRouter = router({
 
   // ── Admin: Blog CRUD ────────────────────────────────────────────────────
 
-  adminListPosts: adminProcedure
+  adminListPosts: adminProtectedProcedure
     .input(
       z
         .object({
@@ -394,7 +398,7 @@ export const contentRouter = router({
       };
     }),
 
-  adminCreatePost: adminProcedure
+  adminCreatePost: adminProtectedProcedure
     .input(postInput)
     .mutation(async ({ input }) => {
       const slug = input.slug || slugify(input.title);
@@ -423,7 +427,7 @@ export const contentRouter = router({
       return post;
     }),
 
-  adminUpdatePost: adminProcedure
+  adminUpdatePost: adminProtectedProcedure
     .input(z.object({ id: z.string().uuid(), data: postInput.partial() }))
     .mutation(async ({ input }) => {
       const patch: Record<string, unknown> = { ...input.data };
@@ -448,7 +452,7 @@ export const contentRouter = router({
       return post;
     }),
 
-  adminDeletePost: adminProcedure
+  adminDeletePost: adminProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input }) => {
       await db.delete(blogPosts).where(eq(blogPosts.id, input.id));
@@ -457,7 +461,7 @@ export const contentRouter = router({
 
   // ── Admin: Careers CRUD ─────────────────────────────────────────────────
 
-  adminListJobs: adminProcedure
+  adminListJobs: adminProtectedProcedure
     .input(
       z
         .object({
@@ -506,37 +510,39 @@ export const contentRouter = router({
       };
     }),
 
-  adminCreateJob: adminProcedure.input(jobInput).mutation(async ({ input }) => {
-    const slug = input.slug || slugify(input.title);
+  adminCreateJob: adminProtectedProcedure
+    .input(jobInput)
+    .mutation(async ({ input }) => {
+      const slug = input.slug || slugify(input.title);
 
-    const [job] = await db
-      .insert(jobPostings)
-      .values({
-        slug,
-        title: input.title,
-        department: input.department,
-        location: input.location,
-        type: input.type,
-        salary: input.salary ?? null,
-        description: input.description,
-        responsibilities: input.responsibilities,
-        requirements: input.requirements,
-        niceToHave: input.niceToHave,
-        benefits: input.benefits,
-        tags: input.tags,
-        status: input.status,
-        isActive: input.isActive,
-        postedDate: input.postedDate,
-        closingDate: input.closingDate ?? null,
-        teamSize: input.teamSize ?? null,
-        reportsTo: input.reportsTo ?? null,
-      })
-      .returning();
+      const [job] = await db
+        .insert(jobPostings)
+        .values({
+          slug,
+          title: input.title,
+          department: input.department,
+          location: input.location,
+          type: input.type,
+          salary: input.salary ?? null,
+          description: input.description,
+          responsibilities: input.responsibilities,
+          requirements: input.requirements,
+          niceToHave: input.niceToHave,
+          benefits: input.benefits,
+          tags: input.tags,
+          status: input.status,
+          isActive: input.isActive,
+          postedDate: input.postedDate,
+          closingDate: input.closingDate ?? null,
+          teamSize: input.teamSize ?? null,
+          reportsTo: input.reportsTo ?? null,
+        })
+        .returning();
 
-    return job;
-  }),
+      return job;
+    }),
 
-  adminUpdateJob: adminProcedure
+  adminUpdateJob: adminProtectedProcedure
     .input(z.object({ id: z.string().uuid(), data: jobInput.partial() }))
     .mutation(async ({ input }) => {
       const patch: Record<string, unknown> = { ...input.data };
@@ -554,7 +560,7 @@ export const contentRouter = router({
       return job;
     }),
 
-  adminDeleteJob: adminProcedure
+  adminDeleteJob: adminProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input }) => {
       await db.delete(jobPostings).where(eq(jobPostings.id, input.id));
@@ -563,7 +569,7 @@ export const contentRouter = router({
 
   // ── Admin: Seed demo content ────────────────────────────────────────────
 
-  seedDemoContent: adminProcedure.mutation(async () => {
+  seedDemoContent: adminProtectedProcedure.mutation(async () => {
     const [existing] = await db.select({ count: count() }).from(blogPosts);
     if ((existing?.count ?? 0) > 0) {
       return { seeded: false, reason: "Content already exists" };

@@ -8,7 +8,7 @@ import {
   opsLlmRecentChanges,
 } from "@xenboox/db/schema/ops-llm-router";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── LLM Router ─────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ import { db } from "@/lib/db";
 export const llmRouter = router({
   // ── Dashboard Overview ────────────────────────────────────────────────
 
-  getOverview: adminProcedure.query(async () => {
+  getOverview: adminProtectedProcedure.query(async () => {
     // Providers
     const providers = await db.query.opsLlmProviders.findMany({
       orderBy: [desc(opsLlmProviders.totalRequests24h)],
@@ -131,7 +131,7 @@ export const llmRouter = router({
 
   // ── List Providers ────────────────────────────────────────────────────
 
-  listProviders: adminProcedure.query(async () => {
+  listProviders: adminProtectedProcedure.query(async () => {
     const providers = await db.query.opsLlmProviders.findMany({
       orderBy: [desc(opsLlmProviders.totalRequests24h)],
     });
@@ -153,7 +153,7 @@ export const llmRouter = router({
 
   // ── Seed demo data ────────────────────────────────────────────────────
 
-  seedLlmRouterData: adminProcedure.mutation(async () => {
+  seedLlmRouterData: adminProtectedProcedure.mutation(async () => {
     const existing = await db
       .select({ count: count() })
       .from(opsLlmProviders)

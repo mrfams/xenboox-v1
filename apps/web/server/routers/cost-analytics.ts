@@ -8,7 +8,7 @@ import {
   opsCostOptimization,
 } from "@xenboox/db/schema/ops-cost-analytics";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ function formatLargeNumber(num: number): string {
 export const costAnalyticsRouter = router({
   // ── Dashboard Overview ────────────────────────────────────────────────
 
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z
         .object({
@@ -323,7 +323,7 @@ export const costAnalyticsRouter = router({
 
   // ── Seed demo data ────────────────────────────────────────────────────
 
-  seedCostAnalyticsData: adminProcedure.mutation(async () => {
+  seedCostAnalyticsData: adminProtectedProcedure.mutation(async () => {
     const existing = await db
       .select({ count: count() })
       .from(opsCostDaily)

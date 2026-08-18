@@ -9,7 +9,7 @@ import {
   opsTokenInsights,
 } from "@xenboox/db/schema/ops-token-usage";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ function formatCurrency(amount: number): string {
 export const tokenUsageRouter = router({
   // ── Dashboard Overview ────────────────────────────────────────────────
 
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z
         .object({
@@ -351,7 +351,7 @@ export const tokenUsageRouter = router({
 
   // ── Seed demo data ────────────────────────────────────────────────────
 
-  seedTokenUsageData: adminProcedure.mutation(async () => {
+  seedTokenUsageData: adminProtectedProcedure.mutation(async () => {
     const existing = await db
       .select({ count: count() })
       .from(opsTokenDaily)

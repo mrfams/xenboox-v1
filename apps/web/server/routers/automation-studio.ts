@@ -9,11 +9,11 @@ import {
 } from "@xenboox/db/schema";
 import { db } from "@xenboox/db";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 
 export const automationStudioRouter = router({
   // Get overview with KPIs
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z.object({
         days: z.number().default(30),
@@ -83,7 +83,7 @@ export const automationStudioRouter = router({
     }),
 
   // Get automations list
-  getAutomations: adminProcedure.query(async () => {
+  getAutomations: adminProtectedProcedure.query(async () => {
     const automationsList = await db
       .select()
       .from(automations)
@@ -105,7 +105,7 @@ export const automationStudioRouter = router({
   }),
 
   // Get templates
-  getTemplates: adminProcedure.query(async () => {
+  getTemplates: adminProtectedProcedure.query(async () => {
     const templates = await db
       .select()
       .from(automationTemplates)
@@ -125,7 +125,7 @@ export const automationStudioRouter = router({
   }),
 
   // Get activity feed
-  getActivity: adminProcedure
+  getActivity: adminProtectedProcedure
     .input(z.object({ limit: z.number().default(5) }))
     .query(async ({ input }: { input: { limit: number } }) => {
       const { limit } = input;
@@ -147,7 +147,7 @@ export const automationStudioRouter = router({
     }),
 
   // Get performance data
-  getPerformance: adminProcedure.query(async () => {
+  getPerformance: adminProtectedProcedure.query(async () => {
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     const [perfResult] = await db
@@ -197,7 +197,7 @@ export const automationStudioRouter = router({
   }),
 
   // Get top time savings
-  getTopTimeSavings: adminProcedure.query(async () => {
+  getTopTimeSavings: adminProtectedProcedure.query(async () => {
     const savings = await db
       .select()
       .from(automationTimeSavings)
@@ -213,7 +213,7 @@ export const automationStudioRouter = router({
   }),
 
   // Seed demo data
-  seedDemoData: adminProcedure.mutation(async () => {
+  seedDemoData: adminProtectedProcedure.mutation(async () => {
     // Clear existing data
     await db.delete(automationTimeSavings);
     await db.delete(automationPerformance);

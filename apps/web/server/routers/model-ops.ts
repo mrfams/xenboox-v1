@@ -19,7 +19,7 @@ import {
   handleMutationError,
   router,
   rlsProtectedProcedure,
-  adminProcedure,
+  adminProtectedProcedure,
 } from "@/lib/trpc/server";
 
 // ─── Schemas ────────────────────────────────────
@@ -73,7 +73,7 @@ export const modelOpsRouter = router({
   }),
 
   // ─── Register a new model ────────────────────────
-  registerModel: adminProcedure
+  registerModel: adminProtectedProcedure
     .input(
       z.object({
         modelId: z.string().min(1),
@@ -107,7 +107,7 @@ export const modelOpsRouter = router({
     }),
 
   // ─── Update a model ──────────────────────────────
-  updateModel: adminProcedure
+  updateModel: adminProtectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -166,7 +166,7 @@ export const modelOpsRouter = router({
       });
     }),
 
-  createAssignment: adminProcedure
+  createAssignment: adminProtectedProcedure
     .input(
       z.object({
         agentName: z.string().min(1),
@@ -191,14 +191,14 @@ export const modelOpsRouter = router({
           trafficSplit: input.trafficSplit ?? {},
           isActive: true,
           evaluationGate: "none",
-          createdBy: ctx.session!.user!.id!,
+          createdBy: ctx.adminUser.id,
         })
         .returning();
       invalidateAssignment(input.agentName, input.taskType);
       return assignment;
     }),
 
-  updateAssignment: adminProcedure
+  updateAssignment: adminProtectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -250,7 +250,7 @@ export const modelOpsRouter = router({
     });
   }),
 
-  triggerGate1: adminProcedure
+  triggerGate1: adminProtectedProcedure
     .input(
       z.object({
         candidateModelId: z.string(),
@@ -269,7 +269,7 @@ export const modelOpsRouter = router({
       return result;
     }),
 
-  triggerGate3: adminProcedure
+  triggerGate3: adminProtectedProcedure
     .input(
       z.object({
         candidateModelId: z.string(),
@@ -289,7 +289,7 @@ export const modelOpsRouter = router({
       });
     }),
 
-  triggerGate4: adminProcedure
+  triggerGate4: adminProtectedProcedure
     .input(
       z.object({
         candidateModelId: z.string(),
@@ -309,7 +309,7 @@ export const modelOpsRouter = router({
       return { success: true };
     }),
 
-  rollback: adminProcedure
+  rollback: adminProtectedProcedure
     .input(
       z.object({
         agentName: z.string(),

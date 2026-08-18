@@ -12,7 +12,7 @@ import { organizations } from "@xenboox/db/schema/organization";
 import { users } from "@xenboox/db/schema/auth";
 
 import { db } from "@/lib/db";
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 
 // ─── Helper: compute date range strings ─────────────────────────────────────
 
@@ -40,7 +40,7 @@ export const opsConsoleRouter = router({
   // ── Dashboard Overview ────────────────────────────────────────────────
   // Returns all KPI data for the main dashboard
 
-  getDashboardOverview: adminProcedure
+  getDashboardOverview: adminProtectedProcedure
     .input(
       z
         .object({
@@ -195,7 +195,7 @@ export const opsConsoleRouter = router({
 
   // ── System Health ─────────────────────────────────────────────────────
 
-  getSystemHealth: adminProcedure.query(async () => {
+  getSystemHealth: adminProtectedProcedure.query(async () => {
     const services = await db.query.opsSystemHealth.findMany({
       orderBy: [opsSystemHealth.serviceName],
     });
@@ -222,7 +222,7 @@ export const opsConsoleRouter = router({
     };
   }),
 
-  updateServiceHealth: adminProcedure
+  updateServiceHealth: adminProtectedProcedure
     .input(
       z.object({
         serviceName: z.string(),
@@ -259,7 +259,7 @@ export const opsConsoleRouter = router({
 
   // ── AI Runs Over Time ────────────────────────────────────────────────
 
-  getAiRunsOverTime: adminProcedure
+  getAiRunsOverTime: adminProtectedProcedure
     .input(
       z
         .object({
@@ -291,7 +291,7 @@ export const opsConsoleRouter = router({
 
   // ── Cost Over Time ───────────────────────────────────────────────────
 
-  getCostOverTime: adminProcedure
+  getCostOverTime: adminProtectedProcedure
     .input(
       z
         .object({
@@ -325,7 +325,7 @@ export const opsConsoleRouter = router({
 
   // ── Top AI Models by Usage ───────────────────────────────────────────
 
-  getTopModels: adminProcedure
+  getTopModels: adminProtectedProcedure
     .input(
       z
         .object({
@@ -371,7 +371,7 @@ export const opsConsoleRouter = router({
 
   // ── Support Tickets ──────────────────────────────────────────────────
 
-  getSupportTickets: adminProcedure
+  getSupportTickets: adminProtectedProcedure
     .input(
       z
         .object({
@@ -409,7 +409,7 @@ export const opsConsoleRouter = router({
 
   // ── Activity Feed ────────────────────────────────────────────────────
 
-  getActivityFeed: adminProcedure
+  getActivityFeed: adminProtectedProcedure
     .input(
       z
         .object({
@@ -435,7 +435,7 @@ export const opsConsoleRouter = router({
 
   // ── Seed demo data (development only) ────────────────────────────────
 
-  seedDemoData: adminProcedure.mutation(async () => {
+  seedDemoData: adminProtectedProcedure.mutation(async () => {
     // Only seed if tables are empty
     const existingHealth = await db
       .select({ count: count() })

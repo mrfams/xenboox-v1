@@ -8,7 +8,7 @@ import {
 
 import {
   router,
-  adminProcedure,
+  adminProtectedProcedure,
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
@@ -18,7 +18,7 @@ import { db } from "@/lib/db";
 export const liveRunsRouter = router({
   // ── List Live Runs ────────────────────────────────────────────────────
 
-  list: adminProcedure
+  list: adminProtectedProcedure
     .input(
       z
         .object({
@@ -82,7 +82,7 @@ export const liveRunsRouter = router({
 
   // ── Get Run Summary Counts ────────────────────────────────────────────
 
-  getSummary: adminProcedure.query(async () => {
+  getSummary: adminProtectedProcedure.query(async () => {
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 3600000);
 
@@ -179,7 +179,7 @@ export const liveRunsRouter = router({
 
   // ── Get Run Detail ────────────────────────────────────────────────────
 
-  getDetail: adminProcedure
+  getDetail: adminProtectedProcedure
     .input(z.object({ runId: z.string() }))
     .query(async ({ input }) => {
       const run = await db.query.opsLiveRuns.findFirst({
@@ -228,7 +228,7 @@ export const liveRunsRouter = router({
 
   // ── Get Run Events ────────────────────────────────────────────────────
 
-  getEvents: adminProcedure
+  getEvents: adminProtectedProcedure
     .input(z.object({ runId: z.string(), limit: z.number().default(50) }))
     .query(async ({ input }) => {
       const events = await db.query.opsLiveRunEvents.findMany({
@@ -480,7 +480,7 @@ export const liveRunsRouter = router({
 
   // ── Seed demo data ────────────────────────────────────────────────────
 
-  seedLiveRunsData: adminProcedure.mutation(async () => {
+  seedLiveRunsData: adminProtectedProcedure.mutation(async () => {
     const existing = await db
       .select({ count: count() })
       .from(opsLiveRuns)

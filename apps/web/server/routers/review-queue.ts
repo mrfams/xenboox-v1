@@ -8,11 +8,11 @@ import {
 } from "@xenboox/db/schema";
 import { db } from "@xenboox/db";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 
 export const reviewQueueRouter = router({
   // Get dashboard overview with KPIs and items
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z.object({
         tab: z
@@ -204,7 +204,7 @@ export const reviewQueueRouter = router({
     ),
 
   // Get detail for a specific review item
-  getDetail: adminProcedure
+  getDetail: adminProtectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }: { input: { id: string } }) => {
       const { id } = input;
@@ -249,7 +249,7 @@ export const reviewQueueRouter = router({
     }),
 
   // Perform an action on a review item
-  performAction: adminProcedure
+  performAction: adminProtectedProcedure
     .input(
       z.object({
         reviewItemId: z.string(),
@@ -327,7 +327,7 @@ export const reviewQueueRouter = router({
     ),
 
   // Seed demo data
-  seedDemoData: adminProcedure.mutation(async () => {
+  seedDemoData: adminProtectedProcedure.mutation(async () => {
     // Clear existing data
     await db.delete(reviewItemEvidence);
     await db.delete(reviewItemHistory);

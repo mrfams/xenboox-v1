@@ -22,7 +22,7 @@ import {
   handleMutationError,
   router,
   protectedProcedure,
-  adminProcedure,
+  adminProtectedProcedure,
 } from "@/lib/trpc/server";
 
 export type AIProvider =
@@ -396,10 +396,10 @@ const AI_PROVIDERS: AIComparison[] = [
 ];
 
 export const adminRouter = router({
-  checkAccess: adminProcedure.query(async () => {
+  checkAccess: adminProtectedProcedure.query(async () => {
     return true;
   }),
-  getSystemOverview: adminProcedure.query(async () => {
+  getSystemOverview: adminProtectedProcedure.query(async () => {
     const [
       userCount,
       orgCount,
@@ -458,7 +458,7 @@ export const adminRouter = router({
     };
   }),
 
-  listUsers: adminProcedure
+  listUsers: adminProtectedProcedure
     .input(
       z.object({
         limit: z.number().int().min(1).max(100).default(20),
@@ -514,7 +514,7 @@ export const adminRouter = router({
       };
     }),
 
-  listOrganizations: adminProcedure
+  listOrganizations: adminProtectedProcedure
     .input(
       z.object({
         limit: z.number().int().min(1).max(100).default(20),
@@ -554,7 +554,7 @@ export const adminRouter = router({
       };
     }),
 
-  getAIComparison: adminProcedure.query(async () => {
+  getAIComparison: adminProtectedProcedure.query(async () => {
     return AI_PROVIDERS.map((c) => ({
       ...c,
       utilization:
@@ -563,7 +563,7 @@ export const adminRouter = router({
     }));
   }),
 
-  getSpendAlerts: adminProcedure.query(async () => {
+  getSpendAlerts: adminProtectedProcedure.query(async () => {
     const alerts: SpendAlert[] = [];
 
     for (const item of AI_PROVIDERS) {
@@ -586,7 +586,7 @@ export const adminRouter = router({
     return alerts.filter((a) => a.percentage >= 70);
   }),
 
-  getAIUsage: adminProcedure.query(async () => {
+  getAIUsage: adminProtectedProcedure.query(async () => {
     const activities = await db.query.agentActivity.findMany({
       orderBy: [desc(agentActivity.createdAt)],
       limit: 100,
@@ -617,7 +617,7 @@ export const adminRouter = router({
     }));
   }),
 
-  updateSettings: adminProcedure
+  updateSettings: adminProtectedProcedure
     .input(
       z.object({
         emailAlerts: z.boolean(),
@@ -645,7 +645,7 @@ export const adminRouter = router({
       }
     }),
 
-  getCostComparison: adminProcedure.query(async () => {
+  getCostComparison: adminProtectedProcedure.query(async () => {
     const costComparison = AI_PROVIDERS.map((c) => {
       const apiCost = c.monthlySpend;
       const selfHostCost = c.selfHostCostPerMonth;
@@ -676,7 +676,7 @@ export const adminRouter = router({
     return costComparison;
   }),
 
-  createUser: adminProcedure
+  createUser: adminProtectedProcedure
     .input(
       z.object({
         name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -742,7 +742,7 @@ export const adminRouter = router({
       }
     }),
 
-  updateUser: adminProcedure
+  updateUser: adminProtectedProcedure
     .input(
       z.object({
         userId: z.string().uuid(),
@@ -788,7 +788,7 @@ export const adminRouter = router({
       }
     }),
 
-  deleteUser: adminProcedure
+  deleteUser: adminProtectedProcedure
     .input(z.object({ userId: z.string().uuid() }))
     .mutation(async ({ input }) => {
       try {
@@ -799,7 +799,7 @@ export const adminRouter = router({
       }
     }),
 
-  createOrganization: adminProcedure
+  createOrganization: adminProtectedProcedure
     .input(
       z.object({
         name: z.string().min(2, "Organization name is required").max(200),
@@ -833,7 +833,7 @@ export const adminRouter = router({
       }
     }),
 
-  updateOrganization: adminProcedure
+  updateOrganization: adminProtectedProcedure
     .input(
       z.object({
         orgId: z.string().uuid(),
@@ -854,7 +854,7 @@ export const adminRouter = router({
       }
     }),
 
-  deleteOrganization: adminProcedure
+  deleteOrganization: adminProtectedProcedure
     .input(z.object({ orgId: z.string().uuid() }))
     .mutation(async ({ input }) => {
       try {

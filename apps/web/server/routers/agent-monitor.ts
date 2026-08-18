@@ -9,7 +9,7 @@ import {
   opsWorkloadDistribution,
 } from "@xenboox/db/schema/ops-agent-monitor";
 
-import { router, adminProcedure } from "@/lib/trpc/server";
+import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── Helper: compute hour range strings ─────────────────────────────────────
@@ -31,7 +31,7 @@ export const agentMonitorRouter = router({
   // ── Agent Monitor Overview ────────────────────────────────────────────
   // Returns all data for the AI Agent Monitor page
 
-  getOverview: adminProcedure
+  getOverview: adminProtectedProcedure
     .input(
       z
         .object({
@@ -278,7 +278,7 @@ export const agentMonitorRouter = router({
 
   // ── List All Agents ──────────────────────────────────────────────────
 
-  listAgents: adminProcedure
+  listAgents: adminProtectedProcedure
     .input(
       z
         .object({
@@ -329,7 +329,7 @@ export const agentMonitorRouter = router({
 
   // ── Get Agent Runs Over Time ─────────────────────────────────────────
 
-  getRunsOverTime: adminProcedure
+  getRunsOverTime: adminProtectedProcedure
     .input(
       z
         .object({
@@ -372,7 +372,7 @@ export const agentMonitorRouter = router({
 
   // ── Get Agent Alerts ─────────────────────────────────────────────────
 
-  getAlerts: adminProcedure
+  getAlerts: adminProtectedProcedure
     .input(
       z
         .object({
@@ -409,7 +409,7 @@ export const agentMonitorRouter = router({
 
   // ── Seed demo data for AI Agent Monitor ──────────────────────────────
 
-  seedAgentMonitorData: adminProcedure.mutation(async () => {
+  seedAgentMonitorData: adminProtectedProcedure.mutation(async () => {
     // Only seed if tables are empty
     const existing = await db
       .select({ count: count() })
