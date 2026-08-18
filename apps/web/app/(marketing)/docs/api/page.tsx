@@ -17,6 +17,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 
 const sections = [
   {
+    title: "REST API v1",
+    description:
+      "HTTP/JSON API for external integrations. API-key authenticated, entity-scoped, with OpenAPI documentation.",
+    href: "/docs/api/rest-api",
+    icon: FileCode,
+  },
+  {
     title: "Authentication",
     description:
       "Authenticate with Auth.js sessions or API keys. Learn how tokens are issued, scoped, and revoked.",

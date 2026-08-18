@@ -76,6 +76,7 @@ const navGroups: NavGroup[] = [
     icon: <FileCode className="h-4 w-4" />,
     items: [
       { label: "Overview", href: "/docs/api" },
+      { label: "REST API v1", href: "/docs/api/rest-api" },
       { label: "Authentication", href: "/docs/api/auth" },
       { label: "Endpoints", href: "/docs/api/endpoints" },
       { label: "Webhooks", href: "/docs/webhooks" },
