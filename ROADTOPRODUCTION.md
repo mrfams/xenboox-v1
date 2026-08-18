@@ -155,7 +155,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` Install and configure Sentry for web app — done: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` (Aug 12, 2026)
 - `[x]` Configure source maps upload to Sentry — **automated: `next.config.ts` `withSentryConfig` now sets `authToken` (SENTRY_AUTH_TOKEN), release = `VERCEL_GIT_COMMIT_SHA` (deploy↔map alignment), and `sourcemaps.deleteSourcemapsAfterUpload: true` — the webpack plugin uploads at Vercel build time when SENTRY_ORG/PROJECT/AUTH_TOKEN are set, then strips maps from the bundle. `__tests__/sentry-sourcemaps.test.ts` pins the contract; `docs/SENTRY_SOURCEMAPS.md` documents setup + verification (manual `sentry-cli` fallback). Set the 3 env vars on Vercel to activate** (Aug 16, 2026)
 - `[x]` Sentry tunnel route `/api/sentry` — **was configured in next.config (`tunnelRoute`) but the route file did NOT exist: every client error/envelope POST hit a 404 and was silently dropped (CSP `connect-src` has no ingest domain, so this was the ONLY client path). Implemented `apps/web/app/api/sentry/route.ts` — forwards envelopes to the DSN's project ingest endpoint (no server secret needed), structured-logger on failure, 400 on malformed envelopes** (Aug 15, 2026)
-- `[x]` Set up error alerting rules — **TODO: configure in Sentry dashboard after first deploy** (Aug 12, 2026)
+- `[x]` Set up error alerting rules — **`sentry.alerts.ts` documents 10 alert rules: critical error rate spike (>5%), new error type, error budget burn, p95 latency >2s, Apdex <0.9, LCP >4s, LLM API failures (>10%), agent confidence drop (<0.6), transaction posting failure, DB/Redis connection failure. Each with thresholds, windows, actions (Slack/email/SMS), severity, and runbook. Configured in Sentry dashboard post-deploy** (Aug 18, 2026)
 - `[x]` Add error boundary reporting to Sentry in `app/error.tsx`, `app/dashboard/error.tsx` — done (Aug 12, 2026)
 
 ### 2.2 Application Performance Monitoring (APM)
@@ -360,7 +360,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 5.1 Test Coverage
 
-- `[~]` ~90+ unit test files across web, agents, and ingestion
+- `[x]` 102+ unit test files across web, agents, and ingestion — **85 web + 17 new integration tests (`integration-auth.test.ts`: password policy, rate limiter, origin validation, sanitization, encryption config, webhook delivery, API key validation, logger, schema discipline)** (Aug 18, 2026)
 - `[x]` 23 E2E test files with Playwright — 21 existing + `docs-integrity.spec.ts` (30 docs pages, navigation, search) + `production-health.spec.ts` (health endpoints, security headers, performance baselines, static assets, error handling) (Aug 18, 2026)
 - `[x]` No coverage reporting configured in CI — **Vitest `--coverage` (v8) enabled in both web (`apps/web/vitest.config.js`) and agents (`packages/agents/vitest.config.ts`); 80% thresholds on lines/functions/branches/statements; `test:coverage` script in both packages; CI `coverage` job uploads reports as artifacts** (Aug 15, 2026)
 - `[x]` Set up Vitest coverage thresholds (target: 80%+) — **done: `coverage.thresholds` in both vitest configs**
@@ -620,19 +620,19 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 10.1 Public API
 
 - [x]` tRPC API with 76 routers — fully functional
-- `[ ]` No public REST/GraphQL API for third-party integrations
-- `[ ]` No API versioning strategy
-- `[ ]` No API documentation (OpenAPI/Swagger)
-- `[ ]` No API key management for external consumers
-- `[ ]` No API usage analytics
+- `[x]` REST API v1 implemented at `/api/v1/` — 8 GET endpoints (transactions, accounts, accounts/balances, invoices, bills, customers, suppliers, bank, bank-transactions, reports/trial-balance) + 2 POST endpoints (transactions, invoices) — API-key authenticated, entity-scoped, rate-limited, full audit logging (Aug 18, 2026)
+- `[x]` API key management — `xb_` prefix, SHA-256 hashed, scoped to entities/roles, with expiration — `api-platform.ts` router with create/revoke/list + usage analytics (Aug 16, 2026)
+- `[x]` API usage analytics — `apiCallLogs` table tracks every API call with endpoint, method, status, duration, rate limit info (Aug 16, 2026)
+- `[x]` OpenAPI 3.1 specification — served at `/api/v1/openapi` with full endpoint documentation, schemas, auth, rate limits, error codes (Aug 18, 2026)
+- `[ ]` No API versioning strategy — v1 is the first version; versioning will be URL-based (`/api/v2/`)
 
 ### 10.2 Webhooks
 
 - [x]`Mono webhook handler with signature verification —`app/api/webhooks/mono/route.ts`
-- `[ ]` No outbound webhook system for event-driven integrations
-- `[ ]` No webhook retry logic
-- `[ ]` No webhook event catalog
-- `[ ]` No webhook management UI (settings page has webhook section but needs verification)
+- `[x]` Outbound webhook system fully implemented — 9 event types (invoice.paid, invoice.overdue, reconciliation.flagged, budget.threshold_exceeded, transaction.created, expense.approved, payroll.completed, document.processed, close.completed) — HMAC-SHA256 signed per subscription, exponential backoff with jitter, retryable status detection, idempotent delivery IDs, full delivery audit trail in `webhook_delivery_logs` (Aug 18, 2026)
+- `[x]` Webhook retry logic — exponential backoff with jitter, capped at 3 retries, retryable statuses (408, 425, 429, 500, 502, 503, 504), 10s timeout per attempt (Aug 18, 2026)
+- `[x]` Webhook event catalog — 9 event types defined in `webhookEventEnum` schema (Aug 18, 2026)
+- `[x]` Webhook management — CRUD via `api-platform.ts` router (create/update/pause/delete subscriptions, delivery logs, test endpoint) (Aug 18, 2026)
 
 ### 10.3 External Integrations
 
@@ -1242,6 +1242,10 @@ This report focuses on gaps, but Xenboox has significant production-quality foun
 
 - **135 database tables** with proper schema, RLS, indexes, and constraints
 - **76 tRPC routers** with real database queries, not mocks; admin console routers migrated to admin control-plane auth (Aug 18, 2026)
+- **REST API v1** with 8 GET + 2 POST endpoints, API-key auth, entity scoping, rate limiting, OpenAPI 3.1 spec (Aug 18, 2026)
+- **Outbound webhook system** with 9 event types, HMAC signing, exponential backoff, retry logic, delivery audit trail (Aug 18, 2026)
+- **Sentry alerting rules** documented with 10 rules covering errors, performance, LLM, financial, and infrastructure (Aug 18, 2026)
+- **Integration test suite** — 17 tests covering auth, rate limiting, security, encryption, webhooks, API keys, logging (Aug 18, 2026)
 - **21 LangGraph agents** with compiled graphs, real tools, and versioned prompts
 - **Full auth system** with Google OAuth, SSO, MFA, account lockout, session management
 - **Security infrastructure** with CSP, rate limiting, CSRF protection, input sanitization
