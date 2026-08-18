@@ -361,7 +361,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 5.1 Test Coverage
 
 - `[~]` ~90+ unit test files across web, agents, and ingestion
-- `[~]` 21 E2E test files with Playwright
+- `[x]` 23 E2E test files with Playwright — 21 existing + `docs-integrity.spec.ts` (30 docs pages, navigation, search) + `production-health.spec.ts` (health endpoints, security headers, performance baselines, static assets, error handling) (Aug 18, 2026)
 - `[x]` No coverage reporting configured in CI — **Vitest `--coverage` (v8) enabled in both web (`apps/web/vitest.config.js`) and agents (`packages/agents/vitest.config.ts`); 80% thresholds on lines/functions/branches/statements; `test:coverage` script in both packages; CI `coverage` job uploads reports as artifacts** (Aug 15, 2026)
 - `[x]` Set up Vitest coverage thresholds (target: 80%+) — **done: `coverage.thresholds` in both vitest configs**
 - `[ ]` Add coverage badges to README
@@ -381,7 +381,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 5.3 E2E Tests
 
-- `[~]` 21 Playwright spec files exist
+- `[x]` 23 Playwright spec files exist — added `docs-integrity.spec.ts` and `production-health.spec.ts` (Aug 18, 2026)
 - `[ ]` Verify E2E tests run against deployed preview environment
 - `[ ]` Add visual regression testing (Playwright screenshot comparison)
 - `[ ]` Add mobile viewport testing
@@ -1139,6 +1139,34 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ---
 
+## 27. Docs Overhaul & Enterprise Testing (Aug 18, 2026)
+
+### 27.1 Documentation Accuracy
+
+- `[x]` Agent count claims fixed: 19/20 → 21 across pricing, agents, hero, ai-ux, chat, resources, page-empty-state (Aug 18, 2026)
+- `[x]` Module count claims fixed: 19 → 20 across docs modules page, sidebar, search, mobile nav (Aug 18, 2026)
+- `[x]` Docs integrity test suite added: `__tests__/docs-integrity.test.ts` — 5 tests enforcing agent/module count consistency, internal link validation, sidebar/search/nav coverage, and professional depth guard (Aug 18, 2026)
+
+### 27.2 Documentation Depth
+
+- `[x]` 8 concept sub-pages created (were missing, linked from concepts page): organization-entity, chart-of-accounts, journal-entries, fiscal-periods, multi-currency, roles-permissions, ai-automation, audit-trail — all with architecture diagrams, code examples, compliance matrices (Aug 18, 2026)
+- `[x]` 2 module docs pages created: Estimates, Tax Compliance — completing the 20-module documentation set (Aug 18, 2026)
+- `[x]` Security docs upgraded: encryption (AES-256-GCM architecture, key management, compliance matrix), compliance (SOC2/GDPR/ISO27001/African DP frameworks), auth (session lifecycle, MFA, SSO flow diagrams) — all professional-grade (Aug 18, 2026)
+- `[x]` Module cards on docs/modules page updated to include Estimates and Tax Compliance (Aug 18, 2026)
+
+### 27.3 Enterprise-Grade Playwright Tests
+
+- `[x]` `e2e/docs-integrity.spec.ts` — 30 docs pages tested for content rendering, heading structure, no error states; concept page navigation; agent docs content verification (Aug 18, 2026)
+- `[x]` `e2e/production-health.spec.ts` — health endpoint validation (/api/health basic/live/ready/detailed), security headers verification (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, X-Request-Id), rate limit infrastructure check, static assets (robots.txt, sitemap.xml, favicon), error handling (404 for unknown routes), performance baselines (homepage <5s, docs <3s) (Aug 18, 2026)
+
+### 27.4 Admin Console Auth Fix
+
+- `[x]` 16 admin-console-only routers switched from customer-session `adminProcedure` to admin control-plane `adminProtectedProcedure` — fixes 401s for pure platform admins who sign in via TOTP (Aug 18, 2026)
+- `[x]` 3 mixed routers (live-runs, notifications, content) split: tenant-facing procs stay on `protectedProcedure`, admin-only procs use `adminProtectedProcedure` (Aug 18, 2026)
+- `[x]` Workflow-builder router gained CRUD mutations (create/update/delete/publish) with transactional node/edge persistence (Aug 18, 2026)
+
+---
+
 ## DEEP-DIVE SEVERITY SUMMARY
 
 | Severity    | Count | Description                                                                                                                                                                                                                                                                                                               |
@@ -1213,8 +1241,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 This report focuses on gaps, but Xenboox has significant production-quality foundations:
 
 - **135 database tables** with proper schema, RLS, indexes, and constraints
-- **76 tRPC routers** with real database queries, not mocks
-- **20 LangGraph agents** with compiled graphs, real tools, and versioned prompts
+- **76 tRPC routers** with real database queries, not mocks; admin console routers migrated to admin control-plane auth (Aug 18, 2026)
+- **21 LangGraph agents** with compiled graphs, real tools, and versioned prompts
 - **Full auth system** with Google OAuth, SSO, MFA, account lockout, session management
 - **Security infrastructure** with CSP, rate limiting, CSRF protection, input sanitization
 - **30+ route pages** with real implementations, not skeletons
