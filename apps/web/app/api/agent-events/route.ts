@@ -5,8 +5,10 @@ import {
   opsLiveRunEvents,
 } from "@xenboox/db/schema/ops-live-runs";
 import { notifications } from "@xenboox/db/schema/notifications";
+import { adminUsers, adminSessions } from "@xenboox/db/schema";
 
 import { auth } from "@/lib/auth";
+import { resolveEntityAccess } from "@/lib/auth/entity-access";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { publishSseEvent, drainSseEvents } from "@/lib/sse/broadcast";
@@ -16,6 +18,35 @@ const activeConnections = new Map<
   string,
   Set<ReadableStreamDefaultController>
 >();
+
+// §16.1 connection budget: one user may hold at most N open SSE streams
+// (multiple tabs/panels). Prevents a single authenticated client from
+// exhausting instance memory with unbounded streams. Tracked per user+entity
+// pair so one tenant can't starve another on a shared instance.
+const MAX_CONNECTIONS_PER_USER_ENTITY = 8;
+const connectionCounts = new Map<string, number>();
+
+function connectionKey(userId: string, entityId: string) {
+  return `${userId}:${entityId}`;
+}
+
+function acquireConnectionSlot(userId: string, entityId: string): boolean {
+  const key = connectionKey(userId, entityId);
+  const current = connectionCounts.get(key) ?? 0;
+  if (current >= MAX_CONNECTIONS_PER_USER_ENTITY) return false;
+  connectionCounts.set(key, current + 1);
+  return true;
+}
+
+function releaseConnectionSlot(userId: string, entityId: string) {
+  const key = connectionKey(userId, entityId);
+  const current = connectionCounts.get(key) ?? 0;
+  if (current <= 1) {
+    connectionCounts.delete(key);
+  } else {
+    connectionCounts.set(key, current - 1);
+  }
+}
 
 // Local broadcast (for same-instance fast path)
 function broadcastToEntity(entityId: string, event: AgentEvent) {
@@ -193,16 +224,35 @@ async function getEntityEvents(
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
+  const userId = session.user.id;
 
-  // Get entityId from query params or use a default
+  // Entity scoping is non-negotiable (§20.2): the stream is scoped to the
+  // entity the caller actually has access to. The client passes its active
+  // entityId; we verify org-level (owner/admin) or entity-level access
+  // BEFORE opening the stream — otherwise any authenticated user could read
+  // another tenant's runs/notifications by guessing an entity UUID.
   const { searchParams } = new URL(req.url);
-  const entityId = searchParams.get("entityId") || session.user.id || "default";
-  // Auth gate above guarantees session.user exists; id is typed optional by
-  // next-auth, so assert it like the rest of the codebase does.
-  const userId = session.user.id!;
+  const requestedEntityId = searchParams.get("entityId") || undefined;
+  const access = await resolveEntityAccess(userId, requestedEntityId ?? "");
+  if (!access) {
+    return new Response("Forbidden", { status: 403 });
+  }
+  const entityId = access.entityId;
+
+  // §16.1 connection budget — reject BEFORE opening the stream if this user
+  // already holds too many open connections for this entity (client reconnect
+  // loops and multi-tab users are fine; unbounded streams are not). Returning
+  // a real 429 + Retry-After lets SSE clients back off cleanly instead of
+  // watching a 200 stream whose body dies immediately.
+  if (!acquireConnectionSlot(userId, entityId)) {
+    return Response.json(
+      { error: "Too many open streams for this workspace" },
+      { status: 429, headers: { "Retry-After": "10" } },
+    );
+  }
 
   const encoder = new TextEncoder();
 
@@ -323,25 +373,10 @@ export async function GET(req: NextRequest) {
       // Do initial poll
       pollForChanges();
 
-      // Heartbeat to detect stale connections
-      const heartbeatInterval = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(`: heartbeat\n\n`));
-        } catch {
-          // Connection is dead, clean up
-          clearInterval(intervalId);
-          clearInterval(heartbeatInterval);
-          activeConnections.get(entityId)?.delete(controller);
-          if (activeConnections.get(entityId)?.size === 0) {
-            activeConnections.delete(entityId);
-          }
-        }
-      }, 30000);
-
-      // Cleanup on close
-      req.signal.addEventListener("abort", () => {
+      const cleanup = () => {
         clearInterval(intervalId);
         clearInterval(heartbeatInterval);
+        releaseConnectionSlot(userId, entityId);
         activeConnections.get(entityId)?.delete(controller);
         if (activeConnections.get(entityId)?.size === 0) {
           activeConnections.delete(entityId);
@@ -351,7 +386,20 @@ export async function GET(req: NextRequest) {
         } catch {
           // Already closed
         }
-      });
+      };
+
+      // Heartbeat to detect stale connections
+      const heartbeatInterval = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(`: heartbeat\n\n`));
+        } catch {
+          // Connection is dead, clean up
+          cleanup();
+        }
+      }, 30000);
+
+      // Cleanup on close
+      req.signal.addEventListener("abort", cleanup);
     },
   });
 
@@ -368,15 +416,32 @@ export async function GET(req: NextRequest) {
 // POST endpoint to manually trigger events (for testing or admin operations)
 // Note: This endpoint is restricted to admin users only
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
+  // Admin control plane — uses the SEPARATE admin identity system
+  // (admin_users / admin_sessions, own cookie namespace), never the customer
+  // session. The old gate checked `session.user.role`, which the customer
+  // session never carries — so admin broadcast silently 403'd for everyone.
+  const { adminAuth } = await import("@/lib/auth/admin");
+  const raw = await adminAuth();
+  const admin = raw as unknown as {
+    admin?: { id?: string; role?: string };
+    adminSid?: string;
+  } | null;
+  if (!admin?.admin?.id || !admin.adminSid) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Only allow admin users to broadcast events
-  // In production, add proper role-based access control
-  const user = session.user as { role?: string };
-  if (user.role !== "admin") {
+  // DB-backed re-check: the JWT alone is not enough — revocation, inactivity
+  // timeouts, and the 12h hard cap are enforced on every call (mirrors
+  // adminSessionMiddleware in lib/trpc/server.ts).
+  const [adminUser, dbSession] = await Promise.all([
+    db.query.adminUsers.findFirst({
+      where: eq(adminUsers.id, admin.admin!.id),
+    }),
+    db.query.adminSessions.findFirst({
+      where: eq(adminSessions.id, admin.adminSid),
+    }),
+  ]);
+  if (!adminUser?.isActive || !dbSession) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
