@@ -68,7 +68,7 @@ function buildSummaryCards(summary: {
     {
       label: "Overdue",
       value: `GMD ${summary.overdueAmount.toLocaleString()}`,
-      change: summary.overdueChange ?? 8.3,
+      change: summary.overdueChange,
       icon: AlertTriangle,
       color: "text-red-600",
       bgColor: "bg-red-50",

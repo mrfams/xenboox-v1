@@ -104,6 +104,40 @@ export const invoicingRouter = router({
         ? Math.round((paidInvoices.length / invoices.length) * 100)
         : 82;
 
+    // Previous month overdue, collection days, and conversion for comparison
+    const prevOverdueAmount = prevInvoices
+      .filter((i) => i.status === "overdue")
+      .reduce((sum, i) => sum + parseFloat(i.balance ?? "0"), 0);
+
+    const prevPaidInvoices = prevInvoices.filter((i) => i.status === "paid");
+    const prevAvgCollectionDays =
+      prevPaidInvoices.length > 0
+        ? Math.round(
+            prevPaidInvoices.reduce((sum, i) => {
+              const invoiceDate = new Date(i.invoiceDate);
+              const paidDate = i.sentAt ? new Date(i.sentAt) : new Date();
+              const days =
+                Math.abs(paidDate.getTime() - invoiceDate.getTime()) /
+                (1000 * 60 * 60 * 24);
+              return sum + days;
+            }, 0) / prevPaidInvoices.length,
+          )
+        : 0;
+
+    const prevConversionRate =
+      prevInvoices.length > 0
+        ? Math.round((prevPaidInvoices.length / prevInvoices.length) * 100)
+        : 0;
+
+    const overdueChange =
+      prevOverdueAmount > 0
+        ? ((overdueAmount - prevOverdueAmount) / prevOverdueAmount) * 100
+        : 0;
+    const avgCollectionChange =
+      prevAvgCollectionDays > 0 ? avgCollectionDays - prevAvgCollectionDays : 0;
+    const conversionChange =
+      prevConversionRate > 0 ? conversionRate - prevConversionRate : 0;
+
     // Top customers by outstanding
     const customerOutstanding: Record<
       string,
@@ -174,13 +208,13 @@ export const invoicingRouter = router({
         outstandingChange: Number(outstandingChange.toFixed(1)),
         overdueAmount,
         overdueCount,
-        overdueChange: 8.3,
+        overdueChange: Number(overdueChange.toFixed(1)),
         paidThisMonth,
         paidChange: Number(paidChange.toFixed(1)),
         avgCollectionDays,
-        avgCollectionChange: -2,
+        avgCollectionChange: Number(avgCollectionChange.toFixed(1)),
         conversionRate,
-        conversionChange: 5,
+        conversionChange: Number(conversionChange.toFixed(1)),
       },
       statusCounts,
       topCustomers,

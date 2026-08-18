@@ -167,6 +167,27 @@ export const billsRouter = router({
           )
         : 26;
 
+    // Previous month avg days to pay for comparison
+    const prevPaidBills = prevBills.filter((b) => b.status === "paid");
+    const prevAvgDaysToPay =
+      prevPaidBills.length > 0
+        ? Math.round(
+            prevPaidBills.reduce((sum, b) => {
+              const invoiceDate = new Date(b.invoiceDate);
+              const paidDate = b.receivedDate
+                ? new Date(b.receivedDate)
+                : new Date();
+              return (
+                sum +
+                Math.abs(paidDate.getTime() - invoiceDate.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+            }, 0) / prevPaidBills.length,
+          )
+        : 0;
+    const avgDaysToPayChange =
+      prevAvgDaysToPay > 0 ? avgDaysToPay - prevAvgDaysToPay : 0;
+
     // Top vendors by outstanding
     const vendorBalances: Record<
       string,
@@ -264,7 +285,7 @@ export const billsRouter = router({
         paidThisMonth,
         paidThisMonthCount,
         avgDaysToPay,
-        avgDaysToPayChange: -5,
+        avgDaysToPayChange: Number(avgDaysToPayChange.toFixed(1)),
       },
       statusCounts,
       topVendors,

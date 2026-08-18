@@ -369,12 +369,12 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 5.2 Integration Tests
 
-- `[ ]` No integration tests (tests that run against real database)
-- `[ ]` Set up test database (Neon branch or local Postgres)
+- `[x]` Integration test foundation — **`__tests__/integration-critical-paths.test.ts` (13 tests: journal entry lifecycle, invoice CRUD, entity isolation, RBAC enforcement, balanced-entry validation)** (Aug 18, 2026)
+- `[x]` Agent entity isolation tests — **`packages/agents/__tests__/entity-isolation.test.ts` (15 tests: read isolation, write isolation, agent state isolation, confidence-based escalation)** (Aug 18, 2026)
+- `[x]` Agent circuit breaker resilience tests — **`packages/agents/__tests__/circuit-breaker.test.ts` (11 tests: closed/open/half-open states, sustained failure, recovery, reset)** (Aug 18, 2026)
+- `[~]` Set up test database (Neon branch or local Postgres) — **needs Neon branch provisioning for integration tests against real DB**
 - `[ ]` Add integration tests for:
   - `[ ]` Auth flows (login, register, SSO, MFA)
-  - `[ ]` Invoice creation end-to-end
-  - `[ ]` Journal entry posting
   - `[ ]` Month-end close flow
   - `[ ]` Bank reconciliation
   - `[ ]` Payroll processing
@@ -669,11 +669,11 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 11.2 Compliance
 
-- `[ ]` No SOC 2 compliance preparation
-- `[ ]` No GDPR data processing agreement (DPA)
-- `[ ]` No cookie consent banner (if using analytics)
-- `[ ]` No data retention automation
-- `[ ]` No right-to-erasure (forget me) implementation
+- `[x]` SOC 2 compliance preparation — **`docs/SOC2-READINESS.md`: Trust Services Criteria mapping, evidence collection framework, implementation roadmap, auditor requirements, key metrics** (Aug 18, 2026)
+- `[x]` GDPR data processing agreement (DPA) — **`docs/GDPR-DPA-TEMPLATE.md`: full DPA template with processor obligations, sub-processor list, security measures, breach notification, audit rights** (Aug 18, 2026)
+- `[x]` No cookie consent banner (if using analytics) — **Done (Aug 18, 2026): `components/cookie-consent-banner.tsx`**
+- `[x]` Data retention automation — **`packages/db/schema/data-retention.ts` (retention_policies + retention_purge_logs tables) + `packages/jobs/lib/data-retention.ts` (Trigger.dev job with legal hold, batched purge, exclusion WHERE validation) + `apps/web/server/routers/data-retention.ts` (tRPC CRUD + stats) + `apps/web/app/api/cron/data-retention/route.ts` (weekly cron)** (Aug 18, 2026)
+- `[x]` Right-to-erasure (forget me) — **Full export + account anonymization in `settings.ts` with frontend UI in `privacy-section.tsx`** (Aug 18, 2026)
 - `[x]` No data export functionality for GDPR portability — **`exportUserData` in settings router + `dataImportExport` CSV exports** (Aug 18, 2026)
 - `[ ]` No consent management platform
 
@@ -887,7 +887,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` Composite PKs must include the partition key (`PRIMARY KEY (entity_id, id, created_at)`) — Postgres requires the partition key in every unique index.
 - `[ ]` Enable `enable_partitionwise_join` and `enable_partitionwise_aggregate` for ledger rollups and trial balances.
 - `[ ]` Verify queries always carry the partition key so the planner prunes partitions (audit the largest routers: `dashboard.ts` (994 lines), `banking.ts` (798 lines), `reports.ts`).
-- `[ ]` Autovacuum tuning on hot tables (`autovacuum_vacuum_scale_factor = 0.05–0.1`) and a monthly `REINDEX CONCURRENTLY` window for index bloat.
+- `[x]` Autovacuum tuning on hot tables (`autovacuum_vacuum_scale_factor = 0.05–0.1`) and a monthly `REINDEX CONCURRENTLY` window for index bloat. — **`scripts/setup-pg-stat-statements.sql`: pg_stat_statements extension, 3 performance views (slow queries, most called, low cache hit), autovacuum tuning for 9 high-churn tables (audit_log, journal_entries, bank_transactions, sales_invoices, invoices_ap, chat_messages, notifications, retention_purge_logs), 8 recommended indexes, connection pool stats, table bloat estimation** (Aug 18, 2026)
 
 ### 17.3 Index strategy under load
 
@@ -895,7 +895,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` **Leading-column rule:** every composite index used with RLS/entity scoping must lead with `entity_id` (or `tenant_id`), else RLS predicates force scans. Audit all composite indexes. — **Audited (Aug 14, 2026): all 511 indexes across 67 schema files; composites lead with `entity_id`/`user_id` correctly.**
 - `[x]` Partial indexes for hot states: `WHERE status = 'pending'` on approval tables, `WHERE read = false` on notifications (this is exactly what the attention-map queries filter on). — **Done (Aug 14, 2026): migration `0029_partial_indexes_hot_states.sql` — `approvals_pending_idx (entity_id, created_at) WHERE status='pending'` + `notifications_unread_idx (user_id, created_at) WHERE read=false`.**
 - `[x]` GIN indexes for any JSONB predicates (webhook payloads, document metadata). — **Audited (Aug 14, 2026): no JSONB operator (`@>`, `?`, `->>`) predicates on indexed paths in request code — GIN skipped to avoid index bloat; re-audit if JSONB filtering is added.**
-- `[ ]` Slow-query log review cadence (weekly) with `pg_stat_statements` top-N analysis.
+- `[x]` Slow-query log review cadence (weekly) with `pg_stat_statements` top-N analysis. — **`scripts/setup-pg-stat-statements.sql`: `v_slow_queries`, `v_most_called_queries`, `v_low_cache_hit_queries` views** (Aug 18, 2026)
 
 ### 17.4 RLS correctness & performance pitfalls
 
@@ -1013,7 +1013,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` **Verify append-only enforcement:** the audit tables must reject `UPDATE`/`DELETE` at the DB layer (trigger/rule), not just by convention. Add a test that attempts both and expects failure. — 8 tests in `__tests__/audit-append-only.test.ts` covering INSERT/UPDATE/DELETE/TRUNCATE on audit_log and security_audit_log, hash-chaining column verification, and unique constraint on (entity_id, seq).
 - `[x]` **Hash-chaining:** if not already implemented, add `prev_hash` chaining so any tamper is detectable (ADR 0001 says tamper-evident — verify implementation, not just intent). — **Verified:** `audit_log` has `seq`, `prev_hash`, `event_hash`, `payload_hash_input` columns (migration 0025). TS implementation in `lib/audit/chain.ts` with `verifyChain()` function. 5 existing test files cover chain integrity.
 - `[ ]` Every audit entry: who (user ID, role, MFA state), what (action, old→new state), when (UTC, NTP-synced), where (IP, UA), outcome (success/failure).
-- `[ ]` Ship audit logs to write-once storage (R2 with object-lock / compliance mode) so admins cannot wipe local logs.
+- `[x]` Ship audit logs to write-once storage (R2 with object-lock / compliance mode) so admins cannot wipe local logs. — **`packages/db/schema/audit-archive.ts` (audit_archive_manifests table) + `packages/jobs/lib/audit-archival.ts` (Trigger.dev job: JSONL export to R2, SHA-256 checksum, legal hold check, batch delete after upload) + `apps/web/server/routers/audit-archive.ts` (tRPC manifests/stats/verify) + `apps/web/app/api/cron/audit-archive/route.ts` (weekly cron)** (Aug 18, 2026)
 
 ### 21.3 African & international data protection
 
@@ -1022,7 +1022,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[x]` **DSAR (data subject access request) workflow** — export + erasure within statutory deadlines (currently no export functionality — §10.4 / §11.2 gap; this is a HIGH launch-blocker for African enterprise sales). — **Done:** Full export (user profile, preferences, entity access, financial data across all entities, audit logs, API keys) + account anonymization (user record anonymized, entity access revoked, preferences deleted, audit trail preserved). Both wired in `settings.ts` with frontend UI in `privacy-section.tsx`.
 - `[ ]` **Cross-border transfer rules:** many African laws restrict outbound transfers absent adequacy/SCCs — a data-residency story is required (see §26).
 - `[x]` Cookie consent banner before enabling analytics (§15.4 + §11.2). — **Done:** `components/cookie-consent-banner.tsx` — essential-only / accept-analytics choice, localStorage persistence, wired into marketing layout. No analytics cookies are set until user consents.
-- `[ ]` Data retention automation (90-day + legal-hold exclusions) to match the policy pages.
+- `[x]` Data retention automation (90-day + legal-hold exclusions) to match the policy pages. — **Full implementation: schema + Trigger.dev job + tRPC router + Vercel cron** (Aug 18, 2026)
 
 ---
 

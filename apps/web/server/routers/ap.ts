@@ -145,6 +145,24 @@ export const apRouter = router({
         );
       const avgDaysToPay = Math.round(avgDaysResult[0]?.avgDays ?? 23);
 
+      // Previous month avg days to pay for comparison
+      const prevAvgDaysResult = await db
+        .select({
+          avgDays: sql<number>`AVG(EXTRACT(EPOCH FROM (${invoicesAp.updatedAt} - ${invoicesAp.createdAt})) / 86400)`,
+        })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.entityId, entityId),
+            eq(invoicesAp.status, "paid"),
+            gte(invoicesAp.invoiceDate, prevStartDate),
+            lte(invoicesAp.invoiceDate, prevEndDate),
+          ),
+        );
+      const prevAvgDaysToPay = Math.round(prevAvgDaysResult[0]?.avgDays ?? 0);
+      const avgDaysToPayChange =
+        prevAvgDaysToPay > 0 ? avgDaysToPay - prevAvgDaysToPay : 0;
+
       // Calculate changes
       const payablesChange =
         prevTotalPayables > 0
@@ -164,6 +182,7 @@ export const apRouter = router({
         dueWithin7Count,
         totalVendors,
         avgDaysToPay,
+        avgDaysToPayChange,
       };
     }),
 

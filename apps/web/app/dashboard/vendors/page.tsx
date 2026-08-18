@@ -42,6 +42,7 @@ function buildSummaryCards(overview: {
   dueWithin7Count: number;
   totalVendors: number;
   avgDaysToPay: number;
+  avgDaysToPayChange: number;
 }): SummaryCardItem[] {
   return [
     {
@@ -79,7 +80,7 @@ function buildSummaryCards(overview: {
     {
       label: "Avg. Days to Pay",
       value: `${overview.avgDaysToPay} days`,
-      change: -4,
+      change: overview.avgDaysToPayChange,
       icon: TrendingDown,
       color: "text-emerald-600",
       bgColor: "bg-emerald-50",

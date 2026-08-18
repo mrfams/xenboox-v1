@@ -79,6 +79,8 @@ import { artifactRouter } from "./artifact";
 import { ssoRouter } from "./sso";
 import { currencyRouter } from "./currency";
 import { dataImportExportRouter } from "./data-import-export";
+import { dataRetentionRouter } from "./data-retention";
+import { auditArchiveRouter } from "./audit-archive";
 
 import { router, publicProcedure } from "@/lib/trpc/server";
 
@@ -164,6 +166,8 @@ export const appRouter = router({
   sso: ssoRouter,
   currency: currencyRouter,
   dataImportExport: dataImportExportRouter,
+  dataRetention: dataRetentionRouter,
+  auditArchive: auditArchiveRouter,
 });
 
 export type AppRouter = typeof appRouter;

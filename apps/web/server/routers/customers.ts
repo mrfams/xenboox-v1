@@ -108,6 +108,58 @@ export const customersRouter = router({
           )
         : 28;
 
+    // Previous month overdue, current, and avg days to pay for comparison
+    const prevOverdueAmount = allInvoices
+      .filter(
+        (inv) =>
+          inv.status === "overdue" &&
+          inv.invoiceDate >= prevStart &&
+          inv.invoiceDate <= prevEnd,
+      )
+      .reduce((sum, inv) => sum + parseFloat(inv.balance ?? "0"), 0);
+
+    const prevCurrentAmount = allInvoices
+      .filter(
+        (inv) =>
+          inv.status !== "paid" &&
+          inv.status !== "voided" &&
+          inv.status !== "overdue" &&
+          inv.invoiceDate >= prevStart &&
+          inv.invoiceDate <= prevEnd,
+      )
+      .reduce((sum, inv) => sum + parseFloat(inv.balance ?? "0"), 0);
+
+    const prevPaidInvoices = allInvoices.filter(
+      (inv) =>
+        inv.status === "paid" &&
+        inv.invoiceDate >= prevStart &&
+        inv.invoiceDate <= prevEnd,
+    );
+    const prevAvgDaysToPay =
+      prevPaidInvoices.length > 0
+        ? Math.round(
+            prevPaidInvoices.reduce((sum, inv) => {
+              const invoiceDate = new Date(inv.invoiceDate);
+              const paidDate = inv.sentAt ? new Date(inv.sentAt) : new Date();
+              const days =
+                Math.abs(paidDate.getTime() - invoiceDate.getTime()) /
+                (1000 * 60 * 60 * 24);
+              return sum + days;
+            }, 0) / prevPaidInvoices.length,
+          )
+        : 0;
+
+    const overdueChange =
+      prevOverdueAmount > 0
+        ? ((overdueAmount - prevOverdueAmount) / prevOverdueAmount) * 100
+        : 0;
+    const currentChange =
+      prevCurrentAmount > 0
+        ? ((currentAmount - prevCurrentAmount) / prevCurrentAmount) * 100
+        : 0;
+    const avgDaysToPayChange =
+      prevAvgDaysToPay > 0 ? avgDaysToPay - prevAvgDaysToPay : 0;
+
     // Customer groups (simplified - would come from metadata)
     const customerGroups: Record<string, number> = {};
     for (const customer of allCustomers) {
@@ -203,13 +255,13 @@ export const customersRouter = router({
         totalReceivables,
         receivablesChange: Number(receivablesChange.toFixed(1)),
         overdueAmount,
-        overdueChange: 8.6,
+        overdueChange: Number(overdueChange.toFixed(1)),
         currentAmount,
-        currentChange: 15.2,
+        currentChange: Number(currentChange.toFixed(1)),
         totalCustomers: allCustomers.length,
         activeCustomers,
         avgDaysToPay,
-        avgDaysToPayChange: -5,
+        avgDaysToPayChange: Number(avgDaysToPayChange.toFixed(1)),
       },
       statusCounts: {
         all: allCustomers.length,
