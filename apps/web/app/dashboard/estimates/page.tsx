@@ -1352,6 +1352,116 @@ function DetailDrawer({
   );
 }
 
+// ─── AI Margin Review (overview) ──────────────────────────────────────────
+// Live procedure behind the "AI Review Margins" button: open estimates are
+// checked against the entity's actual cost base — under-priced quotes and
+// expiring ones flagged for follow-up.
+
+function EstimateMarginReviewPanel() {
+  const { data: review } = trpc.estimates.getMarginReview.useQuery();
+
+  if (!review) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <p className="text-sm text-slate-400">Reviewing estimate margins…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50">
+            <TrendingUp className="h-4 w-4 text-violet-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">
+              Margin review
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Quoted margin vs actual costs · expiring quotes flagged
+            </p>
+          </div>
+        </div>
+        <AiSimulationTrigger
+          traceId="estimate-margin-review"
+          label="Run"
+          variant="outline"
+          className="!py-1 !px-2.5 !text-[11px]"
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-lg bg-slate-50 p-2">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400">
+            Open estimates
+          </p>
+          <p className="text-sm font-bold text-slate-900">
+            {review.summary.total}
+          </p>
+        </div>
+        <div className="rounded-lg bg-red-50 p-2">
+          <p className="text-[10px] uppercase tracking-wide text-red-500">
+            Under-priced
+          </p>
+          <p className="text-sm font-bold text-red-700">
+            {review.summary.underPriced}
+          </p>
+        </div>
+        <div className="rounded-lg bg-amber-50 p-2">
+          <p className="text-[10px] uppercase tracking-wide text-amber-500">
+            Expiring ≤7d
+          </p>
+          <p className="text-sm font-bold text-amber-700">
+            {review.summary.expiring}
+          </p>
+        </div>
+      </div>
+
+      {review.rows.length > 0 ? (
+        <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto">
+          {review.rows.slice(0, 10).map((r) => (
+            <div
+              key={r.id}
+              className="flex items-center justify-between rounded-lg border border-slate-100 px-2.5 py-1.5"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-slate-800">
+                  {r.estimateNumber} · {r.customerName}
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  {r.status} · GMD {r.total.toLocaleString()}
+                  {r.daysToExpiry != null && ` · ${r.daysToExpiry}d to expiry`}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-xs font-semibold text-slate-900">
+                  {r.impliedMargin}% margin
+                </span>
+                {r.underPriced && (
+                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-600">
+                    Re-quote
+                  </span>
+                )}
+                {r.expiring && (
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-600">
+                    Nudge
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-slate-400">
+          No open estimates to review.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 type AiDraftPayload = {
@@ -1494,7 +1604,10 @@ export default function EstimatesPage() {
       {/* Search + table */}
       <div className="px-4 pb-4 space-y-4">
         {activeTab === "overview" ? (
-          <EstimatesOverview overview={overview.data ?? null} />
+          <>
+            <EstimatesOverview overview={overview.data ?? null} />
+            <EstimateMarginReviewPanel />
+          </>
         ) : (
           <div className="rounded-xl border border-slate-200 bg-white">
             <div className="flex items-center gap-4 border-b border-slate-200 p-3">

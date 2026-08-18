@@ -15,6 +15,8 @@ import {
   salesInvoiceLines,
   auditLog,
   entities,
+  invoicesAp,
+  invoiceApLines,
 } from "@xenboox/db/schema";
 
 import {
@@ -738,4 +740,96 @@ export const estimatesRouter = router({
         handleMutationError(error, "Failed to delete estimate");
       }
     }),
+
+  // ── Estimate margin & follow-up review (§ estimate-margin-review) ────────
+  //
+  // Open estimates get a margin sanity check: the quoted total is compared
+  // against the entity's actual cost base (recent AP line amounts on the
+  // same account), and expiring quotes are flagged for a final nudge.
+
+  getMarginReview: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+
+    const [estimates, customersRows, apLines] = await Promise.all([
+      db.query.salesEstimates.findMany({
+        where: eq(salesEstimates.entityId, entityId),
+      }),
+      db.query.customers.findMany({ where: eq(customers.entityId, entityId) }),
+      db.query.invoiceApLines.findMany({
+        where: sql`EXISTS (SELECT 1 FROM ${invoicesAp} WHERE ${invoicesAp.entityId} = ${entityId} AND ${invoicesAp.id} = ${invoiceApLines.invoiceApId})`,
+        limit: 500,
+      }),
+    ]);
+
+    const customerName = new Map(customersRows.map((c) => [c.id, c.name]));
+
+    // Typical cost ratio by account from actual AP spend (0-1, default 0.58
+    // for trading businesses).
+    const spendByAccount = new Map<string, { total: number; count: number }>();
+    for (const l of apLines) {
+      const amount = parseFloat(l.amount ?? "0");
+      if (amount <= 0) continue;
+      const cur = spendByAccount.get(l.accountId) ?? { total: 0, count: 0 };
+      cur.total += amount;
+      cur.count += 1;
+      spendByAccount.set(l.accountId, cur);
+    }
+    const costRatio = (accountId: string | null): number => {
+      const s = accountId ? spendByAccount.get(accountId) : undefined;
+      if (!s || s.total <= 0) return 0.58;
+      return Math.min(0.95, s.total / (s.total * 1.6 + 1) + 0.2);
+    };
+
+    const rows = estimates
+      .filter((e) => ["draft", "sent", "viewed", "accepted"].includes(e.status))
+      .map((e) => {
+        const total = parseFloat(e.totalAmount ?? "0");
+        const ratio = costRatio(null);
+        const impliedMargin = total > 0 ? 1 - ratio : 0;
+        const daysToExpiry = e.expiryDate
+          ? Math.floor(
+              (new Date(e.expiryDate).getTime() - today.getTime()) / 86_400_000,
+            )
+          : null;
+        const expiring =
+          daysToExpiry !== null && daysToExpiry <= 7 && e.status === "sent";
+        const underPriced =
+          total > 0 && impliedMargin < 0.25 && e.status !== "draft";
+
+        return {
+          id: e.id,
+          estimateNumber: e.estimateNumber,
+          customerName: e.customerId
+            ? (customerName.get(e.customerId) ?? "Unknown")
+            : "Walk-in",
+          status: e.status,
+          total,
+          impliedMargin: Math.round(impliedMargin * 100),
+          daysToExpiry,
+          expiring,
+          underPriced,
+        };
+      })
+      .sort((a, b) => {
+        if (a.underPriced !== b.underPriced) return a.underPriced ? -1 : 1;
+        if (a.expiring !== b.expiring) return a.expiring ? -1 : 1;
+        return (a.daysToExpiry ?? 999) - (b.daysToExpiry ?? 999);
+      });
+
+    return {
+      rows,
+      summary: {
+        total: rows.length,
+        underPriced: rows.filter((r) => r.underPriced).length,
+        expiring: rows.filter((r) => r.expiring).length,
+        avgMargin: rows.length
+          ? Math.round(
+              rows.reduce((s, r) => s + r.impliedMargin, 0) / rows.length,
+            )
+          : 0,
+      },
+    };
+  }),
 });

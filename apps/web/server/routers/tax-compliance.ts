@@ -432,4 +432,119 @@ export const taxComplianceRouter = router({
         orderBy: [desc(taxPackages.createdAt)],
       });
     }),
+
+  // ── Tax deduction discovery (§ deduction-discovery) ──────────────────────
+  //
+  // Continuously scans for missed deductions and tax-saving opportunities:
+  //   1. WHT paid but never filed/recovered
+  //   2. VAT refundable positions never claimed
+  //   3. Unfiled VAT returns (deduction left on the table)
+  //   4. Estimated-vs-actual liability drift worth reconciling
+  // Every item traces to the exact record behind it.
+
+  getDeductionDiscovery: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const opportunities: Array<{
+      id: string;
+      type:
+        | "wht_recovery"
+        | "vat_refund"
+        | "unfiled_return"
+        | "liability_review";
+      title: string;
+      description: string;
+      estimatedSavings: number;
+      period?: string;
+      reference?: string;
+      confidence: number;
+    }> = [];
+
+    // ── 1. WHT paid but not filed (recoverable credit) ───────────────────
+    const wht = await db.query.withholdingRecords.findMany({
+      where: eq(withholdingRecords.entityId, entityId),
+    });
+    for (const w of wht) {
+      if (!w.filed) {
+        opportunities.push({
+          id: `wht-${w.id}`,
+          type: "wht_recovery",
+          title: `WHT credit of GMD ${Number(w.taxWithheld).toLocaleString("en-US", { maximumFractionDigits: 2 })} not yet recovered`,
+          description: `Withholding tax on ${w.payeeName} (${w.period}) has not been filed — filing it claims the credit against your liability.`,
+          estimatedSavings: Number(w.taxWithheld),
+          period: w.period,
+          confidence: 0.9,
+        });
+      }
+    }
+
+    // ── 2. Refundable VAT never claimed ──────────────────────────────────
+    const vats = await db.query.vatCalculations.findMany({
+      where: eq(vatCalculations.entityId, entityId),
+    });
+    for (const c of vats) {
+      const net = Number(c.netPosition);
+      if (net < 0 && !c.filedAt && c.status !== "filed") {
+        opportunities.push({
+          id: `vat-refund-${c.id}`,
+          type: "vat_refund",
+          title: `Refundable VAT of GMD ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} for ${c.period}`,
+          description:
+            "Input VAT exceeds output VAT. Filing the return claims the refund or carry-forward — otherwise the credit expires.",
+          estimatedSavings: Math.abs(net),
+          period: c.period,
+          confidence: 0.85,
+        });
+      }
+    }
+
+    // ── 3. VAT calculated but never filed (deduction left behind) ────────
+    for (const c of vats) {
+      if (c.status === "calculated" && !c.filedAt) {
+        const net = Number(c.netPosition);
+        opportunities.push({
+          id: `vat-unfiled-${c.id}`,
+          type: "unfiled_return",
+          title: `VAT return for ${c.period} was calculated but never filed`,
+          description:
+            "The period's input VAT credit is only claimable once the return is submitted. File it to lock in the deduction.",
+          estimatedSavings: Math.max(0, Number(c.inputVat) - Math.max(0, net)),
+          period: c.period,
+          confidence: 0.8,
+        });
+      }
+    }
+
+    // ── 4. Liability drift worth reviewing (estimated vs actual) ─────────
+    const deadlines = await db.query.filingDeadlines.findMany({
+      where: eq(filingDeadlines.entityId, entityId),
+    });
+    for (const d of deadlines) {
+      const est = Number(d.estimatedAmount ?? "0");
+      if (est > 0 && d.status === "pending") {
+        opportunities.push({
+          id: `liability-${d.id}`,
+          type: "liability_review",
+          title: `${d.name} — review estimated liability before filing`,
+          description: `Estimated at GMD ${est.toLocaleString("en-US", { maximumFractionDigits: 2 })}. Reconciling actuals before filing avoids overpayment — a deduction-safe review.`,
+          estimatedSavings: Math.round(est * 0.05),
+          period: d.period ?? undefined,
+          confidence: 0.7,
+        });
+      }
+    }
+
+    opportunities.sort((a, b) => b.estimatedSavings - a.estimatedSavings);
+
+    return {
+      opportunities,
+      summary: {
+        total: opportunities.length,
+        totalSavings: opportunities.reduce((s, o) => s + o.estimatedSavings, 0),
+        whtRecovery: opportunities.filter((o) => o.type === "wht_recovery")
+          .length,
+        vatRefund: opportunities.filter((o) => o.type === "vat_refund").length,
+      },
+    };
+  }),
 });

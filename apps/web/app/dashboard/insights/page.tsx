@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ShieldAlert,
+  Globe2,
 } from "lucide-react";
 
 import { useState } from "react";
@@ -92,6 +93,120 @@ const insightSections = [
     color: "bg-orange-100 text-orange-600",
   },
 ];
+
+// ─── Market Research Panel (web-research §) ────────────────────────────────
+// Blends the entity's live KPIs with curated public market benchmarks so
+// strategic questions ("is my runway healthy for my industry?") get a
+// sourced, data-backed answer.
+
+function MarketResearchPanel({
+  data,
+}: {
+  data?: {
+    market: string;
+    segment: string;
+    benchmarkNote: string;
+    entity: {
+      revenue: number;
+      margin: number;
+      runway: number;
+      liquidityRatio: number;
+      currency: string;
+    };
+    findings: Array<{
+      id: string;
+      dimension: string;
+      entityValue: number;
+      benchmarkValue: number;
+      unit: string;
+      narrative: string;
+    }>;
+    healthyCount: number;
+  };
+}) {
+  return (
+    <div className="rounded-xl border border-border/50 bg-card p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+            <Globe2 className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">
+              Market research
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Your KPIs vs{" "}
+              {data ? `${data.market} SME benchmarks` : "public SME benchmarks"}
+            </p>
+          </div>
+        </div>
+        {data && (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
+              data.healthyCount >= 2
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-amber-50 text-amber-700",
+            )}
+          >
+            <CheckCircle2 className="h-3 w-3" />
+            {data.healthyCount}/{data.findings.length} above market median
+          </span>
+        )}
+      </div>
+
+      {!data ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Loading market benchmarks…
+        </p>
+      ) : (
+        <>
+          <div className="mt-4 space-y-3">
+            {data.findings.map((f) => (
+              <div
+                key={f.id}
+                className="flex items-start gap-3 rounded-lg border border-border/50 bg-background p-3"
+              >
+                <div
+                  className={cn(
+                    "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                    f.entityValue >= f.benchmarkValue
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-amber-50 text-amber-700",
+                  )}
+                >
+                  {f.entityValue >= f.benchmarkValue ? "✓" : "!"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground">
+                      {f.dimension}
+                    </p>
+                    <p className="shrink-0 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">
+                        {f.entityValue}
+                        {f.unit}
+                      </span>{" "}
+                      vs median {f.benchmarkValue}
+                      {f.unit}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {f.narrative}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground/70">
+            {data.benchmarkNote} · entity data is always live
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
 
 function ScenarioPlanner() {
   const { data } = trpc.dashboard.getScenarioData.useQuery();
@@ -369,6 +484,12 @@ export default function InsightsPage() {
     { enabled: !!entityId },
   );
 
+  // Market research — entity KPIs blended with public market benchmarks
+  const { data: marketResearch } = trpc.analytics.getMarketResearch.useQuery(
+    undefined,
+    { enabled: !!entityId },
+  );
+
   const insights = insightsData?.insights ?? [];
 
   return (
@@ -389,6 +510,9 @@ export default function InsightsPage() {
           variant="outline"
         />
       </div>
+
+      {/* Market Research — web-research: external benchmarks blended with live KPIs */}
+      <MarketResearchPanel data={marketResearch} />
 
       {/* Scenario Planning */}
       <ScenarioPlanner />

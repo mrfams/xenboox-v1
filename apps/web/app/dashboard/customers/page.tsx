@@ -872,6 +872,141 @@ function AiCopilotPanel({
   );
 }
 
+// ─── AI Credit Review (overview) ──────────────────────────────────────────
+// Live procedure behind the "AI Review Credit" button: exposure vs credit
+// limits per customer with aging — over-limit and near-limit flagged first.
+
+function CreditReviewPanel() {
+  const { data: review } = trpc.customers.getCreditReview.useQuery();
+
+  if (!review) {
+    return (
+      <div className="border-t border-slate-200 bg-slate-50/70 p-4">
+        <p className="text-sm text-slate-400">
+          Reviewing customer credit exposure…
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-slate-200 bg-slate-50/70 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+            <CreditCard className="h-4 w-4 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">
+              Credit review
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Exposure vs credit limits · over-limit and near-limit flagged
+            </p>
+          </div>
+        </div>
+        <AiSimulationTrigger
+          traceId="credit-limit-review"
+          label="Run"
+          variant="outline"
+          className="!py-1 !px-2.5 !text-[11px]"
+        />
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400">
+            Total exposure
+          </p>
+          <p className="text-sm font-bold text-slate-900">
+            GMD {review.summary.totalExposure.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg bg-red-50 p-2">
+          <p className="text-[10px] uppercase tracking-wide text-red-500">
+            Over limit
+          </p>
+          <p className="text-sm font-bold text-red-700">
+            {review.summary.overLimit}
+          </p>
+        </div>
+        <div className="rounded-lg bg-amber-50 p-2">
+          <p className="text-[10px] uppercase tracking-wide text-amber-500">
+            Near limit
+          </p>
+          <p className="text-sm font-bold text-amber-700">
+            {review.summary.nearLimit}
+          </p>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-2">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400">
+            With overdue
+          </p>
+          <p className="text-sm font-bold text-slate-900">
+            {review.summary.withOverdue}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto">
+        {review.rows.slice(0, 10).map((r) => (
+          <div
+            key={r.id}
+            className="flex items-center justify-between rounded-lg border border-slate-100 bg-white px-2.5 py-1.5"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-slate-800">
+                {r.name}
+              </p>
+              <p className="text-[10px] text-slate-400">
+                GMD {r.exposure.toLocaleString()} / limit GMD{" "}
+                {r.creditLimit.toLocaleString()}
+                {r.utilization != null && ` · ${r.utilization}% used`}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span
+                className={cn(
+                  "max-w-[220px] truncate text-[10px]",
+                  r.overLimit
+                    ? "text-red-600"
+                    : r.nearLimit
+                      ? "text-amber-600"
+                      : r.overdue > 0
+                        ? "text-orange-600"
+                        : "text-slate-400",
+                )}
+              >
+                {r.recommendation}
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  r.overLimit
+                    ? "bg-red-50 text-red-600"
+                    : r.nearLimit
+                      ? "bg-amber-50 text-amber-600"
+                      : r.overdue > 0
+                        ? "bg-orange-50 text-orange-600"
+                        : "bg-emerald-50 text-emerald-600",
+                )}
+              >
+                {r.overLimit
+                  ? "Over limit"
+                  : r.nearLimit
+                    ? "Near limit"
+                    : r.overdue > 0
+                      ? "Overdue"
+                      : "Healthy"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function CustomersPage() {
@@ -1114,13 +1249,16 @@ export default function CustomersPage() {
           </div>
         </div>
       ) : activeTab === "overview" ? (
-        <CustomersOverview
-          receivablesTrend={receivablesTrend}
-          topCustomers={overviewData?.topCustomers}
-          agingSummary={overviewData?.agingSummary}
-          totalReceivables={overviewData?.summary.totalReceivables ?? 0}
-          insights={aiInsights}
-        />
+        <>
+          <CustomersOverview
+            receivablesTrend={receivablesTrend}
+            topCustomers={overviewData?.topCustomers}
+            agingSummary={overviewData?.agingSummary}
+            totalReceivables={overviewData?.summary.totalReceivables ?? 0}
+            insights={aiInsights}
+          />
+          <CreditReviewPanel />
+        </>
       ) : (
         <CustomerTable
           customers={customersData?.customers ?? []}

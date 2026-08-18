@@ -18,6 +18,8 @@ import {
   Users,
   Clock,
   Trash2,
+  Sparkles,
+  FileCheck2,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -887,6 +889,240 @@ function VendorsOverview({
   );
 }
 
+// ─── AI Vendor Enrichment + Tax Form Collection (overview) ─────────────────
+// Live procedures behind the "AI Enrich" and "AI Collect Forms" buttons:
+// duplicate/missing-data findings across the vendor master, and the
+// W-9/W-8 collection queue with per-vendor status.
+
+function VendorsAutomationPanels() {
+  const { data: enrichment } = trpc.ap.getVendorEnrichment.useQuery();
+  const { data: taxForms } = trpc.ap.getTaxFormStatus.useQuery();
+  const utils = trpc.useUtils();
+  const markReceived = trpc.ap.updateTaxDocStatus.useMutation({
+    onSuccess: () => void utils.ap.getTaxFormStatus.invalidate(),
+  });
+
+  const statusMeta: Record<string, { label: string; className: string }> = {
+    on_file: { label: "On file", className: "bg-emerald-50 text-emerald-600" },
+    missing: { label: "Missing", className: "bg-red-50 text-red-600" },
+    expired: { label: "Expired", className: "bg-amber-50 text-amber-600" },
+    not_required: {
+      label: "Not required",
+      className: "bg-slate-100 text-slate-500",
+    },
+  };
+
+  return (
+    <div className="grid gap-4 border-t border-slate-200 bg-slate-50/70 p-4 lg:grid-cols-2">
+      {/* Vendor enrichment */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50">
+              <Sparkles className="h-4 w-4 text-violet-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Vendor health
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Duplicates, missing tax IDs, and terms
+              </p>
+            </div>
+          </div>
+          <AiSimulationTrigger
+            traceId="vendor-profile"
+            label="Run"
+            variant="outline"
+            className="!py-1 !px-2.5 !text-[11px]"
+          />
+        </div>
+
+        {!enrichment ? (
+          <p className="mt-4 text-sm text-slate-400">Scanning vendor master…</p>
+        ) : enrichment.summary.total === 0 ? (
+          <p className="mt-4 text-sm text-slate-400">
+            Vendor master is clean — no enrichment findings.
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-red-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-red-500">
+                  High
+                </p>
+                <p className="text-sm font-bold text-red-700">
+                  {enrichment.summary.high}
+                </p>
+              </div>
+              <div className="rounded-lg bg-amber-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-amber-500">
+                  Medium
+                </p>
+                <p className="text-sm font-bold text-amber-700">
+                  {enrichment.summary.medium}
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                  Scanned
+                </p>
+                <p className="text-sm font-bold text-slate-900">
+                  {enrichment.summary.vendorsScanned}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 max-h-52 space-y-1.5 overflow-y-auto">
+              {enrichment.findings.slice(0, 10).map((f) => (
+                <div
+                  key={f.id}
+                  className="rounded-lg border border-slate-100 px-2.5 py-1.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-xs font-medium text-slate-800">
+                      {f.title}
+                    </p>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        f.severity === "high" && "bg-red-50 text-red-600",
+                        f.severity === "medium" && "bg-amber-50 text-amber-600",
+                        f.severity === "low" && "bg-slate-100 text-slate-500",
+                      )}
+                    >
+                      {f.severity}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] leading-4 text-slate-500">
+                    {f.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Tax form collection */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+              <FileCheck2 className="h-4 w-4 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Tax form collection
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                W-9 / W-8 status per vendor
+              </p>
+            </div>
+          </div>
+          <AiSimulationTrigger
+            traceId="w9-collection"
+            label="Run"
+            variant="outline"
+            className="!py-1 !px-2.5 !text-[11px]"
+          />
+        </div>
+
+        {!taxForms ? (
+          <p className="mt-4 text-sm text-slate-400">
+            Loading tax document status…
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              <div className="rounded-lg bg-emerald-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-emerald-500">
+                  On file
+                </p>
+                <p className="text-sm font-bold text-emerald-700">
+                  {taxForms.summary.onFile}
+                </p>
+              </div>
+              <div className="rounded-lg bg-red-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-red-500">
+                  Missing
+                </p>
+                <p className="text-sm font-bold text-red-700">
+                  {taxForms.summary.missing}
+                </p>
+              </div>
+              <div className="rounded-lg bg-amber-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-amber-500">
+                  Expired
+                </p>
+                <p className="text-sm font-bold text-amber-700">
+                  {taxForms.summary.expired}
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                  N/A
+                </p>
+                <p className="text-sm font-bold text-slate-900">
+                  {taxForms.summary.notRequired}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 max-h-52 space-y-1.5 overflow-y-auto">
+              {taxForms.rows
+                .filter((r) => r.required)
+                .slice(0, 10)
+                .map((r) => {
+                  const meta = statusMeta[r.status] ?? statusMeta.not_required;
+                  return (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between rounded-lg border border-slate-100 px-2.5 py-1.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-slate-800">
+                          {r.vendorName}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          {r.is1099 ? "1099-reportable · " : ""}
+                          {r.hasTaxId ? "tax ID on file" : "no tax ID"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {(r.status === "missing" || r.status === "expired") && (
+                          <button
+                            onClick={() =>
+                              markReceived.mutate({
+                                vendorId: r.id,
+                                receivedAt: new Date()
+                                  .toISOString()
+                                  .slice(0, 10),
+                              })
+                            }
+                            className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 hover:bg-indigo-100"
+                          >
+                            Mark received
+                          </button>
+                        )}
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            meta.className,
+                          )}
+                        >
+                          {meta.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function VendorsPage() {
@@ -1143,12 +1379,15 @@ export default function VendorsPage() {
           </div>
         </div>
       ) : activeTab === "overview" ? (
-        <VendorsOverview
-          topVendors={topVendors ?? []}
-          paymentTerms={paymentTerms ?? { terms: [], totalVendors: 0 }}
-          aging={aging}
-          insights={insights}
-        />
+        <>
+          <VendorsOverview
+            topVendors={topVendors ?? []}
+            paymentTerms={paymentTerms ?? { terms: [], totalVendors: 0 }}
+            aging={aging}
+            insights={insights}
+          />
+          <VendorsAutomationPanels />
+        </>
       ) : (
         <VendorTable
           vendors={vendorsData?.vendors ?? []}

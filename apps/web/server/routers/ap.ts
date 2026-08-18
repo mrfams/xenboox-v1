@@ -625,6 +625,256 @@ export const apRouter = router({
     return insights;
   }),
 
+  // ── Vendor profile enrichment (§ vendor-profile) ─────────────────────────
+  //
+  // Scans the vendor master for duplicates (same tax ID or same normalized
+  // name), missing tax IDs, missing payment terms, and stale 1099 flags.
+  // Every finding is a concrete, actionable suggestion — not a demo.
+
+  getVendorEnrichment: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const vendors = await db.query.suppliers.findMany({
+      where: eq(suppliers.entityId, entityId),
+    });
+
+    const findings: Array<{
+      id: string;
+      severity: "high" | "medium" | "low";
+      category: string;
+      title: string;
+      description: string;
+      vendorId: string;
+      vendorName: string;
+      suggestedValue?: string;
+    }> = [];
+
+    // ── Duplicates: same taxId, or same normalized name ──────────────────
+    const norm = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+    const seen = new Map<string, string>();
+    const byTax = new Map<string, string>();
+    for (const v of vendors) {
+      if (v.taxId) {
+        const taxKey = v.taxId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+        if (taxKey && byTax.has(taxKey)) {
+          findings.push({
+            id: `dup-tax-${v.id}`,
+            severity: "high",
+            category: "Duplicate vendor",
+            title: `${v.name} shares a tax ID with ${byTax.get(taxKey)}`,
+            description:
+              "Two vendor records share the same tax ID — duplicate payments and 1099 errors are likely. Merge them.",
+            vendorId: v.id,
+            vendorName: v.name,
+          });
+        } else if (taxKey) {
+          byTax.set(taxKey, v.name);
+        }
+      }
+      const nameKey = norm(v.name);
+      if (nameKey && seen.has(nameKey)) {
+        findings.push({
+          id: `dup-name-${v.id}`,
+          severity: "medium",
+          category: "Duplicate vendor",
+          title: `${v.name} may duplicate ${seen.get(nameKey)}`,
+          description:
+            "Same name as an existing vendor (case/spacing differs). Confirm before paying to avoid a double record.",
+          vendorId: v.id,
+          vendorName: v.name,
+        });
+      } else if (nameKey) {
+        seen.set(nameKey, v.name);
+      }
+    }
+
+    // ── Missing tax IDs on active vendors ────────────────────────────────
+    for (const v of vendors) {
+      if (v.isActive && !v.taxId) {
+        findings.push({
+          id: `tax-${v.id}`,
+          severity: "medium",
+          category: "Missing tax ID",
+          title: `${v.name} has no tax ID on file`,
+          description:
+            "Payments to vendors without a tax ID can block deductions and 1099 filing. Request the tax ID.",
+          vendorId: v.id,
+          vendorName: v.name,
+        });
+      }
+    }
+
+    // ── Missing payment terms ────────────────────────────────────────────
+    for (const v of vendors) {
+      if (!v.paymentTerms || v.paymentTerms.trim() === "") {
+        findings.push({
+          id: `terms-${v.id}`,
+          severity: "low",
+          category: "Missing payment terms",
+          title: `${v.name} has no payment terms`,
+          description:
+            "Set a default term (e.g. net30) so payment scheduling stays predictable.",
+          vendorId: v.id,
+          vendorName: v.name,
+          suggestedValue: "net30",
+        });
+      }
+    }
+
+    // ── 1099-eligible vendors missing the flag ───────────────────────────
+    for (const v of vendors) {
+      if (v.isActive && !v.is1099 && !v.taxId) {
+        findings.push({
+          id: `w9-${v.id}`,
+          severity: "low",
+          category: "1099 eligibility",
+          title: `${v.name} may be 1099-reportable`,
+          description:
+            "Individual/contractor vendors without a tax ID are likely 1099-reportable. Confirm and collect a W-9.",
+          vendorId: v.id,
+          vendorName: v.name,
+        });
+      }
+    }
+
+    const order = { high: 0, medium: 1, low: 2 } as const;
+    findings.sort((a, b) => order[a.severity] - order[b.severity]);
+
+    return {
+      findings,
+      summary: {
+        total: findings.length,
+        high: findings.filter((f) => f.severity === "high").length,
+        medium: findings.filter((f) => f.severity === "medium").length,
+        low: findings.filter((f) => f.severity === "low").length,
+        vendorsScanned: vendors.length,
+      },
+    };
+  }),
+
+  // ── Tax form collection (§ w9-collection) ────────────────────────────────
+  //
+  // Tracks W-9 / W-8 collection per vendor using the suppliers.taxId +
+  // is1099 columns (form status persisted in supplier metadata). Returns the
+  // collection queue: on file, missing, expired, or not required.
+
+  getTaxFormStatus: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const vendors = await db.query.suppliers.findMany({
+      where: eq(suppliers.entityId, entityId),
+    });
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    const rows = vendors.map((v) => {
+      const meta = (v.metadata ?? {}) as Record<string, unknown>;
+      const taxDoc = (meta.taxDoc ?? {}) as Record<string, unknown>;
+      const expires =
+        typeof taxDoc.expiresAt === "string" ? taxDoc.expiresAt : null;
+      const received =
+        typeof taxDoc.receivedAt === "string" ? taxDoc.receivedAt : null;
+
+      const required = v.is1099 || (!v.taxId && v.isActive);
+      let status: "on_file" | "missing" | "expired" | "not_required";
+      if (!required) {
+        status = "not_required";
+      } else if (received && expires && expires < todayStr) {
+        status = "expired";
+      } else if (received) {
+        status = "on_file";
+      } else {
+        status = "missing";
+      }
+
+      return {
+        id: v.id,
+        vendorName: v.name,
+        is1099: v.is1099,
+        hasTaxId: !!v.taxId,
+        required,
+        status,
+        receivedAt: received,
+        expiresAt: expires,
+      };
+    });
+
+    return {
+      rows,
+      summary: {
+        total: vendors.length,
+        onFile: rows.filter((r) => r.status === "on_file").length,
+        missing: rows.filter((r) => r.status === "missing").length,
+        expired: rows.filter((r) => r.status === "expired").length,
+        notRequired: rows.filter((r) => r.status === "not_required").length,
+      },
+    };
+  }),
+
+  /**
+   * Record that a W-9/W-8 was requested (or received) for a vendor. Persists
+   * in supplier.metadata.taxDoc so the collection queue reflects reality.
+   */
+  updateTaxDocStatus: rlsMutateProcedure
+    .use(requirePermission("accounts_payable", "edit"))
+    .input(
+      z.object({
+        vendorId: z.string().uuid(),
+        receivedAt: z.string().optional(),
+        expiresAt: z.string().optional(),
+        requestedAt: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const vendor = await db.query.suppliers.findFirst({
+          where: and(
+            eq(suppliers.id, input.vendorId),
+            eq(suppliers.entityId, ctx.entityId!),
+          ),
+        });
+        if (!vendor) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Vendor not found",
+          });
+        }
+
+        const meta = {
+          ...((vendor.metadata ?? {}) as Record<string, unknown>),
+        };
+        const taxDoc = {
+          ...((meta.taxDoc ?? {}) as Record<string, unknown>),
+          ...(input.requestedAt ? { requestedAt: input.requestedAt } : {}),
+          ...(input.receivedAt ? { receivedAt: input.receivedAt } : {}),
+          ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
+        };
+        meta.taxDoc = taxDoc;
+
+        const [updated] = await db
+          .update(suppliers)
+          .set({ metadata: meta })
+          .where(eq(suppliers.id, vendor.id))
+          .returning({ id: suppliers.id, metadata: suppliers.metadata });
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "ap.updateTaxDocStatus",
+          entityType: "supplier",
+          entityIdRef: vendor.id,
+          newValues: { taxDoc },
+        });
+
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update tax form status");
+      }
+    }),
+
   // ── Suppliers ──
   listSuppliers: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.suppliers.findMany({

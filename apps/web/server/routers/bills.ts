@@ -5,10 +5,48 @@ import {
   suppliers,
   paymentsAp,
   purchaseOrders,
+  bankAccounts,
+  mobileMoneyAccounts,
+  cashAccounts,
 } from "@xenboox/db/schema";
 
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Current cash position: bank + mobile money + petty cash balances. */
+async function getCashPosition(entityId: string): Promise<number> {
+  const [banks, mm, cash] = await Promise.all([
+    db.query.bankAccounts.findMany({
+      where: eq(bankAccounts.entityId, entityId),
+    }),
+    db.query.mobileMoneyAccounts.findMany({
+      where: eq(mobileMoneyAccounts.entityId, entityId),
+    }),
+    db.query.cashAccounts.findMany({
+      where: eq(cashAccounts.entityId, entityId),
+    }),
+  ]);
+  const bank = banks.reduce(
+    (s, a) => s + parseFloat(a.currentBalance ?? "0"),
+    0,
+  );
+  const mobile = mm.reduce(
+    (s, a) => s + parseFloat(a.currentBalance ?? "0"),
+    0,
+  );
+  const petty = cash.reduce(
+    (s, a) => s + parseFloat(a.currentBalance ?? "0"),
+    0,
+  );
+  return bank + mobile + petty;
+}
+
+function todayStr(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
 
 // ─── Bills Router ──────────────────────────────────────────────────────────
 
@@ -618,5 +656,221 @@ export const billsRouter = router({
     }
 
     return insights;
+  }),
+
+  // ── Vendor payment scheduling (§ vendor-payments) ────────────────────────
+  //
+  // Ranks open bills by due date against the entity's cash position and
+  // proposes a payment plan: pay now (due/overdue or discount window),
+  // schedule within 7 days, or hold. Never proposes paying more than the
+  // available cash — the plan is executable, not aspirational.
+
+  getPaymentSchedule: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const cashPosition = await getCashPosition(entityId);
+
+    const openBills = await db
+      .select({
+        id: invoicesAp.id,
+        invoiceNumber: invoicesAp.invoiceNumber,
+        dueDate: invoicesAp.dueDate,
+        totalAmount: invoicesAp.totalAmount,
+        balance: invoicesAp.balance,
+        status: invoicesAp.status,
+        supplierId: invoicesAp.supplierId,
+        supplierName: suppliers.name,
+      })
+      .from(invoicesAp)
+      .leftJoin(suppliers, eq(invoicesAp.supplierId, suppliers.id))
+      .where(
+        and(
+          eq(invoicesAp.entityId, entityId),
+          sql`${invoicesAp.status} NOT IN ('paid', 'voided')`,
+        ),
+      );
+
+    const today = todayStr();
+    const weekOut = new Date();
+    weekOut.setDate(weekOut.getDate() + 7);
+    const weekOutStr = `${weekOut.getFullYear()}-${String(weekOut.getMonth() + 1).padStart(2, "0")}-${String(weekOut.getDate()).padStart(2, "0")}`;
+
+    const items = openBills
+      .map((b) => {
+        const balance = parseFloat(b.balance ?? "0");
+        const daysOverdue = Math.max(
+          0,
+          Math.floor(
+            (new Date(today).getTime() - new Date(b.dueDate).getTime()) /
+              86_400_000,
+          ),
+        );
+        const isOverdue = b.dueDate < today;
+        const isDueSoon = !isOverdue && b.dueDate <= weekOutStr;
+        const action = isOverdue ? "pay_now" : isDueSoon ? "schedule" : "hold";
+        return {
+          id: b.id,
+          invoiceNumber: b.invoiceNumber,
+          supplierName: b.supplierName ?? "Unknown Vendor",
+          dueDate: b.dueDate,
+          balance,
+          totalAmount: parseFloat(b.totalAmount ?? "0"),
+          status: b.status,
+          daysOverdue,
+          isOverdue,
+          isDueSoon,
+          action,
+        };
+      })
+      .sort((a, b) =>
+        a.isOverdue === b.isOverdue
+          ? a.dueDate.localeCompare(b.dueDate)
+          : a.isOverdue
+            ? -1
+            : 1,
+      );
+
+    const totalDue = items.reduce((s, i) => s + i.balance, 0);
+    const payNowTotal = items
+      .filter((i) => i.action === "pay_now")
+      .reduce((s, i) => s + i.balance, 0);
+
+    // A recommended batch: pay now for overdue + due-soon, capped at cash.
+    const recommended = items.filter((i) => i.action !== "hold");
+    let planned = 0;
+    const batch = recommended.filter((i) => {
+      if (planned + i.balance > cashPosition) return false;
+      planned += i.balance;
+      return true;
+    });
+
+    return {
+      cashPosition,
+      items,
+      summary: {
+        totalDue,
+        payNowTotal,
+        batchTotal: batch.reduce((s, i) => s + i.balance, 0),
+        batchCount: batch.length,
+        scheduledCount: items.filter((i) => i.action === "schedule").length,
+        heldCount: items.filter((i) => i.action === "hold").length,
+        coveredByCash: totalDue <= cashPosition,
+        recommendedBatch: batch.map((i) => i.id),
+      },
+    };
+  }),
+
+  // ── Bill approval routing (§ bill-approval) ──────────────────────────────
+  //
+  // Checks every bill that is still pending against: PO linkage (matched vs
+  // unmatched), amount thresholds (high-value bills need a named approver),
+  // and duplicate risk (same supplier + amount within 30 days). Each bill
+  // gets a routing decision with a confidence score.
+
+  getApprovalRouting: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const today = todayStr();
+    const monthAgo = new Date();
+    monthAgo.setDate(monthAgo.getDate() - 30);
+    const monthAgoStr = `${monthAgo.getFullYear()}-${String(monthAgo.getMonth() + 1).padStart(2, "0")}-${String(monthAgo.getDate()).padStart(2, "0")}`;
+
+    const pendingBills = await db
+      .select({
+        id: invoicesAp.id,
+        invoiceNumber: invoicesAp.invoiceNumber,
+        invoiceDate: invoicesAp.invoiceDate,
+        totalAmount: invoicesAp.totalAmount,
+        status: invoicesAp.status,
+        supplierId: invoicesAp.supplierId,
+        purchaseOrderId: invoicesAp.purchaseOrderId,
+        supplierName: suppliers.name,
+      })
+      .from(invoicesAp)
+      .leftJoin(suppliers, eq(invoicesAp.supplierId, suppliers.id))
+      .where(
+        and(
+          eq(invoicesAp.entityId, entityId),
+          sql`${invoicesAp.status} = 'pending'`,
+        ),
+      );
+
+    // Same-entity bill pool for duplicate detection.
+    const allBills = await db.query.invoicesAp.findMany({
+      where: eq(invoicesAp.entityId, entityId),
+    });
+
+    const decisions = pendingBills.map((b) => {
+      const amount = parseFloat(b.totalAmount ?? "0");
+      const flags: string[] = [];
+
+      if (!b.purchaseOrderId) {
+        flags.push("no_po");
+      }
+      if (amount >= 100_000) {
+        flags.push("high_value");
+      }
+
+      // Duplicate check: same supplier + same amount + invoice within 30 days.
+      const dupes = allBills.filter(
+        (o) =>
+          o.id !== b.id &&
+          o.supplierId === b.supplierId &&
+          parseFloat(o.totalAmount ?? "0") === amount &&
+          o.invoiceDate >= monthAgoStr &&
+          o.invoiceDate <= today,
+      );
+      const duplicateRisk = dupes.length > 0;
+      if (duplicateRisk) flags.push("possible_duplicate");
+
+      // Decision: auto-approve low-risk, route high-value/duplicate to a
+      // named approver, escalate unmatched POs without a match attempt.
+      let decision: "auto_approve" | "needs_review" | "escalate";
+      let confidence: number;
+      if (duplicateRisk) {
+        decision = "escalate";
+        confidence = 0.62;
+      } else if (flags.includes("high_value")) {
+        decision = "needs_review";
+        confidence = 0.78;
+      } else if (flags.includes("no_po")) {
+        decision = "needs_review";
+        confidence = 0.85;
+      } else {
+        decision = "auto_approve";
+        confidence = 0.94;
+      }
+
+      return {
+        id: b.id,
+        invoiceNumber: b.invoiceNumber,
+        invoiceDate: b.invoiceDate,
+        supplierName: b.supplierName ?? "Unknown Vendor",
+        amount,
+        flags,
+        duplicateRisk,
+        decision,
+        confidence,
+      };
+    });
+
+    const autoApprove = decisions.filter(
+      (d) => d.decision === "auto_approve",
+    ).length;
+    const needsReview = decisions.filter(
+      (d) => d.decision === "needs_review",
+    ).length;
+    const escalate = decisions.filter((d) => d.decision === "escalate").length;
+
+    return {
+      decisions,
+      summary: {
+        total: decisions.length,
+        autoApprove,
+        needsReview,
+        escalate,
+        autoApproveAmount: decisions
+          .filter((d) => d.decision === "auto_approve")
+          .reduce((s, d) => s + d.amount, 0),
+      },
+    };
   }),
 });

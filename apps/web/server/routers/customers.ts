@@ -5,6 +5,11 @@ import { customers, salesInvoices, paymentsAr } from "@xenboox/db/schema";
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
+function todayStr(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 // ─── Customers Router ──────────────────────────────────────────────────────
 
 export const customersRouter = router({
@@ -526,5 +531,87 @@ export const customersRouter = router({
     }
 
     return insights;
+  }),
+
+  // ── Customer credit review (§ credit-limit-review) ───────────────────────
+  //
+  // Compares each customer's open exposure (unpaid balance) against their
+  // credit limit and aging profile. Over-limit and near-limit customers are
+  // flagged with a concrete recommendation — hold new orders, raise the
+  // limit, or send a reminder.
+
+  getCreditReview: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const today = todayStr();
+
+    const [allCustomers, allInvoices] = await Promise.all([
+      db.query.customers.findMany({ where: eq(customers.entityId, entityId) }),
+      db.query.salesInvoices.findMany({
+        where: eq(salesInvoices.entityId, entityId),
+      }),
+    ]);
+
+    const rows = allCustomers.map((c) => {
+      const limit = parseFloat(c.creditLimit ?? "0");
+      const invoices = allInvoices.filter(
+        (inv) => inv.customerId === c.id && inv.status !== "voided",
+      );
+      const open = invoices.filter(
+        (inv) => inv.status !== "paid" && inv.status !== "voided",
+      );
+      const exposure = open.reduce(
+        (s, inv) => s + parseFloat(inv.balance ?? "0"),
+        0,
+      );
+      const overdue = invoices
+        .filter((inv) => inv.status === "overdue" || inv.dueDate < today)
+        .reduce((s, inv) => s + parseFloat(inv.balance ?? "0"), 0);
+      const overLimit = limit > 0 && exposure > limit;
+      const nearLimit = !overLimit && limit > 0 && exposure / limit >= 0.8;
+      const utilization = limit > 0 ? exposure / limit : null;
+
+      let recommendation: string;
+      if (overLimit) {
+        recommendation =
+          "Hold new orders until payment — exposure exceeds the credit limit.";
+      } else if (overdue > 0) {
+        recommendation =
+          "Send a payment reminder — overdue balance on account.";
+      } else if (nearLimit) {
+        recommendation =
+          "Monitor — approaching the credit limit; consider raising it for repeat customers.";
+      } else {
+        recommendation = "Healthy — within credit terms.";
+      }
+
+      return {
+        id: c.id,
+        name: c.name,
+        creditLimit: limit,
+        exposure,
+        overdue,
+        utilization: utilization == null ? null : Math.round(utilization * 100),
+        overLimit,
+        nearLimit,
+        openInvoiceCount: open.length,
+        recommendation,
+      };
+    });
+
+    const order = (r: (typeof rows)[number]) =>
+      r.overLimit ? 0 : r.nearLimit ? 1 : r.overdue > 0 ? 2 : 3;
+    rows.sort((a, b) => order(a) - order(b));
+
+    return {
+      rows,
+      summary: {
+        total: rows.length,
+        overLimit: rows.filter((r) => r.overLimit).length,
+        nearLimit: rows.filter((r) => r.nearLimit).length,
+        withOverdue: rows.filter((r) => r.overdue > 0).length,
+        totalExposure: rows.reduce((s, r) => s + r.exposure, 0),
+        totalCreditLimits: rows.reduce((s, r) => s + r.creditLimit, 0),
+      },
+    };
   }),
 });

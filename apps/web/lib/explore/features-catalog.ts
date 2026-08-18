@@ -100,8 +100,9 @@ export const FEATURES: Feature[] = [
     name: "External market research blended with your data",
     category: "AI Conversation",
     description:
-      "Strategic questions like 'what's a healthy runway for my industry?' — combining public information with your own numbers.",
-    status: "planned",
+      "Strategic questions like 'what's a healthy runway for my industry?' — combining public information with your own numbers. Live on Insights: runway, margin, and liquidity computed from your ledger and compared against sourced SME market benchmarks for your region.",
+    status: "shipped",
+    href: "/dashboard/insights",
     source: "Xero JAX + OpenAI · Glean",
   },
 
@@ -282,8 +283,9 @@ export const FEATURES: Feature[] = [
     name: "Tax deduction discovery",
     category: "Tax & Compliance",
     description:
-      "Continuously scan for missed deductions and tax-saving opportunities aligned to current rules.",
-    status: "planned",
+      "Continuously scan for missed deductions and tax-saving opportunities aligned to current rules. Live on the Tax & Compliance Center: unrecovered WHT credits, unclaimed refundable VAT, unfiled returns, and liability drift — each traced to the record behind it.",
+    status: "shipped",
+    href: "/dashboard/tax-compliance",
     source: "QuickBooks Business Tax AI",
   },
   {

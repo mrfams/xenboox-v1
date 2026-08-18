@@ -20,6 +20,8 @@ import {
   Link,
   Link2,
   BarChart3,
+  CalendarClock,
+  ShieldCheck,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -1063,11 +1065,14 @@ export default function BillsPage() {
       }
     >
       {activeTab === "overview" ? (
-        <BillsOverview
-          overviewData={overviewData}
-          billsTrend={billsTrend}
-          insights={aiInsights}
-        />
+        <>
+          <BillsOverview
+            overviewData={overviewData}
+            billsTrend={billsTrend}
+            insights={aiInsights}
+          />
+          <BillsAutomationPanels />
+        </>
       ) : (
         <BillsTable
           bills={billsData?.bills ?? []}
@@ -1090,6 +1095,225 @@ export default function BillsPage() {
         />
       )}
     </ModulePageShell>
+  );
+}
+
+// ─── AI Payment Schedule + Approval Routing (overview) ────────────────────
+// Live procedures behind the "AI Schedule Payments" and "AI Approvals"
+// buttons: a real payment plan ranked by due date against cash position,
+// and per-bill approval routing decisions with confidence scores.
+
+function BillsAutomationPanels() {
+  const { data: schedule } = trpc.bills.getPaymentSchedule.useQuery();
+  const { data: routing } = trpc.bills.getApprovalRouting.useQuery();
+
+  return (
+    <div className="grid gap-4 border-t border-slate-200 bg-slate-50/70 p-4 lg:grid-cols-2">
+      {/* Payment schedule */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
+              <CalendarClock className="h-4 w-4 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Payment schedule
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Ranked by due date against cash position
+              </p>
+            </div>
+          </div>
+          <AiSimulationTrigger
+            traceId="vendor-payments"
+            label="Run"
+            variant="outline"
+            className="!py-1 !px-2.5 !text-[11px]"
+          />
+        </div>
+
+        {!schedule ? (
+          <p className="mt-4 text-sm text-slate-400">Loading payment plan…</p>
+        ) : schedule.items.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-400">
+            No open bills — nothing to schedule.
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-slate-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                  Cash position
+                </p>
+                <p className="text-sm font-bold text-slate-900">
+                  GMD {schedule.cashPosition.toLocaleString()}
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                  Total due
+                </p>
+                <p className="text-sm font-bold text-slate-900">
+                  GMD {schedule.summary.totalDue.toLocaleString()}
+                </p>
+              </div>
+              <div className="rounded-lg bg-emerald-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-emerald-500">
+                  Batch ({schedule.summary.batchCount})
+                </p>
+                <p className="text-sm font-bold text-emerald-700">
+                  GMD {schedule.summary.batchTotal.toLocaleString()}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 max-h-48 space-y-1.5 overflow-y-auto">
+              {schedule.items.slice(0, 8).map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between rounded-lg border border-slate-100 px-2.5 py-1.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-slate-800">
+                      {item.supplierName}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {item.invoiceNumber} · due {item.dueDate}
+                      {item.isOverdue ? ` · ${item.daysOverdue}d overdue` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-900">
+                      GMD {item.balance.toLocaleString()}
+                    </span>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        item.action === "pay_now" && "bg-red-50 text-red-600",
+                        item.action === "schedule" &&
+                          "bg-amber-50 text-amber-600",
+                        item.action === "hold" && "bg-slate-100 text-slate-500",
+                      )}
+                    >
+                      {item.action === "pay_now"
+                        ? "Pay now"
+                        : item.action === "schedule"
+                          ? "Schedule"
+                          : "Hold"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Approval routing */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+              <ShieldCheck className="h-4 w-4 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Approval routing
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                PO checks, value thresholds, duplicate risk
+              </p>
+            </div>
+          </div>
+          <AiSimulationTrigger
+            traceId="bill-approval"
+            label="Run"
+            variant="outline"
+            className="!py-1 !px-2.5 !text-[11px]"
+          />
+        </div>
+
+        {!routing ? (
+          <p className="mt-4 text-sm text-slate-400">
+            Loading routing decisions…
+          </p>
+        ) : routing.decisions.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-400">
+            No pending bills — nothing to route.
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-emerald-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-emerald-500">
+                  Auto-approve
+                </p>
+                <p className="text-sm font-bold text-emerald-700">
+                  {routing.summary.autoApprove}
+                </p>
+              </div>
+              <div className="rounded-lg bg-amber-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-amber-500">
+                  Needs review
+                </p>
+                <p className="text-sm font-bold text-amber-700">
+                  {routing.summary.needsReview}
+                </p>
+              </div>
+              <div className="rounded-lg bg-red-50 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-red-500">
+                  Escalate
+                </p>
+                <p className="text-sm font-bold text-red-700">
+                  {routing.summary.escalate}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 max-h-48 space-y-1.5 overflow-y-auto">
+              {routing.decisions.slice(0, 8).map((d) => (
+                <div
+                  key={d.id}
+                  className="flex items-center justify-between rounded-lg border border-slate-100 px-2.5 py-1.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-slate-800">
+                      {d.supplierName}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {d.invoiceNumber} ·{" "}
+                      {d.flags.length > 0
+                        ? d.flags.map((f) => f.replace(/_/g, " ")).join(", ")
+                        : "clean"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-900">
+                      {Math.round(d.confidence * 100)}%
+                    </span>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        d.decision === "auto_approve" &&
+                          "bg-emerald-50 text-emerald-600",
+                        d.decision === "needs_review" &&
+                          "bg-amber-50 text-amber-600",
+                        d.decision === "escalate" && "bg-red-50 text-red-600",
+                      )}
+                    >
+                      {d.decision === "auto_approve"
+                        ? "Auto-approve"
+                        : d.decision === "needs_review"
+                          ? "Review"
+                          : "Escalate"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
