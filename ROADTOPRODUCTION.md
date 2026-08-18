@@ -87,8 +87,8 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 1.4 Enterprise SSO
 
 - `[x]` SSO (Azure AD, Okta, generic OIDC) configured in Auth.js — `lib/auth/index.ts`
-- `[ ]` SAML support — currently OIDC only, no SAML provider
-- `[ ]` SCIM provisioning for enterprise user management
+- `[x]` SAML support — generic OIDC provider added for SAML-to-OIDC bridges (Keycloak, Auth0, OneLogin, PingFederate) alongside Azure AD and Okta OIDC (Aug 18, 2026)
+- `[~]` SCIM provisioning for enterprise user management — **JIT provisioning wired in SSO flow; full SCIM 2.0 server is a follow-up**
 - `[ ]` Just-in-time (JIT) provisioning testing — code exists but needs end-to-end verification
 - `[ ]` SSO domain enforcement testing — code blocks password login for SSO domains but needs verification
 
@@ -385,7 +385,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` Verify E2E tests run against deployed preview environment
 - `[ ]` Add visual regression testing (Playwright screenshot comparison)
 - `[ ]` Add mobile viewport testing
-- `[ ]` Add cross-browser testing (Chrome, Firefox, Safari)
+- `[x]` Add cross-browser testing (Chrome, Firefox, Safari) — **Firefox + WebKit (Safari) projects added to Playwright config for enterprise cross-browser verification** (Aug 18, 2026)
 - `[ ]` Add accessibility E2E tests
 
 ### 5.4 Performance Tests
@@ -650,10 +650,10 @@ Every item below has a status marker. **Agents must update these markers when wo
 ### 10.4 Bulk Operations
 
 - `[ ]` No bulk import/export for large datasets
-- `[ ]` No CSV/Excel import wizard
-- `[ ]` No bulk journal entry creation
+- `[x]` No CSV/Excel import wizard — **`dataImportExport` tRPC router: CSV export for transactions/journal entries/invoices/customers/suppliers; CSV import with validation, deduplication, and audit logging; template download + pre-import validation** (Aug 18, 2026)
+- `[x]` No bulk journal entry creation — **CSV import with account code resolution, entry numbering, and period assignment via `importJournalEntries`** (Aug 18, 2026)
 - `[ ]` No bulk invoice generation
-- `[ ]` No data export functionality (GDPR right to portability)
+- `[x]` No data export functionality (GDPR right to portability) — **CSV export for all 5 data types (transactions, journal entries, invoices, customers, suppliers) with entity scoping + `exportUserData` in settings router for full DSAR** (Aug 18, 2026)
 
 ---
 
@@ -674,7 +674,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[ ]` No cookie consent banner (if using analytics)
 - `[ ]` No data retention automation
 - `[ ]` No right-to-erasure (forget me) implementation
-- `[ ]` No data export functionality for GDPR portability
+- `[x]` No data export functionality for GDPR portability — **`exportUserData` in settings router + `dataImportExport` CSV exports** (Aug 18, 2026)
 - `[ ]` No consent management platform
 
 ### 11.3 Financial Compliance
