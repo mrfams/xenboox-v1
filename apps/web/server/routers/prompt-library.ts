@@ -1,13 +1,22 @@
+import crypto from "node:crypto";
+
 import { z } from "zod";
-import { eq, and, desc, sql, count, gte, lte, like } from "drizzle-orm";
+import { eq, and, desc, sql, count, like } from "drizzle-orm";
 import {
   opsPrompts,
   opsPromptVersions,
-  opsPromptUsage,
 } from "@xenboox/db/schema/ops-prompt-library";
 
 import { router, adminProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+
+/** Bump a semver string: 2.3.1 → 2.3.2, 2.3 → 2.3.1, 2 → 2.1. */
+function bumpSemver(v: string): string {
+  const parts = v.split(".").map((p) => parseInt(p, 10) || 0);
+  while (parts.length < 3) parts.push(0);
+  parts[2] += 1;
+  return parts.join(".");
+}
 
 // ─── Prompt Library Router ──────────────────────────────────────────────────
 
@@ -46,7 +55,10 @@ export const promptLibraryRouter = router({
         conditions.push(eq(opsPrompts.createdBy, "Famara Touray"));
       if (search) conditions.push(like(opsPrompts.name, `%${search}%`));
       if (agent) conditions.push(eq(opsPrompts.agentName, agent));
-      if (status) conditions.push(eq(opsPrompts.status, status as any));
+      if (status)
+        conditions.push(
+          eq(opsPrompts.status, status as "active" | "draft" | "deprecated"),
+        );
       if (model) conditions.push(eq(opsPrompts.model, model));
 
       const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -185,6 +197,184 @@ export const promptLibraryRouter = router({
           createdAt: v.createdAt,
         })),
       };
+    }),
+
+  // ── Create ────────────────────────────────────────────────────────────
+
+  create: adminProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(200),
+        description: z.string().max(2000).optional(),
+        agentName: z.string().min(1),
+        model: z.string().min(1),
+        promptContent: z.string().optional(),
+        tags: z.array(z.string().max(50)).max(20).optional(),
+        status: z.enum(["active", "draft", "deprecated"]).default("draft"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const promptId = `pr_${crypto.randomBytes(12).toString("hex").toUpperCase()}`;
+      const existing = await db
+        .select({ count: count() })
+        .from(opsPrompts)
+        .where(eq(opsPrompts.promptId, promptId))
+        .then((r) => r[0]?.count ?? 0);
+      if (existing > 0) {
+        throw new Error("Generated prompt id collided — retry");
+      }
+      await db.insert(opsPrompts).values({
+        promptId,
+        name: input.name,
+        description: input.description ?? null,
+        agentName: input.agentName,
+        model: input.model,
+        version: "1.0.0",
+        status: input.status,
+        promptContent: input.promptContent ?? null,
+        tags: input.tags ?? [],
+        createdBy: "Famara Touray",
+      });
+      return { promptId };
+    }),
+
+  // ── Update ────────────────────────────────────────────────────────────
+
+  update: adminProcedure
+    .input(
+      z.object({
+        promptId: z.string(),
+        name: z.string().min(1).max(200).optional(),
+        description: z.string().max(2000).optional(),
+        agentName: z.string().min(1).optional(),
+        model: z.string().min(1).optional(),
+        promptContent: z.string().optional(),
+        tags: z.array(z.string().max(50)).max(20).optional(),
+        bumpVersion: z.boolean().default(false),
+        changelog: z.string().max(2000).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const existing = await db.query.opsPrompts.findFirst({
+        where: eq(opsPrompts.promptId, input.promptId),
+      });
+      if (!existing) {
+        throw new Error("Prompt not found");
+      }
+
+      const patch: Record<string, unknown> = { updatedAt: new Date() };
+      if (input.name !== undefined) patch.name = input.name;
+      if (input.description !== undefined)
+        patch.description = input.description ?? null;
+      if (input.agentName !== undefined) patch.agentName = input.agentName;
+      if (input.model !== undefined) patch.model = input.model;
+      if (input.promptContent !== undefined)
+        patch.promptContent = input.promptContent ?? null;
+      if (input.tags !== undefined) patch.tags = input.tags;
+
+      let nextVersion = existing.version;
+      if (input.bumpVersion) {
+        // Record the current content as a frozen version first.
+        await db
+          .insert(opsPromptVersions)
+          .values({
+            promptId: input.promptId,
+            version: existing.version,
+            promptContent: existing.promptContent ?? "",
+            changelog: input.changelog ?? null,
+            createdBy: "Famara Touray",
+          })
+          .onConflictDoNothing();
+        nextVersion = bumpSemver(existing.version);
+        patch.version = nextVersion;
+      }
+
+      await db
+        .update(opsPrompts)
+        .set(patch)
+        .where(eq(opsPrompts.promptId, input.promptId));
+      return { ok: true, version: nextVersion };
+    }),
+
+  // ── Duplicate ─────────────────────────────────────────────────────────
+
+  duplicate: adminProcedure
+    .input(z.object({ promptId: z.string() }))
+    .mutation(async ({ input }) => {
+      const existing = await db.query.opsPrompts.findFirst({
+        where: eq(opsPrompts.promptId, input.promptId),
+      });
+      if (!existing) throw new Error("Prompt not found");
+
+      const newId = `pr_${crypto.randomBytes(12).toString("hex").toUpperCase()}`;
+      await db.insert(opsPrompts).values({
+        promptId: newId,
+        name: `${existing.name} (copy)`,
+        description: existing.description,
+        agentName: existing.agentName,
+        model: existing.model,
+        version: "1.0.0",
+        status: "draft",
+        successRate: "0",
+        totalUsage: 0,
+        isFavorite: false,
+        promptContent: existing.promptContent,
+        tags: (existing.tags as string[]) ?? [],
+        createdBy: "Famara Touray",
+      });
+      return { promptId: newId };
+    }),
+
+  // ── Toggle favorite ───────────────────────────────────────────────────
+
+  toggleFavorite: adminProcedure
+    .input(z.object({ promptId: z.string() }))
+    .mutation(async ({ input }) => {
+      const existing = await db.query.opsPrompts.findFirst({
+        where: eq(opsPrompts.promptId, input.promptId),
+      });
+      if (!existing) throw new Error("Prompt not found");
+      await db
+        .update(opsPrompts)
+        .set({ isFavorite: !existing.isFavorite })
+        .where(eq(opsPrompts.promptId, input.promptId));
+      return { ok: true, isFavorite: !existing.isFavorite };
+    }),
+
+  // ── Change status (activate / deprecate / draft) ──────────────────────
+
+  setStatus: adminProcedure
+    .input(
+      z.object({
+        promptId: z.string(),
+        status: z.enum(["active", "draft", "deprecated"]),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const existing = await db.query.opsPrompts.findFirst({
+        where: eq(opsPrompts.promptId, input.promptId),
+      });
+      if (!existing) throw new Error("Prompt not found");
+      await db
+        .update(opsPrompts)
+        .set({ status: input.status, updatedAt: new Date() })
+        .where(eq(opsPrompts.promptId, input.promptId));
+      return { ok: true };
+    }),
+
+  // ── Delete ────────────────────────────────────────────────────────────
+
+  remove: adminProcedure
+    .input(z.object({ promptId: z.string() }))
+    .mutation(async ({ input }) => {
+      const existing = await db.query.opsPrompts.findFirst({
+        where: eq(opsPrompts.promptId, input.promptId),
+      });
+      if (!existing) throw new Error("Prompt not found");
+      await db
+        .delete(opsPrompts)
+        .where(eq(opsPrompts.promptId, input.promptId));
+      return { ok: true };
     }),
 
   // ── Seed demo data ────────────────────────────────────────────────────

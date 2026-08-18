@@ -13,6 +13,9 @@ import {
   ArrowRight,
   PieChart,
   Activity,
+  AlertTriangle,
+  CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 
 import { useState } from "react";
@@ -273,6 +276,90 @@ function ScenarioPlanner() {
   );
 }
 
+// ─── Anomaly Detection Card ────────────────────────────────────────────────
+// Surfaces deterministic GL outlier signals (unbalanced entries, statistical
+// outliers, duplicates, round amounts, low-confidence postings) computed from
+// the entity's own ledger. Same engine as the Journal page's Unusual Activity
+// panel — this is the cross-module "anomaly & outlier detection" surface.
+
+function AnomalyDetectionCard() {
+  const { data, isLoading } = trpc.journal.getOutlierSignals.useQuery({});
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-amber-500" />
+          <h3 className="text-sm font-semibold text-foreground">
+            Anomaly &amp; Outlier Detection
+          </h3>
+        </div>
+        <Link
+          href="/dashboard/journal"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          Review in Journal <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          <div className="h-3 w-full animate-pulse rounded bg-muted" />
+          <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+        </div>
+      ) : !data || data.signals.length === 0 ? (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <p className="text-sm text-emerald-700">
+            No anomalies detected in the last 90 days of posted entries.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {data.signals.slice(0, 4).map((signal) => (
+            <div
+              key={signal.id}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border px-3 py-2.5",
+                signal.severity === "high"
+                  ? "border-red-200 bg-red-50"
+                  : signal.severity === "medium"
+                    ? "border-amber-200 bg-amber-50"
+                    : "border-border/50 bg-muted/30",
+              )}
+            >
+              <AlertTriangle
+                className={cn(
+                  "mt-0.5 h-4 w-4 shrink-0",
+                  signal.severity === "high"
+                    ? "text-red-600"
+                    : signal.severity === "medium"
+                      ? "text-amber-600"
+                      : "text-muted-foreground",
+                )}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">
+                  {signal.title}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {signal.description}
+                </p>
+              </div>
+            </div>
+          ))}
+          {data.signals.length > 4 && (
+            <p className="pt-1 text-center text-[11px] text-muted-foreground">
+              +{data.signals.length - 4} more — see the Journal page for the
+              full list
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function InsightsPage() {
   const { entityId } = useEntity();
 
@@ -305,6 +392,9 @@ export default function InsightsPage() {
 
       {/* Scenario Planning */}
       <ScenarioPlanner />
+
+      {/* Anomaly Detection — deterministic GL outlier signals */}
+      <AnomalyDetectionCard />
 
       {/* AI-Generated Insights */}
       {insights.length > 0 && (

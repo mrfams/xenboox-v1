@@ -11,6 +11,10 @@ import {
   budgets,
   budgetLines,
   auditLog,
+  expenseClaims,
+  claimLineItems,
+  approvalRecords,
+  reimbursementRecords,
 } from "@xenboox/db/schema";
 
 import {
@@ -904,4 +908,240 @@ export const expensesRouter = router({
 
     return insights;
   }),
+
+  // ── Expense claims (employee reimbursement workflow) ────────────────────
+
+  /**
+   * Employee expense claims with policy review signals (flagged lines,
+   * OCR confidence) — the approvals inbox for expense-reimbursement.
+   */
+  listClaims: rlsProtectedProcedure
+    .input(
+      z.object({
+        status: z
+          .enum(["all", "submitted", "flagged", "approved", "reimbursed"])
+          .default("all"),
+        search: z.string().optional(),
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const conditions = [eq(expenseClaims.entityId, entityId)];
+      if (input.status !== "all") {
+        conditions.push(eq(expenseClaims.status, input.status));
+      }
+      if (input.search) {
+        conditions.push(
+          sql`${expenseClaims.claimNumber} ILIKE ${`%${input.search}%`} OR ${expenseClaims.claimantName} ILIKE ${`%${input.search}%`}`,
+        );
+      }
+
+      const totalCountResult = await db
+        .select({ count: count() })
+        .from(expenseClaims)
+        .where(and(...conditions));
+      const totalCount = totalCountResult[0]?.count ?? 0;
+
+      const claims = await db
+        .select({
+          id: expenseClaims.id,
+          claimNumber: expenseClaims.claimNumber,
+          claimantName: expenseClaims.claimantName,
+          department: expenseClaims.department,
+          category: expenseClaims.category,
+          description: expenseClaims.description,
+          totalAmount: expenseClaims.totalAmount,
+          status: expenseClaims.status,
+          submittedAt: expenseClaims.submittedAt,
+          flaggedReason: expenseClaims.flaggedReason,
+          createdAt: expenseClaims.createdAt,
+        })
+        .from(expenseClaims)
+        .where(and(...conditions))
+        .orderBy(desc(expenseClaims.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      const claimIds = claims.map((c) => c.id);
+      const lineMap = new Map<
+        string,
+        Array<{ category: string; amount: string; isFlagged: boolean }>
+      >();
+      const reimburseMap = new Map<
+        string,
+        { status: string; paidDate: Date | null; paymentRef: string | null }
+      >();
+
+      if (claimIds.length > 0) {
+        const lines = await db
+          .select({
+            claimId: claimLineItems.claimId,
+            category: claimLineItems.category,
+            amount: claimLineItems.amount,
+            isFlagged: claimLineItems.isFlagged,
+          })
+          .from(claimLineItems)
+          .where(sql`${claimLineItems.claimId} IN ${claimIds}`);
+        for (const l of lines) {
+          const arr = lineMap.get(l.claimId) ?? [];
+          arr.push({
+            category: l.category,
+            amount: l.amount,
+            isFlagged: l.isFlagged,
+          });
+          lineMap.set(l.claimId, arr);
+        }
+
+        const reimb = await db
+          .select({
+            claimId: reimbursementRecords.claimId,
+            status: reimbursementRecords.status,
+            paidDate: reimbursementRecords.paidDate,
+            paymentRef: reimbursementRecords.paymentRef,
+          })
+          .from(reimbursementRecords)
+          .where(sql`${reimbursementRecords.claimId} IN ${claimIds}`);
+        for (const r of reimb) reimburseMap.set(r.claimId, r);
+      }
+
+      return {
+        claims: claims.map((c) => ({
+          ...c,
+          lines: lineMap.get(c.id) ?? [],
+          reimbursement: reimburseMap.get(c.id) ?? null,
+        })),
+        totalCount,
+      };
+    }),
+
+  /**
+   * Approve or reject a submitted expense claim. Writes an approval record
+   * (audit trail) and flips the claim status. Flags stay visible.
+   */
+  decideClaim: rlsMutateProcedure
+    .input(
+      z.object({
+        claimId: z.string().uuid(),
+        decision: z.enum(["approved", "rejected"]),
+        note: z.string().max(500).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const claim = await db.query.expenseClaims.findFirst({
+        where: and(
+          eq(expenseClaims.id, input.claimId),
+          eq(expenseClaims.entityId, ctx.entityId!),
+        ),
+      });
+      if (!claim) {
+        throw new Error("Claim not found");
+      }
+      if (claim.status !== "submitted" && claim.status !== "flagged") {
+        throw new Error(
+          `Cannot ${input.decision} a claim with status: ${claim.status}`,
+        );
+      }
+
+      await db
+        .update(expenseClaims)
+        .set({
+          status: input.decision === "approved" ? "approved" : "rejected",
+          approvedById: ctx.session!.user!.id,
+          approvedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(expenseClaims.id, input.claimId),
+            eq(expenseClaims.entityId, ctx.entityId!),
+          ),
+        );
+
+      await db.insert(approvalRecords).values({
+        entityId: ctx.entityId!,
+        claimId: input.claimId,
+        approverId: ctx.session!.user!.id!,
+        approverName: ctx.session!.user!.name ?? ctx.session!.user!.email,
+        decision: input.decision,
+        decidedAt: new Date(),
+        note: input.note ?? null,
+        escalationLevel: 1,
+      });
+
+      await db.insert(auditLog).values({
+        entityId: ctx.entityId!,
+        userId: ctx.session!.user!.id!,
+        action: "expense_claim.decide",
+        entityType: "expense_claim",
+        entityIdRef: input.claimId,
+        newValues: { decision: input.decision, note: input.note ?? null },
+      });
+
+      return { ok: true };
+    }),
+
+  /**
+   * Mark an approved claim as reimbursed (payment scheduled/paid). Creates
+   * the reimbursement record and moves the claim to reimbursed.
+   */
+  reimburseClaim: rlsMutateProcedure
+    .input(
+      z.object({
+        claimId: z.string().uuid(),
+        paymentMethod: z
+          .enum(["bank_transfer", "mobile_money", "cash", "cheque"])
+          .default("bank_transfer"),
+        paymentRef: z.string().max(100).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const claim = await db.query.expenseClaims.findFirst({
+        where: and(
+          eq(expenseClaims.id, input.claimId),
+          eq(expenseClaims.entityId, ctx.entityId!),
+        ),
+      });
+      if (!claim) throw new Error("Claim not found");
+      if (claim.status !== "approved") {
+        throw new Error(
+          `Cannot reimburse a claim with status: ${claim.status}`,
+        );
+      }
+
+      await db.insert(reimbursementRecords).values({
+        entityId: ctx.entityId!,
+        claimId: input.claimId,
+        amount: claim.totalAmount,
+        currency: claim.currency ?? "GMD",
+        paymentMethod: input.paymentMethod,
+        paidDate: new Date(),
+        paymentRef: input.paymentRef ?? `REIMB-${claim.claimNumber}`,
+        status: "paid",
+      });
+
+      await db
+        .update(expenseClaims)
+        .set({ status: "reimbursed" })
+        .where(
+          and(
+            eq(expenseClaims.id, input.claimId),
+            eq(expenseClaims.entityId, ctx.entityId!),
+          ),
+        );
+
+      await db.insert(auditLog).values({
+        entityId: ctx.entityId!,
+        userId: ctx.session!.user!.id!,
+        action: "expense_claim.reimburse",
+        entityType: "expense_claim",
+        entityIdRef: input.claimId,
+        newValues: {
+          paymentMethod: input.paymentMethod,
+          paymentRef: input.paymentRef ?? null,
+        },
+      });
+
+      return { ok: true };
+    }),
 });

@@ -12,13 +12,20 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { trpc } from "@/lib/trpc/client";
 import { Progress } from "@/components/shared/progress";
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function FinancialPage() {
-  const _router = useRouter();
   const [period, setPeriod] = useState("month");
   const {
     data: overview,
@@ -50,10 +57,34 @@ export default function FinancialPage() {
             Run Analysis
           </Button>
           <Button
-            onClick={() => toast.info("Report generation will download a PDF")}
+            onClick={() => {
+              if (!overview) {
+                toast.info("Financial data is still loading");
+                return;
+              }
+              const rows: Array<Array<string | number>> = [
+                ["Metric", "Value"],
+                ["Total Bank Balance", overview.totalBankBalance ?? 0],
+                ["Journal Entries", overview.journalEntries ?? 0],
+                ["Chart of Accounts", overview.chartOfAccounts ?? 0],
+                ["Bank Accounts", overview.bankAccounts ?? 0],
+                ["Users", overview.users ?? 0],
+                ["Organizations", overview.organizations ?? 0],
+                ["Entities", overview.entities ?? 0],
+              ];
+              const csv = rows
+                .map((r) =>
+                  r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","),
+                )
+                .join("\n");
+              downloadBlob(
+                new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+                `xenboox-financial-health-${new Date().toISOString().slice(0, 10)}.csv`,
+              );
+            }}
           >
             <FileText className="h-4 w-4 mr-2" />
-            Generate Report
+            Export Report
           </Button>
         </div>
       </div>

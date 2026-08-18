@@ -24,6 +24,7 @@ import { seedWorkflowData } from "./seed-workflow-data";
 import { seedContent } from "./seed-content";
 import { seedAutomationRules } from "./seed-automation";
 import { seedSixMonths } from "./seed-six-months";
+import { seedLaunchData } from "./seed-launch-data";
 import { findOrCreateUser, removeOtherEntities } from "./seed-lib";
 
 function currentMonthLabel(): string {
@@ -157,6 +158,11 @@ async function main() {
   // 6 months of realistic operational history (AR/AP, payroll, bank,
   // mobile money, estimates, expenses, documents, journal entries).
   await seedSixMonths();
+
+  // Launch completeness: reconciliations, cash/imprest, notifications,
+  // agent runs, audit log, analytics, tax compliance, FX, close tasks,
+  // review queue — so every dashboard surface has live data.
+  await seedLaunchData();
 
   console.log("\n════════════════════════════════════════════════════════");
   console.log("SEED COMPLETE — both accounts verified");

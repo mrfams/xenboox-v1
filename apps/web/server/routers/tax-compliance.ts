@@ -260,6 +260,156 @@ export const taxComplianceRouter = router({
       };
     }),
 
+  // ── VAT / Sales-Tax Compliance Flags ───────────────────────────────
+  //
+  // Deterministic compliance signals computed from the entity's own VAT
+  // calculations and filing deadlines: overdue / due-soon filings, unfiled
+  // calculations, large net-position swings period-over-period, and
+  // refundable positions awaiting review. No LLM — every flag traces to
+  // a specific record.
+
+  getComplianceSignals: protectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    const signals: Array<{
+      id: string;
+      severity: "high" | "medium" | "low";
+      category: string;
+      title: string;
+      description: string;
+      period?: string;
+      dueDate?: string;
+      amount?: number;
+    }> = [];
+
+    const deadlines = await db.query.filingDeadlines.findMany({
+      where: and(
+        eq(filingDeadlines.entityId, entityId),
+        sql`${filingDeadlines.status} IN ('pending', 'overdue')`,
+      ),
+      orderBy: [desc(filingDeadlines.dueDate)],
+    });
+
+    const vatCalcs = await db.query.vatCalculations.findMany({
+      where: eq(vatCalculations.entityId, entityId),
+      orderBy: [desc(vatCalculations.period)],
+    });
+
+    // ── Overdue filings ────────────────────────────────────────────────
+    for (const d of deadlines) {
+      if (d.dueDate < todayStr && d.status !== "waived") {
+        signals.push({
+          id: `overdue-${d.id}`,
+          severity: "high",
+          category: "Overdue filing",
+          title: `${d.name} is overdue`,
+          description: `Due ${d.dueDate} — file immediately to avoid penalties${d.estimatedAmount ? ` (estimated GMD ${Number(d.estimatedAmount).toLocaleString("en-US", { maximumFractionDigits: 2 })})` : ""}.`,
+          period: d.period ?? undefined,
+          dueDate: d.dueDate,
+          amount: d.estimatedAmount ? Number(d.estimatedAmount) : undefined,
+        });
+      }
+    }
+
+    // ── Due within 7 days ──────────────────────────────────────────────
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 7);
+    const soonStr = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, "0")}-${String(soon.getDate()).padStart(2, "0")}`;
+    for (const d of deadlines) {
+      if (d.dueDate >= todayStr && d.dueDate <= soonStr) {
+        signals.push({
+          id: `due-${d.id}`,
+          severity: "medium",
+          category: "Due soon",
+          title: `${d.name} is due ${d.dueDate}`,
+          description: `Filing window closes in ${Math.max(1, Math.round((new Date(d.dueDate).getTime() - today.getTime()) / 86_400_000))} day(s). Prepare the return now.`,
+          period: d.period ?? undefined,
+          dueDate: d.dueDate,
+        });
+      }
+    }
+
+    // ── Unfiled VAT calculations for past periods ──────────────────────
+    const pastMonths = new Set<string>();
+    for (let i = 1; i <= 3; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      pastMonths.add(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      );
+    }
+    for (const c of vatCalcs) {
+      if (pastMonths.has(c.period) && !c.filedAt && c.status !== "filed") {
+        const net = Number(c.netPosition);
+        signals.push({
+          id: `unfiled-${c.id}`,
+          severity: "high",
+          category: "Unfiled calculation",
+          title: `VAT for ${c.period} is calculated but not filed`,
+          description: `Net position GMD ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} (${net >= 0 ? "payable" : "refundable"}) — submit the return to close the period.`,
+          period: c.period,
+          amount: net,
+        });
+      }
+    }
+
+    // ── Large net-position swings period-over-period ───────────────────
+    const sorted = [...vatCalcs].sort((a, b) => (a.period < b.period ? 1 : -1));
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const cur = Number(sorted[i].netPosition);
+      const prev = Number(sorted[i + 1].netPosition);
+      if (Math.abs(prev) < 1) continue;
+      const pct = ((cur - prev) / Math.abs(prev)) * 100;
+      if (Math.abs(pct) >= 50) {
+        signals.push({
+          id: `swing-${sorted[i].id}`,
+          severity: "medium",
+          category: "Position swing",
+          title: `VAT net position swung ${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% in ${sorted[i].period}`,
+          description: `Net position moved from GMD ${Math.abs(prev).toLocaleString("en-US", { maximumFractionDigits: 2 })} to GMD ${Math.abs(cur).toLocaleString("en-US", { maximumFractionDigits: 2 })} — confirm the drivers (large purchases, refunds, or misclassified input tax).`,
+          period: sorted[i].period,
+          amount: cur,
+        });
+      }
+    }
+
+    // ── Refundable positions awaiting review ───────────────────────────
+    for (const c of vatCalcs) {
+      const net = Number(c.netPosition);
+      if (net < -5_000 && !c.filedAt) {
+        signals.push({
+          id: `refund-${c.id}`,
+          severity: "low",
+          category: "Refundable position",
+          title: `Refundable VAT of GMD ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} for ${c.period}`,
+          description:
+            "Input VAT exceeds output VAT. File the return to claim the refund or carry it forward.",
+          period: c.period,
+          amount: net,
+        });
+      }
+    }
+
+    const order = { high: 0, medium: 1, low: 2 } as const;
+    signals.sort((a, b) => {
+      const sev = order[a.severity] - order[b.severity];
+      if (sev !== 0) return sev;
+      const da = a.dueDate ?? "";
+      const db_ = b.dueDate ?? "";
+      return da.localeCompare(db_);
+    });
+
+    return {
+      signals: signals.slice(0, 25),
+      summary: {
+        high: signals.filter((s) => s.severity === "high").length,
+        medium: signals.filter((s) => s.severity === "medium").length,
+        low: signals.filter((s) => s.severity === "low").length,
+      },
+    };
+  }),
+
   // ── Tax Packages ──────────────────────────────────────────────────
 
   listTaxPackages: protectedProcedure

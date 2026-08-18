@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { TRPCError } from "@trpc/server";
-import { eq, and, asc, inArray, desc, sql, count, sum } from "drizzle-orm";
+import { eq, and, asc, inArray, desc, sql } from "drizzle-orm";
 import {
   runReportingPipeline,
   detectReportablePeriods,
@@ -35,12 +34,6 @@ type AccountRow = {
   debit: number;
   credit: number;
   balance: number;
-};
-
-type ReportSection = {
-  label: string;
-  accounts: AccountRow[];
-  total: number;
 };
 
 export const reportsRouter = router({
@@ -472,6 +465,136 @@ export const reportsRouter = router({
   /**
    * Get AI insights for the Reports page.
    */
+  /**
+   * AI report narrative — a plain-language CFO-style summary of the P&L
+   * computed from REAL ledger data (current vs previous period). Deterministic
+   * and explainable: every sentence traces to a specific variance. No LLM in
+   * the loop, so it is fast, free, and never hallucinates figures.
+   */
+  getReportNarrative: rlsProtectedProcedure
+    .input(
+      z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const now = new Date();
+      const startDate =
+        input.startDate ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const endDate =
+        input.endDate ||
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
+      const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevStart = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-01`;
+      const prevEnd = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-${new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()}`;
+
+      const load = async (from: string, to: string) => {
+        const entries = await db.query.journalEntries.findMany({
+          where: and(
+            eq(journalEntries.entityId, entityId),
+            eq(journalEntries.status, "posted"),
+            sql`${journalEntries.date} >= ${from}`,
+            sql`${journalEntries.date} <= ${to}`,
+          ),
+        });
+        const ids = entries.map((e) => e.id);
+        const lines =
+          ids.length > 0
+            ? await db.query.journalEntryLines.findMany({
+                where: inArray(journalEntryLines.journalEntryId, ids),
+              })
+            : [];
+        const accounts = await db.query.chartOfAccounts.findMany({
+          where: eq(chartOfAccounts.entityId, entityId),
+        });
+        const acctMap = new Map(accounts.map((a) => [a.id, a]));
+        let revenue = 0;
+        let cogs = 0;
+        let expenses = 0;
+        for (const l of lines) {
+          const acct = acctMap.get(l.accountId);
+          const amt =
+            (parseFloat(l.debit ?? "0") || 0) -
+            (parseFloat(l.credit ?? "0") || 0);
+          if (!acct) continue;
+          if (acct.type === "revenue") revenue += amt;
+          else if (acct.subtype === "cost_of_goods_sold") cogs += Math.abs(amt);
+          else if (acct.type === "expense") expenses += Math.abs(amt);
+        }
+        const grossProfit = revenue - cogs;
+        const netProfit = grossProfit - expenses;
+        return { revenue, cogs, expenses, grossProfit, netProfit };
+      };
+
+      const cur = await load(startDate, endDate);
+      const prev = await load(prevStart, prevEnd);
+
+      const pct = (a: number, b: number) =>
+        b === 0 ? (a === 0 ? 0 : 100) : ((a - b) / Math.abs(b)) * 100;
+      const revPct = pct(cur.revenue, prev.revenue);
+      const expPct = pct(cur.expenses, prev.expenses);
+      const netPct = pct(cur.netProfit, prev.netProfit);
+
+      const sentences: string[] = [];
+      sentences.push(
+        `Revenue for the period was GMD ${Math.round(cur.revenue).toLocaleString()}, ` +
+          `${revPct >= 0 ? "up" : "down"} ${Math.abs(revPct).toFixed(1)}% vs the previous period (GMD ${Math.round(prev.revenue).toLocaleString()}).`,
+      );
+      if (Math.abs(expPct) >= 5) {
+        sentences.push(
+          `Operating expenses ${expPct > 0 ? "increased" : "decreased"} ${Math.abs(expPct).toFixed(1)}% period-over-period, ${expPct > 0 ? "pressuring" : "supporting"} margin.`,
+        );
+      } else {
+        sentences.push(
+          `Operating expenses were broadly flat (${expPct >= 0 ? "+" : ""}${expPct.toFixed(1)}% vs prior period).`,
+        );
+      }
+      if (cur.grossProfit > 0 && cur.revenue > 0) {
+        const margin = (cur.grossProfit / cur.revenue) * 100;
+        sentences.push(
+          `Gross margin held at ${margin.toFixed(1)}% on GMD ${Math.round(cur.cogs).toLocaleString()} of cost of goods sold.`,
+        );
+      }
+      sentences.push(
+        cur.netProfit >= 0
+          ? `The period closed with a net profit of GMD ${Math.round(cur.netProfit).toLocaleString()} (${netPct >= 0 ? "+" : ""}${netPct.toFixed(1)}% vs prior period).`
+          : `The period closed with a net loss of GMD ${Math.round(Math.abs(cur.netProfit)).toLocaleString()} (${netPct >= 0 ? "improvement" : "worsening"} of ${Math.abs(netPct).toFixed(1)}% vs prior period).`,
+      );
+
+      const flags: Array<{
+        severity: "info" | "watch" | "alert";
+        text: string;
+      }> = [];
+      if (Math.abs(revPct) >= 20)
+        flags.push({
+          severity: revPct > 0 ? "info" : "alert",
+          text: `Revenue swung ${Math.abs(revPct).toFixed(0)}% period-over-period — worth confirming the drivers.`,
+        });
+      if (Math.abs(expPct) >= 15)
+        flags.push({
+          severity: "watch",
+          text: `Expenses moved ${Math.abs(expPct).toFixed(0)}% — review the top cost categories.`,
+        });
+      if (cur.revenue === 0 && prev.revenue === 0)
+        flags.push({
+          severity: "watch",
+          text: "No posted revenue in either period — the ledger may be missing entries for this window.",
+        });
+
+      return {
+        period: `${startDate} → ${endDate}`,
+        comparison: `${prevStart} → ${prevEnd}`,
+        narrative: sentences.join(" "),
+        metrics: { ...cur, prevRevenue: prev.revenue, revPct, expPct, netPct },
+        flags,
+        generatedAt: new Date(),
+        confidence: Math.max(0.7, 1 - flags.length * 0.05),
+      };
+    }),
+
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
 

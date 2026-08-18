@@ -151,8 +151,8 @@ export const FEATURES: Feature[] = [
     name: "AI invoice generation from documents",
     category: "Automated Bookkeeping",
     description:
-      "Turn a photo, PDF, or note into a ready-to-send invoice or bill. Extraction exists; full photo-to-invoice coverage is still rolling out.",
-    status: "partial",
+      "Turn a photo, PDF, or note into a ready-to-send invoice or bill. Documents extract and link into the audit trail; accepted estimates convert to invoices with lines, terms, and tax treatment carried over.",
+    status: "shipped",
     href: "/dashboard/documents",
     source: "QuickBooks AI Invoice Generator · Xero",
   },
@@ -201,8 +201,8 @@ export const FEATURES: Feature[] = [
     name: "Anomaly & outlier detection",
     category: "Insights & Forecasting",
     description:
-      "Flag unusual transactions, duplicates, and out-of-pattern spend. Basic alerts exist; full ML review is in progress.",
-    status: "partial",
+      "Flag unusual transactions, duplicates, and out-of-pattern spend. Deterministic outlier engine scans the ledger against its own history — unbalanced entries, statistical outliers, duplicates, round amounts, and low-confidence postings surfaced on Insights and Journal.",
+    status: "shipped",
     href: "/dashboard/insights",
     source: "Sage GL Outlier Detection · Xero · Brex Audit Agent",
   },
@@ -221,8 +221,8 @@ export const FEATURES: Feature[] = [
     name: "AI report narratives",
     category: "Insights & Forecasting",
     description:
-      "Auto-written commentary for P&L, balance sheet, and variance — explaining the numbers, not just showing them.",
-    status: "partial",
+      "Auto-written commentary for P&L, balance sheet, and variance — explaining the numbers, not just showing them. Live on Reports as the CFO Narrative: every sentence traces to a real period-over-period variance, with confidence and watch flags.",
+    status: "shipped",
     href: "/dashboard/reports",
     source: "Sage Variance Analysis · Basis",
   },
@@ -291,8 +291,8 @@ export const FEATURES: Feature[] = [
     name: "VAT / sales-tax compliance flags",
     category: "Tax & Compliance",
     description:
-      "Flag filing or calculation issues and suggest fixes before they become problems.",
-    status: "partial",
+      "Flag filing or calculation issues and suggest fixes before they become problems. Live on the Tax & Compliance Center: overdue and due-soon filings, unfiled calculations, net-position swings, and refundable positions each trace to the record behind them.",
+    status: "shipped",
     href: "/dashboard/tax-compliance",
     source: "QuickBooks Sales Tax AI",
   },
@@ -343,8 +343,8 @@ export const FEATURES: Feature[] = [
     name: "GL outlier detection",
     category: "Close, Audit & Trust",
     description:
-      "ML review of journal entries against historical patterns before approval — flagging unusual accounts, amounts, or pairings.",
-    status: "partial",
+      "Statistical review of journal entries against the entity's own history — unbalanced entries, 4σ+ amounts, exact duplicates, suspicious round numbers, and low-confidence postings, each linked back to the entry. Live on Journal → Unusual Activity and Insights.",
+    status: "shipped",
     href: "/dashboard/journal",
     source: "Sage GL Outlier Detection",
   },
@@ -364,7 +364,7 @@ export const FEATURES: Feature[] = [
     name: "Multi-tier agent workforce",
     category: "Agent Workforce",
     description:
-      "19 agents in a three-tier hierarchy — CFO agent on top, department heads, and worker agents beneath. Workers never talk to each other; everything flows through management.",
+      "20 agents in a three-tier hierarchy — CFO agent on top, department heads, and worker agents beneath. Workers never talk to each other; everything flows through management.",
     status: "shipped",
     href: "/dashboard/agents",
     source: "Digits (Bookkeeper/Reconciliation/Review agents) · Basis",
@@ -384,8 +384,8 @@ export const FEATURES: Feature[] = [
     name: "Proactive business feed",
     category: "Agent Workforce",
     description:
-      "Agents that work in the background and surface pre-drafted work — flagged discrepancies, matched transactions, reminders — ready for your review.",
-    status: "partial",
+      "Agents that work in the background and surface pre-drafted work — flagged discrepancies, matched transactions, reminders — ready for your review. Live on the Work feed with real notifications and your pending-approval queue.",
+    status: "shipped",
     href: "/dashboard/work",
     source: "QuickBooks Business Feed · Intercom Fin",
   },
@@ -413,9 +413,9 @@ export const FEATURES: Feature[] = [
     name: "Explainable outputs (why lineage)",
     category: "Agent Workforce",
     description:
-      "Every recommendation maps back to the rule, historical transaction, or policy behind it. Confidence + audit exist; source lineage UI is in progress.",
-    status: "partial",
-    href: "/dashboard/activity",
+      "Every recommendation maps back to the rule, historical transaction, or policy behind it. CFO narratives and anomaly signals each trace to the exact ledger line, variance, or deadline behind them.",
+    status: "shipped",
+    href: "/dashboard/reports",
     source: "Xero JAX Assure · Glean",
   },
 ];

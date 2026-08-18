@@ -7,8 +7,8 @@ import {
   CreditCard,
   Package,
   BarChart3,
-  Calendar,
-  MessageSquare,
+  Repeat,
+  Wallet,
   AlertCircle,
   TrendingUp,
 } from "lucide-react";
@@ -102,11 +102,18 @@ const agents = [
     icon: BarChart3,
   },
   {
-    title: "Chat Agent",
+    title: "Reconciliation Agent",
     description:
-      "Natural language commands, document processing, AI assistance.",
-    href: "/docs/agents/chat",
-    icon: MessageSquare,
+      "Bank and cash reconciliation, transaction matching, discrepancy detection.",
+    href: "/docs/agents/reconciliation",
+    icon: Repeat,
+  },
+  {
+    title: "Expense Agent",
+    description:
+      "Employee expense claims, policy screening, approval workflow, reimbursement.",
+    href: "/docs/agents/expense",
+    icon: Wallet,
   },
   {
     title: "Reporting Agent",
@@ -114,12 +121,6 @@ const agents = [
       "Report generation, export formats, custom queries, data visualization.",
     href: "/docs/agents/reporting",
     icon: BarChart3,
-  },
-  {
-    title: "Fiscal Agent",
-    description: "Period closing, journal posting, fiscal year management.",
-    href: "/docs/agents/fiscal",
-    icon: Calendar,
   },
   {
     title: "Document Agent",
@@ -156,7 +157,7 @@ export default function AgentsDocsPage() {
           AI Agents Documentation
         </h1>
         <p className="mt-4 text-muted-foreground">
-          Guides for all 19 AI-powered accounting assistants in Xenboox. Each
+          Guides for all 20 AI-powered accounting assistants in Xenboox. Each
           agent operates with confidence scoring and human oversight.
         </p>
       </div>

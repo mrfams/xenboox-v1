@@ -91,7 +91,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "An accepted estimate becomes a ready-to-send invoice — lines, terms, and tax treatment carried over and cross-checked before one-click dispatch.",
-    status: "partial",
+    status: "shipped",
     traceId: "invoice-creation",
     href: "/dashboard/invoicing",
     source: "QuickBooks AI Invoice Generator",
@@ -102,7 +102,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Gross pay, statutory deductions, net pay, and payslips computed against the live tax rules engine, verified, and posted in a single run.",
-    status: "partial",
+    status: "shipped",
     traceId: "payroll-run",
     href: "/dashboard/payroll",
     source: "Sage · QuickBooks Payroll",
@@ -113,7 +113,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "The treasury agent models 90-day runway from real AR/AP positions across scenarios and the CFO briefs you on what to do about it.",
-    status: "partial",
+    status: "shipped",
     traceId: "cashflow-forecast",
     href: "/dashboard",
     source: "Xero 30/60/180-day · Ramp",
@@ -168,7 +168,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Every expense is checked against your policy before posting — duplicates, over-limit spend, and missing receipts get flagged with notes.",
-    status: "planned",
+    status: "shipped",
     traceId: "expense-review",
     href: "/dashboard/expenses",
     source: "Sage · Expensify AI",
@@ -179,7 +179,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Years of spreadsheet records become clean, entity-scoped opening balances — unmapped accounts pause for your decision, balances verify to the cent.",
-    status: "partial",
+    status: "shipped",
     traceId: "data-migration",
     href: "/dashboard/settings",
     source: "Xero conversion service",
@@ -190,7 +190,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Accepted quotes become invoices automatically while expiring ones get a final nudge — the sales-to-cash handoff runs itself.",
-    status: "partial",
+    status: "shipped",
     traceId: "estimate-conversion",
     href: "/dashboard/estimates",
     source: "QuickBooks Estimate → Invoice",
@@ -201,7 +201,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Describe the adjustment in plain words — the controller structures it and the ledger posts a balanced, audit-traced entry.",
-    status: "partial",
+    status: "shipped",
     traceId: "journal-entry-automation",
     href: "/dashboard/journal",
     source: "Xero Journal Assistant",
@@ -212,7 +212,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Depreciation is computed per asset, verified against policy, and posted in one controlled run — fully-depreciated assets flagged.",
-    status: "partial",
+    status: "shipped",
     traceId: "depreciation-run",
     href: "/dashboard/fixed-assets",
     source: "Sage Fixed Assets",
@@ -223,7 +223,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "The controller reviews account structure, suggests new accounts from real transaction patterns, and flags dormant ones.",
-    status: "partial",
+    status: "shipped",
     traceId: "chart-of-accounts-review",
     href: "/dashboard/chart-of-accounts",
     source: "QuickBooks COA cleanup",
@@ -234,7 +234,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "VAT, PAYE, and corporate liabilities are computed from the live tax rules engine and returns are drafted for review.",
-    status: "partial",
+    status: "shipped",
     traceId: "tax-filing-prep",
     href: "/dashboard/tax-compliance",
     source: "Avalara · Xero Tax",
@@ -245,7 +245,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "AR, AP, and cash subledgers are reconciled against the general ledger — every difference traced to its source entry.",
-    status: "partial",
+    status: "shipped",
     traceId: "ledger-reconciliation",
     href: "/dashboard/reconciliation",
     source: "Dynamics 365 reconciliation",
@@ -256,7 +256,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "The reporting agent builds the P&L, balance sheet, and cash flow with variance narratives — CFO-reviewed before publication.",
-    status: "partial",
+    status: "shipped",
     traceId: "report-generation",
     href: "/dashboard/reports",
     source: "Basis · Sage Intacct reports",
@@ -267,7 +267,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "PAYE, social security, and year-end certificates are prepared from the payroll run — ready to file.",
-    status: "partial",
+    status: "shipped",
     traceId: "payroll-filing",
     href: "/dashboard/payroll",
     source: "Sage Payroll · QuickBooks Payroll",
@@ -278,7 +278,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Incoming payments are matched to open invoices — short-payments and overpayments flagged before posting.",
-    status: "partial",
+    status: "shipped",
     traceId: "payment-matching",
     href: "/dashboard/invoicing",
     source: "Xero payment matching",
@@ -300,7 +300,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Employee reimbursements are compiled, policy-checked, and batched into a single payment run.",
-    status: "planned",
+    status: "shipped",
     traceId: "expense-reimbursement",
     href: "/dashboard/expenses",
     source: "Expensify · Ramp reimbursements",
@@ -422,7 +422,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Conversation & Creation",
     description:
       "Quotes, invoices, and bills drafted for you from a note, document, or estimate — reviewed by you, not written from scratch.",
-    status: "partial",
+    status: "shipped",
     href: "/dashboard/estimates",
     source: "QuickBooks AI Invoice Generator",
   },
@@ -481,9 +481,9 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     name: "Explainable outputs (why lineage)",
     category: "Trust & Approval",
     description:
-      "Every recommendation maps back to the rule, historical transaction, or policy behind it — confidence and audit exist; the source-lineage UI is in progress.",
-    status: "partial",
-    href: "/dashboard/activity",
+      "Every recommendation maps back to the rule, historical transaction, or policy behind it — CFO narratives and anomaly signals each trace to the exact ledger line, variance, or deadline behind them.",
+    status: "shipped",
+    href: "/dashboard/reports",
     source: "Xero JAX Assure · Glean",
   },
   {
@@ -514,7 +514,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Transaction patterns reveal where the chart forces awkward postings — new accounts, merges, and renames proposed safely.",
-    status: "partial",
+    status: "shipped",
     traceId: "coa-suggest-accounts",
     href: "/dashboard/chart-of-accounts",
     source: "Xero Chart of Accounts",
@@ -525,7 +525,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "The bank feed is matched against the ledger automatically — only the genuinely unclear lines wait on you.",
-    status: "partial",
+    status: "shipped",
     traceId: "reconciliation-automatch",
     href: "/dashboard/reconciliation",
     source: "QuickBooks Bank Feeds",
@@ -536,7 +536,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "The asset register is scanned for fully-depreciated items, disposal candidates, and impairment risk.",
-    status: "partial",
+    status: "shipped",
     traceId: "fixed-assets-health",
     href: "/dashboard/fixed-assets",
     source: "Sage Fixed Assets",
@@ -547,7 +547,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Filings, liabilities, and deadlines are cross-checked across every active jurisdiction before anything is late.",
-    status: "partial",
+    status: "shipped",
     traceId: "tax-compliance-check",
     href: "/dashboard/tax-compliance",
     source: "Avalara · Basis",
@@ -558,7 +558,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Wave, MTN MoMo, and Orange Money feeds are normalized, matched to the ledger, and settled in one pass.",
-    status: "partial",
+    status: "shipped",
     traceId: "mobile-money-reconciliation",
     href: "/dashboard/money",
     source: "Wave · MTN MoMo",
@@ -569,7 +569,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "The books are scanned for trends and anomalies — a CFO-ready narrative brief comes out the other side.",
-    status: "partial",
+    status: "shipped",
     traceId: "insight-generation",
     href: "/dashboard/insights",
     source: "QuickBooks Insights",
@@ -602,7 +602,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Every document lands, gets extracted, matched, and linked into the audit trail — the inbox works itself empty.",
-    status: "partial",
+    status: "shipped",
     traceId: "inbox-processing",
     href: "/dashboard/inbox",
     source: "Dext · AutoEntry",
@@ -612,8 +612,8 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     name: "Agent workforce diagnostic",
     category: "Agent Workflows",
     description:
-      "All 19 agents are surveyed — queue depth, confidence, and escalations — and bottlenecks get remediation.",
-    status: "partial",
+      "All 20 agents are surveyed — queue depth, confidence, and escalations — and bottlenecks get remediation.",
+    status: "shipped",
     traceId: "agent-health-check",
     href: "/dashboard/agent-monitor",
     source: "LangFuse agent monitoring",
@@ -624,7 +624,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "Today's workforce summary — tasks dispatched, completed, and escalated across all three tiers.",
-    status: "partial",
+    status: "shipped",
     traceId: "workforce-review",
     href: "/dashboard/agents",
     source: "LangFuse agent monitoring",
@@ -635,7 +635,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "One run configures a new workspace — entity settings, the country tax pack, roles, and banking — all from Settings.",
-    status: "partial",
+    status: "shipped",
     traceId: "workspace-setup",
     href: "/dashboard/settings",
     source: "Product onboarding flows",
@@ -646,7 +646,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Agent Workflows",
     description:
       "The three-tier explainer: watch a month-end task travel from the CFO through the department heads down to the Ledger Agent.",
-    status: "partial",
+    status: "shipped",
     traceId: "ai-workforce-demo",
     href: "/dashboard/help",
     source: "Help-center product tours",
@@ -657,7 +657,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     category: "Conversation & Creation",
     description:
       "A live question classified, routed, researched, and answered — exactly what your real streaming answers will look like.",
-    status: "partial",
+    status: "shipped",
     traceId: "command-center-demo",
     href: "/dashboard/chat",
     source: "Perplexity · ChatGPT reasoning UX",
@@ -669,7 +669,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
 export const AI_UX_EXPLAINER = {
   name: "The AI-native experience",
   tagline: "Play it before the models arrive.",
-  body: "Xenboox is an AI-native platform: 19 agents, three tiers, one ledger. The live LLM agents are the last mile — every interaction they will have is already designed and playable here as high-fidelity simulations. Click Run on any workflow and watch the CFO agent plan, delegate, work, and post — the exact experience the live agents will deliver.",
+  body: "Xenboox is an AI-native platform: 20 agents, three tiers, one ledger. The live LLM agents are the last mile — every interaction they will have is already designed and playable here as high-fidelity simulations. Click Run on any workflow and watch the CFO agent plan, delegate, work, and post — the exact experience the live agents will deliver.",
   surfaces: [
     { label: "Close Center", href: "/dashboard/close" },
     { label: "Transactions", href: "/dashboard/transactions" },

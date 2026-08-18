@@ -21,6 +21,9 @@ import {
   Receipt,
   Eye,
   Trash2,
+  Wallet,
+  Loader2,
+  XCircle,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -725,6 +728,172 @@ function ExpensesOverview({
   );
 }
 
+// ─── Expense Claims Panel ───────────────────────────────────────────────────
+// Employee reimbursement workflow: submitted/flagged claims with policy
+// signals, one-click approve/reject, and reimburse (paid) once approved.
+function ExpenseClaimsPanel() {
+  const [claimFilter, setClaimFilter] = useState<
+    "all" | "submitted" | "flagged" | "approved" | "reimbursed"
+  >("submitted");
+  const utils = trpc.useUtils();
+
+  const { data, isLoading } = trpc.expenses.listClaims.useQuery({
+    status: claimFilter,
+    limit: 20,
+  });
+
+  const decide = trpc.expenses.decideClaim.useMutation({
+    onSuccess: () => {
+      utils.expenses.listClaims.invalidate();
+    },
+  });
+  const reimburse = trpc.expenses.reimburseClaim.useMutation({
+    onSuccess: () => {
+      utils.expenses.listClaims.invalidate();
+      utils.expenses.getOverview.invalidate();
+    },
+  });
+
+  const FILTERS: Array<{ key: typeof claimFilter; label: string }> = [
+    { key: "submitted", label: "To Review" },
+    { key: "flagged", label: "Flagged" },
+    { key: "approved", label: "Approved" },
+    { key: "reimbursed", label: "Reimbursed" },
+    { key: "all", label: "All" },
+  ];
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-4 w-4 text-indigo-500" />
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            Employee Expense Claims
+          </h3>
+        </div>
+        <div className="flex items-center gap-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setClaimFilter(f.key)}
+              className={cn(
+                "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                claimFilter === f.key
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+          </div>
+        ) : !data?.claims.length ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Receipt className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+            <p className="mt-2 text-sm text-slate-500">
+              No {claimFilter === "all" ? "" : claimFilter + " "}claims
+            </p>
+          </div>
+        ) : (
+          data.claims.map((claim) => (
+            <div
+              key={claim.id}
+              className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {claim.claimantName ?? "Employee"} — {claim.description}
+                  </p>
+                  {claim.flaggedReason && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                      <AlertTriangle className="h-3 w-3" />
+                      Flagged
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {claim.claimNumber} · {claim.category} ·{" "}
+                  {claim.department ?? "—"}
+                  {claim.flaggedReason && (
+                    <span className="text-amber-600 dark:text-amber-400">
+                      {" · "}
+                      {claim.flaggedReason}
+                    </span>
+                  )}
+                </p>
+                {claim.reimbursement && (
+                  <p className="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">
+                    Reimbursed {claim.reimbursement.paymentRef} ·{" "}
+                    {claim.reimbursement.status}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  GMD{" "}
+                  {Number(claim.totalAmount).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+                {(claim.status === "submitted" ||
+                  claim.status === "flagged") && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() =>
+                        decide.mutate({
+                          claimId: claim.id,
+                          decision: "approved",
+                        })
+                      }
+                      disabled={decide.isPending}
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      Approve
+                    </button>
+                    <button
+                      onClick={() =>
+                        decide.mutate({
+                          claimId: claim.id,
+                          decision: "rejected",
+                        })
+                      }
+                      disabled={decide.isPending}
+                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-400"
+                    >
+                      <XCircle className="h-3 w-3" />
+                      Reject
+                    </button>
+                  </div>
+                )}
+                {claim.status === "approved" && (
+                  <button
+                    onClick={() => reimburse.mutate({ claimId: claim.id })}
+                    disabled={reimburse.isPending}
+                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    <Wallet className="h-3 w-3" />
+                    Mark Reimbursed
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function ExpensesPage() {
@@ -953,11 +1122,14 @@ export default function ExpensesPage() {
       pagination={activeTab !== "overview" ? pagination : undefined}
     >
       {activeTab === "overview" ? (
-        <ExpensesOverview
-          budgetOverview={budgetOverview}
-          topVendors={topVendors}
-          insights={insights}
-        />
+        <div className="space-y-6">
+          <ExpensesOverview
+            budgetOverview={budgetOverview}
+            topVendors={topVendors}
+            insights={insights}
+          />
+          <ExpenseClaimsPanel />
+        </div>
       ) : (
         <ExpenseTable
           expenses={expensesData?.expenses ?? []}

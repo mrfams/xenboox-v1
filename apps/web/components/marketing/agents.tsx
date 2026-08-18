@@ -36,19 +36,16 @@ const departmentHeads = [
 
 const workerAgents = [
   "Ledger",
-  "Invoicing",
-  "Payments",
-  "Collections",
-  "Reconciliation",
-  "Cash Forecasting",
-  "Procurement",
+  "Accounts Payable",
+  "Accounts Receivable",
   "Fixed Assets",
   "Inventory",
-  "Budgeting",
-  "Reporting",
-  "Analytics",
-  "Document Intake",
+  "Reconciliation",
+  "Cash",
+  "Mobile Money",
+  "Payroll Worker",
   "Audit",
+  "Expense",
 ];
 
 function Connector() {
@@ -70,7 +67,7 @@ export function Agents() {
         <FadeInUp>
           <SectionHeading
             eyebrow="The team"
-            title="A finance team of 19 agents. Three tiers of guardrails."
+            title="A finance team of 20 agents. Three tiers of guardrails."
             lead="Workers execute, managers review, the CFO decides. Every posting is attributed, logged, and reversible."
           />
         </FadeInUp>
@@ -125,7 +122,7 @@ export function Agents() {
             <div className="rounded-2xl border border-border bg-card px-8 py-8">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xl font-semibold text-foreground">
-                  19 worker agents
+                  11 worker agents
                 </h3>
                 <span className="rounded-full bg-balanced-green/10 px-2.5 py-1 text-xs font-semibold text-balanced-green">
                   Tier 3 · Execution

@@ -14,12 +14,14 @@ export default defineConfig({
     globals: true,
     // Pin runtime env vars so a polluted shell/CI environment (e.g. a
     // literal placeholder NEXTAUTH_URL) can never break module load.
+    // DATABASE_URL is intentionally NOT pinned: the DB-layer integration
+    // tests (rls-db-layer, audit-append-only) need the real connection
+    // string and self-skip when none is set (see hasDb guards).
     env: {
       NEXTAUTH_URL: 'http://localhost:3000',
       AUTH_URL: 'http://localhost:3000',
       AUTH_SECRET: 'test-secret-for-unit-tests',
       NEXTAUTH_SECRET: 'test-secret-for-unit-tests',
-      DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
     },
     // Liveness/agent components render large trees in a heavy happy-dom
     // environment — allow generous per-test time so the first test in a

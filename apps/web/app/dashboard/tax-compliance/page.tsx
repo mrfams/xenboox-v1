@@ -52,6 +52,125 @@ const FILING_TYPE_LABELS: Record<string, string> = {
   social_security: "Social Security",
 };
 
+// ─── Compliance Signals Panel ──────────────────────────────────────────────
+// Real VAT / sales-tax flags computed from the entity's own calculations and
+// filing deadlines (see taxCompliance.getComplianceSignals).
+
+function ComplianceSignalsPanel({
+  data,
+  isLoading,
+}: {
+  data?: {
+    signals: Array<{
+      id: string;
+      severity: "high" | "medium" | "low";
+      category: string;
+      title: string;
+      description: string;
+      period?: string;
+      dueDate?: string;
+      amount?: number;
+    }>;
+    summary: { high: number; medium: number; low: number };
+  };
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="h-4 w-48 animate-pulse rounded bg-slate-100" />
+        <div className="mt-3 h-3 w-full animate-pulse rounded bg-slate-100" />
+        <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-slate-100" />
+      </div>
+    );
+  }
+
+  if (!data || data.signals.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+        <p className="text-sm text-emerald-700">
+          No compliance issues detected — all filings on track.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-emerald-600" />
+          <h3 className="font-medium text-slate-900">Compliance Flags</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          {data.summary.high > 0 && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">
+              {data.summary.high} high
+            </span>
+          )}
+          {data.summary.medium > 0 && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+              {data.summary.medium} medium
+            </span>
+          )}
+          {data.summary.low > 0 && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+              {data.summary.low} low
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {data.signals.slice(0, 6).map((signal) => (
+          <div
+            key={signal.id}
+            className={cn(
+              "flex items-start gap-3 rounded-lg border px-3 py-2.5",
+              signal.severity === "high"
+                ? "border-red-200 bg-red-50"
+                : signal.severity === "medium"
+                  ? "border-amber-200 bg-amber-50"
+                  : "border-slate-200 bg-slate-50",
+            )}
+          >
+            <AlertTriangle
+              className={cn(
+                "mt-0.5 h-4 w-4 shrink-0",
+                signal.severity === "high"
+                  ? "text-red-600"
+                  : signal.severity === "medium"
+                    ? "text-amber-600"
+                    : "text-slate-400",
+              )}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <p className="text-sm font-medium text-slate-900">
+                  {signal.title}
+                </p>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500 ring-1 ring-slate-200">
+                  {signal.category}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-600">
+                {signal.description}
+              </p>
+            </div>
+          </div>
+        ))}
+        {data.signals.length > 6 && (
+          <p className="pt-1 text-center text-[11px] text-slate-400">
+            +{data.signals.length - 6} more flags — review the Deadlines and VAT
+            tabs
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 
 function SummaryCards({
@@ -503,6 +622,12 @@ export default function TaxCompliancePage() {
   const form1099 = trpc.taxCompliance.list1099Summary.useQuery({
     year: currentYear,
   });
+  const complianceSignals = trpc.taxCompliance.getComplianceSignals.useQuery(
+    undefined,
+    {
+      enabled: activeTab === "overview",
+    },
+  );
 
   const runPipeline = trpc.taxCompliance.runPipeline.useMutation({
     onMutate: () => {
@@ -724,6 +849,11 @@ export default function TaxCompliancePage() {
       <div className="p-4 space-y-4">
         {activeTab === "overview" && (
           <>
+            <ComplianceSignalsPanel
+              data={complianceSignals.data}
+              isLoading={complianceSignals.isLoading}
+            />
+
             <SummaryCards
               stats={
                 deadlineStats.data ?? {

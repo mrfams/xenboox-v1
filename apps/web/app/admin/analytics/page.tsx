@@ -15,6 +15,15 @@ import { useState } from "react";
 
 import { trpc } from "@/lib/trpc/client";
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("30d");
   const { data: aiUsage, isLoading } = trpc.admin.getAIUsage.useQuery();
@@ -48,7 +57,37 @@ export default function AnalyticsPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => toast.info("Report export will download a CSV file")}
+            onClick={() => {
+              if (!aiUsage?.length) {
+                toast.info("No AI usage data to export yet");
+                return;
+              }
+              const rows: Array<Array<string | number>> = [
+                [
+                  "Agent",
+                  "Calls",
+                  "Avg Latency (ms)",
+                  "Confidence",
+                  "Total Duration (ms)",
+                ],
+                ...aiUsage.map((a) => [
+                  a.agent,
+                  a.count,
+                  a.avgLatency.toFixed(0),
+                  (a.avgConfidence * 100).toFixed(1),
+                  a.totalDuration,
+                ]),
+              ];
+              const csv = rows
+                .map((r) =>
+                  r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","),
+                )
+                .join("\n");
+              downloadBlob(
+                new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+                `xenboox-ai-usage-${new Date().toISOString().slice(0, 10)}.csv`,
+              );
+            }}
           >
             <Download className="h-4 w-4 mr-2" />
             Export Report

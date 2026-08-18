@@ -1,23 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import {
-  eq,
-  and,
-  asc,
-  desc,
-  sql,
-  inArray,
-  count,
-  sum,
-  gte,
-  lte,
-} from "drizzle-orm";
+import { eq, and, desc, sql, inArray, count, gte, lte } from "drizzle-orm";
 import {
   journalEntries,
   journalEntryLines,
   chartOfAccounts,
   fiscalPeriods,
-  trialBalanceSnapshots,
 } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
 import {
@@ -649,6 +637,225 @@ export const journalRouter = router({
 
     return insights;
   }),
+
+  /**
+   * GL anomaly detection — deterministic outlier signals computed over the
+   * entity's own posted entries (no LLM in the loop): unbalanced entries,
+   * statistical outliers vs the entity's own distribution, exact duplicates,
+   * suspicious round-number amounts, blank descriptions and low-confidence
+   * agent postings. Every signal links back to the entry it came from.
+   */
+  getOutlierSignals: rlsProtectedProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(50).default(10),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const limit = input?.limit ?? 10;
+
+      // Scan the last 90 days of posted entries — recent enough to be
+      // actionable, wide enough to build a meaningful distribution.
+      const since = new Date();
+      since.setDate(since.getDate() - 90);
+      const sinceStr = `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, "0")}-${String(since.getDate()).padStart(2, "0")}`;
+
+      const entries = await db.query.journalEntries.findMany({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "posted"),
+          sql`${journalEntries.date} >= ${sinceStr}`,
+        ),
+        orderBy: [desc(journalEntries.date)],
+      });
+
+      const ids = entries.map((e) => e.id);
+      const lines =
+        ids.length > 0
+          ? await db.query.journalEntryLines.findMany({
+              where: inArray(journalEntryLines.journalEntryId, ids),
+            })
+          : [];
+
+      const signals: Array<{
+        id: string;
+        severity: "high" | "medium" | "low";
+        category: string;
+        title: string;
+        description: string;
+        entryId?: string;
+        entryNumber?: number;
+        date?: string;
+        amount?: number;
+      }> = [];
+
+      // ── 1. Unbalanced entries (debits ≠ credits) ─────────────────────
+      const byEntry = new Map<string, { debit: number; credit: number }>();
+      for (const l of lines) {
+        const row = byEntry.get(l.journalEntryId) ?? { debit: 0, credit: 0 };
+        row.debit += parseFloat(l.debit ?? "0");
+        row.credit += parseFloat(l.credit ?? "0");
+        byEntry.set(l.journalEntryId, row);
+      }
+      for (const e of entries) {
+        const row = byEntry.get(e.id);
+        if (!row) continue;
+        if (Math.abs(row.debit - row.credit) > 0.01) {
+          signals.push({
+            id: `unbalanced-${e.id}`,
+            severity: "high",
+            category: "Unbalanced entry",
+            title: `Entry ${e.entryNumber} does not balance`,
+            description: `Debits (GMD ${row.debit.toFixed(2)}) differ from credits (GMD ${row.credit.toFixed(2)}) by GMD ${Math.abs(row.debit - row.credit).toFixed(2)}.`,
+            entryId: e.id,
+            entryNumber: e.entryNumber,
+            date: e.date,
+            amount: Math.abs(row.debit - row.credit),
+          });
+        }
+      }
+
+      // ── 2. Statistical outliers vs the entity's own distribution ─────
+      if (lines.length >= 10) {
+        const amounts = lines.map((l) =>
+          Math.max(parseFloat(l.debit ?? "0"), parseFloat(l.credit ?? "0")),
+        );
+        const mean = amounts.reduce((s, a) => s + a, 0) / amounts.length;
+        const variance =
+          amounts.reduce((s, a) => s + (a - mean) * (a - mean), 0) /
+          amounts.length;
+        const std = Math.sqrt(variance);
+        if (std > 0) {
+          const entryById = new Map(entries.map((e) => [e.id, e]));
+          for (const l of lines) {
+            const amt = Math.max(
+              parseFloat(l.debit ?? "0"),
+              parseFloat(l.credit ?? "0"),
+            );
+            if (amt === 0) continue;
+            const z = (amt - mean) / std;
+            if (z >= 4) {
+              const e = entryById.get(l.journalEntryId);
+              signals.push({
+                id: `outlier-${l.id}`,
+                severity: z >= 6 ? "high" : "medium",
+                category: "Statistical outlier",
+                title: `Line ${e ? `${e.entryNumber} — ` : ""}GMD ${amt.toLocaleString("en-US", { maximumFractionDigits: 0 })} is ${z.toFixed(1)}σ above the norm`,
+                description: `The entity's typical line amount is GMD ${mean.toLocaleString("en-US", { maximumFractionDigits: 0 })} (σ GMD ${std.toLocaleString("en-US", { maximumFractionDigits: 0 })}). This line is unusually large relative to your own history.`,
+                entryId: l.journalEntryId,
+                entryNumber: e?.entryNumber,
+                date: e?.date,
+                amount: amt,
+              });
+            }
+          }
+        }
+      }
+
+      // ── 3. Exact duplicates (date + amount + description) ─────────────
+      const byKey = new Map<string, number[]>();
+      for (const e of entries) {
+        const amt =
+          (byEntry.get(e.id)?.debit ?? 0) + (byEntry.get(e.id)?.credit ?? 0);
+        const normDesc = (e.description ?? "").trim().toLowerCase();
+        const key = `${e.date}|${amt.toFixed(2)}|${normDesc}`;
+        const arr = byKey.get(key) ?? [];
+        arr.push(e.entryNumber);
+        byKey.set(key, arr);
+      }
+      for (const [key, nums] of byKey.entries()) {
+        if (nums.length >= 2 && key.split("|")[2]) {
+          const [date, amt] = key.split("|");
+          signals.push({
+            id: `duplicate-${key}`,
+            severity: "medium",
+            category: "Possible duplicate",
+            title: `${nums.length} entries with identical date, amount and description`,
+            description: `Entries ${nums.join(", ")} on ${date} for GMD ${parseFloat(amt).toLocaleString("en-US", { maximumFractionDigits: 2 })} have the same description — verify they are not double-posted.`,
+            date,
+            amount: parseFloat(amt),
+          });
+        }
+      }
+
+      // ── 4. Suspicious round-number amounts on large lines ─────────────
+      for (const l of lines) {
+        const amt = Math.max(
+          parseFloat(l.debit ?? "0"),
+          parseFloat(l.credit ?? "0"),
+        );
+        if (amt >= 250_000 && amt % 1000 === 0) {
+          const e = entries.find((x) => x.id === l.journalEntryId);
+          signals.push({
+            id: `round-${l.id}`,
+            severity: "low",
+            category: "Round amount",
+            title: `Entry ${e?.entryNumber ?? ""} posts a round GMD ${amt.toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
+            description:
+              "Large exact-round amounts sometimes indicate estimated or placeholder postings — confirm the figure matches the source document.",
+            entryId: l.journalEntryId,
+            entryNumber: e?.entryNumber,
+            date: e?.date,
+            amount: amt,
+          });
+        }
+      }
+
+      // ── 5. Blank descriptions ─────────────────────────────────────────
+      for (const e of entries) {
+        if (!e.description || !e.description.trim()) {
+          signals.push({
+            id: `blank-${e.id}`,
+            severity: "low",
+            category: "Missing description",
+            title: `Entry ${e.entryNumber} has no description`,
+            description:
+              "Entries without a description are hard to audit and may fail downstream checks.",
+            entryId: e.id,
+            entryNumber: e.entryNumber,
+            date: e.date,
+          });
+        }
+      }
+
+      // ── 6. Low-confidence agent postings that made it to the ledger ───
+      for (const e of entries) {
+        const conf = parseFloat(e.confidence ?? "1");
+        if (conf > 0 && conf < 0.7) {
+          signals.push({
+            id: `lowconf-${e.id}`,
+            severity: "medium",
+            category: "Low confidence",
+            title: `Entry ${e.entryNumber} was posted with ${Math.round(conf * 100)}% confidence`,
+            description:
+              "The agent flagged this entry below its own confidence threshold — it was posted anyway. Review the source transaction before relying on it.",
+            entryId: e.id,
+            entryNumber: e.entryNumber,
+            date: e.date,
+            amount: byEntry.get(e.id)?.debit ?? 0,
+          });
+        }
+      }
+
+      const order = { high: 0, medium: 1, low: 2 } as const;
+      signals.sort(
+        (a, b) =>
+          order[a.severity] - order[b.severity] ||
+          (b.amount ?? 0) - (a.amount ?? 0),
+      );
+
+      return {
+        signals: signals.slice(0, limit),
+        scanned: {
+          entries: entries.length,
+          lines: lines.length,
+          window: `Last 90 days (since ${sinceStr})`,
+        },
+      };
+    }),
 
   list: rlsProtectedProcedure
     .input(

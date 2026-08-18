@@ -239,6 +239,13 @@
       "when": 1786921892749,
       "tag": "0033_entity-automation-rules",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1787021994513,
+      "tag": "0034_audit_chain_immutable_fix",
+      "breakpoints": true
     }
   ]
 }

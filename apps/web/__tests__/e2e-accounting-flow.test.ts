@@ -74,6 +74,7 @@ vi.mock("@/lib/db", () => ({
         findFirst: vi.fn(),
       },
       entities: { findFirst: vi.fn() },
+      organizations: { findFirst: vi.fn() },
       userEntityAccess: { findFirst: vi.fn() },
       orgRoles: { findFirst: vi.fn() },
       idempotencyKeys: { findFirst: vi.fn() },
@@ -133,6 +134,8 @@ vi.mock("@/lib/db", () => ({
       users: { findFirst: vi.fn() },
       documents: { findFirst: vi.fn() },
       auditLog: { findMany: vi.fn().mockResolvedValue([]) },
+      webhookSubscriptions: { findMany: vi.fn().mockResolvedValue([]) },
+      webhookDeliveries: { findMany: vi.fn().mockResolvedValue([]) },
     },
   },
 }));

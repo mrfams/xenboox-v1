@@ -1997,7 +1997,7 @@ export const AI_UX_TRACES: AiUxTrace[] = [
   t(
     "agent-health-check",
     "AI Workforce Diagnostic",
-    "All 19 agents are surveyed — queue depth, confidence, and escalations — and bottlenecks get remediation.",
+    "All 20 agents are surveyed — queue depth, confidence, and escalations — and bottlenecks get remediation.",
     "Agent Monitor",
     "~28s run",
     ["cfo", "controller"],
@@ -2005,7 +2005,7 @@ export const AI_UX_TRACES: AiUxTrace[] = [
       {
         kind: "think",
         agent: "cfo",
-        text: "Surveying all 19 agents — queue depth, active tasks, confidence, and recent escalations.",
+        text: "Surveying all 20 agents — queue depth, active tasks, confidence, and recent escalations.",
         ms: 2400,
       },
       {
@@ -2018,7 +2018,7 @@ export const AI_UX_TRACES: AiUxTrace[] = [
         kind: "tool",
         agent: "cfo",
         tool: "agents.health",
-        detail: "19 agents · 14 healthy · 3 busy · 2 need attention",
+        detail: "20 agents · 15 healthy · 3 busy · 2 need attention",
         ms: 2400,
       },
       {
@@ -2152,7 +2152,7 @@ export const AI_UX_TRACES: AiUxTrace[] = [
   t(
     "ai-workforce-demo",
     "How the AI workforce works",
-    "Follow one month-end task from the CFO down to the Ledger Agent — 19 agents, three tiers, one audit trail.",
+    "Follow one month-end task from the CFO down to the Ledger Agent — 20 agents, three tiers, one audit trail.",
     "Help Center",
     "~30s run",
     ["cfo", "controller", "ap", "ar", "ledger", "compliance"],

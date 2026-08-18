@@ -118,7 +118,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "audit_entity_seq_unique" ON "audit_log" ("ent
 -- One-time (idempotent): recompute the chain for every existing row using the
 -- same payload expression, so the full history verifies from day one. Rows
 -- whose chain fields are already set are skipped.
-WITH ordered AS (
+WITH RECURSIVE ordered AS (
   SELECT
     al.id,
     al.entity_id,

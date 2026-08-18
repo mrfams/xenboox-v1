@@ -73,13 +73,21 @@ describe("Explore page — pages directory + feature catalog", () => {
     expect(screen.getAllByText("In progress").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Planned").length).toBeGreaterThan(0);
 
-    // A shipped, a partial, and a planned feature all render.
+    // A shipped feature renders, and every status still present in the
+    // catalog renders too (statuses that no longer exist — e.g. all features
+    // shipped — are asserted conditionally rather than assumed).
     const shipped = FEATURES.filter((f) => f.status === "shipped")[0];
-    const partial = FEATURES.filter((f) => f.status === "partial")[0];
-    const planned = FEATURES.filter((f) => f.status === "planned")[0];
+    expect(
+      shipped,
+      "catalog should contain at least one shipped feature",
+    ).toBeTruthy();
     expect(screen.getAllByText(shipped.name).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(partial.name).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(planned.name).length).toBeGreaterThan(0);
+    for (const status of ["partial", "planned"]) {
+      const item = FEATURES.filter((f) => f.status === status)[0];
+      if (item) {
+        expect(screen.getAllByText(item.name).length).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("has valid catalog data — unique ids and known statuses", () => {

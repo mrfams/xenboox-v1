@@ -79,7 +79,7 @@ export function Hero() {
               </h1>
 
               <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
-                Xenboox is an AI-native accounting platform with 19 specialized
+                Xenboox is an AI-native accounting platform with 20 specialized
                 agents that handle invoicing, payroll, compliance, and month-end
                 close. Agents do the work. You make the decisions that matter.
               </p>
@@ -154,7 +154,7 @@ function ProductPreview() {
               className="h-1.5 w-1.5 animate-pulse rounded-full bg-balanced-green"
               aria-hidden="true"
             />
-            19 agents working
+            20 agents working
           </span>
         </div>
 

@@ -3,18 +3,15 @@
 import { useState } from "react";
 import {
   Search,
-  ChevronDown,
   CheckCircle2,
   AlertTriangle,
-  Bot,
   TrendingUp,
   FileText,
   RefreshCw,
-  Send,
   Plus,
   Upload,
-  Clock,
   Sparkles,
+  Clock,
 } from "lucide-react";
 import { BookOpen } from "lucide-react";
 
@@ -304,273 +301,6 @@ function JournalTable({
   );
 }
 
-// ─── AI Copilot Panel ──────────────────────────────────────────────────────
-
-function AiCopilotPanel({
-  insights,
-  sources,
-  recentActivity,
-}: {
-  insights: Array<{
-    id: string;
-    type: "warning" | "info" | "success";
-    title: string;
-    description: string;
-    actionLabel: string;
-  }>;
-  sources: {
-    sources: Array<{
-      name: string;
-      count: number;
-      percent: number;
-      color: string;
-    }>;
-    totalCount: number;
-  };
-  recentActivity: Array<{
-    id: string;
-    entryNumber: string;
-    action: string;
-    timestamp: string;
-    user: string;
-  }>;
-}) {
-  const [message, setMessage] = useState("");
-
-  const quickActions = [
-    "Why is this entry out of balance?",
-    "Show me entries by source",
-    "Which entries are pending approval?",
-    "Summarize journal entries this month",
-  ];
-
-  const sourceColors = [
-    "bg-slate-500",
-    "bg-blue-500",
-    "bg-purple-500",
-    "bg-amber-500",
-    "bg-emerald-500",
-  ];
-
-  return (
-    <div className="h-full flex flex-col bg-white border-l border-slate-200">
-      {/* Header */}
-      <div className="border-b border-slate-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-              <Bot className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h3 className="font-medium text-slate-900">Xenboox AI Copilot</h3>
-              <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                Beta
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Greeting */}
-        <div>
-          <p className="text-sm text-slate-600">
-            I analyzed your journal entries and found a few insights.
-          </p>
-        </div>
-
-        {/* AI Insights */}
-        <div className="space-y-3">
-          {insights.map((insight) => (
-            <div
-              key={insight.id}
-              className={cn(
-                "rounded-xl border p-4",
-                insight.type === "warning"
-                  ? "border-amber-200 bg-amber-50"
-                  : insight.type === "success"
-                    ? "border-emerald-200 bg-emerald-50"
-                    : "border-blue-200 bg-blue-50",
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className={cn(
-                    "h-6 w-6 rounded-full flex items-center justify-center mt-0.5",
-                    insight.type === "warning"
-                      ? "bg-amber-100"
-                      : insight.type === "success"
-                        ? "bg-emerald-100"
-                        : "bg-blue-100",
-                  )}
-                >
-                  {insight.type === "warning" ? (
-                    <AlertTriangle className="h-3 w-3 text-amber-600" />
-                  ) : insight.type === "success" ? (
-                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                  ) : (
-                    <Clock className="h-3 w-3 text-blue-600" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-900">
-                    {insight.title}
-                  </p>
-                  <p className="text-xs text-slate-600 mt-1">
-                    {insight.description}
-                  </p>
-                  <button className="text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-2">
-                    {insight.actionLabel} →
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Ask me anything */}
-        <div>
-          <div className="space-y-2">
-            {quickActions.map((action, i) => (
-              <button
-                key={i}
-                className="w-full text-left flex items-center gap-3 px-3 py-2.5 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg border border-slate-200 transition-colors"
-              >
-                <Bot className="h-4 w-4 text-slate-400" />
-                {action}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Journal Entry Sources (MTD) */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-medium text-slate-900">
-              Journal Entry Sources (MTD)
-            </h4>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* Donut Chart */}
-            <div className="relative">
-              <svg className="h-32 w-32" viewBox="0 0 100 100">
-                {sources.sources.map((source, i) => {
-                  const startAngle = sources.sources
-                    .slice(0, i)
-                    .reduce((acc, s) => acc + (s.percent / 100) * 360, 0);
-                  const endAngle = startAngle + (source.percent / 100) * 360;
-                  const largeArc = source.percent > 50 ? 1 : 0;
-                  const x1 =
-                    50 + 40 * Math.cos((startAngle - 90) * (Math.PI / 180));
-                  const y1 =
-                    50 + 40 * Math.sin((startAngle - 90) * (Math.PI / 180));
-                  const x2 =
-                    50 + 40 * Math.cos((endAngle - 90) * (Math.PI / 180));
-                  const y2 =
-                    50 + 40 * Math.sin((endAngle - 90) * (Math.PI / 180));
-                  const x3 =
-                    50 + 25 * Math.cos((endAngle - 90) * (Math.PI / 180));
-                  const y3 =
-                    50 + 25 * Math.sin((endAngle - 90) * (Math.PI / 180));
-                  const x4 =
-                    50 + 25 * Math.cos((startAngle - 90) * (Math.PI / 180));
-                  const y4 =
-                    50 + 25 * Math.sin((startAngle - 90) * (Math.PI / 180));
-
-                  return (
-                    <path
-                      key={source.name}
-                      d={`M ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A 25 25 0 ${largeArc} 0 ${x4} ${y4} Z`}
-                      className={sourceColors[i % sourceColors.length]}
-                      fill="currentColor"
-                    />
-                  );
-                })}
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-slate-900">
-                    {sources.totalCount}
-                  </p>
-                  <p className="text-[10px] text-slate-500">Total</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="flex-1 space-y-2">
-              {sources.sources.map((source, i) => (
-                <div
-                  key={source.name}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        "h-3 w-3 rounded-full",
-                        sourceColors[i % sourceColors.length],
-                      )}
-                    />
-                    <span className="text-xs text-slate-600">
-                      {source.name}
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-500">
-                    {source.count} ({source.percent}%)
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div>
-          <h4 className="text-sm font-medium text-slate-900 mb-3">
-            Quick Actions
-          </h4>
-          <div className="grid grid-cols-2 gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200">
-              <Plus className="h-4 w-4 text-indigo-600" />
-              New Journal Entry
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200">
-              <Upload className="h-4 w-4 text-emerald-600" />
-              Import Entries
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200">
-              <RefreshCw className="h-4 w-4 text-blue-600" />
-              Recurring Entries
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200">
-              <FileText className="h-4 w-4 text-purple-600" />
-              Journal Entry Report
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="border-t border-slate-200 p-4">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask anything about journal entries..."
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-          <button className="h-9 w-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white hover:bg-indigo-700">
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Overview Panel ────────────────────────────────────────────────────────
 // Executive snapshot for the Overview tab: entry trend, top account impact,
 // sources, recent activity and AI insights. The full journal table lives on
@@ -581,6 +311,7 @@ function JournalOverview({
   recentActivity,
   sources,
   insights,
+  outlierSignals,
 }: {
   topAccounts?: Array<{
     name: string;
@@ -612,6 +343,20 @@ function JournalOverview({
     description: string;
     actionLabel: string;
   }>;
+  outlierSignals?: {
+    signals: Array<{
+      id: string;
+      severity: "high" | "medium" | "low";
+      category: string;
+      title: string;
+      description: string;
+      entryId?: string;
+      entryNumber?: number;
+      date?: string;
+      amount?: number;
+    }>;
+    scanned: { entries: number; lines: number; window: string };
+  };
 }) {
   const sourceColors = [
     "bg-slate-500",
@@ -742,6 +487,88 @@ function JournalOverview({
             </div>
           ) : (
             <p className="text-sm text-slate-500">No insights at this time.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Anomaly detection — deterministic GL outlier signals */}
+      <div className="border-t border-slate-200 bg-slate-50/70 p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <h3 className="font-medium text-slate-900">Unusual Activity</h3>
+            </div>
+            {outlierSignals && (
+              <span className="text-[11px] text-slate-400">
+                Scanned {outlierSignals.scanned.entries} entries ·{" "}
+                {outlierSignals.scanned.lines} lines ·{" "}
+                {outlierSignals.scanned.window}
+              </span>
+            )}
+          </div>
+
+          {!outlierSignals ? (
+            <div className="space-y-2">
+              <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
+              <div className="h-3 w-2/3 animate-pulse rounded bg-slate-100" />
+            </div>
+          ) : outlierSignals.signals.length === 0 ? (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <p className="text-sm text-emerald-700">
+                No anomalies detected in the last 90 days of posted entries.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {outlierSignals.signals.map((signal) => (
+                <div
+                  key={signal.id}
+                  className={cn(
+                    "flex items-start gap-3 rounded-lg border px-3 py-2.5",
+                    signal.severity === "high"
+                      ? "border-red-200 bg-red-50"
+                      : signal.severity === "medium"
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-slate-200 bg-slate-50",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mt-1 h-2 w-2 shrink-0 rounded-full",
+                      signal.severity === "high"
+                        ? "bg-red-500"
+                        : signal.severity === "medium"
+                          ? "bg-amber-500"
+                          : "bg-slate-400",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <p className="text-sm font-medium text-slate-900">
+                        {signal.title}
+                      </p>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500 ring-1 ring-slate-200">
+                        {signal.category}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      {signal.description}
+                    </p>
+                    {signal.entryNumber && (
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Entry #{signal.entryNumber}
+                        {signal.date ? ` · ${signal.date}` : ""}
+                        {signal.amount !== undefined
+                          ? ` · GMD ${signal.amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                          : ""}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -955,8 +782,12 @@ export default function JournalEntriesPage() {
   // Fetch recent activity
   const { data: recentActivity } = trpc.journal.getRecentActivity.useQuery();
 
-  // Fetch AI insights
+  // Fetch AI insights + anomaly signals
   const { data: insights } = trpc.journal.getAiInsights.useQuery();
+  const { data: outlierSignals } = trpc.journal.getOutlierSignals.useQuery(
+    {},
+    { enabled: activeTab === "overview" },
+  );
 
   const tabs = [
     { key: "overview" as const, label: "Overview" },
@@ -1111,6 +942,7 @@ export default function JournalEntriesPage() {
           recentActivity={recentActivity}
           sources={sources}
           insights={insights}
+          outlierSignals={outlierSignals}
         />
       ) : (
         <JournalTable
