@@ -1,0 +1,29 @@
+# ─── Provider Tokens ──────────────────────────────────────────────────────
+# Copy this file to terraform.tfvars and fill in your tokens.
+# NEVER commit terraform.tfvars to git.
+
+# Vercel: https://vercel.com/account/tokens
+vercel_token = "your-vercel-token"
+
+# Neon: https://console.neon.tech/app/settings/api-keys
+neon_api_key = "your-neon-api-key"
+
+# Cloudflare: https://dash.cloudflare.com/profile/api-tokens
+cloudflare_api_token = "your-cloudflare-token"
+cloudflare_account_id = "your-cloudflare-account-id"
+
+# Upstash: https://console.upstash.com/account/api
+upstash_api_token = "your-upstash-api-token"
+upstash_api_email = "your-email@example.com"
+
+# ─── Project Configuration ────────────────────────────────────────────────
+
+project_name = "xenboox"
+domain       = "xenboox.com"
+region       = "iad1"
+environment  = "production"
+
+# Vercel deployment protection level:
+#   "permissive" = allows automated deployments (CI/CD)
+#   "strict"     = requires approval for production
+deployment_protection_level = "permissive"

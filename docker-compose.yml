@@ -1,0 +1,58 @@
+# ─── Xenboox Local Development ────────────────────────────────────────────
+# Usage: docker-compose up -d
+#
+# This sets up local PostgreSQL + Redis for development.
+# The web app runs outside Docker (via pnpm dev) for fast HMR.
+
+services:
+  # ─── PostgreSQL ──────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: xenboox-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: xenboox
+      POSTGRES_USER: xenboox
+      POSTGRES_PASSWORD: xenboox_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xenboox"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ───────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: xenboox-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── MailHog (local email testing) ──────────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: xenboox-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:

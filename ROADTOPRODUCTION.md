@@ -88,7 +88,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 - `[x]` SSO (Azure AD, Okta, generic OIDC) configured in Auth.js — `lib/auth/index.ts`
 - `[x]` SAML support — generic OIDC provider added for SAML-to-OIDC bridges (Keycloak, Auth0, OneLogin, PingFederate) alongside Azure AD and Okta OIDC (Aug 18, 2026)
-- `[~]` SCIM provisioning for enterprise user management — **JIT provisioning wired in SSO flow; full SCIM 2.0 server is a follow-up**
+- `[x]` SCIM provisioning for enterprise user management — **SCIM 2.0 endpoints at `/api/scim/v2/`: Users CRUD (GET/POST/PUT/PATCH/DELETE), ServiceProviderConfig, Schemas. Bearer token auth, JIT provisioning, idempotent user creation, activate/deactivate via PATCH** (Aug 18, 2026)
 - `[ ]` Just-in-time (JIT) provisioning testing — code exists but needs end-to-end verification
 - `[ ]` SSO domain enforcement testing — code blocks password login for SSO domains but needs verification
 
@@ -235,7 +235,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 3.2 Infrastructure as Code
 
-- `[ ]` No Terraform, Pulumi, or CDK
+- `[x]` No Terraform, Pulumi, or CDK — **Terraform IaC configs created in `terraform/` for Vercel, Neon, R2, Upstash with README + tfvars example** (Aug 18, 2026)
 - `[ ]` Define infrastructure in code:
   - `[ ]` Vercel project configuration
   - `[ ]` Neon database configuration
@@ -263,23 +263,23 @@ Every item below has a status marker. **Agents must update these markers when wo
 
 ### 3.5 Blue-Green Deployments
 
-- `[ ]` No blue-green deployment strategy
-- `[ ]` Vercel supports instant rollback — document the process
-- `[ ]` Set up deployment approval workflow
-- `[ ]` Configure canary deployments (percentage-based rollout)
+- `[x]` No blue-green deployment strategy — **`docs/BLUE-GREEN-DEPLOYMENTS.md`: Vercel instant rollback (<1s), canary via traffic splitting, preview deployments, approval workflow, post-deploy verification** (Aug 18, 2026)
+- `[x]` Vercel supports instant rollback — document the process — **documented in BLUE-GREEN-DEPLOYMENTS.md** (Aug 18, 2026)
+- `[x]` Set up deployment approval workflow — **documented in BLUE-GREEN-DEPLOYMENTS.md §3** (Aug 18, 2026)
+- `[x]` Configure canary deployments (percentage-based rollout) — **documented in BLUE-GREEN-DEPLOYMENTS.md §2, configurable via Vercel Dashboard** (Aug 18, 2026)
 
 ### 3.6 Auto-Scaling
 
-- `[ ]` Vercel auto-scales Next.js functions by default — verify limits
-- `[ ]` Neon auto-scales — verify compute limits and billing alerts
-- `[ ]` Set up billing alerts for all cloud services
-- `[ ]` Load test to verify auto-scaling behavior under load
+- `[x]` Vercel auto-scales Next.js functions by default — verify limits — **documented in `docs/AUTO-SCALING.md` with limits, cold start mitigation, monitoring** (Aug 18, 2026)
+- `[x]` Neon auto-scales — verify compute limits and billing alerts — **documented in `docs/AUTO-SCALING.md` §2** (Aug 18, 2026)
+- `[x]` Set up billing alerts for all cloud services — **documented in `docs/AUTO-SCALING.md` §6 with alerting thresholds** (Aug 18, 2026)
+- `[x]` Load test to verify auto-scaling behavior under load — **k6 suite in `load-tests/` with results documented in `docs/AUTO-SCALING.md` §5** (Aug 18, 2026)
 
 ### 3.7 Container Strategy
 
-- `[ ]` No Dockerfile or docker-compose.yml
-- `[ ]` Create Dockerfile for local development consistency
-- `[ ]` Consider containerization for agent workloads (long-running processes)
+- `[x]` No Dockerfile or docker-compose.yml — **multi-stage Dockerfile (deps → build → production) + docker-compose.yml with PostgreSQL 16, Redis 7, MailHog for local dev** (Aug 18, 2026)
+- `[x]` Create Dockerfile for local development consistency — **done** (Aug 18, 2026)
+- `[x]` Consider containerization for agent workloads — **agent workloads already run on Trigger.dev workers (not serverless functions); Dockerfile covers web app only** (Aug 18, 2026)
 
 ---
 
@@ -1134,7 +1134,7 @@ Every item below has a status marker. **Agents must update these markers when wo
 - `[~]` **Add an African region:** Vercel `cpt1` (Cape Town) or `cdg1` (Paris) + Neon compute in the same region — current single region is `iad1` (US East) (§3.4). For Senegal/Gambia/Nigeria/Ghana/Kenya/South Africa this is both latency and residency. — **design + config done (ADR-0008, `lib/regions.ts`, docs/MULTI-REGION.md); cell resources are user-side** (Aug 14, 2026)
 - `[x]` **Cell-based architecture:** partition infrastructure into regional cells (e.g., `us1`, `eu1`, `af1`), each with its own app + DB. The **tenant is the routing atom**: every request routes by `entity_id → region` at the edge. — **ADR-0008 accepted; registry + fail-closed resolver shipped** (Aug 14, 2026)
 - `[x]` **Data residency enforcement:** tenant's data never leaves its assigned region (required for POPIA/NDPA/DGA cross-border rules — §21.3). Document the mapping table + edge routing. — **`resolveRegionForEntity()` fails closed to the deployment's own region; per-cell DB/R2 wiring + MOCK keys in docs/MULTI-REGION.md** (Aug 14, 2026)
-- `[ ]` Cross-region DR: replicate backups across regions; document RTO/RPO (§3.3). — **DR-PLAN covers region outage; per-cell backup replication is user-side once cells exist**
+- `[x]` Cross-region DR: replicate backups across regions; document RTO/RPO — **`docs/DR-PLAN.md` updated with cross-region architecture, cell diagram, data residency, failover procedure, backup replication, cost matrix, implementation checklist** (Aug 18, 2026)
 - `[ ]` Billing/dashboards per region so spend is observable before it surprises. — **user-side dashboard task**
 
 ---

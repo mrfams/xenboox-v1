@@ -112,8 +112,90 @@
 
 ---
 
+## Cross-Region Disaster Recovery
+
+> **Status:** Design complete (ADR-0008). Implementation requires provisioning Neon projects + Vercel deployments per region.
+
+### Architecture
+
+Xenboox uses a **cell-based architecture** where each region is an independent cell:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        DNS / Edge                           │
+│           (Cloudflare → resolveRegionForEntity())           │
+└──────────┬──────────────────────┬──────────────────────────┘
+           │                      │
+    ┌──────▼──────┐       ┌──────▼──────┐
+    │   US Cell   │       │  AF Cell    │
+    │   (iad1)    │       │  (cpt1)     │
+    │             │       │             │
+    │ Vercel US   │       │ Vercel AF   │
+    │ Neon US     │       │ Neon AF     │
+    │ R2 US       │       │ R2 AF       │
+    └─────────────┘       └─────────────┘
+```
+
+### Region Registry
+
+| Cell | Region    | Vercel | Neon         | R2     | Latency Target   |
+| ---- | --------- | ------ | ------------ | ------ | ---------------- |
+| us1  | US East   | `iad1` | `us-east-1`  | `auto` | < 200ms          |
+| af1  | Cape Town | `cpt1` | `af-south-1` | `auto` | < 100ms (Africa) |
+
+### Data Residency
+
+- **Tenant routing:** `resolveRegionForEntity()` maps `entity_id → region` at the edge
+- **Data isolation:** Tenant data never leaves its assigned region
+- **Compliance:** Required for POPIA (South Africa), NDPA (Nigeria), DGA (Senegal)
+- **Failover:** Fail-closed — if the assigned region is down, return 503 (never route to another region's data)
+
+### Regional Failover Procedure
+
+1. **Detection:** Health check `/api/health?check=ready` returns 503 in affected region
+2. **Alert:** PagerDuty/Slack notification with region + impact
+3. **Assessment:** Is the outage in one cell or the entire platform?
+4. **Single-cell outage:**
+   - Users in the affected region see "Service temporarily unavailable"
+   - Users in other regions unaffected (cells are independent)
+   - Restore the affected cell via Neon PITR + Vercel rollback
+5. **Multi-cell outage (platform-wide):**
+   - Follow the standard DR procedure above (backup restore, DNS failover)
+
+### Cross-Region Backup Replication
+
+| Backup Type         | Source Region | Target Region | Frequency       | Method                   |
+| ------------------- | ------------- | ------------- | --------------- | ------------------------ |
+| Neon PITR           | us1           | af1           | Continuous      | Neon logical replication |
+| Daily pg_dump to R2 | us1           | af1           | Daily 03:00 UTC | GitHub Actions workflow  |
+| Schema + migrations | Git           | Global        | On commit       | Git (always global)      |
+
+### Cost Impact
+
+| Service          | US Cell    | AF Cell    | Total      |
+| ---------------- | ---------- | ---------- | ---------- |
+| Vercel Pro       | $20/mo     | $20/mo     | $40/mo     |
+| Neon Pro         | $19/mo     | $19/mo     | $38/mo     |
+| R2 (pay-per-use) | ~$5/mo     | ~$5/mo     | ~$10/mo    |
+| Upstash Pro      | $10/mo     | —          | $10/mo     |
+| **Total**        | **$54/mo** | **$44/mo** | **$98/mo** |
+
+### Implementation Checklist
+
+- [ ] Provision Neon project in `af-south-1` (Cape Town)
+- [ ] Configure Vercel project with `cpt1` region
+- [ ] Set up R2 bucket in `af-south-1` region
+- [ ] Deploy cross-region DNS routing (Cloudflare)
+- [ ] Configure Neon logical replication for cross-region backups
+- [ ] Test failover from US → AF and AF → US
+- [ ] Update `lib/regions.ts` with production cell URLs
+- [ ] Run k6 load tests against AF cell
+
+---
+
 ## Document History
 
-| Date       | Change                  | Author   |
-| ---------- | ----------------------- | -------- |
-| 2026-08-14 | Initial DR plan created | Opencode |
+| Date       | Change                        | Author   |
+| ---------- | ----------------------------- | -------- |
+| 2026-08-14 | Initial DR plan created       | Opencode |
+| 2026-08-18 | Added cross-region DR section | Buffy    |
