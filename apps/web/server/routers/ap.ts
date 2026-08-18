@@ -1680,6 +1680,39 @@ export const apRouter = router({
         handleMutationError(error, "Failed to delete payment");
       }
     }),
+
+  // ── Payables Trend (last 6 months) ──
+  getPayablesTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const now = new Date();
+
+    const trendData: Array<{ month: string; amount: number }> = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = date.toLocaleDateString("en-US", { month: "short" });
+      const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+      const endDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()}`;
+
+      const result = await db
+        .select({ total: sum(invoicesAp.totalAmount) })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.entityId, entityId),
+            gte(invoicesAp.invoiceDate, startDate),
+            lte(invoicesAp.invoiceDate, endDate),
+          ),
+        );
+
+      trendData.push({
+        month: monthLabel,
+        amount: parseFloat(result[0]?.total ?? "0"),
+      });
+    }
+
+    return trendData;
+  }),
 });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────

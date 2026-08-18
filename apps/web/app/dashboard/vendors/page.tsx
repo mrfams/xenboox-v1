@@ -564,6 +564,7 @@ function AiCopilotPanel({
 function BottomRow({
   topVendors,
   paymentTerms,
+  trendData,
 }: {
   topVendors: Array<{
     name: string;
@@ -578,18 +579,9 @@ function BottomRow({
     }>;
     totalVendors: number;
   };
+  trendData: Array<{ month: string; amount: number }>;
 }) {
-  // Mock payables trend data (would come from API in production)
-  const trendData = [
-    { month: "Dec", amount: 85000 },
-    { month: "Jan", amount: 92000 },
-    { month: "Feb", amount: 78000 },
-    { month: "Mar", amount: 95000 },
-    { month: "Apr", amount: 88000 },
-    { month: "May", amount: 96450 },
-  ];
-
-  const maxTrend = Math.max(...trendData.map((d) => d.amount));
+  const maxTrend = Math.max(...trendData.map((d) => d.amount), 1);
 
   const termsColors = [
     "bg-indigo-500",
@@ -803,7 +795,11 @@ function VendorsOverview({
     <>
       {/* Payables trend + concentration */}
       <div className="bg-slate-50/70 p-4">
-        <BottomRow topVendors={topVendors} paymentTerms={paymentTerms} />
+        <BottomRow
+          topVendors={topVendors}
+          paymentTerms={paymentTerms}
+          trendData={payablesTrend ?? []}
+        />
       </div>
 
       {/* Aging + AI insights */}
@@ -1166,6 +1162,9 @@ export default function VendorsPage() {
 
   // Fetch AI insights
   const { data: insights } = trpc.ap.getVendorAiInsights.useQuery();
+
+  // Fetch payables trend data for the chart
+  const { data: payablesTrend } = trpc.ap.getPayablesTrend.useQuery();
 
   const utils = trpc.useUtils();
   const deleteVendor = trpc.ap.deleteSupplier.useMutation({

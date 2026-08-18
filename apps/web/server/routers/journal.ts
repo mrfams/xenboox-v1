@@ -1347,4 +1347,64 @@ export const journalRouter = router({
         handleMutationError(error, "Failed to delete journal entry");
       }
     }),
+
+  // ── Monthly Trend (last 6 months) ──
+  getMonthlyTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const now = new Date();
+
+    const trendData: Array<{ month: string; count: number }> = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = date.toLocaleDateString("en-US", { month: "short" });
+      const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+      const endDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()}`;
+
+      const result = await db
+        .select({ count: count() })
+        .from(journalEntries)
+        .where(
+          and(
+            eq(journalEntries.entityId, entityId),
+            gte(journalEntries.date, startDate),
+            lte(journalEntries.date, endDate),
+          ),
+        );
+
+      trendData.push({
+        month: monthLabel,
+        count: result[0]?.count ?? 0,
+      });
+    }
+
+    return trendData;
+  }),
+
+  // ── Pending Approval Amount ──
+  getPendingApprovalAmount: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const result = await db
+      .select({
+        count: count(),
+        totalDebit: sql<string>`COALESCE(SUM(${journalEntryLines.debit}), 0)`,
+      })
+      .from(journalEntries)
+      .leftJoin(
+        journalEntryLines,
+        eq(journalEntryLines.journalEntryId, journalEntries.id),
+      )
+      .where(
+        and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "pending_review"),
+        ),
+      );
+
+    return {
+      count: result[0]?.count ?? 0,
+      totalAmount: parseFloat(result[0]?.totalDebit ?? "0"),
+    };
+  }),
 });

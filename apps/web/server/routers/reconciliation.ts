@@ -533,13 +533,33 @@ export const reconciliationRouter = router({
         r.statementDate <= currentMonthEnd,
     );
 
+    // Previous month reconciliations for comparison
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthStart = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-01`;
+    const prevMonthEnd = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-${new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()}`;
+
+    const prevMonthRecons = allReconciliations.filter(
+      (r) =>
+        r.statementDate >= prevMonthStart && r.statementDate <= prevMonthEnd,
+    );
+
     // Total reconciled MTD
     const totalReconciledMTD = currentMonthRecons
       .filter((r) => r.status === "closed")
       .reduce((sum, r) => sum + parseFloat(r.statementBalance ?? "0"), 0);
 
+    // Previous month reconciled
+    const prevReconciledMTD = prevMonthRecons
+      .filter((r) => r.status === "closed")
+      .reduce((sum, r) => sum + parseFloat(r.statementBalance ?? "0"), 0);
+
     // Unreconciled MTD
     const unreconciledMTD = currentMonthRecons
+      .filter((r) => r.status !== "closed")
+      .reduce((sum, r) => sum + parseFloat(r.difference ?? "0"), 0);
+
+    // Previous month unreconciled
+    const prevUnreconciledMTD = prevMonthRecons
       .filter((r) => r.status !== "closed")
       .reduce((sum, r) => sum + parseFloat(r.difference ?? "0"), 0);
 
@@ -551,6 +571,29 @@ export const reconciliationRouter = router({
       allReconciliations.length > 0
         ? (closedRecons / allReconciliations.length) * 100
         : 92.8;
+
+    // Previous month reconciliation rate
+    const prevClosedRecons = prevMonthRecons.filter(
+      (r) => r.status === "closed",
+    ).length;
+    const prevReconciliationRate =
+      prevMonthRecons.length > 0
+        ? (prevClosedRecons / prevMonthRecons.length) * 100
+        : 0;
+
+    // Calculate month-over-month changes
+    const reconciledChange =
+      prevReconciledMTD > 0
+        ? ((totalReconciledMTD - prevReconciledMTD) / prevReconciledMTD) * 100
+        : 0;
+    const unreconciledChange =
+      prevUnreconciledMTD > 0
+        ? ((unreconciledMTD - prevUnreconciledMTD) / prevUnreconciledMTD) * 100
+        : 0;
+    const rateChange =
+      prevReconciliationRate > 0
+        ? reconciliationRate - prevReconciliationRate
+        : 0;
 
     // Open discrepancies
     const openDiscrepancies = allReconciliations.filter(
@@ -707,6 +750,10 @@ export const reconciliationRouter = router({
         unreconciledMTD,
         reconciliationRate: Number(reconciliationRate.toFixed(1)),
         openDiscrepancies,
+        // Month-over-month comparison
+        reconciledChange: Number(reconciledChange.toFixed(1)),
+        unreconciledChange: Number(unreconciledChange.toFixed(1)),
+        rateChange: Number(rateChange.toFixed(1)),
       },
       accountStatuses,
       trendData,

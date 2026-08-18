@@ -57,6 +57,9 @@ function SummaryCards({
     unreconciledMTD: number;
     reconciliationRate: number;
     openDiscrepancies: number;
+    reconciledChange?: number;
+    unreconciledChange?: number;
+    rateChange?: number;
   };
 }) {
   const cards = [
@@ -71,7 +74,7 @@ function SummaryCards({
     {
       label: "Total Reconciled (MTD)",
       value: `GMD ${summary.totalReconciledMTD.toLocaleString()}`,
-      change: 18.6,
+      change: summary.reconciledChange ?? 0,
       icon: CheckCircle2,
       color: "text-emerald-600",
       iconBg: "bg-emerald-100",
@@ -79,7 +82,7 @@ function SummaryCards({
     {
       label: "Unreconciled (MTD)",
       value: `GMD ${summary.unreconciledMTD.toLocaleString()}`,
-      change: -12.3,
+      change: summary.unreconciledChange ?? 0,
       icon: AlertTriangle,
       color: "text-amber-600",
       iconBg: "bg-amber-100",
@@ -87,7 +90,7 @@ function SummaryCards({
     {
       label: "Reconciliation Rate",
       value: `${summary.reconciliationRate}%`,
-      change: 3.7,
+      change: summary.rateChange ?? 0,
       icon: TrendingUp,
       color: "text-blue-600",
       iconBg: "bg-blue-100",
