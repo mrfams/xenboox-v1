@@ -445,6 +445,16 @@ export function setIdempotencyResult(key: string, result: unknown): void {
 }
 
 /**
+ * Clear all cached idempotency results. Used by tests to isolate pipeline
+ * runs (the consolidation/onboarding pipelines share one in-memory cache
+ * keyed by entity+period, so without this the first test's result would
+ * leak into every subsequent test with the same params).
+ */
+export function clearIdempotencyCache(): void {
+  idempotencyCache.clear();
+}
+
+/**
  * Generate an idempotency key from the input event.
  */
 export function generateIdempotencyKey(event: {

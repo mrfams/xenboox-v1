@@ -20,201 +20,217 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Mock Helpers ───────────────────────────────────────────────────────────
 
-function createMockTx() {
-  const mkQuery = (methods: string[] = ["findFirst", "findMany"]) => {
-    const obj: Record<string, ReturnType<typeof vi.fn>> = {};
-    for (const m of methods) obj[m] = vi.fn();
-    return obj;
-  };
+const mocks = vi.hoisted(() => {
+  function createMockTx() {
+    const mkQuery = (methods: string[] = ["findFirst", "findMany"]) => {
+      const obj: Record<string, ReturnType<typeof vi.fn>> = {};
+      for (const m of methods) obj[m] = vi.fn();
+      return obj;
+    };
+
+    return {
+      query: {
+        jurisdictionTaxRules: mkQuery(),
+        vatCalculations: mkQuery(),
+        withholdingRecords: mkQuery(),
+        filingDeadlines: mkQuery(),
+        taxPackages: mkQuery(),
+        invoicesAp: mkQuery(),
+        salesInvoices: mkQuery(),
+        chartOfAccounts: mkQuery(),
+        payrollRuns: mkQuery(),
+        payrollLineItems: mkQuery(),
+        journalEntries: mkQuery(),
+        journalEntryLines: mkQuery(),
+      },
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn(() => [{ id: "insert-1" }]),
+          onConflictDoNothing: vi.fn(),
+        })),
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(),
+        })),
+      })),
+      delete: vi.fn(() => ({ where: vi.fn() })),
+    };
+  }
+
+  const mockJurisdictionTaxRulesTable = {
+    id: "id",
+    entityId: "entity_id",
+    country: "country",
+    ruleType: "rule_type",
+    version: "version",
+    name: "name",
+    rateOrBands: "rate_or_bands",
+    effectiveFrom: "effective_from",
+    effectiveTo: "effective_to",
+    status: "status",
+    proposedBy: "proposed_by",
+    approvedBy: "approved_by",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  } as const;
+
+  const mockVatCalculationsTable = {
+    id: "id",
+    entityId: "entity_id",
+    period: "period",
+    inputVat: "input_vat",
+    outputVat: "output_vat",
+    netPosition: "net_position",
+    status: "status",
+    calculatedBy: "calculated_by",
+    createdAt: "created_at",
+  } as const;
+
+  const mockWithholdingRecordsTable = {
+    id: "id",
+    entityId: "entity_id",
+    period: "period",
+    payeeId: "payee_id",
+    payeeName: "payee_name",
+    payeeType: "payee_type",
+    amount: "amount",
+    rate: "rate",
+    taxWithheld: "tax_withheld",
+    jurisdiction: "jurisdiction",
+    createdAt: "created_at",
+  } as const;
+
+  const mockFilingDeadlinesTable = {
+    id: "id",
+    entityId: "entity_id",
+    jurisdiction: "jurisdiction",
+    filingType: "filing_type",
+    name: "name",
+    dueDate: "due_date",
+    period: "period",
+    estimatedAmount: "estimated_amount",
+    status: "status",
+    createdAt: "created_at",
+  } as const;
+
+  const mockTaxPackagesTable = {
+    id: "id",
+    entityId: "entity_id",
+    packageType: "package_type",
+    period: "period",
+    status: "status",
+    formatExport: "format_export",
+    complianceChecked: "compliance_checked",
+    reviewedBy: "reviewed_by",
+    submitted: "submitted",
+    createdAt: "created_at",
+  } as const;
+
+  const mockInvoicesApTable = {
+    id: "id",
+    entityId: "entity_id",
+    supplierId: "supplier_id",
+    totalAmount: "total_amount",
+    invoiceDate: "invoice_date",
+    status: "status",
+  } as const;
+
+  const mockSalesInvoicesTable = {
+    id: "id",
+    entityId: "entity_id",
+    totalAmount: "total_amount",
+    invoiceDate: "invoice_date",
+    status: "status",
+  } as const;
+
+  const mockChartOfAccountsTable = {
+    id: "id",
+    entityId: "entity_id",
+    code: "code",
+    name: "name",
+    type: "type",
+    subtype: "subtype",
+  } as const;
+
+  const mockPayrollRunsTable = {
+    id: "id",
+    entityId: "entity_id",
+    period: "period",
+    status: "status",
+    employeeCount: "employee_count",
+    grossPay: "gross_pay",
+    totalEmployerContributions: "total_employer_contributions",
+    createdAt: "created_at",
+  } as const;
+
+  const mockPayrollLineItemsTable = {
+    id: "id",
+    entityId: "entity_id",
+    payrollRunId: "payroll_run_id",
+    payeTax: "paye_tax",
+  } as const;
+
+  const mockJournalEntriesTable = {
+    id: "id",
+    entityId: "entity_id",
+    description: "description",
+    date: "date",
+    status: "status",
+    source: "source",
+    createdAt: "created_at",
+  } as const;
 
   return {
-    query: {
-      jurisdictionTaxRules: mkQuery(),
-      vatCalculations: mkQuery(),
-      withholdingRecords: mkQuery(),
-      filingDeadlines: mkQuery(),
-      taxPackages: mkQuery(),
-      invoicesAp: mkQuery(),
-      salesInvoices: mkQuery(),
-      chartOfAccounts: mkQuery(),
-      payrollRuns: mkQuery(),
-      payrollLineItems: mkQuery(),
-      journalEntries: mkQuery(),
-      journalEntryLines: mkQuery(),
-    },
-    insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        returning: vi.fn(() => [{ id: "insert-1" }]),
-        onConflictDoNothing: vi.fn(),
-      })),
-    })),
-    update: vi.fn(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn(),
-      })),
-    })),
-    delete: vi.fn(() => ({ where: vi.fn() })),
+    createMockTx,
+    mockJurisdictionTaxRulesTable,
+    mockVatCalculationsTable,
+    mockWithholdingRecordsTable,
+    mockFilingDeadlinesTable,
+    mockTaxPackagesTable,
+    mockInvoicesApTable,
+    mockSalesInvoicesTable,
+    mockChartOfAccountsTable,
+    mockPayrollRunsTable,
+    mockPayrollLineItemsTable,
+    mockJournalEntriesTable,
   };
-}
-
-// Mock table definition objects
-const mockJurisdictionTaxRulesTable = {
-  id: "id",
-  entityId: "entity_id",
-  country: "country",
-  ruleType: "rule_type",
-  version: "version",
-  name: "name",
-  rateOrBands: "rate_or_bands",
-  effectiveFrom: "effective_from",
-  effectiveTo: "effective_to",
-  status: "status",
-  proposedBy: "proposed_by",
-  approvedBy: "approved_by",
-  createdAt: "created_at",
-  updatedAt: "updated_at",
-} as const;
-
-const mockVatCalculationsTable = {
-  id: "id",
-  entityId: "entity_id",
-  period: "period",
-  inputVat: "input_vat",
-  outputVat: "output_vat",
-  netPosition: "net_position",
-  status: "status",
-  calculatedBy: "calculated_by",
-  createdAt: "created_at",
-} as const;
-
-const mockWithholdingRecordsTable = {
-  id: "id",
-  entityId: "entity_id",
-  period: "period",
-  payeeId: "payee_id",
-  payeeName: "payee_name",
-  payeeType: "payee_type",
-  amount: "amount",
-  rate: "rate",
-  taxWithheld: "tax_withheld",
-  jurisdiction: "jurisdiction",
-  createdAt: "created_at",
-} as const;
-
-const mockFilingDeadlinesTable = {
-  id: "id",
-  entityId: "entity_id",
-  jurisdiction: "jurisdiction",
-  filingType: "filing_type",
-  name: "name",
-  dueDate: "due_date",
-  period: "period",
-  estimatedAmount: "estimated_amount",
-  status: "status",
-  createdAt: "created_at",
-} as const;
-
-const mockTaxPackagesTable = {
-  id: "id",
-  entityId: "entity_id",
-  packageType: "package_type",
-  period: "period",
-  status: "status",
-  formatExport: "format_export",
-  complianceChecked: "compliance_checked",
-  reviewedBy: "reviewed_by",
-  submitted: "submitted",
-  createdAt: "created_at",
-} as const;
-
-const mockInvoicesApTable = {
-  id: "id",
-  entityId: "entity_id",
-  supplierId: "supplier_id",
-  totalAmount: "total_amount",
-  invoiceDate: "invoice_date",
-  status: "status",
-} as const;
-
-const mockSalesInvoicesTable = {
-  id: "id",
-  entityId: "entity_id",
-  totalAmount: "total_amount",
-  invoiceDate: "invoice_date",
-  status: "status",
-} as const;
-
-const mockChartOfAccountsTable = {
-  id: "id",
-  entityId: "entity_id",
-  code: "code",
-  name: "name",
-  type: "type",
-  subtype: "subtype",
-} as const;
-
-const mockPayrollRunsTable = {
-  id: "id",
-  entityId: "entity_id",
-  period: "period",
-  status: "status",
-  employeeCount: "employee_count",
-  grossPay: "gross_pay",
-  totalEmployerContributions: "total_employer_contributions",
-  createdAt: "created_at",
-} as const;
-
-const mockPayrollLineItemsTable = {
-  id: "id",
-  entityId: "entity_id",
-  payrollRunId: "payroll_run_id",
-  payeTax: "paye_tax",
-} as const;
-
-const mockJournalEntriesTable = {
-  id: "id",
-  entityId: "entity_id",
-  description: "description",
-  date: "date",
-  status: "status",
-  source: "source",
-  createdAt: "created_at",
-} as const;
+});
 
 vi.mock("@xenboox/db", () => {
-  const tx = createMockTx();
+  const tx = mocks.createMockTx();
   return {
     db: {
       ...tx,
       transaction: vi.fn(async (cb: (tx: any) => Promise<void>) => {
-        await cb(createMockTx());
+        await cb(mocks.createMockTx());
       }),
     },
-    jurisdictionTaxRules: mockJurisdictionTaxRulesTable,
-    vatCalculations: mockVatCalculationsTable,
-    withholdingRecords: mockWithholdingRecordsTable,
-    filingDeadlines: mockFilingDeadlinesTable,
-    taxPackages: mockTaxPackagesTable,
-    invoicesAp: mockInvoicesApTable,
-    salesInvoices: mockSalesInvoicesTable,
-    chartOfAccounts: mockChartOfAccountsTable,
-    payrollRuns: mockPayrollRunsTable,
-    payrollLineItems: mockPayrollLineItemsTable,
-    journalEntries: mockJournalEntriesTable,
+    jurisdictionTaxRules: mocks.mockJurisdictionTaxRulesTable,
+    vatCalculations: mocks.mockVatCalculationsTable,
+    withholdingRecords: mocks.mockWithholdingRecordsTable,
+    filingDeadlines: mocks.mockFilingDeadlinesTable,
+    taxPackages: mocks.mockTaxPackagesTable,
+    invoicesAp: mocks.mockInvoicesApTable,
+    salesInvoices: mocks.mockSalesInvoicesTable,
+    chartOfAccounts: mocks.mockChartOfAccountsTable,
+    payrollRuns: mocks.mockPayrollRunsTable,
+    payrollLineItems: mocks.mockPayrollLineItemsTable,
+    journalEntries: mocks.mockJournalEntriesTable,
   };
 });
 
 vi.mock("@xenboox/db/schema/tax-compliance", () => ({
-  jurisdictionTaxRules: mockJurisdictionTaxRulesTable,
-  vatCalculations: mockVatCalculationsTable,
-  withholdingRecords: mockWithholdingRecordsTable,
-  filingDeadlines: mockFilingDeadlinesTable,
-  taxPackages: mockTaxPackagesTable,
+  jurisdictionTaxRules: mocks.mockJurisdictionTaxRulesTable,
+  vatCalculations: mocks.mockVatCalculationsTable,
+  withholdingRecords: mocks.mockWithholdingRecordsTable,
+  filingDeadlines: mocks.mockFilingDeadlinesTable,
+  taxPackages: mocks.mockTaxPackagesTable,
 }));
 
 vi.mock("@xenboox/db/schema/accounting", () => ({
-  chartOfAccounts: mockChartOfAccountsTable,
-  journalEntries: mockJournalEntriesTable,
+  chartOfAccounts: mocks.mockChartOfAccountsTable,
+  journalEntries: mocks.mockJournalEntriesTable,
   journalEntryLines: {
     id: "id",
     journalEntryId: "journal_entry_id",
@@ -225,13 +241,13 @@ vi.mock("@xenboox/db/schema/accounting", () => ({
 }));
 
 vi.mock("@xenboox/db/schema/ap-ar", () => ({
-  invoicesAp: mockInvoicesApTable,
-  salesInvoices: mockSalesInvoicesTable,
+  invoicesAp: mocks.mockInvoicesApTable,
+  salesInvoices: mocks.mockSalesInvoicesTable,
 }));
 
 vi.mock("@xenboox/db/schema/payroll", () => ({
-  payrollRuns: mockPayrollRunsTable,
-  payrollLineItems: mockPayrollLineItemsTable,
+  payrollRuns: mocks.mockPayrollRunsTable,
+  payrollLineItems: mocks.mockPayrollLineItemsTable,
 }));
 
 vi.mock("./langfuse", () => ({
@@ -254,11 +270,16 @@ vi.mock("./state", () => ({
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
+// Top-level import of the mocked db — vitest rewires this to the vi.mock
+// factory. The old require("@xenboox/db") pattern bypassed the mock and
+// loaded the real module (which fails on directory imports in Node ESM).
+import { db as dbTyped } from "@xenboox/db";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = dbTyped as any;
+
 describe("Tax & Compliance Pipeline — Phase 2", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const { db } = require("@xenboox/db");
-
     // Default: no persisted rules
     db.query.jurisdictionTaxRules.findMany.mockResolvedValue([]);
 
@@ -357,8 +378,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 1: Jurisdiction Rule Registry", () => {
     it("should load built-in jurisdiction configs when no persisted rules exist", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -374,14 +396,15 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
       expect(step1!.status).toBe("completed");
       expect(step1!.details.jurisdictionsLoaded).toEqual([
         "GM",
+        "SN",
+        "GH",
         "NG",
         "KE",
-        "GH",
+        "US",
       ]);
     });
 
     it("should load persisted jurisdiction rules when they exist", async () => {
-      const { db } = require("@xenboox/db");
       db.query.jurisdictionTaxRules.findMany.mockResolvedValue([
         {
           id: "rule-1",
@@ -399,8 +422,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
         },
       ]);
 
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -416,8 +440,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should handle entity with no tax rules gracefully", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -436,8 +461,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 2: VAT Calculation Engine", () => {
     it("should calculate input VAT from AP invoices", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -452,8 +478,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should determine net position (output - input VAT)", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -471,9 +498,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should persist the VAT calculation to the DB", async () => {
-      const { db } = require("@xenboox/db");
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -487,12 +514,12 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should handle period with no invoices gracefully", async () => {
-      const { db } = require("@xenboox/db");
       db.query.invoicesAp.findMany.mockResolvedValue([]);
       db.query.salesInvoices.findMany.mockResolvedValue([]);
 
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -511,8 +538,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 3: Withholding Tax Calculation", () => {
     it("should calculate withholding tax on AP invoices", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -527,11 +555,11 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should skip withholding when no AP records exist", async () => {
-      const { db } = require("@xenboox/db");
       db.query.invoicesAp.findMany.mockResolvedValue([]);
 
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -549,8 +577,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 4: PAYE Filing Preparation", () => {
     it("should skip PAYE when no payroll runs exist for the period", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -565,7 +594,6 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should prepare PAYE filing when a payroll run exists", async () => {
-      const { db } = require("@xenboox/db");
       db.query.payrollRuns.findFirst.mockResolvedValue({
         id: "payroll-1",
         entityId: "entity-1",
@@ -597,8 +625,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
         },
       ]);
 
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -618,8 +647,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 5: Corporate Tax Package Assembly", () => {
     it("should skip corporate tax for non-year-end periods", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -636,8 +666,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should assemble corporate tax package when explicitly requested", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -653,8 +684,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should assemble corporate tax for year-end (December) period", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -672,8 +704,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 6: Confidence Gate & Compliance Review", () => {
     it("should perform compliance review with high confidence when clean", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -691,8 +724,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should flag mandatory review regardless of confidence", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -713,8 +747,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 7: Local Authority Format Export", () => {
     it("should generate JSON exports for all jurisdictions", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -729,8 +764,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should generate CSV exports alongside JSON", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -749,8 +785,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should name exports with jurisdiction prefix and period", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -769,8 +806,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 8: Filing Deadline Calendar & Persistence", () => {
     it("should generate filing deadlines for all jurisdictions", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -783,12 +821,20 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
       const jurisdictions = [
         ...new Set(result.filingDeadlines.map((d) => d.jurisdiction)),
       ];
-      expect(jurisdictions.sort()).toEqual(["GH", "GM", "KE", "NG"]);
+      expect(jurisdictions.sort()).toEqual([
+        "GH",
+        "GM",
+        "KE",
+        "NG",
+        "SN",
+        "US",
+      ]);
     });
 
     it("should mark overdue deadlines correctly", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -806,9 +852,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should persist deadlines to filingDeadlines table", async () => {
-      const { db } = require("@xenboox/db");
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -823,8 +869,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
     it("should include quarterly deadlines only at quarter-end months", async () => {
       // March (quarter-end) should include quarterly deadlines
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -844,8 +891,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 9: Regulatory Risk Escalation", () => {
     it("should detect overdue filing deadlines as regulatory risks", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -864,8 +912,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should always escalate regulatory risks (never auto-resolve)", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -882,8 +931,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should use actual jurisdiction from deadline context (not hardcoded GM)", async () => {
-      const { detectRegulatoryRisks } =
-        await import("../tax-compliance-pipeline");
+      const { detectRegulatoryRisks } = await import(
+        "../tax-compliance-pipeline"
+      );
 
       // Create a result with a large VAT refund and PAYE past deadline
       const mockResult = {
@@ -935,8 +985,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 10: Tax Rule Update Workflow", () => {
     it("should not generate proposals without simulate flag", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -949,8 +1000,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should generate proposals when simulate flag is set", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -964,8 +1016,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should never auto-apply proposed rule changes", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -990,8 +1043,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Step 11: Tax Position Summary & Audit", () => {
     it("should include audit trail entries", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -1004,8 +1058,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should complete the summary step", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -1025,8 +1080,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("End-to-End Pipeline", () => {
     it("should run all 11 steps successfully", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -1041,13 +1097,13 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should handle pipeline errors gracefully", async () => {
-      const { db } = require("@xenboox/db");
       db.query.invoicesAp.findMany.mockRejectedValue(
         new Error("DB connection failed"),
       );
 
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -1062,8 +1118,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should report duration and completion timestamp", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -1077,8 +1134,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should respect specified jurisdictions (not all four)", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -1102,7 +1160,6 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("getTaxComplianceStatus", () => {
     it("should return VAT summary and filing deadlines", async () => {
-      const { db } = require("@xenboox/db");
       db.query.vatCalculations.findMany.mockResolvedValue([
         {
           id: "vat-1",
@@ -1130,8 +1187,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
         },
       ]);
 
-      const { getTaxComplianceStatus } =
-        await import("../tax-compliance-pipeline");
+      const { getTaxComplianceStatus } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await getTaxComplianceStatus({ entityId: "entity-1" });
 
       expect(result.vatSummary).not.toBeNull();
@@ -1140,12 +1198,12 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should return empty state when no data exists", async () => {
-      const { db } = require("@xenboox/db");
       db.query.vatCalculations.findMany.mockResolvedValue([]);
       db.query.filingDeadlines.findMany.mockResolvedValue([]);
 
-      const { getTaxComplianceStatus } =
-        await import("../tax-compliance-pipeline");
+      const { getTaxComplianceStatus } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await getTaxComplianceStatus({ entityId: "entity-1" });
 
       expect(result.vatSummary).toBeNull();
@@ -1158,8 +1216,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Always-Escalate Rule (Step 9 enforcement)", () => {
     it("should produce escalated status when deadlines are overdue", async () => {
-      const { detectRegulatoryRisks } =
-        await import("../tax-compliance-pipeline");
+      const { detectRegulatoryRisks } = await import(
+        "../tax-compliance-pipeline"
+      );
 
       const mockResult = {
         vatCalculation: null,
@@ -1190,8 +1249,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("No Auto-Apply Rule (Step 10 enforcement)", () => {
     it("should never apply rule changes automatically", async () => {
-      const { detectTaxRuleChanges } =
-        await import("../tax-compliance-pipeline");
+      const { detectTaxRuleChanges } = await import(
+        "../tax-compliance-pipeline"
+      );
       const proposals = await detectTaxRuleChanges(
         "entity-1",
         ["GM", "NG"],
@@ -1210,8 +1270,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("CSV Export Format", () => {
     it("should produce valid CSV content with headers", async () => {
-      const { generateFormatExports } =
-        await import("../tax-compliance-pipeline");
+      const { generateFormatExports } = await import(
+        "../tax-compliance-pipeline"
+      );
 
       const mockResult = {
         vatCalculation: {
@@ -1246,8 +1307,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Filing Deadline Persistence (saveFilingDeadlines)", () => {
     it("should fail gracefully on individual DB errors", async () => {
-      const { runTaxCompliancePipeline } =
-        await import("../tax-compliance-pipeline");
+      const { runTaxCompliancePipeline } = await import(
+        "../tax-compliance-pipeline"
+      );
       const result = await runTaxCompliancePipeline({
         entityId: "entity-1",
         entityName: "Test Entity",
@@ -1265,8 +1327,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
 
   describe("Compliance Review: Mandatory Gate (Step 6)", () => {
     it("should lower confidence when large VAT position exists", async () => {
-      const { performComplianceReview } =
-        await import("../tax-compliance-pipeline");
+      const { performComplianceReview } = await import(
+        "../tax-compliance-pipeline"
+      );
 
       const result = {
         vatCalculation: {
@@ -1289,8 +1352,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should escalate when more than 2 warnings exist", async () => {
-      const { performComplianceReview } =
-        await import("../tax-compliance-pipeline");
+      const { performComplianceReview } = await import(
+        "../tax-compliance-pipeline"
+      );
 
       const result = {
         vatCalculation: {

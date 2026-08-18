@@ -16,178 +16,63 @@
 //   10. Audit Trail Logging
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { clearIdempotencyCache } from "../retry";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
-function createMockTx() {
-  const mkQuery = (methods: string[] = ["findFirst", "findMany"]) => {
-    const obj: Record<string, ReturnType<typeof vi.fn>> = {};
-    for (const m of methods) obj[m] = vi.fn();
-    return obj;
-  };
+const mocks = vi.hoisted(() => {
+  function createMockTx() {
+    const mkQuery = (methods: string[] = ["findFirst", "findMany"]) => {
+      const obj: Record<string, ReturnType<typeof vi.fn>> = {};
+      for (const m of methods) obj[m] = vi.fn();
+      return obj;
+    };
 
-  return {
-    query: {
-      entityRelationships: mkQuery(),
-      entities: mkQuery(),
-      intercompanyTags: mkQuery(),
-      consolidationRuns: mkQuery(),
-      eliminationEntries: mkQuery(),
-      minorityInterestRecords: mkQuery(),
-      trialBalanceSnapshots: mkQuery(),
-      journalEntries: mkQuery(),
-      chartOfAccounts: mkQuery(),
-    },
-    insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        returning: vi.fn(() => [{ id: "run-1" }, { id: "elim-1" }]),
-        onConflictDoNothing: vi.fn(),
+    return {
+      query: {
+        entityRelationships: mkQuery(),
+        entities: mkQuery(),
+        intercompanyTags: mkQuery(),
+        consolidationRuns: mkQuery(),
+        eliminationEntries: mkQuery(),
+        minorityInterestRecords: mkQuery(),
+        trialBalanceSnapshots: mkQuery(),
+        journalEntries: mkQuery(),
+        chartOfAccounts: mkQuery(),
+        exchangeRates: mkQuery(),
+      },
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn(() => [{ id: "run-1" }, { id: "elim-1" }]),
+          onConflictDoNothing: vi.fn(),
+        })),
       })),
-    })),
-    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn() })) })),
-    delete: vi.fn(() => ({ where: vi.fn() })),
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => [{ count: "3" }]),
+      update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn() })) })),
+      delete: vi.fn(() => ({ where: vi.fn() })),
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => [{ count: "3" }]),
+        })),
       })),
-    })),
-  };
-}
+    };
+  }
 
-// Mock table definition objects
-const mockEntityRelationshipsTable = {
-  id: "id",
-  parentEntityId: "parent_entity_id",
-  subsidiaryEntityId: "subsidiary_entity_id",
-  ownershipPct: "ownership_pct",
-  effectiveFrom: "effective_from",
-  effectiveTo: "effective_to",
-  status: "status",
-  consolidationMethod: "consolidation_method",
-  currency: "currency",
-  notes: "notes",
-  createdAt: "created_at",
-  updatedAt: "updated_at",
-} as const;
+  const mockEntityRelationshipsTable = {
+    id: "id",
+    parentEntityId: "parent_entity_id",
+    subsidiaryEntityId: "subsidiary_entity_id",
+    ownershipPct: "ownership_pct",
+    effectiveFrom: "effective_from",
+    effectiveTo: "effective_to",
+    status: "status",
+    consolidationMethod: "consolidation_method",
+    currency: "currency",
+    notes: "notes",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  } as const;
 
-const mockEntitiesTable = {
-  id: "id",
-  organizationId: "organization_id",
-  name: "name",
-  type: "type",
-  currency: "currency",
-  country: "country",
-  isActive: "is_active",
-} as const;
-
-const mockConsolidationRunTable = {
-  id: "id",
-  parentEntityId: "parent_entity_id",
-  organizationId: "organization_id",
-  period: "period",
-  status: "status",
-  totalSubsidiaries: "total_subsidiaries",
-  subsidiariesProcessed: "subsidiaries_processed",
-  eliminationCount: "elimination_count",
-  eliminationAmount: "elimination_amount",
-  translationCount: "translation_count",
-  minorityInterestCount: "minority_interest_count",
-  integrityCheckPassed: "integrity_check_passed",
-  confidence: "confidence",
-  reviewedById: "reviewed_by_id",
-  reviewedAt: "reviewed_at",
-  errors: "errors",
-  warnings: "warnings",
-  startedAt: "started_at",
-  completedAt: "completed_at",
-  triggeredBy: "triggered_by",
-  createdAt: "created_at",
-  updatedAt: "updated_at",
-} as const;
-
-const mockEliminationEntryTable = {
-  id: "id",
-  consolidationRunId: "consolidation_run_id",
-  entityId: "entity_id",
-  counterpartyEntityId: "counterparty_entity_id",
-  eliminationType: "elimination_type",
-  accountId: "account_id",
-  description: "description",
-  amount: "amount",
-  debitCredit: "debit_credit",
-  sourceTransactionIds: "source_transaction_ids",
-  sourceTagIds: "source_tag_ids",
-  currency: "currency",
-  isPosted: "is_posted",
-} as const;
-
-const mockMinorityInterestTable = {
-  id: "id",
-  consolidationRunId: "consolidation_run_id",
-  subsidiaryEntityId: "subsidiary_entity_id",
-  ownershipPct: "ownership_pct",
-  minorityPct: "minority_pct",
-  subsidiaryNetIncome: "subsidiary_net_income",
-  minorityShareIncome: "minority_share_income",
-  subsidiaryEquity: "subsidiary_equity",
-  minorityShareEquity: "minority_share_equity",
-  period: "period",
-} as const;
-
-const mockIntercompanyTagsTable = {
-  id: "id",
-  entityId: "entity_id",
-  counterpartyEntityId: "counterparty_entity_id",
-  transactionType: "transaction_type",
-  journalEntryId: "journal_entry_id",
-  amount: "amount",
-  currency: "currency",
-  description: "description",
-  taggedAt: "tagged_at",
-  reversedAt: "reversed_at",
-} as const;
-
-const mockTrialBalanceSnapshotsTable = {
-  id: "id",
-  entityId: "entity_id",
-  periodId: "period_id",
-  accountId: "account_id",
-  balance: "balance",
-  generatedAt: "generated_at",
-} as const;
-
-const mockJournalEntriesTable = {
-  id: "id",
-  entityId: "entity_id",
-  description: "description",
-  date: "date",
-  periodId: "period_id",
-  status: "status",
-  source: "source",
-} as const;
-
-vi.mock("@xenboox/db", () => {
-  const tx = createMockTx();
-  return {
-    db: {
-      ...tx,
-      transaction: vi.fn(async (cb: (tx: any) => Promise<void>) => {
-        await cb(createMockTx());
-      }),
-    },
-    entityRelationships: mockEntityRelationshipsTable,
-    entities: mockEntitiesTable,
-    consolidationRuns: mockConsolidationRunTable,
-    eliminationEntries: mockEliminationEntryTable,
-    minorityInterestRecords: mockMinorityInterestTable,
-    intercompanyTags: mockIntercompanyTagsTable,
-    trialBalanceSnapshots: mockTrialBalanceSnapshotsTable,
-    journalEntries: mockJournalEntriesTable,
-  };
-});
-
-vi.mock("@xenboox/db/schema/organization", () => ({
-  entities: {
+  const mockEntitiesTable = {
     id: "id",
     organizationId: "organization_id",
     name: "name",
@@ -195,16 +80,154 @@ vi.mock("@xenboox/db/schema/organization", () => ({
     currency: "currency",
     country: "country",
     isActive: "is_active",
-  },
-  organizations: {
+  } as const;
+
+  const mockConsolidationRunTable = {
     id: "id",
-    name: "name",
-    slug: "slug",
-    type: "type",
-    plan: "plan",
-    ownerId: "owner_id",
+    parentEntityId: "parent_entity_id",
+    organizationId: "organization_id",
+    period: "period",
+    status: "status",
+    totalSubsidiaries: "total_subsidiaries",
+    subsidiariesProcessed: "subsidiaries_processed",
+    eliminationCount: "elimination_count",
+    eliminationAmount: "elimination_amount",
+    translationCount: "translation_count",
+    minorityInterestCount: "minority_interest_count",
+    integrityCheckPassed: "integrity_check_passed",
+    confidence: "confidence",
+    reviewedById: "reviewed_by_id",
+    reviewedAt: "reviewed_at",
+    errors: "errors",
+    warnings: "warnings",
+    startedAt: "started_at",
+    completedAt: "completed_at",
+    triggeredBy: "triggered_by",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  } as const;
+
+  const mockEliminationEntryTable = {
+    id: "id",
+    consolidationRunId: "consolidation_run_id",
+    entityId: "entity_id",
+    counterpartyEntityId: "counterparty_entity_id",
+    eliminationType: "elimination_type",
+    accountId: "account_id",
+    description: "description",
+    amount: "amount",
+    debitCredit: "debit_credit",
+    sourceTransactionIds: "source_transaction_ids",
+    sourceTagIds: "source_tag_ids",
+    currency: "currency",
+    isPosted: "is_posted",
+  } as const;
+
+  const mockMinorityInterestTable = {
+    id: "id",
+    consolidationRunId: "consolidation_run_id",
+    subsidiaryEntityId: "subsidiary_entity_id",
+    ownershipPct: "ownership_pct",
+    minorityPct: "minority_pct",
+    subsidiaryNetIncome: "subsidiary_net_income",
+    minorityShareIncome: "minority_share_income",
+    subsidiaryEquity: "subsidiary_equity",
+    minorityShareEquity: "minority_share_equity",
+    period: "period",
+  } as const;
+
+  const mockIntercompanyTagsTable = {
+    id: "id",
+    entityId: "entity_id",
+    counterpartyEntityId: "counterparty_entity_id",
+    transactionType: "transaction_type",
+    journalEntryId: "journal_entry_id",
+    amount: "amount",
+    currency: "currency",
+    description: "description",
+    taggedAt: "tagged_at",
+    reversedAt: "reversed_at",
+  } as const;
+
+  const mockTrialBalanceSnapshotsTable = {
+    id: "id",
+    entityId: "entity_id",
+    periodId: "period_id",
+    accountId: "account_id",
+    balance: "balance",
+    generatedAt: "generated_at",
+  } as const;
+
+  const mockJournalEntriesTable = {
+    id: "id",
+    entityId: "entity_id",
+    description: "description",
+    date: "date",
+    periodId: "period_id",
+    status: "status",
+    source: "source",
+  } as const;
+
+  return {
+    createMockTx,
+    mockEntityRelationshipsTable,
+    mockEntitiesTable,
+    mockConsolidationRunTable,
+    mockEliminationEntryTable,
+    mockMinorityInterestTable,
+    mockIntercompanyTagsTable,
+    mockTrialBalanceSnapshotsTable,
+    mockJournalEntriesTable,
+  };
+});
+
+vi.mock("@xenboox/db", () => {
+  const tx = mocks.createMockTx();
+  return {
+    db: {
+      ...tx,
+      transaction: vi.fn(async (cb: (tx: any) => Promise<void>) => {
+        await cb(mocks.createMockTx());
+      }),
+    },
+    entityRelationships: mocks.mockEntityRelationshipsTable,
+    entities: mocks.mockEntitiesTable,
+    consolidationRuns: mocks.mockConsolidationRunTable,
+    eliminationEntries: mocks.mockEliminationEntryTable,
+    minorityInterestRecords: mocks.mockMinorityInterestTable,
+    intercompanyTags: mocks.mockIntercompanyTagsTable,
+    trialBalanceSnapshots: mocks.mockTrialBalanceSnapshotsTable,
+    journalEntries: mocks.mockJournalEntriesTable,
+  };
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+vi.mock(
+  import("@xenboox/db/schema/organization") as any,
+  async (importOriginal: any) => {
+    const actual = (await importOriginal()) as Record<string, unknown>;
+    return {
+      ...actual,
+      entities: {
+        id: "id",
+        organizationId: "organization_id",
+        name: "name",
+        type: "type",
+        currency: "currency",
+        country: "country",
+        isActive: "is_active",
+      },
+      organizations: {
+        id: "id",
+        name: "name",
+        slug: "slug",
+        type: "type",
+        plan: "plan",
+        ownerId: "owner_id",
+      },
+    };
   },
-}));
+);
 
 vi.mock("@xenboox/db/schema/accounting", () => ({
   journalEntries: {
@@ -251,6 +274,15 @@ vi.mock("@xenboox/db/schema/documents", () => ({
     entityIdRef: "entity_id_ref",
     oldValues: "old_values",
     newValues: "new_values",
+  },
+  exchangeRates: {
+    id: "id",
+    fromCurrency: "from_currency",
+    toCurrency: "to_currency",
+    rate: "rate",
+    source: "source",
+    validFrom: "valid_from",
+    validTo: "valid_to",
   },
 }));
 
@@ -355,11 +387,17 @@ vi.mock("./state", () => ({
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
+// Top-level import of the mocked db — vitest rewires this to the vi.mock
+// factory. The old require("@xenboox/db") pattern bypassed the mock and
+// loaded the real module (which fails on directory imports in Node ESM).
+import { db as dbTyped } from "@xenboox/db";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = dbTyped as any;
+
 describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const { db } = require("@xenboox/db");
-
+    clearIdempotencyCache(); // isolate the in-memory idempotency cache between tests
     // Default: 3 active subsidiaries
     db.query.entityRelationships.findMany.mockResolvedValue([
       {
@@ -491,32 +529,41 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
       },
     ]);
 
-    // Default: journal entries exist
-    db.query.journalEntries.findMany.mockResolvedValue([
-      {
-        id: "je-1",
-        entityId: "entity-1",
-        description: "Test entry",
-        status: "posted",
-        source: "manual",
-        createdAt: new Date("2026-06-15"),
-      },
-      {
-        id: "je-2",
-        entityId: "entity-1",
-        description: "Test entry 2",
-        status: "posted",
-        source: "manual",
-        createdAt: new Date("2026-06-20"),
-      },
-    ]);
+    // Default: NO consolidation-sourced journal entries exist. The integrity
+    // check (Step 9) queries with source = "consolidation" — an empty result
+    // means the parent/subsidiary ledgers were never mutated. Tests that need
+    // to simulate a violation override this mock.
+    db.query.journalEntries.findMany.mockResolvedValue([]);
 
-    // Default: insert returns ID
+    // Default: insert returns a full elimination-shaped row so the pipeline
+    // can read ee.amount/entityId/etc. (the consolidation-run insert only
+    // needs id, which is satisfied by the same row).
     db.insert.mockReturnValue({
       values: vi.fn().mockReturnValue({
-        returning: vi.fn().mockResolvedValue([{ id: "run-1" }]),
+        returning: vi.fn().mockResolvedValue([
+          {
+            id: "elim-1",
+            entityId: "entity-1",
+            counterpartyEntityId: "sub-1",
+            eliminationType: "ic_receivable_payable",
+            description: "Elimination entry",
+            amount: "12500.00",
+            debitCredit: "debit",
+          },
+        ]),
         onConflictDoNothing: vi.fn(),
       }),
+    });
+
+    // Default: an exchange rate exists for USD → GMD so Step 4 translation
+    // succeeds for the USD subsidiary (sub-3).
+    db.query.exchangeRates.findFirst.mockResolvedValue({
+      id: "fx-1",
+      fromCurrency: "USD",
+      toCurrency: "GMD",
+      rate: "58.50",
+      source: "test",
+      validFrom: new Date("2026-01-01"),
     });
 
     // Default: select returns count
@@ -531,8 +578,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 1: Entity Hierarchy & Relationship Mapping", () => {
     it("should identify all active subsidiaries for a parent entity", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -547,8 +595,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should include ownership percentage and consolidation method for each subsidiary", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -566,12 +615,12 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should handle entity with no subsidiaries gracefully", async () => {
-      const { db } = require("@xenboox/db");
       db.query.entityRelationships.findMany.mockResolvedValue([]);
       db.query.entities.findMany.mockResolvedValue([]);
 
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -588,8 +637,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 2: Inter-Company Transaction Tagging", () => {
     it("should collect IC tags for the parent entity", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -604,7 +654,6 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should include subsidiary-side IC tags", async () => {
-      const { db } = require("@xenboox/db");
       // Add subsidiary-side tags
       const subTagResults = [
         {
@@ -648,8 +697,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
         return subTagResults;
       });
 
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -661,8 +711,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should mark step as completed when IC tags are found", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -679,8 +730,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 3: Elimination Engine", () => {
     it("should create elimination entries for matched IC transactions", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -692,8 +744,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should mark elimination entries as consolidation-layer only (not posted)", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -703,7 +756,6 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
       // Check that elimination entries are created in the consolidation layer only
       // The isPosted flag must remain false
-      const { db } = require("@xenboox/db");
       const insertCalls = db.insert.mock.calls;
       const eliminationInserts = insertCalls.filter(
         (call: any[]) => call[0]?.constructor?.name === "Object" || false,
@@ -712,7 +764,6 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should handle unmatched IC transactions (only one side exists)", async () => {
-      const { db } = require("@xenboox/db");
       db.query.intercompanyTags.findMany.mockResolvedValue([
         {
           id: "ict-1",
@@ -729,8 +780,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
         },
       ]);
 
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -746,8 +798,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 4: Currency Translation for Consolidation", () => {
     it("should skip translation for subsidiaries with same currency as parent", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -764,8 +817,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should translate subsidiaries with different currencies", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -780,8 +834,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should produce translated amounts and exchange rate info", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -801,8 +856,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 5: Minority Interest Calculation", () => {
     it("should skip minority interest for 100% owned subsidiaries", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -817,8 +873,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should calculate minority interest for partially-owned subsidiaries", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -838,8 +895,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should persist minority interest records to the database", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -855,8 +913,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 6: Consolidated Statement Assembly", () => {
     it("should produce consolidated totals", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -870,8 +929,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should include elimination adjustments in consolidated figures", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -884,8 +944,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should include minority interest in consolidated equity", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -902,8 +963,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 7: Confidence Gate & Controller Sign-off", () => {
     it("should always flag for Controller review (mandatory)", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -920,11 +982,38 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should lower confidence when eliminations are missing", async () => {
-      const { db } = require("@xenboox/db");
-      db.query.intercompanyTags.findMany.mockResolvedValue([]);
+      // IC transactions exist (parent query returns an unmatched tag) but no
+      // counterparty tag exists on any subsidiary, so the elimination engine
+      // finds no matchable pair and creates zero eliminations. This is the
+      // exact scenario the confidence gate must flag.
+      let icQueryCount = 0;
+      db.query.intercompanyTags.findMany.mockImplementation(async () => {
+        icQueryCount++;
+        if (icQueryCount === 1) {
+          // First call is the parent entity query — return an unmatched tag.
+          return [
+            {
+              id: "ict-1",
+              entityId: "entity-1",
+              counterpartyEntityId: "sub-1",
+              transactionType: "receivable",
+              amount: "50000",
+              currency: "GMD",
+              description: "IC receivable (no matching subsidiary tag)",
+              taggedAt: new Date("2026-06-15"),
+              reversedAt: null,
+              counterparty: { id: "sub-1", name: "Kerr Jula Bakau Ltd" },
+              journalEntry: { id: "je-1" },
+            },
+          ];
+        }
+        // Subsidiary queries return no tags → nothing to pair → no eliminations.
+        return [];
+      });
 
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -943,8 +1032,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 8: Consolidated View Delivery", () => {
     it("should prepare consolidated view metadata", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -965,8 +1055,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 9: Entity-Level Integrity Check", () => {
     it("should pass integrity check when no subsidiary data was mutated", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -982,7 +1073,6 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should detect when subsidiary journal entries were sourced from consolidation", async () => {
-      const { db } = require("@xenboox/db");
       // Return a journal entry with source "consolidation" — this simulates a mutation
       db.query.journalEntries.findMany.mockResolvedValue([
         {
@@ -995,8 +1085,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
         },
       ]);
 
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -1012,8 +1103,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("Step 10: Audit Trail Logging", () => {
     it("should log an audit entry for the consolidation run", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -1027,8 +1119,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should include consolidation metadata in audit entry", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -1044,7 +1137,6 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("getConsolidationStatus", () => {
     it("should return latest run and subsidiary info", async () => {
-      const { db } = require("@xenboox/db");
       db.query.consolidationRuns.findFirst.mockResolvedValue({
         id: "run-1",
         parentEntityId: "entity-1",
@@ -1058,8 +1150,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
         createdAt: new Date(),
       });
 
-      const { getConsolidationStatus } =
-        await import("../consolidation-pipeline");
+      const { getConsolidationStatus } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await getConsolidationStatus({ entityId: "entity-1" });
 
       expect(result.latestRun).not.toBeNull();
@@ -1068,12 +1161,12 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should handle entity with no subsidiaries", async () => {
-      const { db } = require("@xenboox/db");
       db.query.entityRelationships.findMany.mockResolvedValue([]);
       db.query.consolidationRuns.findFirst.mockResolvedValue(null);
 
-      const { getConsolidationStatus } =
-        await import("../consolidation-pipeline");
+      const { getConsolidationStatus } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await getConsolidationStatus({ entityId: "entity-1" });
 
       expect(result.subsidiaries).toHaveLength(0);
@@ -1082,7 +1175,6 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should detect active pipeline by status", async () => {
-      const { db } = require("@xenboox/db");
       db.query.consolidationRuns.findFirst.mockResolvedValue({
         id: "run-active",
         parentEntityId: "entity-1",
@@ -1091,8 +1183,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
         createdAt: new Date(),
       });
 
-      const { getConsolidationStatus } =
-        await import("../consolidation-pipeline");
+      const { getConsolidationStatus } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await getConsolidationStatus({ entityId: "entity-1" });
 
       expect(result.hasActivePipeline).toBe(true);
@@ -1103,8 +1196,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("approveConsolidationRun", () => {
     it("should mark a consolidation run as completed with reviewer info", async () => {
-      const { approveConsolidationRun } =
-        await import("../consolidation-pipeline");
+      const { approveConsolidationRun } = await import(
+        "../consolidation-pipeline"
+      );
 
       await expect(
         approveConsolidationRun({
@@ -1120,8 +1214,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("createEntityRelationship", () => {
     it("should create a new entity relationship", async () => {
-      const { createEntityRelationship } =
-        await import("../consolidation-pipeline");
+      const { createEntityRelationship } = await import(
+        "../consolidation-pipeline"
+      );
 
       await expect(
         createEntityRelationship({
@@ -1138,7 +1233,6 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("listEntityRelationships", () => {
     it("should return active entity relationships", async () => {
-      const { db } = require("@xenboox/db");
       db.query.entityRelationships.findMany.mockResolvedValue([
         {
           id: "rel-1",
@@ -1162,8 +1256,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
         },
       ]);
 
-      const { listEntityRelationships } =
-        await import("../consolidation-pipeline");
+      const { listEntityRelationships } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await listEntityRelationships({ entityId: "entity-1" });
 
       expect(result).toHaveLength(1);
@@ -1175,8 +1270,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
 
   describe("End-to-End Pipeline", () => {
     it("should run all 10 steps successfully", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -1189,8 +1285,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should return comprehensive pipeline result with all sections", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",
@@ -1205,8 +1302,9 @@ describe("Consolidation Pipeline — Multi-Entity & Consolidation", () => {
     });
 
     it("should never mutate subsidiary entity-level data", async () => {
-      const { runConsolidationPipeline } =
-        await import("../consolidation-pipeline");
+      const { runConsolidationPipeline } = await import(
+        "../consolidation-pipeline"
+      );
       const result = await runConsolidationPipeline({
         entityId: "entity-1",
         organizationId: "org-1",

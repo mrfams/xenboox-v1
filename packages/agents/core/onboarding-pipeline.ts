@@ -1700,6 +1700,7 @@ export async function runOnboardingPipeline(
 
       // ── Step: CoA Check & Seed (with retry + timeout) ────────────────
       stepStart = Date.now();
+      let coaCreated = false;
       const accounts = await withTimeout(
         () =>
           db.query.chartOfAccounts.findMany({
@@ -1732,6 +1733,7 @@ export async function runOnboardingPipeline(
               context: { entityId, templateId: suggested.templateId },
             },
           );
+          coaCreated = true;
           steps.push({
             id: "coa_review",
             label: "Chart of Accounts",
@@ -1766,6 +1768,7 @@ export async function runOnboardingPipeline(
               context: { entityId },
             },
           );
+          coaCreated = true;
           steps.push({
             id: "coa_review",
             label: "Chart of Accounts",
@@ -1948,6 +1951,7 @@ export async function runOnboardingPipeline(
         sessionId: "",
         orgId: "",
         entityId,
+        coaCreated,
         steps,
         currentStep: completeness >= 1 ? "complete" : "coa_review",
         completeness,

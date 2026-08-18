@@ -22,6 +22,12 @@ export default defineConfig({
       AUTH_URL: 'http://localhost:3000',
       AUTH_SECRET: 'test-secret-for-unit-tests',
       NEXTAUTH_SECRET: 'test-secret-for-unit-tests',
+      // Pin Upstash vars to empty so the rate-limiter tests deterministically
+      // exercise the in-memory fallback (what the suite asserts) instead of
+      // making real network calls to Redis, which flakes on CI and in the
+      // shell when UPSTASH_REDIS_REST_URL is set in .env.
+      UPSTASH_REDIS_REST_URL: '',
+      UPSTASH_REDIS_REST_TOKEN: '',
     },
     // Liveness/agent components render large trees in a heavy happy-dom
     // environment — allow generous per-test time so the first test in a

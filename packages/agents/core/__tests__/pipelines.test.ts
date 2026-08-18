@@ -4,6 +4,13 @@
 // Follows project test patterns from agent.test.ts etc.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+// The db import is mocked by vi.mock("@xenboox/db") — cast to any so the
+// mock methods (mockResolvedValue etc.) typecheck against the mock surface.
+import { db as dbTyped } from "@xenboox/db";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = dbTyped as any;
+import { clearIdempotencyCache } from "../retry";
+import { fanOutToDepartments as mockFanOutToDepartments } from "../orchestrator";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +48,7 @@ function createMockTx() {
       statementLines: mkQuery(),
       matchRecords: mkQuery(),
       reconciliationSessions: mkQuery(),
+      reconciliations: mkQuery(),
       mobileMoneyAccounts: mkQuery(),
       // Cash & Imprest Pipeline tables
       cashLocations: mkQuery(),
@@ -72,94 +80,106 @@ function createMockTx() {
   };
 }
 
-// Mock userEntityAccess table object so security.ts can use it
-const mockUserEntityAccessTable = {
-  userId: "user_id",
-  entityId: "entity_id",
-  role: "role",
-} as const;
+const mocks = vi.hoisted(() => {
+  // Mock userEntityAccess table object so security.ts can use it
+  const mockUserEntityAccessTable = {
+    userId: "user_id",
+    entityId: "entity_id",
+    role: "role",
+  } as const;
 
-// Mock table definition objects for all schema tables used by pipeline source files.
-// These are imported from @xenboox/db barrel by onboarding-pipeline.ts.
-const mockOnboardingSession = {
-  id: "id",
-  orgId: "org_id",
-  currentStep: "current_step",
-  status: "status",
-  routingAnswer: "routing_answer",
-  completedSteps: "completed_steps",
-  startedAt: "started_at",
-  completedAt: "completed_at",
-  timeToFirstValueSeconds: "time_to_first_value_seconds",
-  createdAt: "created_at",
-  updatedAt: "updated_at",
-} as const;
+  // Mock table definition objects for all schema tables used by pipeline source files.
+  // These are imported from @xenboox/db barrel by onboarding-pipeline.ts.
+  const mockOnboardingSession = {
+    id: "id",
+    orgId: "org_id",
+    currentStep: "current_step",
+    status: "status",
+    routingAnswer: "routing_answer",
+    completedSteps: "completed_steps",
+    startedAt: "started_at",
+    completedAt: "completed_at",
+    timeToFirstValueSeconds: "time_to_first_value_seconds",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  } as const;
 
-const mockEntity = {
-  id: "id",
-  name: "name",
-  organizationId: "organization_id",
-  currency: "currency",
-  isActive: "is_active",
-} as const;
+  const mockEntity = {
+    id: "id",
+    name: "name",
+    organizationId: "organization_id",
+    currency: "currency",
+    isActive: "is_active",
+  } as const;
 
-const mockChartOfAccount = {
-  id: "id",
-  entityId: "entity_id",
-  code: "code",
-  name: "name",
-  type: "type",
-  subtype: "subtype",
-  isActive: "is_active",
-} as const;
+  const mockChartOfAccount = {
+    id: "id",
+    entityId: "entity_id",
+    code: "code",
+    name: "name",
+    type: "type",
+    subtype: "subtype",
+    isActive: "is_active",
+  } as const;
 
-const mockFiscalPeriod = {
-  id: "id",
-  entityId: "entity_id",
-  year: "year",
-  month: "month",
-  status: "status",
-  startDate: "start_date",
-  endDate: "end_date",
-  closedAt: "closed_at",
-  closedBy: "closed_by",
-} as const;
+  const mockFiscalPeriod = {
+    id: "id",
+    entityId: "entity_id",
+    year: "year",
+    month: "month",
+    status: "status",
+    startDate: "start_date",
+    endDate: "end_date",
+    closedAt: "closed_at",
+    closedBy: "closed_by",
+  } as const;
 
-const mockDataConnection = {
-  id: "id",
-  entityId: "entity_id",
-  type: "type",
-  status: "status",
-  recordsProcessed: "records_processed",
-  failureReason: "failure_reason",
-  fallbackOffered: "fallback_offered",
-  createdAt: "created_at",
-  updatedAt: "updated_at",
-} as const;
+  const mockDataConnection = {
+    id: "id",
+    entityId: "entity_id",
+    type: "type",
+    status: "status",
+    recordsProcessed: "records_processed",
+    failureReason: "failure_reason",
+    fallbackOffered: "fallback_offered",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  } as const;
 
-const mockHistoricalPull = {
-  id: "id",
-  entityId: "entity_id",
-  dateRangeStart: "date_range_start",
-  dateRangeEnd: "date_range_end",
-  status: "status",
-  exceeds12Months: "exceeds_12_months",
-  permissionRequestedAt: "permission_requested_at",
-  permissionGrantedAt: "permission_granted_at",
-  createdAt: "created_at",
-  updatedAt: "updated_at",
-} as const;
+  const mockHistoricalPull = {
+    id: "id",
+    entityId: "entity_id",
+    dateRangeStart: "date_range_start",
+    dateRangeEnd: "date_range_end",
+    status: "status",
+    exceeds12Months: "exceeds_12_months",
+    permissionRequestedAt: "permission_requested_at",
+    permissionGrantedAt: "permission_granted_at",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  } as const;
 
-const mockCoaTemplate = {
-  id: "id",
-  name: "name",
-  segment: "segment",
-  country: "country",
-  accountList: "account_list",
-  isDefault: "is_default",
-  createdAt: "created_at",
-  updatedAt: "updated_at",
-} as const;
+  const mockCoaTemplate = {
+    id: "id",
+    name: "name",
+    segment: "segment",
+    country: "country",
+    accountList: "account_list",
+    isDefault: "is_default",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  } as const;
+  return {
+    mockUserEntityAccessTable,
+    mockOnboardingSession,
+    mockEntity,
+    mockChartOfAccount,
+    mockFiscalPeriod,
+    mockDataConnection,
+    mockHistoricalPull,
+    mockCoaTemplate,
+  };
+});
 
 vi.mock("@xenboox/db", () => {
   const tx = createMockTx();
@@ -168,17 +188,44 @@ vi.mock("@xenboox/db", () => {
       ...tx,
       // transaction wraps the callback with a mock tx as the argument
       transaction: vi.fn(async (cb: (tx: any) => Promise<void>) => {
-        await cb(createMockTx());
+        const mockTx = createMockTx();
+        // Default: journal entry lines exist inside the tx so the close
+        // pipeline can build trial balance snapshots.
+        mockTx.query.journalEntryLines.findMany.mockResolvedValue([
+          {
+            id: "line-1",
+            journalEntryId: "je-1",
+            accountId: "acct-1",
+            debit: "1000",
+            credit: "0",
+          },
+          {
+            id: "line-2",
+            journalEntryId: "je-2",
+            accountId: "acct-2",
+            debit: "0",
+            credit: "1000",
+          },
+        ]);
+        // Simulate the period-close update: mark the current period closed.
+        mockTx.update.mockReturnValue({
+          set: vi.fn(() => ({
+            where: vi.fn(() => {
+              (globalThis as any).__closePeriodClosed = true;
+            }),
+          })),
+        });
+        await cb(mockTx);
       }),
     },
-    userEntityAccess: mockUserEntityAccessTable,
-    entities: mockEntity,
-    chartOfAccounts: mockChartOfAccount,
-    fiscalPeriods: mockFiscalPeriod,
-    onboardingSessions: mockOnboardingSession,
-    dataConnections: mockDataConnection,
-    historicalPullJobs: mockHistoricalPull,
-    coaTemplates: mockCoaTemplate,
+    userEntityAccess: mocks.mockUserEntityAccessTable,
+    entities: mocks.mockEntity,
+    chartOfAccounts: mocks.mockChartOfAccount,
+    fiscalPeriods: mocks.mockFiscalPeriod,
+    onboardingSessions: mocks.mockOnboardingSession,
+    dataConnections: mocks.mockDataConnection,
+    historicalPullJobs: mocks.mockHistoricalPull,
+    coaTemplates: mocks.mockCoaTemplate,
     // Reconciliation Pipeline table defs
     statementLines: { id: "id", entityId: "entity_id" } as const,
     matchRecords: { id: "id", entityId: "entity_id" } as const,
@@ -203,10 +250,89 @@ vi.mock("@xenboox/db", () => {
       entityId: "entity_id",
       isActive: "is_active",
     } as const,
+    cashLocations: {
+      id: "id",
+      entityId: "entity_id",
+      name: "name",
+      isActive: "is_active",
+    } as const,
+    reportSnapshots: {
+      id: "id",
+      entityId: "entity_id",
+      periodId: "period_id",
+    } as const,
+    reportRequests: {
+      id: "id",
+      entityId: "entity_id",
+      requestType: "request_type",
+    } as const,
+    statementVersions: {
+      id: "id",
+      entityId: "entity_id",
+      snapshotId: "snapshot_id",
+      statementType: "statement_type",
+      isLatest: "is_latest",
+    } as const,
+    cashTransactions: {
+      id: "id",
+      entityId: "entity_id",
+      cashLocationId: "cash_location_id",
+      amount: "amount",
+      type: "type",
+    } as const,
+    discrepancyFlags: {
+      id: "id",
+      entityId: "entity_id",
+      flagType: "flag_type",
+      status: "status",
+    } as const,
   };
 });
 
-vi.mock("./langfuse", () => ({
+vi.mock("@xenboox/models", () => {
+  const callModel = vi.fn();
+  callModel.mockImplementation(
+    async (params: { messages?: Array<{ content?: string }> }) => {
+      const content = params.messages?.[0]?.content ?? "";
+      let intent = "query";
+      if (/Run payroll|post|record|create|transfer/i.test(content))
+        intent = "instruction";
+      else if (/wrong|error|mistake|off/i.test(content))
+        intent = "correction_dispute";
+      else if (/approve|reject|proceed/i.test(content))
+        intent = "approval_response";
+      else if (/escalat|flag/i.test(content)) intent = "agent_escalation";
+      return {
+        toolCalls: [
+          {
+            name: "classify_intent",
+            arguments: {
+              intent,
+              confidence: 0.92,
+              reasoning: `Model classified as ${intent}`,
+              entities: [],
+              period: null,
+              amount: null,
+            },
+          },
+        ],
+      };
+    },
+  );
+  return {
+    callModel,
+    generateText: vi.fn(),
+    langfuse: {
+      trace: vi.fn(() => ({
+        update: vi.fn(),
+      })),
+      event: vi.fn(),
+    },
+    getLangfuse: vi.fn(),
+  };
+});
+
+vi.mock("../langfuse", () => ({
   langfuse: {
     trace: vi.fn(() => ({
       update: vi.fn(),
@@ -216,7 +342,7 @@ vi.mock("./langfuse", () => ({
   getLangfuse: vi.fn(),
 }));
 
-vi.mock("./state", () => ({
+vi.mock("../state", () => ({
   createAuditEntry: vi.fn((params) => ({
     agentId: params.agentId,
     action: params.action,
@@ -227,7 +353,7 @@ vi.mock("./state", () => ({
   BaseAgentState: class {},
 }));
 
-vi.mock("./orchestrator", () => ({
+vi.mock("../orchestrator", () => ({
   orchestrate: vi.fn(() => ({
     agentId: "test-agent",
     confidence: 0.9,
@@ -237,8 +363,13 @@ vi.mock("./orchestrator", () => ({
     errors: [],
   })),
   classifyUserMessage: vi.fn(() => "general_query"),
-  fanOutToDepartments: vi.fn(() =>
-    ["controller", "treasury", "payroll_manager", "compliance"].map((dept) => ({
+  fanOutToDepartments: vi.fn((params: any) => {
+    const result = [
+      "controller",
+      "treasury",
+      "payroll_manager",
+      "compliance",
+    ].map((dept) => ({
       department: dept,
       agentId: dept,
       confidence: 0.9,
@@ -246,13 +377,14 @@ vi.mock("./orchestrator", () => ({
       confirmed: true,
       summary: `${dept} ready`,
       errors: [],
-    })),
-  ),
+    }));
+    return Promise.resolve(result);
+  }),
   checkEscalation: vi.fn(() => ({ needsEscalation: false, reason: "" })),
   getAgentGraph: vi.fn(() => ({})),
 }));
 
-vi.mock("./session-state", () => ({
+vi.mock("../session-state", () => ({
   getOrCreateSession: vi.fn(() => ({
     context: {
       entityInFocus: "test-entity",
@@ -266,7 +398,7 @@ vi.mock("./session-state", () => ({
   resetSession: vi.fn(),
 }));
 
-vi.mock("./registry", () => ({
+vi.mock("../registry", () => ({
   ALL_DEPARTMENTS: ["controller", "treasury", "payroll_manager", "compliance"],
   DEPARTMENT_AGENTS: {
     controller: "controller",
@@ -284,7 +416,7 @@ vi.mock("./registry", () => ({
   TASK_TO_AGENT: {},
 }));
 
-vi.mock("./confidence", () => ({
+vi.mock("../confidence", () => ({
   detectConflictingOutputs: vi.fn(() => ({
     hasConflict: false,
     conflictingAgents: [],
@@ -306,7 +438,7 @@ const mockCheckEntityAccess = vi.hoisted(() =>
   }),
 );
 
-vi.mock("./security", () => ({
+vi.mock("../security", () => ({
   checkEntityAccess: mockCheckEntityAccess,
 }));
 
@@ -871,17 +1003,40 @@ describe("Pipeline 1: CFO Agent Orchestration Pipeline", () => {
 describe("Pipeline 2: Autonomous Close Pipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const { db } = require("@xenboox/db");
+    clearIdempotencyCache();
 
-    // Mock an open fiscal period
-    db.query.fiscalPeriods.findFirst.mockResolvedValue({
-      id: "period-1",
-      entityId: "entity-1",
-      year: 2026,
-      month: 7,
-      status: "open",
-      closedAt: null,
-      closedBy: null,
+    // Mock an open fiscal period. The prev-period query (year 2026, month 6)
+    // returns a CLOSED period so the close validation passes. Once the close
+    // pipeline's tx.update() closes the current period, the id-based query
+    // returns "closed" so post-close verification passes.
+    let periodClosed = false;
+    (globalThis as any).__closePeriodClosed = false;
+    db.query.fiscalPeriods.findFirst.mockImplementation(async (args?: any) => {
+      const whereJson = JSON.stringify(args?.where, (k, v) =>
+        typeof v === "bigint" ? String(v) : v,
+      );
+      // Prev-period query filters on year+month columns (not id). It must be
+      // closed for the close validation to pass.
+      if (whereJson.includes("year") || whereJson.includes("month")) {
+        return {
+          id: "period-0",
+          entityId: "entity-1",
+          year: 2026,
+          month: 6,
+          status: "closed",
+          closedAt: new Date("2026-07-01"),
+          closedBy: "system",
+        };
+      }
+      return {
+        id: "period-1",
+        entityId: "entity-1",
+        year: 2026,
+        month: 7,
+        status: (globalThis as any).__closePeriodClosed ? "closed" : "open",
+        closedAt: (globalThis as any).__closePeriodClosed ? new Date() : null,
+        closedBy: (globalThis as any).__closePeriodClosed ? "user-1" : null,
+      };
     });
 
     // Mock posted journal entries
@@ -959,11 +1114,18 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
     db.query.bankTransactions.findMany.mockResolvedValue([]);
     db.query.trialBalanceSnapshots.findMany.mockResolvedValue([]);
 
-    // Mock select queries returning aggregate data
+    // Mock select queries returning aggregate data. Rows include both the
+    // aggregate columns (totalDebit/totalCredit for the TB-balance check)
+    // and the entry id (for the period-close snapshot builder).
     db.select.mockImplementation(() => ({
       from: vi.fn(() => ({
+        where: vi.fn(() => [
+          { id: "je-1", totalDebit: "1500", totalCredit: "1500" },
+        ]),
         innerJoin: vi.fn(() => ({
-          where: vi.fn(() => [{ totalDebit: "1500", totalCredit: "1500" }]),
+          where: vi.fn(() => [
+            { id: "je-1", totalDebit: "1500", totalCredit: "1500" },
+          ]),
           orderBy: vi.fn(() => []),
         })),
         orderBy: vi.fn(() => []),
@@ -987,7 +1149,6 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
   });
 
   it("should fail validation for already closed period", async () => {
-    const { db } = require("@xenboox/db");
     db.query.fiscalPeriods.findFirst.mockResolvedValue({
       id: "period-1",
       entityId: "entity-1",
@@ -1021,7 +1182,6 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
   });
 
   it("should return error state for missing period", async () => {
-    const { db } = require("@xenboox/db");
     db.query.fiscalPeriods.findFirst.mockResolvedValue(null);
 
     const { executeClosePipeline } = await import("../close-pipeline");
@@ -1043,7 +1203,6 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
   describe("Enhanced 12-Step Close Flow", () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      const { db } = require("@xenboox/db");
 
       // Mock closeSessions queries
       db.query.closeSessions.findFirst.mockResolvedValue({
@@ -1142,8 +1301,7 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
 
       it("should handle blocked departments", async () => {
         // Override orchestrator mock for this test
-        const orchestrator = require("./orchestrator");
-        orchestrator.fanOutToDepartments.mockResolvedValueOnce(
+        (mockFanOutToDepartments as any).mockResolvedValueOnce(
           ["controller", "treasury", "payroll_manager", "compliance"].map(
             (dept, i) => ({
               department: dept,
@@ -1303,7 +1461,6 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
       });
 
       it("should flag when reopen request exists", async () => {
-        const { db } = require("@xenboox/db");
         db.query.reopenRequests.findFirst.mockResolvedValue({
           id: "reopen-1",
           closeSessionId: "session-1",
@@ -1327,7 +1484,6 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
 
     describe("reopenPeriodWithRecovery (Step 9)", () => {
       it("should create reopen request for simple correction", async () => {
-        const { db } = require("@xenboox/db");
         db.query.closeSessions.findFirst.mockResolvedValue({
           id: "session-1",
           fiscalPeriodId: "period-1",
@@ -1348,7 +1504,6 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
       });
 
       it("should create reopen request for cascading error", async () => {
-        const { db } = require("@xenboox/db");
         db.query.closeSessions.findFirst.mockResolvedValue({
           id: "session-1",
           fiscalPeriodId: "period-1",
@@ -1441,7 +1596,6 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
       });
 
       it("should return empty state when no session exists", async () => {
-        const { db } = require("@xenboox/db");
         db.query.closeSessions.findFirst.mockResolvedValue(null);
 
         const { getCloseSessionStatus } = await import("../close-pipeline");
@@ -1460,7 +1614,7 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
 describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const { db } = require("@xenboox/db");
+    clearIdempotencyCache();
 
     // Default mock: 2 active accounts
     db.query.bankAccounts.findMany.mockResolvedValue([
@@ -1489,12 +1643,12 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     // Default mock: 2 unreconciled transactions for ba-1
     db.query.bankTransactions.findMany.mockImplementation(
       async ({ where }: any) => {
-        const params = where as any;
-        const accountId = params?.find((p: any) =>
-          p?.brand?.includes?.("bank_account_id"),
+        const whereJson = JSON.stringify(where ?? {}, (k, v) =>
+          typeof v === "bigint" ? String(v) : v,
         );
-        // Return transactions only for main account
-        if (accountId?.values?.includes?.("ba-1")) {
+        // Return transactions only for main account (the drizzle SQL object
+        // serializes column names + literal values into queryChunks).
+        if (whereJson.includes("ba-1")) {
           return [
             {
               id: "tx-1",
@@ -1682,7 +1836,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("detectDuplicates", () => {
     it("should return not duplicate when no existing session", async () => {
-      const { db } = require("@xenboox/db");
       db.query.reconciliationSessions.findFirst.mockResolvedValue(null);
 
       const { detectDuplicates } = await import("../reconciliation-pipeline");
@@ -1692,7 +1845,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should detect duplicate when session exists for same account+period", async () => {
-      const { db } = require("@xenboox/db");
       db.query.reconciliationSessions.findFirst.mockResolvedValue({
         id: "existing-session",
         entityId: "entity-1",
@@ -1811,7 +1963,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("getReconciliationConfidenceThreshold", () => {
     it("should return default threshold when no DB entry found", async () => {
-      const { db } = require("@xenboox/db");
       db.query.confidenceThresholds.findFirst.mockResolvedValue(null);
 
       const { getReconciliationConfidenceThreshold } = await import(
@@ -1827,7 +1978,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should return DB threshold when found", async () => {
-      const { db } = require("@xenboox/db");
       db.query.confidenceThresholds.findFirst.mockResolvedValue({
         minConfidence: "0.75",
         agentId: "reconciliation-agent",
@@ -1848,7 +1998,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should use correct amount band for small transactions", async () => {
-      const { db } = require("@xenboox/db");
       db.query.confidenceThresholds.findFirst.mockResolvedValue({
         minConfidence: "0.9",
         agentId: "reconciliation-agent",
@@ -1870,7 +2019,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("reviewReconciliationSession", () => {
     it("should approve and close session when no unmatched items", async () => {
-      const { db } = require("@xenboox/db");
       db.query.reconciliationSessions.findFirst.mockResolvedValue({
         id: "session-1",
         unmatchedCount: "0",
@@ -1891,7 +2039,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should reject close when unmatched items exist (hard rule)", async () => {
-      const { db } = require("@xenboox/db");
       db.query.reconciliationSessions.findFirst.mockResolvedValue({
         id: "session-1",
         unmatchedCount: "3",
@@ -1912,7 +2059,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should keep session in review_pending when rejected", async () => {
-      const { db } = require("@xenboox/db");
       db.query.reconciliationSessions.findFirst.mockResolvedValue({
         id: "session-1",
         unmatchedCount: "0",
@@ -1933,7 +2079,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should throw on non-existent session", async () => {
-      const { db } = require("@xenboox/db");
       db.query.reconciliationSessions.findFirst.mockResolvedValue(null);
 
       const { reviewReconciliationSession } = await import(
@@ -1949,7 +2094,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("retrieveLedgerCandidates", () => {
     it("should return empty array when no journal entries found", async () => {
-      const { db } = require("@xenboox/db");
       db.query.journalEntries.findMany.mockResolvedValue([]);
 
       const { retrieveLedgerCandidates } = await import(
@@ -1966,7 +2110,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should widen date window for mobile money accounts", async () => {
-      const { db } = require("@xenboox/db");
       db.query.journalEntries.findMany.mockResolvedValue([
         {
           id: "je-1",
@@ -2030,7 +2173,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("runReconciliationPipeline (end-to-end)", () => {
     it("should return empty result when no accounts exist", async () => {
-      const { db } = require("@xenboox/db");
       db.query.bankAccounts.findMany.mockResolvedValue([]);
 
       const { runReconciliationPipeline } = await import(
@@ -2064,7 +2206,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should handle mobile money account detection", async () => {
-      const { db } = require("@xenboox/db");
       // Link ba-2 to mobile money
       db.query.mobileMoneyAccounts.findMany.mockResolvedValue([
         {
@@ -2097,7 +2238,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should handle pipeline errors gracefully", async () => {
-      const { db } = require("@xenboox/db");
       db.query.bankAccounts.findMany.mockRejectedValue(
         new Error("Database timeout"),
       );
@@ -2129,7 +2269,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should include last reconciliation data", async () => {
-      const { db } = require("@xenboox/db");
       db.query.reconciliations.findFirst.mockResolvedValue({
         id: "recon-1",
         entityId: "entity-1",
@@ -2154,7 +2293,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("Hard Rule: No Close With Unresolved Items", () => {
     it("should enforce hard rule - unmatched items prevent close", async () => {
-      const { db } = require("@xenboox/db");
       // No matching journal entries → unmatched items
       db.query.journalEntries.findMany.mockResolvedValue([]);
       db.query.journalEntryLines.findMany.mockResolvedValue([]);
@@ -2172,7 +2310,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should show escalation reason for hard rule violation", async () => {
-      const { db } = require("@xenboox/db");
       db.query.journalEntries.findMany.mockResolvedValue([]);
       db.query.journalEntryLines.findMany.mockResolvedValue([]);
 
@@ -2186,7 +2323,6 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should produce unmatched details with specific reasons", async () => {
-      const { db } = require("@xenboox/db");
       db.query.journalEntries.findMany.mockResolvedValue([]);
       db.query.journalEntryLines.findMany.mockResolvedValue([]);
 
@@ -2226,7 +2362,7 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const { db } = require("@xenboox/db");
+    clearIdempotencyCache();
 
     // Cash accounts
     db.query.cashAccounts.findMany.mockResolvedValue([
@@ -2388,7 +2524,6 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
     });
 
     it("should handle errors gracefully", async () => {
-      const { db } = require("@xenboox/db");
       db.query.cashAccounts.findMany.mockRejectedValue(
         new Error("Database timeout"),
       );
@@ -2423,7 +2558,6 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
 
   describe("processImprestRetirement", () => {
     it("should throw on non-existent float", async () => {
-      const { db } = require("@xenboox/db");
       db.query.imprestFloats.findFirst.mockResolvedValue(null);
 
       const { processImprestRetirement } = await import("../cash-pipeline");
@@ -2433,7 +2567,6 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
     });
 
     it("should throw on non-active float", async () => {
-      const { db } = require("@xenboox/db");
       db.query.imprestFloats.findFirst.mockResolvedValue({
         id: "float-1",
         entityId: "entity-1",
@@ -2449,7 +2582,6 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
     });
 
     it("should calculate retirement for active float", async () => {
-      const { db } = require("@xenboox/db");
       db.query.imprestFloats.findFirst.mockResolvedValue({
         id: "float-1",
         entityId: "entity-1",
@@ -2490,7 +2622,6 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
     });
 
     it("should detect fully retired floats", async () => {
-      const { db } = require("@xenboox/db");
       db.query.imprestFloats.findFirst.mockResolvedValue({
         id: "float-2",
         entityId: "entity-1",
@@ -2524,7 +2655,6 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
 
   describe("flagDiscrepancy", () => {
     it("should throw on non-existent location", async () => {
-      const db = require("@xenboox/db");
       db.query.cashLocations.findFirst.mockResolvedValue(null);
 
       const { flagDiscrepancy } = await import("../cash-pipeline");
@@ -2597,7 +2727,7 @@ describe("Pipeline 4: Autonomous Cash & Imprest Pipeline", () => {
 describe("Pipeline 5: Autonomous Reporting Pipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const { db } = require("@xenboox/db");
+    clearIdempotencyCache();
 
     db.query.fiscalPeriods.findMany.mockResolvedValue([
       {
@@ -2638,6 +2768,15 @@ describe("Pipeline 5: Autonomous Reporting Pipeline", () => {
         debit: "350000",
         credit: "0",
       },
+      // Balancing entry: 150000 debit on a balance-sheet (asset) account so
+      // debits = credits (350000 + 150000 = 500000) and the balance gate
+      // passes WITHOUT distorting P&L (net profit stays 500000 - 350000).
+      {
+        journalEntryId: "je-rev-1",
+        accountId: "asset-acct-1",
+        debit: "150000",
+        credit: "0",
+      },
     ]);
 
     db.query.chartOfAccounts.findMany.mockResolvedValue([
@@ -2657,18 +2796,34 @@ describe("Pipeline 5: Autonomous Reporting Pipeline", () => {
         type: "expense",
         subtype: "payroll_expense",
       },
+      {
+        id: "asset-acct-1",
+        entityId: "entity-1",
+        code: "1020",
+        name: "Cash on Hand",
+        type: "asset",
+        subtype: "cash",
+      },
     ]);
 
     db.select.mockImplementation(() => ({
       from: vi.fn(() => ({
         innerJoin: vi.fn(() => ({
-          where: vi.fn(() => [{ count: "2" }]),
+          where: vi.fn(() => Promise.resolve([{ count: "2" }])),
           orderBy: vi.fn(() => []),
         })),
-        where: vi.fn(() => [{ count: "2" }]),
+        where: vi.fn(() => Promise.resolve([{ count: "2" }])),
         orderBy: vi.fn(() => []),
       })),
     }));
+
+    // Default: snapshot insert returns an id
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([{ id: "snap-1" }]),
+        onConflictDoNothing: vi.fn(),
+      }),
+    });
   });
 
   it("should detect reportable periods", async () => {
@@ -2716,7 +2871,7 @@ describe("Pipeline 5: Autonomous Reporting Pipeline", () => {
 describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const { db } = require("@xenboox/db");
+    clearIdempotencyCache();
 
     db.query.entities.findFirst.mockResolvedValue({
       id: "entity-1",
@@ -2761,7 +2916,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("createOnboardingSession", () => {
     it("should create a new session when none exists", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue(null);
 
       const { createOnboardingSession } = await import(
@@ -2774,7 +2928,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should return existing session when one exists", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue({
         id: "existing-session-id",
         orgId: "org-1",
@@ -2794,8 +2947,9 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("updateRoutingAnswer", () => {
     it("should update session with valid routing answer", async () => {
-      const { db } = require("@xenboox/db");
-      db.query.onboardingSessions.findFirst = vi.fn();
+      db.query.onboardingSessions.findFirst = vi
+        .fn()
+        .mockResolvedValue({ id: "session-1", orgId: "org-1" });
       db.transaction.mockImplementation(async (cb: any) => {
         const tx = createMockTx();
         tx.query.coaTemplates.findFirst = vi.fn().mockResolvedValue(null);
@@ -2809,8 +2963,9 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should accept all valid routing answers", async () => {
-      const { db } = require("@xenboox/db");
-      db.query.onboardingSessions.findFirst = vi.fn();
+      db.query.onboardingSessions.findFirst = vi
+        .fn()
+        .mockResolvedValue({ id: "session-1", orgId: "org-1" });
       db.transaction.mockImplementation(async (cb: any) => {
         await cb(createMockTx());
       });
@@ -2840,7 +2995,7 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
       const bankApi = getFallbackForFailure("bank_api");
       expect(bankApi?.fallbackType).toBe("manual_entry");
-      expect(bankApi?.message).toContain("Manual");
+      expect(bankApi?.message).toMatch(/manual/i);
 
       const bankPdf = getFallbackForFailure("bank_pdf");
       expect(bankPdf?.fallbackType).toBe("manual_entry");
@@ -3041,7 +3196,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("getSuggestedCoA", () => {
     it("should find exact segment+country match", async () => {
-      const { db } = require("@xenboox/db");
       db.query.coaTemplates.findFirst.mockResolvedValue({
         id: "trading-gm",
         segment: "trading",
@@ -3072,7 +3226,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should fall back to default template when exact match not found", async () => {
-      const { db } = require("@xenboox/db");
       db.query.coaTemplates.findFirst
         .mockResolvedValueOnce(null) // exact match
         .mockResolvedValueOnce({
@@ -3098,7 +3251,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should return empty accounts when no template matches", async () => {
-      const { db } = require("@xenboox/db");
       db.query.coaTemplates.findFirst.mockResolvedValue(null);
 
       const { getSuggestedCoA } = await import("../onboarding-pipeline");
@@ -3111,7 +3263,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("confirmCoA", () => {
     it("should throw when template not found", async () => {
-      const { db } = require("@xenboox/db");
       db.query.coaTemplates.findFirst.mockResolvedValue(null);
 
       const { confirmCoA } = await import("../onboarding-pipeline");
@@ -3119,7 +3270,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should skip insertion when accounts already exist", async () => {
-      const { db } = require("@xenboox/db");
       db.query.coaTemplates.findFirst.mockResolvedValue({
         id: "trading-gm",
         segment: "trading",
@@ -3149,7 +3299,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("setupEntity", () => {
     it("should advance session to data_connections step", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue({
         id: "session-1",
         completedSteps: ["signup", "routing"],
@@ -3162,7 +3311,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("markDataConnectionsStepComplete", () => {
     it("should advance to historical_pull step", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue({
         id: "session-1",
         completedSteps: ["signup", "routing", "entity_setup"],
@@ -3177,7 +3325,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should handle missing session gracefully", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue(null);
 
       const { markDataConnectionsStepComplete } = await import(
@@ -3191,7 +3338,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("markCoAComplete", () => {
     it("should advance to first_look step and include coa_review", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue({
         id: "session-1",
         completedSteps: [
@@ -3212,7 +3358,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("completeOnboarding", () => {
     it("should throw when session not found", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue(null);
 
       const { completeOnboarding } = await import("../onboarding-pipeline");
@@ -3222,7 +3367,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should finish onboarding and log time-to-first-value", async () => {
-      const { db } = require("@xenboox/db");
       const startedAt = new Date();
       startedAt.setMinutes(startedAt.getMinutes() - 5); // 5 min ago
 
@@ -3251,7 +3395,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("getOnboardingStatus", () => {
     it("should return null when no session exists", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue(null);
 
       const { getOnboardingStatus } = await import("../onboarding-pipeline");
@@ -3261,7 +3404,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should return full status for an in-progress session", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue({
         id: "session-1",
         orgId: "org-1",
@@ -3285,7 +3427,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should mark completed session as success", async () => {
-      const { db } = require("@xenboox/db");
       db.query.onboardingSessions.findFirst.mockResolvedValue({
         id: "session-1",
         orgId: "org-1",
@@ -3328,7 +3469,6 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should detect existing setup and skip redundant steps", async () => {
-      const { db } = require("@xenboox/db");
       db.query.chartOfAccounts.findMany.mockResolvedValue([
         { id: "acct-1", entityId: "entity-1", code: "1010" },
       ]);

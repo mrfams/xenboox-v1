@@ -38,6 +38,7 @@ vi.mock("@xenboox/db", () => ({
   },
 }));
 
+import { db } from "@xenboox/db";
 import {
   executePeriodAction,
   getPeriodSummary,
@@ -70,8 +71,11 @@ describe("Period Manager", () => {
 
   describe("executePeriodAction", () => {
     describe("open", () => {
-      it("should open a created period", async () => {
-        const period = mockPeriod({ status: "created" });
+      it("should no-op successfully when the period is already open", async () => {
+        // Periods are born with status "open" (the schema default) — there
+        // is no "created" state. Opening an already-open period is a safe
+        // no-op that returns success with a warning.
+        const period = mockPeriod({ status: "open" });
         vi.mocked(db.query.fiscalPeriods.findFirst).mockResolvedValue(period);
 
         const result = await executePeriodAction(
@@ -85,6 +89,9 @@ describe("Period Manager", () => {
         expect(result.action).toBe("open");
         expect(result.newStatus).toBe("open");
         expect(result.errors).toHaveLength(0);
+        expect(result.warnings).toContainEqual(
+          expect.stringContaining("already open"),
+        );
       });
 
       it("should reopen a closed period with warning", async () => {
@@ -139,7 +146,12 @@ describe("Period Manager", () => {
     describe("close", () => {
       it("should close an open period with validations", async () => {
         const period = mockPeriod({ status: "open" });
-        vi.mocked(db.query.fiscalPeriods.findFirst).mockResolvedValue(period);
+        // First findFirst resolves the period itself; the second is the
+        // previous-period check and must return null (no prior period) so
+        // the close validation passes.
+        vi.mocked(db.query.fiscalPeriods.findFirst)
+          .mockResolvedValueOnce(period)
+          .mockResolvedValueOnce(null);
         vi.mocked(db.query.journalEntries.findMany).mockResolvedValue([
           { id: "je-1", status: "posted" },
         ]);

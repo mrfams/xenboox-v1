@@ -355,10 +355,11 @@ describe("callLLMWithTools — Enterprise Execution Loop", () => {
       );
       expect(toolCallMsg).toBeDefined();
 
-      // Tool result message (user)
+      // Tool result message (user) — wrapped in the injection-defense
+      // envelope (<tool_result_data>...</tool_result_data>).
       const toolResultMsg = secondCallMessages.find(
         (m: { role: string; content: string }) =>
-          m.role === "user" && m.content.includes("toolResult"),
+          m.role === "user" && m.content.includes("<tool_result_data>"),
       );
       expect(toolResultMsg).toBeDefined();
     });
