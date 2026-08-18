@@ -24,6 +24,7 @@ import { seedWorkflowData } from "./seed-workflow-data";
 import { seedContent } from "./seed-content";
 import { seedAutomationRules } from "./seed-automation";
 import { seedSixMonths } from "./seed-six-months";
+import { seedFeatureEnrichment } from "./seed-feature-enrichment";
 import { seedLaunchData } from "./seed-launch-data";
 import { findOrCreateUser, removeOtherEntities } from "./seed-lib";
 
@@ -158,6 +159,11 @@ async function main() {
   // 6 months of realistic operational history (AR/AP, payroll, bank,
   // mobile money, estimates, expenses, documents, journal entries).
   await seedSixMonths();
+
+  // Feature enrichment: supplier tax/W-9 profiles, purchase orders,
+  // PO-linked + duplicate-risk bills so the explore-catalog features have
+  // realistic live data.
+  await seedFeatureEnrichment();
 
   // Launch completeness: reconciliations, cash/imprest, notifications,
   // agent runs, audit log, analytics, tax compliance, FX, close tasks,
