@@ -209,11 +209,14 @@ function buildGenericOidcProvider(config: SsoConfig): Provider[] {
     return [];
   }
 
+  // NextAuth v5 doesn't have a generic OIDC provider, but the Keycloak
+  // provider accepts any OIDC issuer URL and works with all SAML-to-OIDC
+  // bridges (Keycloak, Auth0, OneLogin, PingFederate, Azure AD B2C, etc.)
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const OIDC = require("next-auth/providers/oidc").default;
+  const Keycloak = require("next-auth/providers/keycloak").default;
 
   return [
-    OIDC({
+    Keycloak({
       clientId: config.clientId!,
       clientSecret: config.clientSecret!,
       issuer: config.issuer,
