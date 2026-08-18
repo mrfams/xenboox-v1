@@ -58,7 +58,9 @@ async function main() {
     `   otpauth://totp/Xenboox:Demo%20Admin?secret=${secret}&issuer=Xenboox`,
   );
   console.log("");
-  console.log("🌐 Login URL: http://localhost:3000/admin-login");
+  console.log(
+    `🌐 Login URL: ${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/admin-login`,
+  );
   console.log("");
   console.log("⏱️  TOTP codes refresh every 30 seconds.");
   console.log("   Use the code shown above within 30 seconds.");

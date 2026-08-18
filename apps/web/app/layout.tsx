@@ -42,7 +42,9 @@ function resolveBaseUrl(): string {
       // fall through to the canonical default below
     }
   }
-  return "https://xenboox.com";
+  // Live canonical domain — xenboox.com is not yet resolving; the Vercel
+  // deployment is the source of truth until a custom domain is configured.
+  return "https://xenboox.vercel.app";
 }
 
 const baseUrl = resolveBaseUrl();

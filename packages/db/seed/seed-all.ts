@@ -26,6 +26,7 @@ import { seedAutomationRules } from "./seed-automation";
 import { seedSixMonths } from "./seed-six-months";
 import { seedFeatureEnrichment } from "./seed-feature-enrichment";
 import { seedLaunchData } from "./seed-launch-data";
+import { seedCurrentMonth } from "./seed-current-month";
 import { findOrCreateUser, removeOtherEntities } from "./seed-lib";
 
 function currentMonthLabel(): string {
@@ -169,6 +170,12 @@ async function main() {
   // agent runs, audit log, analytics, tax compliance, FX, close tasks,
   // review queue — so every dashboard surface has live data.
   await seedLaunchData();
+
+  // Current-month activity: August 2026 AR/bank/mobile-money/payroll,
+  // depreciation schedules for every active asset, FY2026 budget +
+  // variances, extra estimates/expense claims, August journal entries
+  // and notifications — so the demo looks live, not frozen in July.
+  await seedCurrentMonth();
 
   console.log("\n════════════════════════════════════════════════════════");
   console.log("SEED COMPLETE — both accounts verified");
