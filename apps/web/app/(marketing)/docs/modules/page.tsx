@@ -129,6 +129,18 @@ const modules = [
     href: "/docs/modules/analytics",
     icon: BarChart3,
   },
+  {
+    title: "Estimates",
+    description: "Customer Quotes, Acceptance Tracking, Invoice Conversion.",
+    href: "/docs/modules/estimates",
+    icon: FileText,
+  },
+  {
+    title: "Tax Compliance",
+    description: "Jurisdiction Rules, VAT, Withholding, Filing Deadlines.",
+    href: "/docs/modules/tax-compliance",
+    icon: Landmark,
+  },
 ];
 
 export default function ModulesDocsPage() {
@@ -139,7 +151,7 @@ export default function ModulesDocsPage() {
           Modules Documentation
         </h1>
         <p className="mt-4 text-muted-foreground">
-          Comprehensive guides for all 19 accounting modules in Xenboox.
+          Comprehensive guides for all 20 accounting modules in Xenboox.
         </p>
       </div>
 

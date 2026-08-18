@@ -33,7 +33,7 @@ const monthlyTiers = [
     description: "For growing businesses that need AI-powered automation.",
     features: [
       "Up to 3 entities",
-      "All 19 AI agents",
+      "All 21 AI agents",
       "Unlimited journal entries",
       "Full AP/AR module",
       "Payroll processing",
@@ -52,7 +52,7 @@ const monthlyTiers = [
     description: "For established businesses with complex accounting needs.",
     features: [
       "Up to 10 entities",
-      "All 19 AI agents",
+      "All 21 AI agents",
       "Unlimited everything",
       "Multi-currency support",
       "Fixed assets & depreciation",

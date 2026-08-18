@@ -157,7 +157,7 @@ export default function AgentsDocsPage() {
           AI Agents Documentation
         </h1>
         <p className="mt-4 text-muted-foreground">
-          Guides for all 20 AI-powered accounting assistants in Xenboox. Each
+          Guides for all 21 AI-powered accounting assistants in Xenboox. Each
           agent operates with confidence scoring and human oversight.
         </p>
       </div>

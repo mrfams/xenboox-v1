@@ -55,6 +55,8 @@ const navItems: NavItem[] = [
       { label: "Organizations", href: "/docs/modules/organizations" },
       { label: "Settings", href: "/docs/modules/settings" },
       { label: "Analytics", href: "/docs/modules/analytics" },
+      { label: "Estimates", href: "/docs/modules/estimates" },
+      { label: "Tax Compliance", href: "/docs/modules/tax-compliance" },
     ],
   },
   {

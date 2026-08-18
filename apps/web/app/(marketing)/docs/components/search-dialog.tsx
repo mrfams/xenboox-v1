@@ -150,6 +150,18 @@ const searchItems: SearchItem[] = [
     icon: <FileText className="h-4 w-4" />,
   },
   {
+    title: "Estimates",
+    href: "/docs/modules/estimates",
+    category: "Modules",
+    icon: <FileText className="h-4 w-4" />,
+  },
+  {
+    title: "Tax Compliance",
+    href: "/docs/modules/tax-compliance",
+    category: "Modules",
+    icon: <FileText className="h-4 w-4" />,
+  },
+  {
     title: "CFO Agent",
     href: "/docs/agents/cfo",
     category: "AI Agents",

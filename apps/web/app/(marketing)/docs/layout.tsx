@@ -65,6 +65,8 @@ const navGroups: NavGroup[] = [
       { label: "Accounts Receivable", href: "/docs/modules/ar" },
       { label: "Payroll", href: "/docs/modules/payroll" },
       { label: "Treasury", href: "/docs/modules/treasury" },
+      { label: "Estimates", href: "/docs/modules/estimates" },
+      { label: "Tax Compliance", href: "/docs/modules/tax-compliance" },
       { label: "Reports", href: "/docs/modules/reports" },
     ],
   },

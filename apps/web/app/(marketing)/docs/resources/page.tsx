@@ -49,7 +49,7 @@ const resources = [
   },
   {
     title: "Agent Docs",
-    description: "All 20 AI agents and how they work together in three tiers.",
+    description: "All 21 AI agents and how they work together in three tiers.",
     href: "/docs/agents",
     icon: FileText,
   },

@@ -11,7 +11,7 @@ const features = [
   {
     title: "AI Chat Interface",
     description:
-      "Natural language interface to interact with all 19 AI agents. Ask questions, give commands, and receive insights in plain English.",
+      "Natural language interface to interact with all 21 AI agents. Ask questions, give commands, and receive insights in plain English.",
     icon: MessageSquare,
   },
   {
@@ -70,7 +70,7 @@ export default function ChatDocPage() {
     <>
       <DocsPageHeader
         title="Chat & AI Assistant"
-        description="Interact with Xenboox's 19 AI agents through a natural language chat interface. Ask questions, give commands, and automate accounting tasks."
+        description="Interact with Xenboox's 21 AI agents through a natural language chat interface. Ask questions, give commands, and automate accounting tasks."
         breadcrumbs={[
           { label: "Modules", href: "/docs/modules" },
           { label: "Chat", href: "/docs/modules/chat" },
