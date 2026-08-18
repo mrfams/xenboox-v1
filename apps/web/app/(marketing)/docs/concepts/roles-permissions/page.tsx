@@ -77,7 +77,10 @@ export default function RolesPermissionsPage() {
         description="Control access with role-based permissions. Assign users to specific entities and roles to manage what they can see and do across the platform."
         breadcrumbs={[
           { label: "Core Concepts", href: "/docs/concepts" },
-          { label: "Roles & Permissions" },
+          {
+            label: "Roles & Permissions",
+            href: "/docs/concepts/roles-permissions",
+          },
         ]}
       />
 

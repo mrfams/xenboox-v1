@@ -13,7 +13,7 @@ export default function AiAutomationPage() {
         description="Xenboox uses AI agents to automate routine accounting tasks. All AI actions are logged, reversible, and require your approval before posting."
         breadcrumbs={[
           { label: "Core Concepts", href: "/docs/concepts" },
-          { label: "AI Automation" },
+          { label: "AI Automation", href: "/docs/concepts/ai-automation" },
         ]}
       />
 

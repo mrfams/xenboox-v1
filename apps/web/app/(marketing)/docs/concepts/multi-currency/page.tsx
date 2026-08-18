@@ -13,7 +13,7 @@ export default function MultiCurrencyPage() {
         description="Handle transactions in multiple currencies with automatic exchange rate synchronization, unrealized gain/loss tracking, and real-time conversion across all modules."
         breadcrumbs={[
           { label: "Core Concepts", href: "/docs/concepts" },
-          { label: "Multi-Currency" },
+          { label: "Multi-Currency", href: "/docs/concepts/multi-currency" },
         ]}
       />
 

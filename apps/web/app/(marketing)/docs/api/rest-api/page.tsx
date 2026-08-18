@@ -14,7 +14,7 @@ export default function RestApiPage() {
         description="HTTP/JSON API for external integrations. API-key authenticated, entity-scoped, with full OpenAPI documentation."
         breadcrumbs={[
           { label: "API", href: "/docs/api" },
-          { label: "REST API v1" },
+          { label: "REST API v1", href: "/docs/api/rest-api" },
         ]}
       />
 

@@ -13,7 +13,7 @@ export default function AuditTrailPage() {
         description="Every action in Xenboox is logged with who did it, when, what changed, and why. This provides a complete, tamper-evident history for compliance and dispute resolution."
         breadcrumbs={[
           { label: "Core Concepts", href: "/docs/concepts" },
-          { label: "Audit Trail" },
+          { label: "Audit Trail", href: "/docs/concepts/audit-trail" },
         ]}
       />
 
