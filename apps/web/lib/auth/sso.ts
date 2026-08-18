@@ -22,10 +22,10 @@ import { logger } from "@/lib/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export type SsoProviderType = "azure" | "okta" | "none";
+export type SsoProviderType = "azure" | "okta" | "saml" | "oidc" | "none";
 
-// Note: Generic OIDC is not supported in this version.
-// For other OIDC providers (Keycloak, Auth0, etc.), use a specific provider.
+// SAML is supported via an OIDC bridge (most SAML IdPs expose OIDC endpoints).
+// Generic OIDC covers Keycloak, Auth0, OneLogin, PingFederate, etc.
 
 export interface SsoConfig {
   enabled: boolean;
@@ -93,6 +93,14 @@ export function buildSsoProviders(): Provider[] {
       return buildAzureAdProvider(config);
     case "okta":
       return buildOktaProvider(config);
+    case "oidc":
+      return buildGenericOidcProvider(config);
+    case "saml":
+      // SAML via OIDC bridge: most SAML IdPs (Keycloak, Auth0, OneLogin, Azure AD)
+      // expose an OIDC Discovery endpoint. Configure SSO_ISSUER to the OIDC
+      // discovery URL and the SAML settings in the admin console for JIT
+      // provisioning and domain enforcement.
+      return buildGenericOidcProvider(config);
     default:
       return [];
   }
@@ -185,26 +193,83 @@ function buildOktaProvider(config: SsoConfig): Provider[] {
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 /**
+ * Generic OIDC provider — covers Keycloak, Auth0, OneLogin, PingFederate,
+ * and any SAML-to-OIDC bridge.
+ *
+ * Required env vars:
+ * - SSO_CLIENT_ID
+ * - SSO_CLIENT_SECRET
+ * - SSO_ISSUER (OIDC Discovery URL, e.g., https://keycloak.example.com/realms/myorg)
+ */
+function buildGenericOidcProvider(config: SsoConfig): Provider[] {
+  if (!config.issuer) {
+    logger.warn(
+      "[sso] Generic OIDC/SAML requires SSO_ISSUER (OIDC Discovery URL)",
+    );
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const OIDC = require("next-auth/providers/oidc").default;
+
+  return [
+    OIDC({
+      clientId: config.clientId!,
+      clientSecret: config.clientSecret!,
+      issuer: config.issuer,
+      checks: ["pkce", "state"],
+      authorization: {
+        params: {
+          scope: "openid profile email",
+          response_type: "code",
+        },
+      },
+    }),
+  ];
+}
+
+/**
  * Check if SSO is enabled.
  */
 export function isSsoEnabled(): boolean {
-  return (
-    process.env.SSO_ENABLED === "true" && process.env.SSO_PROVIDER !== "none"
-  );
+  const { settings } = getSsoSettings();
+  return settings.enabled && settings.provider !== "none";
 }
 
 /**
  * Get the SSO provider display name for the login page.
  */
 export function getSsoDisplayName(): string | null {
-  if (!isSsoEnabled()) return null;
+  const { settings, source } = getSsoSettings();
+  if (!settings.enabled || settings.provider === "none") return null;
 
+  // Prefer config-file name (admin-configured)
+  if (source === "config") {
+    switch (settings.provider) {
+      case "azure":
+        return "Sign in with Microsoft";
+      case "okta":
+        return "Sign in with Okta";
+      case "saml":
+        return "Sign in with SSO";
+      case "oidc":
+        return "Sign in with Company SSO";
+      default:
+        return "Sign in with SSO";
+    }
+  }
+
+  // Env-var fallback
   const provider = process.env.SSO_PROVIDER;
   switch (provider) {
     case "azure":
       return "Sign in with Microsoft";
     case "okta":
       return "Sign in with Okta";
+    case "saml":
+      return "Sign in with SSO";
+    case "oidc":
+      return "Sign in with Company SSO";
     default:
       return "Sign in with SSO";
   }

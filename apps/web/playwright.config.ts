@@ -67,6 +67,28 @@ export default defineConfig({
       },
       dependencies: ["auth-setup"],
     },
+    // 4. Firefox — cross-browser verification for enterprise buyers.
+    {
+      name: "firefox",
+      testMatch:
+        /(enterprise-production|production-infra|production-health|docs-integrity)\.spec\.ts/,
+      use: {
+        ...devices["Desktop Firefox"],
+        storageState: "e2e/.auth/user.json",
+      },
+      dependencies: ["auth-setup"],
+    },
+    // 5. WebKit (Safari) — cross-browser verification for macOS/iOS users.
+    {
+      name: "webkit",
+      testMatch:
+        /(enterprise-production|production-infra|production-health|docs-integrity)\.spec\.ts/,
+      use: {
+        ...devices["Desktop Safari"],
+        storageState: "e2e/.auth/user.json",
+      },
+      dependencies: ["auth-setup"],
+    },
   ],
   globalSetup: "./e2e/setup/global-setup.ts",
 });
