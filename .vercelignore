@@ -10,3 +10,14 @@ dist
 .vercel
 .env*
 *.tsbuildinfo
+Dockerfile
+docker-compose.yml
+terraform/
+docs/
+*.md
+.github/
+.agents/
+.agents/skills/
+load-tests/
+scripts/
+skills/
