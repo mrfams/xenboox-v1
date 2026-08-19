@@ -378,6 +378,22 @@ export default function ActivityHubPage() {
     setSelectedIds(new Set(selectableIds));
   }, [filteredItems]);
 
+  // ── Undo handler ────────────────────────────────────────────────────────
+  const undoBatchAction = useCallback(
+    (ids: string[]) => {
+      // Remove success states so items reappear
+      setItemStates((prev) => {
+        const next = { ...prev };
+        for (const id of ids) delete next[id];
+        return next;
+      });
+      // Refetch to restore items
+      refetchApprovals();
+      toast.info("Undone", { description: "Changes have been reverted." });
+    },
+    [refetchApprovals],
+  );
+
   // ── Batch approve/reject handler ────────────────────────────────────────
   const handleBatchAction = useCallback(
     async (action: "approve" | "reject") => {
@@ -403,15 +419,20 @@ export default function ActivityHubPage() {
         });
 
         const actionLabel = action === "approve" ? "Approved" : "Rejected";
-        toast.success(`${actionLabel} ${ids.length} item${ids.length === 1 ? "" : "s"}`, {
-          description: `${ids.length} item${ids.length === 1 ? "" : "s"} ${actionLabel.toLowerCase()} successfully.`,
-          duration: 3000,
+        const itemCount = ids.length;
+        toast.success(`${actionLabel} ${itemCount} item${itemCount === 1 ? "" : "s"}`, {
+          description: `${itemCount} item${itemCount === 1 ? "" : "s"} ${actionLabel.toLowerCase()} successfully.`,
+          duration: 5000,
+          action: {
+            label: "Undo",
+            onClick: () => undoBatchAction(ids),
+          },
         });
 
         // Clear selection
         setSelectedIds(new Set());
 
-        // Auto-remove success state after 2 seconds
+        // Auto-remove success state after 5 seconds (matching toast duration)
         setTimeout(() => {
           setItemStates((prev) => {
             const next = { ...prev };

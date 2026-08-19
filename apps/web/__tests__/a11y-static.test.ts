@@ -290,6 +290,22 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/metaKey|ctrlKey|altKey/);
   });
 
+  it("Activity Hub batch actions have undo functionality", () => {
+    const src = read("app/dashboard/activity-hub/page.tsx");
+    // Must have undoBatchAction handler
+    expect(src).toMatch(/undoBatchAction/);
+    // Must show undo button in toast
+    expect(src).toMatch(/label: "Undo"/);
+    // Must call undoBatchAction on undo click
+    expect(src).toMatch(/onClick: \(\) => undoBatchAction/);
+    // undoBatchAction must clear item states
+    expect(src).toMatch(/delete next\[id\]/);
+    // undoBatchAction must refetch
+    expect(src).toMatch(/refetchApprovals/);
+    // undoBatchAction must show info toast
+    expect(src).toMatch(/toast\.info.*Undone/s);
+  });
+
   it("Activity Hub has keyboard shortcuts a/r for batch approve/reject", () => {
     const src = read("app/dashboard/activity-hub/page.tsx");
     // Must have keydown listener for batch shortcuts
