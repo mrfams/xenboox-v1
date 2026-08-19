@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-20] — Enhanced notification preferences with AI categories
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/components/settings/notifications-section.tsx`
+
+**Session work:** Enhanced the notification preferences with comprehensive AI-specific options:
+
+1. **AI Notifications Section** — New section with 4 AI-specific toggles: agent escalations, anomaly detection, agent task completion, low confidence alerts
+2. **Enhanced Email Notifications** — Added 3 new email categories: document processing, reconciliation alerts, payroll notifications
+3. **Enhanced Digest** — Added daily digest option alongside weekly digest
+4. **Total** — 16 notification preferences across 5 categories: Email (7), Push (3), AI (4), Digest (2)
+5. **All preferences** persist via tRPC `settings.updateNotificationPrefs` router
+
+**Verification:** 59/59 a11y tests pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — AI-Native UX component library (5 new components)
 
 **Agent:** Buffy
