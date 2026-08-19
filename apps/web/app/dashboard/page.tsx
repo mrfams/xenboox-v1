@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import {
   Sparkles,
   TrendingUp,
@@ -20,6 +19,11 @@ import {
   Send,
   Paperclip,
   X,
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -28,6 +32,9 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { DashboardSkeleton } from "@/components/shared/skeletons";
 import { dashboardQueryOptions } from "@/lib/trpc/query-options";
 import { Button } from "@/components/ui";
+import { ConfidenceBadge } from "@/components/shared/ai-native";
+import { ActorBadge } from "@/components/shared/ai-native";
+import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 
 // ─── AI-Native Command Center ─────────────────────────────────────────────
 //
@@ -183,7 +190,6 @@ function BriefingCard({ item }: { item: BriefingItem }) {
 function ProactiveBriefing() {
   const { entityId } = useEntity();
 
-  // Fetch real data to build the briefing
   const { data: dashboardData } = trpc.dashboard.getOverview.useQuery(
     undefined,
     { enabled: !!entityId },
@@ -194,7 +200,6 @@ function ProactiveBriefing() {
 
   const items: BriefingItem[] = [];
 
-  // Build briefing from real data
   if (dashboardData) {
     const { cashBalance, overdueInvoices, pendingJournals, runway } =
       dashboardData;
@@ -239,7 +244,6 @@ function ProactiveBriefing() {
     }
   }
 
-  // Add ingestion stats
   if (ingestionStats && ingestionStats.pendingReview > 0) {
     items.push({
       id: "pending-review",
@@ -272,7 +276,6 @@ function ProactiveBriefing() {
     );
   }
 
-  // Sort: negative first, then warning, then positive
   const sorted = [...items].sort((a, b) => {
     const order = { negative: 0, warning: 1, neutral: 2, positive: 3 };
     return (order[a.type] ?? 2) - (order[b.type] ?? 2);
@@ -302,47 +305,28 @@ function ProactiveBriefing() {
 
 // ─── ConversationThread ────────────────────────────────────────────────────
 //
-// The main chat interface. This is where the human talks to their AI CFO.
+// The main chat interface. Uses the real streaming chat hook.
 // Rich messages with inline actions — approve, reject, recode — directly
 // in the conversation. No page navigation needed.
 
-type Message = {
-  id: string;
-  role: "assistant" | "user";
-  content: string;
-  timestamp: Date;
-  actions?: Array<{
-    label: string;
-    variant?: "default" | "outline" | "ghost";
-    onClick: () => void;
-  }>;
-};
-
-function ConversationThread() {
-  const { data: session } = useSession();
-  const firstName = session?.user?.name?.split(" ")[0];
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isThinking, setIsThinking] = useState(false);
+function ConversationThread({
+  messages,
+  isStreaming,
+  streamedContent,
+  approvals,
+  documents,
+}: {
+  messages: ReturnType<typeof useDashboardChat>["messages"];
+  isStreaming: boolean;
+  streamedContent: string;
+  approvals: ReturnType<typeof useDashboardChat>["approvals"];
+  documents: ReturnType<typeof useDashboardChat>["documents"];
+}) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isThinking]);
-
-  // Initial AI greeting
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: "greeting",
-          role: "assistant",
-          content: `Hi${firstName ? ` ${firstName}` : ""}! I'm your AI CFO. I've been monitoring your accounts and have a few things to share. What would you like to know about your business?`,
-          timestamp: new Date(),
-        },
-      ]);
-    }
-  }, [firstName, messages.length]);
+  }, [messages, isStreaming, streamedContent]);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -368,32 +352,40 @@ function ConversationThread() {
                   : "bg-primary text-primary-foreground",
               )}
             >
-              <p>{msg.content}</p>
-              {msg.actions && msg.actions.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {msg.actions.map((action) => (
-                    <button
-                      key={action.label}
-                      type="button"
-                      onClick={action.onClick}
-                      className={cn(
-                        "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                        action.variant === "outline"
-                          ? "border border-border bg-background text-foreground hover:bg-accent"
-                          : action.variant === "ghost"
-                            ? "text-muted-foreground hover:text-foreground hover:bg-accent"
-                            : "bg-primary text-primary-foreground hover:bg-primary/90",
-                      )}
-                    >
-                      {action.label}
-                    </button>
-                  ))}
+              <p className="whitespace-pre-wrap">{msg.content}</p>
+
+              {/* Confidence badge on assistant messages */}
+              {msg.role === "assistant" && msg.confidence !== undefined && (
+                <div className="mt-2">
+                  <ConfidenceBadge score={msg.confidence / 100} />
+                </div>
+              )}
+
+              {/* Actor badge */}
+              {msg.role === "assistant" && (
+                <div className="mt-1">
+                  <ActorBadge actor="ai" />
                 </div>
               )}
             </div>
           </div>
         ))}
-        {isThinking && (
+
+        {/* Streaming response */}
+        {isStreaming && streamedContent && (
+          <div className="flex gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+              <Bot className="h-4 w-4 text-primary/70" />
+            </div>
+            <div className="max-w-[85%] rounded-2xl bg-card border border-border/50 px-4 py-3 text-sm leading-relaxed text-foreground">
+              <p className="whitespace-pre-wrap">{streamedContent}</p>
+              <span className="inline-block h-4 w-0.5 animate-pulse bg-primary/60 ml-0.5" />
+            </div>
+          </div>
+        )}
+
+        {/* Thinking indicator */}
+        {isStreaming && !streamedContent && (
           <div className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
               <Bot className="h-4 w-4 text-primary/70" />
@@ -412,6 +404,83 @@ function ConversationThread() {
             </div>
           </div>
         )}
+
+        {/* Inline approval cards from streaming */}
+        {approvals.map((approval, i) => (
+          <div
+            key={`approval-${i}`}
+            className="flex gap-3"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+              <Bot className="h-4 w-4 text-primary/70" />
+            </div>
+            <div className="max-w-[85%] rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] px-4 py-3">
+              <div className="flex items-start gap-2 mb-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {approval.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {approval.description}
+                  </p>
+                  {approval.amount && (
+                    <p className="text-sm font-semibold text-foreground mt-1">
+                      {approval.amount}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-500/20 transition-colors"
+                >
+                  <ThumbsUp className="h-3.5 w-3.5" />
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Review
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 transition-colors"
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" />
+                  Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Document artifacts */}
+        {documents.map((doc, i) => (
+          <div
+            key={`doc-${i}`}
+            className="flex gap-3"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+              <Bot className="h-4 w-4 text-primary/70" />
+            </div>
+            <div className="max-w-[85%] rounded-2xl border border-border/50 bg-card px-4 py-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">
+                  {doc.name}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {doc.docType}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+
         <div ref={messagesEndRef} />
       </div>
     </div>
@@ -557,16 +626,23 @@ function AiInput({
 export default function CommandCenterPage() {
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(" ")[0];
-  const [isResponding, setIsResponding] = useState(false);
+  const { entityId } = useEntity();
 
-  const handleSubmit = useCallback((value: string) => {
-    setIsResponding(true);
-    // TODO: Wire to actual AI chat stream
-    // For now, simulate a response
-    setTimeout(() => {
-      setIsResponding(false);
-    }, 2000);
-  }, []);
+  const {
+    messages,
+    isStreaming,
+    streamedContent,
+    approvals,
+    documents,
+    sendMessage,
+  } = useDashboardChat({ entityId });
+
+  const handleSubmit = useCallback(
+    (value: string) => {
+      sendMessage(value);
+    },
+    [sendMessage],
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -581,11 +657,17 @@ export default function CommandCenterPage() {
       </div>
 
       {/* Conversation Thread */}
-      <ConversationThread />
+      <ConversationThread
+        messages={messages}
+        isStreaming={isStreaming}
+        streamedContent={streamedContent}
+        approvals={approvals}
+        documents={documents}
+      />
 
       {/* AI Input — fixed at bottom */}
       <div className="sticky bottom-0 border-t border-border/30 bg-background/80 backdrop-blur-sm">
-        <AiInput onSubmit={handleSubmit} isResponding={isResponding} />
+        <AiInput onSubmit={handleSubmit} isResponding={isStreaming} />
       </div>
     </div>
   );
