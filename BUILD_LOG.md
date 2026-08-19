@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — WAI-ARIA keyboard navigation for Activity Hub filter pills
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Replaced plain filter buttons with full WAI-ARIA tablist pattern:
+
+1. **Filter Pills** — `role="tablist"` container with `aria-label="Activity filters"`
+2. **Each Pill** — `role="tab"`, `aria-selected`, `aria-controls="activity-tab-panel"`, roving `tabIndex` (active=0, inactive=-1)
+3. **Keyboard Navigation** — ArrowRight/Left to move, Home/End to jump, focus-visible ring
+4. **Tab Panel** — `role="tabpanel"` wrapping filtered content with `aria-label="{filter} activities"`
+5. **Focus Management** — On arrow key press, `setActiveFilter` + `document.getElementById(tabId)?.focus()`
+6. **Tests** — 33/33 a11y tests pass (1 new test covering all keyboard interactions)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 33/33 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Prefetch-on-hover for sidebar + mobile bottom nav
 
 **Agent:** Buffy
