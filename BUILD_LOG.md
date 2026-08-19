@@ -6,6 +6,29 @@
 
 ---
 
+### [2026-08-20] — AI-Native UX component library (5 new components)
+
+**Agent:** Buffy
+**Files Created:** `apps/web/components/shared/ai-native/ai-thinking-steps.tsx`, `ai-confidence-explainer.tsx`, `ai-proactive-alert.tsx`, `ai-autofill-indicator.tsx`, `ai-batch-processor.tsx`
+**Files Modified:** `apps/web/components/shared/ai-native/index.ts`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Built the AI-native UX component library inspired by Digits, Basis AI, and Devin:
+
+1. **AiThinkingSteps** — Animated step-by-step processing indicator with progress bar, used in chat/document processing/batch operations
+2. **AiThinkingIndicator** — Simplified dots animation for inline thinking states
+3. **AiProcessingOverlay** — Full-screen processing modal with animated ring
+4. **AiConfidenceExplainer** — Expandable confidence card showing score, reasoning factors (positive/negative/neutral), and override option
+5. **AiProactiveAlert** — Severity-based alert cards (critical/warning/info/success) with metrics, trends, actions, and timestamps
+6. **AiAutofillIndicator** — Shows when AI auto-filled a form field with source and accept/revert buttons
+7. **AiAutofillBadge** — Small "AI" badge for auto-filled values
+8. **AiConfidenceField** — Field wrapper with confidence score badge (high/medium/low)
+9. **AiBatchProcessor** — Batch processing view with categories, progress bar, and process/review actions
+10. **Tests** — 59/59 a11y tests pass (5 new tests)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 59/59 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Dedicated Audit Trail page
 
 **Agent:** Buffy
