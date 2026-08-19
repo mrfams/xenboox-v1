@@ -12,6 +12,7 @@ import {
   ArrowLeftRight,
   Settings,
   HelpCircle,
+  History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -90,6 +91,7 @@ const primaryNavItems: NavItem[] = [
 ];
 
 const bottomNavItems: NavItem[] = [
+  { label: "Audit Trail", href: "/dashboard/audit-trail", icon: History },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

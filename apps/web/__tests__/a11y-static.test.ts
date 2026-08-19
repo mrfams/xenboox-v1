@@ -290,6 +290,24 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/Accept Invitation/);
   });
 
+  it("Audit Trail page exists with required features", () => {
+    const src = read("app/dashboard/audit-trail/page.tsx");
+    expect(src).toMatch(/Audit Trail/);
+    expect(src).toMatch(/getAuditLogs/);
+    expect(src).toMatch(/search/);
+    expect(src).toMatch(/surfaceFilter/);
+    expect(src).toMatch(/expandedId/);
+    expect(src).toMatch(/formatTimeAgo/);
+    expect(src).toMatch(/getCategoryForAction/);
+  });
+
+  it("Sidebar includes Audit Trail link", () => {
+    const src = read("components/layout/sidebar.tsx");
+    expect(src).toMatch(/Audit Trail/);
+    expect(src).toMatch(/\/dashboard\/audit-trail/);
+    expect(src).toMatch(/History/);
+  });
+
   it("Email library has sendInvitationEmail function", () => {
     const src = read("lib/email.ts");
     expect(src).toMatch(/sendInvitationEmail/);

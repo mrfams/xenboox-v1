@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/financial-pulse": "Financial Pulse",
   "/dashboard/ledger": "Ledger",
   "/dashboard/operations": "Operations",
+  "/dashboard/audit-trail": "Audit Trail",
   "/dashboard/settings": "Settings",
   "/dashboard/help": "Help & Support",
 };
