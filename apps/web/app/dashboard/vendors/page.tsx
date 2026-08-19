@@ -761,12 +761,12 @@ function BottomRow({
 // Executive snapshot for the Overview tab: payables trend, top vendors,
 // payment terms, aging and AI insights. The full vendor table lives on the
 // status tabs.
-
 function VendorsOverview({
   topVendors,
   paymentTerms,
   aging,
   insights,
+  trendData,
 }: {
   topVendors: Array<{
     name: string;
@@ -798,6 +798,7 @@ function VendorsOverview({
     description: string;
     actionLabel: string;
   }>;
+  trendData?: Array<{ month: string; amount: number }>;
 }) {
   const agingColors = [
     "bg-emerald-500",
@@ -1399,6 +1400,7 @@ export default function VendorsPage() {
             paymentTerms={paymentTerms ?? { terms: [], totalVendors: 0 }}
             aging={aging}
             insights={insights}
+            trendData={payablesTrend}
           />
           <VendorsAutomationPanels />
         </>
