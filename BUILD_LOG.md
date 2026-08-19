@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-20] — / key to toggle AI chat panel + Escape to close
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/layout.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added keyboard shortcuts for AI chat panel:
+
+1. **`/` key** — Toggles the chat panel open/closed (like Slack, VS Code)
+2. **`Escape` key** — Closes the chat panel when open
+3. **Guards** — Both skip when focused on interactive elements (input, textarea, select, button, a, contenteditable)
+4. **Modifier Guard** — Skips when Ctrl/Alt/Cmd held
+5. **Dialog Guard** — Escape skips if a modal/dialog is open (lets it handle its own Escape)
+6. **Fixed useEffect** — Moved chat panel useEffect after `chatOpen` state declaration (was before)
+7. **Tests** — 44/44 a11y tests pass (1 updated test)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 44/44 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Escape key to close AI chat panel
 
 **Agent:** Buffy
