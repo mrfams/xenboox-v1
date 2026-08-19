@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Bot, PanelRightOpen } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
@@ -69,6 +69,21 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { getAnnounceProps } = useRouteFocus();
   useSurfaceShortcuts();
+
+  // ── Escape to close chat panel ──────────────────────────────────────────
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && chatOpen) {
+        // Don't close if a modal/dialog is open (let it handle its own Escape)
+        const dialog = document.querySelector('[role="dialog"]');
+        if (dialog) return;
+        e.preventDefault();
+        setChatOpen(false);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [chatOpen]);
   // The CFO Agent panel stays closed until the user explicitly opens it
   // (toggle in the header, the floating CFO Agent button, or the edge tab).
   const [chatOpen, setChatOpen] = useState(false);

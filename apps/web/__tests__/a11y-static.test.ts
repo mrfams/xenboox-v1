@@ -253,6 +253,16 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/animation: route-enter/);
   });
 
+  it("Dashboard layout closes chat panel on Escape key", () => {
+    const src = read("app/dashboard/layout.tsx");
+    // Must have useEffect for Escape key
+    expect(src).toMatch(/key === "Escape" && chatOpen/);
+    // Must set chatOpen to false
+    expect(src).toMatch(/setChatOpen\(false\)/);
+    // Must skip if a dialog is open
+    expect(src).toMatch(/role=\"dialog\"/);
+  });
+
   it("Dashboard layout wires surface keyboard shortcuts", () => {
     const src = read("app/dashboard/layout.tsx");
     expect(src).toMatch(/useSurfaceShortcuts/);
