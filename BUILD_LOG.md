@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — Keyboard shortcuts a/r for batch approve/reject in Activity Hub
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added keyboard shortcuts for batch operations:
+
+1. **`a` key** — Approves all selected items (no confirmation needed)
+2. **`r` key** — Opens confirmation dialog for batch reject
+3. **Guards** — Only active when items selected, skips interactive elements, skips when dialog is open
+4. **Shortcut Hints** — Batch bar shows "Press A approve, R reject" on sm+ screens
+5. **ARIA Hints** — `<kbd>` elements for visual keyboard indicators
+6. **Tests** — 42/42 a11y tests pass (1 new test)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 42/42 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Confirmation dialog for batch reject in Activity Hub
 
 **Agent:** Buffy
