@@ -20,7 +20,7 @@ import { auditArchiveManifests } from "@xenboox/db/schema/audit-archive";
 import {
   retentionPolicies,
   retentionPurgeLogs,
-} from "@xenboox/schema/data-retention";
+} from "@xenboox/db/schema/data-retention";
 import { and, eq, lt, sql, isNull } from "drizzle-orm";
 import { task } from "@trigger.dev/sdk";
 import { logger } from "@xenboox/agents/core/logger";
