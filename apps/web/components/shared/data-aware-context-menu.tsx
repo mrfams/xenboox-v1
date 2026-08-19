@@ -143,7 +143,7 @@ export function DataAwareContextMenu({
         const next = Math.max(activeRef.current - 1, 0);
         activeRef.current = next;
         setActiveIndex(next);
-      } else if (e.key === "Enter") {
+      } else if (e.key === "Enter" && selection) {
         e.preventDefault();
         const action = selection.actions[activeRef.current];
         if (action) handleAction(action);
