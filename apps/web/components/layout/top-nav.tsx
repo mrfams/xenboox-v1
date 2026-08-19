@@ -7,9 +7,6 @@ import {
   Bell,
   ChevronDown,
   ChevronRight,
-  FileText,
-  Landmark,
-  Receipt,
   Users,
   Settings,
   LogOut,
@@ -22,16 +19,10 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-  CommandDialog,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandShortcut,
 } from "@/components/ui";
 import { AICommandBar } from "@/components/shared/ai-command-bar";
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
+import { CommandPalette } from "@/components/shared/command-palette";
 import { useEntity } from "@/lib/entity-context";
 import { getInitials } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
@@ -45,13 +36,6 @@ interface TopNavProps {
   chatOpen?: boolean;
 }
 
-type SearchItem = {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  group: string;
-};
-
 export function TopNav({
   onMenuClick,
   onChatToggle: _onChatToggle,
@@ -61,7 +45,6 @@ export function TopNav({
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [commands, setCommands] = useState<SearchItem[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const closeMenuTimer = useRef<number | null>(null);
@@ -277,47 +260,7 @@ export function TopNav({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [notifOpen]);
 
-  useEffect(() => {
-    if (!notifEnabled) return;
-    async function loadCommands() {
-      try {
-        const invoices = await utils.ar.listInvoices.fetch({});
-        const customers = await utils.ar.listCustomers.fetch({});
-        const bankAccounts = await utils.treasury.listBankAccounts.fetch();
-        const docs = await utils.document.listDocuments.fetch({});
-        const results: SearchItem[] = [
-          ...(invoices ?? []).map((inv: Record<string, unknown>) => ({
-            label: `Invoice ${inv.invoiceNumber as string}`,
-            href: `/dashboard/ar/invoices/${inv.id as string}`,
-            icon: <Receipt className="h-4 w-4" />,
-            group: "AR",
-          })),
-          ...(customers ?? []).map((c: Record<string, unknown>) => ({
-            label: `Customer ${c.name as string}`,
-            href: `/dashboard/ar/customers/${c.id as string}`,
-            icon: <Users className="h-4 w-4" />,
-            group: "AR",
-          })),
-          ...(bankAccounts ?? []).map((b: Record<string, unknown>) => ({
-            label: `Account ${b.name as string}`,
-            href: `/dashboard/treasury/account/${b.id as string}`,
-            icon: <Landmark className="h-4 w-4" />,
-            group: "Treasury",
-          })),
-          ...(docs ?? []).map((d: Record<string, unknown>) => ({
-            label: `Document ${d.name as string}`,
-            href: `/dashboard/documents/${d.id as string}`,
-            icon: <FileText className="h-4 w-4" />,
-            group: "Documents",
-          })),
-        ];
-        setCommands(results.slice(0, 50));
-      } catch {
-        // Silent
-      }
-    }
-    loadCommands();
-  }, [utils, notifEnabled]);
+  // CommandPalette handles its own data loading internally
 
   const user = session?.user;
   const initials = getInitials(user?.name || user?.email || "User");
@@ -527,28 +470,8 @@ export function TopNav({
         </div>
       </div>
 
-      {/* Command Palette */}
-      <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
-        <CommandInput placeholder="Search invoices, accounts, documents..." />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          <CommandGroup heading="Go to">
-            {commands.map((c) => (
-              <CommandItem
-                key={c.href}
-                onSelect={() => {
-                  router.push(c.href);
-                  setSearchOpen(false);
-                }}
-              >
-                <span className="mr-2 text-muted-foreground">{c.icon}</span>
-                <span className="flex-1">{c.label}</span>
-                <CommandShortcut>↵</CommandShortcut>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </CommandList>
-      </CommandDialog>
+      {/* Command Palette — full-featured search with dynamic data */}
+      <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }
