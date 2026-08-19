@@ -20,7 +20,7 @@ export function ActorBadge({
           className,
         )}
       >
-        <Bot className="h-3 w-3" />
+        <Bot className="h-3 w-3" aria-hidden="true" />
         AI
       </span>
     );
@@ -34,7 +34,7 @@ export function ActorBadge({
           className,
         )}
       >
-        <User className="h-3 w-3" />
+        <User className="h-3 w-3" aria-hidden="true" />
         You
       </span>
     );
@@ -47,7 +47,7 @@ export function ActorBadge({
         className,
       )}
     >
-      <User className="h-3 w-3" />
+      <User className="h-3 w-3" aria-hidden="true" />
       {actor.name}
     </span>
   );

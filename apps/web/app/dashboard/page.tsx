@@ -74,8 +74,7 @@ function AIGreeting({ firstName }: { firstName?: string }) {
           Here&apos;s your business snapshot for{" "}
           <span className="font-medium text-muted-foreground">{today}</span>.
         </p>
-      </div>
-      <div className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-card/60 px-2.5 py-1 sm:flex">
+      </div>          <div className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-card/60 px-2.5 py-1 sm:flex" aria-hidden="true">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
         <span className="text-[10px] font-medium text-muted-foreground/60">
           AI active
@@ -283,8 +282,7 @@ function ProactiveBriefing() {
 
   return (
     <section className="space-y-3 rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8">
+      <div className="flex items-center gap-2.5">          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8" aria-hidden="true">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
         </div>
         <h2 className="text-sm font-semibold tracking-tight text-foreground">
@@ -378,8 +376,8 @@ function ConversationThread({
               <Bot className="h-4 w-4 text-primary/70" />
             </div>
             <div className="max-w-[85%] rounded-2xl bg-card border border-border/50 px-4 py-3 text-sm leading-relaxed text-foreground">
-              <p className="whitespace-pre-wrap">{streamedContent}</p>
-              <span className="inline-block h-4 w-0.5 animate-pulse bg-primary/60 ml-0.5" />
+              <p className="whitespace-pre-wrap" aria-live="polite">{streamedContent}</p>
+              <span className="inline-block h-4 w-0.5 animate-pulse bg-primary/60 ml-0.5" aria-hidden="true" />
             </div>
           </div>
         )}
@@ -397,7 +395,7 @@ function ConversationThread({
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:150ms]" />
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:300ms]" />
                 </div>
-                <span className="text-xs text-muted-foreground/60">
+                <span className="text-xs text-muted-foreground/60" role="status" aria-live="polite">
                   Thinking...
                 </span>
               </div>
@@ -434,23 +432,26 @@ function ConversationThread({
               <div className="flex gap-2">
                 <button
                   type="button"
+                  aria-label="Approve"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-500/20 transition-colors"
                 >
-                  <ThumbsUp className="h-3.5 w-3.5" />
+                  <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
                   Approve
                 </button>
                 <button
                   type="button"
+                  aria-label="Review"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
                 >
-                  <Eye className="h-3.5 w-3.5" />
+                  <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                   Review
                 </button>
                 <button
                   type="button"
+                  aria-label="Reject"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 transition-colors"
                 >
-                  <ThumbsDown className="h-3.5 w-3.5" />
+                  <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
                   Reject
                 </button>
               </div>
@@ -469,7 +470,7 @@ function ConversationThread({
             </div>
             <div className="max-w-[85%] rounded-2xl border border-border/50 bg-card px-4 py-3">
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
+                <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
                 <span className="text-sm font-medium text-foreground">
                   {doc.name}
                 </span>
@@ -547,7 +548,7 @@ function AiInput({
                 "disabled:opacity-40 disabled:pointer-events-none",
               )}
             >
-              <Icon className={cn("h-3 w-3", suggestion.color)} />
+              <Icon className={cn("h-3 w-3", suggestion.color)} aria-hidden="true" />
               <span>{suggestion.label}</span>
             </button>
           );
@@ -567,7 +568,9 @@ function AiInput({
           <div className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg bg-primary/8 text-primary/70 transition-colors group-focus-within:bg-primary/12 group-focus-within:text-primary">
             <Bot className="h-4 w-4" />
           </div>
+          <label htmlFor="ai-chat-input" className="sr-only">Ask your AI CFO anything</label>
           <textarea
+            id="ai-chat-input"
             ref={textareaRef}
             rows={1}
             value={inputValue}
@@ -586,6 +589,7 @@ function AiInput({
           <Button
             type="button"
             size="icon"
+            aria-label="Send message"
             onClick={() => handleSubmit()}
             disabled={!inputValue.trim() || isResponding}
             className={cn(

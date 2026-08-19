@@ -67,8 +67,10 @@ function JournalView() {
     <div className="space-y-4">
       {/* AI-enhanced search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" aria-hidden="true" />
+        <label htmlFor="journal-search" className="sr-only">Search journal entries</label>
         <input
+          id="journal-search"
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -76,7 +78,7 @@ function JournalView() {
           className="w-full rounded-xl border border-border/50 bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          <span className="inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted/30 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/50">
+          <span className="inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted/30 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/50" aria-hidden="true">
             <Bot className="h-2.5 w-2.5" />
             AI
           </span>
@@ -112,9 +114,8 @@ function JournalView() {
             />
           ))}
         </div>
-      ) : !journalEntries || journalEntries.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-          <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
+      ) : !journalEntries || journalEntries.length === 0 ? (              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
           <p className="text-sm font-medium text-foreground">
             No journal entries yet
           </p>
@@ -214,7 +215,7 @@ function COAView() {
         </div>
       ) : !accounts || accounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-          <Landmark className="h-12 w-12 text-muted-foreground/30 mb-3" />
+          <Landmark className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
           <p className="text-sm font-medium text-foreground">
             No accounts configured
           </p>
@@ -294,9 +295,9 @@ function TrialBalanceView() {
       >
         <div className="flex items-center gap-3">
           {isBalanced ? (
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" aria-hidden="true" />
           ) : (
-            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <AlertTriangle className="h-5 w-5 text-red-500" aria-hidden="true" />
           )}
           <div>
             <p className="text-sm font-medium text-foreground">
@@ -322,12 +323,13 @@ function TrialBalanceView() {
         </div>
       ) : !accounts || accounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-          <BookOpen className="h-12 w-12 text-muted-foreground/30 mb-3" />
+          <BookOpen className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
           <p className="text-sm font-medium text-foreground">No data yet</p>
         </div>
       ) : (
         <div className="rounded-xl border border-border/50 overflow-hidden">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs" aria-label="Trial Balance">
+            <caption className="sr-only">Trial balance showing debits and credits for all accounts</caption>
             <thead>
               <tr className="border-b bg-muted/50">
                 <th scope="col" className="px-3 py-2 text-left font-medium text-muted-foreground">
@@ -393,16 +395,17 @@ function TrialBalanceView() {
 function FixedAssetsView() {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-      <Building2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
+      <Building2 className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
       <p className="text-sm font-medium text-foreground">Fixed Assets</p>
       <p className="text-xs text-muted-foreground mt-1">
         Asset register, depreciation schedules, and disposal tracking coming soon
       </p>
       <button
         type="button"
+        aria-label="Ask AI about fixed assets"
         className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
       >
-        <Bot className="h-3.5 w-3.5" />
+        <Bot className="h-3.5 w-3.5" aria-hidden="true" />
         Ask AI about fixed assets
       </button>
     </div>
@@ -414,16 +417,17 @@ function FixedAssetsView() {
 function ReconciliationView() {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-      <RefreshCw className="h-12 w-12 text-muted-foreground/30 mb-3" />
+      <RefreshCw className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
       <p className="text-sm font-medium text-foreground">Reconciliation</p>
       <p className="text-xs text-muted-foreground mt-1">
         Bank statement matching and reconciliation — AI-powered, drag-to-match
       </p>
       <button
         type="button"
+        aria-label="Ask AI to reconcile"
         className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
       >
-        <Bot className="h-3.5 w-3.5" />
+        <Bot className="h-3.5 w-3.5" aria-hidden="true" />
         Ask AI to reconcile
       </button>
     </div>

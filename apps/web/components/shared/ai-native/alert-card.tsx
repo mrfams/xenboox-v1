@@ -87,7 +87,7 @@ export function AlertCard({
             config.iconBg,
           )}
         >
-          <Icon className={cn("h-5 w-5", config.iconColor)} />
+          <Icon className={cn("h-5 w-5", config.iconColor)} aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground">{title}</p>

@@ -126,7 +126,7 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
             config.iconBg,
           )}
         >
-          <Icon className={cn("h-5 w-5", config.iconColor)} />
+          <Icon className={cn("h-5 w-5", config.iconColor)} aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -214,12 +214,14 @@ function CompletedSection({ count }: { count: number }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-controls="completed-section"
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden="true" />
           <span>Completed today</span>
-          <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-500">
+          <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-500" aria-label={`${count} completed`}>
             {count}
           </span>
         </div>
@@ -230,7 +232,7 @@ function CompletedSection({ count }: { count: number }) {
         )}
       </button>
       {isOpen && (
-        <div className="border-t border-border/50 px-4 py-3">
+        <div id="completed-section" className="border-t border-border/50 px-4 py-3">
           <p className="text-xs text-muted-foreground">
             {count} items resolved automatically by AI agents.{" "}
             <Link
@@ -360,7 +362,7 @@ export default function ActivityHubPage() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10" aria-hidden="true">
                 <AlertTriangle className="h-5 w-5 text-red-500" />
               </div>
               <div>
@@ -373,7 +375,7 @@ export default function ActivityHubPage() {
           </div>
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10" aria-hidden="true">
                 <FileCheck className="h-5 w-5 text-amber-500" />
               </div>
               <div>
@@ -386,7 +388,7 @@ export default function ActivityHubPage() {
           </div>
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10" aria-hidden="true">
                 <CheckCircle2 className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
@@ -415,7 +417,7 @@ export default function ActivityHubPage() {
                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                 )}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 {filter.label}
               </button>
             );
@@ -425,7 +427,7 @@ export default function ActivityHubPage() {
         {/* Activity Items */}
         {filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 mb-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 mb-3" aria-hidden="true">
               <CheckCircle2 className="h-6 w-6 text-emerald-500" />
             </div>
             <p className="text-sm font-medium text-foreground">

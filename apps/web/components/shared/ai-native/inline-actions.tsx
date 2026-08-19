@@ -41,7 +41,7 @@ export function InlineActions({
               !action.variant && "bg-muted text-foreground hover:bg-accent",
             )}
           >
-            {Icon && <Icon className="h-3.5 w-3.5" />}
+            {Icon && <Icon className="h-3.5 w-3.5" aria-hidden="true" />}
             {action.label}
           </button>
         );

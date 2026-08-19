@@ -82,3 +82,73 @@ describe("A11y — reduced motion (§13.2)", () => {
     expect(css).toMatch(/animation-duration: 0\.01ms/);
   });
 });
+
+describe("A11y — AI-native surfaces (§13.2)", () => {
+  it("Command Center textarea has associated label", () => {
+    const src = read("app/dashboard/page.tsx");
+    expect(src).toMatch(/htmlFor="ai-chat-input"/);
+    expect(src).toMatch(/id="ai-chat-input"/);
+  });
+
+  it("Command Center send button has aria-label", () => {
+    const src = read("app/dashboard/page.tsx");
+    expect(src).toMatch(/aria-label="Send message"/);
+  });
+
+  it("Command Center streaming content uses aria-live", () => {
+    const src = read("app/dashboard/page.tsx");
+    expect(src).toMatch(/aria-live="polite"/);
+  });
+
+  it("Command Center thinking indicator has role=status", () => {
+    const src = read("app/dashboard/page.tsx");
+    expect(src).toMatch(/role="status".*aria-live="polite"/s);
+  });
+
+  it("Activity Hub completed section has aria-expanded", () => {
+    const src = read("app/dashboard/activity-hub/page.tsx");
+    expect(src).toMatch(/aria-expanded=\{isOpen\}/);
+    expect(src).toMatch(/aria-controls="completed-section"/);
+  });
+
+  it("Financial Pulse scenario input has associated label", () => {
+    const src = read("app/dashboard/financial-pulse/page.tsx");
+    expect(src).toMatch(/htmlFor="scenario-input"/);
+    expect(src).toMatch(/id="scenario-input"/);
+  });
+
+  it("Financial Pulse sparkline SVG has role=img and aria-label", () => {
+    const src = read("app/dashboard/financial-pulse/page.tsx");
+    expect(src).toMatch(/role="img"/);
+    expect(src).toMatch(/aria-label="Trend sparkline"/);
+  });
+
+  it("Ledger search input has associated label", () => {
+    const src = read("app/dashboard/ledger/page.tsx");
+    expect(src).toMatch(/htmlFor="journal-search"/);
+    expect(src).toMatch(/id="journal-search"/);
+  });
+
+  it("Ledger trial balance table has aria-label and caption", () => {
+    const src = read("app/dashboard/ledger/page.tsx");
+    expect(src).toMatch(/aria-label="Trial Balance"/);
+    expect(src).toMatch(/<caption className="sr-only">/);
+  });
+
+  it("Ledger fixed assets button has aria-label", () => {
+    const src = read("app/dashboard/ledger/page.tsx");
+    expect(src).toMatch(/aria-label="Ask AI about fixed assets"/);
+  });
+
+  it("Ledger reconciliation button has aria-label", () => {
+    const src = read("app/dashboard/ledger/page.tsx");
+    expect(src).toMatch(/aria-label="Ask AI to reconcile"/);
+  });
+
+  it("Operations section icons have aria-hidden", () => {
+    const src = read("app/dashboard/operations/page.tsx");
+    // At least the section header icons should be decorative
+    const ariaHiddenCount = (src.match(/aria-hidden="true"/g) ?? []).length;
+    expect(ariaHiddenCount).toBeGreaterThanOrEqual(5);
+  });
+});

@@ -57,6 +57,8 @@ function MiniSparkline({
       viewBox="0 0 100 100"
       className="h-8 w-16"
       preserveAspectRatio="none"
+      role="img"
+      aria-label="Trend sparkline"
     >
       <polyline
         points={points}
@@ -95,7 +97,7 @@ function KPICard({
     <div className="rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon className={cn("h-4 w-4", color)} />
+          <Icon className={cn("h-4 w-4", color)} aria-hidden="true" />
           <p className="text-xs font-medium text-muted-foreground">{label}</p>
         </div>
         {sparkline && (
@@ -239,7 +241,7 @@ function ScenarioPlanner() {
   return (
     <div className="rounded-xl border border-border/50 bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="h-4 w-4 text-primary" />
+        <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
         <h3 className="text-sm font-semibold text-foreground">
           AI Scenario Planner
         </h3>
@@ -249,7 +251,9 @@ function ScenarioPlanner() {
         and we hire 3 more staff?&quot;
       </p>
       <div className="flex gap-2">
+        <label htmlFor="scenario-input" className="sr-only">Describe a financial scenario</label>
         <input
+          id="scenario-input"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -459,21 +463,21 @@ export default function FinancialPulsePage() {
               href="/dashboard/ledger"
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="h-4 w-4" aria-hidden="true" />
               View Ledger
             </Link>
             <Link
               href="/dashboard/operations"
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
             >
-              <Wallet className="h-4 w-4" />
+              <Wallet className="h-4 w-4" aria-hidden="true" />
               Banking
             </Link>
             <button
               type="button"
               className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
             >
-              <Bot className="h-4 w-4" />
+              <Bot className="h-4 w-4" aria-hidden="true" />
               Ask AI for custom report
             </button>
           </div>

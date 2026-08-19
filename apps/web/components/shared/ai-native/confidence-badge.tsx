@@ -50,6 +50,7 @@ export function ConfidenceBadge({
         config.className,
         className,
       )}
+      role="status"
     >
       <span className={cn("h-1.5 w-1.5 rounded-full", config.dotClassName)} />
       {showLabel && config.label}

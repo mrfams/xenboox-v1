@@ -53,13 +53,13 @@ function MoneyFlowSummary() {
   return (
     <div className="rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
       <div className="flex items-center gap-2.5 mb-3">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8">
+        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8" aria-hidden="true">
           <ArrowLeftRight className="h-3.5 w-3.5 text-primary" />
         </div>
         <h2 className="text-sm font-semibold tracking-tight text-foreground">
           Money Flow
         </h2>
-        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500/70">
+        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500/70" aria-hidden="true">
           <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
           Live
         </span>
@@ -67,7 +67,7 @@ function MoneyFlowSummary() {
 
       {/* AI summary */}
       <div className="mb-4 flex items-start gap-2 rounded-lg bg-primary/[0.03] p-3">
-        <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
         <p className="text-xs text-foreground/80 leading-relaxed">
           {overview
             ? `Cash balance is ${formatCurrency(overview.cashBalance ?? 0)}. You have ${formatCurrency(overview.accountsReceivable ?? 0)} coming in and ${formatCurrency(overview.accountsPayable ?? 0)} going out. Net position: ${formatCurrency(netCashFlow)}.`
@@ -149,7 +149,7 @@ function OperationSection({
               iconColor,
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-4 w-4" aria-hidden="true" />
           </div>
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
           {alertCount !== undefined && alertCount > 0 && (
@@ -163,7 +163,7 @@ function OperationSection({
           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
         >
           {actionLabel}
-          <ChevronRight className="h-3 w-3" />
+          <ChevronRight className="h-3 w-3" aria-hidden="true" />
         </Link>
       </div>
       {items.length === 0 ? (
@@ -180,13 +180,13 @@ function OperationSection({
             >
               <div className="flex items-center gap-2 min-w-0">
                 {item.status === "warning" && (
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" aria-hidden="true" />
                 )}
                 {item.status === "error" && (
-                  <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                  <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" aria-hidden="true" />
                 )}
                 {item.status === "ok" && (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" aria-hidden="true" />
                 )}
                 <span className="text-xs text-foreground truncate">
                   {item.label}
@@ -239,9 +239,9 @@ function BankingCards() {
               </p>
               <div className="mt-1 flex items-center gap-1">
                 {account.isReconciled ? (
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" aria-hidden="true" />
                 ) : (
-                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  <AlertTriangle className="h-3 w-3 text-amber-500" aria-hidden="true" />
                 )}
                 <span className="text-[10px] text-muted-foreground">
                   {account.isReconciled ? "Reconciled" : "Needs reconciliation"}
@@ -251,7 +251,7 @@ function BankingCards() {
           ))
         ) : (
           <div className="col-span-3 rounded-lg border border-dashed border-border/50 py-6 text-center">
-            <Wallet className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+            <Wallet className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" aria-hidden="true" />
             <p className="text-xs text-muted-foreground">
               No bank accounts connected
             </p>
@@ -280,7 +280,7 @@ function ComplianceTimeline() {
       <div className="space-y-2">
         {closeStatus ? (
           <div className="flex items-center gap-3 rounded-lg bg-background/50 px-3 py-2">
-            <Calendar className="h-4 w-4 text-muted-foreground/60" />
+            <Calendar className="h-4 w-4 text-muted-foreground/60" aria-hidden="true" />
             <div className="flex-1">
               <p className="text-xs font-medium text-foreground">
                 Month-end close
@@ -302,7 +302,7 @@ function ComplianceTimeline() {
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-lg bg-background/50 px-3 py-2">
-            <Calendar className="h-4 w-4 text-muted-foreground/60" />
+            <Calendar className="h-4 w-4 text-muted-foreground/60" aria-hidden="true" />
             <div className="flex-1">
               <p className="text-xs font-medium text-foreground">
                 Month-end close
@@ -337,7 +337,7 @@ function PeopleGrid() {
           href="/dashboard/operations"
           className="flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-colors hover:bg-accent"
         >
-          <Users className="h-4 w-4 text-blue-500" />
+          <Users className="h-4 w-4 text-blue-500" aria-hidden="true" />
           <div>
             <p className="text-xs font-medium text-foreground">Customers</p>
             <p className="text-[10px] text-muted-foreground">
@@ -349,7 +349,7 @@ function PeopleGrid() {
           href="/dashboard/operations"
           className="flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-colors hover:bg-accent"
         >
-          <CreditCard className="h-4 w-4 text-amber-500" />
+          <CreditCard className="h-4 w-4 text-amber-500" aria-hidden="true" />
           <div>
             <p className="text-xs font-medium text-foreground">Vendors</p>
             <p className="text-[10px] text-muted-foreground">
@@ -361,7 +361,7 @@ function PeopleGrid() {
           href="/dashboard/operations"
           className="flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-colors hover:bg-accent"
         >
-          <Users className="h-4 w-4 text-emerald-500" />
+          <Users className="h-4 w-4 text-emerald-500" aria-hidden="true" />
           <div>
             <p className="text-xs font-medium text-foreground">Employees</p>
             <p className="text-[10px] text-muted-foreground">Payroll</p>
@@ -470,21 +470,21 @@ export default function OperationsPage() {
               href="/dashboard/operations"
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
             >
-              <FileText className="h-3.5 w-3.5" />
+              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
               Documents
             </Link>
             <Link
               href="/dashboard/operations"
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
             >
-              <Package className="h-3.5 w-3.5" />
+              <Package className="h-3.5 w-3.5" aria-hidden="true" />
               Inventory
             </Link>
             <Link
               href="/dashboard/operations"
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               Reconciliation
             </Link>
           </div>
