@@ -300,3 +300,23 @@ export async function sendVerificationEmail(
     html,
   });
 }
+
+export async function sendInvitationEmail(
+  to: string,
+  props: {
+    inviterName: string;
+    inviterEmail: string;
+    entityName: string;
+    role: string;
+    inviteUrl: string;
+    expiresAt: string;
+  },
+) {
+  const { InvitationEmail } = await import("@xenboox/email");
+  const html = await render(InvitationEmail(props));
+  await sendEmail({
+    to,
+    subject: `${props.inviterName} invited you to join ${props.entityName} on Xenboox`,
+    html,
+  });
+}

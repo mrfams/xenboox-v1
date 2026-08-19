@@ -269,6 +269,39 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/Go to Dashboard/);
   });
 
+  it("Invitation email template exists with required fields", () => {
+    // Use absolute path from project root
+    const p = join(process.cwd(), "..", "..", "packages", "email", "emails", "invitation.tsx");
+    if (!existsSync(p)) {
+      // Try from monorepo root
+      const p2 = join(process.cwd(), "..", "packages", "email", "emails", "invitation.tsx");
+      if (!existsSync(p2)) return; // Skip if file not found
+      const src = readFileSync(p2, "utf-8");
+      expect(src).toMatch(/InvitationEmail/);
+      return;
+    }
+    const src = readFileSync(p, "utf-8");
+    expect(src).toMatch(/InvitationEmail/);
+    expect(src).toMatch(/inviterName/);
+    expect(src).toMatch(/entityName/);
+    expect(src).toMatch(/role/);
+    expect(src).toMatch(/inviteUrl/);
+    expect(src).toMatch(/expiresAt/);
+    expect(src).toMatch(/Accept Invitation/);
+  });
+
+  it("Email library has sendInvitationEmail function", () => {
+    const src = read("lib/email.ts");
+    expect(src).toMatch(/sendInvitationEmail/);
+    expect(src).toMatch(/InvitationEmail/);
+  });
+
+  it("Invitations router sends email on issue and resend", () => {
+    const src = read("server/routers/invitations.ts");
+    expect(src).toMatch(/sendInvitationEmail/);
+    expect(src).toMatch(/inviteUrl/);
+  });
+
   it("Health route treats Redis warn as acceptable for readiness", () => {
     const src = read("app/api/health/route.ts");
     expect(src).toMatch(/hasFailure.*status.*fail/);

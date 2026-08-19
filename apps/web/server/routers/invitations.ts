@@ -22,6 +22,7 @@ import {
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { sendInvitationEmail } from "@/lib/email";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -144,6 +145,35 @@ export const invitationsRouter = router({
             "Failed to log invite issuance",
           );
         }
+
+        // Send invitation email (fire-and-forget)
+        const inviteUrl = `${process.env.NEXTAUTH_URL || "https://xenboox.vercel.app"}/invite/${token}`;
+        const expiresAtFormatted = expiresAt.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+
+        // Get inviter name and entity name for the email
+        const inviter = await db.query.users.findFirst({
+          where: eq(users.id, ctx.session!.user!.id!),
+        });
+        const entity = input.entityId
+          ? await db.query.entities.findFirst({
+              where: eq(entities.id, input.entityId),
+            })
+          : null;
+
+        sendInvitationEmail(input.email, {
+          inviterName: inviter?.name || inviter?.email || "Team member",
+          inviterEmail: inviter?.email || "",
+          entityName: entity?.name || "your organization",
+          role: input.role.replace(/_/g, " "),
+          inviteUrl,
+          expiresAt: expiresAtFormatted,
+        }).catch((err) => {
+          logger.error({ err, inviteId: invite.id }, "Failed to send invitation email");
+        });
 
         return { ...invite, token };
       } catch (error) {
@@ -401,6 +431,35 @@ export const invitationsRouter = router({
           .update(pendingInvites)
           .set({ token, expiresAt, status: "pending" })
           .where(eq(pendingInvites.id, input.inviteId));
+
+        // Send invitation email (fire-and-forget)
+        const inviteUrl = `${process.env.NEXTAUTH_URL || "https://xenboox.vercel.app"}/invite/${token}`;
+        const expiresAtFormatted = expiresAt.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+
+        const inviter = await db.query.users.findFirst({
+          where: eq(users.id, ctx.session!.user!.id!),
+        });
+        const entity = invite.entityId
+          ? await db.query.entities.findFirst({
+              where: eq(entities.id, invite.entityId),
+            })
+          : null;
+
+        sendInvitationEmail(invite.email, {
+          inviterName: inviter?.name || inviter?.email || "Team member",
+          inviterEmail: inviter?.email || "",
+          entityName: entity?.name || "your organization",
+          role: invite.role.replace(/_/g, " "),
+          inviteUrl,
+          expiresAt: expiresAtFormatted,
+        }).catch((err) => {
+          logger.error({ err, inviteId: invite.id }, "Failed to resend invitation email");
+        });
+
         return { success: true, token };
       } catch (error) {
         handleMutationError(error, "Failed to resend invitation");
