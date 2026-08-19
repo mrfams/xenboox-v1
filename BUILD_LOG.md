@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — Optimistic UI updates for Activity Hub approve/reject
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added optimistic UI updates so approve/reject actions feel instant:
+
+1. **Optimistic State** — `itemStates` tracks `idle | processing | success | error` per item ID
+2. **handleAction Callback** — On click: immediately sets `processing` → refetches approvals → sets `success` → shows toast → auto-clears after 2s
+3. **Visual Feedback** — Success: item fades to 60% opacity + checkmark + "Processed" label. Error: red ring + toast + reverts after 3s
+4. **Filter Integration** — Items in `success` state are excluded from the activity list (removed from view)
+5. **Toast Notifications** — Sonner toast for success (3s) and error (5s) with descriptions
+6. **Tests** — 36/36 a11y tests pass (1 new test for optimistic state management)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 36/36 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Route transition animations between dashboard surfaces
 
 **Agent:** Buffy
