@@ -72,6 +72,27 @@
 
 ---
 
+### [2026-08-19] — Performance: loading skeletons + route-level code splitting
+
+**Agent:** Buffy
+**Files Created:** `apps/web/app/dashboard/activity-hub/loading.tsx`, `apps/web/app/dashboard/financial-pulse/loading.tsx`, `apps/web/app/dashboard/ledger/loading.tsx`, `apps/web/app/dashboard/operations/loading.tsx`
+**Files Modified:** `apps/web/app/dashboard/loading.tsx`, `apps/web/app/dashboard/page.tsx`
+
+**Session work:** Added loading skeletons and optimized code splitting for all 5 AI-native surfaces:
+
+1. **Loading Skeletons** — Created loading.tsx for each surface with layout-matched skeletons:
+   - Command Center: greeting + briefing + conversation + input placeholders
+   - Activity Hub: stats + filters + activity item cards
+   - Financial Pulse: narrative + KPI cards + scenario planner + report library
+   - Ledger: tabs + search + filters + journal entry cards
+   - Operations: money flow summary + section cards + banking cards
+2. **Route-Level Code Splitting** — Next.js App Router automatically code-splits each route. The loading.tsx files provide instant visual feedback while the page chunk loads.
+3. **Updated Command Center** — Main loading skeleton now matches the new AI-native layout (greeting, briefing, conversation thread, input bar).
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 29/29 pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — Admin panels functional: agent-monitor, workflow-builder, blog, careers
 
 **Agent:** Buffy
