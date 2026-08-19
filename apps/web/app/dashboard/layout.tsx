@@ -69,24 +69,39 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { getAnnounceProps } = useRouteFocus();
   useSurfaceShortcuts();
+  // The CFO Agent panel stays closed until the user explicitly opens it
+  // (toggle in the header, the floating CFO Agent button, or the edge tab).
+  const [chatOpen, setChatOpen] = useState(false);
 
-  // ── Escape to close chat panel ──────────────────────────────────────────
+  // ── Keyboard shortcuts for chat panel ──────────────────────────────────
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Ignore if modifier keys are held
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Ignore if focused on an interactive element
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || tag === "A") return;
+      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
+
+      // Escape — close chat panel
       if (e.key === "Escape" && chatOpen) {
         // Don't close if a modal/dialog is open (let it handle its own Escape)
         const dialog = document.querySelector('[role="dialog"]');
         if (dialog) return;
         e.preventDefault();
         setChatOpen(false);
+        return;
+      }
+
+      // / — toggle chat panel
+      if (e.key === "/") {
+        e.preventDefault();
+        setChatOpen((prev) => !prev);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [chatOpen]);
-  // The CFO Agent panel stays closed until the user explicitly opens it
-  // (toggle in the header, the floating CFO Agent button, or the edge tab).
-  const [chatOpen, setChatOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [panelWidth, setPanelWidth] = useState(400);
 
