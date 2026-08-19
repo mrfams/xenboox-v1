@@ -301,6 +301,24 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/getCategoryForAction/);
   });
 
+  it("EntitySwitcher component exists with full functionality", () => {
+    const src = read("components/layout/entity-switcher.tsx");
+    expect(src).toMatch(/EntitySwitcher/);
+    expect(src).toMatch(/listUserEntities/);
+    expect(src).toMatch(/setEntityId/);
+    expect(src).toMatch(/createEntity/);
+    expect(src).toMatch(/deleteEntity/);
+    expect(src).toMatch(/Delete Entity/);
+    expect(src).toMatch(/Create new entity/);
+    expect(src).toMatch(/aria-haspopup="menu"/);
+    expect(src).toMatch(/aria-expanded/);
+  });
+
+  it("TopNav includes EntitySwitcher", () => {
+    const src = read("components/layout/top-nav.tsx");
+    expect(src).toMatch(/EntitySwitcher/);
+  });
+
   it("Sidebar includes Audit Trail link", () => {
     const src = read("components/layout/sidebar.tsx");
     expect(src).toMatch(/Audit Trail/);
