@@ -290,6 +290,23 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/metaKey|ctrlKey|altKey/);
   });
 
+  it("Activity Hub has keyboard shortcuts a/r for batch approve/reject", () => {
+    const src = read("app/dashboard/activity-hub/page.tsx");
+    // Must have keydown listener for batch shortcuts
+    expect(src).toMatch(/keydown.*handleKeyDown/s);
+    // Must handle 'a' for approve
+    expect(src).toMatch(/key === "a"/);
+    // Must handle 'r' for reject
+    expect(src).toMatch(/key === "r"/);
+    // Must show shortcut hints in batch bar
+    expect(src).toMatch(/Press.*A.*approve/);
+    expect(src).toMatch(/R.*reject/);
+    // Must check selectedIds.size before triggering
+    expect(src).toMatch(/selectedIds\.size === 0/);
+    // Must skip if confirm dialog is open
+    expect(src).toMatch(/confirmRejectOpen/);
+  });
+
   it("Activity Hub has confirmation dialog for batch reject", () => {
     const src = read("app/dashboard/activity-hub/page.tsx");
     // Must have confirmRejectOpen state

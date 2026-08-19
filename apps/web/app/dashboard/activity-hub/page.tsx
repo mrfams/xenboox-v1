@@ -344,6 +344,33 @@ export default function ActivityHubPage() {
     setSelectedIds(new Set());
   }, []);
 
+  // ── Keyboard shortcuts for batch actions ───────────────────────────────
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Only when items are selected
+      if (selectedIds.size === 0) return;
+      // Ignore if modifier keys are held
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Ignore if focused on an interactive element
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || tag === "A") return;
+      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
+      // Ignore if confirm dialog is open
+      if (confirmRejectOpen) return;
+
+      if (e.key === "a") {
+        e.preventDefault();
+        handleBatchAction("approve");
+      } else if (e.key === "r") {
+        e.preventDefault();
+        setConfirmRejectOpen(true);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIds, confirmRejectOpen, handleBatchAction]);
+
   const selectAll = useCallback(() => {
     const selectableIds = filteredItems
       .filter((item) => item.actions.some((a) => a.variant === "approve" || a.variant === "reject"))
@@ -697,6 +724,9 @@ export default function ActivityHubPage() {
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-foreground">
                 {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"} selected
+              </span>
+              <span className="hidden sm:inline text-[10px] text-muted-foreground">
+                Press <kbd className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px]">A</kbd> approve, <kbd className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px]">R</kbd> reject
               </span>
               <button
                 type="button"
