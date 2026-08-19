@@ -379,6 +379,7 @@ function JournalOverview({
     }>;
     scanned: { entries: number; lines: number; window: string };
   };
+  trendData?: Array<{ month: string; count: number }>;
 }) {
   const sourceColors = [
     "bg-slate-500",
@@ -395,7 +396,7 @@ function JournalOverview({
         <BottomRow
           topAccounts={topAccounts ?? []}
           recentActivity={recentActivity ?? []}
-          trendData={monthlyTrend ?? []}
+          trendData={trendData ?? []}
         />
       </div>
 
@@ -972,6 +973,7 @@ export default function JournalEntriesPage() {
           sources={sources}
           insights={insights}
           outlierSignals={outlierSignals}
+          trendData={monthlyTrend}
         />
       ) : (
         <JournalTable
