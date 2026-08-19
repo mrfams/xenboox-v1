@@ -27,7 +27,7 @@ export function InlineActions({
             onClick={action.onClick}
             disabled={action.disabled}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150",
+              "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-150 min-h-[36px]",
               "active:scale-[0.97]",
               "disabled:opacity-40 disabled:pointer-events-none",
               action.variant === "approve" &&

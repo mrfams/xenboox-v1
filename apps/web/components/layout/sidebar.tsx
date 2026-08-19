@@ -283,9 +283,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
+      {/* Mobile overlay — only on md+ where sidebar is used (mobile uses bottom nav) */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 md:hidden lg:hidden"
           onClick={onClose}
         />
       )}
@@ -298,6 +299,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           "group fixed inset-y-0 left-0 z-[49] flex w-64 flex-col border-r border-white/[0.06] transition-all duration-200 ease-in-out",
           "bg-[hsl(var(--sidebar-bg))]",
           "lg:translate-x-0 lg:w-[var(--sidebar-width)]",
+          "hidden md:flex",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >

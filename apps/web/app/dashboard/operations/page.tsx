@@ -392,7 +392,7 @@ export default function OperationsPage() {
         "Run payroll",
       ]}
     >
-      <div className="space-y-4 p-4 sm:p-6">
+      <div className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6">
         {/* Money Flow Summary */}
         <MoneyFlowSummary />
 

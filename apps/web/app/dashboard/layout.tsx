@@ -13,6 +13,7 @@ import { AISidebar } from "@/components/layout/ai-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { ChatPanel } from "@/components/layout/chat-panel";
 import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
@@ -145,6 +146,9 @@ export default function DashboardLayout({
                     >
                       {children}
                     </main>
+
+                    {/* Mobile bottom nav spacer — prevents content from hiding behind the fixed bottom bar */}
+                    <div className="h-16 md:hidden" />
                   </div>
 
                   {/* Right Panel Toggle Button (when closed) */}
@@ -207,6 +211,9 @@ export default function DashboardLayout({
                   </span>
                 </button>
               )}
+
+              {/* Mobile bottom navigation — visible on small screens */}
+              <MobileBottomNav />
 
               <Toaster position="top-right" richColors closeButton />
             </SimulationProvider>

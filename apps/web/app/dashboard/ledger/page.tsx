@@ -464,7 +464,7 @@ export default function LedgerPage() {
         "Explain this journal entry",
       ]}
     >
-      <div className="p-4 sm:p-6">
+      <div className="p-3 pb-20 sm:p-6 md:pb-6">
         {tabContent[activeTab]}
       </div>
     </ModulePageShell>

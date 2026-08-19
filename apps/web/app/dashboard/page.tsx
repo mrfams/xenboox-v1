@@ -429,7 +429,7 @@ function ConversationThread({
                   )}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   aria-label="Approve"
@@ -529,7 +529,7 @@ function AiInput({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-2 px-4 pb-4">
+    <div className="mx-auto w-full max-w-3xl space-y-2 px-3 pb-4 sm:px-4">
       {/* Suggestions */}
       <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {suggestions.map((suggestion) => {
@@ -649,7 +649,7 @@ export default function CommandCenterPage() {
   );
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col pb-16 md:pb-0">
       {/* Greeting */}
       <div className="px-4 pt-6 sm:px-6">
         <AIGreeting firstName={firstName} />

@@ -357,7 +357,7 @@ export default function ActivityHubPage() {
         "Why was this flagged?",
       ]}
     >
-      <div className="space-y-4 p-4 sm:p-6">
+      <div className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6">
         {/* Stats */}
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/50 bg-card p-4">

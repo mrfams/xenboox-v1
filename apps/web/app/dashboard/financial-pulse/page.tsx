@@ -363,7 +363,7 @@ export default function FinancialPulsePage() {
         "Model next quarter",
       ]}
     >
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-6 p-3 pb-20 sm:p-6 md:pb-6">
         {/* AI Narrative */}
         <AiFinancialNarrative overview={overview} pnl={pnlData} />
 

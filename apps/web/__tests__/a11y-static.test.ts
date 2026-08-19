@@ -151,4 +151,26 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     const ariaHiddenCount = (src.match(/aria-hidden="true"/g) ?? []).length;
     expect(ariaHiddenCount).toBeGreaterThanOrEqual(5);
   });
+
+  it("Mobile bottom nav has 5 items with aria-labels", () => {
+    const src = read("components/layout/mobile-bottom-nav.tsx");
+    expect(src).toMatch(/aria-label="Main navigation"/);
+    expect(src).toMatch(/md:hidden/);
+    // Should have all 5 surfaces
+    expect(src).toMatch(/Command/);
+    expect(src).toMatch(/Activity/);
+    expect(src).toMatch(/Pulse/);
+    expect(src).toMatch(/Ledger/);
+    expect(src).toMatch(/Ops/);
+  });
+
+  it("Dashboard layout includes MobileBottomNav", () => {
+    const src = read("app/dashboard/layout.tsx");
+    expect(src).toMatch(/MobileBottomNav/);
+  });
+
+  it("Dashboard layout has bottom padding for mobile nav", () => {
+    const src = read("app/dashboard/layout.tsx");
+    expect(src).toMatch(/h-16 md:hidden/);
+  });
 });
