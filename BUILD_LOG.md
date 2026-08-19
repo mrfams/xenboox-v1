@@ -6,6 +6,21 @@
 
 ---
 
+### [2026-08-20] — Prefetch-on-hover for sidebar + mobile bottom nav
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/components/layout/sidebar.tsx`, `apps/web/components/layout/mobile-bottom-nav.tsx`
+
+**Session work:** Added route prefetching for instant-feeling navigation:
+
+1. **Sidebar** — Added `useRouter` + `prefetchRoute()` callback. Every nav link (5 surfaces + Settings + Help) gets `prefetch={true}` for viewport-based preloading AND `onMouseEnter={() => prefetchRoute(href)}` for immediate prefetch on hover.
+2. **Mobile Bottom Nav** — Added `useRouter` + `prefetchRoute()` callback. Every nav link gets `prefetch={true}` + `onMouseEnter` + `onTouchStart` for both hover (tablet) and touch (mobile) prefetching.
+3. **Result:** Pages are fetched before the user clicks, making navigation feel instant. Next.js serves the already-cached RSC payload on click.
+
+**Verification:** Committed + pushed.
+
+---
+
 ### [2026-08-20] — E2E tests: mobile navigation between 5 surfaces
 
 **Agent:** Buffy
