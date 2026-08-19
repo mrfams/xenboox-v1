@@ -272,6 +272,27 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/metaKey|ctrlKey|altKey/);
   });
 
+  it("Activity Hub has batch approve/reject with selection checkboxes", () => {
+    const src = read("app/dashboard/activity-hub/page.tsx");
+    // Must have selectedIds state
+    expect(src).toMatch(/selectedIds/);
+    // Must have toggleSelect handler
+    expect(src).toMatch(/toggleSelect/);
+    // Must have handleBatchAction handler
+    expect(src).toMatch(/handleBatchAction/);
+    // Must have batch action toolbar
+    expect(src).toMatch(/role="toolbar"/);
+    expect(src).toMatch(/aria-label="Batch actions"/);
+    // Must have Approve all and Reject all buttons
+    expect(src).toMatch(/Approve all/);
+    expect(src).toMatch(/Reject all/);
+    // Must have selectAll and clearSelection
+    expect(src).toMatch(/selectAll/);
+    expect(src).toMatch(/clearSelection/);
+    // Must have checkbox on each card
+    expect(src).toMatch(/type="checkbox"/);
+  });
+
   it("Activity Hub has optimistic state management for approve/reject", () => {
     const src = read("app/dashboard/activity-hub/page.tsx");
     // Must have itemStates for tracking optimistic updates

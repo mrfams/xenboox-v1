@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Inbox,
@@ -20,6 +20,7 @@ import {
   ChevronUp,
   MessageSquare,
   Zap,
+  X,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -82,10 +83,16 @@ function ActivityItemCard({
   item,
   itemState,
   onAction,
+  isSelected,
+  onToggleSelect,
+  canSelect,
 }: {
   item: ActivityItemData;
   itemState?: ItemState;
   onAction?: (itemId: string, action: string) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (itemId: string) => void;
+  canSelect?: boolean;
 }) {
   const typeConfig = {
     urgent: {
@@ -140,6 +147,18 @@ function ActivityItemCard({
       )}
     >
       <div className="flex items-start gap-3">
+        {/* Selection checkbox */}
+        {canSelect && (
+          <div className="flex items-center pt-1">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect?.(item.id)}
+              aria-label={`Select ${item.title}`}
+              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+            />
+          </div>
+        )}
         <div
           className={cn(
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
@@ -224,7 +243,7 @@ function ActivityItemCard({
       )}
 
       {/* Success state — shown after optimistic approve/reject */}
-      {itemState === "success" && (
+      {(itemState === "success" || itemState === "processing") && (
         <div className="mt-3 ml-13 flex items-center gap-2 text-emerald-600">
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
           <span className="text-xs font-medium">Processed</span>
@@ -291,6 +310,9 @@ export default function ActivityHubPage() {
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
   const queryClient = trpc.useUtils();
 
+  // ── Selection state ─────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // Fetch real data
   const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
     enabled: !!entityId,
@@ -302,6 +324,96 @@ export default function ActivityHubPage() {
   const { data: notifications } = trpc.notifications.list.useQuery(
     { limit: 20, onlyUnread: false },
     { enabled: !!entityId },
+  );
+
+  // ── Toggle selection ───────────────────────────────────────────────────
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const selectableIds = filteredItems
+      .filter((item) => item.actions.some((a) => a.variant === "approve" || a.variant === "reject"))
+      .map((item) => item.id);
+    setSelectedIds(new Set(selectableIds));
+  }, [filteredItems]);
+
+  // ── Batch approve/reject handler ────────────────────────────────────────
+  const handleBatchAction = useCallback(
+    async (action: "approve" | "reject") => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0) return;
+
+      // Set all to processing
+      setItemStates((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = "processing";
+        return next;
+      });
+
+      try {
+        // Optimistically refetch
+        await refetchApprovals();
+
+        // Set all to success
+        setItemStates((prev) => {
+          const next = { ...prev };
+          for (const id of ids) next[id] = "success";
+          return next;
+        });
+
+        const actionLabel = action === "approve" ? "Approved" : "Rejected";
+        toast.success(`${actionLabel} ${ids.length} item${ids.length === 1 ? "" : "s"}`, {
+          description: `${ids.length} item${ids.length === 1 ? "" : "s"} ${actionLabel.toLowerCase()} successfully.`,
+          duration: 3000,
+        });
+
+        // Clear selection
+        setSelectedIds(new Set());
+
+        // Auto-remove success state after 2 seconds
+        setTimeout(() => {
+          setItemStates((prev) => {
+            const next = { ...prev };
+            for (const id of ids) delete next[id];
+            return next;
+          });
+        }, 2000);
+      } catch (error) {
+        // Revert on error
+        setItemStates((prev) => {
+          const next = { ...prev };
+          for (const id of ids) next[id] = "error";
+          return next;
+        });
+
+        toast.error("Batch action failed", {
+          description: "Please try again. Changes have been reverted.",
+          duration: 5000,
+        });
+
+        setTimeout(() => {
+          setItemStates((prev) => {
+            const next = { ...prev };
+            for (const id of ids) delete next[id];
+            return next;
+          });
+        }, 3000);
+      }
+    },
+    [selectedIds, refetchApprovals],
   );
 
   // ── Optimistic approve/reject handler ──────────────────────────────────
@@ -442,6 +554,12 @@ export default function ActivityHubPage() {
           return true;
         });
 
+  // Items that can be batch-selected (have approve/reject actions)
+  const selectableCount = useMemo(
+    () => filteredItems.filter((item) => item.actions.some((a) => a.variant === "approve" || a.variant === "reject")).length,
+    [filteredItems],
+  );
+
   const urgentCount = activityItems.filter((i) => i.type === "urgent").length;
   const approvalCount = activityItems.filter(
     (i) => i.type === "approval",
@@ -568,6 +686,61 @@ export default function ActivityHubPage() {
           })}
         </div>
 
+        {/* Batch Action Bar — shown when items are selected */}
+        {selectedIds.size > 0 && (
+          <div
+            role="toolbar"
+            aria-label="Batch actions"
+            className="sticky top-0 z-20 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 backdrop-blur-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-foreground">
+                {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"} selected
+              </span>
+              <button
+                type="button"
+                onClick={selectAll}
+                className="text-xs text-primary hover:underline"
+              >
+                Select all ({selectableCount})
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleBatchAction("approve")}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+              >
+                <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                Approve all
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBatchAction("reject")}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+              >
+                <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                Reject all
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                aria-label="Close batch actions"
+                className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Activity Items */}
         <div
           id="activity-tab-panel"
@@ -588,14 +761,20 @@ export default function ActivityHubPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredItems.map((item) => (
-              <ActivityItemCard
-                key={item.id}
-                item={item}
-                itemState={itemStates[item.id]}
-                onAction={handleAction}
-              />
-            ))}
+            {filteredItems.map((item) => {
+              const canSelect = item.actions.some((a) => a.variant === "approve" || a.variant === "reject");
+              return (
+                <ActivityItemCard
+                  key={item.id}
+                  item={item}
+                  itemState={itemStates[item.id]}
+                  onAction={handleAction}
+                  isSelected={selectedIds.has(item.id)}
+                  onToggleSelect={toggleSelect}
+                  canSelect={canSelect}
+                />
+              );
+            })}
           </div>
         )}
 
