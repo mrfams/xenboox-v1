@@ -237,13 +237,20 @@ export async function POST(req: NextRequest) {
 
 // ─── PUT /scim/v2/Users/:id ──────────────────────────────────────────────
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(req: NextRequest) {
   if (!validateScimAuth(req)) return unauthorized();
 
-  const { id } = await params;
+  // SCIM IDs are in the URL path: /api/scim/v2/Users/:id
+  const id = req.url.split("/").pop();
+  if (!id)
+    return NextResponse.json(
+      {
+        schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
+        detail: "Missing user ID",
+        status: "400",
+      },
+      { status: 400 },
+    );
   const body = await req.json();
 
   const email = body.userName || body.emails?.[0]?.value;
@@ -284,13 +291,19 @@ export async function PUT(
 
 // ─── PATCH /scim/v2/Users/:id ────────────────────────────────────────────
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(req: NextRequest) {
   if (!validateScimAuth(req)) return unauthorized();
 
-  const { id } = await params;
+  const id = req.url.split("/").pop();
+  if (!id)
+    return NextResponse.json(
+      {
+        schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
+        detail: "Missing user ID",
+        status: "400",
+      },
+      { status: 400 },
+    );
   const body = await req.json();
 
   // SCIM PATCH: typically used for activate/deactivate
@@ -327,13 +340,19 @@ export async function PATCH(
 
 // ─── DELETE /scim/v2/Users/:id ───────────────────────────────────────────
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(req: NextRequest) {
   if (!validateScimAuth(req)) return unauthorized();
 
-  const { id } = await params;
+  const id = req.url.split("/").pop();
+  if (!id)
+    return NextResponse.json(
+      {
+        schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
+        detail: "Missing user ID",
+        status: "400",
+      },
+      { status: 400 },
+    );
 
   // Deactivate (don't delete — preserve data integrity)
   await db.update(users).set({ emailVerified: null }).where(eq(users.id, id));
