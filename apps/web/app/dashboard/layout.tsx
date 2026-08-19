@@ -19,6 +19,24 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
 
+const PAGE_TITLES: Record<string, string> = {
+  "/dashboard": "Command Center",
+  "/dashboard/activity-hub": "Activity Hub",
+  "/dashboard/financial-pulse": "Financial Pulse",
+  "/dashboard/ledger": "Ledger",
+  "/dashboard/operations": "Operations",
+  "/dashboard/settings": "Settings",
+  "/dashboard/help": "Help & Support",
+};
+
+function getPageTitle(pathname: string): string {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+  for (const [route, title] of Object.entries(PAGE_TITLES)) {
+    if (pathname.startsWith(route + "/")) return title;
+  }
+  return "Dashboard";
+}
+
 function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
   const { entityRole } = useEntity();
   const { data: perms } = trpc.permissionsAdmin.myPermissions.useQuery(
@@ -149,6 +167,8 @@ export default function DashboardLayout({
                         isPaddedPage && "p-6",
                       )}
                     >
+                      {/* Screen reader heading — ensures every page has an h1 for WCAG 1.3.1 */}
+                      <h1 className="sr-only">{getPageTitle(pathname)}</h1>
                       {children}
                     </main>
 
