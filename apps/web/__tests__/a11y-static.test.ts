@@ -253,6 +253,25 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/animation: route-enter/);
   });
 
+  it("Dashboard layout wires surface keyboard shortcuts", () => {
+    const src = read("app/dashboard/layout.tsx");
+    expect(src).toMatch(/useSurfaceShortcuts/);
+  });
+
+  it("useSurfaceShortcuts defines 1-5 key mappings for all surfaces", () => {
+    const src = read("lib/hooks/use-surface-shortcuts.ts");
+    expect(src).toMatch(/SURFACE_SHORTCUTS/);
+    expect(src).toMatch(/"\/dashboard"/);
+    expect(src).toMatch(/"\/dashboard\/activity-hub"/);
+    expect(src).toMatch(/"\/dashboard\/financial-pulse"/);
+    expect(src).toMatch(/"\/dashboard\/ledger"/);
+    expect(src).toMatch(/"\/dashboard\/operations"/);
+    // Must skip interactive elements
+    expect(src).toMatch(/isInteractiveElement/);
+    // Must not trigger with modifier keys
+    expect(src).toMatch(/metaKey|ctrlKey|altKey/);
+  });
+
   it("Activity Hub has optimistic state management for approve/reject", () => {
     const src = read("app/dashboard/activity-hub/page.tsx");
     // Must have itemStates for tracking optimistic updates
