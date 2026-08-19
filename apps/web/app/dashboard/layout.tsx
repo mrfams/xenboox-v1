@@ -19,6 +19,7 @@ import { useSurfaceShortcuts } from "@/lib/hooks/use-surface-shortcuts";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Command Center",
@@ -203,7 +204,9 @@ export default function DashboardLayout({
                       <h1 className="sr-only">{getPageTitle(pathname)}</h1>
                       {/* Route transition — keyed on pathname triggers fade+slide animation */}
                       <div key={pathname} className="route-transition-enter">
-                        {children}
+                        <ErrorBoundary>
+                          {children}
+                        </ErrorBoundary>
                       </div>
                     </main>
 

@@ -253,6 +253,28 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/animation: route-enter/);
   });
 
+  it("Dashboard layout wraps children in ErrorBoundary", () => {
+    const src = read("app/dashboard/layout.tsx");
+    expect(src).toMatch(/ErrorBoundary/);
+    expect(src).toMatch(/import.*ErrorBoundary.*from/);
+  });
+
+  it("Error Boundary component exists with fallback UI", () => {
+    const src = read("components/shared/error-boundary.tsx");
+    expect(src).toMatch(/class ErrorBoundary extends Component/);
+    expect(src).toMatch(/getDerivedStateFromError/);
+    expect(src).toMatch(/componentDidCatch/);
+    expect(src).toMatch(/Something went wrong/);
+    expect(src).toMatch(/Try again/);
+    expect(src).toMatch(/Go to Dashboard/);
+  });
+
+  it("Health route treats Redis warn as acceptable for readiness", () => {
+    const src = read("app/api/health/route.ts");
+    expect(src).toMatch(/hasFailure.*status.*fail/);
+    expect(src).toMatch(/warn.*acceptable/);
+  });
+
   it("Dashboard layout handles Escape and / keyboard shortcuts for chat panel", () => {
     const src = read("app/dashboard/layout.tsx");
     // Must have useEffect for keyboard shortcuts

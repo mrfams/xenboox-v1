@@ -91,9 +91,10 @@ async function readinessCheck(): Promise<NextResponse> {
     redis: await checkRedis(),
   };
 
-  const overallStatus = Object.values(checks).every((c) => c.status === "pass")
-    ? "healthy"
-    : "unhealthy";
+  // "warn" (e.g., Redis not configured) is acceptable for readiness —
+  // only "fail" should block traffic routing.
+  const hasFailure = Object.values(checks).some((c) => c.status === "fail");
+  const overallStatus = hasFailure ? "unhealthy" : "healthy";
 
   return NextResponse.json(
     {
