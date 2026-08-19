@@ -152,6 +152,30 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(ariaHiddenCount).toBeGreaterThanOrEqual(5);
   });
 
+  it("Ledger tabs have keyboard navigation (role=tablist, ArrowLeft/Right, Home/End)", () => {
+    const src = read("app/dashboard/ledger/page.tsx");
+    // Must have role=tablist
+    expect(src).toMatch(/role="tablist"/);
+    // Must have role=tab on each tab button
+    expect(src).toMatch(/role="tab"/);
+    // Must have aria-selected
+    expect(src).toMatch(/aria-selected/);
+    // Must have aria-controls pointing to panel
+    expect(src).toMatch(/aria-controls=\{`ledger-panel-/);
+    // Must have tabIndex roving (-1 for inactive, 0 for active)
+    expect(src).toMatch(/tabIndex=\{isActive \? 0 : -1\}/);
+    // Must handle ArrowRight
+    expect(src).toMatch(/case "ArrowRight"/);
+    // Must handle ArrowLeft
+    expect(src).toMatch(/case "ArrowLeft"/);
+    // Must handle Home
+    expect(src).toMatch(/case "Home"/);
+    // Must handle End
+    expect(src).toMatch(/case "End"/);
+    // Must have role=tabpanel
+    expect(src).toMatch(/role="tabpanel"/);
+  });
+
   it("Mobile bottom nav has 5 items with aria-labels", () => {
     const src = read("components/layout/mobile-bottom-nav.tsx");
     expect(src).toMatch(/aria-label="Main navigation"/);
