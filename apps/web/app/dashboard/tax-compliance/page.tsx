@@ -149,7 +149,12 @@ function ComplianceSignalsPanel({
             />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <p className="text-sm font-medium text-slate-900">
+                <p
+                  data-ai-context="record-name"
+                  data-record-type="compliance-signal"
+                  data-record-name={signal.title}
+                  className="text-sm font-medium text-slate-900"
+                >
                   {signal.title}
                 </p>
                 <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500 ring-1 ring-slate-200">

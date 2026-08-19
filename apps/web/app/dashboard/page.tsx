@@ -1711,18 +1711,6 @@ export default function DashboardPage() {
     void chat.loadConversation(conversation.id, conversation.title);
   };
 
-  const handleAskAI = (text: string) => {
-    chat.sendMessage(`Help me understand this: "${text}"`);
-  };
-
-  const handleExplain = (text: string) => {
-    chat.sendMessage(`Explain this in simple terms: "${text}"`);
-  };
-
-  const handleCorrect = (text: string) => {
-    chat.sendMessage(`Review and correct this: "${text}"`);
-  };
-
   return (
     <div className="flex h-full">
       {/* Main Content */}

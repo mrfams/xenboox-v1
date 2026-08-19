@@ -68,7 +68,12 @@ function SummaryCards({
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-lg font-bold text-slate-900">
+              <span
+                data-ai-context="percentage"
+                data-record-type="close-progress"
+                data-record-name="Month-End Close"
+                className="text-lg font-bold text-slate-900"
+              >
                 {overview.overallProgress}%
               </span>
             </div>
@@ -101,6 +106,9 @@ function SummaryCards({
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm text-slate-500">Close Status</p>
           <span
+            data-ai-context="status"
+            data-record-type="close-progress"
+            data-record-name="Month-End Close"
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
               overview.closeStatus === "On Track"
