@@ -6,6 +6,21 @@
 
 ---
 
+### [2026-08-20] — Escape key to close AI chat panel
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/layout.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added Escape key handler to close the AI chat panel:
+
+1. **Escape Handler** — `useEffect` listens for `Escape` key, closes chat when `chatOpen` is true
+2. **Dialog Guard** — Skips if a `role="dialog"` element is on the page (lets confirmation dialogs handle their own Escape)
+3. **Tests** — 44/44 a11y tests pass (1 new test)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 44/44 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Undo toast for batch approve/reject in Activity Hub
 
 **Agent:** Buffy
