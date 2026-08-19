@@ -74,6 +74,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@next/bundle-analyzer": "^15.5.23",
     "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.4.0",
@@ -82,8 +83,8 @@
     "@types/node": "^22.0.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
-    "@types/uuid": "^10.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
@@ -94,6 +95,7 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-unused-imports": "^4.1.0",
     "happy-dom": "^20.10.6",
+    "lighthouse": "13.4.1",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
