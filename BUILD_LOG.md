@@ -6,6 +6,33 @@
 
 ---
 
+### [2026-08-20] — E2E tests: mobile navigation between 5 surfaces
+
+**Agent:** Buffy
+**Files Created:** `apps/web/e2e/mobile-navigation.spec.ts`
+**Files Modified:** `apps/web/playwright.config.ts`
+
+**Session work:** Created comprehensive Playwright E2E test suite for mobile navigation:
+
+1. **Test Suites:** 8 describe blocks covering all aspects of mobile navigation:
+   - **Mobile Bottom Nav** — visibility, 5 links, correct hrefs, active state, sidebar hidden
+   - **Mobile Surface Navigation** — navigate to each of 5 surfaces via bottom nav
+   - **Mobile Navigation Flow** — sequential all-5-surface navigation, back-and-forth
+   - **Mobile Focus Management** — focus moves to main content, screen reader announcements
+   - **Mobile Touch Interactions** — 44x44px touch targets, tap without hover
+   - **Mobile Page Content** — each surface loads correctly with expected elements
+   - **Mobile Ledger Keyboard Navigation** — arrow keys, Home/End, Enter/Space
+
+2. **Test Configuration:** All tests run at iPhone X viewport (375x812) with touch emulation and mobile user agent.
+
+3. **Playwright Config:** Updated `testMatch` regex in `chromium` project to include `mobile-navigation` and `a11y-axe` spec files.
+
+**Note:** Auth setup requires local dev server (deployed Vercel app times out on auth setup). Tests compile clean (`tsc --noEmit` passes).
+
+**Verification:** TypeScript compiles clean. Committed + pushed.
+
+---
+
 ### [2026-08-19] — AI-Native UI Masterplan: 5 surfaces, 21 nav items to 5
 
 **Agent:** Buffy
