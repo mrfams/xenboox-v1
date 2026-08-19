@@ -44,6 +44,7 @@ type NavItem = {
   icon: LucideIcon;
   attentionKey?: NavKey;
   match?: string[];
+  shortcut?: string;
 };
 
 const primaryNavItems: NavItem[] = [
@@ -52,6 +53,7 @@ const primaryNavItems: NavItem[] = [
     href: "/dashboard",
     icon: MessageSquare,
     attentionKey: "command-center",
+    shortcut: "1",
   },
   {
     label: "Activity Hub",
@@ -59,6 +61,7 @@ const primaryNavItems: NavItem[] = [
     icon: Inbox,
     attentionKey: "activity-hub",
     match: ["/dashboard/activity-hub"],
+    shortcut: "2",
   },
   {
     label: "Financial Pulse",
@@ -66,6 +69,7 @@ const primaryNavItems: NavItem[] = [
     icon: Activity,
     attentionKey: "financial-pulse",
     match: ["/dashboard/financial-pulse"],
+    shortcut: "3",
   },
   {
     label: "Ledger",
@@ -73,6 +77,7 @@ const primaryNavItems: NavItem[] = [
     icon: BookOpen,
     attentionKey: "ledger",
     match: ["/dashboard/ledger"],
+    shortcut: "4",
   },
   {
     label: "Operations",
@@ -80,6 +85,7 @@ const primaryNavItems: NavItem[] = [
     icon: ArrowLeftRight,
     attentionKey: "operations",
     match: ["/dashboard/operations"],
+    shortcut: "5",
   },
 ];
 
@@ -257,8 +263,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         aria-label={
           hasAttention
             ? `${item.label} — ${count} ${tone === "action" ? "need your attention" : "new updates"}`
-            : undefined
+            : item.shortcut
+              ? `${item.label}, keyboard shortcut ${item.shortcut}`
+              : undefined
         }
+        title={item.shortcut ? `${item.label} (Press ${item.shortcut})` : item.label}
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
           "lg:justify-center lg:group-hover:justify-start",
@@ -281,6 +290,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <span className="flex-1 truncate lg:hidden lg:group-hover:inline">
           {item.label}
         </span>
+        {/* Keyboard shortcut badge — visible when sidebar is expanded */}
+        {item.shortcut && (
+          <span className="hidden lg:inline-flex items-center justify-center h-5 min-w-[20px] rounded bg-white/[0.08] px-1 text-[10px] font-mono font-bold text-[hsl(var(--sidebar-text-dim))] group-hover:bg-white/[0.12]">
+            {item.shortcut}
+          </span>
+        )}
         {hasAttention && (
           <CountPill
             count={count}

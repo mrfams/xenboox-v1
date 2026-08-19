@@ -258,6 +258,24 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/useSurfaceShortcuts/);
   });
 
+  it("Sidebar renders keyboard shortcut badges for primary nav items", () => {
+    const src = read("components/layout/sidebar.tsx");
+    // Must have shortcut field in NavItem type
+    expect(src).toMatch(/shortcut\?: string/);
+    // Must have shortcuts defined for all 5 surfaces
+    expect(src).toMatch(/shortcut: "1"/);
+    expect(src).toMatch(/shortcut: "2"/);
+    expect(src).toMatch(/shortcut: "3"/);
+    expect(src).toMatch(/shortcut: "4"/);
+    expect(src).toMatch(/shortcut: "5"/);
+    // Must render shortcut badge
+    expect(src).toMatch(/item\.shortcut/);
+    // Must have title attribute with shortcut
+    expect(src).toMatch(/title=.*shortcut.*Press/);
+    // Must include shortcut in aria-label
+    expect(src).toMatch(/keyboard shortcut/);
+  });
+
   it("useSurfaceShortcuts defines 1-5 key mappings for all surfaces", () => {
     const src = read("lib/hooks/use-surface-shortcuts.ts");
     expect(src).toMatch(/SURFACE_SHORTCUTS/);
