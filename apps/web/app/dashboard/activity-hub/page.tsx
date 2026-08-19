@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Inbox,
@@ -401,18 +401,60 @@ export default function ActivityHubPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {FILTER_OPTIONS.map((filter) => {
+        {/* Filters — WAI-ARIA Tabs pattern with keyboard navigation */}
+        <div
+          role="tablist"
+          aria-label="Activity filters"
+          className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onKeyDown={(e) => {
+            const idx = FILTER_OPTIONS.findIndex((f) => f.key === activeFilter);
+            let nextIdx = idx;
+
+            switch (e.key) {
+              case "ArrowRight":
+              case "ArrowDown":
+                e.preventDefault();
+                nextIdx = (idx + 1) % FILTER_OPTIONS.length;
+                break;
+              case "ArrowLeft":
+              case "ArrowUp":
+                e.preventDefault();
+                nextIdx = (idx - 1 + FILTER_OPTIONS.length) % FILTER_OPTIONS.length;
+                break;
+              case "Home":
+                e.preventDefault();
+                nextIdx = 0;
+                break;
+              case "End":
+                e.preventDefault();
+                nextIdx = FILTER_OPTIONS.length - 1;
+                break;
+              default:
+                return;
+            }
+
+            setActiveFilter(FILTER_OPTIONS[nextIdx].key);
+            // Move focus to the newly activated tab
+            const tabId = `activity-tab-${FILTER_OPTIONS[nextIdx].key}`;
+            document.getElementById(tabId)?.focus();
+          }}
+        >
+          {FILTER_OPTIONS.map((filter, i) => {
             const Icon = filter.icon;
+            const isSelected = activeFilter === filter.key;
             return (
               <button
                 key={filter.key}
+                id={`activity-tab-${filter.key}`}
                 type="button"
+                role="tab"
+                aria-selected={isSelected}
+                aria-controls="activity-tab-panel"
+                tabIndex={isSelected ? 0 : -1}
                 onClick={() => setActiveFilter(filter.key)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                  activeFilter === filter.key
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                  isSelected
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                 )}
@@ -425,6 +467,11 @@ export default function ActivityHubPage() {
         </div>
 
         {/* Activity Items */}
+        <div
+          id="activity-tab-panel"
+          role="tabpanel"
+          aria-label={`${activeFilter} activities`}
+        >
         {filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 mb-3" aria-hidden="true">
@@ -446,6 +493,8 @@ export default function ActivityHubPage() {
         )}
 
         {/* Completed Section */}
+        </div>
+
         <CompletedSection count={completedCount} />
       </div>
     </ModulePageShell>

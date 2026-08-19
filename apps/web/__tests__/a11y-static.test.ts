@@ -111,6 +111,32 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/aria-controls="completed-section"/);
   });
 
+  it("Activity Hub filter pills have keyboard navigation (role=tablist, ArrowLeft/Right, Home/End)", () => {
+    const src = read("app/dashboard/activity-hub/page.tsx");
+    // Must have role=tablist
+    expect(src).toMatch(/role="tablist"/);
+    // Must have role=tab on each filter button
+    expect(src).toMatch(/role="tab"/);
+    // Must have aria-selected
+    expect(src).toMatch(/aria-selected/);
+    // Must have aria-controls pointing to panel
+    expect(src).toMatch(/aria-controls="activity-tab-panel"/);
+    // Must have tabIndex roving (-1 for inactive, 0 for active)
+    expect(src).toMatch(/tabIndex=\{isSelected \? 0 : -1\}/);
+    // Must handle ArrowRight
+    expect(src).toMatch(/case "ArrowRight"/);
+    // Must handle ArrowLeft
+    expect(src).toMatch(/case "ArrowLeft"/);
+    // Must handle Home
+    expect(src).toMatch(/case "Home"/);
+    // Must handle End
+    expect(src).toMatch(/case "End"/);
+    // Must have role=tabpanel
+    expect(src).toMatch(/role="tabpanel"/);
+    // Must have aria-label on tabpanel
+    expect(src).toMatch(/aria-label=\{`\$\{activeFilter\} activities`\}/);
+  });
+
   it("Financial Pulse scenario input has associated label", () => {
     const src = read("app/dashboard/financial-pulse/page.tsx");
     expect(src).toMatch(/htmlFor="scenario-input"/);
