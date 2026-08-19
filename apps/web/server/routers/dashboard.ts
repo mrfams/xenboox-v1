@@ -502,12 +502,41 @@ export const dashboardRouter = router({
       );
 
       if (overdueApCount > 0) {
+        // Compute actual overdue amount and average days overdue
+        const overdueAgg = await safeQuery(
+          "overdueAgg",
+          async () => {
+            const result = await db
+              .select({
+                total: sum(invoicesAp.totalAmount),
+                avgDays: sql<string>`COALESCE(AVG(EXTRACT(DAY FROM NOW() - ${invoicesAp.dueDate}::timestamp)), '0')`,
+              })
+              .from(invoicesAp)
+              .where(
+                and(
+                  eq(invoicesAp.entityId, entityId),
+                  eq(invoicesAp.status, "overdue"),
+                ),
+              );
+            return result[0] ?? { total: null, avgDays: "0" };
+          },
+          { total: null, avgDays: "0" },
+        );
+        const overdueAmount = parseFloat(overdueAgg.total ?? "0");
+        const avgDaysOverdue = Math.round(
+          parseFloat(overdueAgg.avgDays ?? "0"),
+        );
+        const overdueFmt = new Intl.NumberFormat("en-GM");
+
         briefingItems.push({
           id: "overdue",
           type: "negative",
-          title: `${overdueApCount} invoices overdue`,
-          value: "Requires attention",
-          detail: "Overdue by 30+ days",
+          title: `${overdueApCount} invoice${overdueApCount > 1 ? "s" : ""} overdue`,
+          value: overdueFmt.format(overdueAmount),
+          detail:
+            avgDaysOverdue > 0
+              ? `${avgDaysOverdue} day${avgDaysOverdue !== 1 ? "s" : ""} overdue on average`
+              : "Payment overdue",
           statusLabel: "Follow up required",
           href: "/dashboard/bills",
           audience: ["decision", "operations"],
@@ -536,9 +565,9 @@ export const dashboardRouter = router({
         briefingItems.push({
           id: "journals",
           type: "neutral",
-          title: `${pendingJournals} journal entries pending`,
-          value: "Ready for review",
-          detail: "Awaiting approval",
+          title: `${pendingJournals} journal entr${pendingJournals > 1 ? "ies" : "y"} pending`,
+          value: `${pendingJournals} ${pendingJournals > 1 ? "entries" : "entry"}`,
+          detail: "Awaiting approval before posting",
           statusLabel: "Ready for review",
           href: "/dashboard/journal",
           audience: ["operations"],
@@ -567,9 +596,9 @@ export const dashboardRouter = router({
         briefingItems.push({
           id: "escalations",
           type: "warning",
-          title: `${escalations} items need review`,
-          value: "Flagged by AI",
-          detail: "Requires attention",
+          title: `${escalations} item${escalations > 1 ? "s" : ""} need${escalations === 1 ? "s" : ""} review`,
+          value: `${escalations} flagged`,
+          detail: "AI-flagged transactions requiring review",
           statusLabel: "Review now",
           href: "/dashboard/review-queue",
           audience: ["decision", "operations"],
@@ -829,7 +858,7 @@ export const dashboardRouter = router({
               : `Due in ${daysLeft} days`,
           statusLabel: daysLeft <= 7 ? "Due soon" : "On schedule",
           href: "/dashboard/tax-compliance",
-          audience: ["decision", "oversight"],
+          audience: ["decision", "operations", "oversight"],
         });
       }
 
@@ -1079,5 +1108,131 @@ export const dashboardRouter = router({
       monthlyRevenues,
       monthlyExpenses,
     };
+  }),
+
+  // ── Dynamic dashboard suggestions ─────────────────────────────────────
+  // Context-aware prompt suggestions for the AI chat input. Returns
+  // suggestions driven by the entity's actual state (overdue invoices,
+  // pending journals, current month, etc.) instead of hardcoded text.
+  getDashboardSuggestions: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const now = new Date();
+    const MONTH_NAMES = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    const currentMonth = MONTH_NAMES[now.getMonth()];
+
+    const suggestions: Array<{
+      id: string;
+      label: string;
+      prompt: string;
+    }> = [];
+
+    // 1. Overdue invoices (highest priority — urgent action needed)
+    const overdueCount = await safeQuery(
+      "suggest_overdue",
+      async () => {
+        const result = await db
+          .select({ count: count() })
+          .from(invoicesAp)
+          .where(
+            and(
+              eq(invoicesAp.entityId, entityId),
+              eq(invoicesAp.status, "overdue"),
+            ),
+          );
+        return result[0]?.count ?? 0;
+      },
+      0,
+    );
+
+    if (overdueCount > 0) {
+      suggestions.push({
+        id: "overdue_invoices",
+        label: `Follow up ${overdueCount} overdue invoice${overdueCount > 1 ? "s" : ""}`,
+        prompt: `Show all ${overdueCount} overdue invoices and help me follow up`,
+      });
+    }
+
+    // 2. Pending journal entries
+    const pendingJournalCount = await safeQuery(
+      "suggest_journals",
+      async () => {
+        const result = await db
+          .select({ count: count() })
+          .from(journalEntries)
+          .where(
+            and(
+              eq(journalEntries.entityId, entityId),
+              eq(journalEntries.status, "draft"),
+            ),
+          );
+        return result[0]?.count ?? 0;
+      },
+      0,
+    );
+
+    if (pendingJournalCount > 0) {
+      suggestions.push({
+        id: "pending_journals",
+        label: `Review ${pendingJournalCount} pending journal entr${pendingJournalCount > 1 ? "ies" : "y"}`,
+        prompt: `Show me the ${pendingJournalCount} pending journal entries to review`,
+      });
+    }
+
+    // 3. Pending payroll
+    const pendingPayroll = await safeQuery(
+      "suggest_payroll",
+      () =>
+        db.query.payrollRuns.findFirst({
+          where: and(
+            eq(payrollRuns.entityId, entityId),
+            sql`${payrollRuns.status} IN ('draft', 'validated', 'approved')`,
+          ),
+        }),
+      null,
+    );
+
+    if (pendingPayroll) {
+      suggestions.push({
+        id: "payroll",
+        label: "Process payroll",
+        prompt: "Help me process the pending payroll run",
+      });
+    }
+
+    // 4. Close current month's books (always shown)
+    suggestions.push({
+      id: "close_books",
+      label: `Close ${currentMonth} books`,
+      prompt: `Close the books for ${currentMonth} ${now.getFullYear()}`,
+    });
+
+    // 5. Explain cash position (always shown)
+    suggestions.push({
+      id: "cash_position",
+      label: "Explain cash position",
+      prompt: "Explain my current cash position",
+    });
+
+    // 6. Forecast (always shown)
+    suggestions.push({
+      id: "forecast",
+      label: "Forecast next month",
+      prompt: "Forecast cash flow for next month",
+    });
+
+    return suggestions.slice(0, 6);
   }),
 });

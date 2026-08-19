@@ -40,7 +40,10 @@ import {
   runwayTone as runwayToneOf,
 } from "@/lib/dashboard-runway";
 import { DashboardSkeleton } from "@/components/shared/skeletons";
-import { dashboardQueryOptions } from "@/lib/trpc/query-options";
+import {
+  dashboardQueryOptions,
+  suggestionsQueryOptions,
+} from "@/lib/trpc/query-options";
 import { Button } from "@/components/ui";
 import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import {
@@ -179,11 +182,18 @@ function AIChatInput({
   isResponding,
   isChatActive,
   onExit,
+  suggestions,
 }: {
   onSubmit: (value: string) => void;
   isResponding: boolean;
   isChatActive: boolean;
   onExit: () => void;
+  suggestions: Array<{
+    label: string;
+    icon: typeof TrendingUp;
+    color: string;
+    prompt: string;
+  }>;
 }) {
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -205,45 +215,6 @@ function AIChatInput({
     onSubmit(trimmed);
     setInputValue("");
   };
-
-  const suggestions = [
-    {
-      label: "Close July books",
-      icon: BookOpen,
-      color: "text-blue-500",
-      prompt: "Close the books for July 2026",
-    },
-    {
-      label: "Explain cash position",
-      icon: Wallet,
-      color: "text-emerald-500",
-      prompt: "Explain my current cash position",
-    },
-    {
-      label: "Create payroll",
-      icon: FileText,
-      color: "text-purple-500",
-      prompt: "Create a new payroll run for this month",
-    },
-    {
-      label: "Find duplicate expenses",
-      icon: Search,
-      color: "text-amber-500",
-      prompt: "Scan for duplicate expenses this month",
-    },
-    {
-      label: "Forecast next month",
-      icon: BarChart3,
-      color: "text-indigo-500",
-      prompt: "Forecast cash flow for next month",
-    },
-    {
-      label: "Show unpaid invoices",
-      icon: Calendar,
-      color: "text-rose-500",
-      prompt: "Show all unpaid invoices",
-    },
-  ];
 
   return (
     <div
@@ -422,6 +393,19 @@ const statusConfig: Record<
     iconColor: "text-primary",
     iconBg: "bg-primary/10",
   },
+};
+
+// Maps suggestion IDs from the server to client-side icon + color pairs.
+const SUGGESTION_ICONS: Record<
+  string,
+  { icon: typeof TrendingUp; color: string }
+> = {
+  close_books: { icon: BookOpen, color: "text-blue-500" },
+  cash_position: { icon: Wallet, color: "text-emerald-500" },
+  overdue_invoices: { icon: AlertTriangle, color: "text-rose-500" },
+  pending_journals: { icon: FileText, color: "text-amber-500" },
+  payroll: { icon: Calendar, color: "text-purple-500" },
+  forecast: { icon: BarChart3, color: "text-indigo-500" },
 };
 
 function isAttention(item: BriefingItem): boolean {
@@ -678,30 +662,55 @@ function ExecutiveBriefing({
           {headline && <BriefingHeadline item={headline} />}
 
           {(attentionCards.length > 0 || onTrackCards.length > 0) && (
-            <div className="space-y-2.5">
-              {attentionCards.length > 0 && (
-                <>
-                  <BriefingGroupLabel tone="attention" count={attention.length}>
-                    Needs attention
-                  </BriefingGroupLabel>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {attentionCards.map((item) => (
-                      <BriefingCard key={item.id} item={item} />
-                    ))}
-                  </div>
-                </>
+            <div
+              className={cn(
+                "grid gap-4",
+                attentionCards.length > 0 && onTrackCards.length > 0
+                  ? "lg:grid-cols-2"
+                  : "grid-cols-1",
               )}
-              {onTrackCards.length > 0 && (
-                <>
-                  <BriefingGroupLabel tone="ontrack" count={onTrack.length}>
-                    On track
-                  </BriefingGroupLabel>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {onTrackCards.map((item) => (
-                      <BriefingCard key={item.id} item={item} muted />
-                    ))}
+            >
+              {/* ── Needs Attention ─────────────────────────────────────── */}
+              {attentionCards.length > 0 && (
+                <div className="relative space-y-3 overflow-hidden rounded-xl border border-border/40 bg-card p-4">
+                  <span
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 w-[3px] bg-attention-amber"
+                  />
+                  <div className="pl-1">
+                    <BriefingGroupLabel
+                      tone="attention"
+                      count={attention.length}
+                    >
+                      Needs attention
+                    </BriefingGroupLabel>
+                    <div className="mt-3 space-y-3">
+                      {attentionCards.map((item) => (
+                        <BriefingCard key={item.id} item={item} />
+                      ))}
+                    </div>
                   </div>
-                </>
+                </div>
+              )}
+
+              {/* ── On Track ────────────────────────────────────────────── */}
+              {onTrackCards.length > 0 && (
+                <div className="relative space-y-3 overflow-hidden rounded-xl border border-border/40 bg-card p-4">
+                  <span
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 w-[3px] bg-balanced-green"
+                  />
+                  <div className="pl-1">
+                    <BriefingGroupLabel tone="ontrack" count={onTrack.length}>
+                      On track
+                    </BriefingGroupLabel>
+                    <div className="mt-3 space-y-3">
+                      {onTrackCards.map((item) => (
+                        <BriefingCard key={item.id} item={item} muted />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -1343,6 +1352,22 @@ export default function DashboardPage() {
       },
     );
 
+  // Dynamic AI chat suggestions based on entity state
+  const { data: suggestionsData } =
+    trpc.dashboard.getDashboardSuggestions.useQuery(undefined, {
+      enabled: !!entityId,
+      ...suggestionsQueryOptions,
+    });
+
+  // Map server suggestion IDs to client-side icon + color pairs
+  const chatSuggestions = (suggestionsData ?? []).map((s) => {
+    const meta = SUGGESTION_ICONS[s.id] ?? {
+      icon: Sparkles,
+      color: "text-primary",
+    };
+    return { ...s, icon: meta.icon, color: meta.color };
+  });
+
   // Loading state - show skeleton immediately for perceived performance
   if (isLoading) {
     return (
@@ -1508,6 +1533,7 @@ export default function DashboardPage() {
             isResponding={chat.isStreaming}
             isChatActive={chat.isChatActive}
             onExit={chat.exitChat}
+            suggestions={chatSuggestions}
           />
         </div>
       </div>
