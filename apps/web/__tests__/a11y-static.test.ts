@@ -197,4 +197,20 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     const src = read("app/dashboard/layout.tsx");
     expect(src).toMatch(/h-16 md:hidden/);
   });
+
+  it("Dashboard layout includes route focus manager for screen readers", () => {
+    const src = read("app/dashboard/layout.tsx");
+    expect(src).toMatch(/useRouteFocus/);
+    expect(src).toMatch(/getAnnounceProps/);
+    expect(src).toMatch(/announce/);
+  });
+
+  it("useRouteFocus hook focuses main and announces page title", () => {
+    const src = read("lib/hooks/use-route-focus.ts");
+    expect(src).toMatch(/getElementById\("main-content"\)/);
+    expect(src).toMatch(/focus\(/);
+    expect(src).toMatch(/"aria-live": "polite"/);
+    expect(src).toMatch(/role: "status"/);
+    expect(src).toMatch(/"aria-atomic": "true"/);
+  });
 });
