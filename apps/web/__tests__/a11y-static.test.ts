@@ -252,4 +252,21 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/route-transition-enter/);
     expect(src).toMatch(/animation: route-enter/);
   });
+
+  it("Activity Hub has optimistic state management for approve/reject", () => {
+    const src = read("app/dashboard/activity-hub/page.tsx");
+    // Must have itemStates for tracking optimistic updates
+    expect(src).toMatch(/itemStates/);
+    // Must have setItemStates for updating state
+    expect(src).toMatch(/setItemStates/);
+    // Must have handleAction callback
+    expect(src).toMatch(/handleAction/);
+    // Must pass itemState and onAction to ActivityItemCard
+    expect(src).toMatch(/itemState=\{itemStates/);
+    expect(src).toMatch(/onAction=\{handleAction\}/);
+    // Must show success state with CheckCircle2
+    expect(src).toMatch(/itemState === "success"/);
+    // Must import toast from sonner
+    expect(src).toMatch(/import.*toast.*from.*sonner/);
+  });
 });

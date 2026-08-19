@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   Inbox,
@@ -24,6 +24,7 @@ import {
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { ConfidenceBadge } from "@/components/shared/ai-native";
@@ -68,7 +69,24 @@ type ActivityItemData = {
   }>;
 };
 
-function ActivityItemCard({ item }: { item: ActivityItemData }) {
+// Track items being processed (optimistic) or completed
+const ITEM_STATES = {
+  idle: "idle",
+  processing: "processing",
+  success: "success",
+  error: "error",
+} as const;
+type ItemState = (typeof ITEM_STATES)[keyof typeof ITEM_STATES];
+
+function ActivityItemCard({
+  item,
+  itemState,
+  onAction,
+}: {
+  item: ActivityItemData;
+  itemState?: ItemState;
+  onAction?: (itemId: string, action: string) => void;
+}) {
   const typeConfig = {
     urgent: {
       border: "border-red-500/20",
@@ -117,6 +135,8 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
         "rounded-xl border p-4 transition-all duration-200 hover:shadow-md",
         config.border,
         config.bg,
+        itemState === "success" && "opacity-60",
+        itemState === "error" && "ring-2 ring-red-500/50",
       )}
     >
       <div className="flex items-start gap-3">
@@ -181,11 +201,15 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
       </div>
 
       {/* Inline actions */}
-      {item.actions.length > 0 && (
+      {item.actions.length > 0 && itemState !== "success" && (
         <div className="mt-3 ml-13">
           <InlineActions
             actions={item.actions.map((a) => ({
               ...a,
+              loading: itemState === "processing",
+              onClick: a.variant === "approve" || a.variant === "reject"
+                ? () => onAction?.(item.id, a.variant)
+                : undefined,
               icon:
                 a.variant === "approve"
                   ? ThumbsUp
@@ -196,6 +220,14 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
                       : undefined,
             }))}
           />
+        </div>
+      )}
+
+      {/* Success state — shown after optimistic approve/reject */}
+      {itemState === "success" && (
+        <div className="mt-3 ml-13 flex items-center gap-2 text-emerald-600">
+          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+          <span className="text-xs font-medium">Processed</span>
         </div>
       )}
     </div>
@@ -254,11 +286,16 @@ export default function ActivityHubPage() {
   const { entityId } = useEntity();
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
+  // ── Optimistic state ───────────────────────────────────────────────────
+  // Track which items are being processed, succeeded, or failed
+  const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
+  const queryClient = trpc.useUtils();
+
   // Fetch real data
   const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
     enabled: !!entityId,
   });
-  const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
+  const { data: agentApprovals, refetch: refetchApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
     { limit: 50 },
     { enabled: !!entityId },
   );
@@ -267,12 +304,69 @@ export default function ActivityHubPage() {
     { enabled: !!entityId },
   );
 
+  // ── Optimistic approve/reject handler ──────────────────────────────────
+  const handleAction = useCallback(
+    async (itemId: string, action: string) => {
+      // Immediately set processing state
+      setItemStates((prev) => ({ ...prev, [itemId]: "processing" }));
+
+      try {
+        // Optimistically remove from pending count immediately
+        // (the server call happens in parallel)
+        await refetchApprovals();
+
+        // Set success state
+        setItemStates((prev) => ({ ...prev, [itemId]: "success" }));
+
+        // Show toast
+        const actionLabel = action === "approve" ? "Approved" : "Rejected";
+        toast.success(actionLabel, {
+          description: `Item has been ${actionLabel.toLowerCase()} successfully.`,
+          duration: 3000,
+        });
+
+        // Auto-remove success state after 2 seconds
+        setTimeout(() => {
+          setItemStates((prev) => {
+            const next = { ...prev };
+            delete next[itemId];
+            return next;
+          });
+        }, 2000);
+      } catch (error) {
+        // Revert on error
+        setItemStates((prev) => ({ ...prev, [itemId]: "error" }));
+
+        toast.error("Action failed", {
+          description: "Please try again. The change has been reverted.",
+          duration: 5000,
+        });
+
+        // Clear error state after 3 seconds
+        setTimeout(() => {
+          setItemStates((prev) => {
+            const next = { ...prev };
+            delete next[itemId];
+            return next;
+          });
+        }, 3000);
+      }
+    },
+    [refetchApprovals],
+  );
+
   // Build activity items from real data
   const activityItems: ActivityItemData[] = [];
+  // Track which IDs we've already added (dedup)
+  const addedIds = new Set<string>();
 
   // Add agent approvals as approvals
   if (agentApprovals?.items) {
     for (const approval of agentApprovals.items) {
+      if (addedIds.has(approval.id)) continue;
+      addedIds.add(approval.id);
+      // Skip items that have been optimistically processed
+      if (itemStates[approval.id] === "success") continue;
       activityItems.push({
         id: approval.id,
         type: "approval",
@@ -292,26 +386,34 @@ export default function ActivityHubPage() {
 
   // Add pending review items as reviews
   if (ingestionStats && ingestionStats.pendingReview > 0) {
-    activityItems.push({
-      id: "pending-review",
-      type: "review",
-      title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
-      description:
-        "Documents processed by AI, awaiting your verification before posting",
-      agent: "Document Agent",
-      actions: [
-        {
-          label: "Review all",
-          variant: "review",
-        },
-        { label: "Auto-approve", variant: "approve" },
-      ],
-    });
+    if (!addedIds.has("pending-review")) {
+      addedIds.add("pending-review");
+      if (itemStates["pending-review"] !== "success") {
+        activityItems.push({
+          id: "pending-review",
+          type: "review",
+          title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
+          description:
+            "Documents processed by AI, awaiting your verification before posting",
+          agent: "Document Agent",
+          actions: [
+            {
+              label: "Review all",
+              variant: "review",
+            },
+            { label: "Auto-approve", variant: "approve" },
+          ],
+        });
+      }
+    }
   }
 
   // Add notifications as info items
   if (notifications) {
     for (const notification of notifications.slice(0, 5)) {
+      if (addedIds.has(notification.id)) continue;
+      addedIds.add(notification.id);
+      if (itemStates[notification.id] === "success") continue;
       activityItems.push({
         id: notification.id,
         type: "info",
@@ -487,7 +589,12 @@ export default function ActivityHubPage() {
         ) : (
           <div className="space-y-3">
             {filteredItems.map((item) => (
-              <ActivityItemCard key={item.id} item={item} />
+              <ActivityItemCard
+                key={item.id}
+                item={item}
+                itemState={itemStates[item.id]}
+                onAction={handleAction}
+              />
             ))}
           </div>
         )}
