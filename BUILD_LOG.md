@@ -34,6 +34,25 @@
 
 ---
 
+### [2026-08-19] — WCAG 2.1 AA accessibility audit + fixes across all 5 surfaces
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/page.tsx`, `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/app/dashboard/financial-pulse/page.tsx`, `apps/web/app/dashboard/ledger/page.tsx`, `apps/web/app/dashboard/operations/page.tsx`, `apps/web/components/shared/ai-native/confidence-badge.tsx`, `apps/web/components/shared/ai-native/actor-badge.tsx`, `apps/web/components/shared/ai-native/ai-narrative-header.tsx`, `apps/web/components/shared/ai-native/inline-actions.tsx`, `apps/web/components/shared/ai-native/alert-card.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Systematic WCAG 2.1 AA audit and fixes across all 5 AI-native surfaces:
+
+1. **Command Center** — Added `<label>` for chat textarea (`htmlFor`/`id`), `aria-label` on send button, `aria-live="polite"` on streaming content, `role="status"` on thinking indicator, `aria-hidden="true"` on decorative icons.
+2. **Activity Hub** — Added `aria-expanded` + `aria-controls` on completed section toggle, `aria-label` on count badge, `aria-hidden` on decorative stat icons.
+3. **Financial Pulse** — Added `<label>` for scenario planner input, `role="img"` + `aria-label` on sparkline SVGs, `aria-hidden` on decorative icons.
+4. **Ledger** — Added `<label>` for journal search input, `aria-label` + `<caption>` on trial balance table, `aria-label` on fixed assets and reconciliation buttons, `aria-hidden` on decorative icons.
+5. **Operations** — Added `aria-hidden` on all decorative icons (section headers, status indicators, people grid, quick access).
+6. **Shared Components** — Added `role="status"` to ConfidenceBadge, `aria-hidden` to all decorative icons in ActorBadge, AiNarrativeHeader, InlineActions, AlertCard.
+7. **Test Suite** — Added 12 new a11y tests covering all surfaces (26/26 pass).
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 26/26 pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — Admin panels functional: agent-monitor, workflow-builder, blog, careers
 
 **Agent:** Buffy
