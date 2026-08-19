@@ -522,6 +522,22 @@
     }
   }
 
+  /* ── Route Transition — fade + subtle slide on surface change ── */
+  @keyframes route-enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .route-transition-enter {
+    animation: route-enter 200ms ease-out both;
+  }
+
   /* ── Reconciliation "Snap Together" Animation ── */
   /* Spec §4: confirmed matches show a two-line slide-to-meet effect. */
   @keyframes recon-snap {

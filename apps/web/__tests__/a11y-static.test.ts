@@ -239,4 +239,17 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/role: "status"/);
     expect(src).toMatch(/"aria-atomic": "true"/);
   });
+
+  it("Dashboard layout wraps children in route-transition-enter div keyed on pathname", () => {
+    const src = read("app/dashboard/layout.tsx");
+    expect(src).toMatch(/key=\{pathname\}/);
+    expect(src).toMatch(/route-transition-enter/);
+  });
+
+  it("globals.css defines route-enter keyframe animation", () => {
+    const src = read("app/globals.css");
+    expect(src).toMatch(/@keyframes route-enter/);
+    expect(src).toMatch(/route-transition-enter/);
+    expect(src).toMatch(/animation: route-enter/);
+  });
 });

@@ -169,7 +169,10 @@ export default function DashboardLayout({
                     >
                       {/* Screen reader heading — ensures every page has an h1 for WCAG 1.3.1 */}
                       <h1 className="sr-only">{getPageTitle(pathname)}</h1>
-                      {children}
+                      {/* Route transition — keyed on pathname triggers fade+slide animation */}
+                      <div key={pathname} className="route-transition-enter">
+                        {children}
+                      </div>
                     </main>
 
                     {/* Mobile bottom nav spacer — prevents content from hiding behind the fixed bottom bar */}
