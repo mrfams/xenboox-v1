@@ -334,6 +334,7 @@ function JournalOverview({
   sources,
   insights,
   outlierSignals,
+  trendData,
 }: {
   topAccounts?: Array<{
     name: string;
