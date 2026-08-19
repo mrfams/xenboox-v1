@@ -814,7 +814,7 @@ function VendorsOverview({
         <BottomRow
           topVendors={topVendors}
           paymentTerms={paymentTerms}
-          trendData={payablesTrend ?? []}
+          trendData={trendData ?? []}
         />
       </div>
 
