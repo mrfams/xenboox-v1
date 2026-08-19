@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-20] — Keyboard shortcut indicators in sidebar tooltips
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/components/layout/sidebar.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added visible keyboard shortcut indicators to sidebar nav items:
+
+1. **NavItem Type** — Added optional `shortcut` field for the key binding
+2. **Shortcut Data** — 1=Command Center, 2=Activity Hub, 3=Financial Pulse, 4=Ledger, 5=Operations
+3. **Badge Rendering** — Monospace `span` with `hidden lg:inline-flex` shows the shortcut key when sidebar is expanded
+4. **Native Tooltip** — `title` attribute: "Command Center (Press 1)" on hover
+5. **Screen Reader** — `aria-label` includes "keyboard shortcut N" for each item
+6. **Badge Style** — `bg-white/[0.08]` subtle glass effect, `font-mono font-bold`, dark text on dark sidebar
+7. **Tests** — 40/40 a11y tests pass (1 new test)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 40/40 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Batch approve/reject for Activity Hub
 
 **Agent:** Buffy
