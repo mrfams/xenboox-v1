@@ -15,6 +15,7 @@ import { ChatPanel } from "@/components/layout/chat-panel";
 import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
 
 function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
   const { entityRole } = useEntity();
@@ -100,6 +101,15 @@ export default function DashboardLayout({
         <WhiteLabelProvider>
           <PermissionAwareLayout>
             <SimulationProvider>
+              {/* Data-aware context menu — appears on text selection across all pages */}
+              <DataAwareContextMenu
+                onOpenCopilot={(prompt) => {
+                  // Navigate to chat page with the prompt as a search param.
+                  // The chat page reads it and sends it to the AI.
+                  window.location.href = `/dashboard/chat?prompt=${encodeURIComponent(prompt)}`;
+                }}
+              />
+
               {/* Skip link — first tab stop jumps past the sidebar/top-nav to content */}
               <a
                 href="#main-content"
@@ -115,7 +125,7 @@ export default function DashboardLayout({
                 />
 
                 {/* Main Content + Right Panel Container */}
-                <div className="flex flex-1 overflow-hidden lg:pl-[var(--sidebar-width)]">
+                <div className="flex flex-1 overflow-hidden md:pl-16 lg:pl-[var(--sidebar-width)]">
                   {/* Main Content */}
                   <div
                     className={cn(

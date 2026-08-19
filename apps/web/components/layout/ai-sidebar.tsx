@@ -3,16 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-// ── Hover-expand system (DISABLED — sidebar is now a permanent icon rail) ──
-// To restore the old hover-expand behavior:
-//   1. Uncomment this import, the isHovered state + --sidebar-width effect
-//      inside AISidebar, and the onMouseEnter/onMouseLeave handlers below.
-//   2. Revert --sidebar-width in app/globals.css to 4.25rem.
-//   3. Revert the rail layout: in renderNavItem change the lg: classes back
-//      to "lg:justify-center lg:group-hover:justify-start" and the label/badge
-//      back to "lg:hidden lg:group-hover:inline(-flex)"; in WhiteLabelLogo and
-//      the avatar restore the lg:group-hover:* classes (each marked "rail").
-// import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Home,
   Compass,
@@ -111,14 +102,18 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-function WhiteLabelLogo() {
+function WhiteLabelLogo({ expanded }: { expanded?: boolean }) {
   const { branding } = useWhiteLabel();
 
   if (branding?.isActive && branding.displayName) {
     return (
       <Link
         href="/dashboard"
-        className="flex items-center gap-2 lg:justify-center"
+        className={cn(
+          "flex items-center gap-2",
+          expanded ? "md:justify-start" : "md:justify-center",
+          "lg:justify-center",
+        )}
       >
         {branding.logoUrl ? (
           <img
@@ -141,7 +136,11 @@ function WhiteLabelLogo() {
           </div>
         )}
         <span
-          className="text-lg font-bold tracking-tight lg:hidden"
+          className={cn(
+            "text-lg font-bold tracking-tight",
+            expanded ? "md:inline" : "md:hidden",
+            "lg:hidden",
+          )}
           style={
             branding.colorScheme?.primary
               ? { color: branding.colorScheme.primary }
@@ -157,10 +156,20 @@ function WhiteLabelLogo() {
   return (
     <Link
       href="/dashboard"
-      className="flex items-center gap-2.5 lg:justify-center"
+      className={cn(
+        "flex items-center gap-2.5",
+        expanded ? "md:justify-start" : "md:justify-center",
+        "lg:justify-center",
+      )}
     >
       <Logo size={32} className="shadow-lg shadow-primary/20" />
-      <span className="text-lg font-bold tracking-tight text-[hsl(var(--sidebar-text))] lg:hidden">
+      <span
+        className={cn(
+          "text-lg font-bold tracking-tight text-[hsl(var(--sidebar-text))]",
+          expanded ? "md:inline" : "md:hidden",
+          "lg:hidden",
+        )}
+      >
         Xenboox
       </span>
     </Link>
@@ -196,7 +205,7 @@ function useApprovalCounts() {
 
 // ─── Agent Status Bar ───────────────────────────────────────────────────
 
-function AgentStatusBar() {
+function AgentStatusBar({ expanded }: { expanded: boolean }) {
   const { pendingReview, processing, agentCount } = useApprovalCounts();
   const totalPending = pendingReview + agentCount;
 
@@ -222,7 +231,13 @@ function AgentStatusBar() {
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 [animation-delay:150ms]" />
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 [animation-delay:300ms]" />
         </div>
-        <span className="text-[10px] text-muted-foreground lg:hidden">
+        <span
+          className={cn(
+            "text-[10px] text-muted-foreground",
+            expanded ? "md:block" : "md:hidden",
+            "lg:hidden",
+          )}
+        >
           {statusText}
         </span>
       </div>
@@ -241,15 +256,12 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
   const user = session?.user;
   const isExploreAllowed = user?.email?.toLowerCase() === EXPLORE_ALLOWED_EMAIL;
 
-  // ── Hover-expand (disabled) — see the import comment at the top ──
-  // const [isHovered, setIsHovered] = useState(false);
-  //
-  // useEffect(() => {
-  //   document.documentElement.style.setProperty(
-  //     "--sidebar-width",
-  //     isHovered ? "16rem" : "4.25rem",
-  //   );
-  // }, [isHovered]);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Collapse overlay on route change
+  useEffect(() => {
+    setIsHovered(false);
+  }, [pathname]);
 
   const { stats, pendingReview, agentCount } = useApprovalCounts();
   const approvalCounts = {
@@ -276,14 +288,14 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
       <Link
         key={item.href}
         href={item.href}
-        onClick={onClose}
+        onClick={() => {
+          onClose();
+          setIsHovered(false);
+        }}
         title={item.label}
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
-          // Rail layout (restore hover-expand: revert to
-          // "lg:justify-center lg:group-hover:justify-start" on the link and
-          // "lg:hidden lg:group-hover:inline" on the label/badge below).
-          "lg:flex-col lg:gap-1 lg:px-1 lg:py-2 lg:text-[10px] lg:leading-tight",
+          "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
           isActive(item)
             ? "bg-primary/15 text-primary"
             : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
@@ -297,7 +309,15 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
             </span>
           )}
         </span>
-        <span className="flex-1 truncate lg:flex-none lg:w-full lg:text-center">
+        <span
+          className={cn(
+            "flex-1 truncate",
+            isHovered
+              ? "md:block md:flex-none md:w-full md:text-center"
+              : "md:hidden",
+            "lg:block lg:flex-none lg:w-full lg:text-center",
+          )}
+        >
           {item.label}
         </span>
       </Link>
@@ -308,26 +328,38 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
           onClick={onClose}
+        />
+      )}
+
+      {/* Tablet: hover-expand overlay backdrop */}
+      {isHovered && (
+        <div
+          className="fixed inset-0 z-[54] bg-black/50 hidden md:block lg:hidden"
+          onClick={() => setIsHovered(false)}
         />
       )}
 
       <aside
         data-tour="sidebar"
-        // onMouseEnter={() => setIsHovered(true)}
-        // onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         className={cn(
-          // "group" kept for the (disabled) hover-expand restore path.
           "group fixed inset-y-0 left-0 z-[49] flex w-64 flex-col border-r border-white/[0.06] transition-all duration-200 ease-in-out",
           "bg-[hsl(var(--sidebar-bg))]",
-          "lg:translate-x-0 lg:w-[var(--sidebar-width)]",
           isOpen ? "translate-x-0" : "-translate-x-full",
+          // Tablet: always-visible icon rail
+          "md:translate-x-0 md:w-16",
+          // Tablet hover: overlay expand
+          isHovered && "md:w-64 md:z-[55]",
+          // Desktop: permanent rail with labels
+          "lg:w-[var(--sidebar-width)]",
         )}
       >
         {/* Logo */}
         <div className="flex flex-col gap-3 border-b border-white/[0.06] p-4">
-          <WhiteLabelLogo />
+          <WhiteLabelLogo expanded={isHovered} />
         </div>
 
         {/* Primary Navigation */}
@@ -343,17 +375,29 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Agent status — renders only when something is processing/pending */}
-        <AgentStatusBar />
+        <AgentStatusBar expanded={isHovered} />
 
         {/* Help & Support */}
         <div className="border-t border-white/[0.06] p-3">
           <Link
             href="/dashboard/help"
             title="Help & Support"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))] transition-all duration-150 lg:flex-col lg:gap-1 lg:px-1 lg:py-2 lg:text-[10px] lg:leading-tight"
+            onClick={() => setIsHovered(false)}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))] transition-all duration-150",
+              "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
+            )}
           >
             <HelpCircle className="h-5 w-5" />
-            <span className="flex-1 truncate lg:flex-none lg:w-full lg:text-center">
+            <span
+              className={cn(
+                "flex-1 truncate",
+                isHovered
+                  ? "md:block md:flex-none md:w-full md:text-center"
+                  : "md:hidden",
+                "lg:block lg:flex-none lg:w-full lg:text-center",
+              )}
+            >
               Help
             </span>
           </Link>

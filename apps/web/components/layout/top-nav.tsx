@@ -330,7 +330,7 @@ export function TopNav({
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="md:hidden"
           onClick={onMenuClick}
           aria-label="Toggle navigation"
         >
