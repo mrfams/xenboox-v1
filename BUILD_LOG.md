@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-20] — Keyboard shortcuts 1-5 for surface navigation
+
+**Agent:** Buffy
+**Files Created:** `apps/web/lib/hooks/use-surface-shortcuts.ts`
+**Files Modified:** `apps/web/app/dashboard/layout.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added keyboard shortcuts for instant surface navigation:
+
+1. **`useSurfaceShortcuts` Hook** — Global keydown listener mapping 1→Command Center, 2→Activity Hub, 3→Financial Pulse, 4→Ledger, 5→Operations
+2. **Interactive Element Detection** — Ignores shortcuts when focus is on input/textarea/select/button/a/contenteditable (prevents conflicts with typing)
+3. **Modifier Key Guard** — Ignores Ctrl+1, Cmd+1, Alt+1, etc.
+4. **No-op on Current Surface** — Skips navigation if already on that surface
+5. **Layout Wiring** — `useSurfaceShortcuts()` called in dashboard layout, active on all surfaces
+6. **Tests** — 38/38 a11y tests pass (2 new tests)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 38/38 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Optimistic UI updates for Activity Hub approve/reject
 
 **Agent:** Buffy
