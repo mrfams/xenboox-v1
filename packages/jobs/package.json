@@ -33,6 +33,14 @@
     "./lib/dlq": {
       "import": "./lib/dlq.ts",
       "default": "./lib/dlq.ts"
+    },
+    "./lib/audit-archival": {
+      "import": "./lib/audit-archival.ts",
+      "default": "./lib/audit-archival.ts"
+    },
+    "./lib/data-retention": {
+      "import": "./lib/data-retention.ts",
+      "default": "./lib/data-retention.ts"
     }
   },
   "scripts": {

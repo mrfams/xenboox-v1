@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { auditArchiveManifests } from "@xenboox/db/schema/audit-archive";
-import { auditLog } from "@xenboox/db/schema/accounting";
+import { auditLog } from "@xenboox/db/schema/documents";
 
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
