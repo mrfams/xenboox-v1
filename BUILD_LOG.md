@@ -53,6 +53,25 @@
 
 ---
 
+### [2026-08-19] — Mobile responsive: bottom nav + breakpoints + touch targets
+
+**Agent:** Buffy
+**Files Created:** `apps/web/components/layout/mobile-bottom-nav.tsx`
+**Files Modified:** `apps/web/app/dashboard/layout.tsx`, `apps/web/components/layout/sidebar.tsx`, `apps/web/app/dashboard/page.tsx`, `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/app/dashboard/financial-pulse/page.tsx`, `apps/web/app/dashboard/ledger/page.tsx`, `apps/web/app/dashboard/operations/page.tsx`, `apps/web/components/shared/ai-native/inline-actions.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added mobile responsive design for all 5 AI-native surfaces:
+
+1. **MobileBottomNav** — New component with 5 surfaces (Command, Activity, Pulse, Ledger, Ops). Hidden on md+ (desktop uses sidebar). 48x48px touch targets, attention dots, aria-current, aria-labels.
+2. **Dashboard Layout** — Added MobileBottomNav + 64px bottom spacer on mobile so content doesn't hide behind the fixed nav bar.
+3. **Sidebar** — Hidden on mobile (< md) since bottom nav handles navigation. Overlay also hidden on mobile.
+4. **Responsive Breakpoints** — All 5 surfaces now have mobile-first padding (p-3 pb-20 sm:p-6 md:pb-6). Command Center has responsive text sizes.
+5. **Touch Targets** — InlineActions buttons now have min-h-[36px] for better touch targets on mobile.
+6. **Tests** — Added 3 new a11y tests (29/29 pass).
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 29/29 pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — Admin panels functional: agent-monitor, workflow-builder, blog, careers
 
 **Agent:** Buffy
