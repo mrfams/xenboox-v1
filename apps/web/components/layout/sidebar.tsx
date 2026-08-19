@@ -5,22 +5,13 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard,
-  Compass,
   MessageSquare,
-  Wallet,
-  Receipt,
-  CreditCard,
-  Users,
-  BarChart3,
-  BookOpen,
+  Inbox,
   Activity,
+  BookOpen,
+  ArrowLeftRight,
   Settings,
   HelpCircle,
-  RefreshCw,
-  FileText,
-  Landmark,
-  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,147 +29,62 @@ import {
   type NavKey,
 } from "@/lib/hooks/use-attention-signals";
 
+// ─── AI-Native Sidebar ─────────────────────────────────────────────────────
+//
+// 5 surfaces, not 21. The human's mental model, not the accountant's:
+//   1. Command Center  — AI is your CFO. Talk, it acts.
+//   2. Activity Hub    — What needs YOUR attention right now.
+//   3. Financial Pulse — AI-narrated financial health.
+//   4. Ledger          — The accounting records (when you need to look).
+//   5. Operations      — Money in, money out (AI handles, you approve).
+
 type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
-  badge?: string;
-  // Which attention bucket lights this item up (approvals → Inbox, report
-  // ready → Reports, …). The two-tone system lives in use-attention-signals.
   attentionKey?: NavKey;
-  attrs?: Record<string, string>;
   match?: string[];
 };
 
 const primaryNavItems: NavItem[] = [
   {
-    label: "Dashboard",
+    label: "Command Center",
     href: "/dashboard",
-    icon: LayoutDashboard,
-    attentionKey: "dashboard",
-  },
-  {
-    label: "Explore",
-    href: "/dashboard/explore",
-    icon: Compass,
-    match: ["/dashboard/explore"],
-  },
-  {
-    label: "AI Command Center",
-    href: "/dashboard/chat",
     icon: MessageSquare,
-    attrs: { "data-tour": "cfo-agent" },
+    attentionKey: "command-center",
   },
   {
-    label: "Inbox",
-    href: "/dashboard/inbox",
-    icon: Receipt,
-    attentionKey: "inbox",
-    match: [
-      "/dashboard/inbox",
-      "/dashboard/review-queue",
-      "/dashboard/notifications",
-    ],
+    label: "Activity Hub",
+    href: "/dashboard/activity-hub",
+    icon: Inbox,
+    attentionKey: "activity-hub",
+    match: ["/dashboard/activity-hub"],
   },
   {
-    label: "Transactions",
-    href: "/dashboard/transactions",
+    label: "Financial Pulse",
+    href: "/dashboard/financial-pulse",
+    icon: Activity,
+    attentionKey: "financial-pulse",
+    match: ["/dashboard/financial-pulse"],
+  },
+  {
+    label: "Ledger",
+    href: "/dashboard/ledger",
     icon: BookOpen,
+    attentionKey: "ledger",
+    match: ["/dashboard/ledger"],
   },
   {
-    label: "Banking",
-    href: "/dashboard/banking",
-    icon: Wallet,
-    match: ["/dashboard/banking", "/dashboard/cash", "/dashboard/fixed-assets"],
+    label: "Operations",
+    href: "/dashboard/operations",
+    icon: ArrowLeftRight,
+    attentionKey: "operations",
+    match: ["/dashboard/operations"],
   },
-  {
-    label: "General Ledger",
-    href: "/dashboard/journal",
-    icon: BookOpen,
-    match: [
-      "/dashboard/journal",
-      "/dashboard/chart-of-accounts",
-      "/dashboard/trial-balance",
-    ],
-  },
-  {
-    label: "Customers",
-    href: "/dashboard/customers",
-    icon: Users,
-  },
-  {
-    label: "Vendors",
-    href: "/dashboard/vendors",
-    icon: Users,
-  },
-  {
-    label: "Invoicing",
-    href: "/dashboard/invoicing",
-    icon: Receipt,
-    attentionKey: "invoicing",
-  },
-  {
-    label: "Estimates & Quotes",
-    href: "/dashboard/estimates",
-    icon: FileText,
-  },
-  {
-    label: "Bills",
-    href: "/dashboard/bills",
-    icon: CreditCard,
-  },
-  {
-    label: "Expenses",
-    href: "/dashboard/expenses",
-    icon: Receipt,
-  },
-  {
-    label: "Payroll",
-    href: "/dashboard/payroll",
-    icon: Users,
-    attentionKey: "payroll",
-  },
-  {
-    label: "Tax & Compliance",
-    href: "/dashboard/tax-compliance",
-    icon: Landmark,
-  },
-  {
-    label: "Reports",
-    href: "/dashboard/reports",
-    icon: BarChart3,
-    attentionKey: "reports",
-    match: [
-      "/dashboard/reports",
-      "/dashboard/trial-balance",
-      "/dashboard/consolidation",
-      "/dashboard/documents",
-    ],
-  },
-  {
-    label: "Close Center",
-    href: "/dashboard/close",
-    icon: RefreshCw,
-    badge: "New",
-    attentionKey: "close",
-  },
-  {
-    label: "Reconciliation",
-    href: "/dashboard/reconciliation/center",
-    icon: RefreshCw,
-    attentionKey: "reconciliation",
-  },
-  { label: "Agent Monitor", href: "/dashboard/agent-monitor", icon: Activity },
-  {
-    label: "Activity Log",
-    href: "/dashboard/activity",
-    icon: ScrollText,
-  },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
+  { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 interface SidebarProps {
@@ -244,14 +150,8 @@ function WhiteLabelLogo() {
 
 // ─── Attention Strip ──────────────────────────────────────────────────────
 //
-// Bottom-of-sidebar summary that answers "is anything waiting on me, and
-// where?" at a glance:
-//   - pulsing red "N need your attention" → Inbox (the review queue — where
-//     approvals and escalations are resolved)
-//   - indigo "N new updates" → the notifications page
-//   - green processing pulse → agents still working (nothing needed from you)
-// Renders nothing when there is nothing to say — a quiet rail is the
-// success state, not a permanent red dot.
+// Bottom-of-sidebar summary: "N need your attention" → Activity Hub.
+// A quiet rail is the success state.
 
 function AttentionStrip({
   totals,
@@ -265,7 +165,7 @@ function AttentionStrip({
   if (totals.action > 0) {
     return (
       <Link
-        href="/dashboard/inbox"
+        href="/dashboard/activity-hub"
         onClick={onClose}
         className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 transition-colors hover:bg-destructive/15"
       >
@@ -280,7 +180,7 @@ function AttentionStrip({
   if (totals.new > 0) {
     return (
       <Link
-        href="/dashboard/notifications"
+        href="/dashboard/activity-hub"
         onClick={onClose}
         className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 transition-colors hover:bg-primary/15"
       >
@@ -310,17 +210,10 @@ function AttentionStrip({
   return null;
 }
 
-// The Explore hub (dashboard/explore) is currently in a soft-launch — only
-// demo@xenboox.com sees it in the sidebar. Remove this gate (and the filter
-// below) when it ships to everyone.
-const EXPLORE_ALLOWED_EMAIL = "demo@xenboox.com";
-
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const [isHovered, setIsHovered] = useState(false);
   const { data: session } = useSession();
-  const isExploreAllowed =
-    session?.user?.email?.toLowerCase() === EXPLORE_ALLOWED_EMAIL;
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -363,7 +256,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
         )}
         aria-current={isActive(item) ? "page" : undefined}
-        {...(item.attrs ?? {})}
       >
         <span className="relative">
           <item.icon className="h-4 w-4 shrink-0" />
@@ -384,14 +276,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             tone={tone}
             className="lg:hidden lg:group-hover:inline-flex"
           />
-        )}
-        {item.badge && (
-          <Badge
-            variant="secondary"
-            className="text-[10px] px-1.5 py-0 lg:hidden lg:group-hover:inline-flex"
-          >
-            {item.badge}
-          </Badge>
         )}
       </Link>
     );
@@ -422,19 +306,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <WhiteLabelLogo />
         </div>
 
-        {/* Primary Navigation */}
+        {/* Primary Navigation — 5 AI-native surfaces */}
         <nav className="flex-1 overflow-y-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="space-y-0.5 px-2">
-            {primaryNavItems
-              .filter(
-                (item) =>
-                  item.href !== "/dashboard/explore" || isExploreAllowed,
-              )
-              .map((item) => renderNavItem(item))}
+            {primaryNavItems.map((item) => renderNavItem(item))}
           </div>
         </nav>
 
-        {/* Bottom Nav + User Profile */}
+        {/* Bottom Nav + Attention Strip */}
         <div className="border-t border-white/[0.06] p-3 space-y-2">
           <div className="lg:hidden lg:group-hover:block">
             <AttentionStrip

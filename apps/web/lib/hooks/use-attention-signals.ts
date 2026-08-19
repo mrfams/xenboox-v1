@@ -17,13 +17,11 @@ import { useEntity } from "@/lib/entity-context";
 export type AttentionTone = "action" | "new";
 
 export type NavKey =
-  | "inbox"
-  | "reports"
-  | "close"
-  | "payroll"
-  | "invoicing"
-  | "reconciliation"
-  | "dashboard";
+  | "command-center"
+  | "activity-hub"
+  | "financial-pulse"
+  | "ledger"
+  | "operations";
 
 export interface NavAttention {
   tone: AttentionTone;
@@ -43,39 +41,34 @@ export const NOTIFICATION_DESTINATIONS: Record<
   string,
   { key: NavKey; tone: AttentionTone }
 > = {
-  ingestion_review: { key: "inbox", tone: "action" },
-  ingestion_rejected: { key: "inbox", tone: "action" },
-  agent_escalation: { key: "inbox", tone: "action" },
-  agent_flag: { key: "inbox", tone: "action" },
-  ingestion_posted: { key: "inbox", tone: "new" },
-  report_ready: { key: "reports", tone: "new" },
-  close_complete: { key: "close", tone: "new" },
-  close_failed: { key: "close", tone: "action" },
-  payroll_processed: { key: "payroll", tone: "new" },
-  overdue_invoice: { key: "invoicing", tone: "action" },
-  invoice_reminder: { key: "invoicing", tone: "new" },
-  recon_discrepancy: { key: "reconciliation", tone: "action" },
-  budget_alert: { key: "dashboard", tone: "new" },
-  budget_exceeded: { key: "dashboard", tone: "action" },
-  system_alert: { key: "dashboard", tone: "action" },
+  ingestion_review: { key: "activity-hub", tone: "action" },
+  ingestion_rejected: { key: "activity-hub", tone: "action" },
+  agent_escalation: { key: "activity-hub", tone: "action" },
+  agent_flag: { key: "activity-hub", tone: "action" },
+  ingestion_posted: { key: "activity-hub", tone: "new" },
+  report_ready: { key: "financial-pulse", tone: "new" },
+  close_complete: { key: "operations", tone: "new" },
+  close_failed: { key: "operations", tone: "action" },
+  payroll_processed: { key: "operations", tone: "new" },
+  overdue_invoice: { key: "operations", tone: "action" },
+  invoice_reminder: { key: "operations", tone: "new" },
+  recon_discrepancy: { key: "operations", tone: "action" },
+  budget_alert: { key: "financial-pulse", tone: "new" },
+  budget_exceeded: { key: "financial-pulse", tone: "action" },
+  system_alert: { key: "command-center", tone: "action" },
 };
 
 // Notification types added in the future land on Inbox (which also hosts the
 // notifications page) as informational — they can never be dropped silently.
-const DEFAULT_DESTINATION = { key: "inbox", tone: "new" } as const;
+const DEFAULT_DESTINATION = { key: "activity-hub", tone: "new" } as const;
 
 function emptySignals(): Record<NavKey, NavAttention> {
-  // Baseline tone is always "new". "action" is only ever set when a real
-  // action signal arrives — a destination that receives ONLY fresh-result
-  // notifications must never render as "blocked on you".
   return {
-    inbox: { tone: "new", count: 0 },
-    reports: { tone: "new", count: 0 },
-    close: { tone: "new", count: 0 },
-    payroll: { tone: "new", count: 0 },
-    invoicing: { tone: "new", count: 0 },
-    reconciliation: { tone: "new", count: 0 },
-    dashboard: { tone: "new", count: 0 },
+    "command-center": { tone: "new", count: 0 },
+    "activity-hub": { tone: "new", count: 0 },
+    "financial-pulse": { tone: "new", count: 0 },
+    ledger: { tone: "new", count: 0 },
+    operations: { tone: "new", count: 0 },
   };
 }
 
@@ -111,13 +104,11 @@ export function computeAttentionSignals(
   }
 
   // Ingestion review queue + agent escalations + failed documents are the
-  // authoritative "blocked on you" workload. They feed Inbox regardless of
-  // notification rows, which can be dismissed without resolving the work.
-  // An action notification sets the tone; the workload re-asserts it.
-  const inboxAction = input.pendingReview + input.agentApprovals + input.failed;
-  if (inboxAction > 0) {
-    byKey.inbox.count += inboxAction;
-    byKey.inbox.tone = "action";
+  // authoritative "blocked on you" workload. They feed the Activity Hub.
+  const hubAction = input.pendingReview + input.agentApprovals + input.failed;
+  if (hubAction > 0) {
+    byKey["activity-hub"].count += hubAction;
+    byKey["activity-hub"].tone = "action";
   }
 
   const totals: AttentionTotals = { action: 0, new: 0 };
