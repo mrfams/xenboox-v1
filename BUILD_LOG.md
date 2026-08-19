@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-20] — Confirmation dialog for batch reject in Activity Hub
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added WAI-ARIA confirmation dialog for destructive batch reject:
+
+1. **Dialog State** — `confirmRejectOpen` state controls visibility
+2. **Trigger** — "Reject all" button now opens dialog instead of directly rejecting
+3. **Dialog Content** — AlertTriangle icon, "Reject N items?" heading, warning text, undo note
+4. **Actions** — Cancel dismisses, Confirm proceeds with `handleBatchAction("reject")`
+5. **Dismiss** — Escape key and backdrop click close the dialog
+6. **ARIA** — `role="dialog"`, `aria-modal="true"`, `aria-label="Confirm batch reject"`
+7. **Tests** — 41/41 a11y tests pass (1 new test)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 41/41 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Keyboard shortcut indicators in sidebar tooltips
 
 **Agent:** Buffy
