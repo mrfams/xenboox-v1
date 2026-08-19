@@ -3,3 +3,8 @@ export { ActorBadge } from "./actor-badge";
 export { AiNarrativeHeader } from "./ai-narrative-header";
 export { InlineActions } from "./inline-actions";
 export { AlertCard } from "./alert-card";
+export { AiThinkingSteps, AiThinkingIndicator, AiProcessingOverlay } from "./ai-thinking-steps";
+export { AiConfidenceExplainer } from "./ai-confidence-explainer";
+export { AiProactiveAlert } from "./ai-proactive-alert";
+export { AiAutofillIndicator, AiAutofillBadge, AiConfidenceField } from "./ai-autofill-indicator";
+export { AiBatchProcessor } from "./ai-batch-processor";

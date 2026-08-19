@@ -301,6 +301,44 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/getCategoryForAction/);
   });
 
+  it("AI thinking steps component exists with required features", () => {
+    const src = read("components/shared/ai-native/ai-thinking-steps.tsx");
+    expect(src).toMatch(/AiThinkingSteps/);
+    expect(src).toMatch(/AiThinkingIndicator/);
+    expect(src).toMatch(/AiProcessingOverlay/);
+    expect(src).toMatch(/role="status"/);
+    expect(src).toMatch(/aria-live="polite"/);
+  });
+
+  it("AI confidence explainer exists with expandable explanation", () => {
+    const src = read("components/shared/ai-native/ai-confidence-explainer.tsx");
+    expect(src).toMatch(/AiConfidenceExplainer/);
+    expect(src).toMatch(/aria-expanded/);
+    expect(src).toMatch(/reasons/);
+  });
+
+  it("AI proactive alert exists with severity levels", () => {
+    const src = read("components/shared/ai-native/ai-proactive-alert.tsx");
+    expect(src).toMatch(/AiProactiveAlert/);
+    expect(src).toMatch(/role="alert"/);
+    expect(src).toMatch(/critical|warning|info|success/);
+  });
+
+  it("AI auto-fill indicator exists", () => {
+    const src = read("components/shared/ai-native/ai-autofill-indicator.tsx");
+    expect(src).toMatch(/AiAutofillIndicator/);
+    expect(src).toMatch(/AiAutofillBadge/);
+    expect(src).toMatch(/AiConfidenceField/);
+    expect(src).toMatch(/AI filled/);
+  });
+
+  it("AI batch processor exists with progress tracking", () => {
+    const src = read("components/shared/ai-native/ai-batch-processor.tsx");
+    expect(src).toMatch(/AiBatchProcessor/);
+    expect(src).toMatch(/categories/);
+    expect(src).toMatch(/Process All/);
+  });
+
   it("EntitySwitcher component exists with full functionality", () => {
     const src = read("components/layout/entity-switcher.tsx");
     expect(src).toMatch(/EntitySwitcher/);
