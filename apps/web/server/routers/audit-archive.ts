@@ -166,7 +166,7 @@ export const auditArchiveRouter = router({
         .set({
           status: "verified",
           verifiedAt: new Date(),
-          verifiedBy: ctx.userId ?? "system",
+          verifiedBy: ctx.session?.user?.id ?? "system",
         })
         .where(
           and(
