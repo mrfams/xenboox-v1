@@ -238,7 +238,13 @@ function VendorTable({
                 </div>
               </td>
               <td className="py-3 px-4 text-right">
-                <span className="text-sm font-medium text-slate-900">
+                <span
+                  data-ai-context="currency"
+                  data-record-id={vendor.id}
+                  data-record-type="vendor"
+                  data-record-name={vendor.name}
+                  className="text-sm font-medium text-slate-900"
+                >
                   {vendor.payables > 0
                     ? vendor.payables.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
@@ -249,6 +255,10 @@ function VendorTable({
               </td>
               <td className="py-3 px-4 text-right">
                 <span
+                  data-ai-context="currency"
+                  data-record-id={vendor.id}
+                  data-record-type="vendor"
+                  data-record-name={vendor.name}
                   className={cn(
                     "text-sm font-medium",
                     vendor.overdue > 0 ? "text-red-600" : "text-slate-600",
@@ -267,6 +277,10 @@ function VendorTable({
               </td>
               <td className="py-3 px-4">
                 <span
+                  data-ai-context="status"
+                  data-record-id={vendor.id}
+                  data-record-type="vendor"
+                  data-record-name={vendor.name}
                   className={cn(
                     "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                     statusColors[vendor.status] || statusColors.Active,

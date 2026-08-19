@@ -253,6 +253,9 @@ function ProfitLossOverview({
               </span>
               <div className="flex items-center gap-4">
                 <span
+                  data-ai-context="currency"
+                  data-record-type="report"
+                  data-record-name={item.label}
                   className={cn(
                     "text-sm font-medium",
                     item.amount >= 0 ? "text-slate-900" : "text-slate-900",

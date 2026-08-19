@@ -254,17 +254,33 @@ function JournalTable({
                 {entry.reference ?? "—"}
               </td>
               <td className="py-3 px-4 text-right">
-                <span className="text-sm font-medium text-slate-900">
+                <span
+                  data-ai-context="currency"
+                  data-record-id={entry.id}
+                  data-record-type="journal-entry"
+                  data-record-name={entry.entryNumber}
+                  className="text-sm font-medium text-slate-900"
+                >
                   {entry.debit > 0 ? entry.debitFormatted : "—"}
                 </span>
               </td>
               <td className="py-3 px-4 text-right">
-                <span className="text-sm font-medium text-slate-900">
+                <span
+                  data-ai-context="currency"
+                  data-record-id={entry.id}
+                  data-record-type="journal-entry"
+                  data-record-name={entry.entryNumber}
+                  className="text-sm font-medium text-slate-900"
+                >
                   {entry.credit > 0 ? entry.creditFormatted : "—"}
                 </span>
               </td>
               <td className="py-3 px-4">
                 <span
+                  data-ai-context="status"
+                  data-record-id={entry.id}
+                  data-record-type="journal-entry"
+                  data-record-name={entry.entryNumber}
                   className={cn(
                     "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                     statusColors[entry.status] || statusColors.Draft,

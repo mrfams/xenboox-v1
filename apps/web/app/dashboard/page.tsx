@@ -25,6 +25,8 @@ import {
   Activity,
   ArrowUpRight,
   CheckCircle2,
+  PanelRightOpen,
+  X,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -61,13 +63,6 @@ const DashboardChatScreen = dynamic(
   () =>
     import("@/components/dashboard/dashboard-chat-screen").then(
       (m) => m.DashboardChatScreen,
-    ),
-  { ssr: false },
-);
-const TextSelectionMenu = dynamic(
-  () =>
-    import("@/components/dashboard/text-selection-menu").then(
-      (m) => m.TextSelectionMenu,
     ),
   { ssr: false },
 );
@@ -160,13 +155,22 @@ function AIGreeting({ firstName }: { firstName?: string }) {
   const today = DATE_FORMATTER.format(new Date());
 
   return (
-    <div className="flex flex-col gap-1">
-      <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-        {greeting}, {firstName ?? "there"}
-      </h1>
-      <p className="text-xs text-muted-foreground sm:text-sm">
-        Here&apos;s your business snapshot for {today}.
-      </p>
+    <div className="flex items-start justify-between gap-4">
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+          {greeting}, {firstName ?? "there"}
+        </h1>
+        <p className="text-[11px] text-muted-foreground/70 sm:text-xs">
+          Here&apos;s your business snapshot for{" "}
+          <span className="font-medium text-muted-foreground">{today}</span>.
+        </p>
+      </div>
+      <div className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-card/60 px-2.5 py-1 sm:flex">
+        <span className="h-1.5 w-1.5 rounded-full bg-balanced-green animate-pulse" />
+        <span className="text-[10px] font-medium text-muted-foreground/60">
+          All systems nominal
+        </span>
+      </div>
     </div>
   );
 }
@@ -226,7 +230,7 @@ function AIChatInput({
       )}
     >
       {/* Suggestions */}
-      <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto py-0.5">
+      <div className="scrollbar-hide flex items-center gap-1.5 overflow-x-auto py-0.5">
         {suggestions.map((suggestion) => {
           const Icon = suggestion.icon;
           return (
@@ -236,14 +240,12 @@ function AIChatInput({
               onClick={() => handleSubmit(suggestion.prompt)}
               disabled={isResponding}
               className={cn(
-                "inline-flex shrink-0 items-center rounded-xl border border-border/50 bg-card/80",
-                "text-[10px] sm:text-xs text-muted-foreground transition-all duration-200",
-                isChatActive
-                  ? "gap-1 px-2 py-1"
-                  : "gap-1.5 px-2.5 sm:px-3 py-1.5",
-                "hover:border-primary/30 hover:text-primary hover:bg-primary/5 hover:shadow-sm",
-                "active:scale-95",
-                "disabled:opacity-50 disabled:pointer-events-none",
+                "inline-flex shrink-0 items-center rounded-lg border border-border/40 bg-background/50",
+                "text-[10px] sm:text-[11px] font-medium text-muted-foreground/70 transition-all duration-200",
+                isChatActive ? "gap-1 px-2 py-1" : "gap-1.5 px-2.5 py-1.5",
+                "hover:border-primary/25 hover:text-primary/80 hover:bg-primary/[0.03]",
+                "active:scale-[0.97]",
+                "disabled:opacity-40 disabled:pointer-events-none",
               )}
             >
               <Icon className={cn("h-3 w-3", suggestion.color)} />
@@ -257,7 +259,7 @@ function AIChatInput({
         <button
           type="button"
           className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-xl border border-border/50 bg-card/80 text-muted-foreground transition-all hover:bg-accent",
+            "inline-flex shrink-0 items-center justify-center rounded-lg border border-border/40 bg-background/50 text-muted-foreground/40 transition-all hover:bg-muted/50 hover:text-muted-foreground/60",
             isChatActive ? "h-6 w-6" : "h-7 w-7",
           )}
           title="Refresh suggestions"
@@ -268,14 +270,14 @@ function AIChatInput({
 
       <div
         className={cn(
-          "relative group rounded-2xl border-2 bg-card transition-all duration-300 shadow-sm",
+          "relative group rounded-2xl border bg-card transition-all duration-300",
           isFocused
-            ? "border-primary/50 shadow-lg shadow-primary/10"
-            : "border-border/50 hover:border-border/80 hover:shadow-md",
+            ? "border-primary/40 shadow-lg shadow-primary/[0.06]"
+            : "border-border/40 shadow-sm hover:border-border/60 hover:shadow-md",
         )}
       >
         <div className="relative flex items-end gap-3 px-4 py-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg bg-primary/10 text-primary">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg bg-primary/8 text-primary/70 transition-colors group-focus-within:bg-primary/12 group-focus-within:text-primary">
             <Bot className="h-4 w-4" />
           </div>
           <textarea
@@ -318,16 +320,16 @@ function AIChatInput({
           </Button>
         </div>
         {isFocused && (
-          <div className="border-t border-border/50 px-4 py-2">
-            <p className="text-[10px] text-muted-foreground">
-              <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">
+          <div className="border-t border-border/30 px-4 py-1.5">
+            <p className="text-[9px] text-muted-foreground/40">
+              <kbd className="inline-flex items-center rounded border border-border/40 bg-muted/40 px-1 py-px text-[9px] font-mono">
                 Enter
               </kbd>{" "}
-              to send ·
-              <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">
+              send ·{" "}
+              <kbd className="inline-flex items-center rounded border border-border/40 bg-muted/40 px-1 py-px text-[9px] font-mono">
                 Shift+Enter
               </kbd>{" "}
-              for new line
+              newline
             </p>
           </div>
         )}
@@ -335,13 +337,13 @@ function AIChatInput({
 
       {/* Chat session indicator */}
       {isChatActive && (
-        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
-          <MessageSquare className="h-3 w-3 text-primary" />
+        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/50">
+          <span className="h-1 w-1 rounded-full bg-primary animate-pulse" />
           <span>In conversation with Xenboox AI</span>
           <button
             type="button"
             onClick={onExit}
-            className="font-medium text-primary transition-colors hover:underline"
+            className="font-semibold text-primary/70 transition-colors hover:text-primary"
           >
             Exit chat
           </button>
@@ -426,9 +428,9 @@ function BriefingCard({
   const Icon = config.icon;
 
   const chipClass = cn(
-    "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap",
+    "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap",
     muted
-      ? "bg-muted/60 text-muted-foreground"
+      ? "bg-muted/50 text-muted-foreground/70"
       : item.type === "negative"
         ? "bg-error-clay-bg text-error-clay"
         : item.type === "warning"
@@ -442,49 +444,49 @@ function BriefingCard({
     <>
       <div
         className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-          muted ? "bg-muted/50" : config.iconBg,
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-105",
+          muted ? "bg-muted/40" : config.iconBg,
         )}
       >
         <Icon
           className={cn(
-            "h-5 w-5",
-            muted ? "text-muted-foreground" : config.iconColor,
+            "h-4 w-4",
+            muted ? "text-muted-foreground/60" : config.iconColor,
           )}
         />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
           <p
             className={cn(
-              "truncate text-xs font-medium",
-              muted ? "text-muted-foreground" : "text-foreground",
+              "truncate text-[11px] font-medium",
+              muted ? "text-muted-foreground/70" : "text-foreground/80",
             )}
           >
             {item.title}
           </p>
           <span className={chipClass}>{item.statusLabel}</span>
         </div>
-        <p className="mt-1 truncate tabular-nums text-lg font-bold tracking-tight text-foreground">
+        <p className="mt-0.5 truncate tabular-nums text-lg font-bold tracking-tight text-foreground">
           {item.value}
         </p>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+        <p className="mt-0.5 truncate text-[10px] text-muted-foreground/60">
           {item.detail}
         </p>
       </div>
     </>
   );
   const cardClass = cn(
-    "flex items-center gap-3 rounded-xl border p-3.5 transition-all duration-200 hover:shadow-md",
+    "flex items-center gap-3 rounded-xl border p-3 transition-all duration-200",
     muted
-      ? "border-border/40 bg-card hover:border-border/60"
-      : "border-border/60 bg-card hover:border-border/90",
+      ? "border-border/30 bg-card/50 hover:border-border/50 hover:bg-card/80"
+      : "border-border/50 bg-card hover:border-border/80 hover:shadow-md hover:shadow-black/[0.02]",
   );
   return item.href ? (
     <Link
       key={item.id}
       href={item.href}
-      className={cn(cardClass, "group hover:-translate-y-0.5")}
+      className={cn(cardClass, "group hover:-translate-y-px")}
     >
       {inner}
     </Link>
@@ -504,61 +506,66 @@ function BriefingHeadline({ item }: { item: BriefingItem }) {
   const attention = isAttention(item);
   const inner = (
     <>
-      {/* Status accent bar — lives INSIDE the card so overflow-hidden clips
-          it to the card's rounded corners (a sibling bar would poke out past
-          the corner radius) and the hover translate carries it along. */}
+      {/* Status accent bar */}
       <span
         aria-hidden
         className={cn(
-          "absolute inset-y-0 left-0 z-10 w-1",
+          "absolute inset-y-0 left-0 z-10 w-1 rounded-l-xl",
           attention ? "bg-attention-amber" : "bg-balanced-green",
         )}
       />
-      <div
-        className={cn(
-          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-          config.iconBg,
-        )}
-      >
-        <Icon className={cn("h-6 w-6", config.iconColor)} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p
+      <div className="flex flex-1 items-center gap-4 pl-2">
+        <div
           className={cn(
-            "text-[10px] font-semibold uppercase tracking-wider",
-            attention ? "text-attention-amber" : "text-balanced-green",
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105",
+            config.iconBg,
           )}
         >
-          {attention ? "Needs attention today" : "Business pulse"}
-        </p>
-        <p className="mt-0.5 text-sm font-medium text-foreground">
-          {item.title}
-        </p>
-        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground">
-          {item.value}
-        </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
+          <Icon className={cn("h-6 w-6", config.iconColor)} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p
+              className={cn(
+                "text-[10px] font-bold uppercase tracking-wider",
+                attention ? "text-attention-amber" : "text-balanced-green",
+              )}
+            >
+              {attention ? "Needs attention today" : "Business pulse"}
+            </p>
+          </div>
+          <p className="mt-0.5 text-sm font-medium text-foreground">
+            {item.title}
+          </p>
+          <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-3xl">
+            {item.value}
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+            {item.detail}
+          </p>
+        </div>
       </div>
       {item.href && (
-        <span className="hidden shrink-0 items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-1.5 text-[11px] font-semibold text-foreground transition-colors group-hover:border-primary/40 group-hover:text-primary sm:inline-flex">
+        <span className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-[11px] font-semibold text-foreground/70 transition-all duration-200 group-hover:border-primary/40 group-hover:bg-primary/5 group-hover:text-primary sm:inline-flex">
           Review
-          <ArrowUpRight className="h-3.5 w-3.5" />
+          <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </span>
       )}
     </>
   );
-  // Must be a flex row (matching BriefingCard) — the inner layout relies on
-  // flex-1 / shrink-0 children. Without `flex` the card renders as an inline
-  // link, the icon/content/CTA stack vertically, and the card overflows its
-  // relative wrapper so the accent bar and icon hang half into the margin.
   const cardClass = cn(
-    "relative flex items-center gap-3 overflow-hidden rounded-xl border bg-card p-4 transition-all duration-200 group sm:p-5",
-    attention ? "border-attention-amber/40" : "border-border/60",
+    "relative flex overflow-hidden rounded-xl border bg-card transition-all duration-200 group",
+    attention
+      ? "border-attention-amber/30 p-4 sm:p-5"
+      : "border-border/50 p-4 sm:p-5",
   );
   const card = item.href ? (
     <Link
       href={item.href}
-      className={cn(cardClass, "hover:-translate-y-0.5 hover:shadow-md")}
+      className={cn(
+        cardClass,
+        "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/[0.03]",
+      )}
     >
       {inner}
     </Link>
@@ -578,17 +585,17 @@ function BriefingGroupLabel({
   tone: "attention" | "ontrack";
 }) {
   return (
-    <div className="flex items-center gap-2 pt-1">
+    <div className="flex items-center gap-2">
       <span
         className={cn(
           "h-1.5 w-1.5 rounded-full",
           tone === "attention" ? "bg-attention-amber" : "bg-balanced-green",
         )}
       />
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
         {children}
       </span>
-      <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-medium tabular-nums text-muted-foreground">
+      <span className="rounded-full bg-muted/60 px-1.5 py-px text-[9px] font-bold tabular-nums text-muted-foreground/50">
         {count}
       </span>
     </div>
@@ -621,39 +628,43 @@ function ExecutiveBriefing({
   const overflow = priority.length > 5;
 
   return (
-    <section className="space-y-4 rounded-2xl border border-border/50 bg-card/40 p-4 sm:p-5">
+    <section className="space-y-4 rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
       {/* Section header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2.5">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+            </div>
             <h2 className="text-sm font-semibold tracking-tight text-foreground">
               {meta.title}
             </h2>
-            <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-              <Sparkles className="h-2.5 w-2.5" />
-              Curated
+            <span className="inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">
+              AI-curated
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">{meta.subtitle}</p>
+          <p className="text-[11px] text-muted-foreground/60">
+            {meta.subtitle}
+          </p>
         </div>
         <Link
           href="/dashboard/chat"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-card px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 hover:text-primary"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/40 bg-background/40 px-3 py-1.5 text-[11px] font-semibold text-foreground/70 transition-all duration-200 hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
         >
-          <Bot className="h-3.5 w-3.5 text-primary" />
+          <Bot className="h-3.5 w-3.5" />
           Ask Xenboox
         </Link>
       </div>
 
       {priority.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/60 bg-card/50 px-4 py-8 text-center">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-balanced-green-bg">
-            <CheckCircle2 className="h-6 w-6 text-balanced-green" />
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/40 bg-background/30 px-4 py-8 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-balanced-green-bg/60">
+            <CheckCircle2 className="h-5 w-5 text-balanced-green/70" />
           </div>
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-[13px] font-semibold text-foreground/80">
             All clear — nothing needs your attention right now.
           </p>
-          <p className="max-w-sm text-xs text-muted-foreground">
+          <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground/50">
             {meta.subtitle}
           </p>
         </div>
@@ -672,10 +683,10 @@ function ExecutiveBriefing({
             >
               {/* ── Needs Attention ─────────────────────────────────────── */}
               {attentionCards.length > 0 && (
-                <div className="relative space-y-3 overflow-hidden rounded-xl border border-border/40 bg-card p-4">
+                <div className="relative space-y-3 overflow-hidden rounded-xl border border-border/30 bg-card/60 p-4">
                   <span
                     aria-hidden
-                    className="absolute inset-y-0 left-0 w-[3px] bg-attention-amber"
+                    className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-attention-amber"
                   />
                   <div className="pl-1">
                     <BriefingGroupLabel
@@ -684,7 +695,7 @@ function ExecutiveBriefing({
                     >
                       Needs attention
                     </BriefingGroupLabel>
-                    <div className="mt-3 space-y-3">
+                    <div className="mt-3 space-y-2">
                       {attentionCards.map((item) => (
                         <BriefingCard key={item.id} item={item} />
                       ))}
@@ -695,16 +706,16 @@ function ExecutiveBriefing({
 
               {/* ── On Track ────────────────────────────────────────────── */}
               {onTrackCards.length > 0 && (
-                <div className="relative space-y-3 overflow-hidden rounded-xl border border-border/40 bg-card p-4">
+                <div className="relative space-y-3 overflow-hidden rounded-xl border border-border/30 bg-card/60 p-4">
                   <span
                     aria-hidden
-                    className="absolute inset-y-0 left-0 w-[3px] bg-balanced-green"
+                    className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-balanced-green"
                   />
                   <div className="pl-1">
                     <BriefingGroupLabel tone="ontrack" count={onTrack.length}>
                       On track
                     </BriefingGroupLabel>
-                    <div className="mt-3 space-y-3">
+                    <div className="mt-3 space-y-2">
                       {onTrackCards.map((item) => (
                         <BriefingCard key={item.id} item={item} muted />
                       ))}
@@ -718,10 +729,10 @@ function ExecutiveBriefing({
           {overflow && (
             <Link
               href="/dashboard/review-queue"
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-primary transition-colors hover:text-primary/80"
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary/70 transition-all duration-200 hover:text-primary"
             >
               View more in the review queue
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           )}
         </>
@@ -834,40 +845,65 @@ function BusinessHealth({
     this_quarter: "vs last quarter",
   };
 
+  // Metric icon map for KPI cards
+  const METRIC_ICON: Record<string, typeof TrendingUp> = {
+    cash: Wallet,
+    revenue: TrendingUp,
+    expenses: TrendingDown,
+    runway: BarChart3,
+  };
+
   return (
-    <section className="space-y-4 rounded-2xl border border-border/50 bg-card/40 p-4 sm:p-5">
-      {/* Section header — matches the Executive Briefing panel above */}
+    <section className="space-y-4 rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
+      {/* Section header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2.5">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8">
+              <Activity className="h-3.5 w-3.5 text-primary" />
+            </div>
             <h2 className="text-sm font-semibold tracking-tight text-foreground">
               Business Health
             </h2>
-            <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-              <Activity className="h-2.5 w-2.5" />
+            <span className="inline-flex items-center gap-1 rounded-full border border-balanced-green/20 bg-balanced-green-bg/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-balanced-green/70">
+              <span className="h-1 w-1 rounded-full bg-balanced-green animate-pulse" />
               Live
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground/60">
             Cash, revenue, expenses and runway — the fundamentals that define
             your business.
           </p>
         </div>
-        <select
-          value={period}
-          onChange={(e) => onPeriodChange(e.target.value as HealthPeriod)}
-          aria-label="Business health period"
-          className="shrink-0 cursor-pointer rounded-lg border border-border/60 bg-card px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 hover:text-primary"
-        >
-          <option value="this_month">This month</option>
-          <option value="last_month">Last month</option>
-          <option value="this_quarter">This quarter</option>
-        </select>
+        <div className="flex items-center gap-1 rounded-lg border border-border/40 bg-background/40 p-0.5">
+          {(
+            [
+              ["this_month", "Month"],
+              ["last_month", "Prev"],
+              ["this_quarter", "Quarter"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onPeriodChange(value)}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-[10px] font-semibold transition-all duration-200",
+                period === value
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground/50 hover:text-muted-foreground/80",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {metrics.map((metric) => {
           const isRunway = metric.id === "runway";
+          const MetricIcon = METRIC_ICON[metric.id] ?? TrendingUp;
           const toneClass =
             HEALTH_TONE_CHIP[metric.tone] ?? "bg-muted text-muted-foreground";
           const sparkColor = HEALTH_TONE_SPARK[metric.tone] ?? "#94A3B8";
@@ -882,16 +918,33 @@ function BusinessHealth({
           return (
             <div
               key={metric.id}
-              className="group min-w-0 rounded-xl border border-border/60 bg-card p-3.5 transition-all duration-200 hover:border-border/90 hover:shadow-md"
+              className="group relative min-w-0 overflow-hidden rounded-xl border border-border/40 bg-card/60 p-3 transition-all duration-200 hover:border-border/70 hover:bg-card hover:shadow-md hover:shadow-black/[0.02]"
             >
+              {/* Subtle top accent on hover */}
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute inset-x-0 top-0 h-0.5 transition-opacity duration-200 opacity-0 group-hover:opacity-100",
+                  metric.tone === "positive"
+                    ? "bg-balanced-green"
+                    : metric.tone === "negative"
+                      ? "bg-error-clay"
+                      : metric.tone === "warning"
+                        ? "bg-attention-amber"
+                        : "bg-primary",
+                )}
+              />
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-[10px] font-medium text-muted-foreground sm:text-xs">
-                  {metric.label}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <MetricIcon className="h-3 w-3 text-muted-foreground/40" />
+                  <p className="truncate text-[10px] font-medium text-muted-foreground/70 sm:text-[11px]">
+                    {metric.label}
+                  </p>
+                </div>
                 {!isRunway && changeText && (
                   <span
                     className={cn(
-                      "inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold",
+                      "inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-bold",
                       toneClass,
                     )}
                   >
@@ -909,8 +962,8 @@ function BusinessHealth({
                 {valueText}
               </p>
 
-              <div className="mt-2 flex items-center justify-between gap-2 sm:mt-3">
-                <p className="truncate text-[10px] text-muted-foreground">
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="truncate text-[10px] text-muted-foreground/50">
                   {isRunway
                     ? runway === 0
                       ? "No cash on hand"
@@ -936,49 +989,59 @@ function BusinessHealth({
 }
 
 // ─── Collapsible Section Component ─────────────────────────────────────────
+// Premium accordion: glass header, count badge, smooth spring animation.
 
 function CollapsibleSection({
   title,
   children,
   defaultOpen = true,
   icon,
+  count,
 }: {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
   icon?: React.ReactNode;
+  count?: number;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div>
+    <div className="group/section">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-left transition-colors hover:bg-muted/80"
+        className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition-all duration-200 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-1"
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {icon && (
-            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary transition-all duration-200 group-hover/section:bg-primary/12 group-hover/section:scale-105">
               {icon}
             </span>
           )}
-          <span className="text-sm font-semibold text-foreground">{title}</span>
+          <span className="text-[12px] font-semibold tracking-tight text-foreground/80">
+            {title}
+          </span>
+          {count !== undefined && count > 0 && (
+            <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 px-1 text-[9px] font-bold tabular-nums text-primary">
+              {count > 99 ? "99+" : count}
+            </span>
+          )}
         </div>
         <ChevronRight
           className={cn(
-            "h-5 w-5 text-muted-foreground transition-transform duration-200",
+            "h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
             isOpen && "rotate-90",
           )}
         />
       </button>
       <div
         className={cn(
-          "overflow-hidden transition-all duration-300 ease-in-out",
-          isOpen ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0",
+          "overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          isOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0",
         )}
       >
-        <div className="pt-2">{children}</div>
+        <div className="px-1 pt-0.5 pb-0.5">{children}</div>
       </div>
     </div>
   );
@@ -1006,13 +1069,63 @@ function actionHref(action: string): string | null {
   return null;
 }
 
+// ─── Sidebar Drawer (tablet/mobile) ──────────────────────────────────────
+// Slide-out overlay panel for screens below the lg breakpoint.
+// Renders DashboardRightSidebar inside a fixed overlay with backdrop.
+
+type SidebarDrawerProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+};
+
+function SidebarDrawer({ isOpen, onClose, children }: SidebarDrawerProps) {
+  // Lock body scroll while drawer is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isOpen]);
+
+  return (
+    <div className="lg:hidden">
+      {/* Backdrop */}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-opacity duration-300",
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      {/* Panel */}
+      <div
+        className={cn(
+          "fixed inset-y-0 right-0 z-50 flex w-80 flex-col bg-card shadow-2xl shadow-black/10 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          isOpen ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-3 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-background/80 text-muted-foreground/60 backdrop-blur-sm transition-all duration-200 hover:bg-muted/60 hover:text-foreground"
+          aria-label="Close sidebar"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard Right Sidebar ──────────────────────────────────────────────
-// Rules:
-//  • Sections with nothing to show are collapsed by default (header stays
-//    visible so the user can open them).
-//  • Lists are capped at 5 — a "View all (N)" link appears when more exist.
-//  • Every deadline row links to the module that owns it.
-//  • Documents the current user hasn't opened yet carry a "New" badge.
+// Premium sidebar: sticky header, timeline deadlines, rich document cards,
+// avatar conversations, and numbered action items.
 
 type DeadlineItem = {
   id: string;
@@ -1035,10 +1148,10 @@ function ViewAllLink({ href, count }: { href: string; count: number }) {
   return (
     <Link
       href={href}
-      className="mt-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-border/60 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+      className="group/link mt-1.5 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/40 bg-background/30 py-1.5 text-[10px] font-medium tracking-wide text-muted-foreground/60 transition-all duration-200 hover:border-primary/25 hover:bg-primary/[0.03] hover:text-primary/80"
     >
-      View all ({count})
-      <ArrowUpRight className="h-3 w-3" />
+      View all {count > 5 ? `(${count})` : ""}
+      <ArrowUpRight className="h-2.5 w-2.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5" />
     </Link>
   );
 }
@@ -1088,232 +1201,380 @@ function DashboardRightSidebar({
     return `${Math.floor(hours / 24)} days ago`;
   }
 
-  function getDocColor(type: string): string {
-    const colors: Record<string, string> = {
-      bank_statement: "text-red-500",
-      invoice: "text-primary",
-      payroll_report: "text-emerald-500",
-      tax_return: "text-red-500",
-    };
-    return colors[type] ?? "text-primary";
-  }
+  // ── Doc icon background color map ──
+  const DOC_ICON_BG: Record<string, string> = {
+    bank_statement:
+      "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
+    invoice: "bg-primary/10 text-primary",
+    payroll_report:
+      "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
+    tax_return:
+      "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400",
+  };
+
+  // ── Deadline urgency config ──
+  const DEADLINE_URGENCY: Record<
+    string,
+    { accent: string; badge: string; label: string }
+  > = {
+    upcoming: {
+      accent: "bg-attention-amber",
+      badge:
+        "bg-attention-amber-bg text-attention-amber border border-attention-amber/20",
+      label: "Upcoming",
+    },
+    scheduled: {
+      accent: "bg-primary",
+      badge: "bg-primary/10 text-primary border border-primary/15",
+      label: "Scheduled",
+    },
+  };
+
+  const sectionSpacing = "space-y-1";
 
   return (
-    <div className="space-y-0 p-4">
-      {/* Upcoming & Deadlines */}
-      <CollapsibleSection
-        title="Upcoming & Deadlines"
-        icon={<Calendar className="h-4 w-4 text-primary" />}
-        defaultOpen={deadlines.length > 0}
-      >
-        {deadlines.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            Nothing due right now
+    <div className="flex h-full flex-col">
+      {/* ── Sidebar Header ─────────────────────────────────────────── */}
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/40 bg-card/95 backdrop-blur-sm px-4 py-3">
+        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+          <Activity className="h-3.5 w-3.5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold tracking-tight text-foreground">
+            Activity Feed
           </p>
-        ) : (
-          <div className="space-y-1">
-            {deadlines.map((d) => (
-              <div key={d.id} className="flex items-center gap-3 py-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <Calendar className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  {d.href ? (
-                    <Link
-                      href={d.href}
-                      className="block truncate hover:text-primary transition-colors"
-                    >
-                      <span className="block text-xs font-medium text-foreground truncate">
-                        {d.label}
-                      </span>
-                      <span className="block text-[10px] text-muted-foreground">
-                        {d.date}
-                      </span>
-                    </Link>
-                  ) : (
-                    <>
-                      <p className="text-xs font-medium text-foreground truncate">
-                        {d.label}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {d.date}
-                      </p>
-                    </>
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "rounded-full border px-2 py-0.5 text-[9px] font-medium whitespace-nowrap",
-                    d.urgency === "upcoming"
-                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : "bg-blue-50 text-blue-700 border-blue-200",
-                  )}
-                >
-                  {d.urgency === "upcoming" ? "Upcoming" : "Scheduled"}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        {deadlinesTotal > 5 && (
-          <ViewAllLink
-            href="/dashboard/tax-compliance"
-            count={deadlinesTotal}
-          />
-        )}
-      </CollapsibleSection>
+        </div>
+        <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 px-1 text-[8px] font-bold tabular-nums text-primary">
+          {deadlinesTotal +
+            recentDocumentsTotal +
+            recentConversationsTotal +
+            suggestedActionsTotal >
+          99
+            ? "99+"
+            : deadlinesTotal +
+              recentDocumentsTotal +
+              recentConversationsTotal +
+              suggestedActionsTotal}
+        </span>
+      </div>
 
-      {/* Recent Documents */}
-      <CollapsibleSection
-        title="Recent Documents"
-        icon={<FileText className="h-4 w-4 text-blue-500" />}
-        defaultOpen={recentDocuments.length > 0}
+      <div
+        className={cn(sectionSpacing, "flex-1 overflow-y-auto px-3 pt-3 pb-4")}
       >
-        {recentDocuments.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            No documents yet
-          </p>
-        ) : (
-          <div className="space-y-0.5">
-            {recentDocuments.map((doc) => (
-              <button
-                key={doc.id}
-                type="button"
-                onClick={() => {
-                  // Clicking a recent document counts as engaging with it —
-                  // the "New" badge clears for this user. (Semantic note: this
-                  // fires on the dashboard click that takes the user to the
-                  // documents module — not on an in-app document viewer, since
-                  // the documents module has none yet. Reuse the same mutation
-                  // from a viewer later if one is added.)
-                  if (!doc.viewed) onMarkDocumentViewed?.(doc.id);
-                  onNavigate?.("/dashboard/documents");
-                }}
-                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 cursor-pointer transition-colors text-left"
-              >
-                <FileText
-                  className={cn("h-4 w-4 shrink-0", getDocColor(doc.type))}
-                />
-                <div className="flex-1 min-w-0">
-                  <p
+        {/* ── Upcoming & Deadlines ─────────────────────────────────── */}
+        <CollapsibleSection
+          title="Deadlines"
+          icon={<Calendar className="h-3.5 w-3.5" />}
+          defaultOpen={deadlines.length > 0}
+          count={deadlinesTotal}
+        >
+          {deadlines.length === 0 ? (
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-border/40 bg-background/30 px-3 py-5 text-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/40">
+                <Calendar className="h-4 w-4 text-muted-foreground/40" />
+              </div>
+              <p className="text-[11px] font-medium text-muted-foreground">
+                No upcoming deadlines
+              </p>
+              <p className="max-w-[180px] text-[10px] leading-relaxed text-muted-foreground/50">
+                Compliance dates and filing deadlines will surface here
+              </p>
+            </div>
+          ) : (
+            <div className="relative space-y-0.5">
+              {deadlines.map((d, i) => {
+                const urgency =
+                  DEADLINE_URGENCY[d.urgency] ?? DEADLINE_URGENCY.scheduled;
+                return (
+                  <div
+                    key={d.id}
+                    className="group/item relative flex items-start gap-2.5 rounded-xl border border-transparent px-2.5 py-2 transition-all duration-200 hover:border-border/50 hover:bg-card/80"
+                  >
+                    {/* Timeline dot */}
+                    <div className="relative flex flex-col items-center pt-1">
+                      <span
+                        className={cn(
+                          "h-2 w-2 shrink-0 rounded-full ring-2 ring-background",
+                          urgency.accent,
+                        )}
+                      />
+                      {i < deadlines.length - 1 && (
+                        <span className="mt-1 h-full w-px bg-border/40" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {d.href ? (
+                        <Link
+                          href={d.href}
+                          className="block transition-colors hover:text-primary"
+                        >
+                          <span className="block text-[11px] font-semibold text-foreground truncate leading-tight">
+                            {d.label}
+                          </span>
+                          <span className="mt-0.5 flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground/70">
+                              {d.date}
+                            </span>
+                            <span
+                              className={cn(
+                                "rounded-full px-1.5 py-px text-[8px] font-bold uppercase tracking-wider",
+                                urgency.badge,
+                              )}
+                            >
+                              {urgency.label}
+                            </span>
+                          </span>
+                        </Link>
+                      ) : (
+                        <>
+                          <p className="text-[11px] font-semibold text-foreground truncate leading-tight">
+                            {d.label}
+                          </p>
+                          <span className="mt-0.5 flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground/70">
+                              {d.date}
+                            </span>
+                            <span
+                              className={cn(
+                                "rounded-full px-1.5 py-px text-[8px] font-bold uppercase tracking-wider",
+                                urgency.badge,
+                              )}
+                            >
+                              {urgency.label}
+                            </span>
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {deadlinesTotal > 5 && (
+            <ViewAllLink
+              href="/dashboard/tax-compliance"
+              count={deadlinesTotal}
+            />
+          )}
+        </CollapsibleSection>
+
+        {/* ── Separator ──────────────────────────────────────────────── */}
+        <div className="mx-2 my-1 h-px bg-border/30" />
+
+        {/* ── Recent Documents ─────────────────────────────────────── */}
+        <CollapsibleSection
+          title="Documents"
+          icon={<FileText className="h-3.5 w-3.5" />}
+          defaultOpen={recentDocuments.length > 0}
+          count={recentDocumentsTotal}
+        >
+          {recentDocuments.length === 0 ? (
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-border/40 bg-background/30 px-3 py-5 text-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/40">
+                <FileText className="h-4 w-4 text-muted-foreground/40" />
+              </div>
+              <p className="text-[11px] font-medium text-muted-foreground">
+                No documents yet
+              </p>
+              <p className="max-w-[180px] text-[10px] leading-relaxed text-muted-foreground/50">
+                Uploaded files and generated reports show here
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              {recentDocuments.map((doc) => (
+                <button
+                  key={doc.id}
+                  type="button"
+                  onClick={() => {
+                    if (!doc.viewed) onMarkDocumentViewed?.(doc.id);
+                    onNavigate?.("/dashboard/documents");
+                  }}
+                  className="group/doc flex w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 text-left transition-all duration-200 hover:border-border/50 hover:bg-card/80"
+                >
+                  <div
                     className={cn(
-                      "truncate",
-                      doc.viewed
-                        ? "text-xs text-foreground"
-                        : "text-xs font-semibold text-foreground",
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                      DOC_ICON_BG[doc.type] ?? "bg-primary/10 text-primary",
                     )}
                   >
-                    {doc.name}
-                  </p>
-                  {!doc.viewed && (
-                    <span className="mt-0.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-primary">
-                      New
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                  {formatDocTime(doc.createdAt)}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-        {recentDocumentsTotal > 5 && (
-          <ViewAllLink
-            href="/dashboard/documents"
-            count={recentDocumentsTotal}
-          />
-        )}
-      </CollapsibleSection>
-
-      {/* Recent Conversations */}
-      <CollapsibleSection
-        title="Recent Conversations"
-        icon={<MessageSquare className="h-4 w-4 text-purple-500" />}
-        defaultOpen={recentConversations.length > 0}
-      >
-        {recentConversations.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            No conversations yet
-          </p>
-        ) : (
-          <div className="space-y-0.5">
-            {recentConversations.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onContinueConversation?.(c)}
-                title="Continue this conversation"
-                className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-accent/50 cursor-pointer transition-colors"
-              >
-                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-foreground truncate">
-                    {c.title ?? "Untitled conversation"}
-                  </p>
-                  {c.summary && (
-                    <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">
-                      {c.summary}
-                    </p>
-                  )}
-                </div>
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap group-hover:hidden">
-                  {formatDocTime(c.lastMessageAt)}
-                </span>
-                <span className="hidden group-hover:inline-flex items-center gap-1 text-[10px] font-medium text-primary whitespace-nowrap">
-                  Continue
-                  <ChevronRight className="h-3 w-3" />
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-        {recentConversationsTotal > 5 && (
-          <ViewAllLink
-            href="/dashboard/chat"
-            count={recentConversationsTotal}
-          />
-        )}
-      </CollapsibleSection>
-
-      {/* Suggested Actions */}
-      <CollapsibleSection
-        title="Suggested Actions"
-        icon={<Sparkles className="h-4 w-4 text-amber-500" />}
-        defaultOpen={suggestedActions.length > 0}
-      >
-        {suggestedActions.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            All caught up!
-          </p>
-        ) : (
-          <div className="space-y-0.5">
-            {suggestedActions.slice(0, 5).map((action, i) => {
-              const href = actionHref(action);
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => href && onNavigate?.(href)}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/50 text-left transition-colors group"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="flex-1 text-xs text-foreground truncate">
-                    {action}
+                    <FileText className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p
+                        className={cn(
+                          "truncate text-[11px] leading-tight",
+                          doc.viewed
+                            ? "font-medium text-foreground/70"
+                            : "font-semibold text-foreground",
+                        )}
+                      >
+                        {doc.name}
+                      </p>
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      {doc.type && (
+                        <span className="rounded bg-muted/60 px-1 py-px text-[8px] font-bold uppercase tracking-wider text-muted-foreground/50">
+                          {doc.type
+                            .replace(/_/g, " ")
+                            .split(" ")
+                            .map((w) => w[0])
+                            .join("")}
+                        </span>
+                      )}
+                      {!doc.viewed && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1 py-px text-[8px] font-bold uppercase tracking-wider text-primary">
+                          <span className="h-0.5 w-0.5 rounded-full bg-primary animate-pulse" />
+                          New
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-muted-foreground/50 whitespace-nowrap group-hover/doc:text-muted-foreground/70 transition-colors">
+                    {formatDocTime(doc.createdAt)}
                   </span>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
                 </button>
-              );
-            })}
-          </div>
-        )}
-        {suggestedActionsTotal > 5 && (
-          <ViewAllLink
-            href="/dashboard/review-queue"
-            count={suggestedActionsTotal}
-          />
-        )}
-      </CollapsibleSection>
+              ))}
+            </div>
+          )}
+          {recentDocumentsTotal > 5 && (
+            <ViewAllLink
+              href="/dashboard/documents"
+              count={recentDocumentsTotal}
+            />
+          )}
+        </CollapsibleSection>
+
+        {/* ── Separator ──────────────────────────────────────────────── */}
+        <div className="mx-2 my-1 h-px bg-border/30" />
+
+        {/* ── Recent Conversations ─────────────────────────────────── */}
+        <CollapsibleSection
+          title="Conversations"
+          icon={<MessageSquare className="h-3.5 w-3.5" />}
+          defaultOpen={recentConversations.length > 0}
+          count={recentConversationsTotal}
+        >
+          {recentConversations.length === 0 ? (
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-border/40 bg-background/30 px-3 py-5 text-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/40">
+                <MessageSquare className="h-4 w-4 text-muted-foreground/40" />
+              </div>
+              <p className="text-[11px] font-medium text-muted-foreground">
+                No conversations yet
+              </p>
+              <p className="max-w-[180px] text-[10px] leading-relaxed text-muted-foreground/50">
+                Start a chat with Xenboox AI to see your history here
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              {recentConversations.map((c) => {
+                // Generate initials from title for avatar
+                const initials = (c.title ?? "U")
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((w) => w[0])
+                  .join("")
+                  .toUpperCase();
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onContinueConversation?.(c)}
+                    title="Continue this conversation"
+                    className="group/conv flex w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 text-left transition-all duration-200 hover:border-border/50 hover:bg-card/80"
+                  >
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/15 to-primary/5 text-[9px] font-bold text-primary ring-1 ring-primary/10">
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold text-foreground truncate leading-tight">
+                        {c.title ?? "Untitled conversation"}
+                      </p>
+                      {c.summary && (
+                        <p className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground/60">
+                          {c.summary}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center">
+                      <span className="text-[9px] text-muted-foreground/40 whitespace-nowrap group-hover/conv:hidden">
+                        {formatDocTime(c.lastMessageAt)}
+                      </span>
+                      <span className="hidden group-hover/conv:inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary whitespace-nowrap">
+                        Continue
+                        <ChevronRight className="h-2.5 w-2.5" />
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {recentConversationsTotal > 5 && (
+            <ViewAllLink
+              href="/dashboard/chat"
+              count={recentConversationsTotal}
+            />
+          )}
+        </CollapsibleSection>
+
+        {/* ── Separator ──────────────────────────────────────────────── */}
+        <div className="mx-2 my-1 h-px bg-border/30" />
+
+        {/* ── Suggested Actions ─────────────────────────────────────── */}
+        <CollapsibleSection
+          title="Suggested Actions"
+          icon={<Sparkles className="h-3.5 w-3.5" />}
+          defaultOpen={suggestedActions.length > 0}
+          count={suggestedActionsTotal}
+        >
+          {suggestedActions.length === 0 ? (
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-border/40 bg-background/30 px-3 py-5 text-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-balanced-green-bg/60">
+                <CheckCircle2 className="h-4 w-4 text-balanced-green/70" />
+              </div>
+              <p className="text-[11px] font-medium text-foreground/70">
+                All caught up
+              </p>
+              <p className="max-w-[180px] text-[10px] leading-relaxed text-muted-foreground/50">
+                AI-suggested actions appear when there's work to do
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              {suggestedActions.slice(0, 5).map((action, i) => {
+                const href = actionHref(action);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => href && onNavigate?.(href)}
+                    className="group/action flex w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 text-left transition-all duration-200 hover:border-primary/10 hover:bg-primary/[0.03]"
+                  >
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/8 text-[9px] font-bold tabular-nums text-primary/60 transition-colors group-hover/action:bg-primary/15 group-hover/action:text-primary">
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 text-[11px] font-medium text-foreground/70 truncate leading-tight transition-colors group-hover/action:text-foreground">
+                      {action}
+                    </span>
+                    <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground/15 transition-all duration-200 group-hover/action:text-primary group-hover/action:translate-x-px group-hover/action:-translate-y-px" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {suggestedActionsTotal > 5 && (
+            <ViewAllLink
+              href="/dashboard/review-queue"
+              count={suggestedActionsTotal}
+            />
+          )}
+        </CollapsibleSection>
+      </div>
     </div>
   );
 }
@@ -1329,6 +1590,9 @@ export default function DashboardPage() {
   // Business Health period — drives the server-side date ranges for the
   // revenue / expenses / profit KPIs (see dashboard router periodConfig).
   const [healthPeriod, setHealthPeriod] = useState<HealthPeriod>("this_month");
+
+  // Sidebar drawer state for tablet/mobile screens
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Which briefing audience this user sees (decision / operations / oversight)
   const audience = roleToAudience(entityRole);
@@ -1375,15 +1639,18 @@ export default function DashboardPage() {
         <div className="flex-1 overflow-y-auto p-6">
           <DashboardSkeleton />
         </div>
-        <div className="w-80 border-l bg-card hidden lg:block p-6">
-          <div className="space-y-4">
-            <div className="h-8 w-32 bg-muted rounded animate-pulse" />
+        <div className="w-80 border-l bg-card hidden lg:block">
+          <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/40 bg-card/95 backdrop-blur-sm px-4 py-3">
+            <div className="h-6 w-6 rounded-md bg-muted animate-pulse" />
+            <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+          </div>
+          <div className="space-y-4 px-4 pt-4">
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-16 bg-muted rounded-lg animate-pulse"
-                />
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-24 bg-muted rounded animate-pulse" />
+                  <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+                </div>
               ))}
             </div>
           </div>
@@ -1421,7 +1688,7 @@ export default function DashboardPage() {
             tips={emptyState.tips}
           />
         </div>
-        <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto">
+        <div className="w-80 border-l bg-card hidden lg:block">
           <DashboardRightSidebar
             deadlines={[]}
             recentDocuments={[]}
@@ -1458,11 +1725,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-full">
-      <TextSelectionMenu
-        onAskAI={handleAskAI}
-        onExplain={handleExplain}
-        onCorrect={handleCorrect}
-      />
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div
@@ -1486,7 +1748,7 @@ export default function DashboardPage() {
               onNewChat={chat.newChat}
             />
           ) : (
-            <div className="space-y-6 px-6 pt-6">
+            <div className="space-y-5 px-6 pt-6">
               {/* Row 1: Greeting */}
               <AIGreeting firstName={firstName} />
 
@@ -1539,7 +1801,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 border-l bg-card hidden lg:block overflow-y-auto">
+      <div className="w-80 border-l bg-card hidden lg:block">
         <DashboardRightSidebar
           deadlines={dashboardData?.deadlines ?? []}
           recentDocuments={dashboardData?.recentDocuments ?? []}

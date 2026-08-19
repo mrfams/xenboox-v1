@@ -189,6 +189,10 @@ function TransactionTable({
               </td>
               <td className="py-3 px-4 text-right">
                 <span
+                  data-ai-context="currency"
+                  data-record-id={tx.id}
+                  data-record-type="transaction"
+                  data-record-name={tx.description || tx.reference || tx.id}
                   className={cn(
                     "text-sm font-medium",
                     tx.isPositive ? "text-emerald-600" : "text-red-600",
@@ -270,6 +274,10 @@ function TransactionTable({
               </td>
               <td className="py-3 px-4">
                 <span
+                  data-ai-context="status"
+                  data-record-id={tx.id}
+                  data-record-type="transaction"
+                  data-record-name={tx.description || tx.reference || tx.id}
                   className={cn(
                     "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                     statusColors[tx.status] || statusColors.excluded,

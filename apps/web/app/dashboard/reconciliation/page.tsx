@@ -118,7 +118,18 @@ function SummaryCards({
               <card.icon className={cn("h-4 w-4", card.color)} />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-900">{card.value}</p>
+          <p
+            data-ai-context={
+              card.value.startsWith("GMD") || card.value.endsWith("%")
+                ? "currency"
+                : "generic"
+            }
+            data-record-type="reconciliation"
+            data-record-name={card.label}
+            className="text-2xl font-bold text-slate-900"
+          >
+            {card.value}
+          </p>
           {card.change !== undefined && (
             <div className="flex items-center gap-1 mt-1">
               {card.change >= 0 ? (

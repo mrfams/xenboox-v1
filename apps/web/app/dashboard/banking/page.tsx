@@ -200,7 +200,13 @@ function BankAccountsTable({
                   </span>
                 </td>
                 <td className="py-3 px-4 text-right">
-                  <span className="text-sm font-medium text-slate-900">
+                  <span
+                    data-ai-context="currency"
+                    data-record-id={account.id}
+                    data-record-type="bank-account"
+                    data-record-name={account.name}
+                    className="text-sm font-medium text-slate-900"
+                  >
                     {balance.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
@@ -219,6 +225,10 @@ function BankAccountsTable({
                 </td>
                 <td className="py-3 px-4">
                   <span
+                    data-ai-context="status"
+                    data-record-id={account.id}
+                    data-record-type="bank-account"
+                    data-record-name={account.name}
                     className={cn(
                       "inline-flex items-center gap-1 text-sm",
                       account.isActive ? "text-emerald-600" : "text-slate-400",

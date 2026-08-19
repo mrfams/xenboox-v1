@@ -260,7 +260,13 @@ function ExpenseTable({
                 {expense.vendor}
               </td>
               <td className="py-3 px-4 text-right">
-                <span className="text-sm font-medium text-slate-900">
+                <span
+                  data-ai-context="currency"
+                  data-record-id={expense.id}
+                  data-record-type="expense"
+                  data-record-name={expense.description || expense.id}
+                  className="text-sm font-medium text-slate-900"
+                >
                   {expense.amountFormatted}
                 </span>
               </td>
@@ -289,6 +295,10 @@ function ExpenseTable({
               </td>
               <td className="py-3 px-4">
                 <span
+                  data-ai-context="status"
+                  data-record-id={expense.id}
+                  data-record-type="expense"
+                  data-record-name={expense.description || expense.id}
                   className={cn(
                     "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                     statusColors[expense.status] || statusColors.Draft,

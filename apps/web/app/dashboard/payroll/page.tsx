@@ -158,16 +158,41 @@ function EmployeeTable({
                 {emp.payType}
               </td>
               <td className="py-3 px-4 text-right text-sm font-medium text-slate-900">
-                {emp.grossPayFormatted}
+                <span
+                  data-ai-context="currency"
+                  data-record-id={emp.id}
+                  data-record-type="employee"
+                  data-record-name={emp.name}
+                >
+                  {emp.grossPayFormatted}
+                </span>
               </td>
               <td className="py-3 px-4 text-right text-sm text-slate-600">
-                {emp.deductionsFormatted}
+                <span
+                  data-ai-context="currency"
+                  data-record-id={emp.id}
+                  data-record-type="employee"
+                  data-record-name={emp.name}
+                >
+                  {emp.deductionsFormatted}
+                </span>
               </td>
               <td className="py-3 px-4 text-right text-sm font-medium text-slate-900">
-                {emp.netPayFormatted}
+                <span
+                  data-ai-context="currency"
+                  data-record-id={emp.id}
+                  data-record-type="employee"
+                  data-record-name={emp.name}
+                >
+                  {emp.netPayFormatted}
+                </span>
               </td>
               <td className="py-3 px-4">
                 <span
+                  data-ai-context="status"
+                  data-record-id={emp.id}
+                  data-record-type="employee"
+                  data-record-name={emp.name}
                   className={cn(
                     "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                     statusColors[emp.status] || statusColors.draft,

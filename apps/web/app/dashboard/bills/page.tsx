@@ -288,7 +288,13 @@ function BillsTable({
                   })}
                 </td>
                 <td className="py-3 px-4 text-right">
-                  <span className="text-sm font-medium text-slate-900">
+                  <span
+                    data-ai-context="currency"
+                    data-record-id={bill.id}
+                    data-record-type="bill"
+                    data-record-name={bill.billNumber}
+                    className="text-sm font-medium text-slate-900"
+                  >
                     GMD{" "}
                     {bill.amount.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
@@ -297,6 +303,10 @@ function BillsTable({
                 </td>
                 <td className="py-3 px-4">
                   <span
+                    data-ai-context="status"
+                    data-record-id={bill.id}
+                    data-record-type="bill"
+                    data-record-name={bill.billNumber}
                     className={cn(
                       "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                       statusColors[bill.status] || statusColors.pending,

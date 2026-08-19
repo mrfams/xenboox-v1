@@ -277,7 +277,13 @@ function InvoiceTable({
                   </div>
                 </td>
                 <td className="py-3 px-4 text-right">
-                  <span className="text-sm font-medium text-slate-900">
+                  <span
+                    data-ai-context="currency"
+                    data-record-id={inv.id}
+                    data-record-type="invoice"
+                    data-record-name={inv.invoiceNumber}
+                    className="text-sm font-medium text-slate-900"
+                  >
                     GMD{" "}
                     {inv.amount.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
@@ -286,6 +292,10 @@ function InvoiceTable({
                 </td>
                 <td className="py-3 px-4">
                   <span
+                    data-ai-context="status"
+                    data-record-id={inv.id}
+                    data-record-type="invoice"
+                    data-record-name={inv.invoiceNumber}
                     className={cn(
                       "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                       statusColors[inv.status] || statusColors.pending,
@@ -296,7 +306,13 @@ function InvoiceTable({
                 </td>
                 <td className="py-3 px-4 text-right">
                   <div>
-                    <span className="text-sm font-medium text-slate-900">
+                    <span
+                      data-ai-context="currency"
+                      data-record-id={inv.id}
+                      data-record-type="invoice"
+                      data-record-name={inv.invoiceNumber}
+                      className="text-sm font-medium text-slate-900"
+                    >
                       GMD{" "}
                       {inv.balance.toLocaleString("en-US", {
                         minimumFractionDigits: 2,

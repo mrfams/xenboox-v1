@@ -254,7 +254,13 @@ function CustomerTable({
                   {customer.group}
                 </td>
                 <td className="py-3 px-4 text-right">
-                  <span className="text-sm font-medium text-slate-900">
+                  <span
+                    data-ai-context="currency"
+                    data-record-id={customer.id}
+                    data-record-type="customer"
+                    data-record-name={customer.name}
+                    className="text-sm font-medium text-slate-900"
+                  >
                     GMD{" "}
                     {customer.currentBalance.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
@@ -263,6 +269,10 @@ function CustomerTable({
                 </td>
                 <td className="py-3 px-4 text-right">
                   <span
+                    data-ai-context="currency"
+                    data-record-id={customer.id}
+                    data-record-type="customer"
+                    data-record-name={customer.name}
                     className={cn(
                       "text-sm font-medium",
                       customer.overdueAmount > 0
@@ -291,6 +301,10 @@ function CustomerTable({
                 </td>
                 <td className="py-3 px-4">
                   <span
+                    data-ai-context="status"
+                    data-record-id={customer.id}
+                    data-record-type="customer"
+                    data-record-name={customer.name}
                     className={cn(
                       "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                       statusColors[customer.status] || statusColors.Active,
