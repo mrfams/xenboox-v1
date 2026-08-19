@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-20] — Global search with Ctrl+K command palette
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/components/layout/top-nav.tsx`
+
+**Session work:** Wired the full-featured CommandPalette component into the dashboard:
+
+1. **Replaced** basic `CommandDialog` in top-nav with the full `CommandPalette` component
+2. **CommandPalette Features** — Searches navigation pages, invoices, customers, bank accounts, documents; shows recent items from localStorage; keyboard shortcuts display; quick actions (create invoice, etc.)
+3. **Keyboard Shortcut** — Ctrl+K / Cmd+K to open (already wired in top-nav)
+4. **Cleanup** — Removed unused `SearchItem` type, `commands` state, `setCommands` effect, and unused lucide icon imports (Receipt, Landmark, FileText)
+5. **Tests** — 50/50 a11y tests pass
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 50/50 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Invitation email template + wired into invitation flow
 
 **Agent:** Buffy
