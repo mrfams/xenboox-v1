@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — Invitation email template + wired into invitation flow
+
+**Agent:** Buffy
+**Files Created:** `packages/email/emails/invitation.tsx`
+**Files Modified:** `packages/email/index.ts`, `apps/web/lib/email.ts`, `apps/web/server/routers/invitations.ts`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added branded invitation email and wired it into the invitation flow:
+
+1. **InvitationEmail Template** — React Email template with Xenboox branding (colors, logo, CTA button), shows inviter name, entity name, role, expiry date, fallback link for email clients
+2. **sendInvitationEmail Function** — Added to `lib/email.ts`, dynamically imports the template, renders to HTML, sends via Resend
+3. **Invitation Router** — Both `issue` and `resend` mutations now fire-and-forget send the invitation email (non-blocking, errors logged but don't fail the mutation)
+4. **Email Package** — Added `InvitationEmail` export to `packages/email/index.ts`
+5. **Tests** — 50/50 a11y tests pass (3 new tests)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 50/50 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Critical production fixes: health check, error boundary
 
 **Agent:** Buffy
