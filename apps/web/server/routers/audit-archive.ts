@@ -201,7 +201,7 @@ export const auditArchiveRouter = router({
          AND created_at < ${cutoff}`,
     );
 
-    const rows = result as { count: number }[];
+    const rows = result as unknown as { count: number }[];
     const candidateCount = Number(rows[0]?.count ?? 0);
 
     return {
