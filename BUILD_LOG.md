@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-20] — Route transition animations between dashboard surfaces
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/globals.css`, `apps/web/app/dashboard/layout.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added smooth fade+slide transition when navigating between surfaces:
+
+1. **CSS Keyframe** — `@keyframes route-enter`: opacity 0→1 + translateY(8px→0) over 200ms ease-out
+2. **Animation Class** — `.route-transition-enter` applies the animation with `both` fill mode
+3. **Layout Wiring** — `<div key={pathname} className="route-transition-enter">` wraps `{children}` — React remounts on pathname change, triggering the animation
+4. **Reduced Motion** — Already handled by the global `prefers-reduced-motion: reduce` override in globals.css (animation-duration: 0.01ms)
+5. **Tests** — 35/35 a11y tests pass (2 new tests for transition wiring)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 35/35 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — WAI-ARIA keyboard navigation for Activity Hub filter pills
 
 **Agent:** Buffy
