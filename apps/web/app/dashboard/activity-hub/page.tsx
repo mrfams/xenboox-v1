@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Inbox,
@@ -13,12 +13,22 @@ import {
   Bot,
   ArrowUpRight,
   Filter,
+  ThumbsUp,
+  ThumbsDown,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Zap,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { ConfidenceBadge } from "@/components/shared/ai-native";
+import { ActorBadge } from "@/components/shared/ai-native";
+import { InlineActions } from "@/components/shared/ai-native";
 
 // ─── Activity Hub ─────────────────────────────────────────────────────────
 //
@@ -49,33 +59,14 @@ type ActivityItemData = {
   agent?: string;
   confidence?: number;
   amount?: string;
+  sourceDoc?: string;
   actions: Array<{
     label: string;
-    variant?: "default" | "outline" | "ghost";
-    href?: string;
+    variant?: "approve" | "reject" | "review" | "default";
     onClick?: () => void;
+    loading?: boolean;
   }>;
 };
-
-function ConfidenceBadge({ score }: { score: number }) {
-  if (score >= 0.9)
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
-        High confidence
-      </span>
-    );
-  if (score >= 0.7)
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">
-        Review suggested
-      </span>
-    );
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-500">
-      Needs attention
-    </span>
-  );
-}
 
 function ActivityItemCard({ item }: { item: ActivityItemData }) {
   const typeConfig = {
@@ -85,6 +76,8 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
       icon: AlertTriangle,
       iconColor: "text-red-500",
       iconBg: "bg-red-500/10",
+      priority: "Urgent",
+      priorityColor: "bg-red-500/10 text-red-500",
     },
     approval: {
       border: "border-amber-500/20",
@@ -92,6 +85,8 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
       icon: FileCheck,
       iconColor: "text-amber-500",
       iconBg: "bg-amber-500/10",
+      priority: "Approval",
+      priorityColor: "bg-amber-500/10 text-amber-500",
     },
     review: {
       border: "border-border/50",
@@ -99,6 +94,8 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
       icon: Clock,
       iconColor: "text-primary",
       iconBg: "bg-primary/10",
+      priority: "Review",
+      priorityColor: "bg-primary/10 text-primary",
     },
     info: {
       border: "border-border/50",
@@ -106,6 +103,8 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
       icon: Bell,
       iconColor: "text-muted-foreground",
       iconBg: "bg-muted/40",
+      priority: "Info",
+      priorityColor: "bg-muted text-muted-foreground",
     },
   };
 
@@ -132,21 +131,47 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-medium text-foreground">{item.title}</p>
-            {item.confidence !== undefined && (
-              <ConfidenceBadge score={item.confidence} />
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                  config.priorityColor,
+                )}
+              >
+                {config.priority}
+              </span>
+              {item.confidence !== undefined && (
+                <ConfidenceBadge score={item.confidence} showLabel={false} />
+              )}
+            </div>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {item.description}
           </p>
-          {item.agent && (
-            <div className="mt-2 flex items-center gap-1.5">
-              <Bot className="h-3 w-3 text-primary/60" />
-              <span className="text-[10px] text-muted-foreground/60">
-                {item.agent}
-              </span>
+
+          {/* Source document */}
+          {item.sourceDoc && (
+            <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+              <FileCheck className="h-3 w-3" />
+              <span>{item.sourceDoc}</span>
             </div>
           )}
+
+          {/* Agent + confidence row */}
+          <div className="mt-2 flex items-center gap-3">
+            {item.agent && (
+              <div className="flex items-center gap-1.5">
+                <Bot className="h-3 w-3 text-primary/60" />
+                <span className="text-[10px] text-muted-foreground/60">
+                  {item.agent}
+                </span>
+              </div>
+            )}
+            {item.confidence !== undefined && (
+              <ConfidenceBadge score={item.confidence} />
+            )}
+          </div>
+
           {item.amount && (
             <p className="mt-2 text-sm font-semibold text-foreground">
               {item.amount}
@@ -154,42 +179,67 @@ function ActivityItemCard({ item }: { item: ActivityItemData }) {
           )}
         </div>
       </div>
+
+      {/* Inline actions */}
       {item.actions.length > 0 && (
-        <div className="mt-3 flex items-center gap-2 pl-13">
-          {item.actions.map((action) =>
-            action.href ? (
-              <Link
-                key={action.label}
-                href={action.href}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                  action.variant === "outline"
-                    ? "border border-border bg-background text-foreground hover:bg-accent"
-                    : action.variant === "ghost"
-                      ? "text-muted-foreground hover:text-foreground hover:bg-accent"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90",
-                )}
-              >
-                {action.label}
-              </Link>
-            ) : (
-              <button
-                key={action.label}
-                type="button"
-                onClick={action.onClick}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                  action.variant === "outline"
-                    ? "border border-border bg-background text-foreground hover:bg-accent"
-                    : action.variant === "ghost"
-                      ? "text-muted-foreground hover:text-foreground hover:bg-accent"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90",
-                )}
-              >
-                {action.label}
-              </button>
-            ),
-          )}
+        <div className="mt-3 ml-13">
+          <InlineActions
+            actions={item.actions.map((a) => ({
+              ...a,
+              icon:
+                a.variant === "approve"
+                  ? ThumbsUp
+                  : a.variant === "reject"
+                    ? ThumbsDown
+                    : a.variant === "review"
+                      ? Eye
+                      : undefined,
+            }))}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Completed Section ─────────────────────────────────────────────────────
+
+function CompletedSection({ count }: { count: number }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (count === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card/60">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <span>Completed today</span>
+          <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-500">
+            {count}
+          </span>
+        </div>
+        {isOpen ? (
+          <ChevronUp className="h-4 w-4" />
+        ) : (
+          <ChevronDown className="h-4 w-4" />
+        )}
+      </button>
+      {isOpen && (
+        <div className="border-t border-border/50 px-4 py-3">
+          <p className="text-xs text-muted-foreground">
+            {count} items resolved automatically by AI agents.{" "}
+            <Link
+              href="/dashboard/ledger"
+              className="text-primary hover:underline"
+            >
+              View audit trail
+            </Link>
+          </p>
         </div>
       )}
     </div>
@@ -228,10 +278,11 @@ export default function ActivityHubPage() {
         description: approval.description ?? "Requires your review",
         agent: approval.agentName ?? "AI Agent",
         confidence: approval.confidence ?? undefined,
+        sourceDoc: approval.sourceDocument ?? undefined,
         actions: [
-          { label: "Approve", variant: "default" },
-          { label: "Review", variant: "outline" },
-          { label: "Reject", variant: "ghost" },
+          { label: "Approve", variant: "approve" },
+          { label: "Review", variant: "review" },
+          { label: "Reject", variant: "reject" },
         ],
       });
     }
@@ -249,10 +300,9 @@ export default function ActivityHubPage() {
       actions: [
         {
           label: "Review all",
-          variant: "default",
-          href: "/dashboard/operations",
+          variant: "review",
         },
-        { label: "Auto-approve", variant: "ghost" },
+        { label: "Auto-approve", variant: "approve" },
       ],
     });
   }
@@ -265,16 +315,22 @@ export default function ActivityHubPage() {
         type: "info",
         title: notification.title,
         description: notification.body ?? "",
-        actions: [{ label: "View", variant: "ghost" }],
+        actions: [{ label: "View", variant: "default" }],
       });
     }
   }
 
+  // Sort by urgency: urgent > approval > review > info
+  const typeOrder = { urgent: 0, approval: 1, review: 2, info: 3 };
+  const sorted = [...activityItems].sort(
+    (a, b) => (typeOrder[a.type] ?? 4) - (typeOrder[b.type] ?? 4),
+  );
+
   // Filter items
   const filteredItems =
     activeFilter === "all"
-      ? activityItems
-      : activityItems.filter((item) => {
+      ? sorted
+      : sorted.filter((item) => {
           if (activeFilter === "urgent") return item.type === "urgent";
           if (activeFilter === "approvals") return item.type === "approval";
           if (activeFilter === "reviews") return item.type === "review";
@@ -286,12 +342,18 @@ export default function ActivityHubPage() {
   const approvalCount = activityItems.filter(
     (i) => i.type === "approval",
   ).length;
+  const completedCount = ingestionStats?.autoPosted ?? 0;
 
   return (
     <ModulePageShell
       title="Activity Hub"
       description="What needs your attention right now. AI-curated, priority-sorted."
       icon={Inbox}
+      aiSuggestions={[
+        "Show me what needs approval",
+        "Auto-approve low-risk items",
+        "Why was this flagged?",
+      ]}
     >
       <div className="space-y-4 p-4 sm:p-6">
         {/* Stats */}
@@ -329,7 +391,7 @@ export default function ActivityHubPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {ingestionStats?.autoPosted ?? 0}
+                  {completedCount}
                 </p>
                 <p className="text-xs text-muted-foreground">Auto-resolved</p>
               </div>
@@ -380,6 +442,9 @@ export default function ActivityHubPage() {
             ))}
           </div>
         )}
+
+        {/* Completed Section */}
+        <CompletedSection count={completedCount} />
       </div>
     </ModulePageShell>
   );
