@@ -312,6 +312,7 @@ export default function ActivityHubPage() {
 
   // ── Selection state ─────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
 
   // Fetch real data
   const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
@@ -723,7 +724,7 @@ export default function ActivityHubPage() {
               </button>
               <button
                 type="button"
-                onClick={() => handleBatchAction("reject")}
+                onClick={() => setConfirmRejectOpen(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
               >
                 <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
@@ -737,6 +738,57 @@ export default function ActivityHubPage() {
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Reject Confirmation Dialog */}
+        {confirmRejectOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm batch reject"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setConfirmRejectOpen(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setConfirmRejectOpen(false);
+            }}
+          >
+            <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-500/10">
+                  <AlertTriangle className="h-6 w-6 text-red-500" aria-hidden="true" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Reject {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"}?
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    This will reject {selectedIds.size} selected item{selectedIds.size === 1 ? "" : "s"}. This action can be undone from the audit trail.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRejectOpen(false)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmRejectOpen(false);
+                    handleBatchAction("reject");
+                  }}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                >
+                  Reject {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"}
+                </button>
+              </div>
             </div>
           </div>
         )}

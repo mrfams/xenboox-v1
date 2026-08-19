@@ -290,6 +290,25 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/metaKey|ctrlKey|altKey/);
   });
 
+  it("Activity Hub has confirmation dialog for batch reject", () => {
+    const src = read("app/dashboard/activity-hub/page.tsx");
+    // Must have confirmRejectOpen state
+    expect(src).toMatch(/confirmRejectOpen/);
+    // Must have role=dialog with aria-modal
+    expect(src).toMatch(/role="dialog"/);
+    expect(src).toMatch(/aria-modal="true"/);
+    // Must have aria-label
+    expect(src).toMatch(/aria-label="Confirm batch reject"/);
+    // Must have cancel and confirm buttons
+    expect(src).toMatch(/Cancel/);
+    // Must close on Escape
+    expect(src).toMatch(/key === "Escape"/);
+    // Must close on backdrop click
+    expect(src).toMatch(/e\.target === e\.currentTarget/);
+    // Reject all button must open dialog, not directly reject
+    expect(src).toMatch(/setConfirmRejectOpen\(true\)/);
+  });
+
   it("Activity Hub has batch approve/reject with selection checkboxes", () => {
     const src = read("app/dashboard/activity-hub/page.tsx");
     // Must have selectedIds state
