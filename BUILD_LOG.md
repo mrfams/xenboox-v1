@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — Dedicated Audit Trail page
+
+**Agent:** Buffy
+**Files Created:** `apps/web/app/dashboard/audit-trail/page.tsx`, `apps/web/app/dashboard/audit-trail/loading.tsx`
+**Files Modified:** `apps/web/components/layout/sidebar.tsx`, `apps/web/lib/hooks/use-route-focus.ts`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Built a dedicated Audit Trail page replacing the buried Settings section:
+
+1. **Page** — Full-featured audit log at `/dashboard/audit-trail` with: search by action/entity/changes, surface filter (Settings, Auth, Ledger, AR, etc.), expandable entries with JSON details, stats (total/today/this week), pagination, action verbs (Created/Updated/Deleted/Approved/Rejected), time-ago formatting
+2. **Loading Skeleton** — Matched layout skeleton for instant perceived performance
+3. **Sidebar** — Added Audit Trail link in bottom nav section (with History icon)
+4. **Route Focus** — Added audit-trail to PAGE_TITLES map for screen reader announcements
+5. **Tests** — 52/52 a11y tests pass (2 new tests)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 52/52 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Global search with Ctrl+K command palette
 
 **Agent:** Buffy
