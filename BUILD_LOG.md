@@ -93,6 +93,27 @@
 
 ---
 
+### [2026-08-19] — WAI-ARIA keyboard navigation for Ledger tab panel
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/ledger/page.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added full WAI-ARIA keyboard navigation to the Ledger tab panel:
+
+1. **LedgerTabList Component** — New component implementing the WAI-ARIA Tabs pattern:
+   - `role="tablist"` with `aria-label="Ledger sections"`
+   - Each tab: `role="tab"`, `aria-selected`, `aria-controls` pointing to panel
+   - Roving tabindex: active tab gets `tabIndex=0`, inactive get `tabIndex=-1`
+   - Arrow Right/Left: move focus between tabs
+   - Home/End: jump to first/last tab
+   - Focus visible ring on keyboard focus
+2. **Tab Panel** — `role="tabpanel"` with `id` matching `aria-controls`, `aria-labelledby` pointing to tab
+3. **Test** — Added 1 test covering all keyboard interactions (30/30 pass)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 30/30 pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — Admin panels functional: agent-monitor, workflow-builder, blog, careers
 
 **Agent:** Buffy
