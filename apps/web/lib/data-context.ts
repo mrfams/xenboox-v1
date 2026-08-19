@@ -25,7 +25,7 @@ const CURRENCY_RE =
   /(?:GMD|USD|EUR|GBP|NGN|GHS|XOF|KES|₵|\$|€|£)\s*[\d,]+\.?\d{0,2}|[\d,]+\.?\d{0,2}\s*(?:GMD|USD|EUR|GBP|NGN|GHS|XOF|KES)/i;
 const PERCENTAGE_RE = /[\d]+\.?\d*\s*%/;
 const DATE_RE =
-  /\b\d{1,2}[/-\.]\d{1,2}[/-\.]\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s+\d{4}\b|\b\d{4}[/-\.]\d{1,2}[/-\.]\d{1,2}\b|\b(?:overdue|due\s+(?:in|today|tomorrow|this\s+week|next\s+week))\b/i;
+  /\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s+\d{4}\b|\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b|\b(?:overdue|due\s+(?:in|today|tomorrow|this\s+week|next\s+week))\b/i;
 const STATUS_RE =
   /\b(?:paid|unpaid|pending|approved|rejected|draft|sent|viewed|overdue|matched|unmatched|excluded|reconciled|unreconciled|active|inactive|closed|open|flagged|processing|completed|failed|cancelled|scheduled)\b/i;
 
