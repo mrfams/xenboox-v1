@@ -29,10 +29,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import {
-  useDataSelection,
-  type DataSelection,
-} from "@/lib/hooks/use-data-selection";
+import { useDataSelection } from "@/lib/hooks/use-data-selection";
 import type { ContextAction } from "@/lib/data-context";
 
 // ─── Icon Map ─────────────────────────────────────────────────────────────
