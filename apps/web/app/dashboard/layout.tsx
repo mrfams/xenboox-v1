@@ -52,11 +52,8 @@ export default function DashboardLayout({
   const [isDragging, setIsDragging] = useState(false);
   const [panelWidth, setPanelWidth] = useState(400);
 
+  // Routes that need full-width padding (no card container)
   const PAGE_PADDING_ROUTES = new Set([
-    "/dashboard/work",
-    "/dashboard/money",
-    "/dashboard/insights",
-    "/dashboard/agents",
     "/dashboard/settings",
     "/dashboard/help",
   ]);

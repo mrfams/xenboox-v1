@@ -185,6 +185,170 @@ const baseConfig: NextConfig = {
       },
     ];
   },
+  // AI-Native redirect map — old 22-page routes to new 5-surface architecture.
+  // Every old route gets a permanent redirect so no bookmarks or links break.
+  async redirects() {
+    return [
+      // Command Center absorbs: chat, explore, activity, agent-monitor
+      { source: "/dashboard/chat", destination: "/dashboard", permanent: true },
+      {
+        source: "/dashboard/explore",
+        destination: "/dashboard",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/activity",
+        destination: "/dashboard",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/agent-monitor",
+        destination: "/dashboard",
+        permanent: true,
+      },
+      // Activity Hub absorbs: inbox, review-queue, notifications, work
+      {
+        source: "/dashboard/inbox",
+        destination: "/dashboard/activity-hub",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/review-queue",
+        destination: "/dashboard/activity-hub",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/notifications",
+        destination: "/dashboard/activity-hub",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/work",
+        destination: "/dashboard/activity-hub",
+        permanent: true,
+      },
+      // Financial Pulse absorbs: reports, insights
+      {
+        source: "/dashboard/reports",
+        destination: "/dashboard/financial-pulse",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/insights",
+        destination: "/dashboard/financial-pulse",
+        permanent: true,
+      },
+      // Ledger absorbs: journal, chart-of-accounts, trial-balance, fixed-assets, transactions
+      {
+        source: "/dashboard/journal",
+        destination: "/dashboard/ledger",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/chart-of-accounts",
+        destination: "/dashboard/ledger",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/trial-balance",
+        destination: "/dashboard/ledger",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/fixed-assets",
+        destination: "/dashboard/ledger",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/transactions",
+        destination: "/dashboard/ledger",
+        permanent: true,
+      },
+      // Operations absorbs: invoicing, estimates, bills, expenses, banking, money,
+      // payroll, reconciliation, tax-compliance, close, documents, customers, vendors, inventory
+      {
+        source: "/dashboard/invoicing",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/estimates",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/bills",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/expenses",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/banking",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/money",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/payroll",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/reconciliation/center",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/tax-compliance",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/close",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/documents",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/customers",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/vendors",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/inventory",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      // Admin pages move out of dashboard
+      {
+        source: "/dashboard/agents",
+        destination: "/admin/agents",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/automation",
+        destination: "/admin/automation",
+        permanent: true,
+      },
+    ];
+  },
   // Security & performance optimizations
   compress: true,
   poweredByHeader: false,

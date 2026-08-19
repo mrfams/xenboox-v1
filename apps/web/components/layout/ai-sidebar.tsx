@@ -2,16 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import {
-  Home,
-  Compass,
   Sparkles,
   Inbox,
-  DollarSign,
-  BarChart3,
-  Bot,
+  Activity,
+  BookOpen,
+  ArrowLeftRight,
   Settings,
   HelpCircle,
   type LucideIcon,
@@ -32,69 +29,83 @@ type NavItem = {
   match?: string[];
 };
 
+// ─── AI-Native Navigation ────────────────────────────────────────────────
+// 5 surfaces, not 22. The AI is the primary interface.
+// Command Center: AI is your CFO. Chat-first. Proactive briefings.
+// Activity Hub: Human-in-the-loop queue. AI-curated, prioritized.
+// Financial Pulse: AI-narrated financial health. Visual, not tabular.
+// Ledger: The accounting records. Deep-dive when needed.
+// Operations: Money in, money out. AI handles, you approve.
 const primaryNavItems: NavItem[] = [
-  { label: "Home", href: "/dashboard", icon: Home },
   {
-    label: "Explore",
-    href: "/dashboard/explore",
-    icon: Compass,
-    match: ["/dashboard/explore"],
-  },
-  {
-    label: "Ask Xenboox",
-    href: "/dashboard/chat",
+    label: "Command Center",
+    href: "/dashboard",
     icon: Sparkles,
+    match: [
+      "/dashboard/chat",
+      "/dashboard/explore",
+      "/dashboard/agent-monitor",
+      "/dashboard/activity",
+    ],
   },
   {
-    label: "Work",
-    href: "/dashboard/work",
+    label: "Activity Hub",
+    href: "/dashboard/activity-hub",
     icon: Inbox,
     countKey: "total",
     match: [
-      "/dashboard/work",
+      "/dashboard/activity-hub",
       "/dashboard/inbox",
       "/dashboard/review-queue",
       "/dashboard/notifications",
+      "/dashboard/work",
     ],
   },
   {
-    label: "Money",
-    href: "/dashboard/money",
-    icon: DollarSign,
+    label: "Financial Pulse",
+    href: "/dashboard/financial-pulse",
+    icon: Activity,
     match: [
-      "/dashboard/money",
+      "/dashboard/financial-pulse",
+      "/dashboard/reports",
+      "/dashboard/insights",
+    ],
+  },
+  {
+    label: "Ledger",
+    href: "/dashboard/ledger",
+    icon: BookOpen,
+    match: [
+      "/dashboard/ledger",
+      "/dashboard/journal",
+      "/dashboard/chart-of-accounts",
+      "/dashboard/trial-balance",
+      "/dashboard/fixed-assets",
       "/dashboard/transactions",
-      "/dashboard/banking",
-      "/dashboard/cash",
+    ],
+  },
+  {
+    label: "Operations",
+    href: "/dashboard/operations",
+    icon: ArrowLeftRight,
+    match: [
+      "/dashboard/operations",
       "/dashboard/invoicing",
+      "/dashboard/estimates",
       "/dashboard/bills",
       "/dashboard/expenses",
+      "/dashboard/banking",
+      "/dashboard/money",
       "/dashboard/payroll",
       "/dashboard/reconciliation",
-      "/dashboard/estimates",
       "/dashboard/tax-compliance",
-    ],
-  },
-  {
-    label: "Insights",
-    href: "/dashboard/insights",
-    icon: BarChart3,
-    match: [
-      "/dashboard/insights",
-      "/dashboard/reports",
-      "/dashboard/journal",
+      "/dashboard/close",
+      "/dashboard/documents",
       "/dashboard/customers",
       "/dashboard/vendors",
-      "/dashboard/close",
+      "/dashboard/inventory",
     ],
   },
-  {
-    label: "Agents",
-    href: "/dashboard/agents",
-    icon: Bot,
-    match: ["/dashboard/agents", "/dashboard/agent-monitor"],
-  },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 interface SidebarProps {
@@ -245,16 +256,8 @@ function AgentStatusBar({ expanded }: { expanded: boolean }) {
   );
 }
 
-// The Explore hub (dashboard/explore) is currently in a soft-launch — only
-// demo@xenboox.com sees it in the sidebar. Remove this gate (and the filter
-// below) when it ships to everyone.
-const EXPLORE_ALLOWED_EMAIL = "demo@xenboox.com";
-
 export function AISidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname() ?? "/";
-  const { data: session } = useSession();
-  const user = session?.user;
-  const isExploreAllowed = user?.email?.toLowerCase() === EXPLORE_ALLOWED_EMAIL;
 
   const [isHovered, setIsHovered] = useState(false);
 
@@ -365,20 +368,40 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
         {/* Primary Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="space-y-1 px-2">
-            {primaryNavItems
-              .filter(
-                (item) =>
-                  item.href !== "/dashboard/explore" || isExploreAllowed,
-              )
-              .map((item) => renderNavItem(item))}
+            {primaryNavItems.map((item) => renderNavItem(item))}
           </div>
         </nav>
 
         {/* Agent status — renders only when something is processing/pending */}
         <AgentStatusBar expanded={isHovered} />
 
-        {/* Help & Support */}
-        <div className="border-t border-white/[0.06] p-3">
+        {/* Settings + Help */}
+        <div className="border-t border-white/[0.06] p-3 space-y-1">
+          <Link
+            href="/dashboard/settings"
+            title="Settings"
+            onClick={() => setIsHovered(false)}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+              "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
+              pathname === "/dashboard/settings"
+                ? "bg-primary/15 text-primary"
+                : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
+            )}
+          >
+            <Settings className="h-5 w-5" />
+            <span
+              className={cn(
+                "flex-1 truncate",
+                isHovered
+                  ? "md:block md:flex-none md:w-full md:text-center"
+                  : "md:hidden",
+                "lg:block lg:flex-none lg:w-full lg:text-center",
+              )}
+            >
+              Settings
+            </span>
+          </Link>
           <Link
             href="/dashboard/help"
             title="Help & Support"
