@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback } from "react";
 import {
   MessageSquare,
   Inbox,
@@ -64,7 +65,15 @@ const navItems: BottomNavItem[] = [
 
 export function MobileBottomNav() {
   const pathname = usePathname() ?? "/";
+  const router = useRouter();
   const attention = useAttentionSignals();
+
+  const prefetchRoute = useCallback(
+    (href: string) => {
+      router.prefetch(href);
+    },
+    [router],
+  );
 
   function isActive(item: BottomNavItem) {
     if (item.href === "/dashboard") return pathname === item.href;
@@ -89,6 +98,9 @@ export function MobileBottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
+              onMouseEnter={() => prefetchRoute(item.href)}
+              onTouchStart={() => prefetchRoute(item.href)}
               aria-label={
                 hasAttention
                   ? `${item.label} — ${signal.count} items need attention`

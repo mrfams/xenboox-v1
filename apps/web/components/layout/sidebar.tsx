@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   MessageSquare,
   Inbox,
@@ -230,6 +230,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     return pathname.startsWith(item.href);
   }
 
+  const router = useRouter();
+
+  const prefetchRoute = useCallback(
+    (href: string) => {
+      router.prefetch(href);
+    },
+    [router],
+  );
+
   function renderNavItem(item: NavItem) {
     const signal = item.attentionKey
       ? attention.byKey[item.attentionKey]
@@ -242,6 +251,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       <Link
         key={item.href}
         href={item.href}
+        prefetch={true}
+        onMouseEnter={() => prefetchRoute(item.href)}
         onClick={onClose}
         aria-label={
           hasAttention
@@ -333,6 +344,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="border-t border-white/[0.06] p-3">
           <Link
             href="/dashboard/help"
+            prefetch={true}
+            onMouseEnter={() => prefetchRoute("/dashboard/help")}
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))] transition-colors lg:justify-center lg:group-hover:justify-start"
           >
             <HelpCircle className="h-4 w-4 shrink-0" />
