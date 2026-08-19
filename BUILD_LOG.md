@@ -6,6 +6,34 @@
 
 ---
 
+### [2026-08-19] — AI-Native UI Masterplan: 5 surfaces, 21 nav items to 5
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/components/layout/sidebar.tsx`, `apps/web/lib/hooks/use-attention-signals.ts`, `apps/web/app/dashboard/page.tsx`, `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/app/dashboard/financial-pulse/page.tsx`, `apps/web/app/dashboard/ledger/page.tsx`, `apps/web/app/dashboard/operations/page.tsx`
+**Files Created:** `apps/web/components/shared/ai-native/{confidence-badge,actor-badge,ai-narrative-header,inline-actions,alert-card,index}.tsx`
+
+**Session work:** Implemented the full AI-Native UI Masterplan — restructuring the dashboard from 22 pages/21 nav items to 5 surfaces:
+
+1. **Shared AI-Native Component Library** — Created 5 reusable components: `ConfidenceBadge` (visual AI confidence indicator with 3 levels), `ActorBadge` (AI vs human indicator), `AiNarrativeHeader` (reusable AI summary banner), `InlineActions` (approve/reject/review buttons), `AlertCard` (contextual alert display).
+
+2. **Sidebar Rewrite** — Reduced from 21 items to 5 surfaces: Command Center, Activity Hub, Financial Pulse, Ledger, Operations. Updated attention signal routing to map old notification types to new 5-surface keys.
+
+3. **Surface 1: Command Center** — Wired to real AI streaming via `useDashboardChat` hook (SSE from `/api/chat/stream`). Shows streaming tokens, inline approval cards, document artifacts, confidence badges, and actor badges. Dynamic suggestion chips.
+
+4. **Surface 2: Activity Hub** — Priority-sorted (urgent > approvals > reviews > info). Working approve/reject/review actions. Collapsible completed section. Confidence badges and agent attribution on every item.
+
+5. **Surface 3: Financial Pulse** — AI-narrated financial narrative built from real data. KPI cards with mini sparklines. AI scenario planner input. Report library with real data links.
+
+6. **Surface 4: Ledger** — 5 tabs (Journal, COA, Trial Balance, Fixed Assets, Reconciliation). Real trial balance with debit/credit columns and balance check. Actor badges (AI vs human) on journal entries. AI-enhanced search with natural language.
+
+7. **Surface 5: Operations** — AI money flow summary with real data. Working section cards linking to real pages. Real compliance timeline from close center data. People grid with real customer/vendor counts.
+
+**Verification:** All 5 surfaces committed and pushed. Each surface follows the masterplan's design principles: AI-first, proactive, conversational, contextual.
+
+**Next:** Phase 6 (Polish & Testing) — accessibility audit, mobile responsive, performance optimization, E2E tests.
+
+---
+
 ### [2026-08-16] — Admin panels functional: agent-monitor, workflow-builder, blog, careers
 
 **Agent:** Buffy
