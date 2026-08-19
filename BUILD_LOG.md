@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — Batch approve/reject for Activity Hub
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added batch selection and processing for activity items:
+
+1. **Selection Checkboxes** — Each approval/review item gets a checkbox (only items with approve/reject actions are selectable)
+2. **Batch Action Bar** — Sticky floating bar appears when items selected, with `role="toolbar"` and `aria-label="Batch actions"`
+3. **Batch Buttons** — "Approve all" (green) and "Reject all" (red) process all selected items simultaneously
+4. **Select All / Clear** — "Select all (N)" selects all selectable items; "Clear" deselects all
+5. **Optimistic Batch** — All selected items transition to processing → success simultaneously, with toast showing count
+6. **Tests** — 39/39 a11y tests pass (1 new test)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 39/39 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Keyboard shortcuts 1-5 for surface navigation
 
 **Agent:** Buffy
