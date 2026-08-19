@@ -6,6 +6,23 @@
 
 ---
 
+### [2026-08-20] — Undo toast for batch approve/reject in Activity Hub
+
+**Agent:** Buffy
+**Files Modified:** `apps/web/app/dashboard/activity-hub/page.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added undo capability for batch actions:
+
+1. **`undoBatchAction` Handler** — Clears success states from `itemStates`, refetches approvals to restore items, shows "Undone" info toast
+2. **Toast with Undo Button** — Sonner toast with `action: { label: "Undo", onClick: () => undoBatchAction(ids) }` — visible for 5 seconds
+3. **Works for Both Actions** — Batch approve and batch reject both get the undo window
+4. **Single Item Actions** — Also get 5s undo window (updated duration from 3s to 5s)
+5. **Tests** — 43/43 a11y tests pass (1 new test)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 43/43 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — Keyboard shortcuts a/r for batch approve/reject in Activity Hub
 
 **Agent:** Buffy
