@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — Critical production fixes: health check, error boundary
+
+**Agent:** Buffy
+**Files Created:** `apps/web/components/shared/error-boundary.tsx`
+**Files Modified:** `apps/web/app/api/health/route.ts`, `apps/web/app/dashboard/layout.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Fixed critical production issues identified in enterprise audit:
+
+1. **API Ready Check Fix** — `readinessCheck()` now treats Redis `"warn"` (not configured) as acceptable instead of failing. Only `"fail"` status blocks traffic routing. This fixes the 503 on `/api/health?check=ready`.
+2. **Error Boundary** — New `ErrorBoundary` class component with: `getDerivedStateFromError` + `componentDidCatch`, fallback UI with "Something went wrong" + "Try again" + "Go to Dashboard", Sentry logging in production, development-mode stack trace display.
+3. **Dashboard Layout** — `ErrorBoundary` wraps `{children}` inside the route transition div, catching any runtime errors in surface pages.
+4. **Settings/Help** — Verified both pages exist and are fully built (307 redirects are deploy lag, not code issues).
+5. **Tests** — 47/47 a11y tests pass (3 new tests).
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 47/47 pass. Committed + pushed.
+
+---
+
 ### [2026-08-20] — / key to toggle AI chat panel + Escape to close
 
 **Agent:** Buffy
