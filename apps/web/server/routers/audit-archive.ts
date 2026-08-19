@@ -4,7 +4,7 @@
 // integrity, and trigger manual archival. All procedures are entity-scoped.
 
 import { z } from "zod";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 import { auditArchiveManifests } from "@xenboox/db/schema/audit-archive";
 import { auditLog } from "@xenboox/db/schema/accounting";
 
@@ -196,9 +196,9 @@ export const auditArchiveRouter = router({
     const cutoff = oneYearAgo.toISOString();
 
     const result = await db.execute(
-      `SELECT COUNT(*) as count FROM audit_log
-       WHERE entity_id = '${entityId}'
-         AND created_at < '${cutoff}'`,
+      sql`SELECT COUNT(*) as count FROM audit_log
+       WHERE entity_id = ${entityId}
+         AND created_at < ${cutoff}`,
     );
 
     const rows = result as { count: number }[];
