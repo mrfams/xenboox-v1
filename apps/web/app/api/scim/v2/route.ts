@@ -239,11 +239,11 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!validateScimAuth(req)) return unauthorized();
 
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
 
   const email = body.userName || body.emails?.[0]?.value;
@@ -286,11 +286,11 @@ export async function PUT(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!validateScimAuth(req)) return unauthorized();
 
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
 
   // SCIM PATCH: typically used for activate/deactivate
@@ -329,11 +329,11 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!validateScimAuth(req)) return unauthorized();
 
-  const { id } = params;
+  const { id } = await params;
 
   // Deactivate (don't delete — preserve data integrity)
   await db.update(users).set({ emailVerified: null }).where(eq(users.id, id));
