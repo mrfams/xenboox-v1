@@ -99,7 +99,7 @@ export const dataRetentionRouter = router({
           retentionColumn: input.retentionColumn ?? null,
           exclusionWhere: input.exclusionWhere ?? null,
           description: input.description ?? null,
-          createdBy: ctx.userId ?? null,
+          createdBy: ctx.session?.user?.id ?? null,
         })
         .returning();
 
