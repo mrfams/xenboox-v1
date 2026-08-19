@@ -114,6 +114,26 @@
 
 ---
 
+### [2026-08-19] — Focus management + screen reader announcements on surface transitions
+
+**Agent:** Buffy
+**Files Created:** `apps/web/lib/hooks/use-route-focus.ts`
+**Files Modified:** `apps/web/app/dashboard/layout.tsx`, `apps/web/__tests__/a11y-static.test.ts`
+
+**Session work:** Added focus management so screen readers announce new pages on navigation:
+
+1. **useRouteFocus Hook** — Watches pathname changes and:
+   - Focuses the `<main id="main-content">` element (already has `tabIndex={-1}`)
+   - Announces the page title via `aria-live="polite"` region
+   - Maps routes to human-readable titles (Command Center, Activity Hub, Financial Pulse, Ledger, Operations)
+   - Only fires on actual route changes (not initial mount)
+2. **Dashboard Layout** — Wired `useRouteFocus` and renders the aria-live announce div
+3. **Tests** — Added 2 new tests (32/32 pass)
+
+**Verification:** `npx vitest run __tests__/a11y-static.test.ts` — 32/32 pass. Committed + pushed.
+
+---
+
 ### [2026-08-16] — Admin panels functional: agent-monitor, workflow-builder, blog, careers
 
 **Agent:** Buffy
