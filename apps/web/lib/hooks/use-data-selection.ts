@@ -38,7 +38,7 @@ export type DataSelection = {
  */
 export function useDataSelection() {
   const pathname = usePathname();
-  const page = getPageFromRoute(pathname);
+  const page = getPageFromRoute(pathname ?? "/");
   const [selection, setSelection] = useState<DataSelection | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
