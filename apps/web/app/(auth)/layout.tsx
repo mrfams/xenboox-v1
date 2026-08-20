@@ -6,7 +6,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Left: Branded hero panel */}
-      <div className="relative hidden w-full flex-col justify-between overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-10 lg:flex lg:w-[52%]">
+      <div className="relative hidden w-full flex-col justify-between overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-8 xl:p-10 lg:flex lg:w-[52%]">
         {/* Background decoration */}
         <div
           className="pointer-events-none absolute inset-0"
@@ -116,7 +116,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Right: Form panel */}
-      <div className="flex w-full items-center justify-center bg-background px-4 py-10 sm:px-6 lg:w-[48%]">
+      <div className="flex w-full items-center justify-center bg-background px-5 py-10 sm:px-8 lg:w-[48%]">
         <div className="w-full max-w-md">{children}</div>
       </div>
     </div>

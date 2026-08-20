@@ -182,7 +182,7 @@ export default function PricingPage() {
                 <div
                   className={`relative flex flex-col rounded-2xl border p-6 md:p-8 transition-all duration-300 ${
                     tier.highlighted
-                      ? "border-primary shadow-xl shadow-primary/10 lg:scale-105 bg-gradient-to-b from-card to-primary/5"
+                      ? "border-primary shadow-xl shadow-primary/10 lg:scale-[1.03] bg-gradient-to-b from-card to-primary/5"
                       : "bg-card hover:shadow-lg hover:-translate-y-1"
                   }`}
                 >

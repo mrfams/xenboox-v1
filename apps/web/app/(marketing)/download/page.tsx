@@ -169,7 +169,7 @@ export default function DownloadPage() {
                 <div
                   className={`relative flex flex-col rounded-2xl border border-border bg-card p-6 md:p-8 transition-all duration-300 ${
                     platform.popular
-                      ? "border-primary shadow-xl shadow-primary/10 lg:scale-105"
+                      ? "border-primary shadow-xl shadow-primary/10 lg:scale-[1.03]"
                       : "hover:shadow-lg hover:-translate-y-1"
                   }`}
                 >

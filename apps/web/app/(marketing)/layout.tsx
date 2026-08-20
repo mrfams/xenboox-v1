@@ -110,8 +110,8 @@ export default function MarketingLayout({
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? "border-b border-border/50 bg-white/95 backdrop-blur-xl shadow-sm"
-            : "border-b border-transparent bg-white"
+            ? "border-b border-border/50 bg-background/95 backdrop-blur-xl shadow-sm"
+            : "border-b border-transparent bg-background"
         }`}
       >
         <div className="mx-auto flex h-14 md:h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -180,7 +180,7 @@ export default function MarketingLayout({
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-border/50 bg-white">
+          <div className="lg:hidden border-t border-border/50 bg-background">
             <div className="px-4 py-4 space-y-1">
               {navLinks.map((link) => (
                 <Link
@@ -253,7 +253,7 @@ export default function MarketingLayout({
             </p>
             <form
               onSubmit={(e) => e.preventDefault()}
-              className="mt-6 flex max-w-md mx-auto gap-3"
+              className="mt-6 flex max-w-md mx-auto gap-3 flex-col sm:flex-row"
             >
               <input
                 type="email"
@@ -359,7 +359,7 @@ export default function MarketingLayout({
             <p className="text-xs text-muted-foreground">
               &copy; {new Date().getFullYear()} Xenboox. All rights reserved.
             </p>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-center">
               <Link
                 href="/privacy"
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors"

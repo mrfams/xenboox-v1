@@ -363,7 +363,7 @@ export default function FeaturesPage() {
         />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 py-20 text-center sm:py-24 lg:py-28">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 sm:gap-6 py-14 sm:py-20 lg:py-28 text-center">
             <FadeInUp>
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
@@ -397,10 +397,10 @@ export default function FeaturesPage() {
               </div>
             </FadeInUp>
             <FadeInUp delay={0.2}>
-              <div className="mt-10 grid w-full max-w-2xl grid-cols-2 gap-8 sm:grid-cols-4">
+              <div className="mt-10 grid w-full max-w-2xl grid-cols-2 gap-6 sm:gap-8 sm:grid-cols-4">
                 {stats.map((stat) => (
                   <div key={stat.label} className="text-center">
-                    <div className="text-3xl font-bold text-foreground">
+                    <div className="text-2xl sm:text-3xl font-bold text-foreground">
                       <AnimatedCounter
                         target={stat.value}
                         suffix={stat.suffix}
@@ -421,11 +421,11 @@ export default function FeaturesPage() {
       {featureSections.map((section, index) => (
         <section
           key={section.id}
-          className={`${index % 2 === 0 ? "bg-paper" : "bg-paper-2/60"} py-20 sm:py-24 lg:py-28`}
+          className={`${index % 2 === 0 ? "bg-paper" : "bg-paper-2/60"} py-14 sm:py-20 lg:py-28`}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div
-              className={`grid items-center gap-16 lg:grid-cols-2 ${
+              className={`grid items-center gap-10 lg:gap-16 lg:grid-cols-2 ${
                 index % 2 === 1 ? "lg:grid-flow-dense" : ""
               }`}
             >
@@ -482,7 +482,7 @@ export default function FeaturesPage() {
             lead="Built for modern finance teams who want powerful tools without the complexity."
           />
 
-          <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 sm:mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: CreditCard,
@@ -549,7 +549,7 @@ export default function FeaturesPage() {
             lead="Hear from the teams that run their books with Xenboox."
           />
 
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
+          <div className="mt-10 sm:mt-16 grid gap-6 sm:gap-8 md:grid-cols-3">
             {testimonials.map((testimonial, index) => (
               <FadeInUp key={index} delay={index * 0.1}>
                 <div className="h-full rounded-2xl border border-border bg-card p-8 shadow-sm">
