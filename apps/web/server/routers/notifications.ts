@@ -229,4 +229,60 @@ export const notificationsRouter = router({
         return [];
       }
     }),
+
+  /**
+   * Create a proactive AI alert — agents call this when they detect
+   * anomalies, deadline approaches, or important patterns.
+   * These surface in the Activity Hub as urgent/info items.
+   */
+  createAlert: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().min(1).max(200),
+        message: z.string().min(1).max(1000),
+        type: z.enum(["warning", "info", "success", "error"]).default("info"),
+        priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+        source: z.string().default("ai-agent"),
+        metadata: z.record(z.unknown()).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId;
+        if (!entityId) throw new Error("Entity required");
+
+        const [alert] = await db
+          .insert(notifications)
+          .values({
+            userId: ctx.session!.user!.id!,
+            entityId,
+            type: input.type,
+            priority: input.priority,
+            title: input.title,
+            message: input.message,
+            read: false,
+            metadata: {
+              source: input.source,
+              ...input.metadata,
+            },
+          })
+          .returning();
+
+        logger.info(
+          {
+            notificationId: alert?.id,
+            entityId,
+            type: input.type,
+            priority: input.priority,
+            source: input.source,
+          },
+          "Proactive AI alert created",
+        );
+
+        return alert;
+      } catch (err) {
+        logger.error({ err }, "notifications.createAlert failed");
+        throw err;
+      }
+    }),
 });

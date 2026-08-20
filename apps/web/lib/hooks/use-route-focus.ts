@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/payment-links": "Payment Links",
   "/dashboard/documents/processing": "Document Processing",
   "/dashboard/documents": "Documents",
+  "/dashboard/ai-learning": "AI Learning",
 };
 
 function getPageTitle(pathname: string): string {

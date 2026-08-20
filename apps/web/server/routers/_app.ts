@@ -84,6 +84,7 @@ import { auditArchiveRouter } from "./audit-archive";
 import { recurringRouter } from "./recurring";
 import { matchingRouter } from "./matching";
 import { paymentLinksRouter } from "./payment-links";
+import { aiCorrectionsRouter } from "./ai-corrections";
 
 import { router, publicProcedure } from "@/lib/trpc/server";
 
@@ -174,6 +175,7 @@ export const appRouter = router({
   recurring: recurringRouter,
   matching: matchingRouter,
   paymentLinks: paymentLinksRouter,
+  aiCorrections: aiCorrectionsRouter,
 });
 
 export type AppRouter = typeof appRouter;

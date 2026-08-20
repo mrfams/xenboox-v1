@@ -172,6 +172,13 @@ const navigationItems: Omit<CommandItem, "id">[] = [
     keywords: ["payment", "link", "invoice", "online"],
   },
   {
+    label: "AI Learning",
+    href: "/dashboard/ai-learning",
+    icon: FileText,
+    group: "Pages",
+    keywords: ["ai", "learning", "corrections", "feedback", "brain"],
+  },
+  {
     label: "Inbox",
     href: "/dashboard/inbox",
     icon: MessageSquare,

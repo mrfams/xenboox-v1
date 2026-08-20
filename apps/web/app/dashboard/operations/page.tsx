@@ -22,6 +22,7 @@ import {
   Sparkles,
   Link2,
   ScanLine,
+  Brain,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -566,6 +567,13 @@ export default function OperationsPage() {
             >
               <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               Reconciliation
+            </Link>
+            <Link
+              href="/dashboard/ai-learning"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
+            >
+              <Brain className="h-3.5 w-3.5" aria-hidden="true" />
+              AI Learning
             </Link>
           </div>
         </div>

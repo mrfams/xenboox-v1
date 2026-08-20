@@ -441,11 +441,23 @@ export const paymentLinksRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
+      // Rate limit: 10 payments per minute per token
+      const { getRateLimiter } = await import("@/lib/security/rate-limiter");
+      const limiter = getRateLimiter();
+      const rateLimit = await limiter.checkPaymentLinkRateLimit(input.token);
+      if (!rateLimit.success) {
+        throw new Error("Too many payment attempts. Please try again later.");
+      }
+
       const link = await db.query.paymentLinks.findFirst({
         where: eq(paymentLinks.token, input.token),
       });
 
       if (!link || link.status !== "active") {
+        // Idempotency: if already paid, return success (prevent double-charge on retry)
+        if (link?.status === "paid") {
+          return { success: true, idempotent: true };
+        }
         throw new Error("Invalid or inactive payment link");
       }
 

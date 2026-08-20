@@ -197,6 +197,12 @@ export class RateLimiter {
     return tryUpstash(chatStreamLimiter, identifier, 30, 60);
   }
 
+  async checkPaymentLinkRateLimit(
+    identifier: string,
+  ): Promise<RateLimitResult> {
+    return tryUpstash(webhookLimiter, `pay:${identifier}`, 10, 60);
+  }
+
   // ─── Plan-Aware Rate Limiting ──────────────────────────────────────────
 
   /**
