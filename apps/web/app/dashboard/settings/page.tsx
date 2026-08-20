@@ -22,6 +22,7 @@ import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summa
 import { ExportImportSettings } from "@/components/settings/export-import-settings"
 import { AIUsageStats } from "@/components/settings/ai-usage-stats"
 import { SyncStatus } from "@/components/settings/sync-status"
+import { SettingsAuditLog } from "@/components/settings/settings-audit-log"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -125,6 +126,7 @@ export default function SettingsPage() {
 
       <AIPreferencesSummary />
       <AIUsageStats />
+      <SettingsAuditLog />
       <ExportImportSettings />
 
       <div className="grid gap-6 md:grid-cols-2">
