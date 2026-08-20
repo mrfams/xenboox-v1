@@ -20,6 +20,7 @@ import {
   AlertCircle,
   FileJson,
   ShieldCheck,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -240,9 +241,13 @@ export function ExportImportSettings({ onViewBackup }: { onViewBackup?: () => vo
         </div>
 
         {/* Backup indicator */}
-        <div className="group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-          <ShieldCheck className="h-4 w-4 shrink-0" />
-          <span>A backup will be created automatically before importing.</span>            <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
+        <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createVersionMutation.isPending ? "animate-pulse" : ""}`}>
+          {createVersionMutation.isPending ? (
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+          ) : (
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+          )}
+          <span>{createVersionMutation.isPending ? "Creating backup..." : "A backup will be created automatically before importing."}</span>            <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
               <p className="font-medium mb-1">Backup contains:</p>
               <ul className="space-y-0.5 text-muted-foreground">
                 <li>• AI preferences (auto-reconcile, categorize, alerts, digest)</li>
@@ -315,9 +320,13 @@ export function ExportImportSettings({ onViewBackup }: { onViewBackup?: () => vo
                 Import Settings
               </AlertDialogAction>
             </AlertDialogFooter>
-            <div className="group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <span>A backup will be created automatically before importing. You can restore from Version History.</span>
+            <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createVersionMutation.isPending ? "animate-pulse" : ""}`}>
+              {createVersionMutation.isPending ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+              )}
+              <span>{createVersionMutation.isPending ? "Creating backup..." : "A backup will be created automatically before importing. You can restore from Version History."}</span>
             <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
               <p className="font-medium mb-1">Backup contains:</p>
               <ul className="space-y-0.5 text-muted-foreground">
