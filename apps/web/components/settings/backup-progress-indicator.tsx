@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck, Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playBackupChime } from "@/lib/backup-chime";
 
 type BackupProgressIndicatorProps = {
   /** Whether backup is currently being created */
@@ -75,6 +76,13 @@ export function BackupProgressIndicator({
 }: BackupProgressIndicatorProps) {
   const progress = useSimulatedProgress(isPending, justCompleted);
   const showProgress = isPending || justCompleted;
+
+  // Play chime when backup completes
+  useEffect(() => {
+    if (justCompleted) {
+      playBackupChime();
+    }
+  }, [justCompleted]);
 
   return (
     <div

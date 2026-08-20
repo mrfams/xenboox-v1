@@ -51,6 +51,7 @@ import { ConflictResolution } from "@/components/settings/conflict-resolution";
 import { ConflictResolutionHistory } from "@/components/settings/conflict-resolution-history";
 import { DefaultStrategyPreference } from "@/components/settings/default-strategy-preference";
 import { RecentOperations } from "@/components/settings/recent-operations";
+import { SoundPreferences } from "@/components/settings/sound-preferences";
 import { BackupProgressIndicator } from "@/components/settings/backup-progress-indicator";
 
 export default function SettingsPage() {
@@ -203,6 +204,7 @@ export default function SettingsPage() {
         onSave={() => {}}
       />
       <ExportImportSettings onViewBackup={() => setShowVersionHistory(true)} />
+      <SoundPreferences />
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
