@@ -67,3 +67,7 @@ export * from "./tool-grants";
 export * from "./knowledge-rag";
 export * from "./fx";
 export * from "./automation";
+export * from "./user-settings";
+export * from "./settings-audit";
+export * from "./settings-versions";
+export * from "./conflict-resolution-history";
