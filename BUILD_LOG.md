@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — Onboarding Reset from Settings
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 1 (onboarding-reset.test.ts)
+**Files Modified:** 1 (settings/page.tsx)
+
+**What was built:**
+
+- **Onboarding card** in Settings with Sparkles icon and Reset button
+- Clears 3 localStorage keys: `xenboox_onboarding_completed`, `xenboox_onboarding_step`, `xenboox_ai_preferences`
+- Toast confirmation: "Onboarding reset. Refresh the page to start the wizard."
+- No database data affected — only client-side flags cleared
+- Wizard re-appears on next page refresh via `useOnboarding` hook detection
+- **12/12 tests pass**
+
+---
+
 ### [2026-08-20] — Global Search Ctrl+K Command Palette
 
 **Agent:** Buffy (Freebuff)
