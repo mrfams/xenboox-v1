@@ -105,15 +105,16 @@ export async function GET(request: NextRequest) {
 
 // ─── Helper: Notify clients of settings change ────────────────────────────────
 
-export function notifySettingsChange(userId: string, settings: Record<string, unknown>) {
+export function notifySettingsChange(userId: string, settings: Record<string, unknown>, version?: number, excludeClientId?: string) {
   const message = JSON.stringify({
     type: "settings_changed",
     settings,
+    version: version || 1,
     timestamp: new Date().toISOString(),
   })
 
   for (const [id, client] of clients.entries()) {
-    if (client.userId === userId) {
+    if (client.userId === userId && id !== excludeClientId) {
       try {
         client.controller.enqueue(`data: ${message}\n\n`)
         client.lastSeen = new Date()
@@ -122,6 +123,17 @@ export function notifySettingsChange(userId: string, settings: Record<string, un
       }
     }
   }
+}
+
+// ─── Helper: Get client ID for a connection ──────────────────────────────────
+
+export function getClientId(userId: string, userAgent?: string): string | null {
+  for (const [id, client] of clients.entries()) {
+    if (client.userId === userId) {
+      return id
+    }
+  }
+  return null
 }
 
 // ─── Helper: Get connected client count ───────────────────────────────────────

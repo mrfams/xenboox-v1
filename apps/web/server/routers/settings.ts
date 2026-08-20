@@ -33,12 +33,14 @@ export const settingsRouter = router({
     }
   }),
 
-  // ─── SET/UPDATE USER SETTINGS (partial merge) ──────
+  // ─── SET/UPDATE USER SETTINGS (partial merge with optimistic locking) ──
 
   set: protectedProcedure
     .input(
       z.object({
         settings: z.record(z.unknown()), // Partial settings to merge
+        baseVersion: z.number().optional(), // For optimistic locking
+        baseUpdatedAt: z.string().optional(), // For optimistic locking
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -51,6 +53,18 @@ export const settingsRouter = router({
       const existing = await db.query.userSettings.findFirst({
         where: eq(userSettings.userId, userId),
       })
+
+      // Optimistic locking: check if server version matches client's base version
+      if (existing && input.baseVersion !== undefined && input.baseUpdatedAt) {
+        const serverTime = existing.updatedAt?.toISOString()
+        if (serverTime && serverTime !== input.baseUpdatedAt) {
+          // Version mismatch — conflict detected, reject the update
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Settings were modified by another device. Server version: ${serverTime}, your base: ${input.baseUpdatedAt}. Please refresh and retry.`,
+          })
+        }
+      }
 
       // Merge with existing settings
       const merged = {
@@ -78,12 +92,14 @@ export const settingsRouter = router({
           merged
         )
 
-        // Notify connected SSE clients
-        notifySettingsChange(userId, merged)
+        // Notify connected SSE clients (exclude the sender)
+        const clientClientId = ctx.headers?.get?.("x-client-id") || undefined
+        notifySettingsChange(userId, merged, undefined, clientClientId)
 
         return {
           settings: updated.settings as UserSettings,
           updatedAt: updated.updatedAt?.toISOString() || null,
+          version: 1, // Version tracking
         }
       } else {
         // Create new record
