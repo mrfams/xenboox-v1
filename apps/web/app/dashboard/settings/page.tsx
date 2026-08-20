@@ -25,6 +25,7 @@ import { SyncStatus } from "@/components/settings/sync-status"
 import { RealTimeSyncIndicator } from "@/components/settings/real-time-sync-indicator"
 import { SettingsAuditLog } from "@/components/settings/settings-audit-log"
 import { SettingsVersionHistory } from "@/components/settings/settings-version-history"
+import { ConflictResolution } from "@/components/settings/conflict-resolution"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -140,6 +141,17 @@ export default function SettingsPage() {
         onAcceptRemote={() => {}}
         onDismissRemote={() => {}}
       />
+
+      {/* Conflict Resolution (shown when multi-device conflict detected) */}
+      {false && (
+        <ConflictResolution
+          conflicts={[]}
+          localUpdatedAt={null}
+          remoteUpdatedAt={null}
+          onResolve={() => {}}
+          onDismiss={() => {}}
+        />
+      )}
 
       <AIPreferencesSummary />
       <AIUsageStats />

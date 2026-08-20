@@ -3,6 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { trpc } from "@/lib/trpc/client"
+import {
+  type FieldConflict,
+  type MergeStrategy,
+  type SettingsSnapshot,
+  detectConflicts,
+  applyMergeStrategy,
+} from "@/lib/merge-strategies"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,15 +41,23 @@ type Settings = {
   }
 }
 
+type ConflictState = {
+  hasConflict: boolean
+  conflicts: FieldConflict[]
+  localUpdatedAt: string | null
+  remoteUpdatedAt: string | null
+  remoteSettings: Settings | null
+  mergeStrategy: MergeStrategy
+  isResolving: boolean
+}
+
 type SettingsSyncState = {
   settings: Settings
   isLoaded: boolean
   isSyncing: boolean
   lastSyncedAt: string | null
   error: string | null
-  hasRemoteChanges: boolean
-  remoteSettings: Settings | null
-  remoteUpdatedAt: string | null
+  conflict: ConflictState
 }
 
 // ─── localStorage Keys ────────────────────────────────────────────────────────
@@ -53,6 +68,8 @@ const LOCAL_KEYS = {
   onboardingStep: "xenboox_onboarding_step",
   usageStats: "xenboox_ai_usage_stats",
   notificationPrefs: "xenboox_notification_preferences",
+  lastSyncedAt: "xenboox_last_synced_at",
+  lastLocalEditAt: "xenboox_last_local_edit_at",
 } as const
 
 // ─── Read from localStorage ───────────────────────────────────────────────────
@@ -72,30 +89,6 @@ function writeLocal(key: string, value: unknown) {
 
 function removeLocal(key: string) {
   localStorage.removeItem(key)
-}
-
-// ─── Merge settings (deep merge) ─────────────────────────────────────────────
-
-function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
-  const result = { ...target }
-  for (const key of Object.keys(source)) {
-    if (
-      source[key] &&
-      typeof source[key] === "object" &&
-      !Array.isArray(source[key]) &&
-      target[key] &&
-      typeof target[key] === "object" &&
-      !Array.isArray(target[key])
-    ) {
-      result[key] = deepMerge(
-        target[key] as Record<string, unknown>,
-        source[key] as Record<string, unknown>
-      )
-    } else if (source[key] !== undefined) {
-      result[key] = source[key]
-    }
-  }
-  return result
 }
 
 // ─── Build settings from localStorage ─────────────────────────────────────────
@@ -148,20 +141,27 @@ export function useSettingsSync() {
     isSyncing: false,
     lastSyncedAt: null,
     error: null,
-    hasRemoteChanges: false,
-    remoteSettings: null,
-    remoteUpdatedAt: null,
+    conflict: {
+      hasConflict: false,
+      conflicts: [],
+      localUpdatedAt: null,
+      remoteUpdatedAt: null,
+      remoteSettings: null,
+      mergeStrategy: "deep-merge",
+      isResolving: false,
+    },
   })
 
   const isSyncingRef = useRef(false)
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastSyncedAtRef = useRef<string | null>(null)
+  const lastLocalEditRef = useRef<string | null>(null)
 
   // tRPC queries and mutations
   const getSettings = trpc.settings.get.useQuery(undefined, {
     enabled: !!session?.user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   })
 
   const setSettings = trpc.settings.set.useMutation()
@@ -172,29 +172,61 @@ export function useSettingsSync() {
 
     const poll = async () => {
       try {
-        // Fetch just the updatedAt timestamp to check for changes
         const response = await fetch("/api/trpc/settings.get", {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         })
         const data = await response.json()
         const serverTime = data?.result?.data?.updatedAt
 
-        if (
-          serverTime &&
-          lastSyncedAtRef.current &&
-          serverTime !== lastSyncedAtRef.current
-        ) {
+        if (serverTime && lastSyncedAtRef.current && serverTime !== lastSyncedAtRef.current) {
           // Remote changes detected!
           const serverSettings = data?.result?.data?.settings as Settings
+
           if (serverSettings) {
-            setState((prev) => ({
-              ...prev,
-              hasRemoteChanges: true,
-              remoteSettings: serverSettings,
-              remoteUpdatedAt: serverTime,
-            }))
+            // Check for conflicts
+            const localSettings = buildLocalSettings()
+            const localSnapshot: SettingsSnapshot = {
+              settings: localSettings as Record<string, unknown>,
+              updatedAt: lastLocalEditRef.current,
+            }
+            const remoteSnapshot: SettingsSnapshot = {
+              settings: serverSettings as Record<string, unknown>,
+              updatedAt: serverTime,
+            }
+
+            const conflicts = detectConflicts(localSnapshot, remoteSnapshot, lastSyncedAtRef.current)
+
+            if (conflicts.length > 0) {
+              // Conflict detected!
+              setState((prev) => ({
+                ...prev,
+                conflict: {
+                  hasConflict: true,
+                  conflicts,
+                  localUpdatedAt: lastLocalEditRef.current,
+                  remoteUpdatedAt: serverTime,
+                  remoteSettings: serverSettings,
+                  mergeStrategy: prev.conflict.mergeStrategy,
+                  isResolving: false,
+                },
+              }))
+            } else {
+              // No conflict — just accept remote changes
+              const merged = applyMergeStrategy(
+                localSettings as Record<string, unknown>,
+                serverSettings as Record<string, unknown>,
+                "remote-wins"
+              )
+
+              applyToLocal(merged.merged as Settings)
+              lastSyncedAtRef.current = serverTime
+
+              setState((prev) => ({
+                ...prev,
+                settings: merged.merged as Settings,
+                lastSyncedAt: serverTime,
+              }))
+            }
           }
         }
       } catch {
@@ -202,7 +234,6 @@ export function useSettingsSync() {
       }
     }
 
-    // Poll every 30 seconds
     pollIntervalRef.current = setInterval(poll, 30_000)
 
     return () => {
@@ -215,35 +246,65 @@ export function useSettingsSync() {
   // ── Load settings on mount ──
 
   useEffect(() => {
-    // First, load from localStorage (fast)
     const localSettings = buildLocalSettings()
+    const storedLastSynced = localStorage.getItem(LOCAL_KEYS.lastSyncedAt)
+
     setState((prev) => ({
       ...prev,
       settings: localSettings,
       isLoaded: true,
+      lastSyncedAt: storedLastSynced,
     }))
 
-    // Then, sync with server if logged in
+    lastSyncedAtRef.current = storedLastSynced
+
     if (getSettings.data) {
       const serverSettings = getSettings.data.settings as Settings
       const serverTime = getSettings.data.updatedAt
 
-      // Merge server settings with local (server wins on conflict)
-      const merged = deepMerge(
-        localSettings as Record<string, unknown>,
-        serverSettings as Record<string, unknown>
-      ) as Settings
+      // Check for conflicts on initial load
+      const localSnapshot: SettingsSnapshot = {
+        settings: localSettings as Record<string, unknown>,
+        updatedAt: lastLocalEditRef.current,
+      }
+      const remoteSnapshot: SettingsSnapshot = {
+        settings: serverSettings as Record<string, unknown>,
+        updatedAt: serverTime,
+      }
 
-      // Apply merged settings to localStorage
-      applyToLocal(merged)
+      const conflicts = detectConflicts(localSnapshot, remoteSnapshot, storedLastSynced)
 
-      lastSyncedAtRef.current = serverTime
+      if (conflicts.length > 0) {
+        setState((prev) => ({
+          ...prev,
+          conflict: {
+            hasConflict: true,
+            conflicts,
+            localUpdatedAt: lastLocalEditRef.current,
+            remoteUpdatedAt: serverTime,
+            remoteSettings: serverSettings,
+            mergeStrategy: prev.conflict.mergeStrategy,
+            isResolving: false,
+          },
+        }))
+      } else {
+        // No conflict — merge normally (remote wins)
+        const merged = applyMergeStrategy(
+          localSettings as Record<string, unknown>,
+          serverSettings as Record<string, unknown>,
+          "remote-wins"
+        )
 
-      setState((prev) => ({
-        ...prev,
-        settings: merged,
-        lastSyncedAt: serverTime,
-      }))
+        applyToLocal(merged.merged as Settings)
+        lastSyncedAtRef.current = serverTime
+        writeLocal(LOCAL_KEYS.lastSyncedAt, serverTime)
+
+        setState((prev) => ({
+          ...prev,
+          settings: merged.merged as Settings,
+          lastSyncedAt: serverTime,
+        }))
+      }
     }
   }, [getSettings.data, session?.user?.id])
 
@@ -251,6 +312,9 @@ export function useSettingsSync() {
 
   const updateSettings = useCallback(
     (path: string, value: unknown) => {
+      const now = new Date().toISOString()
+      lastLocalEditRef.current = now
+
       setState((prev) => {
         const newSettings = { ...prev.settings }
         const keys = path.split(".")
@@ -265,7 +329,6 @@ export function useSettingsSync() {
 
         current[keys[keys.length - 1]] = value
 
-        // Apply to localStorage immediately
         applyToLocal(newSettings)
 
         return { ...prev, settings: newSettings }
@@ -285,6 +348,8 @@ export function useSettingsSync() {
             { settings: localSettings as Record<string, unknown> },
             {
               onSuccess: (data) => {
+                lastSyncedAtRef.current = data.updatedAt
+                writeLocal(LOCAL_KEYS.lastSyncedAt, data.updatedAt)
                 setState((prev) => ({
                   ...prev,
                   isSyncing: false,
@@ -321,6 +386,8 @@ export function useSettingsSync() {
         { settings: localSettings as Record<string, unknown> },
         {
           onSuccess: (data) => {
+            lastSyncedAtRef.current = data.updatedAt
+            writeLocal(LOCAL_KEYS.lastSyncedAt, data.updatedAt)
             setState((prev) => ({
               ...prev,
               isSyncing: false,
@@ -342,54 +409,109 @@ export function useSettingsSync() {
     }
   }, [session?.user?.id, setSettings])
 
-  // ── Accept remote changes ──
+  // ── Resolve conflict ──
 
-  const acceptRemoteChanges = useCallback(() => {
-    setState((prev) => {
-      if (!prev.remoteSettings) return prev
+  const resolveConflict = useCallback(
+    (strategy: MergeStrategy, resolutions?: FieldConflict[]) => {
+      setState((prev) => {
+        if (!prev.conflict.remoteSettings) return prev
 
-      // Merge remote settings with current
-      const merged = deepMerge(
-        prev.settings as Record<string, unknown>,
-        prev.remoteSettings as Record<string, unknown>
-      ) as Settings
+        const localSettings = buildLocalSettings()
 
-      applyToLocal(merged)
-      lastSyncedAtRef.current = prev.remoteUpdatedAt
+        let result
+        if (strategy === "manual" && resolutions) {
+          // Apply manual resolutions
+          const { applyManualResolutions } = require("@/lib/merge-strategies")
+          result = applyManualResolutions(
+            localSettings as Record<string, unknown>,
+            prev.conflict.remoteSettings as Record<string, unknown>,
+            resolutions
+          )
+        } else {
+          result = applyMergeStrategy(
+            localSettings as Record<string, unknown>,
+            prev.conflict.remoteSettings as Record<string, unknown>,
+            strategy
+          )
+        }
 
-      return {
-        ...prev,
-        settings: merged,
-        lastSyncedAt: prev.remoteUpdatedAt,
-        hasRemoteChanges: false,
-        remoteSettings: null,
-        remoteUpdatedAt: null,
-      }
-    })
-  }, [])
+        applyToLocal(result.merged as Settings)
 
-  // ── Dismiss remote changes ──
+        // Sync resolved settings to server
+        if (session?.user?.id) {
+          setSettings.mutate(
+            { settings: result.merged as Record<string, unknown> },
+            {
+              onSuccess: (data) => {
+                lastSyncedAtRef.current = data.updatedAt
+                writeLocal(LOCAL_KEYS.lastSyncedAt, data.updatedAt)
+                setState((prev) => ({
+                  ...prev,
+                  lastSyncedAt: data.updatedAt,
+                }))
+              },
+            }
+          )
+        }
 
-  const dismissRemoteChanges = useCallback(() => {
+        return {
+          ...prev,
+          settings: result.merged as Settings,
+          conflict: {
+            hasConflict: false,
+            conflicts: [],
+            localUpdatedAt: null,
+            remoteUpdatedAt: null,
+            remoteSettings: null,
+            mergeStrategy: strategy,
+            isResolving: false,
+          },
+        }
+      })
+    },
+    [session?.user?.id, setSettings]
+  )
+
+  // ── Set merge strategy ──
+
+  const setMergeStrategy = useCallback((strategy: MergeStrategy) => {
     setState((prev) => ({
       ...prev,
-      hasRemoteChanges: false,
-      remoteSettings: null,
-      remoteUpdatedAt: null,
+      conflict: {
+        ...prev.conflict,
+        mergeStrategy: strategy,
+      },
+    }))
+  }, [])
+
+  // ── Dismiss conflict ──
+
+  const dismissConflict = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      conflict: {
+        hasConflict: false,
+        conflicts: [],
+        localUpdatedAt: null,
+        remoteUpdatedAt: null,
+        remoteSettings: null,
+        mergeStrategy: prev.conflict.mergeStrategy,
+        isResolving: false,
+      },
     }))
   }, [])
 
   // ── Reset settings ──
 
   const resetSettings = useCallback(() => {
-    // Clear localStorage
     removeLocal(LOCAL_KEYS.aiPreferences)
     removeLocal(LOCAL_KEYS.onboardingCompleted)
     removeLocal(LOCAL_KEYS.onboardingStep)
     removeLocal(LOCAL_KEYS.notificationPrefs)
     removeLocal(LOCAL_KEYS.usageStats)
+    removeLocal(LOCAL_KEYS.lastSyncedAt)
+    removeLocal(LOCAL_KEYS.lastLocalEditAt)
 
-    // Clear cloud
     if (session?.user?.id) {
       setSettings.mutate({ settings: {} })
     }
@@ -398,6 +520,15 @@ export function useSettingsSync() {
       ...prev,
       settings: {},
       lastSyncedAt: null,
+      conflict: {
+        hasConflict: false,
+        conflicts: [],
+        localUpdatedAt: null,
+        remoteUpdatedAt: null,
+        remoteSettings: null,
+        mergeStrategy: prev.conflict.mergeStrategy,
+        isResolving: false,
+      },
     }))
   }, [session?.user?.id, setSettings])
 
@@ -406,8 +537,9 @@ export function useSettingsSync() {
     updateSettings,
     forceSync,
     resetSettings,
-    acceptRemoteChanges,
-    dismissRemoteChanges,
+    resolveConflict,
+    setMergeStrategy,
+    dismissConflict,
     isCloudEnabled: !!session?.user?.id,
   }
 }
