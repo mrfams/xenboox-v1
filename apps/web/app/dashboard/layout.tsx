@@ -14,6 +14,7 @@ import { TopNav } from "@/components/layout/top-nav";
 import { ChatPanel } from "@/components/layout/chat-panel";
 import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { useRouteFocus } from "@/lib/hooks/use-route-focus";
 import { useSurfaceShortcuts } from "@/lib/hooks/use-surface-shortcuts";
 import { trpc } from "@/lib/trpc/client";
@@ -81,7 +82,14 @@ export default function DashboardLayout({
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       // Ignore if focused on an interactive element
       const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || tag === "A") return;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        tag === "BUTTON" ||
+        tag === "A"
+      )
+        return;
       if ((document.activeElement as HTMLElement)?.isContentEditable) return;
 
       // Escape — close chat panel
@@ -204,9 +212,7 @@ export default function DashboardLayout({
                       <h1 className="sr-only">{getPageTitle(pathname)}</h1>
                       {/* Route transition — keyed on pathname triggers fade+slide animation */}
                       <div key={pathname} className="route-transition-enter">
-                        <ErrorBoundary>
-                          {children}
-                        </ErrorBoundary>
+                        <ErrorBoundary>{children}</ErrorBoundary>
                       </div>
                     </main>
 
@@ -277,6 +283,9 @@ export default function DashboardLayout({
 
               {/* Mobile bottom navigation — visible on small screens */}
               <MobileBottomNav />
+
+              {/* First-time onboarding wizard */}
+              <OnboardingWizard />
 
               <Toaster position="top-right" richColors closeButton />
             </SimulationProvider>
