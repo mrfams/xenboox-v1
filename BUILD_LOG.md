@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-20] — Reset All Settings Card
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 1 (reset-all-settings.test.ts)
+**Files Modified:** 1 (settings/page.tsx)
+
+**What was built:**
+
+- **Reset All Settings card** in Settings with Trash2 icon and destructive button
+- Resets: AI prefs (3 keys), onboarding status, notification preferences (5 toggles)
+- AlertDialog with destructive styling: title, description, Cancel/Confirm buttons
+- Lists what will be reset: AI, onboarding, notifications
+- Clear disclaimer: financial data, accounts, documents not affected
+- Notification state reset to factory defaults in memory
+- **25/25 tests pass**
+
+---
+
 ### [2026-08-20] — Export/Import Settings as JSON
 
 **Agent:** Buffy (Freebuff)
