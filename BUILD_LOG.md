@@ -6,6 +6,27 @@
 
 ---
 
+### [2026-08-20] — Mobile Bottom Nav with Onboarding Progress
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 2 (mobile-bottom-nav.tsx, mobile-bottom-nav.test.ts)
+**Files Modified:** 1 (dashboard/layout.tsx)
+
+**What was built:**
+
+- **MobileBottomNav** component (`components/layout/mobile-bottom-nav.tsx`):
+  - 5 surface links: Home, AI Chat, Reports, Books, More
+  - Onboarding progress bar above nav when setup is incomplete
+  - 5 step dots with active highlight and percentage
+  - "Start" / "Continue" link to Settings
+  - Hidden on desktop (`lg:hidden`), visible on mobile only
+  - `safe-area-inset-bottom` for iOS notch
+- **Dashboard layout** updated with `pb-20` on mobile to prevent content overlap
+- **25/25 tests pass**
+
+---
+
 ### [2026-08-20] — AI Preferences Summary Card in Settings
 
 **Agent:** Buffy (Freebuff)
