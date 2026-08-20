@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
 import { Check, ArrowRight, Sparkles } from "lucide-react";
 import {
   MarketingShell,

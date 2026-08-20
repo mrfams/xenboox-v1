@@ -1,7 +1,5 @@
 "use client";
 
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
 import Link from "next/link";
 import {
   Bot,
@@ -193,17 +191,9 @@ function FeatureRow({
   feature: (typeof features)[number];
   index: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
   const flipped = index % 2 === 1;
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="grid items-center gap-8 md:grid-cols-2"
-    >
+    <Reveal className="grid items-center gap-8 md:grid-cols-2">
       <div className={flipped ? "md:order-2" : ""}>
         <div
           className={`mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${feature.accent} shadow-lg`}
@@ -230,7 +220,7 @@ function FeatureRow({
           </ul>
         </GlassCard>
       </div>
-    </motion.div>
+    </Reveal>
   );
 }
 

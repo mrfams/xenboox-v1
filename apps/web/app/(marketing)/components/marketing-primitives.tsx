@@ -1,8 +1,41 @@
 "use client";
 
-import { motion, useInView } from "framer-motion";
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+
+/* ───────────────────────────────────────────────────────────
+   useReveal — IntersectionObserver-based scroll reveal (no deps)
+   ─────────────────────────────────────────────────────────── */
+function useReveal(once = true) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setShown(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setShown(true);
+            if (once) observer.unobserve(entry.target);
+          } else if (!once) {
+            setShown(false);
+          }
+        });
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.05 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [once]);
+
+  return { ref, shown };
+}
 
 /* ───────────────────────────────────────────────────────────
    Reveal — scroll-triggered fade/slide wrapper
@@ -18,18 +51,22 @@ export function Reveal({
   delay?: number;
   y?: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const { ref, shown } = useReveal(true);
   return (
-    <motion.div
+    <div
       ref={ref}
-      initial={{ opacity: 0, y }}
-      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y }}
-      transition={{ duration: 0.6, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+      style={{
+        transitionDelay: `${delay}s`,
+        transform: shown ? "translateY(0)" : `translateY(${y}px)`,
+        opacity: shown ? 1 : 0,
+        transitionProperty: "opacity, transform",
+        transitionDuration: "0.6s",
+        transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      }}
       className={className}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
