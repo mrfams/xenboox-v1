@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-20] — Port: user settings backup, versions, conflict resolution, real-time sync, and onboarding wizards (to master)
+
+**Agent:** opencode
+**Files Created (new, from `revamp/marketing-pages` branch):** 60 new files (settings components/hooks/lib + db schema tables + SSE route + onboarding/entity wizards + tests)
+**Files Modified (merged/adapted to master):** 11 shared files
+
+**Session work:** Ported ~55 commits of user work from the stale `revamp/marketing-pages` branch onto `master` (direct push, no PR; marketing revamp stays in PR #13). History flattened into logical commits; all content preserved.
+
+1. **Settings persistence & versions** — `user_settings`, `settings_versions`, `settings_audit_log`, `conflict_resolution_history` tables; `settings` router procedures (`get/set/replace/delete`, versioning `getVersions/createVersion/restoreVersion/pruneVersions`, audit `getAuditLog`, conflict `logConflictResolution/getConflictHistory`) + `logSettingsChange` helper; SSE notify on change.
+2. **Real-time sync** — `apps/web/app/api/settings/stream/route.ts` (SSE stream adapted from `getServerSession(authOptions)` to master's NextAuth v5 `auth()`); `useSettingsSync` (SSE + OT merge queue) and `useSettingsRealtime` hooks; `merge-strategies` + `operational-transform` libs.
+3. **UI** — 13 settings components + 4 new section wrappers (`backup-section`, `conflict-resolution-section`, `sync-section`, `ai-data-section`) registered as new "Data & Sync" tabs in `app/dashboard/settings/page.tsx`.
+4. **Onboarding** — `onboarding-wizard.tsx`/`entity-wizard.tsx` adapted to master's routers (`organization.list/create/createEntity`, `onboarding.getCoaSuggestions/confirmCoa`, `treasury.createBankAccount`); rendered from `app/dashboard/layout.tsx`.
+5. **Adaptations** — master uses NextAuth v5 `auth()`, tRPC Context `headers?: Record<string,string>`, `organization.createEntity`/`confirmCoa` input shapes; fixed client-side `require()` in `use-settings-sync.ts` (moved to top-level import).
+6. **Skipped (master already has superior versions)** — `_app.ts`, `entity-switcher`, `mobile-bottom-nav`, `command-palette`, `top-nav`, `sidebar`.
+
+**Verification:** TBD (typecheck/lint/tests pending). Push to `master` pending.
+
+---
+
 ### [2026-08-20] — Enhanced notification preferences with AI categories
 
 **Agent:** Buffy
@@ -493,12 +512,14 @@
 **Session work:** Ran full axe-core automated accessibility scan across all 5 surfaces (desktop + mobile = 10 scans):
 
 **Scan Results (against deployed Vercel app):**
+
 - **0 critical/serious violations** across all 10 scans
 - **300 total passes** (30 per surface)
-- **30 moderate violations** (same 3 on every surface):  - `landmark-one-main`: Document needs proper `<main>` landmark detection  - `page-has-heading-one`: Pages need `<h1>` heading
+- **30 moderate violations** (same 3 on every surface): - `landmark-one-main`: Document needs proper `<main>` landmark detection - `page-has-heading-one`: Pages need `<h1>` heading
   - `region`: All content must be in landmarks
 
 **Fixes Applied:**
+
 1. Added `<h1 className="sr-only">` to dashboard layout with page title (fixes `page-has-heading-one`)
 2. Added `getPageTitle()` function mapping routes to human-readable titles
 3. Both Playwright test (`a11y-axe.spec.ts`) and standalone scanner (`a11y-axe-scan.ts`) created for ongoing monitoring
