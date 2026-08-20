@@ -6,6 +6,31 @@
 
 ---
 
+### [2026-08-20] — AI Usage Statistics Card
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 2 (ai-usage-stats.tsx, ai-usage-stats.test.ts)
+**Files Modified:** 1 (settings/page.tsx)
+
+**What was built:**
+
+- **AIUsageStats** component (`components/settings/ai-usage-stats.tsx`):
+  - Reads from localStorage (`xenboox_ai_usage_stats`)
+  - 3 summary boxes: Total AI Actions, Features Active (N/4), Last Used
+  - 4 feature breakdown bars with color-coded usage visualization:
+    - Auto-Reconciliation (emerald)
+    - Smart Categorization (blue)
+    - Anomaly Alerts (amber)
+    - Daily Digest (purple)
+  - Number formatting: plain (0-999), K (1K+), M (1M+)
+  - Time ago: Just now, Xm ago, Xh ago, Xd ago
+  - Tip about Reset All Settings to clear counters
+- **Wired into** Settings page between AI Preferences and Export/Import
+- **22/22 tests pass**
+
+---
+
 ### [2026-08-20] — Reset All Settings Card
 
 **Agent:** Buffy (Freebuff)
