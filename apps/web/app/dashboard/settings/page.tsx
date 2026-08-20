@@ -19,6 +19,7 @@ import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, 
 import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
 import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summary"
+import { ExportImportSettings } from "@/components/settings/export-import-settings"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -113,6 +114,7 @@ export default function SettingsPage() {
       </div>
 
       <AIPreferencesSummary />
+      <ExportImportSettings />
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
