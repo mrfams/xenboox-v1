@@ -977,7 +977,7 @@ export function OnboardingWizard() {
       aria-label="Onboarding wizard"
     >
       <div className="w-full max-w-xl mx-4">
-        <Card className="shadow-2xl">
+        <Card className="shadow-2xl max-h-[90vh] flex flex-col">
           <CardHeader className="pb-4">
             <ProgressBar currentStep={stepIndex} totalSteps={totalSteps} />
             <div className="flex items-center justify-between pt-2">
@@ -994,7 +994,7 @@ export function OnboardingWizard() {
               )}
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 overflow-y-auto flex-1 min-h-0">
             {currentStep === "welcome" && <WelcomeStep onNext={nextStep} />}
             {currentStep === "chart-of-accounts" && (
               <CoAStep onNext={nextStep} onPrev={prevStep} />
