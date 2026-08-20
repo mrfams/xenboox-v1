@@ -203,6 +203,16 @@ export class RateLimiter {
     return tryUpstash(webhookLimiter, `pay:${identifier}`, 10, 60);
   }
 
+  /**
+   * Rate limit for resolving payment link tokens (public read endpoint).
+   * More generous than payment: 30 per minute per token.
+   */
+  async checkPaymentLinkResolveRateLimit(
+    identifier: string,
+  ): Promise<RateLimitResult> {
+    return tryUpstash(webhookLimiter, `pay:resolve:${identifier}`, 30, 60);
+  }
+
   // ─── Plan-Aware Rate Limiting ──────────────────────────────────────────
 
   /**

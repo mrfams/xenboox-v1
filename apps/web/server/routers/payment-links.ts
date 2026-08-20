@@ -361,6 +361,16 @@ export const paymentLinksRouter = router({
   resolveByToken: publicProcedure
     .input(z.object({ token: z.string().min(1).max(128) }))
     .query(async ({ input }) => {
+      // Rate limit: 30 resolves per minute per token
+      const { getRateLimiter } = await import("@/lib/security/rate-limiter");
+      const limiter = getRateLimiter();
+      const rateLimit = await limiter.checkPaymentLinkResolveRateLimit(
+        input.token,
+      );
+      if (!rateLimit.success) {
+        throw new Error("Too many requests. Please try again later.");
+      }
+
       const link = await db.query.paymentLinks.findFirst({
         where: eq(paymentLinks.token, input.token),
       });
