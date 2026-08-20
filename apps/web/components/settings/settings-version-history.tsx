@@ -216,9 +216,17 @@ export function SettingsVersionHistory() {
                   {restoreTarget?.label ? ` (${restoreTarget.label})` : ""}.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <div className="group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
                 <span>A backup of your current settings will be saved automatically before restoring.</span>
+                <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
+                  <p className="font-medium mb-1">Backup contains:</p>
+                  <ul className="space-y-0.5 text-muted-foreground">
+                    <li>• Your current settings snapshot</li>
+                    <li>• Saved as a new version in Version History</li>
+                  </ul>
+                  <p className="mt-2 text-muted-foreground">After restoring, you can revert again from Version History.</p>
+                </div>
               </div>
               </AlertDialogHeader>
               <AlertDialogFooter>

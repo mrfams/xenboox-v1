@@ -398,9 +398,18 @@ export default function SettingsPage() {
                       This will restart the setup wizard on your next page load. Your existing data (accounts, invoices, journal entries, etc.) will not be affected.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                  <div className="group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                     <ShieldCheck className="h-4 w-4 shrink-0" />
                     <span>A backup will be created automatically before resetting.</span>
+                    <div className="absolute bottom-full left-0 mb-2 hidden w-64 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
+                      <p className="font-medium mb-1">Backup contains:</p>
+                      <ul className="space-y-0.5 text-muted-foreground">
+                        <li>• AI preferences (auto-reconcile, categorize, alerts, digest)</li>
+                        <li>• Onboarding status and current step</li>
+                        <li>• Sync preferences (default merge strategy)</li>
+                      </ul>
+                      <p className="mt-2 text-muted-foreground">Restore from Version History if needed.</p>
+                    </div>
                   </div>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>                      <AlertDialogAction
@@ -458,9 +467,20 @@ export default function SettingsPage() {
                     This will reset all your preferences to factory defaults. Your financial data, accounts, and documents will not be affected. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                <div className="group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                   <ShieldCheck className="h-4 w-4 shrink-0" />
                   <span>A backup will be created automatically before resetting. You can restore from Version History.</span>
+                  <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
+                    <p className="font-medium mb-1">Backup contains:</p>
+                    <ul className="space-y-0.5 text-muted-foreground">
+                      <li>• AI preferences (auto-reconcile, categorize, alerts, digest)</li>
+                      <li>• Onboarding status and current step</li>
+                      <li>• Notification preferences (email, push, AI)</li>
+                      <li>• Sync preferences (default merge strategy)</li>
+                      <li>• Usage statistics</li>
+                    </ul>
+                    <p className="mt-2 text-muted-foreground">Restore from Version History or use the undo toast within 10 seconds.</p>
+                  </div>
                 </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>                    <AlertDialogAction
