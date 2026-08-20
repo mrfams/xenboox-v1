@@ -20,10 +20,14 @@ import {
   Boxes,
   Shield,
   AlertCircle,
+  Check,
+  Circle,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Separator, Badge } from "@/components/ui"
+import { Separator, Badge, Button } from "@/components/ui"
+import { useOnboarding, type OnboardingStep } from "@/lib/hooks/use-onboarding"
 
 type NavItem = {
   label: string
@@ -112,6 +116,16 @@ const bottomNavigation: NavItem[] = [
   { label: "Help", href: "/dashboard/help", icon: HelpCircle },
 ]
 
+// ─── Onboarding Steps Config ─────────────────────────────────────────────────
+
+const ONBOARDING_STEPS: { key: OnboardingStep; label: string }[] = [
+  { key: "welcome", label: "Welcome" },
+  { key: "chart-of-accounts", label: "Chart of Accounts" },
+  { key: "bank-connection", label: "Bank Connection" },
+  { key: "team", label: "Team Setup" },
+  { key: "ai-preferences", label: "AI Preferences" },
+]
+
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
@@ -145,6 +159,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <span className="text-lg font-bold tracking-tight">Xenboox</span>
         </div>
+
+        {/* Onboarding Progress */}
+        <OnboardingProgress />
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin">
@@ -215,5 +232,85 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       </aside>
     </>
+  )
+}
+
+// ─── Onboarding Progress Component ───────────────────────────────────────────
+
+function OnboardingProgress() {
+  const { isFirstTime, currentStep, stepIndex, totalSteps, isLoaded } = useOnboarding()
+  const router = typeof window !== "undefined" ? null : null // avoid SSR issues
+
+  if (!isLoaded || !isFirstTime) return null
+
+  const pct = Math.round((stepIndex / totalSteps) * 100)
+  const completedSteps = ONBOARDING_STEPS.filter(
+    (_, i) => i < stepIndex
+  )
+  const currentStepConfig = ONBOARDING_STEPS[stepIndex]
+  const nextIncomplete = ONBOARDING_STEPS.find((s, i) => i >= stepIndex)
+
+  return (
+    <div className="mx-4 mb-4 rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10 p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+        <span className="text-xs font-semibold text-primary">Setup Progress</span>
+        <span className="ml-auto text-[10px] font-mono text-muted-foreground">
+          {pct}%
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1.5 w-full rounded-full bg-primary/10 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      {/* Step indicators */}
+      <div className="space-y-1">
+        {ONBOARDING_STEPS.map((step, i) => {
+          const isCompleted = i < stepIndex
+          const isCurrent = i === stepIndex
+          return (
+            <div
+              key={step.key}
+              className={cn(
+                "flex items-center gap-2 text-xs",
+                isCompleted
+                  ? "text-primary"
+                  : isCurrent
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground"
+              )}
+            >
+              {isCompleted ? (
+                <Check className="h-3 w-3 shrink-0" />
+              ) : isCurrent ? (
+                <div className="h-3 w-3 shrink-0 rounded-full border-2 border-primary bg-primary/20" />
+              ) : (
+                <Circle className="h-3 w-3 shrink-0" />
+              )}
+              <span className="truncate">{step.label}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Resume button */}
+      {nextIncomplete && (
+        <Button
+          size="sm"
+          className="w-full h-7 text-xs"
+          onClick={() => {
+            localStorage.removeItem("xenboox_onboarding_completed")
+            window.location.reload()
+          }}
+        >
+          {stepIndex === 0 ? "Start Setup" : "Continue Setup"}
+        </Button>
+      )}
+    </div>
   )
 }
