@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { CommandPalette } from "@/components/shared/command-palette";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { Toaster } from "sonner";
 
 export default function DashboardLayout({
@@ -23,11 +24,12 @@ export default function DashboardLayout({
           <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex flex-1 flex-col overflow-hidden">
             <TopNav onMenuClick={() => setSidebarOpen(true)} />
-            <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+            <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
               {children}
             </main>
           </div>
         </div>
+        <MobileBottomNav />
         <OnboardingWizard />
         <CommandPalette />
         <Toaster position="top-right" richColors closeButton />
