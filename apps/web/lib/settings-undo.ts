@@ -1,29 +1,65 @@
 import { toast } from "sonner"
-import { trpc } from "@/lib/trpc/client"
 
 // ─── Undo Toast for Risky Settings Operations ─────────────────────────────────
 // After any risky operation (reset, import, restore), show a toast with
 // a "Restore backup" action that fetches the latest auto-backup and restores it.
+// Also registers Ctrl+Z / Cmd+Z keyboard shortcut for 10 seconds.
 
-let latestAutoBackupId: string | null = null
+let undoAvailable = false
+let undoTimeout: ReturnType<typeof setTimeout> | null = null
 
-// ─── Store the latest auto-backup ID ──────────────────────────────────────────
+// ─── Keyboard shortcut handler ────────────────────────────────────────────────
 
-export function setLatestAutoBackupId(id: string) {
-  latestAutoBackupId = id
+function handleKeyDown(e: KeyboardEvent) {
+  // Ctrl+Z (Windows/Linux) or Cmd+Z (Mac)
+  if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+    e.preventDefault()
+    if (undoAvailable) {
+      restoreLatestBackup()
+    }
+  }
+}
+
+// ─── Register keyboard shortcut ───────────────────────────────────────────────
+
+function registerUndoShortcut() {
+  if (typeof window === "undefined") return
+
+  // Remove any existing listener
+  window.removeEventListener("keydown", handleKeyDown)
+
+  // Add new listener
+  window.addEventListener("keydown", handleKeyDown)
+
+  // Mark undo as available
+  undoAvailable = true
+
+  // Clear any existing timeout
+  if (undoTimeout) {
+    clearTimeout(undoTimeout)
+  }
+
+  // Undo available for 10 seconds
+  undoTimeout = setTimeout(() => {
+    undoAvailable = false
+    window.removeEventListener("keydown", handleKeyDown)
+  }, 10_000)
 }
 
 // ─── Show undo toast after risky operation ─────────────────────────────────────
 
 export function showUndoToast(operationName: string) {
+  // Register Ctrl+Z keyboard shortcut
+  registerUndoShortcut()
+
   toast(
     `${operationName} completed. A backup was saved automatically.`,
     {
       duration: 10000, // 10 seconds to undo
+      description: "Press Ctrl+Z to undo",
       action: {
         label: "Restore backup",
         onClick: () => {
-          // Fetch latest version and restore it
           restoreLatestBackup()
         },
       },
