@@ -24,6 +24,7 @@ import { AIUsageStats } from "@/components/settings/ai-usage-stats"
 import { SyncStatus } from "@/components/settings/sync-status"
 import { RealTimeSyncIndicator } from "@/components/settings/real-time-sync-indicator"
 import { SettingsAuditLog } from "@/components/settings/settings-audit-log"
+import { SettingsVersionHistory } from "@/components/settings/settings-version-history"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -133,6 +134,7 @@ export default function SettingsPage() {
       <AIPreferencesSummary />
       <AIUsageStats />
       <SettingsAuditLog />
+      <SettingsVersionHistory />
       <ExportImportSettings />
 
       <div className="grid gap-6 md:grid-cols-2">
