@@ -19,6 +19,7 @@ import {
   Check,
   AlertCircle,
   FileJson,
+  ShieldCheck,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -237,6 +238,12 @@ export function ExportImportSettings() {
           />
         </div>
 
+        {/* Backup indicator */}
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+          <ShieldCheck className="h-4 w-4 shrink-0" />
+          <span>A backup will be created automatically before importing.</span>
+        </div>
+
         {/* Import Error */}
         {importError && (
           <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
@@ -290,6 +297,10 @@ export function ExportImportSettings() {
                 Import Settings
               </AlertDialogAction>
             </AlertDialogFooter>
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              <span>A backup will be created automatically before importing. You can restore from Version History.</span>
+            </div>
           </AlertDialogContent>
         </AlertDialog>
       </CardContent>
