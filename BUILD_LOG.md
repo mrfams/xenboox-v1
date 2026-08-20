@@ -6,6 +6,24 @@
 
 ---
 
+### [2026-08-20] — Sidebar Notification Badge for Incomplete Onboarding
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~3 min
+**Files Created:** 1 (sidebar-badge.test.ts)
+**Files Modified:** 1 (sidebar.tsx)
+
+**What was built:**
+
+- **SidebarBottomNav** component extracted from sidebar for cleaner separation
+- **Pulsing notification badge** on Settings link showing remaining onboarding steps
+- Badge uses `animate-ping` animation with primary color
+- Only appears when `isFirstTime` is true and steps remain
+- Badge disappears when onboarding is completed
+- **18/18 tests pass**
+
+---
+
 ### [2026-08-20] — Mobile Bottom Nav with Onboarding Progress
 
 **Agent:** Buffy (Freebuff)
