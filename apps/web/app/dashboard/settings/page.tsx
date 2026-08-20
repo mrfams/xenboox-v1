@@ -18,6 +18,9 @@ import {
   Fingerprint,
   Coins,
   Percent,
+  RefreshCw,
+  Database,
+  Sparkles,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -142,6 +145,32 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
       import("@/components/settings/taxes-section").then((m) => m.TaxesSection),
     { ssr: false },
   ),
+  backup: dynamic(
+    () =>
+      import("@/components/settings/backup-section").then(
+        (m) => m.BackupSection,
+      ),
+    { ssr: false },
+  ),
+  "conflict-resolution": dynamic(
+    () =>
+      import("@/components/settings/conflict-resolution-section").then(
+        (m) => m.ConflictResolutionSection,
+      ),
+    { ssr: false },
+  ),
+  sync: dynamic(
+    () =>
+      import("@/components/settings/sync-section").then((m) => m.SyncSection),
+    { ssr: false },
+  ),
+  "ai-data": dynamic(
+    () =>
+      import("@/components/settings/ai-data-section").then(
+        (m) => m.AIDataSection,
+      ),
+    { ssr: false },
+  ),
 };
 
 interface TabGroup {
@@ -264,6 +293,35 @@ const TAB_GROUPS: TabGroup[] = [
         label: "Privacy & Data",
         icon: Lock,
         description: "Data export and account deletion",
+      },
+    ],
+  },
+  {
+    label: "Data & Sync",
+    tabs: [
+      {
+        id: "backup",
+        label: "Backup & Versions",
+        icon: History,
+        description: "Settings backups, version history, and rollback",
+      },
+      {
+        id: "conflict-resolution",
+        label: "Conflicts",
+        icon: RefreshCw,
+        description: "Resolve multi-device settings conflicts",
+      },
+      {
+        id: "sync",
+        label: "Sync & Audit",
+        icon: Database,
+        description: "Real-time sync status and settings audit log",
+      },
+      {
+        id: "ai-data",
+        label: "AI & Data",
+        icon: Sparkles,
+        description: "AI usage stats and preference summary",
       },
     ],
   },
