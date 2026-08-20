@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { EntityProvider } from "@/lib/entity-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopNav } from "@/components/layout/top-nav";
+import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { Toaster } from "sonner";
 
 export default function DashboardLayout({
@@ -26,6 +27,7 @@ export default function DashboardLayout({
             </main>
           </div>
         </div>
+        <OnboardingWizard />
         <Toaster position="top-right" richColors closeButton />
       </EntityProvider>
     </SessionProvider>
