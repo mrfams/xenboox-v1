@@ -6,6 +6,7 @@ import { Menu, LogOut, User, Bell } from "lucide-react"
 import { Button, Avatar, AvatarFallback } from "@/components/ui"
 import { EntitySwitcher } from "@/components/layout/entity-switcher"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { SearchTrigger } from "@/components/shared/command-palette"
 import { getInitials } from "@/lib/utils"
 
 interface TopNavProps {
@@ -34,6 +35,9 @@ export function TopNav({ onMenuClick }: TopNavProps) {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Search Trigger */}
+      <SearchTrigger onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))} />
 
       {/* Entity Switcher */}
       <EntitySwitcher />

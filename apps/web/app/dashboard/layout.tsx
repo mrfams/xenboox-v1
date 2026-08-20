@@ -6,6 +6,7 @@ import { EntityProvider } from "@/lib/entity-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { CommandPalette } from "@/components/shared/command-palette";
 import { Toaster } from "sonner";
 
 export default function DashboardLayout({
@@ -28,6 +29,7 @@ export default function DashboardLayout({
           </div>
         </div>
         <OnboardingWizard />
+        <CommandPalette />
         <Toaster position="top-right" richColors closeButton />
       </EntityProvider>
     </SessionProvider>
