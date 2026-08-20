@@ -66,6 +66,16 @@ export default function SettingsPage() {
     },
   })
 
+  // Auto-versioning before risky operations
+  const createVersionMutation = trpc.settings.createVersion.useMutation({
+    onSuccess: () => {
+      // Version created silently — don't show toast, the risky operation will show its own
+    },
+    onError: () => {
+      // Version creation failure shouldn't block the risky operation
+    },
+  })
+
   // Notification preferences
   const [notifEmailInvoices, setNotifEmailInvoices] = useState(true)
   const [notifEmailReports, setNotifEmailReports] = useState(true)
@@ -369,13 +379,16 @@ export default function SettingsPage() {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>                      <AlertDialogAction
                       onClick={() => {
+                        // Auto-version before reset
+                        createVersionMutation.mutate({
+                          label: "Auto-backup: before onboarding reset",
+                        })
                         localStorage.removeItem("xenboox_onboarding_completed")
                         localStorage.removeItem("xenboox_onboarding_step")
                         localStorage.removeItem("xenboox_ai_preferences")
-                        toast.success("Onboarding reset. Refresh the page to start the wizard.")
+                        toast.success("Onboarding reset. A backup was saved automatically. Refresh the page to start the wizard.")
                       }}
                     >
                       <RotateCcw className="mr-1 h-3 w-3" />
@@ -422,10 +435,13 @@ export default function SettingsPage() {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>                    <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={() => {
+                      // Auto-version before destructive reset
+                      createVersionMutation.mutate({
+                        label: "Auto-backup: before reset all settings",
+                      })
                       // Reset AI preferences
                       localStorage.removeItem("xenboox_ai_preferences")
                       // Reset onboarding
@@ -437,7 +453,7 @@ export default function SettingsPage() {
                       setNotifEmailAlerts(true)
                       setNotifPushPayments(true)
                       setNotifPushApprovals(false)
-                      toast.success("All settings reset to defaults. Refresh to apply.")
+                      toast.success("All settings reset to defaults. A backup was saved automatically. Refresh to apply.")
                     }}
                   >
                     <Trash2 className="mr-1 h-3 w-3" />

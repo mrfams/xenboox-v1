@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { trpc } from "@/lib/trpc/client"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,13 @@ export function ExportImportSettings() {
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-versioning before import
+  const createVersionMutation = trpc.settings.createVersion.useMutation({
+    onError: () => {
+      // Version creation failure shouldn't block the import
+    },
+  })
 
   // ── Export ──
 
@@ -152,6 +160,11 @@ export function ExportImportSettings() {
   const handleImportApply = () => {
     if (!importPreview) return
 
+    // Auto-version before import
+    createVersionMutation.mutate({
+      label: "Auto-backup: before settings import",
+    })
+
     // Apply AI preferences
     if (importPreview.aiPreferences) {
       localStorage.setItem(
@@ -175,7 +188,7 @@ export function ExportImportSettings() {
 
     setShowImportDialog(false)
     setImportPreview(null)
-    toast.success("Settings imported successfully. Refresh to see changes.")
+    toast.success("Settings imported successfully. A backup was saved automatically. Refresh to see changes.")
   }
 
   return (
