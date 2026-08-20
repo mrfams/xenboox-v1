@@ -19,6 +19,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 import { uuidId, entityId, timestamps } from "./helpers";
+import { entities } from "./organization";
 
 // ─── Retention Policies ────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ export const retentionPolicies = pgTable(
     // Entity scoping — each entity has its own retention config
     entityId: text("entity_id")
       .notNull()
-      .references(() => text("entities.id"), { onDelete: "cascade" }),
+      .references(() => entities.id, { onDelete: "cascade" }),
 
     // Which table this policy applies to (schema-qualified name)
     tableName: varchar("table_name", { length: 255 }).notNull(),

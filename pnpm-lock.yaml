@@ -617,6 +617,9 @@ importers:
 
   packages/jobs:
     dependencies:
+      "@aws-sdk/client-s3":
+        specifier: ^3.1085.0
+        version: 3.1085.0
       "@trigger.dev/sdk":
         specifier: ^4.5.6
         version: 4.5.6(react@19.2.7)(zod@3.25.76)

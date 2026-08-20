@@ -22,6 +22,7 @@ import {
   retentionPurgeLogs,
 } from "@xenboox/db/schema/data-retention";
 import { and, eq, lt, sql, isNull } from "drizzle-orm";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { task } from "@trigger.dev/sdk";
 import { logger } from "@xenboox/agents/core/logger";
 import { createHash } from "crypto";
@@ -40,18 +41,19 @@ async function uploadToR2(
   data: Buffer,
 ): Promise<{ bucket: string; key: string; size: number }> {
   // Dynamic import to avoid bundling R2 in edge contexts
-  const { getR2Client } = await import("@/lib/r2");
-  const r2 = getR2Client();
+  const { r2 } = await import("@/lib/r2");
 
-  await r2.putObject({
-    Bucket: R2_BUCKET,
-    Key: key,
-    Body: data,
-    ContentType: "application/x-ndjson",
-    // Object lock for compliance — prevents deletion/modification
-    // ObjectLockMode: "COMPLIANCE",  // Enable when R2 bucket has object lock enabled
-    // ObjectLockRetainUntilDate: new Date(Date.now() + 7 * 365 * 24 * 60 * 60 * 1000),
-  });
+  await r2.send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      Body: data,
+      ContentType: "application/x-ndjson",
+      // Object lock for compliance — prevents deletion/modification
+      // ObjectLockMode: "COMPLIANCE",  // Enable when R2 bucket has object lock enabled
+      // ObjectLockRetainUntilDate: new Date(Date.now() + 7 * 365 * 24 * 60 * 60 * 1000),
+    }),
+  );
 
   return { bucket: R2_BUCKET, key, size: data.length };
 }
@@ -76,10 +78,11 @@ export const auditArchivalTask = task({
     const triggeredBy = payload.triggeredBy ?? "cron";
     const runId = payload.runId ?? `aa-${Date.now()}`;
 
-    logger.info(
-      { entityId: payload.entityId, triggeredBy, runId },
-      "audit-archival: starting archive run",
-    );
+    logger.info("audit-archival: starting archive run", {
+      entityId: payload.entityId,
+      triggeredBy,
+      runId,
+    });
 
     // Find entities with audit logs older than retention period
     const cutoffDate = new Date();
@@ -95,7 +98,7 @@ export const auditArchivalTask = task({
       LIMIT 50
     `);
 
-    const entities = (entitiesWithOldLogs as { entity_id: string }[]).map(
+    const entities = (entitiesWithOldLogs.rows as { entity_id: string }[]).map(
       (r) => r.entity_id,
     );
 
@@ -123,10 +126,9 @@ export const auditArchivalTask = task({
           .limit(1);
 
         if (legalHold.length > 0) {
-          logger.info(
-            { entityId },
-            "audit-archival: entity has legal hold, skipping",
-          );
+          logger.info("audit-archival: entity has legal hold, skipping", {
+            entityId,
+          });
           continue;
         }
 
@@ -134,21 +136,20 @@ export const auditArchivalTask = task({
         totalArchived += archived;
       } catch (err) {
         errors += 1;
-        logger.error(
-          {
-            entityId,
-            error: err instanceof Error ? err.message : String(err),
-          },
-          "audit-archival: failed for entity",
-        );
+        logger.error("audit-archival: failed for entity", {
+          entityId,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
     const durationMs = Date.now() - startTime;
-    logger.info(
-      { entities: entities.length, totalArchived, errors, durationMs },
-      "audit-archival: run complete",
-    );
+    logger.info("audit-archival: run complete", {
+      entities: entities.length,
+      totalArchived,
+      errors,
+      durationMs,
+    });
 
     return { archived: totalArchived, entities: entities.length, errors };
   },
@@ -175,7 +176,7 @@ async function archiveEntityLogs(
       LIMIT ${BATCH_SIZE}
     `);
 
-    const auditRows = rows as Record<string, unknown>[];
+    const auditRows = rows.rows as Record<string, unknown>[];
     if (auditRows.length === 0) break;
 
     // Convert to JSONL
@@ -249,8 +250,7 @@ async function archiveEntityLogs(
           )
       `);
 
-      const deletedCount =
-        (deleteResult as { rowCount?: number }).rowCount ?? 0;
+      const deletedCount = deleteResult.rowCount ?? 0;
       totalArchived += deletedCount;
 
       // Update manifest with final count

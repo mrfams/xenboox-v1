@@ -165,7 +165,10 @@ function ActivityItemCard({
             config.iconBg,
           )}
         >
-          <Icon className={cn("h-5 w-5", config.iconColor)} aria-hidden="true" />
+          <Icon
+            className={cn("h-5 w-5", config.iconColor)}
+            aria-hidden="true"
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -226,9 +229,10 @@ function ActivityItemCard({
             actions={item.actions.map((a) => ({
               ...a,
               loading: itemState === "processing",
-              onClick: a.variant === "approve" || a.variant === "reject"
-                ? () => onAction?.(item.id, a.variant)
-                : undefined,
+              onClick:
+                a.variant === "approve" || a.variant === "reject"
+                  ? () => onAction?.(item.id, a.variant as "approve" | "reject")
+                  : undefined,
               icon:
                 a.variant === "approve"
                   ? ThumbsUp
@@ -270,9 +274,15 @@ function CompletedSection({ count }: { count: number }) {
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+          <CheckCircle2
+            className="h-4 w-4 text-emerald-500"
+            aria-hidden="true"
+          />
           <span>Completed today</span>
-          <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-500" aria-label={`${count} completed`}>
+          <span
+            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-500"
+            aria-label={`${count} completed`}
+          >
             {count}
           </span>
         </div>
@@ -283,7 +293,10 @@ function CompletedSection({ count }: { count: number }) {
         )}
       </button>
       {isOpen && (
-        <div id="completed-section" className="border-t border-border/50 px-4 py-3">
+        <div
+          id="completed-section"
+          className="border-t border-border/50 px-4 py-3"
+        >
           <p className="text-xs text-muted-foreground">
             {count} items resolved automatically by AI agents.{" "}
             <Link
@@ -318,10 +331,11 @@ export default function ActivityHubPage() {
   const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
     enabled: !!entityId,
   });
-  const { data: agentApprovals, refetch: refetchApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
-    { limit: 50 },
-    { enabled: !!entityId },
-  );
+  const { data: agentApprovals, refetch: refetchApprovals } =
+    trpc.ingestion.listAgentApprovals.useQuery(
+      { limit: 50 },
+      { enabled: !!entityId },
+    );
   const { data: notifications } = trpc.notifications.list.useQuery(
     { limit: 20, onlyUnread: false },
     { enabled: !!entityId },
@@ -343,40 +357,6 @@ export default function ActivityHubPage() {
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
   }, []);
-
-  // ── Keyboard shortcuts for batch actions ───────────────────────────────
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      // Only when items are selected
-      if (selectedIds.size === 0) return;
-      // Ignore if modifier keys are held
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      // Ignore if focused on an interactive element
-      const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || tag === "A") return;
-      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
-      // Ignore if confirm dialog is open
-      if (confirmRejectOpen) return;
-
-      if (e.key === "a") {
-        e.preventDefault();
-        handleBatchAction("approve");
-      } else if (e.key === "r") {
-        e.preventDefault();
-        setConfirmRejectOpen(true);
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIds, confirmRejectOpen, handleBatchAction]);
-
-  const selectAll = useCallback(() => {
-    const selectableIds = filteredItems
-      .filter((item) => item.actions.some((a) => a.variant === "approve" || a.variant === "reject"))
-      .map((item) => item.id);
-    setSelectedIds(new Set(selectableIds));
-  }, [filteredItems]);
 
   // ── Undo handler ────────────────────────────────────────────────────────
   const undoBatchAction = useCallback(
@@ -420,14 +400,17 @@ export default function ActivityHubPage() {
 
         const actionLabel = action === "approve" ? "Approved" : "Rejected";
         const itemCount = ids.length;
-        toast.success(`${actionLabel} ${itemCount} item${itemCount === 1 ? "" : "s"}`, {
-          description: `${itemCount} item${itemCount === 1 ? "" : "s"} ${actionLabel.toLowerCase()} successfully.`,
-          duration: 5000,
-          action: {
-            label: "Undo",
-            onClick: () => undoBatchAction(ids),
+        toast.success(
+          `${actionLabel} ${itemCount} item${itemCount === 1 ? "" : "s"}`,
+          {
+            description: `${itemCount} item${itemCount === 1 ? "" : "s"} ${actionLabel.toLowerCase()} successfully.`,
+            duration: 5000,
+            action: {
+              label: "Undo",
+              onClick: () => undoBatchAction(ids),
+            },
           },
-        });
+        );
 
         // Clear selection
         setSelectedIds(new Set());
@@ -464,6 +447,40 @@ export default function ActivityHubPage() {
     },
     [selectedIds, refetchApprovals],
   );
+
+  // ── Keyboard shortcuts for batch actions ───────────────────────────────
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Only when items are selected
+      if (selectedIds.size === 0) return;
+      // Ignore if modifier keys are held
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Ignore if focused on an interactive element
+      const tag = document.activeElement?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        tag === "BUTTON" ||
+        tag === "A"
+      )
+        return;
+      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
+      // Ignore if confirm dialog is open
+      if (confirmRejectOpen) return;
+
+      if (e.key === "a") {
+        e.preventDefault();
+        handleBatchAction("approve");
+      } else if (e.key === "r") {
+        e.preventDefault();
+        setConfirmRejectOpen(true);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIds, confirmRejectOpen, handleBatchAction]);
 
   // ── Optimistic approve/reject handler ──────────────────────────────────
   const handleAction = useCallback(
@@ -533,9 +550,9 @@ export default function ActivityHubPage() {
         type: "approval",
         title: approval.title ?? "Agent action pending",
         description: approval.description ?? "Requires your review",
-        agent: approval.agentName ?? "AI Agent",
+        agent: approval.workflow ?? "AI Agent",
         confidence: approval.confidence ?? undefined,
-        sourceDoc: approval.sourceDocument ?? undefined,
+        sourceDoc: approval.documentName ?? undefined,
         actions: [
           { label: "Approve", variant: "approve" },
           { label: "Review", variant: "review" },
@@ -603,9 +620,25 @@ export default function ActivityHubPage() {
           return true;
         });
 
+  const selectAll = useCallback(() => {
+    const selectableIds = filteredItems
+      .filter((item) =>
+        item.actions.some(
+          (a) => a.variant === "approve" || a.variant === "reject",
+        ),
+      )
+      .map((item) => item.id);
+    setSelectedIds(new Set(selectableIds));
+  }, [filteredItems]);
+
   // Items that can be batch-selected (have approve/reject actions)
   const selectableCount = useMemo(
-    () => filteredItems.filter((item) => item.actions.some((a) => a.variant === "approve" || a.variant === "reject")).length,
+    () =>
+      filteredItems.filter((item) =>
+        item.actions.some(
+          (a) => a.variant === "approve" || a.variant === "reject",
+        ),
+      ).length,
     [filteredItems],
   );
 
@@ -621,9 +654,15 @@ export default function ActivityHubPage() {
       description="What needs your attention right now. AI-curated, priority-sorted."
       icon={Inbox}
       aiSuggestions={[
-        "Show me what needs approval",
-        "Auto-approve low-risk items",
-        "Why was this flagged?",
+        {
+          label: "Show me what needs approval",
+          prompt: "Show me what needs approval",
+        },
+        {
+          label: "Auto-approve low-risk items",
+          prompt: "Auto-approve low-risk items",
+        },
+        { label: "Why was this flagged?", prompt: "Why was this flagged?" },
       ]}
     >
       <div className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6">
@@ -631,7 +670,10 @@ export default function ActivityHubPage() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10" aria-hidden="true">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10"
+                aria-hidden="true"
+              >
                 <AlertTriangle className="h-5 w-5 text-red-500" />
               </div>
               <div>
@@ -644,7 +686,10 @@ export default function ActivityHubPage() {
           </div>
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10" aria-hidden="true">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10"
+                aria-hidden="true"
+              >
                 <FileCheck className="h-5 w-5 text-amber-500" />
               </div>
               <div>
@@ -657,7 +702,10 @@ export default function ActivityHubPage() {
           </div>
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10" aria-hidden="true">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10"
+                aria-hidden="true"
+              >
                 <CheckCircle2 className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
@@ -688,7 +736,8 @@ export default function ActivityHubPage() {
               case "ArrowLeft":
               case "ArrowUp":
                 e.preventDefault();
-                nextIdx = (idx - 1 + FILTER_OPTIONS.length) % FILTER_OPTIONS.length;
+                nextIdx =
+                  (idx - 1 + FILTER_OPTIONS.length) % FILTER_OPTIONS.length;
                 break;
               case "Home":
                 e.preventDefault();
@@ -744,10 +793,19 @@ export default function ActivityHubPage() {
           >
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-foreground">
-                {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"} selected
+                {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"}{" "}
+                selected
               </span>
               <span className="hidden sm:inline text-[10px] text-muted-foreground">
-                Press <kbd className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px]">A</kbd> approve, <kbd className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px]">R</kbd> reject
+                Press{" "}
+                <kbd className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px]">
+                  A
+                </kbd>{" "}
+                approve,{" "}
+                <kbd className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px]">
+                  R
+                </kbd>{" "}
+                reject
               </span>
               <button
                 type="button"
@@ -810,14 +868,20 @@ export default function ActivityHubPage() {
             <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-500/10">
-                  <AlertTriangle className="h-6 w-6 text-red-500" aria-hidden="true" />
+                  <AlertTriangle
+                    className="h-6 w-6 text-red-500"
+                    aria-hidden="true"
+                  />
                 </div>
                 <div className="flex-1">
                   <h2 className="text-lg font-semibold text-foreground">
-                    Reject {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"}?
+                    Reject {selectedIds.size} item
+                    {selectedIds.size === 1 ? "" : "s"}?
                   </h2>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    This will reject {selectedIds.size} selected item{selectedIds.size === 1 ? "" : "s"}. This action can be undone from the audit trail.
+                    This will reject {selectedIds.size} selected item
+                    {selectedIds.size === 1 ? "" : "s"}. This action can be
+                    undone from the audit trail.
                   </p>
                 </div>
               </div>
@@ -837,7 +901,8 @@ export default function ActivityHubPage() {
                   }}
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
                 >
-                  Reject {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"}
+                  Reject {selectedIds.size} item
+                  {selectedIds.size === 1 ? "" : "s"}
                 </button>
               </div>
             </div>
@@ -850,38 +915,43 @@ export default function ActivityHubPage() {
           role="tabpanel"
           aria-label={`${activeFilter} activities`}
         >
-        {filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 mb-3" aria-hidden="true">
-              <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+          {filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 mb-3"
+                aria-hidden="true"
+              >
+                <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                All caught up!
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                No items matching this filter
+              </p>
             </div>
-            <p className="text-sm font-medium text-foreground">
-              All caught up!
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              No items matching this filter
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredItems.map((item) => {
-              const canSelect = item.actions.some((a) => a.variant === "approve" || a.variant === "reject");
-              return (
-                <ActivityItemCard
-                  key={item.id}
-                  item={item}
-                  itemState={itemStates[item.id]}
-                  onAction={handleAction}
-                  isSelected={selectedIds.has(item.id)}
-                  onToggleSelect={toggleSelect}
-                  canSelect={canSelect}
-                />
-              );
-            })}
-          </div>
-        )}
+          ) : (
+            <div className="space-y-3">
+              {filteredItems.map((item) => {
+                const canSelect = item.actions.some(
+                  (a) => a.variant === "approve" || a.variant === "reject",
+                );
+                return (
+                  <ActivityItemCard
+                    key={item.id}
+                    item={item}
+                    itemState={itemStates[item.id]}
+                    onAction={handleAction}
+                    isSelected={selectedIds.has(item.id)}
+                    onToggleSelect={toggleSelect}
+                    canSelect={canSelect}
+                  />
+                );
+              })}
+            </div>
+          )}
 
-        {/* Completed Section */}
+          {/* Completed Section */}
         </div>
 
         <CompletedSection count={completedCount} />

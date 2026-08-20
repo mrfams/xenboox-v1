@@ -34,11 +34,7 @@ import { ActorBadge } from "@/components/shared/ai-native";
 // Replaces: journal, chart-of-accounts, trial-balance, fixed-assets, transactions
 
 type LedgerTab =
-  | "journal"
-  | "coa"
-  | "trial-balance"
-  | "fixed-assets"
-  | "reconciliation";
+  "journal" | "coa" | "trial-balance" | "fixed-assets" | "reconciliation";
 
 const TABS: { key: LedgerTab; label: string; icon: typeof BookOpen }[] = [
   { key: "journal", label: "Journal", icon: FileText },
@@ -55,20 +51,33 @@ function JournalView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("all");
 
-  const { data: journalEntries, isLoading } =
-    trpc.journal.getRecentActivity.useQuery(
-      { limit: 20 },
+  const { data: journalData, isLoading } =
+    trpc.journal.listWithDetails.useQuery(
+      { status: "all", limit: 20 },
       { enabled: !!entityId },
     );
+  const journalEntries = journalData?.entries;
 
-  const filters = ["All", "Today", "This Week", "Unposted", "AI-Posted", "Manual"];
+  const filters = [
+    "All",
+    "Today",
+    "This Week",
+    "Unposted",
+    "AI-Posted",
+    "Manual",
+  ];
 
   return (
     <div className="space-y-4">
       {/* AI-enhanced search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" aria-hidden="true" />
-        <label htmlFor="journal-search" className="sr-only">Search journal entries</label>
+        <Search
+          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50"
+          aria-hidden="true"
+        />
+        <label htmlFor="journal-search" className="sr-only">
+          Search journal entries
+        </label>
         <input
           id="journal-search"
           type="text"
@@ -78,7 +87,10 @@ function JournalView() {
           className="w-full rounded-xl border border-border/50 bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          <span className="inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted/30 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/50" aria-hidden="true">
+          <span
+            className="inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted/30 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/50"
+            aria-hidden="true"
+          >
             <Bot className="h-2.5 w-2.5" />
             AI
           </span>
@@ -114,8 +126,12 @@ function JournalView() {
             />
           ))}
         </div>
-      ) : !journalEntries || journalEntries.length === 0 ? (              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-          <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
+      ) : !journalEntries || journalEntries.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
+          <FileText
+            className="h-12 w-12 text-muted-foreground/30 mb-3"
+            aria-hidden="true"
+          />
           <p className="text-sm font-medium text-foreground">
             No journal entries yet
           </p>
@@ -140,11 +156,15 @@ function JournalView() {
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold",
-                        entry.status === "posted"
+                        entry.statusColor === "emerald"
                           ? "bg-emerald-500/10 text-emerald-500"
-                          : entry.status === "draft"
-                            ? "bg-amber-500/10 text-amber-500"
-                            : "bg-muted text-muted-foreground",
+                          : entry.statusColor === "blue"
+                            ? "bg-blue-500/10 text-blue-500"
+                            : entry.statusColor === "amber"
+                              ? "bg-amber-500/10 text-amber-500"
+                              : entry.statusColor === "red"
+                                ? "bg-red-500/10 text-red-500"
+                                : "bg-muted text-muted-foreground",
                       )}
                     >
                       {entry.status}
@@ -152,24 +172,21 @@ function JournalView() {
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {entry.entryNumber} ·{" "}
-                    {entry.createdAt
-                      ? new Date(entry.createdAt).toLocaleDateString("en-US")
+                    {entry.date
+                      ? new Date(entry.date).toLocaleDateString("en-US")
                       : ""}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-semibold text-foreground">
-                    {formatCurrency(Number(entry.totalDebit ?? 0))}
+                    {formatCurrency(entry.debit)}
                   </p>
                 </div>
               </div>
 
               {/* Actor + confidence row */}
               <div className="mt-2 flex items-center gap-3">
-                <ActorBadge actor={entry.postedBy === "ai" ? "ai" : "human"} />
-                {entry.confidence && (
-                  <ConfidenceBadge score={entry.confidence} />
-                )}
+                <ActorBadge actor={entry.isAiGenerated ? "ai" : "human"} />
               </div>
             </div>
           ))}
@@ -215,7 +232,10 @@ function COAView() {
         </div>
       ) : !accounts || accounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-          <Landmark className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
+          <Landmark
+            className="h-12 w-12 text-muted-foreground/30 mb-3"
+            aria-hidden="true"
+          />
           <p className="text-sm font-medium text-foreground">
             No accounts configured
           </p>
@@ -245,7 +265,7 @@ function COAView() {
                       </span>
                     </div>
                     <span className="text-sm font-medium text-foreground tabular-nums">
-                      {formatCurrency(Number(account.balance ?? 0))}
+                      {account.subtype?.replace(/_/g, " ")}
                     </span>
                   </div>
                 ))}
@@ -263,24 +283,18 @@ function COAView() {
 function TrialBalanceView() {
   const { entityId } = useEntity();
 
-  const { data: accounts, isLoading } = trpc.coa.listHierarchy.useQuery(
-    undefined,
-    { enabled: !!entityId },
+  const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
+    enabled: !!entityId,
+  });
+  const { data: tb, isLoading } = trpc.journal.getTrialBalance.useQuery(
+    { periodId: currentPeriod?.id ?? "" },
+    { enabled: !!entityId && !!currentPeriod },
   );
 
-  const totalDebit =
-    accounts?.reduce((sum, a) => {
-      const balance = Number(a.balance ?? 0);
-      return sum + (balance > 0 ? balance : 0);
-    }, 0) ?? 0;
-
-  const totalCredit =
-    accounts?.reduce((sum, a) => {
-      const balance = Number(a.balance ?? 0);
-      return sum + (balance < 0 ? Math.abs(balance) : 0);
-    }, 0) ?? 0;
-
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+  const accounts = tb?.accounts ?? [];
+  const totalDebit = tb?.totalDebit ?? 0;
+  const totalCredit = tb?.totalCredit ?? 0;
+  const isBalanced = tb?.isBalanced ?? true;
 
   return (
     <div className="space-y-4">
@@ -295,13 +309,21 @@ function TrialBalanceView() {
       >
         <div className="flex items-center gap-3">
           {isBalanced ? (
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" aria-hidden="true" />
+            <CheckCircle2
+              className="h-5 w-5 text-emerald-500"
+              aria-hidden="true"
+            />
           ) : (
-            <AlertTriangle className="h-5 w-5 text-red-500" aria-hidden="true" />
+            <AlertTriangle
+              className="h-5 w-5 text-red-500"
+              aria-hidden="true"
+            />
           )}
           <div>
             <p className="text-sm font-medium text-foreground">
-              {isBalanced ? "Trial Balance is balanced" : "Trial Balance is out of balance"}
+              {isBalanced
+                ? "Trial Balance is balanced"
+                : "Trial Balance is out of balance"}
             </p>
             <p className="text-xs text-muted-foreground">
               Total Debits: {formatCurrency(totalDebit)} · Total Credits:{" "}
@@ -321,27 +343,44 @@ function TrialBalanceView() {
             />
           ))}
         </div>
-      ) : !accounts || accounts.length === 0 ? (
+      ) : accounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-          <BookOpen className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
+          <BookOpen
+            className="h-12 w-12 text-muted-foreground/30 mb-3"
+            aria-hidden="true"
+          />
           <p className="text-sm font-medium text-foreground">No data yet</p>
         </div>
       ) : (
         <div className="rounded-xl border border-border/50 overflow-hidden">
           <table className="w-full text-xs" aria-label="Trial Balance">
-            <caption className="sr-only">Trial balance showing debits and credits for all accounts</caption>
+            <caption className="sr-only">
+              Trial balance showing debits and credits for all accounts
+            </caption>
             <thead>
               <tr className="border-b bg-muted/50">
-                <th scope="col" className="px-3 py-2 text-left font-medium text-muted-foreground">
+                <th
+                  scope="col"
+                  className="px-3 py-2 text-left font-medium text-muted-foreground"
+                >
                   Code
                 </th>
-                <th scope="col" className="px-3 py-2 text-left font-medium text-muted-foreground">
+                <th
+                  scope="col"
+                  className="px-3 py-2 text-left font-medium text-muted-foreground"
+                >
                   Account
                 </th>
-                <th scope="col" className="px-3 py-2 text-right font-medium text-muted-foreground">
+                <th
+                  scope="col"
+                  className="px-3 py-2 text-right font-medium text-muted-foreground"
+                >
                   Debit
                 </th>
-                <th scope="col" className="px-3 py-2 text-right font-medium text-muted-foreground">
+                <th
+                  scope="col"
+                  className="px-3 py-2 text-right font-medium text-muted-foreground"
+                >
                   Credit
                 </th>
               </tr>
@@ -351,7 +390,7 @@ function TrialBalanceView() {
                 const balance = Number(account.balance ?? 0);
                 return (
                   <tr
-                    key={account.id}
+                    key={account.accountId}
                     className="border-b last:border-0 hover:bg-muted/20"
                   >
                     <td className="px-3 py-1.5 font-mono text-muted-foreground/60">
@@ -395,10 +434,14 @@ function TrialBalanceView() {
 function FixedAssetsView() {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-      <Building2 className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
+      <Building2
+        className="h-12 w-12 text-muted-foreground/30 mb-3"
+        aria-hidden="true"
+      />
       <p className="text-sm font-medium text-foreground">Fixed Assets</p>
       <p className="text-xs text-muted-foreground mt-1">
-        Asset register, depreciation schedules, and disposal tracking coming soon
+        Asset register, depreciation schedules, and disposal tracking coming
+        soon
       </p>
       <button
         type="button"
@@ -417,7 +460,10 @@ function FixedAssetsView() {
 function ReconciliationView() {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-      <RefreshCw className="h-12 w-12 text-muted-foreground/30 mb-3" aria-hidden="true" />
+      <RefreshCw
+        className="h-12 w-12 text-muted-foreground/30 mb-3"
+        aria-hidden="true"
+      />
       <p className="text-sm font-medium text-foreground">Reconciliation</p>
       <p className="text-xs text-muted-foreground mt-1">
         Bank statement matching and reconciliation — AI-powered, drag-to-match
@@ -503,7 +549,9 @@ function LedgerTabList({
         return (
           <button
             key={tab.key}
-            ref={(el) => { tabRefs.current[i] = el; }}
+            ref={(el) => {
+              tabRefs.current[i] = el;
+            }}
             type="button"
             role="tab"
             id={`ledger-tab-${tab.key}`}
@@ -546,9 +594,18 @@ export default function LedgerPage() {
       icon={BookOpen}
       disableAiCopilot={false}
       aiSuggestions={[
-        "Search for Trust Bank entries",
-        "Show me unposted entries",
-        "Explain this journal entry",
+        {
+          label: "Search for Trust Bank entries",
+          prompt: "Search for Trust Bank entries",
+        },
+        {
+          label: "Show me unposted entries",
+          prompt: "Show me unposted entries",
+        },
+        {
+          label: "Explain this journal entry",
+          prompt: "Explain this journal entry",
+        },
       ]}
       tabs={[]}
     >

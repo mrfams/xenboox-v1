@@ -166,9 +166,7 @@ function AiFinancialNarrative({
 
   const netProfit = (pnl?.revenue ?? 0) - (pnl?.expenses ?? 0);
   const margin =
-    pnl && pnl.revenue > 0
-      ? Math.round((netProfit / pnl.revenue) * 100)
-      : 0;
+    pnl && pnl.revenue > 0 ? Math.round((netProfit / pnl.revenue) * 100) : 0;
 
   // Build narrative from real data
   const parts: string[] = [];
@@ -199,9 +197,7 @@ function AiFinancialNarrative({
     }
 
     if (overview.runway !== null && overview.runway !== undefined) {
-      parts.push(
-        `Cash runway is ${overview.runway.toFixed(1)} months.`,
-      );
+      parts.push(`Cash runway is ${overview.runway.toFixed(1)} months.`);
     }
   }
 
@@ -247,11 +243,13 @@ function ScenarioPlanner() {
         </h3>
       </div>
       <p className="text-xs text-muted-foreground mb-3">
-        Ask the AI to model financial scenarios. Try: &quot;What if revenue grows 20%
-        and we hire 3 more staff?&quot;
+        Ask the AI to model financial scenarios. Try: &quot;What if revenue
+        grows 20% and we hire 3 more staff?&quot;
       </p>
       <div className="flex gap-2">
-        <label htmlFor="scenario-input" className="sr-only">Describe a financial scenario</label>
+        <label htmlFor="scenario-input" className="sr-only">
+          Describe a financial scenario
+        </label>
         <input
           id="scenario-input"
           type="text"
@@ -321,34 +319,54 @@ const REPORTS = [
 export default function FinancialPulsePage() {
   const { entityId } = useEntity();
 
-  const { data: overview } = trpc.dashboard.getOverview.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
+    {},
+    { enabled: !!entityId },
+  );
 
   const { data: pnlData } = trpc.reports.getPnlOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
 
+  const overview = dashboardData
+    ? {
+        cashBalance: dashboardData.businessHealth.cashBalance,
+        accountsReceivable: dashboardData.businessHealth.arOutstanding,
+        accountsPayable: dashboardData.businessHealth.apOutstanding,
+        overdueInvoices: 0,
+        runway: dashboardData.businessHealth.runwayMonths,
+      }
+    : undefined;
+
+  const pnl = pnlData
+    ? {
+        revenue: pnlData.current.revenue,
+        expenses: pnlData.current.opExpenses,
+        revenueChange: dashboardData?.businessHealth.revenueChange,
+        expensesChange: dashboardData?.businessHealth.expensesChange,
+      }
+    : undefined;
+
   // Generate sparkline data from real values (simulated trend)
-  const revenueSparkline = pnlData?.revenue
+  const revenueSparkline = pnl?.revenue
     ? [
-        pnlData.revenue * 0.85,
-        pnlData.revenue * 0.9,
-        pnlData.revenue * 0.95,
-        pnlData.revenue * 0.92,
-        pnlData.revenue * 0.98,
-        pnlData.revenue,
+        pnl.revenue * 0.85,
+        pnl.revenue * 0.9,
+        pnl.revenue * 0.95,
+        pnl.revenue * 0.92,
+        pnl.revenue * 0.98,
+        pnl.revenue,
       ]
     : [];
 
-  const expenseSparkline = pnlData?.expenses
+  const expenseSparkline = pnl?.expenses
     ? [
-        pnlData.expenses * 0.9,
-        pnlData.expenses * 0.92,
-        pnlData.expenses * 0.95,
-        pnlData.expenses * 0.97,
-        pnlData.expenses * 0.99,
-        pnlData.expenses,
+        pnl.expenses * 0.9,
+        pnl.expenses * 0.92,
+        pnl.expenses * 0.95,
+        pnl.expenses * 0.97,
+        pnl.expenses * 0.99,
+        pnl.expenses,
       ]
     : [];
 
@@ -358,23 +376,29 @@ export default function FinancialPulsePage() {
       description="AI-narrated financial health. Visual, not tabular."
       icon={Activity}
       aiSuggestions={[
-        "Explain my cash position",
-        "What's driving expenses?",
-        "Model next quarter",
+        {
+          label: "Explain my cash position",
+          prompt: "Explain my cash position",
+        },
+        {
+          label: "What's driving expenses?",
+          prompt: "What's driving expenses?",
+        },
+        { label: "Model next quarter", prompt: "Model next quarter" },
       ]}
     >
       <div className="space-y-6 p-3 pb-20 sm:p-6 md:pb-6">
         {/* AI Narrative */}
-        <AiFinancialNarrative overview={overview} pnl={pnlData} />
+        <AiFinancialNarrative overview={overview} pnl={pnl} />
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KPICard
             label="Revenue"
-            value={formatCurrency(pnlData?.revenue ?? 0)}
+            value={formatCurrency(pnl?.revenue ?? 0)}
             change={
-              pnlData?.revenueChange
-                ? `+${pnlData.revenueChange.toFixed(1)}%`
+              pnl?.revenueChange
+                ? `${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}%`
                 : undefined
             }
             icon={TrendingUp}
@@ -383,10 +407,10 @@ export default function FinancialPulsePage() {
           />
           <KPICard
             label="Expenses"
-            value={formatCurrency(pnlData?.expenses ?? 0)}
+            value={formatCurrency(pnl?.expenses ?? 0)}
             change={
-              pnlData?.expensesChange
-                ? `${pnlData.expensesChange > 0 ? "+" : ""}${pnlData.expensesChange.toFixed(1)}%`
+              pnl?.expensesChange
+                ? `${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%`
                 : undefined
             }
             icon={TrendingDown}
@@ -395,9 +419,7 @@ export default function FinancialPulsePage() {
           />
           <KPICard
             label="Net Profit"
-            value={formatCurrency(
-              (pnlData?.revenue ?? 0) - (pnlData?.expenses ?? 0),
-            )}
+            value={formatCurrency(pnlData?.current.netProfit ?? 0)}
             icon={BarChart3}
             color="text-primary"
           />

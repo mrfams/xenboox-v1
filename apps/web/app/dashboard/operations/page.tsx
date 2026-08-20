@@ -43,23 +43,34 @@ import { AlertCard } from "@/components/shared/ai-native";
 
 function MoneyFlowSummary() {
   const { entityId } = useEntity();
-  const { data: overview } = trpc.dashboard.getOverview.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
+    {},
+    { enabled: !!entityId },
+  );
+  const businessHealth = dashboardData?.businessHealth;
+  const cashBalance = businessHealth?.cashBalance;
+  const accountsReceivable = businessHealth?.arOutstanding;
+  const accountsPayable = businessHealth?.apOutstanding;
+  const runway = businessHealth?.runwayMonths;
 
-  const netCashFlow =
-    (overview?.accountsReceivable ?? 0) - (overview?.accountsPayable ?? 0);
+  const netCashFlow = (accountsReceivable ?? 0) - (accountsPayable ?? 0);
 
   return (
     <div className="rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
       <div className="flex items-center gap-2.5 mb-3">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8" aria-hidden="true">
+        <div
+          className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8"
+          aria-hidden="true"
+        >
           <ArrowLeftRight className="h-3.5 w-3.5 text-primary" />
         </div>
         <h2 className="text-sm font-semibold tracking-tight text-foreground">
           Money Flow
         </h2>
-        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500/70" aria-hidden="true">
+        <span
+          className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500/70"
+          aria-hidden="true"
+        >
           <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
           Live
         </span>
@@ -67,10 +78,13 @@ function MoneyFlowSummary() {
 
       {/* AI summary */}
       <div className="mb-4 flex items-start gap-2 rounded-lg bg-primary/[0.03] p-3">
-        <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+        <Sparkles
+          className="h-4 w-4 text-primary shrink-0 mt-0.5"
+          aria-hidden="true"
+        />
         <p className="text-xs text-foreground/80 leading-relaxed">
-          {overview
-            ? `Cash balance is ${formatCurrency(overview.cashBalance ?? 0)}. You have ${formatCurrency(overview.accountsReceivable ?? 0)} coming in and ${formatCurrency(overview.accountsPayable ?? 0)} going out. Net position: ${formatCurrency(netCashFlow)}.`
+          {businessHealth
+            ? `Cash balance is ${formatCurrency(cashBalance ?? 0)}. You have ${formatCurrency(accountsReceivable ?? 0)} coming in and ${formatCurrency(accountsPayable ?? 0)} going out. Net position: ${formatCurrency(netCashFlow)}.`
             : "Loading money flow summary..."}
         </p>
       </div>
@@ -81,7 +95,7 @@ function MoneyFlowSummary() {
             Cash Balance
           </p>
           <p className="mt-1 text-lg font-bold text-foreground">
-            {formatCurrency(overview?.cashBalance ?? 0)}
+            {formatCurrency(cashBalance ?? 0)}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -89,7 +103,7 @@ function MoneyFlowSummary() {
             Coming In
           </p>
           <p className="mt-1 text-lg font-bold text-emerald-500">
-            {formatCurrency(overview?.accountsReceivable ?? 0)}
+            {formatCurrency(accountsReceivable ?? 0)}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -97,7 +111,7 @@ function MoneyFlowSummary() {
             Going Out
           </p>
           <p className="mt-1 text-lg font-bold text-red-500">
-            {formatCurrency(overview?.accountsPayable ?? 0)}
+            {formatCurrency(accountsPayable ?? 0)}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -105,8 +119,8 @@ function MoneyFlowSummary() {
             Runway
           </p>
           <p className="mt-1 text-lg font-bold text-foreground">
-            {overview?.runway !== null && overview?.runway !== undefined
-              ? `${overview.runway.toFixed(1)} mo`
+            {runway !== null && runway !== undefined
+              ? `${runway.toFixed(1)} mo`
               : "—"}
           </p>
         </div>
@@ -180,13 +194,22 @@ function OperationSection({
             >
               <div className="flex items-center gap-2 min-w-0">
                 {item.status === "warning" && (
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" aria-hidden="true" />
+                  <AlertTriangle
+                    className="h-3.5 w-3.5 text-amber-500 shrink-0"
+                    aria-hidden="true"
+                  />
                 )}
                 {item.status === "error" && (
-                  <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" aria-hidden="true" />
+                  <AlertTriangle
+                    className="h-3.5 w-3.5 text-red-500 shrink-0"
+                    aria-hidden="true"
+                  />
                 )}
                 {item.status === "ok" && (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" aria-hidden="true" />
+                  <CheckCircle2
+                    className="h-3.5 w-3.5 text-emerald-500 shrink-0"
+                    aria-hidden="true"
+                  />
                 )}
                 <span className="text-xs text-foreground truncate">
                   {item.label}
@@ -207,9 +230,10 @@ function OperationSection({
 
 function BankingCards() {
   const { entityId } = useEntity();
-  const { data: accounts } = trpc.banking.listAccounts.useQuery(undefined, {
+  const { data: bankData } = trpc.banking.getOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
+  const accounts = bankData?.accounts ?? [];
 
   return (
     <div className="rounded-xl border border-border/50 bg-card p-4">
@@ -235,23 +259,32 @@ function BankingCards() {
                 {account.name}
               </p>
               <p className="mt-1 text-lg font-bold text-foreground">
-                {formatCurrency(Number(account.balance ?? 0))}
+                {formatCurrency(parseFloat(account.currentBalance ?? "0"))}
               </p>
               <div className="mt-1 flex items-center gap-1">
-                {account.isReconciled ? (
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" aria-hidden="true" />
+                {account.isActive ? (
+                  <CheckCircle2
+                    className="h-3 w-3 text-emerald-500"
+                    aria-hidden="true"
+                  />
                 ) : (
-                  <AlertTriangle className="h-3 w-3 text-amber-500" aria-hidden="true" />
+                  <AlertTriangle
+                    className="h-3 w-3 text-amber-500"
+                    aria-hidden="true"
+                  />
                 )}
                 <span className="text-[10px] text-muted-foreground">
-                  {account.isReconciled ? "Reconciled" : "Needs reconciliation"}
+                  {account.isActive ? "Active" : "Inactive"}
                 </span>
               </div>
             </div>
           ))
         ) : (
           <div className="col-span-3 rounded-lg border border-dashed border-border/50 py-6 text-center">
-            <Wallet className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" aria-hidden="true" />
+            <Wallet
+              className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2"
+              aria-hidden="true"
+            />
             <p className="text-xs text-muted-foreground">
               No bank accounts connected
             </p>
@@ -266,9 +299,15 @@ function BankingCards() {
 
 function ComplianceTimeline() {
   const { entityId } = useEntity();
-  const { data: closeStatus } = trpc.close.getStatus.useQuery(undefined, {
+  const { data: closeStatus } = trpc.fiscal.getCloseStatus.useQuery(undefined, {
     enabled: !!entityId,
   });
+
+  const completedSteps =
+    closeStatus?.steps.filter((s) => s.status === "completed").length ?? 0;
+  const totalSteps = closeStatus?.steps.length ?? 0;
+  const progress =
+    totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   return (
     <div className="rounded-xl border border-border/50 bg-card p-4">
@@ -280,16 +319,19 @@ function ComplianceTimeline() {
       <div className="space-y-2">
         {closeStatus ? (
           <div className="flex items-center gap-3 rounded-lg bg-background/50 px-3 py-2">
-            <Calendar className="h-4 w-4 text-muted-foreground/60" aria-hidden="true" />
+            <Calendar
+              className="h-4 w-4 text-muted-foreground/60"
+              aria-hidden="true"
+            />
             <div className="flex-1">
               <p className="text-xs font-medium text-foreground">
                 Month-end close
               </p>
               <p className="text-[10px] text-muted-foreground">
-                {closeStatus.status === "completed"
-                  ? `Closed through ${closeStatus.period ?? "last month"}`
-                  : closeStatus.status === "in_progress"
-                    ? `In progress — ${closeStatus.progress ?? 0}% complete`
+                {closeStatus.isClosed
+                  ? `Closed through ${closeStatus.currentPeriod ?? "last month"}`
+                  : closeStatus.currentPeriod
+                    ? `In progress — ${progress}% complete`
                     : "Not started"}
               </p>
             </div>
@@ -302,7 +344,10 @@ function ComplianceTimeline() {
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-lg bg-background/50 px-3 py-2">
-            <Calendar className="h-4 w-4 text-muted-foreground/60" aria-hidden="true" />
+            <Calendar
+              className="h-4 w-4 text-muted-foreground/60"
+              aria-hidden="true"
+            />
             <div className="flex-1">
               <p className="text-xs font-medium text-foreground">
                 Month-end close
@@ -322,10 +367,11 @@ function ComplianceTimeline() {
 
 function PeopleGrid() {
   const { entityId } = useEntity();
-  const { data: customers } = trpc.customers.list.useQuery(undefined, {
-    enabled: !!entityId,
-  });
-  const { data: vendors } = trpc.vendors.list.useQuery(undefined, {
+  const { data: customers } = trpc.customers.listCustomers.useQuery(
+    { status: "all", limit: 1 },
+    { enabled: !!entityId },
+  );
+  const { data: billsOverview } = trpc.bills.getOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
 
@@ -341,7 +387,7 @@ function PeopleGrid() {
           <div>
             <p className="text-xs font-medium text-foreground">Customers</p>
             <p className="text-[10px] text-muted-foreground">
-              {customers?.length ?? 0} total
+              {customers?.totalCount ?? 0} total
             </p>
           </div>
         </Link>
@@ -353,7 +399,7 @@ function PeopleGrid() {
           <div>
             <p className="text-xs font-medium text-foreground">Vendors</p>
             <p className="text-[10px] text-muted-foreground">
-              {vendors?.length ?? 0} total
+              {billsOverview?.statusCounts.all ?? 0} total
             </p>
           </div>
         </Link>
@@ -377,9 +423,27 @@ function PeopleGrid() {
 export default function OperationsPage() {
   const { entityId } = useEntity();
 
-  const { data: overview } = trpc.dashboard.getOverview.useQuery(undefined, {
+  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
+    {},
+    { enabled: !!entityId },
+  );
+  const { data: billsOverview } = trpc.bills.getOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
+
+  const overview = dashboardData
+    ? {
+        overdueBills: billsOverview?.statusCounts.overdue ?? 0,
+        pendingBills:
+          (billsOverview?.statusCounts.pending_approval ?? 0) +
+          (billsOverview?.statusCounts.draft ?? 0),
+        pendingExpenses: 0,
+        nextPayrollDate: null as string | null,
+        overdueInvoices: 0,
+        outstandingInvoices: 0,
+        pendingEstimates: 0,
+      }
+    : undefined;
 
   return (
     <ModulePageShell
@@ -387,9 +451,9 @@ export default function OperationsPage() {
       description="Money in, money out. AI handles it, you approve."
       icon={ArrowLeftRight}
       aiSuggestions={[
-        "Show overdue invoices",
-        "What bills need paying?",
-        "Run payroll",
+        { label: "Show overdue invoices", prompt: "Show overdue invoices" },
+        { label: "What bills need paying?", prompt: "What bills need paying?" },
+        { label: "Run payroll", prompt: "Run payroll" },
       ]}
     >
       <div className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6">

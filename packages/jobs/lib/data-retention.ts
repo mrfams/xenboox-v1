@@ -74,7 +74,7 @@ export const dataRetentionTask = task({
     const triggeredBy = payload.triggeredBy ?? "cron";
     const runId = payload.runId ?? `dr-${Date.now()}`;
 
-    logger.info({ triggeredBy, runId }, "data-retention: starting purge run");
+    logger.info("data-retention: starting purge run", { triggeredBy, runId });
 
     // Fetch all active, non-legal-hold policies
     const policies = await db
@@ -99,10 +99,10 @@ export const dataRetentionTask = task({
     for (const policy of policies) {
       // Validate table is in the safe list
       if (!SAFE_PURGE_TABLES.has(policy.tableName)) {
-        logger.warn(
-          { table: policy.tableName, entityId: policy.entityId },
-          "data-retention: table not in safe purge list, skipping",
-        );
+        logger.warn("data-retention: table not in safe purge list, skipping", {
+          table: policy.tableName,
+          entityId: policy.entityId,
+        });
         continue;
       }
 
@@ -113,12 +113,12 @@ export const dataRetentionTask = task({
         );
         if (!isSafe) {
           logger.error(
+            "data-retention: exclusion WHERE failed safety validation, skipping",
             {
               table: policy.tableName,
               entityId: policy.entityId,
               where: policy.exclusionWhere,
             },
-            "data-retention: exclusion WHERE failed safety validation, skipping",
           );
           continue;
         }
@@ -139,14 +139,11 @@ export const dataRetentionTask = task({
         totalPurged += result;
       } catch (err) {
         errors += 1;
-        logger.error(
-          {
-            table: policy.tableName,
-            entityId: policy.entityId,
-            error: err instanceof Error ? err.message : String(err),
-          },
-          "data-retention: purge failed for table",
-        );
+        logger.error("data-retention: purge failed for table", {
+          table: policy.tableName,
+          entityId: policy.entityId,
+          error: err instanceof Error ? err.message : String(err),
+        });
 
         // Log the failure
         await logPurgeResult({
@@ -164,15 +161,12 @@ export const dataRetentionTask = task({
     }
 
     const durationMs = Date.now() - startTime;
-    logger.info(
-      {
-        policies: policies.length,
-        totalPurged,
-        errors,
-        durationMs,
-      },
-      "data-retention: purge run complete",
-    );
+    logger.info("data-retention: purge run complete", {
+      policies: policies.length,
+      totalPurged,
+      errors,
+      durationMs,
+    });
 
     return { purged: totalPurged, policies: policies.length, errors };
   },
@@ -206,7 +200,7 @@ async function purgeEntityRows(
     );
 
     const result = await db.execute(deleteQuery);
-    const deletedCount = (result as { rowCount?: number }).rowCount ?? 0;
+    const deletedCount = result.rowCount ?? 0;
 
     totalPurged += deletedCount;
     batchCount += 1;
@@ -295,9 +289,8 @@ async function logPurgeResult(entry: PurgeLogEntry): Promise<void> {
     });
   } catch (err) {
     // Log failure must never break the purge flow
-    logger.error(
-      { error: err instanceof Error ? err.message : String(err) },
-      "data-retention: failed to write purge log",
-    );
+    logger.error("data-retention: failed to write purge log", {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }

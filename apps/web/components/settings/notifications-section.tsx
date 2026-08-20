@@ -74,7 +74,7 @@ export function NotificationsSection() {
 
   useEffect(() => {
     if (currentPrefs) {
-      setPrefs(currentPrefs);
+      setPrefs((prev) => ({ ...prev, ...currentPrefs }));
     }
   }, [currentPrefs]);
 

@@ -74,7 +74,11 @@ function AIGreeting({ firstName }: { firstName?: string }) {
           Here&apos;s your business snapshot for{" "}
           <span className="font-medium text-muted-foreground">{today}</span>.
         </p>
-      </div>          <div className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-card/60 px-2.5 py-1 sm:flex" aria-hidden="true">
+      </div>{" "}
+      <div
+        className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-card/60 px-2.5 py-1 sm:flex"
+        aria-hidden="true"
+      >
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
         <span className="text-[10px] font-medium text-muted-foreground/60">
           AI active
@@ -189,8 +193,8 @@ function BriefingCard({ item }: { item: BriefingItem }) {
 function ProactiveBriefing() {
   const { entityId } = useEntity();
 
-  const { data: dashboardData } = trpc.dashboard.getOverview.useQuery(
-    undefined,
+  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
+    {},
     { enabled: !!entityId },
   );
   const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
@@ -200,29 +204,29 @@ function ProactiveBriefing() {
   const items: BriefingItem[] = [];
 
   if (dashboardData) {
-    const { cashBalance, overdueInvoices, pendingJournals, runway } =
-      dashboardData;
+    const { businessHealth, pendingApprovalsCount, deadlines } = dashboardData;
+    const { cashBalance, runwayMonths } = businessHealth;
 
-    if (overdueInvoices > 0) {
+    if (deadlines.length > 0) {
       items.push({
-        id: "overdue-invoices",
-        type: "negative",
-        title: `${overdueInvoices} invoice${overdueInvoices > 1 ? "s" : ""} overdue`,
-        value: `${overdueInvoices} items`,
-        detail: "Invoices past their due date need attention",
+        id: "upcoming-deadlines",
+        type: "warning",
+        title: `${deadlines.length} deadline${deadlines.length > 1 ? "s" : ""} upcoming`,
+        value: `${deadlines.length} due`,
+        detail: deadlines[0]?.label ?? "Upcoming deadlines need attention",
         href: "/dashboard/operations",
         actionLabel: "Review",
       });
     }
 
-    if (pendingJournals > 0) {
+    if (pendingApprovalsCount > 0) {
       items.push({
-        id: "pending-journals",
+        id: "pending-approvals",
         type: "warning",
-        title: `${pendingJournals} journal entr${pendingJournals > 1 ? "ies" : "y"} pending`,
-        value: `${pendingJournals} pending`,
-        detail: "Journal entries awaiting review or posting",
-        href: "/dashboard/ledger",
+        title: `${pendingApprovalsCount} item${pendingApprovalsCount > 1 ? "s" : ""} awaiting approval`,
+        value: `${pendingApprovalsCount} pending`,
+        detail: "Items awaiting your review or posting",
+        href: "/dashboard/activity-hub",
         actionLabel: "Review",
       });
     }
@@ -234,8 +238,8 @@ function ProactiveBriefing() {
         title: "Cash position",
         value: formatCurrency(cashBalance),
         detail:
-          runway !== null && runway !== undefined
-            ? `${runway.toFixed(1)} months runway`
+          runwayMonths !== null && runwayMonths !== undefined
+            ? `${runwayMonths.toFixed(1)} months runway`
             : "Cash-flow positive",
         href: "/dashboard/operations",
         actionLabel: "Details",
@@ -282,7 +286,12 @@ function ProactiveBriefing() {
 
   return (
     <section className="space-y-3 rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
-      <div className="flex items-center gap-2.5">          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8" aria-hidden="true">
+      <div className="flex items-center gap-2.5">
+        {" "}
+        <div
+          className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8"
+          aria-hidden="true"
+        >
           <Sparkles className="h-3.5 w-3.5 text-primary" />
         </div>
         <h2 className="text-sm font-semibold tracking-tight text-foreground">
@@ -376,8 +385,13 @@ function ConversationThread({
               <Bot className="h-4 w-4 text-primary/70" />
             </div>
             <div className="max-w-[85%] rounded-2xl bg-card border border-border/50 px-4 py-3 text-sm leading-relaxed text-foreground">
-              <p className="whitespace-pre-wrap" aria-live="polite">{streamedContent}</p>
-              <span className="inline-block h-4 w-0.5 animate-pulse bg-primary/60 ml-0.5" aria-hidden="true" />
+              <p className="whitespace-pre-wrap" aria-live="polite">
+                {streamedContent}
+              </p>
+              <span
+                className="inline-block h-4 w-0.5 animate-pulse bg-primary/60 ml-0.5"
+                aria-hidden="true"
+              />
             </div>
           </div>
         )}
@@ -395,7 +409,11 @@ function ConversationThread({
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:150ms]" />
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:300ms]" />
                 </div>
-                <span className="text-xs text-muted-foreground/60" role="status" aria-live="polite">
+                <span
+                  className="text-xs text-muted-foreground/60"
+                  role="status"
+                  aria-live="polite"
+                >
                   Thinking...
                 </span>
               </div>
@@ -405,10 +423,7 @@ function ConversationThread({
 
         {/* Inline approval cards from streaming */}
         {approvals.map((approval, i) => (
-          <div
-            key={`approval-${i}`}
-            className="flex gap-3"
-          >
+          <div key={`approval-${i}`} className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
               <Bot className="h-4 w-4 text-primary/70" />
             </div>
@@ -461,10 +476,7 @@ function ConversationThread({
 
         {/* Document artifacts */}
         {documents.map((doc, i) => (
-          <div
-            key={`doc-${i}`}
-            className="flex gap-3"
-          >
+          <div key={`doc-${i}`} className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
               <Bot className="h-4 w-4 text-primary/70" />
             </div>
@@ -548,7 +560,10 @@ function AiInput({
                 "disabled:opacity-40 disabled:pointer-events-none",
               )}
             >
-              <Icon className={cn("h-3 w-3", suggestion.color)} aria-hidden="true" />
+              <Icon
+                className={cn("h-3 w-3", suggestion.color)}
+                aria-hidden="true"
+              />
               <span>{suggestion.label}</span>
             </button>
           );
@@ -568,7 +583,9 @@ function AiInput({
           <div className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg bg-primary/8 text-primary/70 transition-colors group-focus-within:bg-primary/12 group-focus-within:text-primary">
             <Bot className="h-4 w-4" />
           </div>
-          <label htmlFor="ai-chat-input" className="sr-only">Ask your AI CFO anything</label>
+          <label htmlFor="ai-chat-input" className="sr-only">
+            Ask your AI CFO anything
+          </label>
           <textarea
             id="ai-chat-input"
             ref={textareaRef}
