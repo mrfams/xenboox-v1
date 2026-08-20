@@ -6,6 +6,35 @@
 
 ---
 
+### [2026-08-20] — Cloud Settings Sync Across Devices
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 7 (user-settings.ts, settings.ts, use-settings-sync.ts, sync-status.tsx, settings-sync.test.ts, plus 2 modified)
+**Files Modified:** 3 (_app.ts, index.ts, settings/page.tsx)
+
+**What was built:**
+
+- **Database schema** (`packages/db/schema/user-settings.ts`):
+  - `user_settings` table: id, userId (unique, cascade delete), settings (JSONB), timestamps
+  - Typed settings: AI preferences, onboarding, notifications, usage stats
+- **tRPC router** (`apps/web/server/routers/settings.ts`):
+  - `get` — query user settings from cloud
+  - `set` — partial merge with existing settings
+  - `replace` — full overwrite
+  - `delete` — clear all settings- **Client hook** (`apps/web/lib/hooks/use-settings-sync.ts`):
+  - localStorage-first for fast reads
+  - Debounced cloud sync (2 second delay)
+  - Deep merge: server wins on conflicts
+  - `updateSettings(path, value)` — update single field
+  - `forceSync()` — immediate cloud save
+  - `resetSettings()` — clear localStorage + cloud
+- **SyncStatus** component: cloud/cloud-off/syncing/error states with "Sync now" button
+- **Settings page** shows sync status indicator at top
+- **28/28 tests pass**
+
+---
+
 ### [2026-08-20] — AI Usage Statistics Card
 
 **Agent:** Buffy (Freebuff)
