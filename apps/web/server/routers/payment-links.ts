@@ -70,37 +70,46 @@ export const paymentLinksRouter = router({
         offset: input.offset,
       });
 
-      // Enrich with invoice and customer data
-      const enriched = await Promise.all(
-        links.map(async (link) => {
-          const invoice = await db.query.salesInvoices.findFirst({
-            where: eq(salesInvoices.id, link.invoiceId),
-            columns: {
-              id: true,
-              invoiceNumber: true,
-              totalAmount: true,
-              status: true,
-              customerId: true,
-            },
-          });
+      // Batch-fetch invoices and customers to avoid N+1
+      const invoiceIds = [...new Set(links.map((l) => l.invoiceId))];
+      const invoices =
+        invoiceIds.length > 0
+          ? await db.query.salesInvoices.findMany({
+              where: sql`${salesInvoices.id} IN ${invoiceIds}`,
+              columns: {
+                id: true,
+                invoiceNumber: true,
+                status: true,
+                customerId: true,
+              },
+            })
+          : [];
+      const invoiceMap = new Map(invoices.map((i) => [i.id, i]));
 
-          let customerName = "";
-          if (invoice?.customerId) {
-            const customer = await db.query.customers.findFirst({
-              where: eq(customers.id, invoice.customerId),
-              columns: { name: true },
-            });
-            customerName = customer?.name ?? "";
-          }
+      const customerIds = [
+        ...new Set(invoices.map((i) => i.customerId).filter(Boolean)),
+      ];
+      const customerList =
+        customerIds.length > 0
+          ? await db.query.customers.findMany({
+              where: sql`${customers.id} IN ${customerIds}`,
+              columns: { id: true, name: true },
+            })
+          : [];
+      const customerMap = new Map(customerList.map((c) => [c.id, c.name]));
 
-          return {
-            ...link,
-            invoiceNumber: invoice?.invoiceNumber ?? "Unknown",
-            customerName,
-            invoiceStatus: invoice?.status ?? "unknown",
-          };
-        }),
-      );
+      // Enrich links with batched data
+      const enriched = links.map((link) => {
+        const invoice = invoiceMap.get(link.invoiceId);
+        return {
+          ...link,
+          invoiceNumber: invoice?.invoiceNumber ?? "Unknown",
+          customerName: invoice?.customerId
+            ? (customerMap.get(invoice.customerId) ?? "")
+            : "",
+          invoiceStatus: invoice?.status ?? "unknown",
+        };
+      });
 
       // Count total
       const [{ cnt }] = await db
@@ -350,7 +359,7 @@ export const paymentLinksRouter = router({
    * Used by the payment page to display invoice details.
    */
   resolveByToken: publicProcedure
-    .input(z.object({ token: z.string() }))
+    .input(z.object({ token: z.string().min(1).max(128) }))
     .query(async ({ input }) => {
       const link = await db.query.paymentLinks.findFirst({
         where: eq(paymentLinks.token, input.token),
@@ -379,8 +388,8 @@ export const paymentLinksRouter = router({
         return { found: false, reason: "paid" };
       }
 
-      // Increment click count
-      await db
+      // Increment click count (fire-and-forget, non-blocking)
+      void db
         .update(paymentLinks)
         .set({
           clickCount: sql`${paymentLinks.clickCount} + 1`,
@@ -388,7 +397,7 @@ export const paymentLinksRouter = router({
         })
         .where(eq(paymentLinks.id, link.id));
 
-      // Get invoice details
+      // Get invoice details + customer name in one query
       const invoice = await db.query.salesInvoices.findFirst({
         where: eq(salesInvoices.id, link.invoiceId),
         columns: {
@@ -396,24 +405,17 @@ export const paymentLinksRouter = router({
           totalAmount: true,
           dueDate: true,
           currency: true,
-          notes: true,
+          customerId: true,
         },
       });
 
-      // Get customer name
       let customerName = "";
-      if (invoice) {
-        const invFull = await db.query.salesInvoices.findFirst({
-          where: eq(salesInvoices.id, link.invoiceId),
-          columns: { customerId: true },
+      if (invoice?.customerId) {
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, invoice.customerId),
+          columns: { name: true },
         });
-        if (invFull?.customerId) {
-          const customer = await db.query.customers.findFirst({
-            where: eq(customers.id, invFull.customerId),
-            columns: { name: true },
-          });
-          customerName = customer?.name ?? "";
-        }
+        customerName = customer?.name ?? "";
       }
 
       return {
@@ -433,9 +435,9 @@ export const paymentLinksRouter = router({
   recordPayment: publicProcedure
     .input(
       z.object({
-        token: z.string(),
-        amount: z.number().positive(),
-        method: z.string(),
+        token: z.string().min(1).max(128),
+        amount: z.number().positive().max(10_000_000),
+        method: z.enum(["card", "bank_transfer", "mobile_money", "cash"]),
       }),
     )
     .mutation(async ({ input }) => {
@@ -447,7 +449,25 @@ export const paymentLinksRouter = router({
         throw new Error("Invalid or inactive payment link");
       }
 
-      // Mark as paid
+      // Validate amount doesn't exceed link amount (prevent overpayment)
+      const linkAmount = parseFloat(link.amount);
+      if (input.amount > linkAmount * 1.01) {
+        // Allow 1% tolerance for rounding
+        throw new Error(
+          `Payment amount ${input.amount} exceeds invoice amount ${linkAmount}`,
+        );
+      }
+
+      // Read current paid amount BEFORE updating (within same logical unit)
+      const currentInvoice = await db.query.salesInvoices.findFirst({
+        where: eq(salesInvoices.id, link.invoiceId),
+        columns: { paidAmount: true, balance: true },
+      });
+
+      const currentPaid = parseFloat(currentInvoice?.paidAmount ?? "0");
+      const currentBalance = parseFloat(currentInvoice?.balance ?? link.amount);
+
+      // Mark link as paid
       await db
         .update(paymentLinks)
         .set({
@@ -461,23 +481,15 @@ export const paymentLinksRouter = router({
         })
         .where(eq(paymentLinks.id, link.id));
 
-      // Update invoice balance
-      const newBalance = parseFloat(link.amount) - input.amount;
+      // Update invoice balance atomically
+      const newPaid = currentPaid + input.amount;
+      const newBalance = Math.max(0, currentBalance - input.amount);
       await db
         .update(salesInvoices)
         .set({
-          balance: String(Math.max(0, newBalance)),
+          balance: String(newBalance),
           status: newBalance <= 0 ? "paid" : "partial",
-          paidAmount: String(
-            parseFloat(
-              (
-                await db.query.salesInvoices.findFirst({
-                  where: eq(salesInvoices.id, link.invoiceId),
-                  columns: { paidAmount: true },
-                })
-              )?.paidAmount ?? "0",
-            ) + input.amount,
-          ),
+          paidAmount: String(newPaid),
         })
         .where(eq(salesInvoices.id, link.invoiceId));
 

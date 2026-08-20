@@ -49,9 +49,11 @@ vi.mock("@/lib/db", () => ({
       },
       salesInvoices: {
         findFirst: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       customers: {
         findFirst: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       sessions: { findFirst: vi.fn().mockResolvedValue({ id: "sess-1" }) },
       users: {
@@ -177,12 +179,17 @@ describe("paymentLinks.list", () => {
     vi.mocked(db.query.paymentLinks.findMany).mockResolvedValue([
       MOCK_LINK,
     ] as never);
-    vi.mocked(db.query.salesInvoices.findFirst).mockResolvedValue(
-      MOCK_INVOICE as never,
-    );
-    vi.mocked(db.query.customers.findFirst).mockResolvedValue(
-      MOCK_CUSTOMER as never,
-    );
+    vi.mocked(db.query.salesInvoices.findMany).mockResolvedValue([
+      {
+        id: INV_ID,
+        invoiceNumber: "SI-2026-0001",
+        status: "pending",
+        customerId: CUST_ID,
+      },
+    ] as never);
+    vi.mocked(db.query.customers.findMany).mockResolvedValue([
+      MOCK_CUSTOMER,
+    ] as never);
 
     // Override the count mock for this test
     vi.mocked(db.select).mockReturnValueOnce({
