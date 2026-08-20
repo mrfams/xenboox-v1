@@ -6,6 +6,26 @@
 
 ---
 
+### [2026-08-20] — Onboarding Progress Indicator in Sidebar
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 1 (onboarding-progress.test.ts)
+**Files Modified:** 1 (sidebar.tsx)
+
+**What was built:**
+
+- **OnboardingProgress** component rendered in sidebar between logo and navigation
+- Shows 5-step progress: Welcome → Chart of Accounts → Bank Connection → Team Setup → AI Preferences
+- Animated progress bar with monospace percentage display
+- Step indicators: ✅ Check (completed), ● Pulsing dot (current), ○ Circle (future)
+- Resume button: "Start Setup" (step 0) or "Continue Setup" (step 1+)
+- Hidden when onboarding is completed or during SSR
+- Gradient background card (`from-primary/5 to-primary/10`) with Sparkles icon
+- **23/23 tests pass**
+
+---
+
 ### [2026-08-20] — Onboarding Reset from Settings
 
 **Agent:** Buffy (Freebuff)
