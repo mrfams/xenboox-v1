@@ -6,6 +6,54 @@
 
 ---
 
+### [2026-08-20] — Multi-Device Conflict Resolution with Merge Strategies
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 3 (merge-strategies.ts, conflict-resolution.tsx, conflict-resolution.test.ts)
+**Files Modified:** 2 (use-settings-sync.ts, settings/page.tsx)
+
+**What was built:**
+
+- **Merge Strategy Utilities** (`lib/merge-strategies.ts`):
+  - 5 strategies: `last-write-wins`, `local-wins`, `remote-wins`, `deep-merge`, `manual`
+  - `detectConflicts()` — finds field-level conflicts between local and remote snapshots
+  - `applyMergeStrategy()` — applies chosen strategy to resolve conflicts
+  - `resolveConflict()` — resolves individual field conflicts in manual mode
+  - `applyManualResolutions()` — applies user-chosen values per field
+  - `deepMerge()` — recursive object merge utility
+  - `getStrategyLabel()` / `getStrategyDescription()` — human-readable labels
+
+- **ConflictResolution UI** (`components/settings/conflict-resolution.tsx`):
+  - Amber-bordered card showing conflict detected on another device
+  - Local vs Remote timestamp comparison
+  - 5 radio-button strategy options with descriptions
+  - Manual mode: expandable field-by-field diff view
+  - Per-field "Keep Local" / "Keep Remote" buttons
+  - Confirmation dialog before applying resolution
+  - Dismiss button to ignore conflict
+
+- **useSettingsSync hook** (`lib/hooks/use-settings-sync.ts`):
+  - Added `ConflictState` type with hasConflict, conflicts, localUpdatedAt, remoteUpdatedAt, mergeStrategy
+  - Added `lastLocalEditAt` tracking in localStorage
+  - Conflict detection on polling (every 30s)
+  - Conflict detection on initial load
+  - `resolveConflict(strategy, resolutions)` — applies strategy and syncs to server
+  - `setMergeStrategy(strategy)` — changes preferred strategy
+  - `dismissConflict()` — ignores conflict
+
+- **Settings page** — imports ConflictResolution component (wired but hidden until conflict detected)
+
+- **21/21 tests pass** covering:
+  - Merge strategy types and defaults
+  - Conflict detection logic (both changed, only remote, neither)
+  - All 5 merge strategies
+  - Conflict resolution UI elements
+  - Settings sync integration
+  - Edge cases (empty, null, nested, undefined)
+
+---
+
 ### [2026-08-20] — Auto-Versioning Before Risky Operations
 
 **Agent:** Buffy (Freebuff)
