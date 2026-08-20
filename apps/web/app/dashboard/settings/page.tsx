@@ -20,6 +20,7 @@ import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
 import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summary"
 import { ExportImportSettings } from "@/components/settings/export-import-settings"
+import { AIUsageStats } from "@/components/settings/ai-usage-stats"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -114,6 +115,7 @@ export default function SettingsPage() {
       </div>
 
       <AIPreferencesSummary />
+      <AIUsageStats />
       <ExportImportSettings />
 
       <div className="grid gap-6 md:grid-cols-2">
