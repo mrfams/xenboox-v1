@@ -6,6 +6,38 @@
 
 ---
 
+### [2026-08-20] — Backup Completion Chime Sound
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 3 (backup-chime.ts, sound-preferences.tsx, backup-chime.test.ts)
+**Files Modified:** 2 (backup-progress-indicator.tsx, settings/page.tsx)
+
+**What was built:**
+
+- **Backup Chime** (`lib/backup-chime.ts`):
+  - Web Audio API two-note ascending chime (C5→E5, sine wave)
+  - Gentle attack + exponential decay envelope
+  - Respects user preference via `localStorage`
+  - `isSoundEnabled()` / `setSoundEnabled()` / `playBackupChime()`
+  - Server-safe: silent no-ops on SSR
+
+- **SoundPreferences** (`components/settings/sound-preferences.tsx`):
+  - Toggle switch for enabling/disabling sound effects
+  - Volume2/VolumeX icons based on state
+  - Wired into Settings page
+
+- **Integration**:
+  - `BackupProgressIndicator` plays chime on `justCompleted`
+  - Auto-triggers via `useEffect` on completion
+
+- **Tests** (`__tests__/backup-chime.test.ts`):
+  - 36 tests covering chime generation, sound toggle, Web Audio, integration
+
+**Test Results:** 36/36 pass
+
+---
+
 ### [2026-08-20] — Backup Creation Progress Bar
 
 **Agent:** Buffy (Freebuff)
