@@ -4,6 +4,17 @@ import { useState } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Switch } from "@/components/ui"
 import { Separator } from "@/components/ui"
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui"
 import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles } from "lucide-react"
 import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
@@ -317,19 +328,36 @@ export default function SettingsPage() {
                   This will restart the setup wizard. Your existing data will not be affected.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  localStorage.removeItem("xenboox_onboarding_completed")
-                  localStorage.removeItem("xenboox_onboarding_step")
-                  localStorage.removeItem("xenboox_ai_preferences")
-                  toast.success("Onboarding reset. Refresh the page to start the wizard.")
-                }}
-              >
-                <RotateCcw className="mr-1 h-3 w-3" />
-                Reset
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <RotateCcw className="mr-1 h-3 w-3" />
+                    Reset
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset onboarding?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will restart the setup wizard on your next page load. Your existing data (accounts, invoices, journal entries, etc.) will not be affected.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        localStorage.removeItem("xenboox_onboarding_completed")
+                        localStorage.removeItem("xenboox_onboarding_step")
+                        localStorage.removeItem("xenboox_ai_preferences")
+                        toast.success("Onboarding reset. Refresh the page to start the wizard.")
+                      }}
+                    >
+                      <RotateCcw className="mr-1 h-3 w-3" />
+                      Reset Onboarding
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </CardContent>
         </Card>
