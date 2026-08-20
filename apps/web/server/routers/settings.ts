@@ -37,7 +37,7 @@ import { employees, payrollRuns } from "@xenboox/db/schema/payroll";
 import { db } from "@/lib/db";
 import { router, protectedProcedure } from "@/lib/trpc/server";
 import { handleMutationError } from "@/lib/trpc/server";
-import { notifySettingsChange } from "@/app/api/settings/stream/route";
+import { notifySettingsChange } from "@/lib/settings-sse";
 
 export const settingsRouter = router({
   // ─── Profile ──────────────────────────────────────────────────────────────

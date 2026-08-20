@@ -1,37 +1,10 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { eq } from "drizzle-orm";
-import { userSettings } from "@xenboox/db/schema/user-settings";
-
-// ─── In-memory store for connected clients ────────────────────────────────────
-
-type Client = {
-  id: string;
-  userId: string;
-  controller: ReadableStreamDefaultController;
-  lastSeen: Date;
-};
-
-const clients = new Map<string, Client>();
-
-// ─── Cleanup stale clients every 30 seconds ──────────────────────────────────
-
-setInterval(() => {
-  const now = new Date();
-  for (const [id, client] of clients.entries()) {
-    const age = now.getTime() - client.lastSeen.getTime();
-    if (age > 60_000) {
-      // 60 seconds stale
-      try {
-        client.controller.close();
-      } catch {
-        // Already closed
-      }
-      clients.delete(id);
-    }
-  }
-}, 30_000);
+import {
+  registerClient,
+  unregisterClient,
+  touchClient,
+} from "@/lib/settings-sse";
 
 // ─── GET: SSE stream ─────────────────────────────────────────────────────────
 
@@ -56,7 +29,7 @@ export async function GET(request: NextRequest) {
       controller.enqueue(`data: ${data}\n\n`);
 
       // Register client
-      clients.set(clientId, {
+      registerClient({
         id: clientId,
         userId,
         controller,
@@ -70,20 +43,17 @@ export async function GET(request: NextRequest) {
           controller.enqueue(`data: ${ping}\n\n`);
 
           // Update last seen
-          const client = clients.get(clientId);
-          if (client) {
-            client.lastSeen = new Date();
-          }
+          touchClient(clientId);
         } catch {
           clearInterval(heartbeat);
-          clients.delete(clientId);
+          unregisterClient(clientId);
         }
       }, 15_000);
 
       // Cleanup on close
       request.signal.addEventListener("abort", () => {
         clearInterval(heartbeat);
-        clients.delete(clientId);
+        unregisterClient(clientId);
         try {
           controller.close();
         } catch {
@@ -101,52 +71,4 @@ export async function GET(request: NextRequest) {
       "X-Accel-Buffering": "no", // Disable nginx buffering
     },
   });
-}
-
-// ─── Helper: Notify clients of settings change ────────────────────────────────
-
-export function notifySettingsChange(
-  userId: string,
-  settings: Record<string, unknown>,
-  version?: number,
-  excludeClientId?: string,
-) {
-  const message = JSON.stringify({
-    type: "settings_changed",
-    settings,
-    version: version || 1,
-    timestamp: new Date().toISOString(),
-  });
-
-  for (const [id, client] of clients.entries()) {
-    if (client.userId === userId && id !== excludeClientId) {
-      try {
-        client.controller.enqueue(`data: ${message}\n\n`);
-        client.lastSeen = new Date();
-      } catch {
-        clients.delete(id);
-      }
-    }
-  }
-}
-
-// ─── Helper: Get client ID for a connection ──────────────────────────────────
-
-export function getClientId(userId: string, userAgent?: string): string | null {
-  for (const [id, client] of clients.entries()) {
-    if (client.userId === userId) {
-      return id;
-    }
-  }
-  return null;
-}
-
-// ─── Helper: Get connected client count ───────────────────────────────────────
-
-export function getConnectedClients(userId: string): number {
-  let count = 0;
-  for (const client of clients.values()) {
-    if (client.userId === userId) count++;
-  }
-  return count;
 }
