@@ -6,6 +6,27 @@
 
 ---
 
+### [2026-08-20] — AI Preferences Summary Card in Settings
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 2 (ai-preferences-summary.tsx, ai-preferences-summary.test.ts)
+**Files Modified:** 1 (settings/page.tsx)
+
+**What was built:**
+
+- **AIPreferencesSummary** component (`components/settings/ai-preferences-summary.tsx`):
+  - Reads AI preferences from localStorage with defaults fallback
+  - Status bar: "N of 4 AI features enabled" with 4 dot indicators
+  - 4 toggle switches: Auto-Reconciliation, Smart Categorization, Anomaly Alerts, Daily Digest
+  - Save button with change detection (disabled when no changes)
+  - Reset to defaults button
+  - Merges stored prefs with defaults (forward-compatible with new features)
+- **Wired into** Settings page above the 2x2 card grid
+- **21/21 tests pass**
+
+---
+
 ### [2026-08-20] — Onboarding Reset Confirmation Modal
 
 **Agent:** Buffy (Freebuff)
