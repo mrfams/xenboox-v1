@@ -27,6 +27,7 @@ import { RealTimeSyncIndicator } from "@/components/settings/real-time-sync-indi
 import { SettingsAuditLog } from "@/components/settings/settings-audit-log"
 import { SettingsVersionHistory } from "@/components/settings/settings-version-history"
 import { ConflictResolution } from "@/components/settings/conflict-resolution"
+import { ConflictResolutionHistory } from "@/components/settings/conflict-resolution-history"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -158,6 +159,7 @@ export default function SettingsPage() {
       <AIUsageStats />
       <SettingsAuditLog />
       <SettingsVersionHistory />
+      <ConflictResolutionHistory />
       <ExportImportSettings />
 
       <div className="grid gap-6 md:grid-cols-2">

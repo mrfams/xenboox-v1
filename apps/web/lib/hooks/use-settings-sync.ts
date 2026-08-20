@@ -165,6 +165,7 @@ export function useSettingsSync() {
   })
 
   const setSettings = trpc.settings.set.useMutation()
+  const logConflictResolution = trpc.settings.logConflictResolution.useMutation()
 
   // ── Polling for remote changes ──
   useEffect(() => {
@@ -436,6 +437,24 @@ export function useSettingsSync() {
         }
 
         applyToLocal(result.merged as Settings)
+
+        // Log the conflict resolution
+        logConflictResolution.mutate({
+          strategy,
+          conflictCount: prev.conflict.conflicts.length,
+          conflicts: prev.conflict.conflicts.map((c) => ({
+            path: c.path,
+            localValue: c.localValue,
+            remoteValue: c.remoteValue,
+          })),
+          resolvedValues: result.conflicts.map((c) => ({
+            path: c.path,
+            resolvedValue: c.resolvedValue,
+            resolvedBy: c.resolvedBy,
+          })),
+          localUpdatedAt: prev.conflict.localUpdatedAt,
+          remoteUpdatedAt: prev.conflict.remoteUpdatedAt,
+        })
 
         // Sync resolved settings to server
         if (session?.user?.id) {

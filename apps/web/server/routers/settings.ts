@@ -5,6 +5,7 @@ import { eq, desc } from "drizzle-orm"
 import { userSettings, type UserSettings } from "@xenboox/db/schema/user-settings"
 import { settingsAuditLog } from "@xenboox/db/schema/settings-audit"
 import { settingsVersions } from "@xenboox/db/schema/settings-versions"
+import { conflictResolutionHistory } from "@xenboox/db/schema/conflict-resolution-history"
 import { TRPCError } from "@trpc/server"
 import { notifySettingsChange } from "@/app/api/settings/stream/route"
 
@@ -357,6 +358,94 @@ export const settingsRouter = router({
       }
 
       return { deleted: Math.max(0, versions.length - input.keepLast) }
+    }),
+
+  // ─── LOG CONFLICT RESOLUTION ──────────────────────
+
+  logConflictResolution: protectedProcedure
+    .input(
+      z.object({
+        strategy: z.string(),
+        conflictCount: z.number().min(1),
+        conflicts: z.array(
+          z.object({
+            path: z.string(),
+            localValue: z.unknown(),
+            remoteValue: z.unknown(),
+          })
+        ),
+        resolvedValues: z.array(
+          z.object({
+            path: z.string(),
+            resolvedValue: z.unknown(),
+            resolvedBy: z.string(),
+          })
+        ),
+        localUpdatedAt: z.string().nullable().optional(),
+        remoteUpdatedAt: z.string().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id
+      if (!userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Must be logged in" })
+      }
+
+      try {
+        const [entry] = await db
+          .insert(conflictResolutionHistory)
+          .values({
+            userId,
+            strategy: input.strategy,
+            conflictCount: input.conflictCount,
+            conflicts: input.conflicts,
+            resolvedValues: input.resolvedValues,
+            localUpdatedAt: input.localUpdatedAt ? new Date(input.localUpdatedAt) : null,
+            remoteUpdatedAt: input.remoteUpdatedAt ? new Date(input.remoteUpdatedAt) : null,
+            deviceInfo: {
+              userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+              screen: typeof window !== "undefined" ? `${window.screen.width}x${window.screen.height}` : "unknown",
+              language: typeof navigator !== "undefined" ? navigator.language : "unknown",
+            },
+          })
+          .returning()
+
+        return {
+          id: entry.id,
+          createdAt: entry.createdAt?.toISOString() || null,
+        }
+      } catch {
+        // Don't block conflict resolution if logging fails
+        return { id: null, createdAt: null }
+      }
+    }),
+
+  // ─── GET CONFLICT RESOLUTION HISTORY ───────────────
+
+  getConflictHistory: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(10),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id
+      if (!userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Must be logged in" })
+      }
+
+      const entries = await db.query.conflictResolutionHistory.findMany({
+        where: eq(conflictResolutionHistory.userId, userId),
+        orderBy: [desc(conflictResolutionHistory.createdAt)],
+        limit: input.limit,
+      })
+
+      return entries.map((e) => ({
+        ...e,
+        localUpdatedAt: e.localUpdatedAt?.toISOString() || null,
+        remoteUpdatedAt: e.remoteUpdatedAt?.toISOString() || null,
+        createdAt: e.createdAt?.toISOString() || null,
+      }))
     }),
 
   // ─── GET AUDIT LOG ─────────────────────────────────
