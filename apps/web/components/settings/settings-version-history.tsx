@@ -21,6 +21,7 @@ import {
   ChevronUp,
   Tag,
   Trash2,
+  ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { trpc } from "@/lib/trpc/client"
@@ -65,12 +66,28 @@ export function SettingsVersionHistory() {
 
   const restoreVersion = trpc.settings.restoreVersion.useMutation({
     onSuccess: (data) => {
-      toast.success(`Restored from version ${data.restoredFrom}`)
+      toast.success(`Restored from version ${data.restoredFrom}. A backup was saved automatically.`)
       utils.settings.getVersions.invalidate()
       utils.settings.get.invalidate()
       setRestoreTarget(null)
     },
     onError: (err) => toast.error(err.message),
+  })
+
+  // Auto-versioning before restore
+  const createAutoBackup = trpc.settings.createVersion.useMutation({
+    onSuccess: () => {
+      // Auto-backup created, now proceed with restore
+      if (restoreTarget) {
+        restoreVersion.mutate({ versionId: restoreTarget.id })
+      }
+    },
+    onError: () => {
+      // Even if auto-backup fails, proceed with restore
+      if (restoreTarget) {
+        restoreVersion.mutate({ versionId: restoreTarget.id })
+      }
+    },
   })
 
   const pruneVersions = trpc.settings.pruneVersions.useMutation({
@@ -88,7 +105,10 @@ export function SettingsVersionHistory() {
 
   const handleRestore = () => {
     if (restoreTarget) {
-      restoreVersion.mutate({ versionId: restoreTarget.id })
+      // Auto-version before restore (backup current settings first)
+      createAutoBackup.mutate({
+        label: `Auto-backup: before restoring to v${restoreTarget.version}`,
+      })
     }
   }
 
@@ -193,8 +213,12 @@ export function SettingsVersionHistory() {
                 <AlertDialogDescription>
                   This will replace your current settings with version {restoreTarget?.version}
                   {restoreTarget?.label ? ` (${restoreTarget.label})` : ""}.
-                  Your current settings will be lost unless you save a version first.
                 </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <span>A backup of your current settings will be saved automatically before restoring.</span>
+              </div>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
