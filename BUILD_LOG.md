@@ -6,6 +6,29 @@
 
 ---
 
+### [2026-08-20] — Global Search Ctrl+K Command Palette
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 2 (command-palette.tsx, command-palette.test.ts)
+**Files Modified:** 2 (top-nav.tsx, dashboard/layout.tsx)
+
+**What was built:**
+
+- **CommandPalette** (`components/shared/command-palette.tsx`): Full command palette with:
+  - 19 navigable pages searchable by label (all dashboard surfaces + settings + help)
+  - 6 AI commands: summarize month, reconcile, generate report, analyze spending, create journal, process invoices
+  - 6 keyboard shortcuts reference (Ctrl+K, 1-5, /, Esc, A, R)
+  - Recent searches with localStorage persistence (max 5, deduped)
+  - Empty state with search icon when no results found
+  - All items keyboard navigable (arrow keys + Enter)
+- **SearchTrigger** — button in top nav with Ctrl+K keyboard hint
+- **Ctrl+K / Cmd+K** global keyboard listener to toggle palette
+- **Wired into** dashboard layout — renders globally alongside OnboardingWizard and Toaster
+- **22/22 tests pass**
+
+---
+
 ### [2026-08-20] — Onboarding Wizard for First-Time Users
 
 **Agent:** Buffy (Freebuff)
