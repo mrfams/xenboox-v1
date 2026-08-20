@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-20] — Onboarding Reset Confirmation Modal
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~3 min
+**Files Created:** 1 (onboarding-reset-modal.test.ts)
+**Files Modified:** 1 (settings/page.tsx)
+
+**What was built:**
+
+- **AlertDialog** component wrapping the Reset button in Settings > Onboarding card
+- Title: "Reset onboarding?"
+- Description: explains data safety, only wizard restarts on next page load
+- Cancel button closes modal without action
+- Confirm button resets 3 localStorage keys + shows toast
+- 2 clicks required: Reset → Confirm (prevents accidental resets)
+- **16/16 tests pass**
+
+---
+
 ### [2026-08-20] — Entity Creation Wizard for Additional Entities
 
 **Agent:** Buffy (Freebuff)
