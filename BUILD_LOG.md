@@ -6,6 +6,32 @@
 
 ---
 
+### [2026-08-20] — Real-Time Sync Indicator with Remote Change Detection
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 2 (real-time-sync-indicator.tsx, real-time-sync.test.ts)
+**Files Modified:** 2 (use-settings-sync.ts, settings/page.tsx)
+
+**What was built:**
+
+- **useSettingsSync hook** enhanced with 30-second polling to detect remote changes
+- **RealTimeSyncIndicator** component with 6 states:
+  - Online: Cloud icon + "Synced Xm ago"
+  - Offline: WifiOff icon + amber warning
+  - Syncing: Spinning RefreshCw
+  - Error: AlertCircle + error message
+  - Cloud-disabled: CloudOff + sign-in prompt
+  - Connected: Cloud + pulsing green "Live" dot- **Remote change notification**:
+  - Blue banner: "Settings updated on another device"
+  - Apply changes button (merges remote settings)
+  - Ignore button (dismisses notification)
+  - Close (X) button
+  - Shows last updated time
+- **Online/offline detection** via window events- **33/33 tests pass**
+
+---
+
 ### [2026-08-20] — Settings Audit Log for Tracking Changes
 
 **Agent:** Buffy (Freebuff)
