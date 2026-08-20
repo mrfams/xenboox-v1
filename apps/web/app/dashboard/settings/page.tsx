@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Switch } from "@/components/ui"
 import { Separator } from "@/components/ui"
-import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail } from "lucide-react"
+import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles } from "lucide-react"
 import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
 
@@ -295,6 +295,42 @@ export default function SettingsPage() {
               <Save className="mr-2 h-4 w-4" />
               {updateNotificationsMutation.isPending ? "Saving..." : "Save Preferences"}
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Onboarding
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Re-run the setup wizard to configure your organization, chart of accounts, bank connections, team, and AI preferences.
+            </p>
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
+              <RotateCcw className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Reset Onboarding</p>
+                <p className="text-xs text-muted-foreground">
+                  This will restart the setup wizard. Your existing data will not be affected.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  localStorage.removeItem("xenboox_onboarding_completed")
+                  localStorage.removeItem("xenboox_onboarding_step")
+                  localStorage.removeItem("xenboox_ai_preferences")
+                  toast.success("Onboarding reset. Refresh the page to start the wizard.")
+                }}
+              >
+                <RotateCcw className="mr-1 h-3 w-3" />
+                Reset
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
