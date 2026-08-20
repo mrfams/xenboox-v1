@@ -243,9 +243,9 @@ export default function MarketingLayout({
 
       {/* ── Footer ── */}
       <footer className="border-t border-border/50 bg-gradient-to-b from-white to-slate-50">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           {/* Newsletter */}
-          <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-8 mb-12 text-center sm:p-10">
+          <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 sm:p-8 mb-10 text-center">
             <h3 className="text-xl font-bold text-white">Stay in the loop</h3>
             <p className="mt-2 text-sm text-slate-400 max-w-md mx-auto">
               Product updates, accounting best practices, and industry insights.

@@ -170,7 +170,7 @@ export default function CareersPage() {
               "radial-gradient(ellipse at center, black 30%, transparent 75%)",
           }}
         />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
           <FadeInUp>
             <div className="mx-auto max-w-3xl text-center">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
@@ -236,7 +236,7 @@ export default function CareersPage() {
       </section>
 
       {/* Culture / Values */}
-      <section id="culture" className="py-16 sm:py-20">
+      <section id="culture" className="py-12 sm:py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <FadeInUp>
             <div className="text-center mb-12">
@@ -270,7 +270,7 @@ export default function CareersPage() {
       </section>
 
       {/* Benefits */}
-      <section className="py-16 sm:py-20 bg-paper-2/60 border-y border-border">
+      <section className="py-12 sm:py-16 bg-paper-2/60 border-y border-border">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <FadeInUp>
             <div className="text-center mb-12">
@@ -300,7 +300,7 @@ export default function CareersPage() {
       </section>
 
       {/* Open Positions */}
-      <section id="openings" className="py-16 sm:py-20">
+      <section id="openings" className="py-12 sm:py-16">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <FadeInUp>
             <div className="text-center mb-10">
@@ -502,7 +502,7 @@ export default function CareersPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 sm:py-20 bg-paper-2/60 border-t border-border">
+      <section className="py-12 sm:py-16 bg-paper-2/60 border-t border-border">
         <div className="mx-auto max-w-xl px-4 text-center sm:px-6">
           <FadeInUp>
             <h2 className="text-3xl font-semibold tracking-tight text-foreground">

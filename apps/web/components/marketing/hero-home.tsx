@@ -70,9 +70,9 @@ export function Hero() {
       />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-16 pb-16 pt-16 sm:pt-20 lg:grid-cols-2 lg:pb-24 lg:pt-24">
+        <div className="grid items-center gap-12 lg:gap-16 pb-12 pt-12 sm:pt-16 lg:grid-cols-2 lg:pb-20 lg:pt-20">
           <FadeInUp>
-            <div className="flex flex-col items-start gap-6">
+            <div className="flex flex-col items-start gap-5 sm:gap-6">
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Your entire accounting department, running{" "}
                 <span className="text-primary">autonomously</span>.

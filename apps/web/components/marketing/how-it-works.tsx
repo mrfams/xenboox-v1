@@ -8,19 +8,19 @@ const steps = [
     icon: PlugZap,
     title: "Connect your business",
     description:
-      "Securely connect your bank, customers, and suppliers. Xenboox maps your chart of accounts and entity structure in minutes — not weeks.",
+      "Connect your bank, customers, and suppliers. Xenboox maps your chart of accounts and entity structure in minutes.",
   },
   {
     icon: Workflow,
     title: "Agents do the work",
     description:
-      "19 specialized agents invoice, pay, reconcile, file, and close continuously. Every action is logged, confidence-scored, and attributed.",
+      "19 agents invoice, reconcile, file, and close around the clock. Every action logged and confidence-scored.",
   },
   {
     icon: CheckCheck,
     title: "You make the decisions",
     description:
-      "Nothing material posts without your approval. Approve, question, or adjust from a single clean briefing — no spreadsheets required.",
+      "Nothing material posts without your approval. Approve, reject, or adjust from a single briefing.",
   },
 ];
 
@@ -35,7 +35,7 @@ export function HowItWorks() {
           />
         </FadeInUp>
 
-        <div className="relative mt-16">
+        <div className="relative mt-10 sm:mt-14">
           <div
             className="absolute inset-x-12 top-9 hidden border-t-2 border-dashed border-border lg:block"
             aria-hidden="true"
@@ -44,7 +44,7 @@ export function HowItWorks() {
             {steps.map((step, index) => (
               <li key={step.title}>
                 <FadeInUp delay={index * 0.12}>
-                  <div className="relative flex h-full flex-col rounded-2xl border border-border bg-card p-8">
+                  <div className="relative flex h-full flex-col rounded-2xl border border-border bg-card p-6 sm:p-8">
                     <div className="flex items-center justify-between">
                       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <step.icon className="h-5 w-5" aria-hidden="true" />
@@ -53,10 +53,10 @@ export function HowItWorks() {
                         0{index + 1}
                       </span>
                     </div>
-                    <h3 className="mt-6 text-xl font-semibold text-foreground">
+                    <h3 className="mt-5 text-lg sm:text-xl font-semibold text-foreground">
                       {step.title}
                     </h3>
-                    <p className="mt-2.5 text-[15px] leading-relaxed text-muted-foreground">
+                    <p className="mt-2 text-sm sm:text-[15px] leading-relaxed text-muted-foreground">
                       {step.description}
                     </p>
                   </div>

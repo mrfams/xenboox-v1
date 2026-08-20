@@ -32,11 +32,11 @@ export function Testimonials() {
           <SectionHeading title="Trusted by teams who closed faster than ever." />
         </FadeInUp>
 
-        <div className="mx-auto mt-16 grid max-w-5xl gap-6 lg:grid-cols-2">
+        <div className="mx-auto mt-10 sm:mt-14 grid max-w-5xl gap-5 sm:gap-6 lg:grid-cols-2">
           {testimonials.map((item, index) => (
             <FadeInUp key={item.name} delay={index * 0.12}>
               <figure
-                className={`relative flex h-full flex-col rounded-2xl border border-border p-8 lg:p-10 ${
+                className={`relative flex h-full flex-col rounded-2xl border border-border p-6 sm:p-8 lg:p-10 ${
                   item.featured ? "bg-card" : "bg-card"
                 }`}
               >

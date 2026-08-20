@@ -33,7 +33,7 @@ const guarantees = [
 export function Security() {
   return (
     <Section id="security">
-      <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
+      <div className="mx-auto grid max-w-7xl items-center gap-10 lg:gap-14 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
         <FadeInUp>
           <div className="max-w-xl">
             <SectionHeading
@@ -41,7 +41,7 @@ export function Security() {
               title="Bank-grade security, built for financial data."
               lead="Xenboox is engineered around one principle: your books are your business. We protect them like ours."
             />
-            <ul className="mt-8 space-y-3.5">
+            <ul className="mt-6 space-y-3">
               <CheckItem>
                 Encryption and entity isolation at the database layer
               </CheckItem>

@@ -125,7 +125,7 @@ export default function DownloadPage() {
               "radial-gradient(ellipse at center, black 30%, transparent 75%)",
           }}
         />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
           <FadeInUp>
             <div className="mx-auto max-w-3xl text-center">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
@@ -230,7 +230,7 @@ export default function DownloadPage() {
       </Section>
 
       {/* System Requirements */}
-      <section className="border-t border-border bg-paper-2/60 py-16 sm:py-20">
+      <section className="border-t border-border bg-paper-2/60 py-12 sm:py-16">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <FadeInUp>
             <div className="text-center mb-10">
@@ -268,7 +268,7 @@ export default function DownloadPage() {
       </section>
 
       {/* Security Note */}
-      <section className="py-16 sm:py-20">
+      <section className="py-12 sm:py-16">
         <div className="mx-auto max-w-xl px-4 text-center sm:px-6">
           <FadeInUp>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">

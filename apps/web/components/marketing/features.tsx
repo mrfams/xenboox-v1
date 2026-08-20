@@ -79,14 +79,14 @@ export function Features() {
           />
         </FadeInUp>
 
-        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 sm:mt-14 grid gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
             <FadeInUp key={feature.title} delay={(index % 3) * 0.1}>
-              <article className="group flex h-full flex-col rounded-2xl border border-border bg-card p-8 transition-shadow hover:shadow-elevated">
+              <article className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 sm:p-8 transition-shadow hover:shadow-elevated">
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                   <feature.icon className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <h3 className="mt-5 text-lg font-semibold text-foreground">
+                <h3 className="mt-4 text-lg font-semibold text-foreground">
                   {feature.title}
                 </h3>
                 <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">

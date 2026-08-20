@@ -90,7 +90,7 @@ const featureSections = [
     eyebrow: "AI Automation",
     title: "Your accounting runs itself",
     description:
-      "Stop doing repetitive data entry. Our AI learns your business patterns and handles the routine work — while you focus on strategy.",
+      "AI learns your patterns and handles routine work while you focus on strategy.",
     features: [
       "Automated transaction categorization",
       "Smart bank reconciliation",
@@ -162,7 +162,7 @@ const featureSections = [
     eyebrow: "Financial Reporting",
     title: "Insights that drive decisions",
     description:
-      "Real-time financial reports generated automatically. P&L, balance sheet, cash flow — always up to date, always accurate.",
+      "Real-time P&L, balance sheet, and cash flow — always up to date.",
     features: [
       "Real-time P&L and Balance Sheet",
       "Cash flow forecasting",
@@ -224,7 +224,7 @@ const featureSections = [
     eyebrow: "Multi-Currency",
     title: "Global business, local expertise",
     description:
-      "Handle transactions in any currency with automatic exchange rates. Perfect for businesses operating across borders.",
+      "Handle transactions in any currency with real-time exchange rates.",
     features: [
       "50+ currencies supported",
       "Real-time exchange rates",
@@ -265,7 +265,7 @@ const featureSections = [
     eyebrow: "Security",
     title: "Your data, protected",
     description:
-      "Enterprise-grade security built in from day one. Your financial data is encrypted, isolated, and auditable.",
+      "Enterprise-grade security: encrypted, isolated, and fully auditable.",
     features: [
       "End-to-end encryption",
       "Role-based access control",
@@ -363,7 +363,7 @@ export default function FeaturesPage() {
         />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 sm:gap-6 py-14 sm:py-20 lg:py-28 text-center">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 sm:gap-6 py-12 sm:py-16 lg:py-24 text-center">
             <FadeInUp>
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
@@ -378,7 +378,6 @@ export default function FeaturesPage() {
             </FadeInUp>
             <FadeInUp delay={0.1}>
               <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">
-                The first accounting platform where AI handles the work.
                 Automated reconciliations, intelligent categorization, and
                 real-time insights — so you can focus on growing your business.
               </p>
@@ -421,7 +420,7 @@ export default function FeaturesPage() {
       {featureSections.map((section, index) => (
         <section
           key={section.id}
-          className={`${index % 2 === 0 ? "bg-paper" : "bg-paper-2/60"} py-14 sm:py-20 lg:py-28`}
+          className={`${index % 2 === 0 ? "bg-paper" : "bg-paper-2/60"} py-12 sm:py-16 lg:py-24`}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div

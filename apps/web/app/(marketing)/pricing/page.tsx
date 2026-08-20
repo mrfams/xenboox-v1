@@ -82,15 +82,15 @@ const yearlyTiers = monthlyTiers.map((tier) => {
 const faqs = [
   {
     q: "Can I switch plans at any time?",
-    a: "Yes. You can upgrade or downgrade your plan at any time. When upgrading, you'll be prorated for the remaining days in your billing cycle.",
+    a: "Yes. Upgrade or downgrade anytime. Upgrades are prorated for the remaining billing cycle.",
   },
   {
     q: "Is my data secure?",
-    a: "Absolutely. We use PostgreSQL Row-Level Security, AES-256 encryption, TLS 1.3, and a complete audit trail.",
+    a: "Yes. PostgreSQL RLS, AES-256 encryption, TLS 1.3, and a complete audit trail.",
   },
   {
     q: "Do you support my country's tax regulations?",
-    a: "Xenboox ships with Gambia's PAYE and SSNIT built in. More countries coming. Enterprise plan supports custom tax configs.",
+    a: "Gambia's PAYE and SSNIT built in. More countries coming. Enterprise supports custom tax configs.",
   },
   {
     q: "Can I use Xenboox on my phone?",
@@ -98,7 +98,7 @@ const faqs = [
   },
   {
     q: "What happens to my data if I cancel?",
-    a: "Export at any time. Data retained for 90 days after cancellation, then permanently deleted.",
+    a: "Export anytime. Data retained 90 days after cancellation, then permanently deleted.",
   },
 ];
 
@@ -123,7 +123,7 @@ export default function PricingPage() {
               "radial-gradient(ellipse at center, black 30%, transparent 75%)",
           }}
         />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
           <FadeInUp>
             <div className="mx-auto max-w-3xl text-center">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
@@ -245,7 +245,7 @@ export default function PricingPage() {
       </Section>
 
       {/* FAQ */}
-      <section className="border-t border-border bg-paper-2/60 py-16 sm:py-20">
+      <section className="border-t border-border bg-paper-2/60 py-12 sm:py-16">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <FadeInUp>
             <div className="text-center mb-10">
@@ -281,7 +281,7 @@ export default function PricingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 sm:py-20">
+      <section className="py-12 sm:py-16">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
           <FadeInUp>
             <h2 className="text-3xl font-semibold tracking-tight text-foreground">

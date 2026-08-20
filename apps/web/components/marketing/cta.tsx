@@ -10,7 +10,7 @@ export function Cta() {
     <Section id="cta">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
-          <div className="relative overflow-hidden rounded-3xl bg-ledger-ink px-8 py-16 text-center sm:px-16 lg:py-20">
+          <div className="relative overflow-hidden rounded-3xl bg-ledger-ink px-6 py-12 text-center sm:px-12 sm:py-16 lg:py-20">
             <div
               className="pointer-events-none absolute inset-0"
               aria-hidden="true"
@@ -20,7 +20,7 @@ export function Cta() {
               }}
             />
             <div className="relative mx-auto max-w-2xl">
-              <h2 className="mt-6 text-3xl font-semibold tracking-tight text-paper sm:text-4xl lg:text-5xl">
+              <h2 className="text-3xl font-semibold tracking-tight text-paper sm:text-4xl lg:text-5xl">
                 Let the agents do the books.
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-paper/70">
