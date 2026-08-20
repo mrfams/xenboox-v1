@@ -2,7 +2,11 @@ import { z } from "zod";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { paymentLinks, salesInvoices, customers } from "@xenboox/db/schema";
 
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import {
+  router,
+  rlsProtectedProcedure,
+  publicProcedure,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
@@ -345,7 +349,7 @@ export const paymentLinksRouter = router({
    * Resolve a payment link by token (public — no auth).
    * Used by the payment page to display invoice details.
    */
-  resolveByToken: rlsProtectedProcedure
+  resolveByToken: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ input }) => {
       const link = await db.query.paymentLinks.findFirst({
@@ -426,7 +430,7 @@ export const paymentLinksRouter = router({
   /**
    * Record a payment against a payment link (public — no auth).
    */
-  recordPayment: rlsProtectedProcedure
+  recordPayment: publicProcedure
     .input(
       z.object({
         token: z.string(),
