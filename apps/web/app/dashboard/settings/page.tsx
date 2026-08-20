@@ -28,6 +28,7 @@ import { SettingsAuditLog } from "@/components/settings/settings-audit-log"
 import { SettingsVersionHistory } from "@/components/settings/settings-version-history"
 import { ConflictResolution } from "@/components/settings/conflict-resolution"
 import { ConflictResolutionHistory } from "@/components/settings/conflict-resolution-history"
+import { DefaultStrategyPreference } from "@/components/settings/default-strategy-preference"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -160,6 +161,10 @@ export default function SettingsPage() {
       <SettingsAuditLog />
       <SettingsVersionHistory />
       <ConflictResolutionHistory />
+      <DefaultStrategyPreference
+        currentStrategy="deep-merge"
+        onSave={() => {}}
+      />
       <ExportImportSettings />
 
       <div className="grid gap-6 md:grid-cols-2">

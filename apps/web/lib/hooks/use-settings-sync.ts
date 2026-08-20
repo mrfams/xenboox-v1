@@ -39,6 +39,10 @@ type Settings = {
     totalActions?: number
     lastUsed?: string | null
   }
+  syncPreferences?: {
+    defaultMergeStrategy?: MergeStrategy
+    autoResolve?: boolean
+  }
 }
 
 type ConflictState = {
@@ -70,6 +74,7 @@ const LOCAL_KEYS = {
   notificationPrefs: "xenboox_notification_preferences",
   lastSyncedAt: "xenboox_last_synced_at",
   lastLocalEditAt: "xenboox_last_local_edit_at",
+  syncPreferences: "xenboox_sync_preferences",
 } as const
 
 // ─── Read from localStorage ───────────────────────────────────────────────────
@@ -102,6 +107,7 @@ function buildLocalSettings(): Settings {
     },
     notifications: readLocal(LOCAL_KEYS.notificationPrefs) || undefined,
     usage: readLocal(LOCAL_KEYS.usageStats) || undefined,
+    syncPreferences: readLocal(LOCAL_KEYS.syncPreferences) || undefined,
   }
 }
 
@@ -129,6 +135,9 @@ function applyToLocal(settings: Settings) {
   if (settings.usage) {
     writeLocal(LOCAL_KEYS.usageStats, settings.usage)
   }
+  if (settings.syncPreferences) {
+    writeLocal(LOCAL_KEYS.syncPreferences, settings.syncPreferences)
+  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -147,7 +156,7 @@ export function useSettingsSync() {
       localUpdatedAt: null,
       remoteUpdatedAt: null,
       remoteSettings: null,
-      mergeStrategy: "deep-merge",
+      mergeStrategy: (readLocal<{ defaultMergeStrategy?: MergeStrategy }>(LOCAL_KEYS.syncPreferences)?.defaultMergeStrategy) || "deep-merge",
       isResolving: false,
     },
   })
@@ -520,6 +529,30 @@ export function useSettingsSync() {
     }))
   }, [])
 
+  // ── Update sync preferences (default strategy, auto-resolve) ──
+
+  const updateSyncPreferences = useCallback(
+    (prefs: { defaultMergeStrategy?: MergeStrategy; autoResolve?: boolean }) => {
+      writeLocal(LOCAL_KEYS.syncPreferences, prefs)
+
+      // Also update the current conflict state's merge strategy
+      setState((prev) => ({
+        ...prev,
+        conflict: {
+          ...prev.conflict,
+          mergeStrategy: prefs.defaultMergeStrategy || prev.conflict.mergeStrategy,
+        },
+      }))
+
+      // Sync to cloud
+      if (session?.user?.id) {
+        const localSettings = buildLocalSettings()
+        setSettings.mutate({ settings: localSettings as Record<string, unknown> })
+      }
+    },
+    [session?.user?.id, setSettings]
+  )
+
   // ── Reset settings ──
 
   const resetSettings = useCallback(() => {
@@ -530,6 +563,7 @@ export function useSettingsSync() {
     removeLocal(LOCAL_KEYS.usageStats)
     removeLocal(LOCAL_KEYS.lastSyncedAt)
     removeLocal(LOCAL_KEYS.lastLocalEditAt)
+    removeLocal(LOCAL_KEYS.syncPreferences)
 
     if (session?.user?.id) {
       setSettings.mutate({ settings: {} })
@@ -559,6 +593,7 @@ export function useSettingsSync() {
     resolveConflict,
     setMergeStrategy,
     dismissConflict,
+    updateSyncPreferences,
     isCloudEnabled: !!session?.user?.id,
   }
 }
