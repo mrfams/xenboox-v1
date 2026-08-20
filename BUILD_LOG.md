@@ -6,6 +6,27 @@
 
 ---
 
+### [2026-08-20] — Entity Creation Wizard for Additional Entities
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 2 (entity-wizard.tsx, entity-wizard.test.ts)
+**Files Modified:** 1 (entity-switcher.tsx)
+
+**What was built:**
+
+- **EntityWizard** component (`components/onboarding/entity-wizard.tsx`): 4-step wizard for creating additional entities:
+  - Step 1: Details — name, type (company/subsidiary/branch/client), currency (8 options), country (7 options)
+  - Step 2: Chart of Accounts — 6 industry templates with AI recommendation
+  - Step 3: Bank Connection — live feed teaser + manual entry
+  - Step 4: Completion — success screen with copy link + switch to entity
+- **"Create new entity" button** added to entity switcher dropdown (Plus icon, separated by border)
+- **Wired into** entity switcher — opens wizard on click, closes dropdown
+- **Entity switcher** now imports EntityWizard and manages showWizard state
+- **27/27 tests pass**
+
+---
+
 ### [2026-08-20] — Onboarding Progress Indicator in Sidebar
 
 **Agent:** Buffy (Freebuff)
