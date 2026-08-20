@@ -340,6 +340,11 @@ export default function ActivityHubPage() {
     { limit: 20, onlyUnread: false },
     { enabled: !!entityId },
   );
+  const { data: agentAlerts, refetch: refetchAlerts } =
+    trpc.notifications.listAgentAlerts.useQuery(
+      { limit: 20, unreadOnly: false },
+      { enabled: !!entityId },
+    );
 
   // ── Toggle selection ───────────────────────────────────────────────────
   const toggleSelect = useCallback((id: string) => {
@@ -586,7 +591,38 @@ export default function ActivityHubPage() {
     }
   }
 
-  // Add notifications as info items
+  // Add agent alerts as first-class items (urgent/approval/info based on severity)
+  if (agentAlerts?.alerts) {
+    for (const alert of agentAlerts.alerts) {
+      if (addedIds.has(alert.id)) continue;
+      addedIds.add(alert.id);
+      if (itemStates[alert.id] === "success") continue;
+
+      // Map notification type + priority to activity item type
+      const itemType: "urgent" | "approval" | "info" =
+        alert.priority === "critical"
+          ? "urgent"
+          : alert.priority === "high"
+            ? "approval"
+            : "info";
+
+      activityItems.push({
+        id: alert.id,
+        type: itemType,
+        title: alert.title,
+        description: alert.body ?? "",
+        agent: alert.agentSource.replace(/-agent$/, "").replace(/_/g, " "),
+        actions: alert.actionRequired
+          ? [
+              { label: "Review", variant: "review" },
+              { label: "Dismiss", variant: "default" },
+            ]
+          : [{ label: "View", variant: "default" }],
+      });
+    }
+  }
+
+  // Add regular notifications as info items (lower priority than agent alerts)
   if (notifications) {
     for (const notification of notifications.slice(0, 5)) {
       if (addedIds.has(notification.id)) continue;
@@ -647,6 +683,7 @@ export default function ActivityHubPage() {
     (i) => i.type === "approval",
   ).length;
   const completedCount = ingestionStats?.autoPosted ?? 0;
+  const agentAlertCount = agentAlerts?.total ?? 0;
 
   return (
     <ModulePageShell
@@ -667,7 +704,7 @@ export default function ActivityHubPage() {
     >
       <div className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6">
         {/* Stats */}
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
               <div
@@ -697,6 +734,22 @@ export default function ActivityHubPage() {
                   {approvalCount}
                 </p>
                 <p className="text-xs text-muted-foreground">Approvals</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-card p-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10"
+                aria-hidden="true"
+              >
+                <Bot className="h-5 w-5 text-violet-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {agentAlertCount}
+                </p>
+                <p className="text-xs text-muted-foreground">Agent Alerts</p>
               </div>
             </div>
           </div>

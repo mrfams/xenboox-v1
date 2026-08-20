@@ -5,6 +5,12 @@ import { db } from "@xenboox/db";
 import { opsLiveRuns } from "@xenboox/db/schema/ops-live-runs";
 import type { AuditEntry } from "./state";
 import {
+  emitAgentAlert,
+  lowConfidenceAlert,
+  agentFailureAlert,
+  type AlertSource,
+} from "./agent-alerts";
+import {
   DEPARTMENT_AGENTS,
   DEPARTMENT_CLOSE_TASK,
   ALL_DEPARTMENTS,
@@ -349,6 +355,8 @@ export interface OrchestrateParams {
   entityName: string;
   currency: string;
   input: Record<string, unknown>;
+  /** Optional — the user who triggered this agent run. Used for alert delivery. */
+  userId?: string;
 }
 
 export async function orchestrate(
@@ -496,6 +504,36 @@ export async function orchestrate(
       },
     });
 
+    // §16.2: proactive alert emission — fire-and-forget. Agents that finish
+    // with low confidence or errors generate alerts that surface in the
+    // Activity Hub so humans see what needs attention without polling.
+    if (params.userId) {
+      if (agentResult.confidence < 0.7 && agentResult.confidence > 0) {
+        void emitAgentAlert(
+          lowConfidenceAlert({
+            entityId: params.entityId,
+            userId: params.userId,
+            agentId,
+            taskType: params.taskType,
+            confidence: agentResult.confidence,
+            reasoning: agentResult.reasoning,
+          }),
+        );
+      }
+      if (agentResult.errors.length > 0) {
+        void emitAgentAlert(
+          agentFailureAlert({
+            entityId: params.entityId,
+            userId: params.userId,
+            agentId,
+            taskType: params.taskType,
+            error: agentResult.errors.join("; "),
+            durationMs: agentResult.duration,
+          }),
+        );
+      }
+    }
+
     return agentResult;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -515,6 +553,20 @@ export async function orchestrate(
       error: msg,
       metadata: { taskType: params.taskType },
     });
+
+    // §16.2: emit critical alert on agent failure — fire-and-forget
+    if (params.userId) {
+      void emitAgentAlert(
+        agentFailureAlert({
+          entityId: params.entityId,
+          userId: params.userId,
+          agentId,
+          taskType: params.taskType,
+          error: msg,
+          durationMs: Date.now() - startTime,
+        }),
+      );
+    }
 
     return {
       taskId,

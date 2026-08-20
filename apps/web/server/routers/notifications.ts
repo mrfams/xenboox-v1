@@ -231,6 +231,76 @@ export const notificationsRouter = router({
     }),
 
   /**
+   * List agent-generated alerts for the Activity Hub.
+   * Filters to agent_escalation and agent_flag types with agent metadata.
+   */
+  listAgentAlerts: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        unreadOnly: z.boolean().default(false),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId;
+        if (!entityId) return { alerts: [], total: 0 };
+
+        const conditions = [
+          eq(notifications.entityId, entityId),
+          or(
+            eq(notifications.type, "agent_escalation"),
+            eq(notifications.type, "agent_flag"),
+          ),
+        ];
+
+        if (input.unreadOnly) {
+          conditions.push(eq(notifications.read, false));
+        }
+
+        const alerts = await db.query.notifications.findMany({
+          where: and(...conditions),
+          orderBy: [desc(notifications.createdAt)],
+          limit: input.limit,
+          offset: input.offset,
+        });
+
+        // Count total
+        const [{ cnt }] = await db
+          .select({ cnt: sql<number>`count(*)::int` })
+          .from(notifications)
+          .where(and(...conditions));
+
+        // Parse data field to extract agent source
+        const enriched = alerts.map((alert) => {
+          let source = "unknown";
+          let actionRequired = false;
+          try {
+            const data = alert.data ? JSON.parse(alert.data) : {};
+            source = data.source ?? "unknown";
+            actionRequired = data.actionRequired ?? false;
+          } catch {
+            // malformed data, keep defaults
+          }
+          return {
+            ...alert,
+            agentSource: source,
+            actionRequired,
+          };
+        });
+
+        return { alerts: enriched, total: Number(cnt) };
+      } catch (err) {
+        logger.warn(
+          { err },
+          "notifications.listAgentAlerts failed — returning empty",
+        );
+        return { alerts: [], total: 0 };
+      }
+    }),
+
+  /**
    * Create a proactive AI alert — agents call this when they detect
    * anomalies, deadline approaches, or important patterns.
    * These surface in the Activity Hub as urgent/info items.
