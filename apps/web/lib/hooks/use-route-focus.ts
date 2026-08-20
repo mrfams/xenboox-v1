@@ -18,6 +18,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/audit-trail": "Audit Trail",
   "/dashboard/settings": "Settings",
   "/dashboard/help": "Help & Support",
+  "/dashboard/payment-links": "Payment Links",
+  "/dashboard/documents/processing": "Document Processing",
+  "/dashboard/documents": "Documents",
 };
 
 function getPageTitle(pathname: string): string {

@@ -81,6 +81,9 @@ import { currencyRouter } from "./currency";
 import { dataImportExportRouter } from "./data-import-export";
 import { dataRetentionRouter } from "./data-retention";
 import { auditArchiveRouter } from "./audit-archive";
+import { recurringRouter } from "./recurring";
+import { matchingRouter } from "./matching";
+import { paymentLinksRouter } from "./payment-links";
 
 import { router, publicProcedure } from "@/lib/trpc/server";
 
@@ -168,6 +171,9 @@ export const appRouter = router({
   dataImportExport: dataImportExportRouter,
   dataRetention: dataRetentionRouter,
   auditArchive: auditArchiveRouter,
+  recurring: recurringRouter,
+  matching: matchingRouter,
+  paymentLinks: paymentLinksRouter,
 });
 
 export type AppRouter = typeof appRouter;

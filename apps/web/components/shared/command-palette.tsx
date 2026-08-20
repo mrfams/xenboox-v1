@@ -158,6 +158,20 @@ const navigationItems: Omit<CommandItem, "id">[] = [
     keywords: ["document", "files", "uploads"],
   },
   {
+    label: "Document Processing",
+    href: "/dashboard/documents/processing",
+    icon: FileText,
+    group: "Pages",
+    keywords: ["ocr", "scan", "receipt", "ocr", "extract"],
+  },
+  {
+    label: "Payment Links",
+    href: "/dashboard/payment-links",
+    icon: FileText,
+    group: "Pages",
+    keywords: ["payment", "link", "invoice", "online"],
+  },
+  {
     label: "Inbox",
     href: "/dashboard/inbox",
     icon: MessageSquare,
@@ -231,6 +245,20 @@ const quickActions: Omit<CommandItem, "id">[] = [
     icon: BarChart3,
     group: "Quick Actions",
     keywords: ["generate", "report", "export"],
+  },
+  {
+    label: "Create Payment Link",
+    href: "/dashboard/payment-links",
+    icon: Plus,
+    group: "Quick Actions",
+    keywords: ["payment", "link", "share", "invoice"],
+  },
+  {
+    label: "Upload Document",
+    href: "/dashboard/documents",
+    icon: Plus,
+    group: "Quick Actions",
+    keywords: ["upload", "document", "receipt", "ocr"],
   },
   {
     label: "Add Customer",

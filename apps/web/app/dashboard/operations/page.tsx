@@ -20,6 +20,8 @@ import {
   Package,
   ChevronRight,
   Sparkles,
+  Link2,
+  ScanLine,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -531,21 +533,35 @@ export default function OperationsPage() {
           </h3>
           <div className="flex flex-wrap gap-2">
             <Link
-              href="/dashboard/operations"
+              href="/dashboard/documents"
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
             >
               <FileText className="h-3.5 w-3.5" aria-hidden="true" />
               Documents
             </Link>
             <Link
-              href="/dashboard/operations"
+              href="/dashboard/documents/processing"
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
             >
-              <Package className="h-3.5 w-3.5" aria-hidden="true" />
-              Inventory
+              <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
+              OCR Processing
             </Link>
             <Link
-              href="/dashboard/operations"
+              href="/dashboard/payment-links"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
+            >
+              <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Payment Links
+            </Link>
+            <Link
+              href="/dashboard/recurring"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              Recurring
+            </Link>
+            <Link
+              href="/dashboard/reconciliation"
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
             >
               <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />

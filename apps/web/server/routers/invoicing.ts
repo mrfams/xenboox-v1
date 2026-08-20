@@ -1,9 +1,16 @@
 import { z } from "zod";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
-import { salesInvoices, customers, paymentsAr } from "@xenboox/db/schema";
+import {
+  salesInvoices,
+  customers,
+  salesInvoiceLines,
+  organizationEntities,
+} from "@xenboox/db/schema";
 
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { generateSalesInvoicePdf } from "@/lib/invoice-pdf";
+import { sendInvoiceEmail } from "@/lib/email";
 
 // ─── Invoicing Router ──────────────────────────────────────────────────────
 
@@ -378,6 +385,176 @@ export const invoicingRouter = router({
         pageSize: input.limit,
         totalPages: Math.ceil(totalCount / input.limit),
       };
+    }),
+
+  /**
+   * Generate PDF for a sales invoice.
+   * Returns the PDF as a base64-encoded string for client-side download.
+   */
+  generatePdf: rlsProtectedProcedure
+    .input(z.object({ invoiceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const invoice = await db.query.salesInvoices.findFirst({
+        where: and(
+          eq(salesInvoices.id, input.invoiceId),
+          eq(salesInvoices.entityId, entityId),
+        ),
+      });
+
+      if (!invoice) {
+        throw new Error("Invoice not found");
+      }
+
+      const customer = await db.query.customers.findFirst({
+        where: eq(customers.id, invoice.customerId),
+      });
+
+      const entity = await db.query.organizationEntities.findFirst({
+        where: eq(organizationEntities.id, entityId),
+      });
+
+      const lines = await db.query.salesInvoiceLines.findMany({
+        where: eq(salesInvoiceLines.salesInvoiceId, invoice.id),
+      });
+
+      if (!customer || !entity) {
+        throw new Error("Customer or entity data missing");
+      }
+
+      const pdf = await generateSalesInvoicePdf(
+        {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate: invoice.invoiceDate,
+          dueDate: invoice.dueDate,
+          status: invoice.status,
+          totalAmount: invoice.totalAmount,
+          paidAmount: invoice.paidAmount,
+          balance: invoice.balance,
+          currency: invoice.currency,
+          notes: invoice.notes,
+          customerId: invoice.customerId,
+        },
+        {
+          name: customer.name,
+          contactEmail: customer.contactEmail,
+          contactPhone: customer.contactPhone,
+          address: customer.address,
+          taxId: customer.taxId,
+        },
+        {
+          name: entity.name,
+          contactEmail: undefined,
+          address: undefined,
+          phone: undefined,
+        },
+        lines.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          amount: l.amount,
+        })),
+      );
+
+      return {
+        pdf: pdf.buffer.toString("base64"),
+        fileName: pdf.fileName,
+        mimeType: pdf.mimeType,
+      };
+    }),
+
+  /**
+   * Send invoice via email to the customer.
+   */
+  sendInvoiceEmail: rlsProtectedProcedure
+    .input(z.object({ invoiceId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const invoice = await db.query.salesInvoices.findFirst({
+        where: and(
+          eq(salesInvoices.id, input.invoiceId),
+          eq(salesInvoices.entityId, entityId),
+        ),
+      });
+
+      if (!invoice) {
+        throw new Error("Invoice not found");
+      }
+
+      const customer = await db.query.customers.findFirst({
+        where: eq(customers.id, invoice.customerId),
+      });
+
+      if (!customer?.contactEmail) {
+        throw new Error("Customer has no email address");
+      }
+
+      // Generate PDF
+      const entity = await db.query.organizationEntities.findFirst({
+        where: eq(organizationEntities.id, entityId),
+      });
+
+      const lines = await db.query.salesInvoiceLines.findMany({
+        where: eq(salesInvoiceLines.salesInvoiceId, invoice.id),
+      });
+
+      const pdf = await generateSalesInvoicePdf(
+        {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate: invoice.invoiceDate,
+          dueDate: invoice.dueDate,
+          status: invoice.status,
+          totalAmount: invoice.totalAmount,
+          paidAmount: invoice.paidAmount,
+          balance: invoice.balance,
+          currency: invoice.currency,
+          notes: invoice.notes,
+          customerId: invoice.customerId,
+        },
+        {
+          name: customer.name,
+          contactEmail: customer.contactEmail,
+          contactPhone: customer.contactPhone,
+          address: customer.address,
+          taxId: customer.taxId,
+        },
+        {
+          name: entity?.name ?? "Business",
+          contactEmail: undefined,
+          address: undefined,
+          phone: undefined,
+        },
+        lines.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          amount: l.amount,
+        })),
+      );
+
+      // Send email
+      await sendInvoiceEmail({
+        to: customer.contactEmail,
+        customerName: customer.name,
+        invoiceNumber: invoice.invoiceNumber,
+        totalAmount: parseFloat(invoice.totalAmount),
+        currency: invoice.currency,
+        dueDate: invoice.dueDate,
+        pdfBuffer: pdf.buffer,
+        pdfFileName: pdf.fileName,
+      });
+
+      // Mark as sent
+      await db
+        .update(salesInvoices)
+        .set({ sentAt: new Date() })
+        .where(eq(salesInvoices.id, invoice.id));
+
+      return { success: true, sentTo: customer.contactEmail };
     }),
 
   /**
