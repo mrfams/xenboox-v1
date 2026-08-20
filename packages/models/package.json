@@ -9,9 +9,9 @@
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.27.0",
-    "@aws-sdk/client-bedrock-runtime": "^3.600.0",
-    "@google/generative-ai": "^0.21.0",
+    "@anthropic-ai/sdk": "^0.117.1",
+    "@aws-sdk/client-bedrock-runtime": "^3.1111.0",
+    "@google/generative-ai": "^0.24.1",
     "@xenboox/db": "workspace:*",
     "drizzle-orm": "0.45.2",
     "langfuse": "^3.0.0",
