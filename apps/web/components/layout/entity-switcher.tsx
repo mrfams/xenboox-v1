@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronDown, Check, Building2 } from "lucide-react"
+import { ChevronDown, Check, Building2, Plus } from "lucide-react"
 import { Button } from "@/components/ui"
 import { useEntity } from "@/lib/entity-context"
+import { EntityWizard } from "@/components/onboarding/entity-wizard"
 import { cn } from "@/lib/utils"
 
 type Entity = {
@@ -17,6 +18,7 @@ export function EntitySwitcher() {
   const [entities, setEntities] = useState<Entity[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [currentEntity, setCurrentEntity] = useState<Entity | null>(null)
+  const [showWizard, setShowWizard] = useState(false)
 
   useEffect(() => {
     async function fetchEntities() {
@@ -84,8 +86,7 @@ export function EntitySwitcher() {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-md border bg-popover p-1 shadow-md">
-            {entities.map((entity) => (
+          <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-md border bg-popover p-1 shadow-md">              {entities.map((entity) => (
               <button
                 key={entity.id}
                 className={cn(
@@ -109,9 +110,32 @@ export function EntitySwitcher() {
                 </div>
               </button>
             ))}
+            <div className="border-t mt-1 pt-1">
+              <button
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent text-muted-foreground"
+                onClick={() => {
+                  setIsOpen(false)
+                  setShowWizard(true)
+                }}
+              >
+                <Plus className="h-4 w-4 shrink-0" />
+                <span>Create new entity</span>
+              </button>
+            </div>
           </div>
         </>
       )}
+
+      {/* Entity Creation Wizard */}
+      <EntityWizard
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+        onEntityCreated={(id) => {
+          setEntityId(id)
+          // Refresh entity list
+          window.location.reload()
+        }}
+      />
     </div>
   )
 }
