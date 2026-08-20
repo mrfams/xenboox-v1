@@ -6,6 +6,25 @@
 
 ---
 
+### [2026-08-20] — Export/Import Settings as JSON
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 2 (export-import-settings.tsx, export-import-settings.test.ts)
+**Files Modified:** 1 (settings/page.tsx)
+
+**What was built:**
+
+- **ExportImportSettings** component in Settings page:
+  - Export: downloads JSON with AI prefs, onboarding status, timestamp, version
+  - Import: file picker (.json only), validation, preview dialog, apply
+  - Shows export summary: AI Preferences ✓, Onboarding Status ✓, Notifications (server-side)
+  - Import confirmation dialog with preview of imported values
+  - Toast notifications for success/error
+- **23/23 tests pass**
+
+---
+
 ### [2026-08-20] — Sidebar Notification Badge for Incomplete Onboarding
 
 **Agent:** Buffy (Freebuff)
