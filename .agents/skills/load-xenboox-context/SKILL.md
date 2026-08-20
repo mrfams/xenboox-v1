@@ -17,6 +17,8 @@ Xenboox is an AI-native, full-stack accounting platform built for SMEs worldwide
 
 **What makes it different:** Not a tool you operate — a workforce that operates itself. Built natively for SME needs: mobile money as first-class rail, cash/imprest management, local tax regimes. 20 modules covering every accounting function. Web, mobile, and desktop surfaces.
 
+> **⚠️ WEB-ONLY DEVELOPMENT ACTIVE** — All work must be in `apps/web/`, `packages/db/`, `packages/agents/`, `packages/ui/`, `packages/jobs/`. Do NOT touch `apps/mobile/` or `apps/desktop/`.
+
 ---
 
 ## The Twenty Modules

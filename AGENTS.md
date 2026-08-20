@@ -5,24 +5,23 @@
 
 ---
 
-## ⚠️ Desktop Development Postponed
+## ⚠️ WEB-ONLY DEVELOPMENT ACTIVE
 
-Desktop (Tauri) development is **postponed until disk space is available**. The Rust toolchain, MSVC build tools, and cargo dependencies have been removed to free space.
+**All agents MUST only work on the web app (`apps/web/`).** Mobile (`apps/mobile/`) and Desktop (`apps/desktop/`) are explicitly out of scope until further notice.
 
-### Things to Reinstall When Resuming Desktop Work
+- ❌ Do NOT create, modify, or reference files in `apps/mobile/` or `apps/desktop/`
+- ❌ Do NOT install mobile or desktop dependencies
+- ❌ Do NOT run builds, tests, or typechecks for mobile/desktop
+- ✅ Only work in `apps/web/`, `packages/db/`, `packages/agents/`, `packages/ui/`, `packages/jobs/`
+- ✅ Only run `pnpm dev --filter=web`, `pnpm typecheck --filter=web`, `pnpm test --filter=web`
 
-1. **Rust toolchain** — `rustup toolchain install stable` (~1.5 GB)
-2. **Cargo dependencies** — will auto-download on `cargo build` (~1-2 GB)
-3. **Desktop build cache** — will auto-populate on `cargo build` (~0.7 GB)
-4. **Rust source component** — `rustup component add rust-src` (for code completion)
-
-> MSVC v143 (Visual Studio 2022 Community) and Windows Kits are **already installed** — no action needed there.
+This applies to ALL sessions until explicitly changed by the user.
 
 ---
 
 ## Project Overview
 
-Xenboox is an AI-native, full-stack accounting platform. 19 agents in a three-tier hierarchy. 20 modules. Web, mobile, and desktop surfaces.
+Xenboox is an AI-native, full-stack accounting platform. 19 agents in a three-tier hierarchy. 20 modules. **Currently web-only** — mobile and desktop are out of scope.
 
 **Tech Stack (Locked):**
 

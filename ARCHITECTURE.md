@@ -2,6 +2,8 @@
 
 > Architecture decisions, patterns, and conventions for the Xenboox platform.
 > Every engineer (human or AI) must understand these before writing code.
+>
+> **SCOPE: Web-only (`apps/web/`).** Mobile and desktop are out of scope.
 
 ---
 
@@ -208,8 +210,8 @@ xenboox/
 
 ```typescript
 // apps/web/lib/auth/index.ts
-import NextAuth from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter" // or custom Drizzle adapter
+import NextAuth from "next-auth";
+import { PrismaAdapter } from "@auth/prisma-adapter"; // or custom Drizzle adapter
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -219,10 +221,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     authorized: async ({ auth }) => {
-      return !!auth  // Require auth for all routes by default
-    }
-  }
-})
+      return !!auth; // Require auth for all routes by default
+    },
+  },
+});
 ```
 
 ### Entity Scoping Middleware
@@ -231,42 +233,42 @@ Every tRPC procedure goes through entity scoping:
 
 ```typescript
 // packages/db/middleware/entity-scoping.ts
-import { middleware } from "./trpc"
-import { TRPCError } from "@trpc/server"
+import { middleware } from "./trpc";
+import { TRPCError } from "@trpc/server";
 
 export const entityScoped = middleware(async ({ ctx, next }) => {
-  const entityId = ctx.entityId  // From request header or session
+  const entityId = ctx.entityId; // From request header or session
 
   if (!entityId) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Entity ID is required"
-    })
+      message: "Entity ID is required",
+    });
   }
 
   // Verify user has access to this entity
   const access = await db.query.userEntityAccess.findFirst({
     where: and(
       eq(userEntityAccess.userId, ctx.session.user.id),
-      eq(userEntityAccess.entityId, entityId)
-    )
-  })
+      eq(userEntityAccess.entityId, entityId),
+    ),
+  });
 
   if (!access) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "You do not have access to this entity"
-    })
+      message: "You do not have access to this entity",
+    });
   }
 
   return next({
     ctx: {
       ...ctx,
       entityId,
-      entityRole: access.role
-    }
-  })
-})
+      entityRole: access.role,
+    },
+  });
+});
 ```
 
 ### Role Hierarchy
@@ -291,18 +293,16 @@ Organization Owner
 
 ```typescript
 // apps/web/app/api/trpc/[trpc]/route.ts
-import { appRouter } from "@/server/routers/_app"
+import { appRouter } from "@/server/routers/_app";
 
-export { handlers as GET, handlers as POST } from "@/app/api/trpc/[trpc]/route"
+export { handlers as GET, handlers as POST } from "@/app/api/trpc/[trpc]/route";
 ```
 
 ### Protected Procedure Pattern
 
 ```typescript
 // Every procedure: authenticated + entity-scoped
-const protectedProcedure = t.procedure
-  .use(authMiddleware)
-  .use(entityScoped)
+const protectedProcedure = t.procedure.use(authMiddleware).use(entityScoped);
 
 // Usage in routers
 export const invoiceRouter = router({
@@ -310,17 +310,17 @@ export const invoiceRouter = router({
     .input(z.object({ entityId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return db.query.invoices.findMany({
-        where: eq(invoices.entityId, ctx.entityId),  // Always scoped
-        orderBy: desc(invoices.createdAt)
-      })
+        where: eq(invoices.entityId, ctx.entityId), // Always scoped
+        orderBy: desc(invoices.createdAt),
+      });
     }),
 
   create: protectedProcedure
     .input(invoiceCreateSchema)
     .mutation(async ({ ctx, input }) => {
       // Create invoice, post to ledger via agent
-    })
-})
+    }),
+});
 ```
 
 ---
@@ -359,11 +359,11 @@ await db.insert(auditLog).values({
   action: "invoice.created",
   entityType: "invoice",
   entityId: invoice.id,
-  changes: { /* before/after diff */ },
-  agentId: null,  // or agent identifier if agent-initiated
+  changes: {/* before/after diff */},
+  agentId: null, // or agent identifier if agent-initiated
   confidence: null,
-  metadata: {}
-})
+  metadata: {},
+});
 ```
 
 ### Migration Strategy
@@ -384,7 +384,7 @@ Each agent is a LangGraph `StateGraph` with typed state:
 
 ```typescript
 // packages/agents/tier3/ledger-agent/graph.ts
-import { StateGraph, Annotation } from "@langchain/langgraph"
+import { StateGraph, Annotation } from "@langchain/langgraph";
 
 const LedgerState = Annotation.Root({
   // Input
@@ -395,7 +395,7 @@ const LedgerState = Annotation.Root({
   // Processing
   validationErrors: Annotation<string[]>({
     reducer: (curr, prev) => [...curr, ...prev],
-    default: () => []
+    default: () => [],
   }),
 
   // Output
@@ -403,9 +403,9 @@ const LedgerState = Annotation.Root({
   confidence: Annotation<number>,
   auditTrail: Annotation<AuditEntry[]>({
     reducer: (curr, prev) => [...curr, ...prev],
-    default: () => []
-  })
-})
+    default: () => [],
+  }),
+});
 
 const graph = new StateGraph(LedgerState)
   .addNode("validate", validateJournalEntry)
@@ -414,13 +414,13 @@ const graph = new StateGraph(LedgerState)
   .addNode("logAudit", logAuditTrail)
   .addEdge("validate", "checkDoubleEntry")
   .addConditionalEdges("checkDoubleEntry", (state) => {
-    if (state.validationErrors.length > 0) return "escalate"
-    return "post"
+    if (state.validationErrors.length > 0) return "escalate";
+    return "post";
   })
   .addEdge("post", "logAudit")
   .addEdge("logAudit", "__end__")
   .addEdge("__start__", "validate")
-  .compile()
+  .compile();
 ```
 
 ### Agent Tool Pattern
@@ -429,47 +429,52 @@ Agents use tools to interact with the database and external services:
 
 ```typescript
 // packages/agents/core/tools.ts
-import { tool } from "@langchain/core/tools"
-import { z } from "zod"
+import { tool } from "@langchain/core/tools";
+import { z } from "zod";
 
 export const postJournalEntry = tool(
   async ({ entityId, entries, description, reference }) => {
     // Validate double-entry
-    const totalDebit = entries.reduce((sum, e) => sum + (e.debit || 0), 0)
-    const totalCredit = entries.reduce((sum, e) => sum + (e.credit || 0), 0)
+    const totalDebit = entries.reduce((sum, e) => sum + (e.debit || 0), 0);
+    const totalCredit = entries.reduce((sum, e) => sum + (e.credit || 0), 0);
 
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
-      return { success: false, error: "Debits do not equal credits" }
+      return { success: false, error: "Debits do not equal credits" };
     }
 
     // Post to database
-    const journalEntry = await db.insert(journalEntries).values({
-      entityId,
-      description,
-      reference,
-      entries,
-      postedBy: "ledger-agent",
-      confidence: 1.0  // Ledger agent is always certain (deterministic)
-    }).returning()
+    const journalEntry = await db
+      .insert(journalEntries)
+      .values({
+        entityId,
+        description,
+        reference,
+        entries,
+        postedBy: "ledger-agent",
+        confidence: 1.0, // Ledger agent is always certain (deterministic)
+      })
+      .returning();
 
-    return { success: true, journalEntryId: journalEntry.id }
+    return { success: true, journalEntryId: journalEntry.id };
   },
   {
     name: "post_journal_entry",
     description: "Post a double-entry journal entry to the general ledger",
     schema: z.object({
       entityId: z.string().uuid(),
-      entries: z.array(z.object({
-        accountId: z.string().uuid(),
-        debit: z.number().optional(),
-        credit: z.number().optional(),
-        description: z.string().optional()
-      })),
+      entries: z.array(
+        z.object({
+          accountId: z.string().uuid(),
+          debit: z.number().optional(),
+          credit: z.number().optional(),
+          description: z.string().optional(),
+        }),
+      ),
       description: z.string(),
-      reference: z.string().optional()
-    })
-  }
-)
+      reference: z.string().optional(),
+    }),
+  },
+);
 ```
 
 ### Confidence System
@@ -478,12 +483,12 @@ Every agent output carries a confidence score:
 
 ```typescript
 type AgentOutput = {
-  result: unknown
-  confidence: number      // 0.0 - 1.0
-  reasoning: string       // Plain-English explanation
-  escalatedTo?: string    // Who to escalate to if below threshold
-  auditTrail: AuditEntry[]
-}
+  result: unknown;
+  confidence: number; // 0.0 - 1.0
+  reasoning: string; // Plain-English explanation
+  escalatedTo?: string; // Who to escalate to if below threshold
+  auditTrail: AuditEntry[];
+};
 
 // Thresholds:
 // >= 0.7: Proceed normally
@@ -566,33 +571,39 @@ Trigger.dev handles anything that can't complete in an API route timeout:
 ```typescript
 // Trigger.dev task definition
 export const processMonthEndClose = task({
-  maxDuration: 300,  // 5 minutes max
+  maxDuration: 300, // 5 minutes max
   retry: { maxAttempts: 3 },
 
   run: async (payload: { entityId: string; month: number; year: number }) => {
-    const { entityId, month, year } = payload
+    const { entityId, month, year } = payload;
 
     // 1. Run all worker agents
-    const ledgerStatus = await runLedgerClose(entityId, month, year)
-    const reconStatus = await runReconciliationClose(entityId, month, year)
-    const cashStatus = await runCashClose(entityId, month, year)
+    const ledgerStatus = await runLedgerClose(entityId, month, year);
+    const reconStatus = await runReconciliationClose(entityId, month, year);
+    const cashStatus = await runCashClose(entityId, month, year);
 
     // 2. Controller Agent reviews
     const controllerReview = await controllerAgent.review({
-      entityId, month, year,
-      ledgerStatus, reconStatus, cashStatus
-    })
+      entityId,
+      month,
+      year,
+      ledgerStatus,
+      reconStatus,
+      cashStatus,
+    });
 
     // 3. If all clear, trigger reporting
     if (controllerReview.confidence >= 0.7) {
       await triggerTask("generate-close-report", {
-        entityId, month, year
-      })
+        entityId,
+        month,
+        year,
+      });
     }
 
-    return controllerReview
-  }
-})
+    return controllerReview;
+  },
+});
 ```
 
 ---
@@ -623,7 +634,7 @@ export const processMonthEndClose = task({
 ### Every Agent Action Logged
 
 ```typescript
-import { langfuse } from "./langfuse"
+import { langfuse } from "./langfuse";
 
 // In every agent node:
 await langfuse.trace({
@@ -632,11 +643,11 @@ await langfuse.trace({
     entityId,
     agentType: "ledger",
     tier: 3,
-    confidence: output.confidence
+    confidence: output.confidence,
   },
   input: journalEntry,
-  output: validationResult
-})
+  output: validationResult,
+});
 
 // In every human escalation:
 await langfuse.event({
@@ -645,9 +656,9 @@ await langfuse.event({
     fromAgent: "ledger-agent",
     toAgent: "controller-agent",
     reason: "confidence below threshold",
-    confidence: 0.35
-  }
-})
+    confidence: 0.35,
+  },
+});
 ```
 
 ---
@@ -727,17 +738,17 @@ NODE_ENV=                       # development | production
 
 ## 13. Key Architectural Decisions
 
-| Decision | Choice | Reasoning |
-|----------|--------|-----------|
-| Monorepo | pnpm workspaces + Turborepo | Shared code between apps, type safety, atomic commits |
-| API | tRPC | End-to-end type safety with Next.js, no code generation needed |
-| ORM | Drizzle | Type-safe, SQL-like API, good Neon support, lightweight |
-| Agent Framework | LangGraph | Stateful graph maps to three-tier hierarchy, native HITL |
-| Job Queue | Trigger.dev | Long-running agent workflows, Vercel-native integration |
-| Desktop | Tauri | Rust backend for file processing, lean security model |
-| LLM | Claude Sonnet + Haiku | Sonnet for complex reasoning, Haiku for cost-effective worker tasks |
-| Observability | LangFuse | Open source, self-hostable, purpose-built for LLM apps |
-| Storage | Cloudflare R2 | S3-compatible, no egress fees, global edge |
+| Decision        | Choice                      | Reasoning                                                           |
+| --------------- | --------------------------- | ------------------------------------------------------------------- |
+| Monorepo        | pnpm workspaces + Turborepo | Shared code between apps, type safety, atomic commits               |
+| API             | tRPC                        | End-to-end type safety with Next.js, no code generation needed      |
+| ORM             | Drizzle                     | Type-safe, SQL-like API, good Neon support, lightweight             |
+| Agent Framework | LangGraph                   | Stateful graph maps to three-tier hierarchy, native HITL            |
+| Job Queue       | Trigger.dev                 | Long-running agent workflows, Vercel-native integration             |
+| Desktop         | Tauri                       | Rust backend for file processing, lean security model               |
+| LLM             | Claude Sonnet + Haiku       | Sonnet for complex reasoning, Haiku for cost-effective worker tasks |
+| Observability   | LangFuse                    | Open source, self-hostable, purpose-built for LLM apps              |
+| Storage         | Cloudflare R2               | S3-compatible, no egress fees, global edge                          |
 
 ---
 
@@ -749,16 +760,17 @@ NODE_ENV=                       # development | production
 // tRPC error handling
 throw new TRPCError({
   code: "BAD_REQUEST",
-  message: "Invoice amount must be positive"
-})
+  message: "Invoice amount must be positive",
+});
 
 // Agent error handling — flag, don't guess
 return {
   result: null,
   confidence: 0.2,
-  reasoning: "Unable to match this invoice to any purchase order. Manual review needed.",
-  escalatedTo: "controller-agent"
-}
+  reasoning:
+    "Unable to match this invoice to any purchase order. Manual review needed.",
+  escalatedTo: "controller-agent",
+};
 ```
 
 ### User-Facing Errors
@@ -774,5 +786,5 @@ return {
 
 ---
 
-*Last updated: July 2026*
-*Reference: XENBOOX_PRD.md for product decisions*
+_Last updated: July 2026_
+_Reference: XENBOOX_PRD.md for product decisions_

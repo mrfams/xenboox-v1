@@ -3,6 +3,8 @@
 > Living document. Every session that builds or modifies code updates this log.
 > Read this before starting work to know what exists and what's next.
 > Format: reverse chronological (newest entries at top).
+>
+> **SCOPE: Web-only (`apps/web/`).** Mobile and desktop are out of scope.
 
 ---
 
