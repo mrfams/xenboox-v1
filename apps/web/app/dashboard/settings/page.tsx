@@ -22,6 +22,7 @@ import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summa
 import { ExportImportSettings } from "@/components/settings/export-import-settings"
 import { AIUsageStats } from "@/components/settings/ai-usage-stats"
 import { SyncStatus } from "@/components/settings/sync-status"
+import { RealTimeSyncIndicator } from "@/components/settings/real-time-sync-indicator"
 import { SettingsAuditLog } from "@/components/settings/settings-audit-log"
 
 export default function SettingsPage() {
@@ -117,11 +118,16 @@ export default function SettingsPage() {
       </div>
 
       {/* Cloud Sync Status */}
-      <SyncStatus
+      <RealTimeSyncIndicator
         isCloudEnabled={true}
         isSyncing={false}
         lastSyncedAt={null}
         error={null}
+        hasRemoteChanges={false}
+        remoteUpdatedAt={null}
+        onForceSync={() => {}}
+        onAcceptRemote={() => {}}
+        onDismissRemote={() => {}}
       />
 
       <AIPreferencesSummary />

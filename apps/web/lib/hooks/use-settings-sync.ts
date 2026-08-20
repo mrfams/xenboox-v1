@@ -40,6 +40,9 @@ type SettingsSyncState = {
   isSyncing: boolean
   lastSyncedAt: string | null
   error: string | null
+  hasRemoteChanges: boolean
+  remoteSettings: Settings | null
+  remoteUpdatedAt: string | null
 }
 
 // ─── localStorage Keys ────────────────────────────────────────────────────────
@@ -145,10 +148,15 @@ export function useSettingsSync() {
     isSyncing: false,
     lastSyncedAt: null,
     error: null,
+    hasRemoteChanges: false,
+    remoteSettings: null,
+    remoteUpdatedAt: null,
   })
 
   const isSyncingRef = useRef(false)
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSyncedAtRef = useRef<string | null>(null)
 
   // tRPC queries and mutations
   const getSettings = trpc.settings.get.useQuery(undefined, {
@@ -157,6 +165,52 @@ export function useSettingsSync() {
   })
 
   const setSettings = trpc.settings.set.useMutation()
+
+  // ── Polling for remote changes ──
+  useEffect(() => {
+    if (!session?.user?.id) return
+
+    const poll = async () => {
+      try {
+        // Fetch just the updatedAt timestamp to check for changes
+        const response = await fetch("/api/trpc/settings.get", {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+        const data = await response.json()
+        const serverTime = data?.result?.data?.updatedAt
+
+        if (
+          serverTime &&
+          lastSyncedAtRef.current &&
+          serverTime !== lastSyncedAtRef.current
+        ) {
+          // Remote changes detected!
+          const serverSettings = data?.result?.data?.settings as Settings
+          if (serverSettings) {
+            setState((prev) => ({
+              ...prev,
+              hasRemoteChanges: true,
+              remoteSettings: serverSettings,
+              remoteUpdatedAt: serverTime,
+            }))
+          }
+        }
+      } catch {
+        // Polling failures are silent
+      }
+    }
+
+    // Poll every 30 seconds
+    pollIntervalRef.current = setInterval(poll, 30_000)
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
+    }
+  }, [session?.user?.id])
 
   // ── Load settings on mount ──
 
@@ -182,6 +236,8 @@ export function useSettingsSync() {
 
       // Apply merged settings to localStorage
       applyToLocal(merged)
+
+      lastSyncedAtRef.current = serverTime
 
       setState((prev) => ({
         ...prev,
@@ -286,6 +342,43 @@ export function useSettingsSync() {
     }
   }, [session?.user?.id, setSettings])
 
+  // ── Accept remote changes ──
+
+  const acceptRemoteChanges = useCallback(() => {
+    setState((prev) => {
+      if (!prev.remoteSettings) return prev
+
+      // Merge remote settings with current
+      const merged = deepMerge(
+        prev.settings as Record<string, unknown>,
+        prev.remoteSettings as Record<string, unknown>
+      ) as Settings
+
+      applyToLocal(merged)
+      lastSyncedAtRef.current = prev.remoteUpdatedAt
+
+      return {
+        ...prev,
+        settings: merged,
+        lastSyncedAt: prev.remoteUpdatedAt,
+        hasRemoteChanges: false,
+        remoteSettings: null,
+        remoteUpdatedAt: null,
+      }
+    })
+  }, [])
+
+  // ── Dismiss remote changes ──
+
+  const dismissRemoteChanges = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      hasRemoteChanges: false,
+      remoteSettings: null,
+      remoteUpdatedAt: null,
+    }))
+  }, [])
+
   // ── Reset settings ──
 
   const resetSettings = useCallback(() => {
@@ -313,6 +406,8 @@ export function useSettingsSync() {
     updateSettings,
     forceSync,
     resetSettings,
+    acceptRemoteChanges,
+    dismissRemoteChanges,
     isCloudEnabled: !!session?.user?.id,
   }
 }
