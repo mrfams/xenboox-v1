@@ -6,6 +6,7 @@ import { userSettings, type UserSettings } from "@xenboox/db/schema/user-setting
 import { settingsAuditLog } from "@xenboox/db/schema/settings-audit"
 import { settingsVersions } from "@xenboox/db/schema/settings-versions"
 import { TRPCError } from "@trpc/server"
+import { notifySettingsChange } from "@/app/api/settings/stream/route"
 
 export const settingsRouter = router({
   // ─── GET USER SETTINGS ──────────────────────────────
@@ -76,6 +77,9 @@ export const settingsRouter = router({
           merged
         )
 
+        // Notify connected SSE clients
+        notifySettingsChange(userId, merged)
+
         return {
           settings: updated.settings as UserSettings,
           updatedAt: updated.updatedAt?.toISOString() || null,
@@ -92,6 +96,9 @@ export const settingsRouter = router({
 
         // Log the creation
         await logSettingsChange(userId, "create", "settings", null, merged)
+
+        // Notify connected SSE clients
+        notifySettingsChange(userId, merged)
 
         return {
           settings: created.settings as UserSettings,
@@ -136,6 +143,9 @@ export const settingsRouter = router({
           existing.settings as Record<string, unknown>,
           input.settings as Record<string, unknown>
         )
+
+        // Notify connected SSE clients
+        notifySettingsChange(userId, input.settings as Record<string, unknown>)
 
         return {
           settings: updated.settings as UserSettings,
