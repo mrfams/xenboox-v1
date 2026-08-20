@@ -15,7 +15,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui"
-import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles, Trash2, ShieldCheck, Loader2 } from "lucide-react"
+import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles, Trash2, ShieldCheck, Loader2, CheckCircle2 } from "lucide-react"
 import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
 import { showUndoToast } from "@/lib/settings-undo"
@@ -73,9 +73,11 @@ export default function SettingsPage() {
   })
 
   // Auto-versioning before risky operations
+  const [backupJustCompleted, setBackupJustCompleted] = useState(false)
   const createVersionMutation = trpc.settings.createVersion.useMutation({
-    onSuccess: () => {
-      // Version created silently — don't show toast, the risky operation will show its own
+    onSuccess: () => {n      // Show success checkmark for 1.5 seconds
+      setBackupJustCompleted(true)
+      setTimeout(() => setBackupJustCompleted(false), 1500)
     },
     onError: () => {
       // Version creation failure shouldn't block the risky operation
@@ -401,13 +403,15 @@ export default function SettingsPage() {
                       This will restart the setup wizard on your next page load. Your existing data (accounts, invoices, journal entries, etc.) will not be affected.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createVersionMutation.isPending ? "animate-pulse" : ""}`}>
+                  <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createVersionMutation.isPending ? "animate-pulse" : backupJustCompleted ? "animate-[fadeOut_1.5s_ease-in-out]" : ""}`}>
                     {createVersionMutation.isPending ? (
                       <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                    ) : backupJustCompleted ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 animate-[scaleIn_0.3s_ease-out]" />
                     ) : (
                       <ShieldCheck className="h-4 w-4 shrink-0" />
                     )}
-                    <span>{createVersionMutation.isPending ? "Creating backup..." : "A backup will be created automatically before resetting."}</span>
+                    <span>{createVersionMutation.isPending ? "Creating backup..." : backupJustCompleted ? "Backup saved!" : "A backup will be created automatically before resetting."}</span>
                     <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
                       <p className="font-medium mb-1">Backup contains:</p>
                       <ul className="space-y-0.5 text-muted-foreground">
@@ -479,13 +483,15 @@ export default function SettingsPage() {
                     This will reset all your preferences to factory defaults. Your financial data, accounts, and documents will not be affected. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createVersionMutation.isPending ? "animate-pulse" : ""}`}>
+                <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createVersionMutation.isPending ? "animate-pulse" : backupJustCompleted ? "animate-[fadeOut_1.5s_ease-in-out]" : ""}`}>
                   {createVersionMutation.isPending ? (
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  ) : backupJustCompleted ? (
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 animate-[scaleIn_0.3s_ease-out]" />
                   ) : (
                     <ShieldCheck className="h-4 w-4 shrink-0" />
                   )}
-                  <span>{createVersionMutation.isPending ? "Creating backup..." : "A backup will be created automatically before resetting. You can restore from Version History."}</span>
+                  <span>{createVersionMutation.isPending ? "Creating backup..." : backupJustCompleted ? "Backup saved!" : "A backup will be created automatically before resetting. You can restore from Version History."}</span>
                   <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
                     <p className="font-medium mb-1">Backup contains:</p>
                     <ul className="space-y-0.5 text-muted-foreground">

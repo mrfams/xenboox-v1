@@ -23,6 +23,7 @@ import {
   Trash2,
   ShieldCheck,
   Loader2,
+  CheckCircle2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { trpc } from "@/lib/trpc/client"
@@ -77,8 +78,11 @@ export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExp
   })
 
   // Auto-versioning before restore
+  const [backupJustCompleted, setBackupJustCompleted] = useState(false)
   const createAutoBackup = trpc.settings.createVersion.useMutation({
     onSuccess: () => {
+      setBackupJustCompleted(true)
+      setTimeout(() => setBackupJustCompleted(false), 1500)
       // Auto-backup created, now proceed with restore
       if (restoreTarget) {
         restoreVersion.mutate({ versionId: restoreTarget.id })
@@ -217,13 +221,15 @@ export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExp
                   {restoreTarget?.label ? ` (${restoreTarget.label})` : ""}.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createAutoBackup.isPending ? "animate-pulse" : ""}`}>
+              <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createAutoBackup.isPending ? "animate-pulse" : backupJustCompleted ? "animate-[fadeOut_1.5s_ease-in-out]" : ""}`}>
                 {createAutoBackup.isPending ? (
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                ) : backupJustCompleted ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 animate-[scaleIn_0.3s_ease-out]" />
                 ) : (
                   <ShieldCheck className="h-4 w-4 shrink-0" />
                 )}
-                <span>{createAutoBackup.isPending ? "Creating backup..." : "A backup of your current settings will be saved automatically before restoring."}</span>
+                <span>{createAutoBackup.isPending ? "Creating backup..." : backupJustCompleted ? "Backup saved!" : "A backup of your current settings will be saved automatically before restoring."}</span>
                 <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
                   <p className="font-medium mb-1">Backup contains:</p>
                   <ul className="space-y-0.5 text-muted-foreground">
