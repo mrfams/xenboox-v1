@@ -6,6 +6,34 @@
 
 ---
 
+### [2026-08-20] — Settings Versioning with Rollback Capability
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 3 (settings-versions.ts, settings-version-history.tsx, settings-versioning.test.ts)
+**Files Modified:** 3 (schema/index.ts, settings.ts, settings/page.tsx)
+
+**What was built:**
+
+- **Database schema** (`packages/db/schema/settings-versions.ts`):
+  - `settings_versions` table: userId (cascade), version (integer), label, settings (JSONB), timestamps
+  - Indexed on userId and userId+version for fast queries
+- **tRPC procedures** in settings router:
+  - `getVersions` — paginated version history
+  - `createVersion` — save snapshot with optional label
+  - `restoreVersion` — roll back to previous version (logs to audit)
+  - `pruneVersions` — clean old versions (keep last N)
+- **SettingsVersionHistory** component:
+  - Expandable card with History icon
+  - Save version button with optional label input (max 100 chars)
+  - Version entries with v1, v2... badges and settings count
+  - Restore button with AlertDialog confirmation
+  - Expandable JSON details view
+  - Empty state, loading skeleton
+- **40/40 tests pass**
+
+---
+
 ### [2026-08-20] — Real-Time Sync Indicator with Remote Change Detection
 
 **Agent:** Buffy (Freebuff)
