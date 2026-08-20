@@ -206,30 +206,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Bottom navigation */}
-        <div className="border-t py-4">
-          <ul className="space-y-0.5">
-            {bottomNavigation.map((item) => {
-              const isActive = pathname.startsWith(item.href)
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center gap-3 rounded-md px-6 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    )}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {item.label}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
+        <SidebarBottomNav />
       </aside>
     </>
   )
@@ -311,6 +288,51 @@ function OnboardingProgress() {
           {stepIndex === 0 ? "Start Setup" : "Continue Setup"}
         </Button>
       )}
+    </div>
+  )
+}
+
+// ─── Sidebar Bottom Nav with Badge ───────────────────────────────────────────
+
+function SidebarBottomNav() {
+  const pathname = usePathname()
+  const { isFirstTime, stepIndex, totalSteps, isLoaded } = useOnboarding()
+
+  const remainingSteps = isLoaded && isFirstTime ? totalSteps - stepIndex : 0
+
+  return (
+    <div className="border-t py-4">
+      <ul className="space-y-0.5">
+        {bottomNavigation.map((item) => {
+          const isActive = pathname.startsWith(item.href)
+          const showBadge = item.href === "/dashboard/settings" && remainingSteps > 0
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-6 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="relative flex h-5 w-5 items-center justify-center">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/40" />
+                    <span className="relative inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                      {remainingSteps}
+                    </span>
+                  </span>
+                )}
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
