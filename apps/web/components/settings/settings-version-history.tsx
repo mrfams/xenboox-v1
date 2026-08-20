@@ -40,8 +40,8 @@ type Version = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function SettingsVersionHistory() {
-  const [isExpanded, setIsExpanded] = useState(false)
+export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExpanded?: boolean }) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [versionLabel, setVersionLabel] = useState("")
   const [restoreTarget, setRestoreTarget] = useState<Version | null>(null)

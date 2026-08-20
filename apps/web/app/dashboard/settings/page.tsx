@@ -32,6 +32,7 @@ import { DefaultStrategyPreference } from "@/components/settings/default-strateg
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [profileForm, setProfileForm] = useState({
     name: session?.user?.name || "",
   })
@@ -159,13 +160,13 @@ export default function SettingsPage() {
       <AIPreferencesSummary />
       <AIUsageStats />
       <SettingsAuditLog />
-      <SettingsVersionHistory />
+      <SettingsVersionHistory defaultExpanded={showVersionHistory} />
       <ConflictResolutionHistory />
       <DefaultStrategyPreference
         currentStrategy="deep-merge"
         onSave={() => {}}
       />
-      <ExportImportSettings />
+      <ExportImportSettings onViewBackup={() => setShowVersionHistory(true)} />
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -401,14 +402,19 @@ export default function SettingsPage() {
                   <div className="group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                     <ShieldCheck className="h-4 w-4 shrink-0" />
                     <span>A backup will be created automatically before resetting.</span>
-                    <div className="absolute bottom-full left-0 mb-2 hidden w-64 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
+                    <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
                       <p className="font-medium mb-1">Backup contains:</p>
                       <ul className="space-y-0.5 text-muted-foreground">
                         <li>• AI preferences (auto-reconcile, categorize, alerts, digest)</li>
                         <li>• Onboarding status and current step</li>
                         <li>• Sync preferences (default merge strategy)</li>
                       </ul>
-                      <p className="mt-2 text-muted-foreground">Restore from Version History if needed.</p>
+                      <button
+                        onClick={() => { setShowVersionHistory(true) }}
+                        className="mt-2 inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                      >
+                        View backup →
+                      </button>
                     </div>
                   </div>
                   <AlertDialogFooter>
@@ -479,7 +485,12 @@ export default function SettingsPage() {
                       <li>• Sync preferences (default merge strategy)</li>
                       <li>• Usage statistics</li>
                     </ul>
-                    <p className="mt-2 text-muted-foreground">Restore from Version History or use the undo toast within 10 seconds.</p>
+                    <button
+                      onClick={() => { setShowVersionHistory(true) }}
+                      className="mt-2 inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                    >
+                      View backup →
+                    </button>
                   </div>
                 </div>
                 <AlertDialogFooter>
