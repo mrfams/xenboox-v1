@@ -392,7 +392,7 @@ export default function FeaturesPage() {
                   </Link>
                 </Button>
                 <Button asChild variant="outline" size="lg">
-                  <Link href="/pricing">Watch Demo</Link>
+                  <Link href="/register">Start Free Trial</Link>
                 </Button>
               </div>
             </FadeInUp>
