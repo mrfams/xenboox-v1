@@ -6,6 +6,31 @@
 
 ---
 
+### [2026-08-20] — Settings Audit Log for Tracking Changes
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 4 (settings-audit.ts, settings-audit-log.tsx, settings-audit-log.test.ts, plus 1 modified)
+**Files Modified:** 3 (schema/index.ts, settings.ts, settings/page.tsx)
+
+**What was built:**
+
+- **Database schema** (`packages/db/schema/settings-audit.ts`):
+  - `settings_audit_log` table: id, userId (cascade), action, category, previousValue, newValue, metadata, timestamps
+  - Indexed on userId and createdAt for fast queries- **tRPC procedures** in settings router:
+  - `getAuditLog` — paginated query (limit/offset, max 100)
+  - Audit logging wired into `set`, `replace`, `delete` mutations
+- **SettingsAuditLog** component:
+  - Expandable card with History icon
+  - Color-coded entries: create (emerald), update (blue), replace (amber), reset_all (destructive)
+  - Expandable details show previous and new JSON values
+  - Time-ago formatting (Just now, Xm ago, Xh ago, Xd ago)
+  - Loading skeleton, empty state, pagination controls
+- **Non-blocking**: audit log failures silently fail
+- **30/30 tests pass**
+
+---
+
 ### [2026-08-20] — Cloud Settings Sync Across Devices
 
 **Agent:** Buffy (Freebuff)
