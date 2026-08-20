@@ -6,6 +6,38 @@
 
 ---
 
+### [2026-08-20] — Backup Creation Progress Bar
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~8 min
+**Files Created:** 2 (backup-progress-indicator.tsx, backup-progress-bar.test.ts)
+**Files Modified:** 3 (settings/page.tsx, export-import-settings.tsx, settings-version-history.tsx)
+
+**What was built:**
+
+- **BackupProgressIndicator** (`components/settings/backup-progress-indicator.tsx`):
+  - Shared component replacing raw backup indicators in 3 files
+  - Animated progress bar: 0→85% during pending, instant 100% on complete
+  - Ease-out cubic curve (`Math.pow(1-t, 3)`) for natural feel
+  - Percentage display with `tabular-nums` (no layout shift)
+  - Three-state animation: spinner → checkmark → shield
+  - Props: `isPending`, `justCompleted`, `tooltip`, `idleText`, `pendingText`, `completedText`
+  - Cleanup: `cancelAnimationFrame` on unmount
+
+- **Refactored 3 files** to use shared component:
+  - `settings/page.tsx` — Reset Onboarding + Reset All Settings dialogs
+  - `export-import-settings.tsx` — Import button + confirmation dialog
+  - `settings-version-history.tsx` — Restore confirmation dialog
+  - Removed raw `ShieldCheck`/`Loader2`/`CheckCircle2` imports from all 3 files
+
+- **Tests** (`__tests__/backup-progress-bar.test.ts`):
+  - 31 tests covering progress bar, animation states, reset, cleanup, integration
+  - Verified no raw backup indicator divs remain in any file
+
+**Test Results:** 31/31 pass
+
+---
+
 ### [2026-08-20] — Multi-Device Conflict Resolution with Merge Strategies
 
 **Agent:** Buffy (Freebuff)
@@ -106,6 +138,7 @@
   - Business types (sole proprietorship to corporations)
 
 **Sections covered:**
+
 1. Core Accounting (COA, GL, Fiscal Periods, Multi-Currency, Tax)
 2. Accounts Receivable (Invoicing, Customer Mgmt, Collections, Revenue Recognition)
 3. Accounts Payable (Bills, Supplier Mgmt, Purchase Orders)
@@ -130,6 +163,7 @@
 22. Implementation Priority (8 phases, 30 weeks)
 
 **Competitive advantages identified:**
+
 1. AI-Native, Not AI-Added
 2. Tiered AI Agents (CFO → Managers → Workers → Ledger)
 3. AI UX Patterns (thinking steps, confidence explanation, proactive alerts)
@@ -212,13 +246,15 @@
   - Syncing: Spinning RefreshCw
   - Error: AlertCircle + error message
   - Cloud-disabled: CloudOff + sign-in prompt
-  - Connected: Cloud + pulsing green "Live" dot- **Remote change notification**:
+  - Connected: Cloud + pulsing green "Live" dot
+- **Remote change notification**:
   - Blue banner: "Settings updated on another device"
   - Apply changes button (merges remote settings)
   - Ignore button (dismisses notification)
   - Close (X) button
   - Shows last updated time
-- **Online/offline detection** via window events- **33/33 tests pass**
+- **Online/offline detection** via window events
+- **33/33 tests pass**
 
 ---
 
@@ -233,7 +269,8 @@
 
 - **Database schema** (`packages/db/schema/settings-audit.ts`):
   - `settings_audit_log` table: id, userId (cascade), action, category, previousValue, newValue, metadata, timestamps
-  - Indexed on userId and createdAt for fast queries- **tRPC procedures** in settings router:
+  - Indexed on userId and createdAt for fast queries
+- **tRPC procedures** in settings router:
   - `getAuditLog` — paginated query (limit/offset, max 100)
   - Audit logging wired into `set`, `replace`, `delete` mutations
 - **SettingsAuditLog** component:
@@ -263,7 +300,8 @@
   - `get` — query user settings from cloud
   - `set` — partial merge with existing settings
   - `replace` — full overwrite
-  - `delete` — clear all settings- **Client hook** (`apps/web/lib/hooks/use-settings-sync.ts`):
+  - `delete` — clear all settings
+- **Client hook** (`apps/web/lib/hooks/use-settings-sync.ts`):
   - localStorage-first for fast reads
   - Debounced cloud sync (2 second delay)
   - Deep merge: server wins on conflicts
