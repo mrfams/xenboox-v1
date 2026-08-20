@@ -1,9 +1,23 @@
 import { toast } from "sonner"
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type RecentOperation = {
+  id: string
+  name: string
+  timestamp: string
+  versionId: string | null
+  versionLabel: string | null
+}
+
 // ─── Undo Toast for Risky Settings Operations ─────────────────────────────────
 // After any risky operation (reset, import, restore), show a toast with
 // a "Restore backup" action that fetches the latest auto-backup and restores it.
 // Also registers Ctrl+Z / Cmd+Z keyboard shortcut for 10 seconds.
+// Tracks last 5 operations in localStorage for the Recent Operations panel.
+
+const STORAGE_KEY = "xenboox_recent_operations"
+const MAX_OPERATIONS = 5
 
 let undoAvailable = false
 let undoTimeout: ReturnType<typeof setTimeout> | null = null
@@ -46,11 +60,51 @@ function registerUndoShortcut() {
   }, 10_000)
 }
 
+// ─── Recent operations storage ────────────────────────────────────────────────
+
+export function getRecentOperations(): RecentOperation[] {
+  if (typeof window === "undefined") return []
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+function addRecentOperation(name: string, versionId: string | null, versionLabel: string | null) {
+  if (typeof window === "undefined") return
+
+  const operations = getRecentOperations()
+  const newOperation: RecentOperation = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    name,
+    timestamp: new Date().toISOString(),
+    versionId,
+    versionLabel,
+  }
+
+  // Add to front, keep last 5
+  const updated = [newOperation, ...operations].slice(0, MAX_OPERATIONS)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+}
+
+export function clearRecentOperations() {
+  if (typeof window === "undefined") return
+  localStorage.removeItem(STORAGE_KEY)
+}
+
 // ─── Show undo toast after risky operation ─────────────────────────────────────
 
 export function showUndoToast(operationName: string) {
   // Register Ctrl+Z keyboard shortcut
   registerUndoShortcut()
+
+  // Fetch latest version ID for this operation
+  fetchLatestVersionForTracking().then((versionInfo) => {
+    // Track in recent operations
+    addRecentOperation(operationName, versionInfo?.id || null, versionInfo?.label || null)
+  })
 
   toast(
     `${operationName} completed. A backup was saved automatically.`,
@@ -65,6 +119,24 @@ export function showUndoToast(operationName: string) {
       },
     }
   )
+}
+
+// ─── Fetch latest version for tracking ────────────────────────────────────────
+
+async function fetchLatestVersionForTracking(): Promise<{ id: string; label: string | null } | null> {
+  try {
+    const response = await fetch("/api/trpc/settings.getVersions?input=%7B%22limit%22%3A1%7D", {
+      headers: { "Content-Type": "application/json" },
+    })
+    const data = await response.json()
+    const latest = data?.result?.data?.[0]
+    if (latest) {
+      return { id: latest.id, label: latest.label }
+    }
+  } catch {
+    // Silent fail
+  }
+  return null
 }
 
 // ─── Restore the latest backup ────────────────────────────────────────────────

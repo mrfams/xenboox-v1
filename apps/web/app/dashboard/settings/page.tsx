@@ -29,6 +29,7 @@ import { SettingsVersionHistory } from "@/components/settings/settings-version-h
 import { ConflictResolution } from "@/components/settings/conflict-resolution"
 import { ConflictResolutionHistory } from "@/components/settings/conflict-resolution-history"
 import { DefaultStrategyPreference } from "@/components/settings/default-strategy-preference"
+import { RecentOperations } from "@/components/settings/recent-operations"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -160,6 +161,7 @@ export default function SettingsPage() {
       <AIPreferencesSummary />
       <AIUsageStats />
       <SettingsAuditLog />
+      <RecentOperations />
       <SettingsVersionHistory defaultExpanded={showVersionHistory} />
       <ConflictResolutionHistory />
       <DefaultStrategyPreference
