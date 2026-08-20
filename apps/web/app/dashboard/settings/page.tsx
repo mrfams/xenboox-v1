@@ -18,6 +18,7 @@ import {
 import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles } from "lucide-react"
 import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
+import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summary"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -110,6 +111,8 @@ export default function SettingsPage() {
           Manage your account settings and preferences.
         </p>
       </div>
+
+      <AIPreferencesSummary />
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
