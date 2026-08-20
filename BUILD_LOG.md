@@ -6,6 +6,37 @@
 
 ---
 
+### [2026-08-20] — Auto-Versioning Before Risky Operations
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~5 min
+**Files Created:** 1 (auto-versioning.test.ts)
+**Files Modified:** 2 (settings/page.tsx, export-import-settings.tsx)
+
+**What was built:**
+
+- **Settings page** (`settings/page.tsx`):
+  - Added `createVersionMutation` using `trpc.settings.createVersion.useMutation`
+  - Silent error handler — version creation failure never blocks the risky operation
+  - "Reset All Settings" now creates auto-backup labeled "Auto-backup: before reset all settings"
+  - "Reset Onboarding" now creates auto-backup labeled "Auto-backup: before onboarding reset"
+  - Toast messages updated to confirm "A backup was saved automatically"
+
+- **ExportImportSettings** (`export-import-settings.tsx`):
+  - Added `createVersionMutation` using `trpc.settings.createVersion.useMutation`
+  - "Import Settings" now creates auto-backup labeled "Auto-backup: before settings import"
+  - Toast message updated to confirm "A backup was saved automatically"
+
+- **16/16 tests pass** covering:
+  - tRPC mutation definition
+  - Reset All Settings auto-versioning
+  - Reset Onboarding auto-versioning
+  - Import Settings auto-versioning
+  - Error handling (failure doesn't block operation)
+  - Operation label uniqueness and format
+
+---
+
 ### [2026-08-20] — Comprehensive AI-Native Accounting Platform Features Document
 
 **Agent:** Buffy (Freebuff)
