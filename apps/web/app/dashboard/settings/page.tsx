@@ -21,6 +21,7 @@ import { toast } from "sonner"
 import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summary"
 import { ExportImportSettings } from "@/components/settings/export-import-settings"
 import { AIUsageStats } from "@/components/settings/ai-usage-stats"
+import { SyncStatus } from "@/components/settings/sync-status"
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession()
@@ -113,6 +114,14 @@ export default function SettingsPage() {
           Manage your account settings and preferences.
         </p>
       </div>
+
+      {/* Cloud Sync Status */}
+      <SyncStatus
+        isCloudEnabled={true}
+        isSyncing={false}
+        lastSyncedAt={null}
+        error={null}
+      />
 
       <AIPreferencesSummary />
       <AIUsageStats />
