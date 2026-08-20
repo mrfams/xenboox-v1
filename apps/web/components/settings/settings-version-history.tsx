@@ -1,7 +1,13 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, Button } from "@/components/ui"
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+} from "@/components/ui";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -12,7 +18,7 @@ import {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@/components/ui"
+} from "@/components/ui";
 import {
   History,
   RotateCcw,
@@ -21,102 +27,104 @@ import {
   ChevronUp,
   Tag,
   Trash2,
-  ShieldCheck,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { trpc } from "@/lib/trpc/client"
-import { toast } from "sonner"
-import { showUndoToast } from "@/lib/settings-undo"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc/client";
+import { toast } from "sonner";
+import { showUndoToast } from "@/lib/settings-undo";
+import { BackupProgressIndicator } from "@/components/settings/backup-progress-indicator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Version = {
-  id: string
-  version: number
-  label: string | null
-  settings: Record<string, unknown>
-  createdAt: string | null
-}
+  id: string;
+  version: number;
+  label: string | null;
+  settings: Record<string, unknown>;
+  createdAt: string | null;
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExpanded?: boolean }) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
-  const [showSaveDialog, setShowSaveDialog] = useState(false)
-  const [versionLabel, setVersionLabel] = useState("")
-  const [restoreTarget, setRestoreTarget] = useState<Version | null>(null)
+export function SettingsVersionHistory({
+  defaultExpanded = false,
+}: {
+  defaultExpanded?: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [versionLabel, setVersionLabel] = useState("");
+  const [restoreTarget, setRestoreTarget] = useState<Version | null>(null);
 
-  const utils = trpc.useContext()
+  const utils = trpc.useContext();
 
   // Queries
   const { data: versions, isLoading } = trpc.settings.getVersions.useQuery(
     { limit: 10 },
-    { enabled: isExpanded }
-  )
+    { enabled: isExpanded },
+  );
 
   // Mutations
   const createVersion = trpc.settings.createVersion.useMutation({
     onSuccess: () => {
-      toast.success("Version saved")
-      utils.settings.getVersions.invalidate()
-      setShowSaveDialog(false)
-      setVersionLabel("")
+      toast.success("Version saved");
+      utils.settings.getVersions.invalidate();
+      setShowSaveDialog(false);
+      setVersionLabel("");
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
   const restoreVersion = trpc.settings.restoreVersion.useMutation({
     onSuccess: (data) => {
-      showUndoToast(`Restored from v${data.restoredFrom}`)
-      utils.settings.getVersions.invalidate()
-      utils.settings.get.invalidate()
-      setRestoreTarget(null)
+      showUndoToast(`Restored from v${data.restoredFrom}`);
+      utils.settings.getVersions.invalidate();
+      utils.settings.get.invalidate();
+      setRestoreTarget(null);
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
   // Auto-versioning before restore
-  const [backupJustCompleted, setBackupJustCompleted] = useState(false)
+  const [backupJustCompleted, setBackupJustCompleted] = useState(false);
   const createAutoBackup = trpc.settings.createVersion.useMutation({
     onSuccess: () => {
-      setBackupJustCompleted(true)
-      setTimeout(() => setBackupJustCompleted(false), 1500)
+      setBackupJustCompleted(true);
+      setTimeout(() => setBackupJustCompleted(false), 1500);
       // Auto-backup created, now proceed with restore
       if (restoreTarget) {
-        restoreVersion.mutate({ versionId: restoreTarget.id })
+        restoreVersion.mutate({ versionId: restoreTarget.id });
       }
     },
     onError: () => {
       // Even if auto-backup fails, proceed with restore
       if (restoreTarget) {
-        restoreVersion.mutate({ versionId: restoreTarget.id })
+        restoreVersion.mutate({ versionId: restoreTarget.id });
       }
     },
-  })
+  });
 
   const pruneVersions = trpc.settings.pruneVersions.useMutation({
     onSuccess: (data) => {
       if (data.deleted > 0) {
-        toast.success(`Cleaned up ${data.deleted} old versions`)
+        toast.success(`Cleaned up ${data.deleted} old versions`);
       }
-      utils.settings.getVersions.invalidate()
+      utils.settings.getVersions.invalidate();
     },
-  })
+  });
 
   const handleSaveVersion = () => {
-    createVersion.mutate({ label: versionLabel || undefined })
-  }
+    createVersion.mutate({ label: versionLabel || undefined });
+  };
 
   const handleRestore = () => {
     if (restoreTarget) {
       // Auto-version before restore (backup current settings first)
       createAutoBackup.mutate({
         label: `Auto-backup: before restoring to v${restoreTarget.version}`,
-      })
+      });
     }
-  }
+  };
 
   return (
     <Card>
@@ -143,10 +151,7 @@ export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExp
             <p className="text-xs text-muted-foreground">
               Save snapshots of your settings to restore later.
             </p>
-            <Button
-              size="sm"
-              onClick={() => setShowSaveDialog(true)}
-            >
+            <Button size="sm" onClick={() => setShowSaveDialog(true)}>
               <Save className="mr-1 h-3 w-3" />
               Save version
             </Button>
@@ -155,13 +160,18 @@ export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExp
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-16 rounded-lg bg-muted/30 animate-pulse" />
+                <div
+                  key={i}
+                  className="h-16 rounded-lg bg-muted/30 animate-pulse"
+                />
               ))}
             </div>
           ) : !versions || versions.length === 0 ? (
             <div className="rounded-lg border bg-muted/30 p-4 text-center">
               <History className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No versions saved yet</p>
+              <p className="text-sm text-muted-foreground">
+                No versions saved yet
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Save a version before making changes to enable rollback.
               </p>
@@ -184,7 +194,8 @@ export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExp
               <AlertDialogHeader>
                 <AlertDialogTitle>Save settings version</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Create a snapshot of your current settings that you can restore later.
+                  Create a snapshot of your current settings that you can
+                  restore later.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <div className="py-2">
@@ -217,29 +228,31 @@ export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExp
               <AlertDialogHeader>
                 <AlertDialogTitle>Restore version?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will replace your current settings with version {restoreTarget?.version}
+                  This will replace your current settings with version{" "}
+                  {restoreTarget?.version}
                   {restoreTarget?.label ? ` (${restoreTarget.label})` : ""}.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createAutoBackup.isPending ? "animate-pulse" : backupJustCompleted ? "animate-[fadeOut_1.5s_ease-in-out]" : ""}`}>
-                {createAutoBackup.isPending ? (
-                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                ) : backupJustCompleted ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 animate-[scaleIn_0.3s_ease-out]" />
-                ) : (
-                  <ShieldCheck className="h-4 w-4 shrink-0" />
-                )}
-                <span>{createAutoBackup.isPending ? "Creating backup..." : backupJustCompleted ? "Backup saved!" : "A backup of your current settings will be saved automatically before restoring."}</span>
-                <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
-                  <p className="font-medium mb-1">Backup contains:</p>
-                  <ul className="space-y-0.5 text-muted-foreground">
-                    <li>• Your current settings snapshot</li>
-                    <li>• Saved as a new version in Version History</li>
-                  </ul>
-                  <p className="mt-2 text-muted-foreground">After restoring, you can revert again from Version History.</p>
-                </div>
-              </div>
-              </AlertDialogHeader>
+              <BackupProgressIndicator
+                isPending={createAutoBackup.isPending}
+                justCompleted={backupJustCompleted}
+                idleText="A backup of your current settings will be saved automatically before restoring."
+                pendingText="Creating backup..."
+                completedText="Backup saved!"
+                tooltip={
+                  <>
+                    <p className="font-medium mb-1">Backup contains:</p>
+                    <ul className="space-y-0.5 text-muted-foreground">
+                      <li>• Your current settings snapshot</li>
+                      <li>• Saved as a new version in Version History</li>
+                    </ul>
+                    <p className="mt-2 text-muted-foreground">
+                      After restoring, you can revert again from Version
+                      History.
+                    </p>
+                  </>
+                }
+              />
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleRestore}>
@@ -252,7 +265,7 @@ export function SettingsVersionHistory({ defaultExpanded = false }: { defaultExp
         </CardContent>
       )}
     </Card>
-  )
+  );
 }
 
 // ─── Version Entry ────────────────────────────────────────────────────────────
@@ -261,14 +274,16 @@ function VersionEntry({
   version,
   onRestore,
 }: {
-  version: Version
-  onRestore: () => void
+  version: Version;
+  onRestore: () => void;
 }) {
-  const [showDetails, setShowDetails] = useState(false)
-  const timeAgo = version.createdAt ? formatTimeAgo(version.createdAt) : "Unknown"
+  const [showDetails, setShowDetails] = useState(false);
+  const timeAgo = version.createdAt
+    ? formatTimeAgo(version.createdAt)
+    : "Unknown";
 
   // Count settings keys
-  const settingsKeys = Object.keys(version.settings || {}).length
+  const settingsKeys = Object.keys(version.settings || {}).length;
 
   return (
     <div className="rounded-lg border bg-muted/30 overflow-hidden">
@@ -301,11 +316,7 @@ function VersionEntry({
               <ChevronDown className="h-3 w-3" />
             )}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRestore}
-          >
+          <Button variant="outline" size="sm" onClick={onRestore}>
             <RotateCcw className="mr-1 h-3 w-3" />
             Restore
           </Button>
@@ -314,27 +325,29 @@ function VersionEntry({
 
       {showDetails && (
         <div className="border-t p-3 bg-background">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Settings snapshot</p>
+          <p className="text-xs font-medium text-muted-foreground mb-1">
+            Settings snapshot
+          </p>
           <pre className="rounded bg-muted p-2 text-[10px] overflow-x-auto max-h-40 overflow-y-auto">
             {JSON.stringify(version.settings, null, 2)}
           </pre>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatTimeAgo(dateStr: string): string {
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diff = now - then
-  const minutes = Math.floor(diff / 60_000)
-  const hours = Math.floor(diff / 3_600_000)
-  const days = Math.floor(diff / 86_400_000)
-  if (minutes < 1) return "Just now"
-  if (minutes < 60) return `${minutes}m ago`
-  if (hours < 24) return `${hours}h ago`
-  return `${days}d ago`
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const minutes = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const days = Math.floor(diff / 86_400_000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
 }

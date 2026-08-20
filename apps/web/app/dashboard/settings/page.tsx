@@ -1,9 +1,18 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useSession, signOut } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Switch } from "@/components/ui"
-import { Separator } from "@/components/ui"
+import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Input,
+  Label,
+  Switch,
+} from "@/components/ui";
+import { Separator } from "@/components/ui";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -14,87 +23,108 @@ import {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@/components/ui"
-import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles, Trash2, ShieldCheck, Loader2, CheckCircle2 } from "lucide-react"
-import { trpc } from "@/lib/trpc/client"
-import { toast } from "sonner"
-import { showUndoToast } from "@/lib/settings-undo"
-import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summary"
-import { ExportImportSettings } from "@/components/settings/export-import-settings"
-import { AIUsageStats } from "@/components/settings/ai-usage-stats"
-import { SyncStatus } from "@/components/settings/sync-status"
-import { RealTimeSyncIndicator } from "@/components/settings/real-time-sync-indicator"
-import { SettingsAuditLog } from "@/components/settings/settings-audit-log"
-import { SettingsVersionHistory } from "@/components/settings/settings-version-history"
-import { ConflictResolution } from "@/components/settings/conflict-resolution"
-import { ConflictResolutionHistory } from "@/components/settings/conflict-resolution-history"
-import { DefaultStrategyPreference } from "@/components/settings/default-strategy-preference"
-import { RecentOperations } from "@/components/settings/recent-operations"
+} from "@/components/ui";
+import {
+  LogOut,
+  User,
+  Shield,
+  Bell,
+  Save,
+  AlertCircle,
+  Check,
+  Mail,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import { toast } from "sonner";
+import { showUndoToast } from "@/lib/settings-undo";
+import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summary";
+import { ExportImportSettings } from "@/components/settings/export-import-settings";
+import { AIUsageStats } from "@/components/settings/ai-usage-stats";
+import { SyncStatus } from "@/components/settings/sync-status";
+import { RealTimeSyncIndicator } from "@/components/settings/real-time-sync-indicator";
+import { SettingsAuditLog } from "@/components/settings/settings-audit-log";
+import { SettingsVersionHistory } from "@/components/settings/settings-version-history";
+import { ConflictResolution } from "@/components/settings/conflict-resolution";
+import { ConflictResolutionHistory } from "@/components/settings/conflict-resolution-history";
+import { DefaultStrategyPreference } from "@/components/settings/default-strategy-preference";
+import { RecentOperations } from "@/components/settings/recent-operations";
+import { BackupProgressIndicator } from "@/components/settings/backup-progress-indicator";
 
 export default function SettingsPage() {
-  const { data: session, update: updateSession } = useSession()
-  const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const { data: session, update: updateSession } = useSession();
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: session?.user?.name || "",
-  })
+  });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-  })
+  });
 
   const updateProfileMutation = trpc.auth.updateProfile.useMutation({
     onSuccess: async () => {
-      toast.success("Profile updated successfully")
-      await updateSession()
+      toast.success("Profile updated successfully");
+      await updateSession();
     },
     onError: (error) => {
-      toast.error(error.message)
+      toast.error(error.message);
     },
-  })
+  });
 
-  const requestVerificationMutation = trpc.auth.requestVerification.useMutation({
-    onSuccess: (data) => {
-      toast.success(data.message)
+  const requestVerificationMutation = trpc.auth.requestVerification.useMutation(
+    {
+      onSuccess: (data) => {
+        toast.success(data.message);
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
     },
-    onError: (error) => {
-      toast.error(error.message)
-    },
-  })
+  );
 
   const changePasswordMutation = trpc.auth.changePassword.useMutation({
     onSuccess: () => {
-      toast.success("Password changed successfully")
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      toast.success("Password changed successfully");
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
     },
     onError: (error) => {
-      toast.error(error.message)
+      toast.error(error.message);
     },
-  })
+  });
 
   // Auto-versioning before risky operations
-  const [backupJustCompleted, setBackupJustCompleted] = useState(false)
+  const [backupJustCompleted, setBackupJustCompleted] = useState(false);
   const createVersionMutation = trpc.settings.createVersion.useMutation({
-    onSuccess: () => {n      // Show success checkmark for 1.5 seconds
-      setBackupJustCompleted(true)
-      setTimeout(() => setBackupJustCompleted(false), 1500)
+    onSuccess: () => {
+      n; // Show success checkmark for 1.5 seconds
+      setBackupJustCompleted(true);
+      setTimeout(() => setBackupJustCompleted(false), 1500);
     },
     onError: () => {
       // Version creation failure shouldn't block the risky operation
     },
-  })
+  });
 
   // Notification preferences
-  const [notifEmailInvoices, setNotifEmailInvoices] = useState(true)
-  const [notifEmailReports, setNotifEmailReports] = useState(true)
-  const [notifEmailAlerts, setNotifEmailAlerts] = useState(true)
-  const [notifPushPayments, setNotifPushPayments] = useState(true)
-  const [notifPushApprovals, setNotifPushApprovals] = useState(false)
+  const [notifEmailInvoices, setNotifEmailInvoices] = useState(true);
+  const [notifEmailReports, setNotifEmailReports] = useState(true);
+  const [notifEmailAlerts, setNotifEmailAlerts] = useState(true);
+  const [notifPushPayments, setNotifPushPayments] = useState(true);
+  const [notifPushApprovals, setNotifPushApprovals] = useState(false);
 
-  const updateNotificationsMutation = trpc.auth.updateNotificationPreferences.useMutation({
-    onSuccess: () => toast.success("Notification preferences saved"),
-    onError: (error) => toast.error(error.message),
-  })
+  const updateNotificationsMutation =
+    trpc.auth.updateNotificationPreferences.useMutation({
+      onSuccess: () => toast.success("Notification preferences saved"),
+      onError: (error) => toast.error(error.message),
+    });
 
   const handleSaveNotifications = () => {
     updateNotificationsMutation.mutate({
@@ -103,29 +133,31 @@ export default function SettingsPage() {
       emailAlerts: notifEmailAlerts,
       pushPayments: notifPushPayments,
       pushApprovals: notifPushApprovals,
-    })
-  }
+    });
+  };
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!profileForm.name.trim()) {
-      toast.error("Name is required")
-      return
+      toast.error("Name is required");
+      return;
     }
-    updateProfileMutation.mutate({ name: profileForm.name.trim() })
-  }
+    updateProfileMutation.mutate({ name: profileForm.name.trim() });
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error("New passwords do not match")
-      return
+      toast.error("New passwords do not match");
+      return;
     }
-    changePasswordMutation.mutate(passwordForm)
-  }
+    changePasswordMutation.mutate(passwordForm);
+  };
 
-  const passwordsMatch = passwordForm.newPassword === passwordForm.confirmPassword
-  const showPasswordError = passwordForm.confirmPassword.length > 0 && !passwordsMatch
+  const passwordsMatch =
+    passwordForm.newPassword === passwordForm.confirmPassword;
+  const showPasswordError =
+    passwordForm.confirmPassword.length > 0 && !passwordsMatch;
 
   return (
     <div className="space-y-6">
@@ -221,7 +253,9 @@ export default function SettingsPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={updateProfileMutation.isPending || !profileForm.name.trim()}
+                disabled={
+                  updateProfileMutation.isPending || !profileForm.name.trim()
+                }
               >
                 {updateProfileMutation.isPending ? (
                   "Saving..."
@@ -251,7 +285,12 @@ export default function SettingsPage() {
                   id="currentPassword"
                   type="password"
                   value={passwordForm.currentPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      currentPassword: e.target.value,
+                    })
+                  }
                   placeholder="••••••••"
                   required
                 />
@@ -262,7 +301,12 @@ export default function SettingsPage() {
                   id="newPassword"
                   type="password"
                   value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      newPassword: e.target.value,
+                    })
+                  }
                   placeholder="••••••••"
                   required
                 />
@@ -273,7 +317,12 @@ export default function SettingsPage() {
                   id="confirmPassword"
                   type="password"
                   value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      confirmPassword: e.target.value,
+                    })
+                  }
                   placeholder="••••••••"
                   required
                 />
@@ -287,10 +336,16 @@ export default function SettingsPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={changePasswordMutation.isPending || !passwordsMatch || !passwordForm.currentPassword}
+                disabled={
+                  changePasswordMutation.isPending ||
+                  !passwordsMatch ||
+                  !passwordForm.currentPassword
+                }
               >
                 <Save className="mr-2 h-4 w-4" />
-                {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+                {changePasswordMutation.isPending
+                  ? "Changing..."
+                  : "Change Password"}
               </Button>
             </form>
           </CardContent>
@@ -314,23 +369,38 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>Invoice & Payment Updates</span>
-                  <span className="text-xs text-muted-foreground">When invoices are created, paid, or overdue</span>
+                  <span className="text-xs text-muted-foreground">
+                    When invoices are created, paid, or overdue
+                  </span>
                 </Label>
-                <Switch checked={notifEmailInvoices} onCheckedChange={setNotifEmailInvoices} />
+                <Switch
+                  checked={notifEmailInvoices}
+                  onCheckedChange={setNotifEmailInvoices}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>Financial Reports</span>
-                  <span className="text-xs text-muted-foreground">Monthly P&L, balance sheet, and custom reports</span>
+                  <span className="text-xs text-muted-foreground">
+                    Monthly P&L, balance sheet, and custom reports
+                  </span>
                 </Label>
-                <Switch checked={notifEmailReports} onCheckedChange={setNotifEmailReports} />
+                <Switch
+                  checked={notifEmailReports}
+                  onCheckedChange={setNotifEmailReports}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>System Alerts</span>
-                  <span className="text-xs text-muted-foreground">Budget thresholds, security events, and errors</span>
+                  <span className="text-xs text-muted-foreground">
+                    Budget thresholds, security events, and errors
+                  </span>
                 </Label>
-                <Switch checked={notifEmailAlerts} onCheckedChange={setNotifEmailAlerts} />
+                <Switch
+                  checked={notifEmailAlerts}
+                  onCheckedChange={setNotifEmailAlerts}
+                />
               </div>
             </div>
 
@@ -346,16 +416,26 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>Payment Received</span>
-                  <span className="text-xs text-muted-foreground">When a customer payment is processed</span>
+                  <span className="text-xs text-muted-foreground">
+                    When a customer payment is processed
+                  </span>
                 </Label>
-                <Switch checked={notifPushPayments} onCheckedChange={setNotifPushPayments} />
+                <Switch
+                  checked={notifPushPayments}
+                  onCheckedChange={setNotifPushPayments}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="flex flex-col gap-1">
                   <span>Approval Requests</span>
-                  <span className="text-xs text-muted-foreground">When your approval is needed on an item</span>
+                  <span className="text-xs text-muted-foreground">
+                    When your approval is needed on an item
+                  </span>
                 </Label>
-                <Switch checked={notifPushApprovals} onCheckedChange={setNotifPushApprovals} />
+                <Switch
+                  checked={notifPushApprovals}
+                  onCheckedChange={setNotifPushApprovals}
+                />
               </div>
             </div>
 
@@ -365,7 +445,9 @@ export default function SettingsPage() {
               className="w-full"
             >
               <Save className="mr-2 h-4 w-4" />
-              {updateNotificationsMutation.isPending ? "Saving..." : "Save Preferences"}
+              {updateNotificationsMutation.isPending
+                ? "Saving..."
+                : "Save Preferences"}
             </Button>
           </CardContent>
         </Card>
@@ -379,14 +461,16 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Re-run the setup wizard to configure your organization, chart of accounts, bank connections, team, and AI preferences.
+              Re-run the setup wizard to configure your organization, chart of
+              accounts, bank connections, team, and AI preferences.
             </p>
             <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
               <RotateCcw className="h-4 w-4 text-muted-foreground" />
               <div className="flex-1">
                 <p className="text-sm font-medium">Reset Onboarding</p>
                 <p className="text-xs text-muted-foreground">
-                  This will restart the setup wizard. Your existing data will not be affected.
+                  This will restart the setup wizard. Your existing data will
+                  not be affected.
                 </p>
               </div>
               <AlertDialog>
@@ -400,44 +484,51 @@ export default function SettingsPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reset onboarding?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will restart the setup wizard on your next page load. Your existing data (accounts, invoices, journal entries, etc.) will not be affected.
+                      This will restart the setup wizard on your next page load.
+                      Your existing data (accounts, invoices, journal entries,
+                      etc.) will not be affected.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createVersionMutation.isPending ? "animate-pulse" : backupJustCompleted ? "animate-[fadeOut_1.5s_ease-in-out]" : ""}`}>
-                    {createVersionMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                    ) : backupJustCompleted ? (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 animate-[scaleIn_0.3s_ease-out]" />
-                    ) : (
-                      <ShieldCheck className="h-4 w-4 shrink-0" />
-                    )}
-                    <span>{createVersionMutation.isPending ? "Creating backup..." : backupJustCompleted ? "Backup saved!" : "A backup will be created automatically before resetting."}</span>
-                    <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
-                      <p className="font-medium mb-1">Backup contains:</p>
-                      <ul className="space-y-0.5 text-muted-foreground">
-                        <li>• AI preferences (auto-reconcile, categorize, alerts, digest)</li>
-                        <li>• Onboarding status and current step</li>
-                        <li>• Sync preferences (default merge strategy)</li>
-                      </ul>
-                      <button
-                        onClick={() => { setShowVersionHistory(true) }}
-                        className="mt-2 inline-flex items-center gap-1 text-primary hover:underline font-medium"
-                      >
-                        View backup →
-                      </button>
-                    </div>
-                  </div>
+                  <BackupProgressIndicator
+                    isPending={createVersionMutation.isPending}
+                    justCompleted={backupJustCompleted}
+                    idleText="A backup will be created automatically before resetting."
+                    pendingText="Creating backup..."
+                    completedText="Backup saved!"
+                    tooltip={
+                      <>
+                        <p className="font-medium mb-1">Backup contains:</p>
+                        <ul className="space-y-0.5 text-muted-foreground">
+                          <li>
+                            • AI preferences (auto-reconcile, categorize,
+                            alerts, digest)
+                          </li>
+                          <li>• Onboarding status and current step</li>
+                          <li>• Sync preferences (default merge strategy)</li>
+                        </ul>
+                        <button
+                          onClick={() => {
+                            setShowVersionHistory(true);
+                          }}
+                          className="mt-2 inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                        >
+                          View backup →
+                        </button>
+                      </>
+                    }
+                  />
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>                      <AlertDialogAction
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>{" "}
+                    <AlertDialogAction
                       onClick={() => {
                         // Auto-version before reset
                         createVersionMutation.mutate({
                           label: "Auto-backup: before onboarding reset",
-                        })
-                        localStorage.removeItem("xenboox_onboarding_completed")
-                        localStorage.removeItem("xenboox_onboarding_step")
-                        localStorage.removeItem("xenboox_ai_preferences")
-                        showUndoToast("Onboarding reset")
+                        });
+                        localStorage.removeItem("xenboox_onboarding_completed");
+                        localStorage.removeItem("xenboox_onboarding_step");
+                        localStorage.removeItem("xenboox_ai_preferences");
+                        showUndoToast("Onboarding reset");
                       }}
                     >
                       <RotateCcw className="mr-1 h-3 w-3" />
@@ -459,14 +550,23 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Reset all preferences to factory defaults. This includes AI preferences, onboarding status, and notification settings.
+              Reset all preferences to factory defaults. This includes AI
+              preferences, onboarding status, and notification settings.
             </p>
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-              <p className="text-xs text-destructive font-medium">This will reset:</p>
+              <p className="text-xs text-destructive font-medium">
+                This will reset:
+              </p>
               <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                <li>• AI preferences (auto-reconcile, categorize, alerts, digest)</li>
-                <li>• Onboarding status (will show setup wizard on next load)</li>
-                <li>• Notification preferences (email, push, AI notifications)</li>
+                <li>
+                  • AI preferences (auto-reconcile, categorize, alerts, digest)
+                </li>
+                <li>
+                  • Onboarding status (will show setup wizard on next load)
+                </li>
+                <li>
+                  • Notification preferences (email, push, AI notifications)
+                </li>
               </ul>
             </div>
             <AlertDialog>
@@ -480,55 +580,62 @@ export default function SettingsPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Reset all settings?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will reset all your preferences to factory defaults. Your financial data, accounts, and documents will not be affected. This action cannot be undone.
+                    This will reset all your preferences to factory defaults.
+                    Your financial data, accounts, and documents will not be
+                    affected. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <div className={`group relative flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ${createVersionMutation.isPending ? "animate-pulse" : backupJustCompleted ? "animate-[fadeOut_1.5s_ease-in-out]" : ""}`}>
-                  {createVersionMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                  ) : backupJustCompleted ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 animate-[scaleIn_0.3s_ease-out]" />
-                  ) : (
-                    <ShieldCheck className="h-4 w-4 shrink-0" />
-                  )}
-                  <span>{createVersionMutation.isPending ? "Creating backup..." : backupJustCompleted ? "Backup saved!" : "A backup will be created automatically before resetting. You can restore from Version History."}</span>
-                  <div className="absolute bottom-full left-0 mb-2 hidden w-72 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md group-hover:block z-50">
-                    <p className="font-medium mb-1">Backup contains:</p>
-                    <ul className="space-y-0.5 text-muted-foreground">
-                      <li>• AI preferences (auto-reconcile, categorize, alerts, digest)</li>
-                      <li>• Onboarding status and current step</li>
-                      <li>• Notification preferences (email, push, AI)</li>
-                      <li>• Sync preferences (default merge strategy)</li>
-                      <li>• Usage statistics</li>
-                    </ul>
-                    <button
-                      onClick={() => { setShowVersionHistory(true) }}
-                      className="mt-2 inline-flex items-center gap-1 text-primary hover:underline font-medium"
-                    >
-                      View backup →
-                    </button>
-                  </div>
-                </div>
+                <BackupProgressIndicator
+                  isPending={createVersionMutation.isPending}
+                  justCompleted={backupJustCompleted}
+                  idleText="A backup will be created automatically before resetting. You can restore from Version History."
+                  pendingText="Creating backup..."
+                  completedText="Backup saved!"
+                  tooltip={
+                    <>
+                      <p className="font-medium mb-1">Backup contains:</p>
+                      <ul className="space-y-0.5 text-muted-foreground">
+                        <li>
+                          • AI preferences (auto-reconcile, categorize, alerts,
+                          digest)
+                        </li>
+                        <li>• Onboarding status and current step</li>
+                        <li>• Notification preferences (email, push, AI)</li>
+                        <li>• Sync preferences (default merge strategy)</li>
+                        <li>• Usage statistics</li>
+                      </ul>
+                      <button
+                        onClick={() => {
+                          setShowVersionHistory(true);
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                      >
+                        View backup →
+                      </button>
+                    </>
+                  }
+                />
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>                    <AlertDialogAction
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>{" "}
+                  <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={() => {
                       // Auto-version before destructive reset
                       createVersionMutation.mutate({
                         label: "Auto-backup: before reset all settings",
-                      })
+                      });
                       // Reset AI preferences
-                      localStorage.removeItem("xenboox_ai_preferences")
+                      localStorage.removeItem("xenboox_ai_preferences");
                       // Reset onboarding
-                      localStorage.removeItem("xenboox_onboarding_completed")
-                      localStorage.removeItem("xenboox_onboarding_step")
+                      localStorage.removeItem("xenboox_onboarding_completed");
+                      localStorage.removeItem("xenboox_onboarding_step");
                       // Reset notifications to defaults
-                      setNotifEmailInvoices(true)
-                      setNotifEmailReports(true)
-                      setNotifEmailAlerts(true)
-                      setNotifPushPayments(true)
-                      setNotifPushApprovals(false)
-                      showUndoToast("All settings reset")
+                      setNotifEmailInvoices(true);
+                      setNotifEmailReports(true);
+                      setNotifEmailAlerts(true);
+                      setNotifPushPayments(true);
+                      setNotifPushApprovals(false);
+                      showUndoToast("All settings reset");
                     }}
                   >
                     <Trash2 className="mr-1 h-3 w-3" />
@@ -563,5 +670,5 @@ export default function SettingsPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
