@@ -15,7 +15,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui"
-import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles } from "lucide-react"
+import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles, Trash2 } from "lucide-react"
 import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
 import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summary"
@@ -364,6 +364,67 @@ export default function SettingsPage() {
                 </AlertDialogContent>
               </AlertDialog>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Reset All Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Reset all preferences to factory defaults. This includes AI preferences, onboarding status, and notification settings.
+            </p>
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+              <p className="text-xs text-destructive font-medium">This will reset:</p>
+              <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                <li>• AI preferences (auto-reconcile, categorize, alerts, digest)</li>
+                <li>• Onboarding status (will show setup wizard on next load)</li>
+                <li>• Notification preferences (email, push, AI notifications)</li>
+              </ul>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="mr-1 h-3 w-3" />
+                  Reset Everything
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset all settings?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will reset all your preferences to factory defaults. Your financial data, accounts, and documents will not be affected. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                      // Reset AI preferences
+                      localStorage.removeItem("xenboox_ai_preferences")
+                      // Reset onboarding
+                      localStorage.removeItem("xenboox_onboarding_completed")
+                      localStorage.removeItem("xenboox_onboarding_step")
+                      // Reset notifications to defaults
+                      setNotifEmailInvoices(true)
+                      setNotifEmailReports(true)
+                      setNotifEmailAlerts(true)
+                      setNotifPushPayments(true)
+                      setNotifPushApprovals(false)
+                      toast.success("All settings reset to defaults. Refresh to apply.")
+                    }}
+                  >
+                    <Trash2 className="mr-1 h-3 w-3" />
+                    Reset Everything
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
 
