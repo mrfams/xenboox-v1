@@ -2,10 +2,18 @@ import { createHash, randomBytes } from "crypto";
 
 import { z } from "zod";
 import { eq, and, desc, inArray } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { entitySettings } from "@xenboox/db/schema/entity-settings";
 import { users } from "@xenboox/db/schema/auth";
 import { userPreferences } from "@xenboox/db/schema/user-preferences";
 import { entityApiKeys } from "@xenboox/db/schema/api-keys";
+import {
+  userSettings,
+  type UserSettings,
+} from "@xenboox/db/schema/user-settings";
+import { settingsAuditLog } from "@xenboox/db/schema/settings-audit";
+import { settingsVersions } from "@xenboox/db/schema/settings-versions";
+import { conflictResolutionHistory } from "@xenboox/db/schema/conflict-resolution-history";
 import {
   entities,
   organizations,
@@ -29,6 +37,7 @@ import { employees, payrollRuns } from "@xenboox/db/schema/payroll";
 import { db } from "@/lib/db";
 import { router, protectedProcedure } from "@/lib/trpc/server";
 import { handleMutationError } from "@/lib/trpc/server";
+import { notifySettingsChange } from "@/app/api/settings/stream/route";
 
 export const settingsRouter = router({
   // ─── Profile ──────────────────────────────────────────────────────────────
@@ -869,4 +878,554 @@ export const settingsRouter = router({
         handleMutationError(error, "Failed to process account deletion");
       }
     }),
+
+  // ─── User Settings (backup, versioning, sync) ──────────────────────────
+
+  get: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session?.user?.id;
+    if (!userId) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Must be logged in",
+      });
+    }
+
+    const settings = await db.query.userSettings.findFirst({
+      where: eq(userSettings.userId, userId),
+    });
+
+    if (!settings) {
+      return { settings: {} as UserSettings, updatedAt: null };
+    }
+
+    return {
+      settings: (settings.settings as UserSettings) || {},
+      updatedAt: settings.updatedAt?.toISOString() || null,
+    };
+  }),
+
+  set: protectedProcedure
+    .input(
+      z.object({
+        settings: z.record(z.unknown()),
+        baseVersion: z.number().optional(),
+        baseUpdatedAt: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      const existing = await db.query.userSettings.findFirst({
+        where: eq(userSettings.userId, userId),
+      });
+
+      if (existing && input.baseVersion !== undefined && input.baseUpdatedAt) {
+        const serverTime = existing.updatedAt?.toISOString();
+        if (serverTime && serverTime !== input.baseUpdatedAt) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Settings were modified by another device. Server version: ${serverTime}, your base: ${input.baseUpdatedAt}. Please refresh and retry.`,
+          });
+        }
+      }
+
+      const merged = {
+        ...((existing?.settings as Record<string, unknown>) || {}),
+        ...input.settings,
+      };
+
+      if (existing) {
+        const [updated] = await db
+          .update(userSettings)
+          .set({
+            settings: merged,
+            updatedAt: new Date(),
+          })
+          .where(eq(userSettings.userId, userId))
+          .returning();
+
+        await logSettingsChange(
+          userId,
+          "update",
+          "settings",
+          existing.settings as Record<string, unknown>,
+          merged,
+        );
+
+        const clientClientId = ctx.headers?.["x-client-id"] || undefined;
+        notifySettingsChange(userId, merged, undefined, clientClientId);
+
+        return {
+          settings: updated.settings as UserSettings,
+          updatedAt: updated.updatedAt?.toISOString() || null,
+          version: 1,
+        };
+      } else {
+        const [created] = await db
+          .insert(userSettings)
+          .values({
+            userId,
+            settings: merged,
+          })
+          .returning();
+
+        await logSettingsChange(userId, "create", "settings", null, merged);
+        notifySettingsChange(userId, merged);
+
+        return {
+          settings: created.settings as UserSettings,
+          updatedAt: created.updatedAt?.toISOString() || null,
+        };
+      }
+    }),
+
+  replace: protectedProcedure
+    .input(
+      z.object({
+        settings: z.record(z.unknown()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      const existing = await db.query.userSettings.findFirst({
+        where: eq(userSettings.userId, userId),
+      });
+
+      if (existing) {
+        const [updated] = await db
+          .update(userSettings)
+          .set({
+            settings: input.settings,
+            updatedAt: new Date(),
+          })
+          .where(eq(userSettings.userId, userId))
+          .returning();
+
+        await logSettingsChange(
+          userId,
+          "replace",
+          "settings",
+          existing.settings as Record<string, unknown>,
+          input.settings as Record<string, unknown>,
+        );
+
+        notifySettingsChange(userId, input.settings as Record<string, unknown>);
+
+        return {
+          settings: updated.settings as UserSettings,
+          updatedAt: updated.updatedAt?.toISOString() || null,
+        };
+      } else {
+        const [created] = await db
+          .insert(userSettings)
+          .values({
+            userId,
+            settings: input.settings,
+          })
+          .returning();
+
+        await logSettingsChange(
+          userId,
+          "create",
+          "settings",
+          null,
+          input.settings as Record<string, unknown>,
+        );
+
+        return {
+          settings: created.settings as UserSettings,
+          updatedAt: created.updatedAt?.toISOString() || null,
+        };
+      }
+    }),
+
+  delete: protectedProcedure.mutation(async ({ ctx }) => {
+    const userId = ctx.session?.user?.id;
+    if (!userId) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Must be logged in",
+      });
+    }
+
+    const existing = await db.query.userSettings.findFirst({
+      where: eq(userSettings.userId, userId),
+    });
+
+    await db.delete(userSettings).where(eq(userSettings.userId, userId));
+
+    await db.insert(settingsAuditLog).values({
+      userId,
+      action: "reset_all",
+      category: "all",
+      previousValue: existing?.settings || {},
+      newValue: {},
+    });
+
+    return { success: true };
+  }),
+
+  getVersions: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      const versions = await db.query.settingsVersions.findMany({
+        where: eq(settingsVersions.userId, userId),
+        orderBy: [desc(settingsVersions.version)],
+        limit: input.limit,
+      });
+
+      return versions.map((v) => ({
+        id: v.id,
+        userId: v.userId,
+        version: v.version,
+        label: v.label,
+        settings: v.settings as Record<string, unknown>,
+        createdAt: v.createdAt?.toISOString() || null,
+      }));
+    }),
+
+  createVersion: protectedProcedure
+    .input(
+      z.object({
+        label: z.string().max(100).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      const current = await db.query.userSettings.findFirst({
+        where: eq(userSettings.userId, userId),
+      });
+
+      if (!current) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No settings to version",
+        });
+      }
+
+      const lastVersion = await db.query.settingsVersions.findFirst({
+        where: eq(settingsVersions.userId, userId),
+        orderBy: [desc(settingsVersions.version)],
+      });
+      const nextVersion = (lastVersion?.version || 0) + 1;
+
+      const [version] = await db
+        .insert(settingsVersions)
+        .values({
+          userId,
+          version: nextVersion,
+          label: input.label || `Version ${nextVersion}`,
+          settings: current.settings,
+        })
+        .returning();
+
+      return {
+        id: version.id,
+        userId: version.userId,
+        version: version.version,
+        label: version.label,
+        settings: version.settings as Record<string, unknown>,
+        createdAt: version.createdAt?.toISOString() || null,
+      };
+    }),
+
+  restoreVersion: protectedProcedure
+    .input(
+      z.object({
+        versionId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      const version = await db.query.settingsVersions.findFirst({
+        where: eq(settingsVersions.id, input.versionId),
+      });
+
+      if (!version || version.userId !== userId) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Version not found",
+        });
+      }
+
+      const current = await db.query.userSettings.findFirst({
+        where: eq(userSettings.userId, userId),
+      });
+
+      if (current) {
+        await db
+          .update(userSettings)
+          .set({
+            settings: version.settings,
+            updatedAt: new Date(),
+          })
+          .where(eq(userSettings.userId, userId));
+      } else {
+        await db.insert(userSettings).values({
+          userId,
+          settings: version.settings,
+        });
+      }
+
+      await logSettingsChange(
+        userId,
+        "restore",
+        "settings",
+        (current?.settings as Record<string, unknown>) || null,
+        version.settings as Record<string, unknown>,
+      );
+
+      return {
+        settings: version.settings as UserSettings,
+        restoredFrom: version.version,
+      };
+    }),
+
+  pruneVersions: protectedProcedure
+    .input(
+      z.object({
+        keepLast: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      const versions = await db.query.settingsVersions.findMany({
+        where: eq(settingsVersions.userId, userId),
+        orderBy: [desc(settingsVersions.version)],
+      });
+
+      if (versions.length > input.keepLast) {
+        const toDelete = versions.slice(input.keepLast);
+        for (const v of toDelete) {
+          await db
+            .delete(settingsVersions)
+            .where(eq(settingsVersions.id, v.id));
+        }
+      }
+
+      return { deleted: Math.max(0, versions.length - input.keepLast) };
+    }),
+
+  logConflictResolution: protectedProcedure
+    .input(
+      z.object({
+        strategy: z.string(),
+        conflictCount: z.number().min(1),
+        conflicts: z.array(
+          z.object({
+            path: z.string(),
+            localValue: z.unknown(),
+            remoteValue: z.unknown(),
+          }),
+        ),
+        resolvedValues: z.array(
+          z.object({
+            path: z.string(),
+            resolvedValue: z.unknown(),
+            resolvedBy: z.string(),
+          }),
+        ),
+        localUpdatedAt: z.string().nullable().optional(),
+        remoteUpdatedAt: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      try {
+        const [entry] = await db
+          .insert(conflictResolutionHistory)
+          .values({
+            userId,
+            strategy: input.strategy,
+            conflictCount: input.conflictCount,
+            conflicts: input.conflicts,
+            resolvedValues: input.resolvedValues,
+            localUpdatedAt: input.localUpdatedAt
+              ? new Date(input.localUpdatedAt)
+              : null,
+            remoteUpdatedAt: input.remoteUpdatedAt
+              ? new Date(input.remoteUpdatedAt)
+              : null,
+            deviceInfo: {
+              userAgent:
+                typeof navigator !== "undefined"
+                  ? navigator.userAgent
+                  : "unknown",
+              screen:
+                typeof window !== "undefined"
+                  ? `${window.screen.width}x${window.screen.height}`
+                  : "unknown",
+              language:
+                typeof navigator !== "undefined"
+                  ? navigator.language
+                  : "unknown",
+            },
+          })
+          .returning();
+
+        return {
+          id: entry.id,
+          createdAt: entry.createdAt?.toISOString() || null,
+        };
+      } catch {
+        return { id: null, createdAt: null };
+      }
+    }),
+
+  getConflictHistory: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      const entries = await db.query.conflictResolutionHistory.findMany({
+        where: eq(conflictResolutionHistory.userId, userId),
+        orderBy: [desc(conflictResolutionHistory.createdAt)],
+        limit: input.limit,
+      });
+
+      return entries.map((e) => ({
+        id: e.id,
+        userId: e.userId,
+        strategy: e.strategy,
+        conflictCount: e.conflictCount,
+        conflicts: (e.conflicts ?? []) as Array<{
+          path: string;
+          localValue: unknown;
+          remoteValue: unknown;
+        }>,
+        resolvedValues: (e.resolvedValues ?? []) as Array<{
+          path: string;
+          resolvedValue: unknown;
+          resolvedBy: string;
+        }>,
+        localUpdatedAt: e.localUpdatedAt?.toISOString() || null,
+        remoteUpdatedAt: e.remoteUpdatedAt?.toISOString() || null,
+        createdAt: e.createdAt?.toISOString() || null,
+        deviceInfo: (e.deviceInfo ?? null) as {
+          userAgent?: string;
+          screen?: string;
+          language?: string;
+        } | null,
+      }));
+    }),
+
+  getAuditLog: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in",
+        });
+      }
+
+      const logs = await db.query.settingsAuditLog.findMany({
+        where: eq(settingsAuditLog.userId, userId),
+        orderBy: [desc(settingsAuditLog.createdAt)],
+        limit: input.limit,
+        offset: input.offset,
+      });
+
+      return logs.map((log) => ({
+        id: log.id,
+        userId: log.userId,
+        action: log.action,
+        category: log.category,
+        previousValue: log.previousValue as Record<string, unknown> | null,
+        newValue: log.newValue as Record<string, unknown> | null,
+        metadata: log.metadata,
+        createdAt: log.createdAt?.toISOString() || null,
+      }));
+    }),
 });
+
+// ─── Helper: Log settings change ────────────────────────────────────────────
+
+async function logSettingsChange(
+  userId: string,
+  action: string,
+  category: string,
+  previousValue: Record<string, unknown> | null,
+  newValue: Record<string, unknown> | null,
+) {
+  try {
+    await db.insert(settingsAuditLog).values({
+      userId,
+      action,
+      category,
+      previousValue,
+      newValue,
+    });
+  } catch {
+    // Audit log failures should not block settings updates
+  }
+}
