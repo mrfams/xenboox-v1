@@ -6,6 +6,31 @@
 
 ---
 
+### [2026-08-20] — Onboarding Wizard for First-Time Users
+
+**Agent:** Buffy (Freebuff)
+**Duration:** ~10 min
+**Files Created:** 3 (use-onboarding.ts, onboarding-wizard.tsx, onboarding-wizard.test.ts)
+**Files Modified:** 1 (dashboard/layout.tsx)
+
+**What was built:**
+
+- **useOnboarding hook** (`lib/hooks/use-onboarding.ts`): First-time detection via localStorage, step persistence, next/prev/complete/reset actions, 6-step flow definition
+- **Onboarding Wizard** (`components/onboarding/onboarding-wizard.tsx`): Full-screen modal overlay with:
+  - Step 1: Welcome — branding, feature cards (AI-Powered, Real-Time, Enterprise-Grade), Get Started CTA
+  - Step 2: Entity Creation — org name, entity type (company/nonprofit/government), currency (7 options), fiscal year start month
+  - Step 3: Chart of Accounts — 6 industry templates (general/SaaS/manufacturing/retail/services/nonprofit), 3 import methods (AI template/upload/skip)
+  - Step 4: Bank Connection — live bank feed teaser (12,000+ institutions), manual account creation form
+  - Step 5: Team Invitation — email input with role assignment (5 roles: accountant/finance_director/payroll_officer/department_manager/external_auditor), duplicate prevention
+  - Step 6: AI Preferences — toggle switches for auto-reconcile, smart categorize, anomaly alerts, daily digest
+  - Completion: Quick links to CoA, Treasury, Settings, AI Assistant
+- **Dashboard layout wired** — `<OnboardingWizard />` renders in dashboard layout, auto-shows for first-time users
+- **Progress UI** — progress bar with percentage, step dots with active highlight, skip-all button
+- **Accessibility** — `role="dialog"`, `aria-modal`, `aria-label`, `role="switch"` for toggles, keyboard nav
+- **21/21 tests pass**
+
+---
+
 ### [2026-07-19] - Cross-Platform Buildout + Disk Cleanup
 
 **Agent:** opencode
