@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { trpc } from "@/lib/trpc/client"
+import { showUndoToast } from "@/lib/settings-undo"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -189,7 +190,7 @@ export function ExportImportSettings() {
 
     setShowImportDialog(false)
     setImportPreview(null)
-    toast.success("Settings imported successfully. A backup was saved automatically. Refresh to see changes.")
+    showUndoToast("Settings imported")
   }
 
   return (

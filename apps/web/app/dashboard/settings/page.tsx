@@ -18,6 +18,7 @@ import {
 import { LogOut, User, Shield, Bell, Save, AlertCircle, Check, Mail, RotateCcw, Sparkles, Trash2, ShieldCheck } from "lucide-react"
 import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
+import { showUndoToast } from "@/lib/settings-undo"
 import { AIPreferencesSummary } from "@/components/settings/ai-preferences-summary"
 import { ExportImportSettings } from "@/components/settings/export-import-settings"
 import { AIUsageStats } from "@/components/settings/ai-usage-stats"
@@ -404,7 +405,7 @@ export default function SettingsPage() {
                         localStorage.removeItem("xenboox_onboarding_completed")
                         localStorage.removeItem("xenboox_onboarding_step")
                         localStorage.removeItem("xenboox_ai_preferences")
-                        toast.success("Onboarding reset. A backup was saved automatically. Refresh the page to start the wizard.")
+                        showUndoToast("Onboarding reset")
                       }}
                     >
                       <RotateCcw className="mr-1 h-3 w-3" />
@@ -473,7 +474,7 @@ export default function SettingsPage() {
                       setNotifEmailAlerts(true)
                       setNotifPushPayments(true)
                       setNotifPushApprovals(false)
-                      toast.success("All settings reset to defaults. A backup was saved automatically. Refresh to apply.")
+                      showUndoToast("All settings reset")
                     }}
                   >
                     <Trash2 className="mr-1 h-3 w-3" />

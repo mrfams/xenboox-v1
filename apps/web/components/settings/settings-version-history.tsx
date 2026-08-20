@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils"
 import { trpc } from "@/lib/trpc/client"
 import { toast } from "sonner"
+import { showUndoToast } from "@/lib/settings-undo"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ export function SettingsVersionHistory() {
 
   const restoreVersion = trpc.settings.restoreVersion.useMutation({
     onSuccess: (data) => {
-      toast.success(`Restored from version ${data.restoredFrom}. A backup was saved automatically.`)
+      showUndoToast(`Restored from v${data.restoredFrom}`)
       utils.settings.getVersions.invalidate()
       utils.settings.get.invalidate()
       setRestoreTarget(null)
