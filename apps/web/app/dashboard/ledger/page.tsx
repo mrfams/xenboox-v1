@@ -225,6 +225,8 @@ function JournalEntryDrawer({
                             debit: string | null;
                             credit: string | null;
                             description?: string | null;
+                            accountName?: string | null;
+                            accountCode?: string | null;
                           }) => {
                             const debit = parseFloat(line.debit ?? "0");
                             const credit = parseFloat(line.credit ?? "0");
@@ -235,10 +237,13 @@ function JournalEntryDrawer({
                               >
                                 <td className="px-3 py-1.5">
                                   <p className="text-foreground font-medium">
-                                    {line.description ?? "—"}
+                                    {line.accountName ??
+                                      line.description ??
+                                      "—"}
                                   </p>
                                   <p className="text-[10px] text-muted-foreground/60 font-mono">
-                                    {line.accountId.slice(0, 8)}…
+                                    {line.accountCode ??
+                                      line.accountId.slice(0, 8)}
                                   </p>
                                 </td>
                                 <td className="px-3 py-1.5 text-right tabular-nums">
@@ -295,6 +300,76 @@ function JournalEntryDrawer({
                   </p>
                 )}
               </div>
+
+              {/* Balance Check */}
+              {entry.lines && entry.lines.length > 0 && (
+                <div className="rounded-xl border border-border/50 bg-muted/30 p-3">
+                  {(() => {
+                    const totalDebit = entry.lines.reduce(
+                      (sum: number, l: { debit: string | null }) =>
+                        sum + parseFloat(l.debit ?? "0"),
+                      0,
+                    );
+                    const totalCredit = entry.lines.reduce(
+                      (sum: number, l: { credit: string | null }) =>
+                        sum + parseFloat(l.credit ?? "0"),
+                      0,
+                    );
+                    const isBalanced =
+                      Math.abs(totalDebit - totalCredit) < 0.01;
+                    return (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isBalanced ? (
+                            <CheckCircle2
+                              className="h-4 w-4 text-emerald-500"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <AlertTriangle
+                              className="h-4 w-4 text-red-500"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <span
+                            className={cn(
+                              "text-xs font-medium",
+                              isBalanced ? "text-emerald-600" : "text-red-600",
+                            )}
+                          >
+                            {isBalanced
+                              ? "Debits = Credits — Balanced"
+                              : `Out of balance by ${formatCurrency(Math.abs(totalDebit - totalCredit))}`}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">
+                          {entry.lines.length} line
+                          {entry.lines.length === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Agent vs Human indicator */}
+              {entry.source && (
+                <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 p-3">
+                  <Bot className="h-4 w-4 text-primary/60" aria-hidden="true" />
+                  <div>
+                    <p className="text-xs font-medium text-foreground">
+                      {entry.source === "agent" ||
+                      entry.source === "ai" ||
+                      entry.source === "system"
+                        ? "Created by AI Agent"
+                        : "Created by Human"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Source: {entry.source.replace(/_/g, " ")}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* AI Actions */}
               <div className="space-y-2">

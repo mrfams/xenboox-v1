@@ -898,7 +898,25 @@ export const journalRouter = router({
         where: eq(journalEntryLines.journalEntryId, input.id),
       });
 
-      return { ...entry, lines };
+      // Join account names from chart of accounts
+      const accountIds = [...new Set(lines.map((l) => l.accountId))];
+      const accounts =
+        accountIds.length > 0
+          ? await db.query.chartOfAccounts.findMany({
+              where: (coa, { inArray }) => inArray(coa.id, accountIds),
+            })
+          : [];
+      const accountMap = new Map(
+        accounts.map((a) => [a.id, { name: a.name, code: a.code }]),
+      );
+
+      const linesWithAccounts = lines.map((line) => ({
+        ...line,
+        accountName: accountMap.get(line.accountId)?.name ?? null,
+        accountCode: accountMap.get(line.accountId)?.code ?? null,
+      }));
+
+      return { ...entry, lines: linesWithAccounts };
     }),
 
   create: rlsMutateProcedure
