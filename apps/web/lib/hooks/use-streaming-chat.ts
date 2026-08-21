@@ -128,6 +128,25 @@ export interface DataTableSummary {
   cells: Record<string, string | number | boolean | null>;
 }
 
+export interface ChartSeries {
+  key: string;
+  label: string;
+  color?: string;
+  type?: "bar" | "line" | "area";
+}
+
+export interface ChartEvent {
+  type: "chart";
+  chartType: "bar" | "line" | "area" | "pie" | "donut" | "sparkline";
+  title?: string;
+  data: Array<Record<string, string | number>>;
+  xKey?: string;
+  yKey?: string;
+  series?: ChartSeries[];
+  currency?: string;
+  summary?: string;
+}
+
 export interface DataTableEvent {
   type: "data_table";
   title?: string;
@@ -185,6 +204,7 @@ type SSEEvent =
   | DelegationEvent
   | DocumentCreatedEvent
   | ApprovalEvent
+  | ChartEvent
   | DataTableEvent
   | ToolCallEvent
   | ToolResultEvent
@@ -206,6 +226,7 @@ interface UseStreamingChatOptions {
   onBatchIngestionResult?: (result: BatchIngestionResultEvent) => void;
   onNeedsInput?: (input: NeedsInputEvent) => void;
   onDataTable?: (table: DataTableEvent) => void;
+  onChart?: (chart: ChartEvent) => void;
   onToolCall?: (trace: ToolTrace) => void;
   onToken?: (token: string) => void;
   onComplete?: (fullResponse: string, metadata: DoneEvent) => void;
@@ -226,6 +247,7 @@ export function useStreamingChat({
   onBatchIngestionResult,
   onNeedsInput,
   onDataTable,
+  onChart,
   onToolCall,
   onToken,
   onComplete,
@@ -242,6 +264,7 @@ export function useStreamingChat({
   const [documents, setDocuments] = useState<DocumentCreatedEvent[]>([]);
   const [toolTraces, setToolTraces] = useState<ToolTrace[]>([]);
   const [dataTables, setDataTables] = useState<DataTableEvent[]>([]);
+  const [charts, setCharts] = useState<ChartEvent[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
@@ -263,6 +286,7 @@ export function useStreamingChat({
       setDocuments([]);
       setToolTraces([]);
       setDataTables([]);
+      setCharts([]);
 
       try {
         abortControllerRef.current = new AbortController();
@@ -344,6 +368,11 @@ export function useStreamingChat({
                   case "data_table":
                     setDataTables((prev) => [...prev, data as DataTableEvent]);
                     onDataTable?.(data as DataTableEvent);
+                    break;
+
+                  case "chart":
+                    setCharts((prev) => [...prev, data as ChartEvent]);
+                    onChart?.(data as ChartEvent);
                     break;
 
                   case "knowledge_citations":
@@ -435,6 +464,7 @@ export function useStreamingChat({
       onApprovalNeeded,
       onNeedsInput,
       onDataTable,
+      onChart,
       onToolCall,
       onToken,
       onComplete,
@@ -459,5 +489,6 @@ export function useStreamingChat({
     documents,
     toolTraces,
     dataTables,
+    charts,
   };
 }

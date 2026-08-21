@@ -753,8 +753,40 @@ export async function POST(req: NextRequest) {
             }
           }
           // Remove all DATA_TABLE blocks from the streamed text
-          cleanResponse = pipelineResult.response
+          cleanResponse = cleanResponse
             .replace(/\n?\[DATA_TABLE\][\s\S]*?\[\/DATA_TABLE\]/g, "")
+            .trim();
+        }
+
+        // Detect [CHART] blocks in the response — the AI uses this
+        // structured format to show data as interactive charts.
+        const chartMatches = [
+          ...cleanResponse.matchAll(
+            /\[CHART\]\s*\n(\{[\s\S]*?\})\s*\n\[\/CHART\]/g,
+          ),
+        ];
+        if (chartMatches.length > 0) {
+          for (const match of chartMatches) {
+            try {
+              const chartSpec = JSON.parse(match[1]);
+              enqueue({
+                type: "chart",
+                chartType: chartSpec.chartType ?? chartSpec.type ?? "bar",
+                title: chartSpec.title,
+                data: chartSpec.data ?? [],
+                xKey: chartSpec.xKey,
+                yKey: chartSpec.yKey,
+                series: chartSpec.series,
+                currency: chartSpec.currency,
+                summary: chartSpec.summary,
+              });
+            } catch {
+              // If JSON parsing fails, just stream the raw text
+            }
+          }
+          // Remove all CHART blocks from the streamed text
+          cleanResponse = cleanResponse
+            .replace(/\n?\[CHART\][\s\S]*?\[\/CHART\]/g, "")
             .trim();
         }
 

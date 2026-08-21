@@ -16,6 +16,7 @@ import {
   type KnowledgeCitationEvent,
   type BatchIngestionResultEvent,
   type DataTableEvent,
+  type ChartEvent,
 } from "@/lib/hooks/use-streaming-chat";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ export interface DashboardChatMessage {
   citations: KnowledgeCitationEvent[];
   batchResults: BatchIngestionResultEvent[];
   dataTables: DataTableEvent[];
+  charts: ChartEvent[];
   confidence?: number;
   durationMs?: number;
   createdAt: number;
@@ -81,6 +83,7 @@ export function mapHistoryRowToMessage(row: {
     citations: [],
     batchResults: [],
     dataTables: [],
+    charts: [],
     confidence: row.confidence ?? undefined,
     durationMs: row.latencyMs ?? undefined,
     createdAt: new Date(row.createdAt).getTime(),
@@ -128,11 +131,13 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     citationsRef.current = [];
     batchResultsRef.current = [];
     dataTablesRef.current = [];
+    chartsRef.current = [];
   }, []);
 
   const citationsRef = useRef<KnowledgeCitationEvent[]>([]);
   const batchResultsRef = useRef<BatchIngestionResultEvent[]>([]);
   const dataTablesRef = useRef<DataTableEvent[]>([]);
+  const chartsRef = useRef<ChartEvent[]>([]);
 
   const commitAssistantMessage = useCallback(
     (fullResponse: string, meta: DoneEvent) => {
@@ -150,6 +155,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
           citations: citationsRef.current,
           batchResults: batchResultsRef.current,
           dataTables: dataTablesRef.current,
+          charts: chartsRef.current,
           confidence: meta.confidence,
           durationMs: meta.durationMs,
           createdAt: Date.now(),
@@ -222,6 +228,9 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     },
     onDataTable: (table) => {
       dataTablesRef.current = [...dataTablesRef.current, table];
+    },
+    onChart: (chart) => {
+      chartsRef.current = [...chartsRef.current, chart];
     },
     onNeedsInput: (input) => {
       setPendingInput(input);
@@ -331,6 +340,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     approvals,
     toolTraces,
     dataTables,
+    charts,
     pendingInput,
     sendMessage,
     newChat,

@@ -61,10 +61,12 @@ import {
 } from "@/components/chat/message-reactions";
 import { ConversationMemory } from "@/components/chat/conversation-memory";
 import { DataTableInline } from "@/components/chat/data-table-inline";
+import { ChartInline } from "@/components/chat/chart-inline";
 import type {
   NeedsInputEvent,
   NeedsInputField,
   DataTableEvent,
+  ChartEvent,
 } from "@/lib/hooks/use-streaming-chat";
 
 // ─── AI-Native Command Center ─────────────────────────────────────────────
@@ -600,6 +602,7 @@ function ConversationThread({
   approvals: ReturnType<typeof useDashboardChat>["approvals"];
   documents: ReturnType<typeof useDashboardChat>["documents"];
   dataTables: DataTableEvent[];
+  charts: ChartEvent[];
   pendingInput: NeedsInputEvent | null;
   onSendMessage: (text: string) => void;
 }) {
@@ -834,6 +837,27 @@ function ConversationThread({
                 </div>
               )}
 
+            {/* Committed charts (from completed messages) */}
+            {msg.role === "assistant" &&
+              msg.charts &&
+              msg.charts.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {msg.charts.map((chart, i) => (
+                    <ChartInline
+                      key={`committed-chart-${msg.id}-${i}`}
+                      type={chart.chartType}
+                      title={chart.title}
+                      data={chart.data}
+                      xKey={chart.xKey}
+                      yKey={chart.yKey}
+                      series={chart.series}
+                      currency={chart.currency}
+                      summary={chart.summary}
+                    />
+                  ))}
+                </div>
+              )}
+
             {/* Message Reactions */}
             <div className="flex items-center gap-2 mt-1">
               <MessageReactions
@@ -855,7 +879,6 @@ function ConversationThread({
             />
           </div>
         ))}
-
         {/* Thinking steps — shown while AI is processing */}
         {isStreaming && thinkingEvents.length > 0 && (
           <ConversationThinkingSteps
@@ -863,7 +886,6 @@ function ConversationThread({
             isStreaming={isStreaming}
           />
         )}
-
         {/* Tool call traces — shown when AI calls tools */}
         {toolTraces.map((trace, i) => (
           <ToolCallTraceCard
@@ -871,7 +893,6 @@ function ConversationThread({
             trace={trace}
           />
         ))}
-
         {/* Streaming response */}
         {isStreaming && streamedContent && (
           <div className="flex gap-3">
@@ -889,7 +910,6 @@ function ConversationThread({
             </div>
           </div>
         )}
-
         {/* Thinking indicator */}
         {isStreaming && !streamedContent && (
           <div className="flex gap-3">
@@ -913,8 +933,7 @@ function ConversationThread({
               </div>
             </div>
           </div>
-        )}
-
+        )}{" "}
         {/* Streaming data tables (shown while AI is still responding) */}
         {isStreaming &&
           dataTables.map((table, i) => (
@@ -935,7 +954,27 @@ function ConversationThread({
               </div>
             </div>
           ))}
-
+        {/* Streaming charts (shown while AI is still responding) */}
+        {isStreaming &&
+          charts.map((chart, i) => (
+            <div key={`streaming-chart-${i}`} className="flex gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+                <Bot className="h-4 w-4 text-primary/70" />
+              </div>
+              <div className="max-w-[90%]">
+                <ChartInline
+                  type={chart.chartType}
+                  title={chart.title}
+                  data={chart.data}
+                  xKey={chart.xKey}
+                  yKey={chart.yKey}
+                  series={chart.series}
+                  currency={chart.currency}
+                  summary={chart.summary}
+                />
+              </div>
+            </div>
+          ))}
         {/* Inline approval cards from streaming */}
         {approvals.map((approval, i) => (
           <div key={`approval-${i}`} className="flex gap-3">
@@ -1024,7 +1063,6 @@ function ConversationThread({
             </div>
           </div>
         ))}
-
         {/* Interactive data tables from AI */}
         {dataTables.map((table, i) => (
           <div key={`table-${i}`} className="flex gap-3">
@@ -1044,7 +1082,6 @@ function ConversationThread({
             </div>
           </div>
         ))}
-
         {/* Inline input form from AI */}
         {pendingInput && !isStreaming && (
           <InlineInputForm
@@ -1054,7 +1091,6 @@ function ConversationThread({
             }}
           />
         )}
-
         {/* Document artifacts — Inline Document Viewer */}
         {documents.map((doc, i) => (
           <div key={`doc-${i}`} className="flex gap-3">
@@ -1072,7 +1108,6 @@ function ConversationThread({
             </div>
           </div>
         ))}
-
         <div ref={messagesEndRef} />
       </div>
     </div>
@@ -1331,6 +1366,7 @@ export default function CommandCenterPage() {
           approvals={approvals}
           documents={documents}
           dataTables={dataTables}
+          charts={charts}
           pendingInput={pendingInput}
           onSendMessage={sendMessage}
         />
