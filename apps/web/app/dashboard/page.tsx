@@ -220,7 +220,86 @@ function BriefingCard({ item }: { item: BriefingItem }) {
 
 function ProactiveBriefing() {
   const { entityId } = useEntity();
+  const [briefingText, setBriefingText] = useState<string | null>(null);
+  const [briefingActions, setBriefingActions] = useState<
+    Array<{ label: string; href: string }>
+  >([]);
+  const [isLoadingBriefing, setIsLoadingBriefing] = useState(true);
 
+  // Fetch AI briefing
+  const { data: aiBriefing } = trpc.dashboard.getAiBriefing.useQuery(
+    undefined,
+    {
+      enabled: !!entityId,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      onSuccess: (data) => {
+        setBriefingText(data.text);
+        setBriefingActions(data.actions ?? []);
+        setIsLoadingBriefing(false);
+      },
+      onError: () => {
+        setIsLoadingBriefing(false);
+      },
+    },
+  );
+
+  // Loading state
+  if (isLoadingBriefing) {
+    return (
+      <div className="rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Generating your briefing...
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              Analyzing your financial data
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // AI-generated briefing
+  if (briefingText) {
+    return (
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Sparkles className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground leading-relaxed">
+              {briefingText}
+            </p>
+            {briefingActions.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {briefingActions.map((action) => (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    {action.label}
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground/50 mt-2">
+              AI-generated briefing • {new Date().toLocaleTimeString()}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to count-based briefing (if AI fails)
   const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
     {},
     { enabled: !!entityId },
