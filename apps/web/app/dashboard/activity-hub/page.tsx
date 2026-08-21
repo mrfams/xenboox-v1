@@ -1032,7 +1032,9 @@ export default function ActivityHubPage() {
           duration: 3000,
         });
         announce(`${actionLabel} successfully`);
-        emitDataChanged("activity-hub", `${action}_${itemType}`, entityId);
+        if (entityId) {
+          emitDataChanged("activity-hub", `${action}_${itemType}`, entityId);
+        }
 
         setTimeout(() => {
           setItemStates((prev) => {
