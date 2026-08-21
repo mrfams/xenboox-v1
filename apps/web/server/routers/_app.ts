@@ -87,6 +87,7 @@ import { paymentLinksRouter } from "./payment-links";
 import { aiCorrectionsRouter } from "./ai-corrections";
 import { knowledgeRagRouter } from "./knowledge-rag";
 import { knowledgeGraphRouter } from "./knowledge-graph";
+import { autoApproveRouter } from "./auto-approve";
 import { batchIngestionRouter } from "./batch-ingestion";
 
 import { router, publicProcedure } from "@/lib/trpc/server";
@@ -182,6 +183,7 @@ export const appRouter = router({
   aiCorrections: aiCorrectionsRouter,
   knowledgeRag: knowledgeRagRouter,
   knowledgeGraph: knowledgeGraphRouter,
+  autoApprove: autoApproveRouter,
   batchIngestion: batchIngestionRouter,
 });
 

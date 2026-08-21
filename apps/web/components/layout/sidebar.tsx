@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   MessageSquare,
   Inbox,
+  Zap,
   Activity,
   BookOpen,
   ArrowLeftRight,
@@ -66,6 +67,14 @@ const primaryNavItems: NavItem[] = [
     attentionKey: "activity-hub",
     match: ["/dashboard/activity-hub"],
     shortcut: "2",
+  },
+  {
+    label: "Auto-Approve",
+    href: "/dashboard/auto-approve",
+    icon: Zap,
+    attentionKey: "auto-approve",
+    match: ["/dashboard/auto-approve"],
+    shortcut: "3",
   },
   {
     label: "Financial Pulse",
