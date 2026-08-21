@@ -505,7 +505,7 @@ function JournalView() {
             setSearchQuery(e.target.value);
             setPage(0);
           }}
-          placeholder='Search entries — try "Trust Bank invoice" or "rent expense"...'
+          placeholder='Search in natural language — try "Show me all entries over 10,000" or "rent expense last month"...'
           className="w-full rounded-xl border border-border/50 bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
         />
         {searchQuery && (

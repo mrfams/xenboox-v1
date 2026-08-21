@@ -1264,6 +1264,15 @@ function AiInput({
           <label htmlFor="ai-chat-input" className="sr-only">
             Ask your AI CFO anything
           </label>
+          {/* Context pins indicator */}
+          {pageContext && (
+            <div className="absolute -top-6 left-4 flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[9px] font-medium text-primary">
+                <Sparkles className="h-2.5 w-2.5" />
+                {pageContext.kind} context attached
+              </span>
+            </div>
+          )}
           <textarea
             id="ai-chat-input"
             ref={textareaRef}
