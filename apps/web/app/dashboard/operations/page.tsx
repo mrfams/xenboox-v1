@@ -29,6 +29,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
+import { TransactionDetailDrawer } from "@/components/operations/transaction-detail-drawer";
 
 // ─── Operations ───────────────────────────────────────────────────────────
 //
@@ -302,7 +303,11 @@ function BankingCards() {
 
 // ─── Recent Transactions ───────────────────────────────────────────────────
 
-function RecentTransactions() {
+function RecentTransactions({
+  onTransactionClick,
+}: {
+  onTransactionClick: (id: string) => void;
+}) {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
 
@@ -368,28 +373,7 @@ function RecentTransactions() {
               <button
                 key={tx.id}
                 type="button"
-                onClick={() =>
-                  openWithFocus(
-                    {
-                      kind: "Transaction",
-                      name: tx.description ?? tx.reference ?? "transaction",
-                      id: tx.id,
-                      fields: [
-                        {
-                          label: "Amount",
-                          value: formatCurrency(Math.abs(amount)),
-                        },
-                        { label: "Date", value: tx.transactionDate ?? "—" },
-                        { label: "Type", value: tx.type ?? "—" },
-                        {
-                          label: "Reconciled",
-                          value: tx.isReconciled ? "Yes" : "No",
-                        },
-                      ],
-                    },
-                    `Explain this transaction: ${tx.description ?? "amount " + formatCurrency(Math.abs(amount))}. What was it for and is it categorized correctly?`,
-                  )
-                }
+                onClick={() => onTransactionClick(tx.id)}
                 className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent group"
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -685,6 +669,9 @@ function AiQuickActions() {
 export default function OperationsPage() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
+  const [selectedTransactionId, setSelectedTransactionId] = useState<
+    string | null
+  >(null);
 
   // ── Cross-surface sync ────────────────────────────────────────────────
   // Listen for data_changed events from other surfaces and refetch
@@ -704,194 +691,207 @@ export default function OperationsPage() {
     (billsOverview?.statusCounts.draft ?? 0);
 
   return (
-    <ModulePageShell
-      title="Operations"
-      description="Money in, money out. AI handles it, you approve."
-      icon={ArrowLeftRight}
-      aiSuggestions={[
-        { label: "Show overdue invoices", prompt: "Show overdue invoices" },
-        { label: "What bills need paying?", prompt: "What bills need paying?" },
-        { label: "Run payroll", prompt: "Run payroll" },
-      ]}
-    >
-      <div
-        className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6"
-        aria-busy={!billsOverview && !dashboardData}
+    <>
+      <ModulePageShell
+        title="Operations"
+        description="Money in, money out. AI handles it, you approve."
+        icon={ArrowLeftRight}
+        aiSuggestions={[
+          { label: "Show overdue invoices", prompt: "Show overdue invoices" },
+          {
+            label: "What bills need paying?",
+            prompt: "What bills need paying?",
+          },
+          { label: "Run payroll", prompt: "Run payroll" },
+        ]}
       >
-        {/* Money Flow Summary */}
-        <MoneyFlowSummary />
+        <div
+          className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6"
+          aria-busy={!billsOverview && !dashboardData}
+        >
+          {/* Money Flow Summary */}
+          <MoneyFlowSummary />
 
-        {/* Money Out / Money In side by side */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Money Out */}
-          <div className="rounded-xl border border-border/50 bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
-                  <TrendingDown className="h-4 w-4 text-red-500" />
-                </div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Money Out
-                </h3>
-                {overdueBills > 0 && (
-                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500/10 px-1.5 text-[10px] font-bold text-red-500">
-                    {overdueBills}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() =>
-                  openWithFocus(
-                    { kind: "Bills", name: "Accounts Payable" },
-                    "Show me all bills that need paying. What's overdue?",
-                  )
-                }
-                className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
-              >
+          {/* Money Out / Money In side by side */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Money Out */}
+            <div className="rounded-xl border border-border/50 bg-card p-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  {pendingBills > 0 ? (
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                  ) : (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Money Out
+                  </h3>
+                  {overdueBills > 0 && (
+                    <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500/10 px-1.5 text-[10px] font-bold text-red-500">
+                      {overdueBills}
+                    </span>
                   )}
-                  <span className="text-xs text-foreground group-hover:text-primary transition-colors">
-                    Bills to Pay
+                </div>
+              </div>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithFocus(
+                      { kind: "Bills", name: "Accounts Payable" },
+                      "Show me all bills that need paying. What's overdue?",
+                    )
+                  }
+                  className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
+                >
+                  <div className="flex items-center gap-2">
+                    {pendingBills > 0 ? (
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    )}
+                    <span className="text-xs text-foreground group-hover:text-primary transition-colors">
+                      Bills to Pay
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {pendingBills} pending
                   </span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {pendingBills} pending
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  openWithFocus(
-                    { kind: "Expenses", name: "Expenses" },
-                    "Show me recent expenses. Any anomalies or duplicates?",
-                  )
-                }
-                className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-xs text-foreground group-hover:text-primary transition-colors">
-                    Expenses
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithFocus(
+                      { kind: "Expenses", name: "Expenses" },
+                      "Show me recent expenses. Any anomalies or duplicates?",
+                    )
+                  }
+                  className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
+                >
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-xs text-foreground group-hover:text-primary transition-colors">
+                      Expenses
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    AI-tracked
                   </span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  AI-tracked
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  openWithFocus(
-                    { kind: "Payroll", name: "Payroll" },
-                    "Help me run payroll for this period. Show me the pending run.",
-                  )
-                }
-                className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
-              >
-                <div className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-foreground group-hover:text-primary transition-colors">
-                    Payroll
-                  </span>
-                </div>
-                <span className="text-xs text-muted-foreground">Period</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Money In */}
-          <div className="rounded-xl border border-border/50 bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
-                </div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Money In
-                </h3>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithFocus(
+                      { kind: "Payroll", name: "Payroll" },
+                      "Help me run payroll for this period. Show me the pending run.",
+                    )
+                  }
+                  className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-foreground group-hover:text-primary transition-colors">
+                      Payroll
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Period</span>
+                </button>
               </div>
             </div>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() =>
-                  openWithFocus(
-                    { kind: "Invoices", name: "Accounts Receivable" },
-                    "Show me all outstanding invoices. Who owes me money and who's overdue?",
-                  )
-                }
-                className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
-              >
+
+            {/* Money In */}
+            <div className="rounded-xl border border-border/50 bg-card p-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-xs text-foreground group-hover:text-primary transition-colors">
-                    Invoices Outstanding
-                  </span>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Money In
+                  </h3>
                 </div>
-                <span className="text-xs text-muted-foreground">AR</span>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  openWithFocus(
-                    { kind: "Estimates", name: "Estimates" },
-                    "Show me pending estimates and quotes. Which ones should I follow up on?",
-                  )
-                }
-                className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-foreground group-hover:text-primary transition-colors">
-                    Estimates
-                  </span>
-                </div>
-                <span className="text-xs text-muted-foreground">Pending</span>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  openWithFocus(
-                    { kind: "Reconciliation", name: "Bank Reconciliation" },
-                    "Show me unmatched bank transactions. Help me reconcile.",
-                  )
-                }
-                className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
-              >
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-foreground group-hover:text-primary transition-colors">
-                    Reconcile
-                  </span>
-                </div>
-                <span className="text-xs text-muted-foreground">Match</span>
-              </button>
+              </div>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithFocus(
+                      { kind: "Invoices", name: "Accounts Receivable" },
+                      "Show me all outstanding invoices. Who owes me money and who's overdue?",
+                    )
+                  }
+                  className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-xs text-foreground group-hover:text-primary transition-colors">
+                      Invoices Outstanding
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">AR</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithFocus(
+                      { kind: "Estimates", name: "Estimates" },
+                      "Show me pending estimates and quotes. Which ones should I follow up on?",
+                    )
+                  }
+                  className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-foreground group-hover:text-primary transition-colors">
+                      Estimates
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Pending</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithFocus(
+                      { kind: "Reconciliation", name: "Bank Reconciliation" },
+                      "Show me unmatched bank transactions. Help me reconcile.",
+                    )
+                  }
+                  className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
+                >
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-foreground group-hover:text-primary transition-colors">
+                      Reconcile
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Match</span>
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* Banking Cards */}
+          <BankingCards />
+
+          {/* Recent Transactions */}
+          <RecentTransactions onTransactionClick={setSelectedTransactionId} />
+
+          {/* Compliance & Close */}
+          <ComplianceClose />
+
+          {/* People Grid */}
+          <PeopleGrid />
+
+          {/* AI Quick Actions */}
+          <AiQuickActions />
         </div>
+      </ModulePageShell>
 
-        {/* Banking Cards */}
-        <BankingCards />
-
-        {/* Recent Transactions */}
-        <RecentTransactions />
-
-        {/* Compliance & Close */}
-        <ComplianceClose />
-
-        {/* People Grid */}
-        <PeopleGrid />
-
-        {/* AI Quick Actions */}
-        <AiQuickActions />
-      </div>
-    </ModulePageShell>
+      {/* Transaction Detail Drawer */}
+      {selectedTransactionId && (
+        <TransactionDetailDrawer
+          transactionId={selectedTransactionId}
+          onClose={() => setSelectedTransactionId(null)}
+        />
+      )}
+    </>
   );
 }
