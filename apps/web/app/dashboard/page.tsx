@@ -43,6 +43,7 @@ import {
   ToolCallTraceCard,
 } from "@/components/chat/thinking-steps";
 import { DocumentDownloadButtons } from "@/components/documents/document-download-buttons";
+import { InlineDocumentViewer } from "@/components/chat/inline-document-viewer";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
 import {
   MessageActions,
@@ -989,32 +990,19 @@ function ConversationThread({
           />
         )}
 
-        {/* Document artifacts */}
+        {/* Document artifacts — Inline Document Viewer */}
         {documents.map((doc, i) => (
           <div key={`doc-${i}`} className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
               <Bot className="h-4 w-4 text-primary/70" />
             </div>
-            <div className="max-w-[85%] rounded-2xl border border-border/50 bg-card px-4 py-3">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
-                <span className="text-sm font-medium text-foreground">
-                  {doc.name}
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {doc.docType}
-                </span>
-              </div>
-              <DocumentDownloadButtons
-                data={{
-                  title: doc.name,
-                  entityName: "Your Business",
-                  currency: "GMD",
-                  generatedAt: new Date(),
-                  sections: [],
-                }}
-                formats={["pdf", "excel", "word"]}
-                size="xs"
+            <div className="max-w-[85%]">
+              <InlineDocumentViewer
+                artifactId={doc.artifactId}
+                name={doc.name}
+                docType={doc.docType}
+                mimeType={doc.mimeType}
+                sizeBytes={doc.sizeBytes}
               />
             </div>
           </div>
