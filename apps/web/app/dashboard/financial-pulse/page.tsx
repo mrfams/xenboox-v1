@@ -34,6 +34,7 @@ import {
   type Anomaly,
 } from "@/components/financial/anomaly-alerts";
 import { DocumentDownloadButtons } from "@/components/documents/document-download-buttons";
+import { ForecastView } from "@/components/finance/forecast-view";
 import {
   buildPnlReport,
   buildTrialBalanceReport,
@@ -697,6 +698,28 @@ export default function FinancialPulsePage() {
 
         {/* Scenario Planner */}
         <ScenarioPlanner onAskAi={askAiAbout} />
+
+        {/* AI Forecast */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              AI Forecast
+            </h3>
+            <button
+              type="button"
+              onClick={() =>
+                askAiAbout(
+                  "Explain my financial forecast for the next 3 months",
+                )
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
+            >
+              <Sparkles className="h-3 w-3" />
+              Ask AI
+            </button>
+          </div>
+          <ForecastView />
+        </section>
 
         {/* Report Library */}
         <section>
