@@ -44,6 +44,11 @@ import {
 } from "@/components/chat/thinking-steps";
 import { DocumentDownloadButtons } from "@/components/documents/document-download-buttons";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
+import {
+  MessageActions,
+  PinnedMessagesPanel,
+  type PinnedMessage,
+} from "@/components/chat/message-actions";
 import type {
   NeedsInputEvent,
   NeedsInputField,
@@ -508,6 +513,7 @@ function ConversationThread({
   const [processingApproval, setProcessingApproval] = useState<string | null>(
     null,
   );
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -527,14 +533,80 @@ function ConversationThread({
     [onSendMessage],
   );
 
+  // Pin/unpin message handler
+  const handlePin = useCallback(
+    (messageId: string) => {
+      setPinnedMessages((prev) => {
+        const existing = prev.find((m) => m.id === messageId);
+        if (existing) {
+          // Unpin
+          return prev.filter((m) => m.id !== messageId);
+        }
+        // Pin
+        const msg = messages.find((m) => m.id === messageId);
+        if (!msg) return prev;
+        return [
+          ...prev,
+          {
+            id: msg.id,
+            content: msg.content,
+            role: msg.role as "user" | "assistant",
+            pinnedAt: new Date(),
+            sender: msg.role === "assistant" ? "AI" : "You",
+          },
+        ];
+      });
+    },
+    [messages],
+  );
+
+  // Unpin handler
+  const handleUnpin = useCallback((messageId: string) => {
+    setPinnedMessages((prev) => prev.filter((m) => m.id !== messageId));
+  }, []);
+
+  // Jump to pinned message
+  const handleJumpTo = useCallback((messageId: string) => {
+    const element = document.getElementById(`message-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.classList.add("ring-2", "ring-primary/50");
+      setTimeout(() => {
+        element.classList.remove("ring-2", "ring-primary/50");
+      }, 2000);
+    }
+  }, []);
+
+  // Regenerate handler (placeholder — would call API to regenerate)
+  const handleRegenerate = useCallback(
+    (messageId: string) => {
+      // Find the user message before this assistant message
+      const msgIndex = messages.findIndex((m) => m.id === messageId);
+      if (msgIndex > 0) {
+        const prevMsg = messages[msgIndex - 1];
+        if (prevMsg.role === "user") {
+          onSendMessage(prevMsg.content);
+        }
+      }
+    },
+    [messages, onSendMessage],
+  );
+
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6">
+      {/* Pinned Messages Panel */}
+      <PinnedMessagesPanel
+        messages={pinnedMessages}
+        onUnpin={handleUnpin}
+        onJumpTo={handleJumpTo}
+      />
       <div className="mx-auto max-w-3xl space-y-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
+            id={`message-${msg.id}`}
             className={cn(
-              "flex gap-3",
+              "flex gap-3 group relative",
               msg.role === "user" ? "justify-end" : "justify-start",
             )}
           >
@@ -545,7 +617,7 @@ function ConversationThread({
             )}
             <div
               className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed relative",
                 msg.role === "assistant"
                   ? "bg-card border border-border/50 text-foreground"
                   : "bg-primary text-primary-foreground",
@@ -567,6 +639,18 @@ function ConversationThread({
                 </div>
               )}
             </div>
+
+            {/* Message Actions (on hover) */}
+            <MessageActions
+              content={msg.content}
+              messageId={msg.id}
+              role={msg.role as "user" | "assistant"}
+              isPinned={pinnedMessages.some((p) => p.id === msg.id)}
+              onPin={handlePin}
+              onRegenerate={
+                msg.role === "assistant" ? handleRegenerate : undefined
+              }
+            />
           </div>
         ))}
 
