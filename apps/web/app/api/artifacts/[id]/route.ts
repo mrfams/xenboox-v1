@@ -30,12 +30,10 @@ export async function GET(
       where: and(eq(artifactRegistry.id, id)),
       columns: {
         id: true,
-        entityType: true,
         entityId: true,
-        artifactType: true,
-        fileName: true,
+        kind: true,
+        name: true,
         mimeType: true,
-        content: true,
         r2Key: true,
         metadata: true,
       },
@@ -48,28 +46,13 @@ export async function GET(
       );
     }
 
-    // Return the inline content if available
-    if (artifact.content) {
-      return NextResponse.json({
-        id: artifact.id,
-        name: artifact.fileName,
-        type: artifact.artifactType,
-        mimeType: artifact.mimeType,
-        content: artifact.content,
-        metadata: artifact.metadata,
-      });
-    }
-
-    // If content is stored in R2, redirect to the R2 URL
+    // Return artifact info — content served from R2
     if (artifact.r2Key) {
-      // For now, return a placeholder — R2 presigned URL generation
-      // would go here in production
       return NextResponse.json({
         id: artifact.id,
-        name: artifact.fileName,
-        type: artifact.artifactType,
+        name: artifact.name,
+        type: artifact.kind,
         mimeType: artifact.mimeType,
-        content: null,
         r2Key: artifact.r2Key,
         metadata: artifact.metadata,
       });
