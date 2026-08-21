@@ -29,6 +29,10 @@ import {
   CashFlowChart,
   MarginTrendChart,
 } from "@/components/charts/financial-charts";
+import {
+  AnomalyAlerts,
+  type Anomaly,
+} from "@/components/financial/anomaly-alerts";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -387,6 +391,14 @@ export default function FinancialPulsePage() {
     enabled: !!entityId,
   });
 
+  const { data: anomalyData } = trpc.dashboard.detectAnomalies.useQuery(
+    undefined,
+    {
+      enabled: !!entityId,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  );
+
   const overview = dashboardData
     ? {
         cashBalance: dashboardData.businessHealth.cashBalance,
@@ -486,6 +498,18 @@ export default function FinancialPulsePage() {
       >
         {/* AI Narrative */}
         <AiFinancialNarrative overview={overview} pnl={pnl} />
+
+        {/* Anomaly Alerts */}
+        {anomalyData?.anomalies && anomalyData.anomalies.length > 0 && (
+          <AnomalyAlerts
+            anomalies={anomalyData.anomalies}
+            onInvestigate={(anomaly) =>
+              askAiAbout(
+                `Investigate this anomaly: ${anomaly.message}. ${anomaly.aiInsight}`,
+              )
+            }
+          />
+        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
