@@ -33,6 +33,12 @@ import {
   AnomalyAlerts,
   type Anomaly,
 } from "@/components/financial/anomaly-alerts";
+import { DocumentDownloadButtons } from "@/components/documents/document-download-buttons";
+import {
+  buildPnlReport,
+  buildTrialBalanceReport,
+  buildCashFlowReport,
+} from "@/lib/documents/report-templates";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -694,41 +700,120 @@ export default function FinancialPulsePage() {
 
         {/* Report Library */}
         <section>
-          <h3 className="text-sm font-semibold tracking-tight text-foreground mb-3">
-            Reports
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              Reports
+            </h3>
+            <span className="text-[10px] text-muted-foreground">
+              Click to analyze with AI · Download buttons for export
+            </span>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {REPORTS.map((report) => {
               const Icon = report.icon;
+              // Build report data for downloads
+              const reportData =
+                report.id === "pnl" && pnlData
+                  ? buildPnlReport({
+                      entityName: entity.name || "Your Business",
+                      currency: entity.currency || "GMD",
+                      period: new Date().toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      }),
+                      revenue: pnlData.current.revenue,
+                      revenueByAccount: pnlData.current.revenueByAccount.map(
+                        (a) => ({
+                          code: a.accountCode,
+                          name: a.accountName,
+                          amount: a.amount,
+                        }),
+                      ),
+                      expenses: pnlData.current.expenses,
+                      expensesByAccount: pnlData.current.expensesByAccount.map(
+                        (a) => ({
+                          code: a.accountCode,
+                          name: a.accountName,
+                          amount: a.amount,
+                        }),
+                      ),
+                      cogs: pnlData.current.cogs,
+                      grossProfit: pnlData.current.grossProfit,
+                      opExpenses: pnlData.current.opExpenses,
+                      netProfit: pnlData.current.netProfit,
+                      narrative: aiNarrative?.text,
+                    })
+                  : report.id === "cash-flow"
+                    ? buildCashFlowReport({
+                        entityName: entity.name || "Your Business",
+                        currency: entity.currency || "GMD",
+                        period: new Date().toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        }),
+                        openingCash: overview?.cashBalance ?? 0,
+                        operating: {
+                          lines: [
+                            {
+                              name: "Revenue",
+                              amount: pnlData?.current.revenue ?? 0,
+                            },
+                          ],
+                          total: pnlData?.current.revenue ?? 0,
+                        },
+                        investing: { lines: [], total: 0 },
+                        financing: { lines: [], total: 0 },
+                        closingCash: overview?.cashBalance ?? 0,
+                      })
+                    : {
+                        title: report.label,
+                        entityName: entity.name || "Your Business",
+                        currency: entity.currency || "GMD",
+                        generatedAt: new Date(),
+                        sections: [],
+                      };
+
               return (
-                <button
+                <div
                   key={report.id}
-                  type="button"
-                  onClick={() => askAiAbout(report.aiPrompt)}
-                  className="group text-left rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md"
+                  className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md"
                 >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                        report.color.split(" ")[0],
-                      )}
-                    >
-                      <Icon
-                        className={cn("h-5 w-5", report.color.split(" ")[1])}
-                      />
+                  <button
+                    type="button"
+                    onClick={() => askAiAbout(report.aiPrompt)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                          report.color.split(" ")[0],
+                        )}
+                      >
+                        <Icon
+                          className={cn("h-5 w-5", report.color.split(" ")[1])}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                          {report.label}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+                          {report.description}
+                        </p>
+                      </div>
+                      <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                        {report.label}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                        {report.description}
-                      </p>
-                    </div>
-                    <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                  </button>
+                  {/* Download buttons */}
+                  <div className="mt-3 pt-3 border-t border-border/30">
+                    <DocumentDownloadButtons
+                      data={reportData}
+                      formats={["pdf", "excel", "word"]}
+                      size="xs"
+                    />
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
