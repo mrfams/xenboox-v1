@@ -23,6 +23,7 @@ import {
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
+import { FixedAssetsView } from "@/components/finance/fixed-assets-view";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
@@ -908,39 +909,8 @@ function TrialBalanceView() {
   );
 }
 
-// ─── Fixed Assets View ─────────────────────────────────────────────────────
-
-function FixedAssetsView() {
-  const { openWithFocus } = useModuleAi();
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-        <Building2
-          className="h-12 w-12 text-muted-foreground/30 mb-3"
-          aria-hidden="true"
-        />
-        <p className="text-sm font-medium text-foreground">Fixed Assets</p>
-        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-          Asset register, depreciation schedules, and disposal tracking. Ask the
-          AI to manage your fixed assets.
-        </p>
-        <button
-          type="button"
-          onClick={() =>
-            openWithFocus(
-              { kind: "Fixed Assets", name: "Asset Register" },
-              "Help me set up and manage my fixed assets. Show me the depreciation schedule.",
-            )
-          }
-          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Ask AI about fixed assets
-        </button>
-      </div>
-    </div>
-  );
+function FixedAssetsViewWrapper() {
+  return <FixedAssetsView />;
 }
 
 // ─── Reconciliation View ───────────────────────────────────────────────────
@@ -1078,7 +1048,7 @@ export default function LedgerPage() {
     journal: <JournalView />,
     coa: <COAView />,
     "trial-balance": <TrialBalanceView />,
-    "fixed-assets": <FixedAssetsView />,
+    "fixed-assets": <FixedAssetsViewWrapper />,
     reconciliation: <ReconciliationView />,
   };
 
