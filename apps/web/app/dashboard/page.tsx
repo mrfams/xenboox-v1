@@ -1301,6 +1301,32 @@ function AiInput({
             )}
           </Button>
         </div>
+        {/* Export conversation button */}
+        <div className="flex items-center justify-end px-4 py-1">
+          <button
+            type="button"
+            onClick={() => {
+              // Export conversation as markdown
+              const lines = messages.map((m) => {
+                const role = m.role === "user" ? "You" : "AI";
+                return `**${role}:** ${m.content}`;
+              });
+              const md = `# Conversation Export\n\nDate: ${new Date().toLocaleDateString()}\n\n---\n\n${lines.join("\n\n")}`;
+              const blob = new Blob([md], {
+                type: "text/markdown;charset=utf-8;",
+              });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `conversation-${new Date().toISOString().split("T")[0]}.md`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Export chat
+          </button>
+        </div>
         {isFocused && (
           <div className="border-t border-border/30 px-4 py-1.5">
             <p className="text-[9px] text-muted-foreground/40">

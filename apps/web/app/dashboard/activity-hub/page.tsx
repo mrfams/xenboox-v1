@@ -405,19 +405,33 @@ function ActivityItemCard({
               }))}
             />
             {(item.type === "approval" || item.type === "urgent") && (
-              <button
-                type="button"
-                onClick={() => setShowNote(!showNote)}
-                className={cn(
-                  "rounded-lg px-2 py-1.5 text-[10px] font-medium transition-colors",
-                  showNote
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                )}
-                aria-label={showNote ? "Hide note field" : "Add a note"}
-              >
-                <StickyNote className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowNote(!showNote)}
+                  className={cn(
+                    "rounded-lg px-2 py-1.5 text-[10px] font-medium transition-colors",
+                    showNote
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                  )}
+                  aria-label={showNote ? "Hide note field" : "Add a note"}
+                >
+                  <StickyNote className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.info("Snoozed for 1 hour", {
+                      description: "This item will reappear in your queue.",
+                    });
+                  }}
+                  className="rounded-lg px-2 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                  aria-label="Snooze for 1 hour"
+                >
+                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </>
             )}
           </div>
         </div>
