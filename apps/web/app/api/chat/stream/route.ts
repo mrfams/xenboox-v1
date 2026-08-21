@@ -554,6 +554,35 @@ export async function POST(req: NextRequest) {
               }
             }
 
+            // Emit batch_ingestion_result when start_batch_ingestion tool is used
+            if (success && toolName === "start_batch_ingestion" && data) {
+              const toolData = data as {
+                batchId?: string;
+                totalDocuments?: number;
+                completedDocuments?: number;
+                failedDocuments?: number;
+                documents?: Array<{
+                  documentId: string;
+                  fileName: string;
+                  status: string;
+                  chunksCreated?: number;
+                }>;
+                message?: string;
+              };
+              if (toolData.batchId) {
+                enqueue({
+                  type: "batch_ingestion_result",
+                  batchId: toolData.batchId,
+                  totalDocuments: toolData.totalDocuments ?? 0,
+                  completedDocuments: toolData.completedDocuments ?? 0,
+                  failedDocuments: toolData.failedDocuments ?? 0,
+                  documents: toolData.documents ?? [],
+                  message: toolData.message,
+                  timestamp: new Date().toISOString(),
+                });
+              }
+            }
+
             // Emit data_changed so other surfaces refetch after tool mutations
             if (success && toolName) {
               const surfaceMap: Record<string, string> = {
@@ -567,6 +596,7 @@ export async function POST(req: NextRequest) {
                 approve_document: "activity-hub",
                 reject_document: "activity-hub",
                 reconcile_bank_transaction: "operations",
+                start_batch_ingestion: "all",
               };
               const surface = surfaceMap[toolName] || "all";
               const dataChangedEvent = {

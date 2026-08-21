@@ -53,6 +53,7 @@ import {
   KnowledgeCitations,
   type Citation,
 } from "@/components/chat/knowledge-citations";
+import { BatchProgressInline } from "@/components/chat/batch-progress-inline";
 import type {
   NeedsInputEvent,
   NeedsInputField,
@@ -659,6 +660,25 @@ function ConversationThread({
                       })),
                     )}
                   />
+                )}
+
+              {/* Batch ingestion results */}
+              {msg.role === "assistant" &&
+                msg.batchResults &&
+                msg.batchResults.length > 0 && (
+                  <>
+                    {msg.batchResults.map((result) => (
+                      <BatchProgressInline
+                        key={result.batchId}
+                        batchId={result.batchId}
+                        totalDocuments={result.totalDocuments}
+                        completedDocuments={result.completedDocuments}
+                        failedDocuments={result.failedDocuments}
+                        documents={result.documents}
+                        message={result.message}
+                      />
+                    ))}
+                  </>
                 )}
             </div>
 

@@ -108,6 +108,21 @@ export interface KnowledgeCitationEvent {
   durationMs?: number;
 }
 
+export interface BatchIngestionResultEvent {
+  type: "batch_ingestion_result";
+  batchId: string;
+  totalDocuments: number;
+  completedDocuments: number;
+  failedDocuments: number;
+  documents: Array<{
+    documentId: string;
+    fileName: string;
+    status: string;
+    chunksCreated?: number;
+  }>;
+  message?: string;
+}
+
 export interface TokenEvent {
   type: "token";
   content: string;
@@ -158,6 +173,7 @@ interface UseStreamingChatOptions {
   onDocumentCreated?: (doc: DocumentCreatedEvent) => void;
   onApprovalNeeded?: (approval: ApprovalEvent) => void;
   onKnowledgeCitations?: (citations: KnowledgeCitationEvent) => void;
+  onBatchIngestionResult?: (result: BatchIngestionResultEvent) => void;
   onNeedsInput?: (input: NeedsInputEvent) => void;
   onToolCall?: (trace: ToolTrace) => void;
   onToken?: (token: string) => void;
@@ -176,6 +192,7 @@ export function useStreamingChat({
   onDocumentCreated,
   onApprovalNeeded,
   onKnowledgeCitations,
+  onBatchIngestionResult,
   onNeedsInput,
   onToolCall,
   onToken,
@@ -292,6 +309,10 @@ export function useStreamingChat({
 
                   case "knowledge_citations":
                     onKnowledgeCitations?.(data as KnowledgeCitationEvent);
+                    break;
+
+                  case "batch_ingestion_result":
+                    onBatchIngestionResult?.(data as BatchIngestionResultEvent);
                     break;
 
                   case "tool_call": {

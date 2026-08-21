@@ -14,6 +14,7 @@ import {
   type DoneEvent,
   type NeedsInputEvent,
   type KnowledgeCitationEvent,
+  type BatchIngestionResultEvent,
 } from "@/lib/hooks/use-streaming-chat";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -28,6 +29,7 @@ export interface DashboardChatMessage {
   documents: DocumentCreatedEvent[];
   approvals: ApprovalEvent[];
   citations: KnowledgeCitationEvent[];
+  batchResults: BatchIngestionResultEvent[];
   confidence?: number;
   durationMs?: number;
   createdAt: number;
@@ -74,6 +76,8 @@ export function mapHistoryRowToMessage(row: {
       }),
     ),
     approvals: [],
+    citations: [],
+    batchResults: [],
     confidence: row.confidence ?? undefined,
     durationMs: row.latencyMs ?? undefined,
     createdAt: new Date(row.createdAt).getTime(),
@@ -119,9 +123,11 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     documentsRef.current = [];
     approvalsRef.current = [];
     citationsRef.current = [];
+    batchResultsRef.current = [];
   }, []);
 
   const citationsRef = useRef<KnowledgeCitationEvent[]>([]);
+  const batchResultsRef = useRef<BatchIngestionResultEvent[]>([]);
 
   const commitAssistantMessage = useCallback(
     (fullResponse: string, meta: DoneEvent) => {
@@ -137,6 +143,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
           documents: documentsRef.current,
           approvals: approvalsRef.current,
           citations: citationsRef.current,
+          batchResults: batchResultsRef.current,
           confidence: meta.confidence,
           durationMs: meta.durationMs,
           createdAt: Date.now(),
@@ -144,6 +151,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
       ]);
       clearActivityRefs();
       citationsRef.current = [];
+      batchResultsRef.current = [];
     },
     [clearActivityRefs],
   );
@@ -201,6 +209,9 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     },
     onKnowledgeCitations: (citations) => {
       citationsRef.current = [...citationsRef.current, citations];
+    },
+    onBatchIngestionResult: (result) => {
+      batchResultsRef.current = [...batchResultsRef.current, result];
     },
     onNeedsInput: (input) => {
       setPendingInput(input);

@@ -158,7 +158,7 @@ export interface AgentToolConfig {
  * These are the baseline grants; admin can override via tool_grants table.
  */
 export const DEFAULT_AGENT_TOOL_CONFIGS: Record<string, AgentToolConfig> = {
-  // CFO — read-only + escalation
+  // CFO — read-only + escalation + batch ingestion
   cfo: {
     agentName: "cfo",
     allowedTools: [
@@ -167,6 +167,7 @@ export const DEFAULT_AGENT_TOOL_CONFIGS: Record<string, AgentToolConfig> = {
       "get_journal_entry_lines",
       "get_account_by_code",
       "search_knowledge",
+      "start_batch_ingestion",
     ],
     maxConcurrentCalls: 3,
     maxCallsPerTurn: 5,
@@ -215,7 +216,11 @@ export const DEFAULT_AGENT_TOOL_CONFIGS: Record<string, AgentToolConfig> = {
   // Document agent
   document: {
     agentName: "document",
-    allowedTools: ["get_account_by_code", "search_knowledge"],
+    allowedTools: [
+      "get_account_by_code",
+      "search_knowledge",
+      "start_batch_ingestion",
+    ],
     maxConcurrentCalls: 2,
     maxCallsPerTurn: 5,
     canEscalate: false,

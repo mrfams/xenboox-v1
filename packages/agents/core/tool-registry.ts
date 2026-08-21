@@ -299,6 +299,150 @@ const getAccountByCodeTool: ToolDefinition = {
 };
 
 /**
+ * start_batch_ingestion — Start a batch document ingestion job.
+ * WRITE: creates document records and begins processing pipeline.
+ * Returns batch ID for progress tracking.
+ */
+const startBatchIngestionTool: ToolDefinition = {
+  name: "start_batch_ingestion",
+  description:
+    "Start processing one or more documents through the ingestion pipeline. Use this when the user wants to upload, process, or ingest documents. Returns a batch ID for tracking progress.",
+  inputSchema: z.object({
+    documents: z
+      .array(
+        z.object({
+          fileName: z.string().describe("Name of the document file"),
+          content: z.string().describe("Text content of the document"),
+          mimeType: z
+            .string()
+            .default("text/plain")
+            .describe("MIME type of the document"),
+          category: z
+            .string()
+            .optional()
+            .describe("Document category (e.g., invoice, receipt, policy)"),
+        }),
+      )
+      .min(1)
+      .max(50)
+      .describe("Array of documents to process"),
+    autoProcess: z
+      .boolean()
+      .default(true)
+      .describe("Whether to start processing immediately"),
+  }),
+  execute: async (input, ctx) => {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const { db } = await import("@xenboox/db");
+      const { documents, auditLog } = await import("@xenboox/db/schema");
+      const { processDocumentForRAG } =
+        await import("@xenboox/ingestion/engine/embeddings");
+
+      const batchId = crypto.randomUUID();
+      const results: Array<{
+        documentId: string;
+        fileName: string;
+        status: string;
+        chunksCreated?: number;
+      }> = [];
+
+      // Process each document
+      for (const doc of input.documents) {
+        const documentId = crypto.randomUUID();
+
+        try {
+          // Create document record
+          await db.insert(documents).values({
+            id: documentId,
+            entityId: ctx.entityId,
+            name: doc.fileName,
+            type: doc.mimeType,
+            status: "processed",
+            ocrText: doc.content,
+            metadata: {
+              batchId,
+              category: doc.category,
+              processedBy: "ai-agent",
+            },
+          });
+
+          // Process for RAG (chunk + embed)
+          const ragResult = await processDocumentForRAG(
+            documentId,
+            ctx.entityId,
+            doc.content,
+            {
+              sourceType: "uploaded_document",
+              title: doc.fileName,
+              category: doc.category,
+            },
+          );
+
+          // Log audit entry
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId,
+            action: "batch.document_processed",
+            entityType: "document",
+            entityIdRef: documentId,
+            newValues: {
+              batchId,
+              fileName: doc.fileName,
+              chunksCreated: ragResult.chunksCreated,
+              embeddingsGenerated: ragResult.embeddingsGenerated,
+            },
+          });
+
+          results.push({
+            documentId,
+            fileName: doc.fileName,
+            status: "completed",
+            chunksCreated: ragResult.chunksCreated,
+          });
+        } catch (error) {
+          results.push({
+            documentId,
+            fileName: doc.fileName,
+            status: "failed",
+          });
+        }
+      }
+
+      const completedCount = results.filter(
+        (r) => r.status === "completed",
+      ).length;
+      const failedCount = results.filter((r) => r.status === "failed").length;
+
+      return {
+        success: true,
+        data: {
+          batchId,
+          totalDocuments: input.documents.length,
+          completedDocuments: completedCount,
+          failedDocuments: failedCount,
+          documents: results,
+          message:
+            failedCount > 0
+              ? `Processed ${completedCount} of ${input.documents.length} documents. ${failedCount} failed.`
+              : `Successfully processed ${completedCount} document${completedCount !== 1 ? "s" : ""}.`,
+        },
+        confidence: completedCount / input.documents.length,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Batch ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
+        confidence: 0,
+      };
+    }
+  },
+  readOnly: false,
+  writes: true,
+  idempotencyKey: true,
+  category: "write",
+};
+
+/**
  * search_knowledge — Search the knowledge base using semantic search.
  * READ-ONLY: queries document chunks with vector similarity + keyword matching.
  * Returns relevant chunks with citations for audit trail.
@@ -378,6 +522,7 @@ const REGISTERED_TOOLS: ToolDefinition[] = [
   getRecentJournalEntriesTool,
   getAccountByCodeTool,
   searchKnowledgeBaseTool,
+  startBatchIngestionTool,
 ];
 
 /**
