@@ -358,6 +358,51 @@ export default function AuditTrailPage() {
             <span className="text-xs text-muted-foreground">
               Showing {filteredLogs.length} of {total} entries
             </span>
+            <button
+              type="button"
+              onClick={() => {
+                // Export filtered audit logs as CSV
+                const headers = [
+                  "Date",
+                  "Action",
+                  "Entity Type",
+                  "Entity ID",
+                  "User ID",
+                  "Changes",
+                ];
+                const rows = filteredLogs.map((log) => [
+                  new Date(log.createdAt).toISOString(),
+                  log.action,
+                  log.entityType ?? "",
+                  log.entityId ?? "",
+                  log.userId ?? "",
+                  log.newValues ? JSON.stringify(log.newValues) : "",
+                ]);
+                const csv = [headers, ...rows]
+                  .map((row) =>
+                    row
+                      .map((cell) => {
+                        const escaped = String(cell).replace(/"/g, '""');
+                        return '"' + escaped + '"';
+                      })
+                      .join(","),
+                  )
+                  .join("\n");
+                const blob = new Blob([csv], {
+                  type: "text/csv;charset=utf-8;",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `audit-trail-${new Date().toISOString().split("T")[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+              Export CSV
+            </button>
           </div>
         </div>
 
