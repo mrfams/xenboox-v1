@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { Badge } from "@/components/ui";
+import { QuickActions } from "@/components/sidebar/quick-actions";
 import {
   AttentionDot,
   CountPill,
@@ -376,6 +377,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="space-y-0.5">
             {bottomNavItems.map((item) => renderNavItem(item))}
           </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="border-t border-white/[0.06] p-3">
+          <QuickActions />
         </div>
 
         {/* Help & Support */}
