@@ -15,6 +15,9 @@ import {
   RefreshCw,
   ArrowRightLeft,
   Calendar,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -130,6 +133,7 @@ function KPICard({
   sparkline,
   onAskAi,
   aiPrompt,
+  onDrillDown,
 }: {
   label: string;
   value: string;
@@ -140,12 +144,31 @@ function KPICard({
   sparkline?: number[];
   onAskAi?: () => void;
   aiPrompt?: string;
+  onDrillDown?: () => void;
 }) {
   const isPositive = change?.startsWith("+");
   const isNegative = change?.startsWith("-");
 
   return (
-    <div className="group relative text-left rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md w-full">
+    <div
+      className={cn(
+        "group relative text-left rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md w-full",
+        onDrillDown && "cursor-pointer",
+      )}
+      onClick={onDrillDown}
+      role={onDrillDown ? "button" : undefined}
+      tabIndex={onDrillDown ? 0 : undefined}
+      onKeyDown={
+        onDrillDown
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onDrillDown();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon className={cn("h-4 w-4", color)} aria-hidden="true" />
@@ -368,6 +391,118 @@ function ScenarioPlanner({ onAskAi }: { onAskAi: (prompt: string) => void }) {
   );
 }
 
+// ─── KPI Drill-Down Drawer ────────────────────────────────────────────────
+
+type DrillDownItem = {
+  label: string;
+  value: string;
+  percentage?: string;
+  color?: string;
+};
+
+type DrillDownData = {
+  title: string;
+  total: string;
+  items: DrillDownItem[];
+  insight?: string;
+};
+
+function KpiDrillDownDrawer({
+  data,
+  onClose,
+}: {
+  data: DrillDownData | null;
+  onClose: () => void;
+}) {
+  if (!data) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div className="h-full w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-6 py-4">
+          <h2 className="text-sm font-semibold text-foreground">
+            {data.title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {/* Total */}
+          <div className="rounded-lg border border-border/50 bg-background p-4">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              Total
+            </p>
+            <p className="mt-1 text-2xl font-bold text-foreground">
+              {data.total}
+            </p>
+          </div>
+
+          {/* Items */}
+          <div className="space-y-2">
+            {data.items.map((item, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between rounded-lg border border-border/30 bg-background/50 px-3 py-2.5"
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      item.color ?? "bg-primary",
+                    )}
+                  />
+                  <span className="text-sm text-foreground">{item.label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {item.percentage && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {item.percentage}
+                    </span>
+                  )}
+                  <span className="text-sm font-semibold text-foreground">
+                    {item.value}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* AI Insight */}
+          {data.insight && (
+            <div className="rounded-lg border border-primary/10 bg-primary/[0.03] p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" />
+                <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
+                  AI Insight
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {data.insight}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Report Library ────────────────────────────────────────────────────────
 
 const REPORTS = [
@@ -418,6 +553,8 @@ export default function FinancialPulsePage() {
   const [selectedPeriod, setSelectedPeriod] = useState<
     "this_month" | "last_month" | "this_quarter"
   >("this_month");
+
+  const [drillDown, setDrillDown] = useState<DrillDownData | null>(null);
 
   const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
     { period: selectedPeriod },
@@ -620,6 +757,30 @@ export default function FinancialPulsePage() {
             icon={TrendingUp}
             color="text-emerald-500"
             sparkline={revenueSparkline}
+            onDrillDown={() => {
+              const expenses = pnlData?.current.expensesByAccount ?? [];
+              const totalExpenses = expenses.reduce(
+                (s, e) => s + Math.abs(e.amount),
+                0,
+              );
+              setDrillDown({
+                title: "Revenue Breakdown",
+                total: formatCurrency(pnl?.revenue ?? 0),
+                items: (pnlData?.current.revenueByAccount ?? [])
+                  .slice(0, 10)
+                  .map((a) => ({
+                    label: a.accountName,
+                    value: formatCurrency(a.amount),
+                    percentage: pnl?.revenue
+                      ? `${((a.amount / pnl.revenue) * 100).toFixed(1)}%`
+                      : undefined,
+                    color: "bg-emerald-500",
+                  })),
+                insight: pnl?.revenueChange
+                  ? `Revenue ${pnl.revenueChange > 0 ? "grew" : "declined"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior period.`
+                  : undefined,
+              });
+            }}
             onAskAi={() =>
               askAiAbout(
                 "Explain my revenue position and trends. What's driving the change vs last month?",
@@ -645,6 +806,29 @@ export default function FinancialPulsePage() {
             icon={TrendingDown}
             color="text-red-500"
             sparkline={expenseSparkline}
+            onDrillDown={() => {
+              const expenses = pnlData?.current.expensesByAccount ?? [];
+              const totalExpenses = expenses.reduce(
+                (s, e) => s + Math.abs(e.amount),
+                0,
+              );
+              setDrillDown({
+                title: "Expense Breakdown",
+                total: formatCurrency(pnl?.expenses ?? 0),
+                items: expenses.slice(0, 10).map((a) => ({
+                  label: a.accountName,
+                  value: formatCurrency(Math.abs(a.amount)),
+                  percentage:
+                    totalExpenses > 0
+                      ? `${((Math.abs(a.amount) / totalExpenses) * 100).toFixed(1)}%`
+                      : undefined,
+                  color: "bg-red-500",
+                })),
+                insight: pnl?.expensesChange
+                  ? `Expenses ${pnl.expensesChange > 0 ? "increased" : "decreased"} ${Math.abs(pnl.expensesChange).toFixed(1)}% vs prior period.`
+                  : undefined,
+              });
+            }}
             onAskAi={() =>
               askAiAbout(
                 "Break down my expenses. What's the biggest cost driver and how can I reduce it?",
@@ -662,6 +846,45 @@ export default function FinancialPulsePage() {
             }
             icon={BarChart3}
             color="text-primary"
+            onDrillDown={() => {
+              setDrillDown({
+                title: "Profitability Summary",
+                total: formatCurrency(pnlData?.current.netProfit ?? 0),
+                items: [
+                  {
+                    label: "Revenue",
+                    value: formatCurrency(pnl?.revenue ?? 0),
+                    color: "bg-emerald-500",
+                  },
+                  {
+                    label: "Cost of Goods Sold",
+                    value: formatCurrency(pnlData?.current.cogs ?? 0),
+                    color: "bg-amber-500",
+                  },
+                  {
+                    label: "Gross Profit",
+                    value: formatCurrency(
+                      (pnl?.revenue ?? 0) - (pnlData?.current.cogs ?? 0),
+                    ),
+                    color: "bg-blue-500",
+                  },
+                  {
+                    label: "Operating Expenses",
+                    value: formatCurrency(pnl?.expenses ?? 0),
+                    color: "bg-red-500",
+                  },
+                  {
+                    label: "Net Profit",
+                    value: formatCurrency(pnlData?.current.netProfit ?? 0),
+                    color: "bg-primary",
+                  },
+                ],
+                insight:
+                  pnl?.revenue && pnl?.expenses
+                    ? `Net margin: ${(((pnlData?.current.netProfit ?? 0) / (pnl.revenue || 1)) * 100).toFixed(1)}%. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
+                    : undefined,
+              });
+            }}
             onAskAi={() =>
               askAiAbout(
                 "Explain my profitability. Is my margin improving or declining? What should I focus on?",
@@ -675,6 +898,36 @@ export default function FinancialPulsePage() {
             icon={Wallet}
             color="text-blue-500"
             sparkline={cashSparkline}
+            onDrillDown={() => {
+              setDrillDown({
+                title: "Cash Position",
+                total: formatCurrency(overview?.cashBalance ?? 0),
+                items: [
+                  {
+                    label: "Accounts Receivable",
+                    value: formatCurrency(overview?.accountsReceivable ?? 0),
+                    color: "bg-emerald-500",
+                  },
+                  {
+                    label: "Accounts Payable",
+                    value: formatCurrency(overview?.accountsPayable ?? 0),
+                    color: "bg-red-500",
+                  },
+                  {
+                    label: "Net Position",
+                    value: formatCurrency(
+                      (overview?.cashBalance ?? 0) +
+                        (overview?.accountsReceivable ?? 0) -
+                        (overview?.accountsPayable ?? 0),
+                    ),
+                    color: "bg-blue-500",
+                  },
+                ],
+                insight: overview?.runway
+                  ? `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway.`
+                  : undefined,
+              });
+            }}
             onAskAi={() =>
               askAiAbout(
                 "Explain my cash position. How many months of runway do I have? What's the trend?",
@@ -924,6 +1177,9 @@ export default function FinancialPulsePage() {
           </div>
         </div>
       </div>
+
+      {/* KPI Drill-Down Drawer */}
+      <KpiDrillDownDrawer data={drillDown} onClose={() => setDrillDown(null)} />
     </ModulePageShell>
   );
 }
