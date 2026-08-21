@@ -54,6 +54,10 @@ import {
   type Citation,
 } from "@/components/chat/knowledge-citations";
 import { BatchProgressInline } from "@/components/chat/batch-progress-inline";
+import {
+  MessageReactions,
+  type Reaction,
+} from "@/components/chat/message-reactions";
 import type {
   NeedsInputEvent,
   NeedsInputField,
@@ -519,6 +523,9 @@ function ConversationThread({
     null,
   );
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
+  const [messageReactions, setMessageReactions] = useState<
+    Record<string, Reaction[]>
+  >({});
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -537,6 +544,46 @@ function ConversationThread({
     },
     [onSendMessage],
   );
+
+  // Reaction handler
+  const handleReact = useCallback((messageId: string, emoji: string) => {
+    setMessageReactions((prev) => {
+      const existing = prev[messageId] ?? [];
+      const reactionIndex = existing.findIndex((r) => r.emoji === emoji);
+
+      if (reactionIndex >= 0) {
+        // Toggle existing reaction
+        const updated = [...existing];
+        const reaction = updated[reactionIndex];
+        if (reaction.userReacted) {
+          // Remove user's reaction
+          updated[reactionIndex] = {
+            ...reaction,
+            count: reaction.count - 1,
+            userReacted: false,
+          };
+          // Remove if count is 0
+          if (updated[reactionIndex].count === 0) {
+            updated.splice(reactionIndex, 1);
+          }
+        } else {
+          // Add user's reaction
+          updated[reactionIndex] = {
+            ...reaction,
+            count: reaction.count + 1,
+            userReacted: true,
+          };
+        }
+        return { ...prev, [messageId]: updated };
+      } else {
+        // Add new reaction
+        return {
+          ...prev,
+          [messageId]: [...existing, { emoji, count: 1, userReacted: true }],
+        };
+      }
+    });
+  }, []);
 
   // Pin/unpin message handler
   const handlePin = useCallback(
@@ -680,6 +727,14 @@ function ConversationThread({
                     ))}
                   </>
                 )}
+            </div>
+
+            {/* Message Reactions */}
+            <div className="flex items-center gap-2 mt-1">
+              <MessageReactions
+                reactions={messageReactions[msg.id] ?? []}
+                onReact={(emoji) => handleReact(msg.id, emoji)}
+              />
             </div>
 
             {/* Message Actions (on hover) */}
