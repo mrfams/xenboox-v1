@@ -201,11 +201,22 @@ function KPICard({
 }
 
 // ─── AI Narrative ──────────────────────────────────────────────────────────
+//
+// Now uses real LLM-generated narrative instead of assembled text.
+// Falls back to assembled text if AI is unavailable.
 
 function AiFinancialNarrative({
+  aiNarrative,
   overview,
   pnl,
 }: {
+  aiNarrative?: {
+    text: string;
+    confidence: number;
+    generatedAt: string;
+    highlights: string[];
+    concerns: string[];
+  };
   overview?: {
     cashBalance: number;
     accountsReceivable: number;
@@ -220,67 +231,81 @@ function AiFinancialNarrative({
     expensesChange?: number;
   };
 }) {
-  if (!overview && !pnl) {
+  // Show loading state while AI narrative is being generated
+  if (!aiNarrative && (!overview || !pnl)) {
     return (
       <AiNarrativeHeader title="AI Financial Narrative">
-        <p>Loading your financial narrative...</p>
+        <p className="text-muted-foreground animate-pulse">
+          Generating your financial narrative...
+        </p>
       </AiNarrativeHeader>
     );
   }
 
-  const netProfit = (pnl?.revenue ?? 0) - (pnl?.expenses ?? 0);
-  const margin =
-    pnl && pnl.revenue > 0 ? Math.round((netProfit / pnl.revenue) * 100) : 0;
+  // Use AI-generated narrative if available
+  const narrativeText = aiNarrative?.text;
 
-  // Build narrative from real data
-  const parts: string[] = [];
-
-  if (pnl && pnl.revenue > 0) {
-    parts.push(
-      `Revenue is ${formatCurrency(pnl.revenue)}${pnl.revenueChange ? ` (${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}% vs prior period)` : ""}.`,
-    );
-  }
-
-  if (pnl && pnl.expenses > 0) {
-    parts.push(
-      `Expenses are ${formatCurrency(pnl.expenses)}${pnl.expensesChange ? ` (${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%)` : ""}.`,
-    );
-  }
-
-  if (netProfit !== 0) {
-    parts.push(
-      `Net ${netProfit >= 0 ? "profit" : "loss"} is ${formatCurrency(Math.abs(netProfit))} (${margin}% margin).`,
-    );
-  }
-
-  if (overview) {
-    if (overview.overdueInvoices > 0) {
+  // Fallback to assembled text if AI is unavailable
+  if (!narrativeText) {
+    const netProfit = (pnl?.revenue ?? 0) - (pnl?.expenses ?? 0);
+    const margin =
+      pnl && pnl.revenue > 0 ? Math.round((netProfit / pnl.revenue) * 100) : 0;
+    const parts: string[] = [];
+    if (pnl && pnl.revenue > 0)
       parts.push(
-        `${overview.overdueInvoices} invoice${overview.overdueInvoices > 1 ? "s are" : " is"} overdue and needs attention.`,
+        `Revenue is ${formatCurrency(pnl.revenue)}${pnl.revenueChange ? ` (${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}% vs prior)` : ""}.`,
       );
-    }
-
-    if (overview.runway !== null && overview.runway !== undefined) {
-      parts.push(`Cash runway is ${overview.runway.toFixed(1)} months.`);
-    }
-  }
-
-  if (parts.length === 0) {
-    parts.push(
-      "Financial data is being compiled. Check back shortly for your AI-narrated summary.",
+    if (pnl && pnl.expenses > 0)
+      parts.push(
+        `Expenses are ${formatCurrency(pnl.expenses)}${pnl.expensesChange ? ` (${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%)` : ""}.`,
+      );
+    if (netProfit !== 0)
+      parts.push(
+        `Net ${netProfit >= 0 ? "profit" : "loss"} is ${formatCurrency(Math.abs(netProfit))} (${margin}% margin).`,
+      );
+    return (
+      <AiNarrativeHeader title="AI Financial Narrative">
+        <p>{parts.join(" ") || "Financial data is being compiled..."}</p>
+      </AiNarrativeHeader>
     );
   }
 
   return (
-    <AiNarrativeHeader
-      title="AI Financial Narrative"
-      actions={[
-        { label: "Full P&L", variant: "outline" },
-        { label: "Balance Sheet", variant: "outline" },
-        { label: "Cash Flow", variant: "outline" },
-      ]}
-    >
-      <p>{parts.join(" ")}</p>
+    <AiNarrativeHeader title="AI Financial Narrative">
+      {/* AI-generated narrative text */}
+      <div className="whitespace-pre-wrap">{narrativeText}</div>
+
+      {/* Highlights and concerns */}
+      {(aiNarrative.highlights.length > 0 ||
+        aiNarrative.concerns.length > 0) && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {aiNarrative.highlights.map((h, i) => (
+            <span
+              key={`h-${i}`}
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600"
+            >
+              ✅ {h}
+            </span>
+          ))}
+          {aiNarrative.concerns.map((c, i) => (
+            <span
+              key={`c-${i}`}
+              className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600"
+            >
+              ⚠️ {c}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Confidence and timestamp */}
+      <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground/60">
+        <span>Confidence: {Math.round(aiNarrative.confidence * 100)}%</span>
+        <span>•</span>
+        <span>
+          Generated: {new Date(aiNarrative.generatedAt).toLocaleTimeString()}
+        </span>
+      </div>
     </AiNarrativeHeader>
   );
 }
@@ -399,6 +424,14 @@ export default function FinancialPulsePage() {
     },
   );
 
+  const { data: aiNarrative } = trpc.dashboard.getAiNarrative.useQuery(
+    undefined,
+    {
+      enabled: !!entityId,
+      staleTime: 10 * 60 * 1000, // 10 minutes — AI narratives are expensive to regenerate
+    },
+  );
+
   const overview = dashboardData
     ? {
         cashBalance: dashboardData.businessHealth.cashBalance,
@@ -497,7 +530,11 @@ export default function FinancialPulsePage() {
         aria-busy={!dashboardData && !pnlData}
       >
         {/* AI Narrative */}
-        <AiFinancialNarrative overview={overview} pnl={pnl} />
+        <AiFinancialNarrative
+          aiNarrative={aiNarrative}
+          overview={overview}
+          pnl={pnl}
+        />
 
         {/* Anomaly Alerts */}
         {anomalyData?.anomalies && anomalyData.anomalies.length > 0 && (
