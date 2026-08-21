@@ -8,14 +8,13 @@ import {
   ArrowUpRight,
   FileText,
   Landmark,
-  RefreshCw,
   CheckCircle2,
   AlertTriangle,
-  ExternalLink,
   Tag,
   LinkIcon,
   Flag,
 } from "lucide-react";
+
 import { cn, formatCurrency } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
 
