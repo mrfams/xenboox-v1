@@ -271,10 +271,25 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
 
   it("Invitation email template exists with required fields", () => {
     // Use absolute path from project root
-    const p = join(process.cwd(), "..", "..", "packages", "email", "emails", "invitation.tsx");
+    const p = join(
+      process.cwd(),
+      "..",
+      "..",
+      "packages",
+      "email",
+      "emails",
+      "invitation.tsx",
+    );
     if (!existsSync(p)) {
       // Try from monorepo root
-      const p2 = join(process.cwd(), "..", "packages", "email", "emails", "invitation.tsx");
+      const p2 = join(
+        process.cwd(),
+        "..",
+        "packages",
+        "email",
+        "emails",
+        "invitation.tsx",
+      );
       if (!existsSync(p2)) return; // Skip if file not found
       const src = readFileSync(p2, "utf-8");
       expect(src).toMatch(/InvitationEmail/);
@@ -390,7 +405,7 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/role=\"dialog\"/);
     // Must have / toggle shortcut
     expect(src).toContain('key === "/"');
-    expect(src).toContain('setChatOpen((prev) => !prev)');
+    expect(src).toContain("setChatOpen((prev) => !prev)");
   });
 
   it("Dashboard layout wires surface keyboard shortcuts", () => {
@@ -455,8 +470,8 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     // Must handle 'r' for reject
     expect(src).toMatch(/key === "r"/);
     // Must show shortcut hints in batch bar
-    expect(src).toMatch(/Press.*A.*approve/);
-    expect(src).toMatch(/R.*reject/);
+    expect(src).toMatch(/Press.*A.*approve/s);
+    expect(src).toMatch(/R.*reject/s);
     // Must check selectedIds.size before triggering
     expect(src).toMatch(/selectedIds\.size === 0/);
     // Must skip if confirm dialog is open

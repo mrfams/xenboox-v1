@@ -22,6 +22,9 @@ import {
   Zap,
   X,
   RefreshCw,
+  Shield,
+  Lightbulb,
+  StickyNote,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -67,6 +70,9 @@ type ActivityItemData = {
   confidence?: number;
   amount?: string;
   sourceDoc?: string;
+  createdAt?: string;
+  recommendation?: string;
+  metadata?: Record<string, unknown>;
   detail?: Record<string, unknown>;
   actions: Array<{
     label: string;
@@ -75,6 +81,59 @@ type ActivityItemData = {
     loading?: boolean;
   }>;
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+function timeAgo(dateStr: string | undefined): string {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getRiskLevel(confidence: number | undefined): {
+  label: string;
+  color: string;
+  bgColor: string;
+  barColor: string;
+} {
+  if (confidence === undefined)
+    return {
+      label: "Unknown",
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/40",
+      barColor: "bg-muted",
+    };
+  if (confidence >= 0.8)
+    return {
+      label: "Low Risk",
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-500/10",
+      barColor: "bg-emerald-500",
+    };
+  if (confidence >= 0.6)
+    return {
+      label: "Medium Risk",
+      color: "text-amber-600",
+      bgColor: "bg-amber-500/10",
+      barColor: "bg-amber-500",
+    };
+  return {
+    label: "High Risk",
+    color: "text-red-600",
+    bgColor: "bg-red-500/10",
+    barColor: "bg-red-500",
+  };
+}
 
 // Track items being processed (optimistic) or completed
 const ITEM_STATES = {
@@ -96,12 +155,20 @@ function ActivityItemCard({
 }: {
   item: ActivityItemData;
   itemState?: ItemState;
-  onAction?: (itemId: string, action: string, itemType: string) => void;
+  onAction?: (
+    itemId: string,
+    action: string,
+    itemType: string,
+    reason?: string,
+  ) => void;
   onViewItem?: (item: ActivityItemData) => void;
   isSelected?: boolean;
   onToggleSelect?: (itemId: string) => void;
   canSelect?: boolean;
 }) {
+  const [note, setNote] = useState("");
+  const [showNote, setShowNote] = useState(false);
+
   const typeConfig = {
     urgent: {
       border: "border-red-500/20",
@@ -143,6 +210,7 @@ function ActivityItemCard({
 
   const config = typeConfig[item.type];
   const Icon = config.icon;
+  const risk = getRiskLevel(item.confidence);
 
   return (
     <div
@@ -190,6 +258,11 @@ function ActivityItemCard({
               {item.title}
             </p>
             <div className="flex items-center gap-2 shrink-0">
+              {item.createdAt && (
+                <span className="text-[10px] text-muted-foreground/50">
+                  {timeAgo(item.createdAt)}
+                </span>
+              )}
               <span
                 className={cn(
                   "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
@@ -207,63 +280,146 @@ function ActivityItemCard({
             {item.description}
           </p>
 
-          {/* Source document */}
-          {item.sourceDoc && (
-            <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
-              <FileCheck className="h-3 w-3" />
-              <span>{item.sourceDoc}</span>
+          {/* AI Recommendation / Reasoning */}
+          {item.recommendation && (
+            <div className="mt-2.5 rounded-lg border border-primary/10 bg-primary/[0.03] px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Lightbulb
+                  className="h-3 w-3 text-primary"
+                  aria-hidden="true"
+                />
+                <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
+                  AI Recommendation
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {item.recommendation}
+              </p>
             </div>
           )}
 
-          {/* Agent + confidence row */}
-          <div className="mt-2 flex items-center gap-3">
-            {item.agent && (
-              <div className="flex items-center gap-1.5">
-                <Bot className="h-3 w-3 text-primary/60" />
-                <span className="text-[10px] text-muted-foreground/60">
-                  {item.agent}
+          {/* Risk Assessment Bar */}
+          {item.confidence !== undefined && (
+            <div className="mt-2.5">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="h-3 w-3" aria-hidden="true" />
+                  <span className={cn("text-[10px] font-semibold", risk.color)}>
+                    {risk.label}
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {Math.round(item.confidence * 100)}% confidence
                 </span>
               </div>
+              <div className="h-1.5 w-full rounded-full bg-muted/40">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    risk.barColor,
+                  )}
+                  style={{ width: `${Math.round(item.confidence * 100)}%` }}
+                  role="progressbar"
+                  aria-valuenow={Math.round(item.confidence * 100)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`Confidence: ${Math.round(item.confidence * 100)}%`}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Supporting Data Row */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            {item.sourceDoc && (
+              <div className="inline-flex items-center gap-1 rounded-md bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground">
+                <FileCheck className="h-3 w-3" aria-hidden="true" />
+                {item.sourceDoc}
+              </div>
             )}
-            {item.confidence !== undefined && (
-              <ConfidenceBadge score={item.confidence} />
+            {item.agent && (
+              <div className="inline-flex items-center gap-1 rounded-md bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground">
+                <Bot className="h-3 w-3 text-primary/60" aria-hidden="true" />
+                {item.agent}
+              </div>
+            )}
+            {item.amount && (
+              <div className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                {item.amount}
+              </div>
             )}
           </div>
-
-          {item.amount && (
-            <p className="mt-2 text-sm font-semibold text-foreground">
-              {item.amount}
-            </p>
-          )}
         </div>
       </div>
 
-      {/* Inline actions */}
+      {/* Inline actions with optional note */}
       {item.actions.length > 0 && itemState !== "success" && (
-        <div className="mt-3 ml-13">
-          <InlineActions
-            actions={item.actions.map((a) => ({
-              ...a,
-              loading: itemState === "processing",
-              onClick:
-                a.variant === "approve" || a.variant === "reject"
-                  ? () =>
-                      onAction?.(
-                        item.id,
-                        a.variant as "approve" | "reject",
-                        item.itemType,
-                      )
-                  : undefined,
-              icon:
-                a.variant === "approve"
-                  ? ThumbsUp
-                  : a.variant === "reject"
-                    ? ThumbsDown
-                    : a.variant === "review"
-                      ? Eye
-                      : undefined,
-            }))}
-          />
+        <div className="mt-3 ml-13 space-y-2">
+          {/* Note input — toggle-able */}
+          {showNote && (item.type === "approval" || item.type === "urgent") && (
+            <div className="relative">
+              <label htmlFor={`note-${item.id}`} className="sr-only">
+                Add a note for this {item.type}
+              </label>
+              <StickyNote
+                className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/50"
+                aria-hidden="true"
+              />
+              <textarea
+                id={`note-${item.id}`}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add a note (optional)..."
+                rows={2}
+                className="w-full rounded-lg border border-border/50 bg-background pl-8 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <InlineActions
+              actions={item.actions.map((a) => ({
+                ...a,
+                loading: itemState === "processing",
+                onClick:
+                  a.variant === "approve" || a.variant === "reject"
+                    ? () => {
+                        const reason = note.trim() || undefined;
+                        onAction?.(
+                          item.id,
+                          a.variant as "approve" | "reject",
+                          item.itemType,
+                          reason,
+                        );
+                        setNote("");
+                        setShowNote(false);
+                      }
+                    : undefined,
+                icon:
+                  a.variant === "approve"
+                    ? ThumbsUp
+                    : a.variant === "reject"
+                      ? ThumbsDown
+                      : a.variant === "review"
+                        ? Eye
+                        : undefined,
+              }))}
+            />
+            {(item.type === "approval" || item.type === "urgent") && (
+              <button
+                type="button"
+                onClick={() => setShowNote(!showNote)}
+                className={cn(
+                  "rounded-lg px-2 py-1.5 text-[10px] font-medium transition-colors",
+                  showNote
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                )}
+                aria-label={showNote ? "Hide note field" : "Add a note"}
+              >
+                <StickyNote className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -343,9 +499,16 @@ function ItemDetailDrawer({
 }: {
   item: ActivityItemData;
   onClose: () => void;
-  onAction: (itemId: string, action: string, itemType: string) => void;
+  onAction: (
+    itemId: string,
+    action: string,
+    itemType: string,
+    reason?: string,
+  ) => void;
   itemState?: ItemState;
 }) {
+  const [note, setNote] = useState("");
+
   const typeConfig = {
     urgent: { label: "Urgent", color: "text-red-500", bg: "bg-red-500/10" },
     approval: {
@@ -357,6 +520,7 @@ function ItemDetailDrawer({
     info: { label: "Info", color: "text-muted-foreground", bg: "bg-muted/40" },
   };
   const config = typeConfig[item.type];
+  const risk = getRiskLevel(item.confidence);
 
   return (
     <div
@@ -405,9 +569,65 @@ function ItemDetailDrawer({
             <p className="mt-1 text-sm text-muted-foreground">
               {item.description}
             </p>
+            {item.createdAt && (
+              <p className="mt-1 text-[10px] text-muted-foreground/60">
+                Created {timeAgo(item.createdAt)}
+              </p>
+            )}
           </div>
 
-          {/* Meta */}
+          {/* Risk Assessment */}
+          {item.confidence !== undefined && (
+            <div className={cn("rounded-lg border p-3", risk.bgColor)}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className={cn("text-xs font-semibold", risk.color)}>
+                    Risk Assessment: {risk.label}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {Math.round(item.confidence * 100)}%
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-white/50">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    risk.barColor,
+                  )}
+                  style={{ width: `${Math.round(item.confidence * 100)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {item.confidence >= 0.8
+                  ? "AI is confident in this action. Low risk of error."
+                  : item.confidence >= 0.6
+                    ? "AI has moderate confidence. Review recommended."
+                    : "AI has low confidence. Manual review strongly recommended."}
+              </p>
+            </div>
+          )}
+
+          {/* AI Recommendation */}
+          {item.recommendation && (
+            <div className="rounded-lg border border-primary/10 bg-primary/[0.03] p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Lightbulb
+                  className="h-3.5 w-3.5 text-primary"
+                  aria-hidden="true"
+                />
+                <span className="text-xs font-semibold text-primary">
+                  AI Recommendation
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {item.recommendation}
+              </p>
+            </div>
+          )}
+
+          {/* Meta Grid */}
           <div className="grid grid-cols-2 gap-3">
             {item.agent && (
               <div className="rounded-lg border border-border/50 bg-background p-3">
@@ -449,6 +669,16 @@ function ItemDetailDrawer({
             </div>
           </div>
 
+          {/* Source doc */}
+          {item.sourceDoc && (
+            <div className="rounded-lg border border-border/50 bg-background p-3">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                Source Document
+              </p>
+              <p className="mt-1 text-sm text-foreground">{item.sourceDoc}</p>
+            </div>
+          )}
+
           {/* Detail payload */}
           {item.detail && Object.keys(item.detail).length > 0 && (
             <div className="rounded-lg border border-border/50 bg-background p-3">
@@ -460,21 +690,30 @@ function ItemDetailDrawer({
               </pre>
             </div>
           )}
-
-          {/* Source doc */}
-          {item.sourceDoc && (
-            <div className="rounded-lg border border-border/50 bg-background p-3">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                Source Document
-              </p>
-              <p className="mt-1 text-sm text-foreground">{item.sourceDoc}</p>
-            </div>
-          )}
         </div>
 
-        {/* Actions */}
+        {/* Actions with note field */}
         {item.actions.length > 0 && itemState !== "success" && (
-          <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-sm px-6 py-4">
+          <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-sm px-6 py-4 space-y-3">
+            {/* Note textarea */}
+            {(item.type === "approval" || item.type === "urgent") && (
+              <div>
+                <label
+                  htmlFor="drawer-note"
+                  className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider"
+                >
+                  Add a note (optional)
+                </label>
+                <textarea
+                  id="drawer-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Why are you approving/rejecting this?"
+                  rows={2}
+                  className="mt-1 w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                />
+              </div>
+            )}
             <div className="flex items-center gap-3">
               {item.actions
                 .filter(
@@ -485,7 +724,11 @@ function ItemDetailDrawer({
                     key={a.variant}
                     type="button"
                     disabled={itemState === "processing"}
-                    onClick={() => onAction(item.id, a.variant!, item.itemType)}
+                    onClick={() => {
+                      const reason = note.trim() || undefined;
+                      onAction(item.id, a.variant!, item.itemType, reason);
+                      setNote("");
+                    }}
                     className={cn(
                       "flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
                       a.variant === "approve"
@@ -623,6 +866,13 @@ export default function ActivityHubPage() {
       if (addedIds.has(approval.id)) continue;
       addedIds.add(approval.id);
       if (itemStates[approval.id] === "success") continue;
+      const meta = (approval.metadata ?? {}) as Record<string, unknown>;
+      const inputData = (meta.inputData ?? {}) as Record<string, unknown>;
+      const recommendation =
+        (meta.recommendation as string) ??
+        approval.description ??
+        "Review and take appropriate action";
+
       activityItems.push({
         id: approval.id,
         itemType: "agent_activity",
@@ -632,6 +882,10 @@ export default function ActivityHubPage() {
         agent: approval.workflow ?? "AI Agent",
         confidence: approval.confidence ?? undefined,
         sourceDoc: approval.documentName ?? undefined,
+        createdAt: approval.createdAt,
+        recommendation,
+        metadata: meta,
+        detail: inputData,
         actions: [
           { label: "Approve", variant: "approve" },
           { label: "Review", variant: "review" },
@@ -716,19 +970,26 @@ export default function ActivityHubPage() {
 
   // ── Real mutation handler ──────────────────────────────────────────────
   const handleAction = useCallback(
-    async (itemId: string, action: string, itemType: string) => {
+    async (
+      itemId: string,
+      action: string,
+      itemType: string,
+      reason?: string,
+    ) => {
       setItemStates((prev) => ({ ...prev, [itemId]: "processing" }));
 
       try {
         if (itemType === "agent_activity") {
+          const actionReason =
+            reason ??
+            (action === "approve"
+              ? "Approved from Activity Hub"
+              : "Rejected from Activity Hub");
           await resolveApproval.mutateAsync({
             itemId,
             itemType: "agent_escalation",
             action: action === "approve" ? "approved" : "rejected",
-            reason:
-              action === "approve"
-                ? "Approved from Activity Hub"
-                : "Rejected from Activity Hub",
+            reason: actionReason,
           });
         } else if (itemType === "ingestion") {
           if (action === "approve") {
@@ -736,7 +997,7 @@ export default function ActivityHubPage() {
           } else {
             await rejectIngestion.mutateAsync({
               documentId: itemId,
-              reason: "Rejected from Activity Hub",
+              reason: reason ?? "Rejected from Activity Hub",
             });
           }
         } else if (itemType === "notification") {
@@ -746,7 +1007,7 @@ export default function ActivityHubPage() {
         setItemStates((prev) => ({ ...prev, [itemId]: "success" }));
         const actionLabel = action === "approve" ? "Approved" : "Rejected";
         toast.success(actionLabel, {
-          description: `Item has been ${actionLabel.toLowerCase()} successfully.`,
+          description: `Item has been ${actionLabel.toLowerCase()} successfully.${reason ? ` Note: "${reason}"` : ""}`,
           duration: 3000,
         });
         announce(`${actionLabel} successfully`);
