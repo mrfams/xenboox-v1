@@ -503,6 +503,137 @@ function KpiDrillDownDrawer({
   );
 }
 
+// ─── Budget vs Actual ────────────────────────────────────────────────────
+
+function BudgetVsActualSection({
+  entityId,
+  askAiAbout,
+}: {
+  entityId: string;
+  askAiAbout: (prompt: string) => void;
+}) {
+  const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
+    enabled: !!entityId,
+  });
+
+  const { data: budgetData, isLoading } =
+    trpc.reports.getBudgetVsActual.useQuery(
+      { periodId: currentPeriod?.id ?? "" },
+      { enabled: !!entityId && !!currentPeriod?.id },
+    );
+
+  if (isLoading || !budgetData) return null;
+
+  const items = budgetData.items ?? [];
+  if (items.length === 0) return null;
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold tracking-tight text-foreground">
+          Budget vs Actual
+        </h3>
+        <button
+          type="button"
+          onClick={() =>
+            askAiAbout(
+              "Analyze my budget vs actual performance. Where are the biggest variances and what should I do about them?",
+            )
+          }
+          className="text-[10px] text-primary hover:underline"
+        >
+          Ask AI
+        </button>
+      </div>
+      <div className="rounded-xl border border-border/50 overflow-hidden">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                Category
+              </th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                Budget
+              </th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                Actual
+              </th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                Variance
+              </th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {items
+              .slice(0, 8)
+              .map(
+                (
+                  item: {
+                    category: string;
+                    budget: number;
+                    actual: number;
+                    variance: number;
+                    variancePercent: number;
+                  },
+                  i: number,
+                ) => {
+                  const isOver = item.variance > 0;
+                  const isUnder = item.variance < 0;
+                  return (
+                    <tr
+                      key={i}
+                      className="border-b last:border-0 hover:bg-muted/20"
+                    >
+                      <td className="px-3 py-2 font-medium text-foreground">
+                        {item.category}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {formatCurrency(item.budget)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                        {formatCurrency(item.actual)}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2 text-right tabular-nums font-medium",
+                          isOver
+                            ? "text-red-600"
+                            : isUnder
+                              ? "text-emerald-600"
+                              : "text-muted-foreground",
+                        )}
+                      >
+                        {isOver ? "+" : ""}
+                        {formatCurrency(item.variance)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold",
+                            isOver
+                              ? "bg-red-500/10 text-red-500"
+                              : isUnder
+                                ? "bg-emerald-500/10 text-emerald-500"
+                                : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {isOver ? "Over" : isUnder ? "Under" : "On Track"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                },
+              )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 // ─── Report Library ────────────────────────────────────────────────────────
 
 const REPORTS = [
@@ -1018,6 +1149,12 @@ export default function FinancialPulsePage() {
           </div>
           <ForecastView />
         </section>
+
+        {/* Budget vs Actual */}
+        <BudgetVsActualSection
+          entityId={entityId ?? ""}
+          askAiAbout={askAiAbout}
+        />
 
         {/* Report Library */}
         <section>
