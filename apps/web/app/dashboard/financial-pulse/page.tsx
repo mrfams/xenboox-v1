@@ -23,6 +23,37 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { AiNarrativeHeader } from "@/components/shared/ai-native";
 import { useModuleAi } from "@/components/module/module-ai-context";
+import {
+  RevenueTrendChart,
+  ExpenseBreakdownChart,
+  CashFlowChart,
+  MarginTrendChart,
+} from "@/components/charts/financial-charts";
+
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** Convert a sparkline index to a month label (e.g., 0 → "Mar" for 3 months of data ending in May) */
+function getMonthLabel(index: number, totalBars: number): string {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const monthIndex = (currentMonth - totalBars + 1 + index + 12) % 12;
+  return MONTH_NAMES[monthIndex];
+}
 
 // ─── Financial Pulse ──────────────────────────────────────────────────────
 //
@@ -381,6 +412,16 @@ export default function FinancialPulsePage() {
     dashboardData?.businessHealth.expensesSparkline ?? [];
   const cashSparkline = dashboardData?.businessHealth.cashSparkline ?? [];
 
+  // Build expense breakdown from P&L data
+  const expenseBreakdownData =
+    pnlData?.current.expensesByAccount?.slice(0, 8).map((a) => ({
+      category:
+        a.accountName.length > 12
+          ? a.accountName.slice(0, 12) + "…"
+          : a.accountName,
+      amount: Math.abs(a.amount),
+    })) ?? [];
+
   // Helper to open copilot with a financial question
   const askAiAbout = (prompt: string) => {
     openWithFocus(
@@ -527,6 +568,63 @@ export default function FinancialPulsePage() {
               )
             }
             aiPrompt="Explain cash"
+          />
+        </div>
+
+        {/* Interactive Charts */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <RevenueTrendChart
+            data={revenueSparkline.map((v, i) => ({
+              month: getMonthLabel(i, revenueSparkline.length),
+              revenue: v,
+              prior: expenseSparkline[i] ? undefined : undefined,
+            }))}
+            currency={entity.currency || "GMD"}
+            onAskAi={() =>
+              askAiAbout(
+                "Explain my revenue trend. What's driving the changes?",
+              )
+            }
+          />
+          <CashFlowChart
+            data={revenueSparkline.map((v, i) => ({
+              month: getMonthLabel(i, revenueSparkline.length),
+              incoming: v,
+              outgoing: expenseSparkline[i] ?? 0,
+            }))}
+            currency={entity.currency || "GMD"}
+            onAskAi={() =>
+              askAiAbout(
+                "Analyze my cash flow. Am I spending more than I'm earning?",
+              )
+            }
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <MarginTrendChart
+            data={revenueSparkline.map((v, i) => {
+              const exp = expenseSparkline[i] ?? 0;
+              const margin = v > 0 ? ((v - exp) / v) * 100 : 0;
+              return {
+                month: getMonthLabel(i, revenueSparkline.length),
+                margin: Math.round(margin * 10) / 10,
+                target: 25,
+              };
+            })}
+            onAskAi={() =>
+              askAiAbout(
+                "Analyze my profit margin trend. Is it improving or declining?",
+              )
+            }
+          />
+          <ExpenseBreakdownChart
+            data={expenseBreakdownData}
+            currency={entity.currency || "GMD"}
+            onAskAi={() =>
+              askAiAbout(
+                "Break down my expenses. What's the biggest cost driver?",
+              )
+            }
           />
         </div>
 
