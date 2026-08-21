@@ -38,8 +38,11 @@ const SURFACE_QUERY_MAP: Record<Surface, string[][]> = {
   ],
   "activity-hub": [
     ["approvals", "list"],
+    ["approvals", "listPending"],
     ["ingestion", "getStats"],
+    ["ingestion", "listAgentApprovals"],
     ["notifications", "list"],
+    ["notifications", "listAgentAlerts"],
     ["notifications", "unreadCount"],
   ],
   "financial-pulse": [

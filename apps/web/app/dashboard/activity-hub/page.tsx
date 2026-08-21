@@ -776,23 +776,30 @@ export default function ActivityHubPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
 
-  // Fetch real data
+  // Fetch real data — refetchInterval provides polling fallback if SSE drops
   const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
     enabled: !!entityId,
+    refetchInterval: 30_000, // 30s polling fallback (degraded mode per §16.2)
   });
   const { data: agentApprovals, refetch: refetchApprovals } =
     trpc.ingestion.listAgentApprovals.useQuery(
       { limit: 50 },
-      { enabled: !!entityId },
+      {
+        enabled: !!entityId,
+        refetchInterval: 15_000, // 15s polling fallback — approvals are time-sensitive
+      },
     );
   const { data: notifications } = trpc.notifications.list.useQuery(
     { limit: 20, onlyUnread: false },
-    { enabled: !!entityId },
+    { enabled: !!entityId, refetchInterval: 30_000 },
   );
   const { data: agentAlerts, refetch: refetchAlerts } =
     trpc.notifications.listAgentAlerts.useQuery(
       { limit: 20, unreadOnly: false },
-      { enabled: !!entityId },
+      {
+        enabled: !!entityId,
+        refetchInterval: 15_000, // Alerts are time-sensitive
+      },
     );
 
   // ── Mutations ───────────────────────────────────────────────────────────
