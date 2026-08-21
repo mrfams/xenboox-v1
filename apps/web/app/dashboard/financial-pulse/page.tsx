@@ -14,6 +14,7 @@ import {
   ChevronRight,
   RefreshCw,
   ArrowRightLeft,
+  Calendar,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -414,8 +415,12 @@ export default function FinancialPulsePage() {
   // Listen for data_changed events from other surfaces and refetch
   useSurfaceSync({ entityId, surfaces: ["financial-pulse"] });
 
+  const [selectedPeriod, setSelectedPeriod] = useState<
+    "this_month" | "last_month" | "this_quarter"
+  >("this_month");
+
   const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
-    { period: "this_month" },
+    { period: selectedPeriod },
     { enabled: !!entityId },
   );
 
@@ -536,6 +541,46 @@ export default function FinancialPulsePage() {
         className="space-y-6 p-3 pb-20 sm:p-6 md:pb-6"
         aria-busy={!dashboardData && !pnlData}
       >
+        {/* Period Selector */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar
+              className="h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <span className="text-xs font-medium text-muted-foreground">
+              Period:
+            </span>
+          </div>
+          <div
+            role="tablist"
+            aria-label="Financial period"
+            className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5"
+          >
+            {[
+              { key: "this_month" as const, label: "This Month" },
+              { key: "last_month" as const, label: "Last Month" },
+              { key: "this_quarter" as const, label: "This Quarter" },
+            ].map((period) => (
+              <button
+                key={period.key}
+                type="button"
+                role="tab"
+                aria-selected={selectedPeriod === period.key}
+                onClick={() => setSelectedPeriod(period.key)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  selectedPeriod === period.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {period.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* AI Narrative */}
         <AiFinancialNarrative
           aiNarrative={aiNarrative}
