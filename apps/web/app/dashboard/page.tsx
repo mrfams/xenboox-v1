@@ -63,6 +63,10 @@ import { ConversationMemory } from "@/components/chat/conversation-memory";
 import { DataTableInline } from "@/components/chat/data-table-inline";
 import { ChartInline } from "@/components/chat/chart-inline";
 import { DocumentGenerating } from "@/components/chat/document-generating";
+import {
+  ChatFileUpload,
+  type UploadedFile,
+} from "@/components/chat/chat-file-upload";
 import type {
   NeedsInputEvent,
   NeedsInputField,
@@ -1165,9 +1169,17 @@ const COMPOSER_MAX_HEIGHT = 120;
 function AiInput({
   onSubmit,
   isResponding,
+  entityId,
+  uploadedFiles,
+  onFilesUploaded,
+  onClearFiles,
 }: {
-  onSubmit: (value: string) => void;
+  onSubmit: (value: string, files?: UploadedFile[]) => void;
   isResponding: boolean;
+  entityId: string;
+  uploadedFiles: UploadedFile[];
+  onFilesUploaded: (files: UploadedFile[]) => void;
+  onClearFiles: () => void;
 }) {
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -1182,9 +1194,13 @@ function AiInput({
 
   const handleSubmit = (value?: string) => {
     const trimmed = (value ?? inputValue).trim();
-    if (!trimmed || isResponding) return;
-    onSubmit(trimmed);
+    if ((!trimmed && uploadedFiles.length === 0) || isResponding) return;
+    onSubmit(
+      trimmed || "Uploaded files",
+      uploadedFiles.length > 0 ? uploadedFiles : undefined,
+    );
     setInputValue("");
+    onClearFiles();
   };
 
   const suggestions = [
@@ -1235,8 +1251,15 @@ function AiInput({
         )}
       >
         <div className="relative flex items-end gap-3 px-4 py-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg bg-primary/8 text-primary/70 transition-colors group-focus-within:bg-primary/12 group-focus-within:text-primary">
-            <Bot className="h-4 w-4" />
+          <div className="flex items-center gap-1 shrink-0 self-center">
+            <ChatFileUpload
+              entityId={entityId}
+              onFilesUploaded={onFilesUploaded}
+              disabled={isResponding}
+            />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/8 text-primary/70 transition-colors group-focus-within:bg-primary/12 group-focus-within:text-primary">
+              <Bot className="h-4 w-4" />
+            </div>
           </div>
           <label htmlFor="ai-chat-input" className="sr-only">
             Ask your AI CFO anything
@@ -1310,6 +1333,7 @@ export default function CommandCenterPage() {
   useSurfaceSync({ entityId, surfaces: ["command-center"] });
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const {
     messages,
@@ -1338,8 +1362,13 @@ export default function CommandCenterPage() {
   const pageContext = usePageContext();
 
   const handleSubmit = useCallback(
-    (value: string) => {
-      sendMessage(value, pageContext);
+    (value: string, files?: UploadedFile[]) => {
+      const filePayload = files?.map((f) => ({
+        documentId: f.documentId,
+        name: f.name,
+        type: f.type,
+      }));
+      sendMessage(value, pageContext, filePayload);
     },
     [sendMessage, pageContext],
   );
@@ -1414,7 +1443,16 @@ export default function CommandCenterPage() {
 
         {/* AI Input — fixed at bottom */}
         <div className="sticky bottom-0 border-t border-border/30 bg-background/80 backdrop-blur-sm">
-          <AiInput onSubmit={handleSubmit} isResponding={isStreaming} />
+          <AiInput
+            onSubmit={handleSubmit}
+            isResponding={isStreaming}
+            entityId={entityId ?? ""}
+            uploadedFiles={uploadedFiles}
+            onFilesUploaded={(files) =>
+              setUploadedFiles((prev) => [...prev, ...files])
+            }
+            onClearFiles={() => setUploadedFiles([])}
+          />
         </div>
       </div>
     </div>

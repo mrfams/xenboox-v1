@@ -240,9 +240,13 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
   });
 
   const sendMessage = useCallback(
-    (text: string, pageContext?: PageContextPayload) => {
+    (
+      text: string,
+      pageContext?: PageContextPayload,
+      files?: Array<{ documentId: string; name: string; type: string }>,
+    ) => {
       const trimmed = text.trim();
-      if (!trimmed || !entityId || isStreaming) return;
+      if ((!trimmed && !files?.length) || !entityId || isStreaming) return;
 
       setIsChatActive(true);
       setMessages((prev) => [
@@ -264,7 +268,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
       void streamMessage(
         trimmed,
         conversationIdRef.current ?? undefined,
-        undefined,
+        files,
         pageContext,
       );
     },
