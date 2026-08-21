@@ -158,7 +158,7 @@ export interface AgentToolConfig {
  * These are the baseline grants; admin can override via tool_grants table.
  */
 export const DEFAULT_AGENT_TOOL_CONFIGS: Record<string, AgentToolConfig> = {
-  // CFO — read-only + escalation + batch ingestion
+  // CFO — read-only + escalation + batch ingestion + knowledge graph
   cfo: {
     agentName: "cfo",
     allowedTools: [
@@ -168,12 +168,13 @@ export const DEFAULT_AGENT_TOOL_CONFIGS: Record<string, AgentToolConfig> = {
       "get_account_by_code",
       "search_knowledge",
       "start_batch_ingestion",
+      "query_knowledge_graph",
     ],
     maxConcurrentCalls: 3,
     maxCallsPerTurn: 5,
     canEscalate: true,
   },
-  // Controller — read + approve
+  // Controller — read + approve + knowledge graph
   controller: {
     agentName: "controller",
     allowedTools: [
@@ -183,6 +184,7 @@ export const DEFAULT_AGENT_TOOL_CONFIGS: Record<string, AgentToolConfig> = {
       "get_account_by_code",
       "validate_double_entry",
       "search_knowledge",
+      "query_knowledge_graph",
     ],
     maxConcurrentCalls: 3,
     maxCallsPerTurn: 8,
@@ -208,6 +210,7 @@ export const DEFAULT_AGENT_TOOL_CONFIGS: Record<string, AgentToolConfig> = {
       "get_account_balance",
       "get_recent_journal_entries",
       "search_knowledge",
+      "query_knowledge_graph",
     ],
     maxConcurrentCalls: 3,
     maxCallsPerTurn: 5,

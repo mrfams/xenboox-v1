@@ -14,6 +14,7 @@ import {
   HelpCircle,
   History,
   Database,
+  Network,
   Upload,
   type LucideIcon,
 } from "lucide-react";
@@ -95,6 +96,11 @@ const primaryNavItems: NavItem[] = [
 const bottomNavItems: NavItem[] = [
   { label: "Audit Trail", href: "/dashboard/audit-trail", icon: History },
   { label: "Knowledge Base", href: "/dashboard/knowledge", icon: Database },
+  {
+    label: "Knowledge Graph",
+    href: "/dashboard/knowledge-graph",
+    icon: Network,
+  },
   { label: "Batch Ingestion", href: "/dashboard/ingestion", icon: Upload },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

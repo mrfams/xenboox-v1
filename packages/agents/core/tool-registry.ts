@@ -510,6 +510,150 @@ const searchKnowledgeBaseTool: ToolDefinition = {
   category: "rag",
 };
 
+/**
+ * query_knowledge_graph — Query entity relationships from the knowledge graph.
+ * READ-ONLY: traverses graph to find connected entities.
+ * Returns nodes, edges, and relationship paths for AI reasoning.
+ */
+const queryKnowledgeGraphTool: ToolDefinition = {
+  name: "query_knowledge_graph",
+  description:
+    "Query the company's knowledge graph to find relationships between entities. Use this when the user asks about connections between companies, invoices, accounts, transactions, or any entity relationships. Returns connected nodes and relationship paths.",
+  inputSchema: z.object({
+    query: z
+      .string()
+      .describe("Natural language query about entity relationships"),
+    nodeType: z
+      .string()
+      .optional()
+      .describe("Filter by node type (e.g., invoice, account, bank_account)"),
+    limit: z.number().int().min(1).max(50).optional().describe("Max results"),
+  }),
+  execute: async (input, ctx) => {
+    try {
+      const { db } = await import("@xenboox/db");
+      const { kgNodes, kgEdges } = await import("@xenboox/db/schema");
+      const { eq, and, sql, desc, inArray } = await import("drizzle-orm");
+
+      // Search for relevant nodes
+      const searchPattern = `%${input.query}%`;
+      const where = input.nodeType
+        ? and(
+            eq(kgNodes.entityId, ctx.entityId),
+            sql`${kgNodes.label} ILIKE ${searchPattern}`,
+            eq(kgNodes.nodeType, input.nodeType),
+          )
+        : and(
+            eq(kgNodes.entityId, ctx.entityId),
+            sql`${kgNodes.label} ILIKE ${searchPattern}`,
+          );
+
+      const nodes = await db
+        .select({
+          id: kgNodes.id,
+          nodeType: kgNodes.nodeType,
+          label: kgNodes.label,
+          description: kgNodes.description,
+          internalId: kgNodes.internalId,
+          relationshipCount: kgNodes.relationshipCount,
+        })
+        .from(kgNodes)
+        .where(where)
+        .orderBy(desc(kgNodes.relationshipCount))
+        .limit(input.limit ?? 10);
+
+      if (nodes.length === 0) {
+        return {
+          success: true,
+          data: { nodes: [], edges: [], message: "No matching entities found" },
+          confidence: 0.3,
+        };
+      }
+
+      // Get relationships for found nodes
+      const nodeIds = nodes.map((n) => n.id);
+      const edges = await db
+        .select({
+          sourceId: kgEdges.sourceId,
+          targetId: kgEdges.targetId,
+          relationType: kgEdges.relationType,
+          relationLabel: kgEdges.relationLabel,
+          weight: kgEdges.weight,
+        })
+        .from(kgEdges)
+        .where(and(eq(kgEdges.entityId, ctx.entityId)))
+        .limit(50);
+
+      // Filter edges to only those involving our nodes
+      const relevantEdges = edges.filter(
+        (e) => nodeIds.includes(e.sourceId) || nodeIds.includes(e.targetId),
+      );
+
+      // Get connected node IDs
+      const connectedIds = [
+        ...relevantEdges.map((e) => e.sourceId),
+        ...relevantEdges.map((e) => e.targetId),
+      ].filter((id) => !nodeIds.includes(id));
+
+      // Get connected node details
+      const connectedNodes =
+        connectedIds.length > 0
+          ? await db
+              .select({
+                id: kgNodes.id,
+                nodeType: kgNodes.nodeType,
+                label: kgNodes.label,
+              })
+              .from(kgNodes)
+              .where(
+                and(
+                  eq(kgNodes.entityId, ctx.entityId),
+                  inArray(kgNodes.id, [...new Set(connectedIds)]),
+                ),
+              )
+          : [];
+
+      return {
+        success: true,
+        data: {
+          queryNodes: nodes.map((n) => ({
+            id: n.id,
+            type: n.nodeType,
+            label: n.label,
+            description: n.description,
+            connections: n.relationshipCount,
+          })),
+          relationships: relevantEdges.map((e) => ({
+            from: e.sourceId,
+            to: e.targetId,
+            type: e.relationType,
+            label: e.relationLabel,
+            weight: parseFloat(e.weight ?? "1"),
+          })),
+          connectedEntities: connectedNodes.map((n) => ({
+            id: n.id,
+            type: n.nodeType,
+            label: n.label,
+          })),
+          totalFound: nodes.length,
+          totalRelationships: relevantEdges.length,
+        },
+        confidence: nodes.length > 0 ? 0.85 : 0.3,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Knowledge graph query failed: ${error instanceof Error ? error.message : String(error)}`,
+        confidence: 0,
+      };
+    }
+  },
+  readOnly: true,
+  writes: false,
+  idempotencyKey: false,
+  category: "rag",
+};
+
 // ─── Registry ──────────────────────────────────────────────────────────────
 
 /**
@@ -523,6 +667,7 @@ const REGISTERED_TOOLS: ToolDefinition[] = [
   getAccountByCodeTool,
   searchKnowledgeBaseTool,
   startBatchIngestionTool,
+  queryKnowledgeGraphTool,
 ];
 
 /**

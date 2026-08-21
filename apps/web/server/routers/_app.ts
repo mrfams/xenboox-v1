@@ -86,6 +86,7 @@ import { matchingRouter } from "./matching";
 import { paymentLinksRouter } from "./payment-links";
 import { aiCorrectionsRouter } from "./ai-corrections";
 import { knowledgeRagRouter } from "./knowledge-rag";
+import { knowledgeGraphRouter } from "./knowledge-graph";
 import { batchIngestionRouter } from "./batch-ingestion";
 
 import { router, publicProcedure } from "@/lib/trpc/server";
@@ -180,6 +181,7 @@ export const appRouter = router({
   paymentLinks: paymentLinksRouter,
   aiCorrections: aiCorrectionsRouter,
   knowledgeRag: knowledgeRagRouter,
+  knowledgeGraph: knowledgeGraphRouter,
   batchIngestion: batchIngestionRouter,
 });
 

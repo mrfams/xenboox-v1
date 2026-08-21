@@ -65,6 +65,7 @@ export * from "./api-keys";
 export * from "./artifacts";
 export * from "./tool-grants";
 export * from "./knowledge-rag";
+export * from "./knowledge-graph";
 export * from "./fx";
 export * from "./automation";
 export * from "./user-settings";
