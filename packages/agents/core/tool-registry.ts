@@ -87,9 +87,8 @@ const getAccountBalanceTool: ToolDefinition = {
     accountCode: z.string().describe("Chart of accounts code (e.g., '1010')"),
   }),
   execute: async (input, ctx) => {
-    const { chartOfAccounts, journalEntries, journalEntryLines } = await import(
-      "@xenboox/db/schema/accounting"
-    );
+    const { chartOfAccounts, journalEntries, journalEntryLines } =
+      await import("@xenboox/db/schema/accounting");
 
     const account = await db.query.chartOfAccounts.findFirst({
       where: and(
@@ -155,9 +154,8 @@ const getJournalEntryLinesTool: ToolDefinition = {
     entryId: z.string().uuid().describe("Journal entry ID"),
   }),
   execute: async (input, ctx) => {
-    const { journalEntries, journalEntryLines } = await import(
-      "@xenboox/db/schema/accounting"
-    );
+    const { journalEntries, journalEntryLines } =
+      await import("@xenboox/db/schema/accounting");
 
     const entry = await db.query.journalEntries.findFirst({
       where: and(
@@ -300,6 +298,74 @@ const getAccountByCodeTool: ToolDefinition = {
   category: "read",
 };
 
+/**
+ * search_knowledge — Search the knowledge base using semantic search.
+ * READ-ONLY: queries document chunks with vector similarity + keyword matching.
+ * Returns relevant chunks with citations for audit trail.
+ */
+const searchKnowledgeBaseTool: ToolDefinition = {
+  name: "search_knowledge",
+  description:
+    "Search the company's knowledge base for relevant information. Use this when the user asks about policies, procedures, contracts, reports, or any document-based information. Returns relevant text chunks with source citations.",
+  inputSchema: z.object({
+    query: z.string().describe("Search query to find relevant knowledge"),
+    topK: z
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .optional()
+      .describe("Max results to return (default 5)"),
+    sourceType: z
+      .enum(["knowledge_document", "uploaded_document", "journal_entry"])
+      .optional()
+      .describe("Filter by source type"),
+  }),
+  execute: async (input, ctx) => {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const { retrieve, formatStructuredCitations } =
+        await import("@xenboox/ingestion/engine/retrieval");
+
+      const result = await retrieve(input.query, {
+        entityId: ctx.entityId,
+        agentName: "cfo-agent",
+        topK: input.topK ?? 5,
+        minScore: 0.3,
+        sourceType: input.sourceType,
+        method: "hybrid",
+      });
+
+      return {
+        success: true,
+        data: {
+          chunks: result.chunks.map((chunk) => ({
+            content: chunk.content,
+            sourceType: chunk.sourceType,
+            score: chunk.score,
+            method: chunk.method,
+          })),
+          totalChunks: result.totalChunks,
+          citations: formatStructuredCitations(result.chunks),
+          method: result.method,
+          durationMs: result.durationMs,
+        },
+        confidence: result.chunks.length > 0 ? 0.9 : 0.5,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Knowledge base search failed: ${error instanceof Error ? error.message : String(error)}`,
+        confidence: 0,
+      };
+    }
+  },
+  readOnly: true,
+  writes: false,
+  idempotencyKey: false,
+  category: "rag",
+};
+
 // ─── Registry ──────────────────────────────────────────────────────────────
 
 /**
@@ -311,6 +377,7 @@ const REGISTERED_TOOLS: ToolDefinition[] = [
   getJournalEntryLinesTool,
   getRecentJournalEntriesTool,
   getAccountByCodeTool,
+  searchKnowledgeBaseTool,
 ];
 
 /**

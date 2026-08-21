@@ -527,6 +527,33 @@ export async function POST(req: NextRequest) {
               timestamp: new Date().toISOString(),
             });
 
+            // Emit knowledge_citations when search_knowledge tool is used
+            if (success && toolName === "search_knowledge" && data) {
+              const toolData = data as {
+                citations?: Array<{
+                  index: number;
+                  content: string;
+                  sourceType: string;
+                  documentId?: string;
+                  score: number;
+                  method: string;
+                }>;
+                totalChunks?: number;
+                method?: string;
+                durationMs?: number;
+              };
+              if (toolData.citations && toolData.citations.length > 0) {
+                enqueue({
+                  type: "knowledge_citations",
+                  citations: toolData.citations,
+                  totalChunks: toolData.totalChunks,
+                  method: toolData.method,
+                  durationMs: toolData.durationMs,
+                  timestamp: new Date().toISOString(),
+                });
+              }
+            }
+
             // Emit data_changed so other surfaces refetch after tool mutations
             if (success && toolName) {
               const surfaceMap: Record<string, string> = {

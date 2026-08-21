@@ -93,6 +93,21 @@ export interface ToolTrace {
   durationMs?: number;
 }
 
+export interface KnowledgeCitationEvent {
+  type: "knowledge_citations";
+  citations: Array<{
+    index: number;
+    content: string;
+    sourceType: string;
+    documentId?: string;
+    score: number;
+    method: string;
+  }>;
+  totalChunks?: number;
+  method?: string;
+  durationMs?: number;
+}
+
 export interface TokenEvent {
   type: "token";
   content: string;
@@ -142,6 +157,7 @@ interface UseStreamingChatOptions {
   onDelegation?: (delegation: DelegationEvent) => void;
   onDocumentCreated?: (doc: DocumentCreatedEvent) => void;
   onApprovalNeeded?: (approval: ApprovalEvent) => void;
+  onKnowledgeCitations?: (citations: KnowledgeCitationEvent) => void;
   onNeedsInput?: (input: NeedsInputEvent) => void;
   onToolCall?: (trace: ToolTrace) => void;
   onToken?: (token: string) => void;
@@ -159,6 +175,7 @@ export function useStreamingChat({
   onDelegation,
   onDocumentCreated,
   onApprovalNeeded,
+  onKnowledgeCitations,
   onNeedsInput,
   onToolCall,
   onToken,
@@ -271,6 +288,10 @@ export function useStreamingChat({
 
                   case "needs_input":
                     onNeedsInput?.(data as NeedsInputEvent);
+                    break;
+
+                  case "knowledge_citations":
+                    onKnowledgeCitations?.(data as KnowledgeCitationEvent);
                     break;
 
                   case "tool_call": {

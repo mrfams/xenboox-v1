@@ -49,6 +49,10 @@ import {
   PinnedMessagesPanel,
   type PinnedMessage,
 } from "@/components/chat/message-actions";
+import {
+  KnowledgeCitations,
+  type Citation,
+} from "@/components/chat/knowledge-citations";
 import type {
   NeedsInputEvent,
   NeedsInputField,
@@ -638,6 +642,24 @@ function ConversationThread({
                   <ActorBadge actor="ai" />
                 </div>
               )}
+
+              {/* Knowledge citations */}
+              {msg.role === "assistant" &&
+                msg.citations &&
+                msg.citations.length > 0 && (
+                  <KnowledgeCitations
+                    citations={msg.citations.flatMap((event) =>
+                      event.citations.map((c) => ({
+                        index: c.index,
+                        content: c.content,
+                        sourceType: c.sourceType,
+                        documentId: c.documentId,
+                        score: c.score,
+                        method: c.method,
+                      })),
+                    )}
+                  />
+                )}
             </div>
 
             {/* Message Actions (on hover) */}

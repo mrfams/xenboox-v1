@@ -13,6 +13,7 @@ import {
   type DocumentCreatedEvent,
   type DoneEvent,
   type NeedsInputEvent,
+  type KnowledgeCitationEvent,
 } from "@/lib/hooks/use-streaming-chat";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ export interface DashboardChatMessage {
   delegations: DelegationEvent[];
   documents: DocumentCreatedEvent[];
   approvals: ApprovalEvent[];
+  citations: KnowledgeCitationEvent[];
   confidence?: number;
   durationMs?: number;
   createdAt: number;
@@ -116,7 +118,10 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     delegationsRef.current = [];
     documentsRef.current = [];
     approvalsRef.current = [];
+    citationsRef.current = [];
   }, []);
+
+  const citationsRef = useRef<KnowledgeCitationEvent[]>([]);
 
   const commitAssistantMessage = useCallback(
     (fullResponse: string, meta: DoneEvent) => {
@@ -131,12 +136,14 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
           delegations: delegationsRef.current,
           documents: documentsRef.current,
           approvals: approvalsRef.current,
+          citations: citationsRef.current,
           confidence: meta.confidence,
           durationMs: meta.durationMs,
           createdAt: Date.now(),
         },
       ]);
       clearActivityRefs();
+      citationsRef.current = [];
     },
     [clearActivityRefs],
   );
@@ -191,6 +198,9 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     },
     onApprovalNeeded: (approval) => {
       approvalsRef.current = [...approvalsRef.current, approval];
+    },
+    onKnowledgeCitations: (citations) => {
+      citationsRef.current = [...citationsRef.current, citations];
     },
     onNeedsInput: (input) => {
       setPendingInput(input);
