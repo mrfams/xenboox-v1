@@ -37,6 +37,7 @@ import { ConfidenceBadge } from "@/components/shared/ai-native";
 import { ActorBadge } from "@/components/shared/ai-native";
 import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import { useSrAnnounce } from "@/lib/hooks/use-sr-announce";
+import { usePageContext } from "@/lib/hooks/use-page-context";
 import {
   ConversationThinkingSteps,
   ToolCallTraceCard,
@@ -926,11 +927,13 @@ export default function CommandCenterPage() {
     }
   }, [isStreaming, streamedContent, announce]);
 
+  const pageContext = usePageContext();
+
   const handleSubmit = useCallback(
     (value: string) => {
-      sendMessage(value);
+      sendMessage(value, pageContext);
     },
-    [sendMessage],
+    [sendMessage, pageContext],
   );
 
   return (

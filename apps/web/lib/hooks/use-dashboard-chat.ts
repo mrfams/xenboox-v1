@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { trpc } from "@/lib/trpc/client";
 import { parseChatArtifacts } from "@/lib/chat/artifact-types";
+import type { PageContextPayload } from "@/lib/chat/page-context";
 import {
   useStreamingChat,
   type AgentActivityEvent,
@@ -199,7 +200,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
   });
 
   const sendMessage = useCallback(
-    (text: string) => {
+    (text: string, pageContext?: PageContextPayload) => {
       const trimmed = text.trim();
       if (!trimmed || !entityId || isStreaming) return;
 
@@ -220,7 +221,12 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
       ]);
 
       // Follow-ups reuse the same conversation so the thread stays together.
-      void streamMessage(trimmed, conversationIdRef.current ?? undefined);
+      void streamMessage(
+        trimmed,
+        conversationIdRef.current ?? undefined,
+        undefined,
+        pageContext,
+      );
     },
     [entityId, isStreaming, streamMessage],
   );
