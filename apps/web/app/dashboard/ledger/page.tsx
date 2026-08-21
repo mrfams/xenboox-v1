@@ -24,6 +24,7 @@ import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { FixedAssetsView } from "@/components/finance/fixed-assets-view";
+import { ReconciliationView } from "@/components/finance/reconciliation-view";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
@@ -915,37 +916,8 @@ function FixedAssetsViewWrapper() {
 
 // ─── Reconciliation View ───────────────────────────────────────────────────
 
-function ReconciliationView() {
-  const { openWithFocus } = useModuleAi();
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-        <RefreshCw
-          className="h-12 w-12 text-muted-foreground/30 mb-3"
-          aria-hidden="true"
-        />
-        <p className="text-sm font-medium text-foreground">Reconciliation</p>
-        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-          Bank statement matching and reconciliation — AI-powered,
-          drag-to-match. Ask the AI to reconcile your accounts.
-        </p>
-        <button
-          type="button"
-          onClick={() =>
-            openWithFocus(
-              { kind: "Reconciliation", name: "Bank Reconciliation" },
-              "Help me reconcile my bank transactions. Show unmatched items.",
-            )
-          }
-          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Ask AI to reconcile
-        </button>
-      </div>
-    </div>
-  );
+function ReconciliationViewWrapper() {
+  return <ReconciliationView />;
 }
 
 // ─── Keyboard-Navigable Tab List ──────────────────────────────────────────
@@ -1049,7 +1021,7 @@ export default function LedgerPage() {
     coa: <COAView />,
     "trial-balance": <TrialBalanceView />,
     "fixed-assets": <FixedAssetsViewWrapper />,
-    reconciliation: <ReconciliationView />,
+    reconciliation: <ReconciliationViewWrapper />,
   };
 
   return (

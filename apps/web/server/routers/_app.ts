@@ -49,7 +49,7 @@ import { dashboardRouter } from "./dashboard";
 import { aiWorkspaceRouter } from "./ai-workspace";
 import { inboxRouter } from "./inbox";
 import { transactionsRouter } from "./transactions";
-import { bankingRouter } from "./banking";
+import { bankingRouter, reconciliationRouter } from "./banking";
 import { invoicingRouter } from "./invoicing";
 import { customersRouter } from "./customers";
 import { chartOfAccountsRouter } from "./chart-of-accounts";
@@ -143,6 +143,7 @@ export const appRouter = router({
   inbox: inboxRouter,
   transactions: transactionsRouter,
   banking: bankingRouter,
+  reconciliation: reconciliationRouter,
   invoicing: invoicingRouter,
   customers: customersRouter,
   chartOfAccounts: chartOfAccountsRouter,

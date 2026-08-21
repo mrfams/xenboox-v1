@@ -842,3 +842,274 @@ function countRuleMatches(
     .where(and(...conditions))
     .then((r) => r[0]?.count ?? 0);
 }
+
+// ─── Extended Banking Router ──────────────────────────────────────────────
+// Add reconciliation procedures to the existing banking router.
+
+export const reconciliationRouter = router({
+  /**
+   * Get reconciliation data: unreconciled bank transactions and journal entries.
+   * Returns both sides for matching, plus AI-suggested matches.
+   */
+  getReconciliationData: rlsProtectedProcedure
+    .input(
+      z.object({
+        bankAccountId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      // Get unreconciled bank transactions
+      const bankTxWhere = input.bankAccountId
+        ? and(
+            eq(bankTransactions.entityId, entityId),
+            eq(bankTransactions.isReconciled, false),
+            eq(bankTransactions.bankAccountId, input.bankAccountId),
+          )
+        : and(
+            eq(bankTransactions.entityId, entityId),
+            eq(bankTransactions.isReconciled, false),
+          );
+
+      const unreconciledBankTx = await db
+        .select({
+          id: bankTransactions.id,
+          transactionDate: bankTransactions.transactionDate,
+          amount: bankTransactions.amount,
+          description: bankTransactions.description,
+          reference: bankTransactions.reference,
+          type: bankTransactions.type,
+          bankAccountId: bankTransactions.bankAccountId,
+          balance: bankTransactions.balance,
+        })
+        .from(bankTransactions)
+        .where(bankTxWhere)
+        .orderBy(desc(bankTransactions.transactionDate));
+
+      // Get unreconciled journal entries (posted but not linked to bank tx)
+      const unreconciledJE = await db
+        .select({
+          id: journalEntries.id,
+          entryNumber: journalEntries.entryNumber,
+          date: journalEntries.date,
+          description: journalEntries.description,
+          status: journalEntries.status,
+        })
+        .from(journalEntries)
+        .where(
+          and(
+            eq(journalEntries.entityId, entityId),
+            eq(journalEntries.status, "posted"),
+            sql`${journalEntries.id} NOT IN (
+              SELECT journal_entry_id FROM bank_transactions 
+              WHERE journal_entry_id IS NOT NULL AND entity_id = ${entityId}
+            )`,
+          ),
+        )
+        .orderBy(desc(journalEntries.date));
+
+      // Get totals
+      const bankTotal = unreconciledBankTx.reduce(
+        (sum, tx) => sum + Math.abs(parseFloat(tx.amount ?? "0")),
+        0,
+      );
+      const jeTotal = unreconciledJE.length; // Count of entries
+
+      // Get bank accounts for filter
+      const accounts = await db.query.bankAccounts.findMany({
+        where: eq(bankAccounts.entityId, entityId),
+        columns: { id: true, name: true, currentBalance: true },
+      });
+
+      // Get recent reconciliations
+      const recentReconciliations = await db
+        .select({
+          id: reconciliations.id,
+          statementDate: reconciliations.statementDate,
+          statementBalance: reconciliations.statementBalance,
+          bookBalance: reconciliations.bookBalance,
+          difference: reconciliations.difference,
+          status: reconciliations.status,
+          closedAt: reconciliations.closedAt,
+        })
+        .from(reconciliations)
+        .where(eq(reconciliations.entityId, entityId))
+        .orderBy(desc(reconciliations.statementDate))
+        .limit(5);
+
+      return {
+        unreconciledBankTransactions: unreconciledBankTx,
+        unreconciledJournalEntries: unreconciledJE,
+        bankTotal,
+        journalEntryCount: jeTotal,
+        accounts,
+        recentReconciliations,
+        currency: ctx.currency ?? "GMD",
+      };
+    }),
+
+  /**
+   * AI-powered matching: suggests matches between bank transactions and journal entries.
+   */
+  getAiMatches: rlsProtectedProcedure
+    .input(
+      z.object({
+        bankAccountId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      // Get unreconciled bank transactions
+      const bankTxWhere = input.bankAccountId
+        ? and(
+            eq(bankTransactions.entityId, entityId),
+            eq(bankTransactions.isReconciled, false),
+            eq(bankTransactions.bankAccountId, input.bankAccountId),
+          )
+        : and(
+            eq(bankTransactions.entityId, entityId),
+            eq(bankTransactions.isReconciled, false),
+          );
+
+      const bankTx = await db
+        .select({
+          id: bankTransactions.id,
+          transactionDate: bankTransactions.transactionDate,
+          amount: bankTransactions.amount,
+          description: bankTransactions.description,
+          reference: bankTransactions.reference,
+        })
+        .from(bankTransactions)
+        .where(bankTxWhere)
+        .orderBy(desc(bankTransactions.transactionDate))
+        .limit(50);
+
+      // Get unreconciled journal entries
+      const journalEntriesList = await db
+        .select({
+          id: journalEntries.id,
+          entryNumber: journalEntries.entryNumber,
+          date: journalEntries.date,
+          description: journalEntries.description,
+        })
+        .from(journalEntries)
+        .where(
+          and(
+            eq(journalEntries.entityId, entityId),
+            eq(journalEntries.status, "posted"),
+            sql`${journalEntries.id} NOT IN (
+              SELECT journal_entry_id FROM bank_transactions 
+              WHERE journal_entry_id IS NOT NULL AND entity_id = ${entityId}
+            )`,
+          ),
+        )
+        .orderBy(desc(journalEntries.date))
+        .limit(50);
+
+      // Simple rule-based matching (amount + date proximity)
+      const matches: Array<{
+        bankTransactionId: string;
+        journalEntryId: string;
+        confidence: number;
+        reason: string;
+      }> = [];
+
+      for (const tx of bankTx) {
+        const txAmount = Math.abs(parseFloat(tx.amount ?? "0"));
+        const txDate = new Date(tx.transactionDate);
+
+        for (const je of journalEntriesList) {
+          // Get JE total from lines
+          const lines = await db
+            .select({
+              debit: journalEntryLines.debit,
+              credit: journalEntryLines.credit,
+            })
+            .from(journalEntryLines)
+            .where(eq(journalEntryLines.journalEntryId, je.id));
+
+          const jeTotal = lines.reduce(
+            (sum, l) =>
+              sum +
+              Math.abs(
+                parseFloat(l.debit ?? "0") - parseFloat(l.credit ?? "0"),
+              ),
+            0,
+          );
+
+          // Exact amount match
+          if (Math.abs(txAmount - jeTotal) < 0.01) {
+            const jeDate = je.date ? new Date(je.date) : null;
+            const daysDiff = jeDate
+              ? Math.abs(
+                  (txDate.getTime() - jeDate.getTime()) / (1000 * 60 * 60 * 24),
+                )
+              : 999;
+
+            if (daysDiff <= 7) {
+              // High confidence: exact amount + date within 7 days
+              matches.push({
+                bankTransactionId: tx.id,
+                journalEntryId: je.id,
+                confidence: daysDiff <= 1 ? 0.95 : daysDiff <= 3 ? 0.85 : 0.75,
+                reason: `Exact amount match (${ctx.currency ?? "GMD"} ${txAmount.toLocaleString()})${daysDiff <= 1 ? ", same day" : `, ${Math.round(daysDiff)} days apart`}`,
+              });
+              break; // One match per bank tx
+            }
+          }
+        }
+      }
+
+      return {
+        matches,
+        totalBankTransactions: bankTx.length,
+        totalJournalEntries: journalEntriesList.length,
+        matchedCount: matches.length,
+        unmatchedCount: bankTx.length - matches.length,
+      };
+    }),
+
+  /**
+   * Mark a bank transaction as reconciled and link to journal entry.
+   */
+  reconcileTransaction: rlsMutateProcedure
+    .input(
+      z.object({
+        bankTransactionId: z.string(),
+        journalEntryId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      // Update bank transaction
+      await db
+        .update(bankTransactions)
+        .set({
+          isReconciled: true,
+          journalEntryId: input.journalEntryId,
+        })
+        .where(
+          and(
+            eq(bankTransactions.id, input.bankTransactionId),
+            eq(bankTransactions.entityId, entityId),
+          ),
+        );
+
+      // Log to audit trail
+      await db.insert(auditLog).values({
+        entityId,
+        entityType: "bank_transaction",
+        entityId2: input.bankTransactionId,
+        action: "reconciled",
+        performedBy: ctx.userId ?? "system",
+        details: {
+          journalEntryId: input.journalEntryId,
+        },
+      });
+
+      return { success: true };
+    }),
+});
