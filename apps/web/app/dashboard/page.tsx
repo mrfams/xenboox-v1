@@ -62,6 +62,7 @@ import {
 import { ConversationMemory } from "@/components/chat/conversation-memory";
 import { DataTableInline } from "@/components/chat/data-table-inline";
 import { ChartInline } from "@/components/chat/chart-inline";
+import { DocumentGenerating } from "@/components/chat/document-generating";
 import type {
   NeedsInputEvent,
   NeedsInputField,
@@ -1091,6 +1092,10 @@ function ConversationThread({
             }}
           />
         )}
+        {/* Document generation indicator — shown while AI is creating documents */}
+        {isStreaming && streamedContent && documents.length === 0 && (
+          <DocumentGeneratingIndicator content={streamedContent} />
+        )}
         {/* Document artifacts — Inline Document Viewer */}
         {documents.map((doc, i) => (
           <div key={`doc-${i}`} className="flex gap-3">
@@ -1104,6 +1109,7 @@ function ConversationThread({
                 docType={doc.docType}
                 mimeType={doc.mimeType}
                 sizeBytes={doc.sizeBytes}
+                defaultExpanded={true}
               />
             </div>
           </div>
@@ -1118,6 +1124,41 @@ function ConversationThread({
 //
 // Universal AI chat input. Sits at the bottom of the Command Center.
 // Dynamic suggestions based on time of month and entity state.
+
+// ─── Document Generation Indicator ─────────────────────────────────────────
+//
+// Detects when the AI is talking about generating a document and shows
+// a generating indicator. This bridges the gap between the AI's text
+// response and the actual artifact creation (which happens server-side
+// after the text is done streaming).
+
+const DOC_GENERATION_PATTERNS =
+  /generat|creat(?:ing|e) (?:a |the )?(?:report|document|pdf|excel|word|spreadsheet|export|file)|prepar(?:ing|e) (?:a |the )?(?:report|document)|export(?:ing|s)? (?:to|as) (?:pdf|excel|word|csv)|build(?:ing)? (?:a |the )?(?:report|document)/i;
+
+function DocumentGeneratingIndicator({ content }: { content: string }) {
+  const isGenerating = DOC_GENERATION_PATTERNS.test(content);
+
+  if (!isGenerating) return null;
+
+  // Extract document type from the text
+  const docTypeMatch = content.match(
+    /(report|document|pdf|excel|word|spreadsheet|export)/i,
+  );
+  const docType = docTypeMatch
+    ? docTypeMatch[1].charAt(0).toUpperCase() + docTypeMatch[1].slice(1)
+    : "Document";
+
+  return (
+    <div className="flex gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+        <Bot className="h-4 w-4 text-primary/70" />
+      </div>
+      <div className="max-w-[85%]">
+        <DocumentGenerating docType={docType} />
+      </div>
+    </div>
+  );
+}
 
 const COMPOSER_MAX_HEIGHT = 120;
 
