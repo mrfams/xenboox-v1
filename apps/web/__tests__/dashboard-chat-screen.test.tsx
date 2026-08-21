@@ -113,7 +113,7 @@ describe("DashboardChatScreen", () => {
     });
 
     const link = screen.getByRole("link", { name: /Open in Chat/i });
-    expect(link).toHaveAttribute("href", "/dashboard/chat?c=c1");
+    expect(link).toHaveAttribute("href", "/dashboard");
   });
 
   it("calls onNewChat from the New chat button", () => {

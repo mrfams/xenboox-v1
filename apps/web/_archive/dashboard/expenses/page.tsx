@@ -39,12 +39,7 @@ import { RowAiAction } from "@/components/module/row-ai-action";
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 type TabFilter =
-  | "overview"
-  | "all"
-  | "draft"
-  | "pending"
-  | "approved"
-  | "reimbursed";
+  "overview" | "all" | "draft" | "pending" | "approved" | "reimbursed";
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
 

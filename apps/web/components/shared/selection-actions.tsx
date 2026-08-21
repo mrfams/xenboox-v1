@@ -76,7 +76,7 @@ export function SelectionActions({
       onAction(prompt);
     } else {
       router.push(
-        `/dashboard/chat?initial=${encodeURIComponent(prompt + " (" + selectedCount + " " + selectedLabel + ")")}`,
+        `/dashboard?prompt=${encodeURIComponent(prompt + " (" + selectedCount + " " + selectedLabel + ")")}`,
       );
     }
   };

@@ -104,7 +104,7 @@ test.describe("Production Readiness Features", () => {
     });
 
     test("chat page has proper accessibility attributes", async ({ page }) => {
-      await page.goto("/dashboard/chat");
+      await page.goto("/dashboard");
       await page.waitForLoadState("networkidle");
 
       // Check for chat input

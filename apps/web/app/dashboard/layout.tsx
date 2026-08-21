@@ -20,7 +20,10 @@ import { useSurfaceShortcuts } from "@/lib/hooks/use-surface-shortcuts";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
-import { ErrorBoundary } from "@/components/shared/error-boundary";
+import {
+  ErrorBoundary,
+  SurfaceErrorBoundary,
+} from "@/components/shared/error-boundary";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Command Center",
@@ -165,7 +168,7 @@ export default function DashboardLayout({
                 onOpenCopilot={(prompt) => {
                   // Navigate to chat page with the prompt as a search param.
                   // The chat page reads it and sends it to the AI.
-                  window.location.href = `/dashboard/chat?prompt=${encodeURIComponent(prompt)}`;
+                  window.location.href = `/dashboard?prompt=${encodeURIComponent(prompt)}`;
                 }}
               />
 
@@ -177,8 +180,15 @@ export default function DashboardLayout({
                 Skip to content
               </a>
 
-              {/* Screen reader announcement for route changes */}
+              {/* Screen reader announcements */}
               <div {...getAnnounceProps()} />
+              <div
+                id="sr-announcements"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="sr-only"
+              />
               <div data-dashboard className="flex h-screen overflow-hidden">
                 {/* Left Sidebar */}
                 <AISidebar
@@ -214,7 +224,11 @@ export default function DashboardLayout({
                       </h1>
                       {/* Route transition — keyed on pathname triggers fade+slide animation */}
                       <div key={pathname} className="route-transition-enter">
-                        <ErrorBoundary>{children}</ErrorBoundary>
+                        <SurfaceErrorBoundary
+                          surface={getPageTitle(pathname ?? "")}
+                        >
+                          {children}
+                        </SurfaceErrorBoundary>
                       </div>
                     </main>
 

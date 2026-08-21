@@ -349,7 +349,7 @@ test.describe("Enterprise Production Readiness", () => {
     test("protected route renders loading state before auth redirect", async ({
       page,
     }) => {
-      await page.goto("/dashboard/chat", { timeout: 90000 });
+      await page.goto("/dashboard", { timeout: 90000 });
       // Same as above — storageState contexts stay on the protected route.
       if (!page.url().includes("/dashboard")) {
         await page.waitForURL("**/login**", { timeout: 30000 });

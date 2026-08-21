@@ -226,7 +226,7 @@ export const PAGE_EMPTY_STATES = {
     description:
       "Send professional invoices to your customers and track payments. AI helps you follow up on overdue invoices automatically.",
     actions: [
-      { label: "Create Invoice", href: "/dashboard/invoicing/new", icon: Plus },
+      { label: "Create Invoice", href: "/dashboard", icon: Plus },
       { label: "Import Customers", variant: "secondary" as const },
     ],
     tips: [
@@ -507,7 +507,7 @@ export const PAGE_EMPTY_STATES = {
       { label: "Upload Documents", icon: Upload },
       {
         label: "Connect Bank",
-        href: "/dashboard/banking",
+        href: "/dashboard/operations",
         variant: "secondary" as const,
       },
     ],
@@ -548,10 +548,10 @@ export const PAGE_EMPTY_STATES = {
     description:
       "21 AI agents are standing by to handle your accounting tasks. They'll appear here once they start processing work.",
     actions: [
-      { label: "Start with AI Chat", href: "/dashboard/chat", icon: Bot },
+      { label: "Start with AI Chat", href: "/dashboard", icon: Bot },
       {
         label: "Upload Documents",
-        href: "/dashboard/documents",
+        href: "/dashboard",
         variant: "secondary" as const,
       },
     ],
@@ -572,7 +572,7 @@ export const PAGE_EMPTY_STATES = {
     actions: [
       {
         label: "View Agent Activity",
-        href: "/dashboard/agents",
+        href: "/dashboard/activity-hub",
         variant: "secondary" as const,
       },
     ],
@@ -652,7 +652,7 @@ export const PAGE_EMPTY_STATES = {
       { label: "Upload Document", icon: Upload },
       {
         label: "Connect Bank",
-        href: "/dashboard/banking",
+        href: "/dashboard/operations",
         variant: "secondary" as const,
       },
     ],

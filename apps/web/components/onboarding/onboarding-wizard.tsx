@@ -878,13 +878,13 @@ function CompletionStep({ onGoToDashboard }: { onGoToDashboard: () => void }) {
 
       <div className="grid gap-3 sm:grid-cols-2 w-full max-w-md text-left">
         <QuickLink
-          href="/dashboard/coa"
+          href="/dashboard/ledger"
           icon={<BookOpen className="h-4 w-4" />}
           title="Chart of Accounts"
           desc="Review your account structure"
         />
         <QuickLink
-          href="/dashboard/treasury"
+          href="/dashboard/operations"
           icon={<Landmark className="h-4 w-4" />}
           title="Bank Accounts"
           desc="Connect your bank feeds"
@@ -896,7 +896,7 @@ function CompletionStep({ onGoToDashboard }: { onGoToDashboard: () => void }) {
           desc="Manage your team"
         />
         <QuickLink
-          href="/dashboard/chat"
+          href="/dashboard"
           icon={<Brain className="h-4 w-4" />}
           title="AI Assistant"
           desc="Ask anything about your books"

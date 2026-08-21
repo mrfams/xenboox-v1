@@ -6,22 +6,16 @@ import {
   LayoutDashboard,
   MessageSquare,
   Wallet,
-  Receipt,
-  CreditCard,
-  Users,
   BarChart3,
-  BookOpen,
   Settings,
   Activity,
   FileText,
-  RefreshCw,
   HelpCircle,
   Search,
   Plus,
   ArrowRight,
   Clock,
   Sparkles,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,161 +37,51 @@ type CommandItem = {
   label: string;
   description?: string;
   href?: string;
+  /** AI prompt to send to Command Center — preferred over href for actions */
+  aiPrompt?: string;
   icon: LucideIcon;
   group: string;
   keywords?: string[];
   action?: () => void;
 };
 
-// ─── Navigation Items ───────────────────────────────────────────────────
+// ─── Navigation Items (5 AI-native surfaces) ────────────────────────────
 
 const navigationItems: Omit<CommandItem, "id">[] = [
   {
-    label: "Dashboard",
+    label: "Command Center",
     href: "/dashboard",
-    icon: LayoutDashboard,
-    group: "Pages",
-    keywords: ["home", "overview", "main"],
-  },
-  {
-    label: "AI Workspace",
-    href: "/dashboard/chat",
     icon: MessageSquare,
     group: "Pages",
-    keywords: ["chat", "ai", "assistant", "ask"],
+    keywords: ["chat", "ai", "assistant", "ask", "command"],
   },
   {
-    label: "Transactions",
-    href: "/dashboard/transactions",
-    icon: BookOpen,
-    group: "Pages",
-    keywords: ["ledger", "entries", "journal"],
-  },
-  {
-    label: "Banking",
-    href: "/dashboard/banking",
-    icon: Wallet,
-    group: "Pages",
-    keywords: ["bank", "accounts", "cash"],
-  },
-  {
-    label: "Invoicing",
-    href: "/dashboard/invoicing",
-    icon: Receipt,
-    group: "Pages",
-    keywords: ["invoice", "sales", "billing"],
-  },
-  {
-    label: "Bills",
-    href: "/dashboard/bills",
-    icon: CreditCard,
-    group: "Pages",
-    keywords: ["bill", "payable", "vendor"],
-  },
-  {
-    label: "Expenses",
-    href: "/dashboard/expenses",
-    icon: Receipt,
-    group: "Pages",
-    keywords: ["expense", "cost", "spending"],
-  },
-  {
-    label: "Customers",
-    href: "/dashboard/customers",
-    icon: Users,
-    group: "Pages",
-    keywords: ["customer", "client", "contact"],
-  },
-  {
-    label: "Vendors",
-    href: "/dashboard/vendors",
-    icon: Users,
-    group: "Pages",
-    keywords: ["vendor", "supplier", "payee"],
-  },
-  {
-    label: "Payroll",
-    href: "/dashboard/payroll",
-    icon: Users,
-    group: "Pages",
-    keywords: ["payroll", "salary", "employee", "wages"],
-  },
-  {
-    label: "Reports",
-    href: "/dashboard/reports",
-    icon: BarChart3,
-    group: "Pages",
-    keywords: ["report", "analysis", "statements"],
-  },
-  {
-    label: "General Ledger",
-    href: "/dashboard/journal",
-    icon: BookOpen,
-    group: "Pages",
-    keywords: ["gl", "ledger", "accounts"],
-  },
-  {
-    label: "Chart of Accounts",
-    href: "/dashboard/chart-of-accounts",
-    icon: BookOpen,
-    group: "Pages",
-    keywords: ["coa", "accounts", "categories"],
-  },
-  {
-    label: "Reconciliation",
-    href: "/dashboard/reconciliation/center",
-    icon: RefreshCw,
-    group: "Pages",
-    keywords: ["reconcile", "match", "bank"],
-  },
-  {
-    label: "Documents",
-    href: "/dashboard/documents",
-    icon: FileText,
-    group: "Pages",
-    keywords: ["document", "files", "uploads"],
-  },
-  {
-    label: "Document Processing",
-    href: "/dashboard/documents/processing",
-    icon: FileText,
-    group: "Pages",
-    keywords: ["ocr", "scan", "receipt", "ocr", "extract"],
-  },
-  {
-    label: "Payment Links",
-    href: "/dashboard/payment-links",
-    icon: FileText,
-    group: "Pages",
-    keywords: ["payment", "link", "invoice", "online"],
-  },
-  {
-    label: "AI Learning",
-    href: "/dashboard/ai-learning",
-    icon: FileText,
-    group: "Pages",
-    keywords: ["ai", "learning", "corrections", "feedback", "brain"],
-  },
-  {
-    label: "Inbox",
-    href: "/dashboard/inbox",
-    icon: MessageSquare,
-    group: "Pages",
-    keywords: ["inbox", "notifications", "alerts"],
-  },
-  {
-    label: "Close Center",
-    href: "/dashboard/close",
-    icon: RefreshCw,
-    group: "Pages",
-    keywords: ["close", "period", "month-end"],
-  },
-  {
-    label: "Agent Monitor",
-    href: "/dashboard/agent-monitor",
+    label: "Activity Hub",
+    href: "/dashboard/activity-hub",
     icon: Activity,
     group: "Pages",
-    keywords: ["agent", "monitor", "ai", "status"],
+    keywords: ["activity", "approvals", "pending", "review"],
+  },
+  {
+    label: "Financial Pulse",
+    href: "/dashboard/financial-pulse",
+    icon: BarChart3,
+    group: "Pages",
+    keywords: ["financial", "pulse", "kpi", "narrative"],
+  },
+  {
+    label: "Ledger",
+    href: "/dashboard/ledger",
+    icon: FileText,
+    group: "Pages",
+    keywords: ["ledger", "journal", "entries", "gl"],
+  },
+  {
+    label: "Operations",
+    href: "/dashboard/operations",
+    icon: Wallet,
+    group: "Pages",
+    keywords: ["operations", "banking", "cash", "flow"],
   },
   {
     label: "Settings",
@@ -215,92 +99,64 @@ const navigationItems: Omit<CommandItem, "id">[] = [
   },
 ];
 
-// ─── Quick Actions ──────────────────────────────────────────────────────
+// ─── Quick Actions (AI-mediated) ────────────────────────────────────────
 
 const quickActions: Omit<CommandItem, "id">[] = [
   {
     label: "Create Invoice",
-    href: "/dashboard/invoicing",
+    aiPrompt: "Create a new sales invoice",
     icon: Plus,
     group: "Quick Actions",
     keywords: ["create", "new", "invoice", "bill"],
   },
   {
-    label: "Create Expense",
-    href: "/dashboard/expenses",
+    label: "Record Expense",
+    aiPrompt: "Record a new expense",
     icon: Plus,
     group: "Quick Actions",
-    keywords: ["create", "new", "expense"],
-  },
-  {
-    label: "Run Payroll",
-    href: "/dashboard/payroll",
-    icon: Zap,
-    group: "Quick Actions",
-    keywords: ["run", "payroll", "process"],
-  },
-  {
-    label: "Reconcile Bank",
-    href: "/dashboard/reconciliation/center",
-    icon: RefreshCw,
-    group: "Quick Actions",
-    keywords: ["reconcile", "bank", "match"],
-  },
-  {
-    label: "Generate Report",
-    href: "/dashboard/reports",
-    icon: BarChart3,
-    group: "Quick Actions",
-    keywords: ["generate", "report", "export"],
-  },
-  {
-    label: "Create Payment Link",
-    href: "/dashboard/payment-links",
-    icon: Plus,
-    group: "Quick Actions",
-    keywords: ["payment", "link", "share", "invoice"],
-  },
-  {
-    label: "Upload Document",
-    href: "/dashboard/documents",
-    icon: Plus,
-    group: "Quick Actions",
-    keywords: ["upload", "document", "receipt", "ocr"],
+    keywords: ["create", "new", "expense", "cost"],
   },
   {
     label: "Add Customer",
-    href: "/dashboard/customers",
+    aiPrompt: "Add a new customer",
     icon: Plus,
     group: "Quick Actions",
     keywords: ["add", "new", "customer", "client"],
   },
   {
     label: "Add Vendor",
-    href: "/dashboard/vendors",
+    aiPrompt: "Add a new vendor",
     icon: Plus,
     group: "Quick Actions",
     keywords: ["add", "new", "vendor", "supplier"],
   },
   {
-    label: "Upload Document",
-    href: "/dashboard/documents",
-    icon: Plus,
+    label: "Run Payroll",
+    aiPrompt: "Run payroll for this period",
+    icon: Sparkles,
     group: "Quick Actions",
-    keywords: ["upload", "document", "file"],
+    keywords: ["run", "payroll", "process", "salary"],
   },
   {
-    label: "Close Month",
-    href: "/dashboard/close",
-    icon: RefreshCw,
+    label: "Generate Report",
+    aiPrompt: "Generate a financial report",
+    icon: BarChart3,
     group: "Quick Actions",
-    keywords: ["close", "month", "period"],
+    keywords: ["generate", "report", "export"],
   },
   {
-    label: "Ask AI Assistant",
-    href: "/dashboard/chat",
-    icon: MessageSquare,
+    label: "Reconcile Bank",
+    aiPrompt: "Help me reconcile bank transactions",
+    icon: Sparkles,
     group: "Quick Actions",
-    keywords: ["ask", "ai", "help", "assistant"],
+    keywords: ["reconcile", "bank", "match"],
+  },
+  {
+    label: "Close Month-End",
+    aiPrompt: "Close the books for this month",
+    icon: Sparkles,
+    group: "Quick Actions",
+    keywords: ["close", "month", "period", "end"],
   },
 ];
 
@@ -315,8 +171,8 @@ export function CommandPalette({
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [commands, setCommands] = useState<CommandItem[]>([]);
   const [recentItems, setRecentItems] = useState<CommandItem[]>([]);
+  const [dynamicItems, setDynamicItems] = useState<CommandItem[]>([]);
   const utils = trpc.useUtils();
 
   // Load recent items from localStorage
@@ -345,7 +201,7 @@ export function CommandPalette({
     });
   }, []);
 
-  // Load dynamic data (invoices, customers, etc.)
+  // Load dynamic data (invoices, customers, bank accounts)
   useEffect(() => {
     async function loadDynamicData() {
       try {
@@ -356,26 +212,26 @@ export function CommandPalette({
           utils.document.listDocuments.fetch({}).catch(() => []),
         ]);
 
-        const dynamicItems: CommandItem[] = [
+        const items: CommandItem[] = [
           ...(invoices ?? [])
-            .slice(0, 10)
+            .slice(0, 5)
             .map((inv: Record<string, unknown>) => ({
               id: `invoice-${inv.id}`,
               label: `Invoice ${inv.invoiceNumber as string}`,
               description: `${(inv.status as string) ?? "pending"}`,
-              href: `/dashboard/invoicing`,
-              icon: Receipt,
+              aiPrompt: `Show me invoice ${inv.invoiceNumber as string}`,
+              icon: FileText,
               group: "Invoices",
               keywords: ["invoice", inv.invoiceNumber as string],
             })),
           ...(customers ?? [])
-            .slice(0, 10)
+            .slice(0, 5)
             .map((c: Record<string, unknown>) => ({
               id: `customer-${c.id}`,
               label: c.name as string,
               description: "Customer",
-              href: `/dashboard/customers`,
-              icon: Users,
+              aiPrompt: `Show me customer ${c.name as string}`,
+              icon: LayoutDashboard,
               group: "Customers",
               keywords: ["customer", c.name as string],
             })),
@@ -385,7 +241,7 @@ export function CommandPalette({
               id: `bank-${b.id}`,
               label: b.name as string,
               description: "Bank Account",
-              href: `/dashboard/banking`,
+              aiPrompt: `Show me bank account ${b.name as string}`,
               icon: Wallet,
               group: "Bank Accounts",
               keywords: ["bank", "account", b.name as string],
@@ -394,14 +250,14 @@ export function CommandPalette({
             id: `doc-${d.id}`,
             label: d.name as string,
             description: "Document",
-            href: `/dashboard/documents`,
+            aiPrompt: `Show me document ${d.name as string}`,
             icon: FileText,
             group: "Documents",
             keywords: ["document", d.name as string],
           })),
         ];
 
-        setCommands(dynamicItems);
+        setDynamicItems(items);
       } catch {
         // Silent
       }
@@ -416,7 +272,7 @@ export function CommandPalette({
   const allItems: CommandItem[] = [
     ...navigationItems.map((item, idx) => ({ ...item, id: `nav-${idx}` })),
     ...quickActions.map((item, idx) => ({ ...item, id: `action-${idx}` })),
-    ...commands,
+    ...dynamicItems,
   ];
 
   // Filter items based on search
@@ -444,11 +300,23 @@ export function CommandPalette({
     {} as Record<string, CommandItem[]>,
   );
 
+  // Navigate to Command Center with an AI prompt
+  const navigateToAi = useCallback(
+    (prompt: string) => {
+      router.push(`/dashboard?prompt=${encodeURIComponent(prompt)}`);
+      onOpenChange(false);
+      setSearch("");
+    },
+    [router, onOpenChange],
+  );
+
   // Handle item selection
   const handleSelect = useCallback(
     (item: CommandItem) => {
       if (item.action) {
         item.action();
+      } else if (item.aiPrompt) {
+        navigateToAi(item.aiPrompt);
       } else if (item.href) {
         saveRecentItem(item);
         router.push(item.href);
@@ -456,19 +324,15 @@ export function CommandPalette({
       onOpenChange(false);
       setSearch("");
     },
-    [router, onOpenChange, saveRecentItem],
+    [router, onOpenChange, saveRecentItem, navigateToAi],
   );
 
   // Handle AI query
   const handleAiQuery = useCallback(() => {
     if (search.trim()) {
-      router.push(
-        `/dashboard/chat?initial=${encodeURIComponent(search.trim())}`,
-      );
-      onOpenChange(false);
-      setSearch("");
+      navigateToAi(search.trim());
     }
-  }, [search, router, onOpenChange]);
+  }, [search, navigateToAi]);
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
@@ -491,24 +355,21 @@ export function CommandPalette({
         {/* Recent Items */}
         {!search && recentItems.length > 0 && (
           <CommandGroup heading="Recent">
-            {recentItems.map((item) => {
-              const ____Icon = item.icon;
-              return (
-                <CommandItem
-                  key={`recent-${item.id}`}
-                  onSelect={() => handleSelect(item)}
-                >
-                  <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.description && (
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {item.description}
-                    </span>
-                  )}
-                  <CommandShortcut>↵</CommandShortcut>
-                </CommandItem>
-              );
-            })}
+            {recentItems.map((item) => (
+              <CommandItem
+                key={`recent-${item.id}`}
+                onSelect={() => handleSelect(item)}
+              >
+                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="flex-1">{item.label}</span>
+                {item.description && (
+                  <span className="text-xs text-muted-foreground mr-2">
+                    {item.description}
+                  </span>
+                )}
+                <CommandShortcut>↵</CommandShortcut>
+              </CommandItem>
+            ))}
           </CommandGroup>
         )}
 
@@ -528,7 +389,7 @@ export function CommandPalette({
         {/* Navigation */}
         {!search && (
           <CommandGroup heading="Pages">
-            {navigationItems.slice(0, 8).map((item, idx) => {
+            {navigationItems.map((item, idx) => {
               const Icon = item.icon;
               return (
                 <CommandItem
@@ -547,7 +408,7 @@ export function CommandPalette({
         {/* Quick Actions */}
         {!search && (
           <CommandGroup heading="Quick Actions">
-            {quickActions.slice(0, 6).map((item, idx) => {
+            {quickActions.map((item, idx) => {
               const Icon = item.icon;
               return (
                 <CommandItem
@@ -566,122 +427,29 @@ export function CommandPalette({
         )}
 
         {/* Dynamic Search Results */}
-        {search && groupedItems["Invoices"] && (
-          <CommandGroup heading="Invoices">
-            {groupedItems["Invoices"].slice(0, 5).map((item) => {
-              const Icon = item.icon;
-              return (
-                <CommandItem key={item.id} onSelect={() => handleSelect(item)}>
-                  <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.description && (
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {item.description}
-                    </span>
-                  )}
-                  <CommandShortcut>↵</CommandShortcut>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        )}
-
-        {search && groupedItems["Customers"] && (
-          <CommandGroup heading="Customers">
-            {groupedItems["Customers"].slice(0, 5).map((item) => {
-              const Icon = item.icon;
-              return (
-                <CommandItem key={item.id} onSelect={() => handleSelect(item)}>
-                  <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.description && (
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {item.description}
-                    </span>
-                  )}
-                  <CommandShortcut>↵</CommandShortcut>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        )}
-
-        {search && groupedItems["Bank Accounts"] && (
-          <CommandGroup heading="Bank Accounts">
-            {groupedItems["Bank Accounts"].slice(0, 5).map((item) => {
-              const Icon = item.icon;
-              return (
-                <CommandItem key={item.id} onSelect={() => handleSelect(item)}>
-                  <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.description && (
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {item.description}
-                    </span>
-                  )}
-                  <CommandShortcut>↵</CommandShortcut>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        )}
-
-        {search && groupedItems["Documents"] && (
-          <CommandGroup heading="Documents">
-            {groupedItems["Documents"].slice(0, 5).map((item) => {
-              const Icon = item.icon;
-              return (
-                <CommandItem key={item.id} onSelect={() => handleSelect(item)}>
-                  <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.description && (
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {item.description}
-                    </span>
-                  )}
-                  <CommandShortcut>↵</CommandShortcut>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        )}
-
-        {/* Filtered Pages */}
-        {search && groupedItems["Pages"] && (
-          <CommandGroup heading="Pages">
-            {groupedItems["Pages"].slice(0, 10).map((item) => {
-              const Icon = item.icon;
-              return (
-                <CommandItem key={item.id} onSelect={() => handleSelect(item)}>
-                  <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.description && (
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {item.description}
-                    </span>
-                  )}
-                  <CommandShortcut>↵</CommandShortcut>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        )}
-
-        {/* Filtered Quick Actions */}
-        {search && groupedItems["Quick Actions"] && (
-          <CommandGroup heading="Quick Actions">
-            {groupedItems["Quick Actions"].slice(0, 5).map((item) => {
-              const Icon = item.icon;
-              return (
-                <CommandItem key={item.id} onSelect={() => handleSelect(item)}>
-                  <Icon className="mr-2 h-4 w-4 text-primary" />
-                  <span className="flex-1">{item.label}</span>
-                  <CommandShortcut>↵</CommandShortcut>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        )}
+        {search &&
+          Object.entries(groupedItems).map(([group, items]) => (
+            <CommandGroup key={group} heading={group}>
+              {items.slice(0, 5).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <CommandItem
+                    key={item.id}
+                    onSelect={() => handleSelect(item)}
+                  >
+                    <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1">{item.label}</span>
+                    {item.description && (
+                      <span className="text-xs text-muted-foreground mr-2">
+                        {item.description}
+                      </span>
+                    )}
+                    <CommandShortcut>↵</CommandShortcut>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          ))}
 
         {/* Footer hint */}
         <div className="border-t px-4 py-2 text-[10px] text-muted-foreground/50">

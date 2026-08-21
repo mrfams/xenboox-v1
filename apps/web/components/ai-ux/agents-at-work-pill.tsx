@@ -46,7 +46,7 @@ export function AgentsAtWorkPill() {
 
   // On the AI Command Center the composer occupies the bottom center of the
   // viewport — float the pill above it so it never covers what you're typing.
-  const onChatPage = pathname === "/dashboard/chat";
+  const onChatPage = pathname === "/dashboard";
 
   const running = sim.status === "running";
   const done = sim.status === "done";

@@ -21,16 +21,20 @@ import {
   MessageSquare,
   Zap,
   X,
+  RefreshCw,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
+import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
+import { useSrAnnounce } from "@/lib/hooks/use-sr-announce";
 import { cn } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { ConfidenceBadge } from "@/components/shared/ai-native";
 import { ActorBadge } from "@/components/shared/ai-native";
 import { InlineActions } from "@/components/shared/ai-native";
+import { emitDataChanged } from "@/lib/hooks/use-surface-sync";
 
 // ─── Activity Hub ─────────────────────────────────────────────────────────
 //
@@ -55,6 +59,7 @@ const FILTER_OPTIONS: { key: FilterType; label: string; icon: typeof Inbox }[] =
 
 type ActivityItemData = {
   id: string;
+  itemType: "agent_activity" | "ingestion" | "notification";
   type: "urgent" | "approval" | "review" | "info";
   title: string;
   description: string;
@@ -62,6 +67,7 @@ type ActivityItemData = {
   confidence?: number;
   amount?: string;
   sourceDoc?: string;
+  detail?: Record<string, unknown>;
   actions: Array<{
     label: string;
     variant?: "approve" | "reject" | "review" | "default";
@@ -83,13 +89,15 @@ function ActivityItemCard({
   item,
   itemState,
   onAction,
+  onViewItem,
   isSelected,
   onToggleSelect,
   canSelect,
 }: {
   item: ActivityItemData;
   itemState?: ItemState;
-  onAction?: (itemId: string, action: string) => void;
+  onAction?: (itemId: string, action: string, itemType: string) => void;
+  onViewItem?: (item: ActivityItemData) => void;
   isSelected?: boolean;
   onToggleSelect?: (itemId: string) => void;
   canSelect?: boolean;
@@ -172,7 +180,15 @@ function ActivityItemCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium text-foreground">{item.title}</p>
+            <p
+              className="text-sm font-medium text-foreground hover:text-primary cursor-pointer transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewItem?.(item);
+              }}
+            >
+              {item.title}
+            </p>
             <div className="flex items-center gap-2 shrink-0">
               <span
                 className={cn(
@@ -231,7 +247,12 @@ function ActivityItemCard({
               loading: itemState === "processing",
               onClick:
                 a.variant === "approve" || a.variant === "reject"
-                  ? () => onAction?.(item.id, a.variant as "approve" | "reject")
+                  ? () =>
+                      onAction?.(
+                        item.id,
+                        a.variant as "approve" | "reject",
+                        item.itemType,
+                      )
                   : undefined,
               icon:
                 a.variant === "approve"
@@ -312,11 +333,196 @@ function CompletedSection({ count }: { count: number }) {
   );
 }
 
+// ─── Detail Drawer ─────────────────────────────────────────────────────────
+
+function ItemDetailDrawer({
+  item,
+  onClose,
+  onAction,
+  itemState,
+}: {
+  item: ActivityItemData;
+  onClose: () => void;
+  onAction: (itemId: string, action: string, itemType: string) => void;
+  itemState?: ItemState;
+}) {
+  const typeConfig = {
+    urgent: { label: "Urgent", color: "text-red-500", bg: "bg-red-500/10" },
+    approval: {
+      label: "Approval",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+    },
+    review: { label: "Review", color: "text-primary", bg: "bg-primary/10" },
+    info: { label: "Info", color: "text-muted-foreground", bg: "bg-muted/40" },
+  };
+  const config = typeConfig[item.type];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div className="h-full w-full max-w-lg bg-card border-l border-border shadow-2xl overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-6 py-4">
+          <div className="flex items-center gap-3">
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                config.bg,
+                config.color,
+              )}
+            >
+              {config.label}
+            </span>
+            <h2 className="text-sm font-semibold text-foreground">
+              Item Details
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-5 space-y-5">
+          {/* Title */}
+          <div>
+            <h3 className="text-base font-semibold text-foreground">
+              {item.title}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {item.description}
+            </p>
+          </div>
+
+          {/* Meta */}
+          <div className="grid grid-cols-2 gap-3">
+            {item.agent && (
+              <div className="rounded-lg border border-border/50 bg-background p-3">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Agent
+                </p>
+                <p className="mt-1 text-sm font-medium text-foreground flex items-center gap-1.5">
+                  <Bot className="h-3.5 w-3.5 text-primary/60" /> {item.agent}
+                </p>
+              </div>
+            )}
+            {item.confidence !== undefined && (
+              <div className="rounded-lg border border-border/50 bg-background p-3">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Confidence
+                </p>
+                <div className="mt-1">
+                  <ConfidenceBadge score={item.confidence} />
+                </div>
+              </div>
+            )}
+            {item.amount && (
+              <div className="rounded-lg border border-border/50 bg-background p-3">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Amount
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {item.amount}
+                </p>
+              </div>
+            )}
+            <div className="rounded-lg border border-border/50 bg-background p-3">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                Item Type
+              </p>
+              <p className="mt-1 text-sm font-medium text-foreground">
+                {item.itemType.replace(/_/g, " ")}
+              </p>
+            </div>
+          </div>
+
+          {/* Detail payload */}
+          {item.detail && Object.keys(item.detail).length > 0 && (
+            <div className="rounded-lg border border-border/50 bg-background p-3">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Full Context
+              </p>
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                {JSON.stringify(item.detail, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Source doc */}
+          {item.sourceDoc && (
+            <div className="rounded-lg border border-border/50 bg-background p-3">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                Source Document
+              </p>
+              <p className="mt-1 text-sm text-foreground">{item.sourceDoc}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        {item.actions.length > 0 && itemState !== "success" && (
+          <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-sm px-6 py-4">
+            <div className="flex items-center gap-3">
+              {item.actions
+                .filter(
+                  (a) => a.variant === "approve" || a.variant === "reject",
+                )
+                .map((a) => (
+                  <button
+                    key={a.variant}
+                    type="button"
+                    disabled={itemState === "processing"}
+                    onClick={() => onAction(item.id, a.variant!, item.itemType)}
+                    className={cn(
+                      "flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
+                      a.variant === "approve"
+                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                        : "bg-red-600 text-white hover:bg-red-700",
+                      itemState === "processing" &&
+                        "opacity-50 cursor-not-allowed",
+                    )}
+                  >
+                    {itemState === "processing" ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : a.variant === "approve" ? (
+                      <ThumbsUp className="h-4 w-4" />
+                    ) : (
+                      <ThumbsDown className="h-4 w-4" />
+                    )}
+                    {a.variant === "approve" ? "Approve" : "Reject"}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function ActivityHubPage() {
   const { entityId } = useEntity();
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const { announce } = useSrAnnounce();
+
+  // ── Cross-surface sync ────────────────────────────────────────────────
+  // Listen for data_changed events from other surfaces and refetch
+  useSurfaceSync({ entityId, surfaces: ["activity-hub"] });
 
   // ── Optimistic state ───────────────────────────────────────────────────
   // Track which items are being processed, succeeded, or failed
@@ -345,6 +551,33 @@ export default function ActivityHubPage() {
       { limit: 20, unreadOnly: false },
       { enabled: !!entityId },
     );
+
+  // ── Mutations ───────────────────────────────────────────────────────────
+  const resolveApproval = trpc.approvals.resolve.useMutation({
+    onSuccess: () => {
+      refetchApprovals();
+    },
+  });
+  const approveIngestion = trpc.ingestion.approveReview.useMutation({
+    onSuccess: () => {
+      refetchApprovals();
+    },
+  });
+  const rejectIngestion = trpc.ingestion.rejectReview.useMutation({
+    onSuccess: () => {
+      refetchApprovals();
+    },
+  });
+  const markNotificationRead = trpc.notifications.markAsRead.useMutation({
+    onSuccess: () => {
+      refetchAlerts();
+    },
+  });
+
+  // ── Detail drawer ───────────────────────────────────────────────────────
+  const [selectedItem, setSelectedItem] = useState<ActivityItemData | null>(
+    null,
+  );
 
   // ── Toggle selection ───────────────────────────────────────────────────
   const toggleSelect = useCallback((id: string) => {
@@ -385,7 +618,6 @@ export default function ActivityHubPage() {
       const ids = Array.from(selectedIds);
       if (ids.length === 0) return;
 
-      // Set all to processing
       setItemStates((prev) => {
         const next = { ...prev };
         for (const id of ids) next[id] = "processing";
@@ -393,15 +625,16 @@ export default function ActivityHubPage() {
       });
 
       try {
-        // Optimistically refetch
-        await refetchApprovals();
-
-        // Set all to success
-        setItemStates((prev) => {
-          const next = { ...prev };
-          for (const id of ids) next[id] = "success";
-          return next;
-        });
+        // Resolve each item by its type
+        for (const id of ids) {
+          const item = activityItems.find((i) => i.id === id);
+          if (!item) continue;
+          try {
+            await handleAction(id, action, item.itemType);
+          } catch {
+            // Individual item failures are handled inside handleAction
+          }
+        }
 
         const actionLabel = action === "approve" ? "Approved" : "Rejected";
         const itemCount = ids.length;
@@ -417,10 +650,8 @@ export default function ActivityHubPage() {
           },
         );
 
-        // Clear selection
         setSelectedIds(new Set());
 
-        // Auto-remove success state after 5 seconds (matching toast duration)
         setTimeout(() => {
           setItemStates((prev) => {
             const next = { ...prev };
@@ -429,18 +660,16 @@ export default function ActivityHubPage() {
           });
         }, 2000);
       } catch (error) {
-        // Revert on error
         setItemStates((prev) => {
           const next = { ...prev };
           for (const id of ids) next[id] = "error";
           return next;
         });
-
         toast.error("Batch action failed", {
-          description: "Please try again. Changes have been reverted.",
+          description:
+            error instanceof Error ? error.message : "Please try again.",
           duration: 5000,
         });
-
         setTimeout(() => {
           setItemStates((prev) => {
             const next = { ...prev };
@@ -450,7 +679,7 @@ export default function ActivityHubPage() {
         }, 3000);
       }
     },
-    [selectedIds, refetchApprovals],
+    [selectedIds, activityItems, handleAction, undoBatchAction],
   );
 
   // ── Keyboard shortcuts for batch actions ───────────────────────────────
@@ -487,28 +716,50 @@ export default function ActivityHubPage() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedIds, confirmRejectOpen, handleBatchAction]);
 
-  // ── Optimistic approve/reject handler ──────────────────────────────────
+  // ── Real mutation handler ──────────────────────────────────────────────
   const handleAction = useCallback(
-    async (itemId: string, action: string) => {
-      // Immediately set processing state
+    async (itemId: string, action: string, itemType: string) => {
       setItemStates((prev) => ({ ...prev, [itemId]: "processing" }));
 
       try {
-        // Optimistically remove from pending count immediately
-        // (the server call happens in parallel)
-        await refetchApprovals();
+        if (itemType === "agent_activity") {
+          // Agent activity items → approvals.resolve with agent_escalation type
+          await resolveApproval.mutateAsync({
+            itemId,
+            itemType: "agent_escalation",
+            action: action === "approve" ? "approved" : "rejected",
+            reason:
+              action === "approve"
+                ? "Approved from Activity Hub"
+                : "Rejected from Activity Hub",
+          });
+        } else if (itemType === "ingestion") {
+          // Ingestion review items → approveReview or rejectReview
+          if (action === "approve") {
+            await approveIngestion.mutateAsync({ documentId: itemId });
+          } else {
+            await rejectIngestion.mutateAsync({
+              documentId: itemId,
+              reason: "Rejected from Activity Hub",
+            });
+          }
+        } else if (itemType === "notification") {
+          // Notifications → mark as read
+          await markNotificationRead.mutateAsync({ notificationId: itemId });
+        }
 
-        // Set success state
         setItemStates((prev) => ({ ...prev, [itemId]: "success" }));
-
-        // Show toast
         const actionLabel = action === "approve" ? "Approved" : "Rejected";
         toast.success(actionLabel, {
           description: `Item has been ${actionLabel.toLowerCase()} successfully.`,
           duration: 3000,
         });
+        // Announce to screen readers
+        announce(`${actionLabel} successfully`);
 
-        // Auto-remove success state after 2 seconds
+        // Emit cross-surface event so other surfaces refetch
+        emitDataChanged("activity-hub", `${action}_${itemType}`, entityId);
+
         setTimeout(() => {
           setItemStates((prev) => {
             const next = { ...prev };
@@ -517,15 +768,14 @@ export default function ActivityHubPage() {
           });
         }, 2000);
       } catch (error) {
-        // Revert on error
         setItemStates((prev) => ({ ...prev, [itemId]: "error" }));
-
         toast.error("Action failed", {
-          description: "Please try again. The change has been reverted.",
+          description:
+            error instanceof Error ? error.message : "Please try again.",
           duration: 5000,
         });
-
-        // Clear error state after 3 seconds
+        // Announce error to screen readers
+        announce("Action failed. Please try again.", "assertive");
         setTimeout(() => {
           setItemStates((prev) => {
             const next = { ...prev };
@@ -535,7 +785,7 @@ export default function ActivityHubPage() {
         }, 3000);
       }
     },
-    [refetchApprovals],
+    [resolveApproval, approveIngestion, rejectIngestion, markNotificationRead],
   );
 
   // Build activity items from real data
@@ -552,6 +802,7 @@ export default function ActivityHubPage() {
       if (itemStates[approval.id] === "success") continue;
       activityItems.push({
         id: approval.id,
+        itemType: "agent_activity",
         type: "approval",
         title: approval.title ?? "Agent action pending",
         description: approval.description ?? "Requires your review",
@@ -574,6 +825,7 @@ export default function ActivityHubPage() {
       if (itemStates["pending-review"] !== "success") {
         activityItems.push({
           id: "pending-review",
+          itemType: "ingestion",
           type: "review",
           title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
           description:
@@ -608,6 +860,7 @@ export default function ActivityHubPage() {
 
       activityItems.push({
         id: alert.id,
+        itemType: "notification",
         type: itemType,
         title: alert.title,
         description: alert.body ?? "",
@@ -630,6 +883,7 @@ export default function ActivityHubPage() {
       if (itemStates[notification.id] === "success") continue;
       activityItems.push({
         id: notification.id,
+        itemType: "notification",
         type: "info",
         title: notification.title,
         description: notification.body ?? "",
@@ -702,7 +956,10 @@ export default function ActivityHubPage() {
         { label: "Why was this flagged?", prompt: "Why was this flagged?" },
       ]}
     >
-      <div className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6">
+      <div
+        className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6"
+        aria-busy={Object.values(itemStates).some((s) => s === "processing")}
+      >
         {/* Stats */}
         <div className="grid gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-border/50 bg-card p-4">
@@ -995,6 +1252,7 @@ export default function ActivityHubPage() {
                     item={item}
                     itemState={itemStates[item.id]}
                     onAction={handleAction}
+                    onViewItem={setSelectedItem}
                     isSelected={selectedIds.has(item.id)}
                     onToggleSelect={toggleSelect}
                     canSelect={canSelect}
@@ -1009,6 +1267,16 @@ export default function ActivityHubPage() {
 
         <CompletedSection count={completedCount} />
       </div>
+
+      {/* Detail Drawer */}
+      {selectedItem && (
+        <ItemDetailDrawer
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onAction={handleAction}
+          itemState={itemStates[selectedItem.id]}
+        />
+      )}
     </ModulePageShell>
   );
 }

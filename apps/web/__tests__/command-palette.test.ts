@@ -6,12 +6,12 @@ describe("Command Palette", () => {
       { label: "Dashboard", href: "/dashboard", group: "Pages" },
       {
         label: "AI Assistant",
-        href: "/dashboard/chat",
+        href: "/dashboard",
         group: "Pages",
         shortcut: "/",
       },
       { label: "Chart of Accounts", href: "/dashboard/coa", group: "Pages" },
-      { label: "Journal Entries", href: "/dashboard/journal", group: "Pages" },
+      { label: "Journal Entries", href: "/dashboard/ledger", group: "Pages" },
       { label: "Purchase Orders", href: "/dashboard/ap/pos", group: "Pages" },
       { label: "Bills", href: "/dashboard/ap/invoices", group: "Pages" },
       { label: "Customers", href: "/dashboard/ar/customers", group: "Pages" },
@@ -23,19 +23,19 @@ describe("Command Palette", () => {
         href: "/dashboard/mobile-money",
         group: "Pages",
       },
-      { label: "Employees", href: "/dashboard/payroll", group: "Pages" },
+      { label: "Employees", href: "/dashboard/operations", group: "Pages" },
       {
         label: "Fixed Assets",
-        href: "/dashboard/fixed-assets",
+        href: "/dashboard/ledger",
         group: "Pages",
       },
       { label: "Inventory", href: "/dashboard/inventory", group: "Pages" },
       {
         label: "Financial Reports",
-        href: "/dashboard/reports",
+        href: "/dashboard/financial-pulse",
         group: "Pages",
       },
-      { label: "Documents", href: "/dashboard/documents", group: "Pages" },
+      { label: "Documents", href: "/dashboard", group: "Pages" },
       { label: "Audit Trail", href: "/dashboard/audit-trail", group: "Pages" },
       { label: "Settings", href: "/dashboard/settings", group: "Pages" },
       { label: "Help & Support", href: "/dashboard/help", group: "Pages" },
@@ -121,7 +121,7 @@ describe("Command Palette", () => {
     it("all commands route to chat", () => {
       AI_COMMANDS.forEach((cmd) => {
         const href = `/dashboard/chat?command=${cmd.action}`;
-        expect(href).toContain("/dashboard/chat");
+        expect(href).toContain("/dashboard");
         expect(href).toContain(cmd.action);
       });
     });

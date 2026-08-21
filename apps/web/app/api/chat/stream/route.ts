@@ -21,6 +21,7 @@ import { generateConversationTitle } from "@/lib/chat/conversation-title";
 import { generateConversationSummary } from "@/lib/chat/conversation-summary";
 import { logger } from "@/lib/logger";
 import { generateChatArtifacts } from "@/lib/chat/artifact-service";
+import { publishSseEvent } from "@/lib/sse/broadcast";
 import {
   buildPageContextBlock,
   type PageContextPayload,
@@ -525,6 +526,33 @@ export async function POST(req: NextRequest) {
               data: success ? data : undefined,
               timestamp: new Date().toISOString(),
             });
+
+            // Emit data_changed so other surfaces refetch after tool mutations
+            if (success && toolName) {
+              const surfaceMap: Record<string, string> = {
+                create_sales_invoice: "ledger",
+                create_purchase_invoice: "ledger",
+                create_journal_entry: "ledger",
+                create_customer: "operations",
+                create_supplier: "operations",
+                record_bank_transaction: "operations",
+                record_expense: "ledger",
+                approve_document: "activity-hub",
+                reject_document: "activity-hub",
+                reconcile_bank_transaction: "operations",
+              };
+              const surface = surfaceMap[toolName] || "all";
+              const dataChangedEvent = {
+                type: "data_changed" as const,
+                surface,
+                action: toolName,
+                entity: entity.name,
+                timestamp: new Date().toISOString(),
+              };
+              enqueue(dataChangedEvent);
+              // Publish to Redis for cross-instance delivery
+              void publishSseEvent(entityId, dataChangedEvent);
+            }
           },
           // Thinking reveal — every real pipeline step (intent classification,
           // dispatch, confidence gate, …) streams as a reasoning line.
@@ -596,8 +624,33 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Detect [NEEDS_INPUT] block in the response — the AI uses this
+        // structured format to signal it needs specific information from the
+        // user before it can execute an action.
+        const needsInputMatch = response.match(
+          /\[NEEDS_INPUT\]\s*\n(\{[\s\S]*?\})\s*\n\[\/NEEDS_INPUT\]/,
+        );
+        let cleanResponse = response;
+        if (needsInputMatch) {
+          try {
+            const inputSpec = JSON.parse(needsInputMatch[1]);
+            enqueue({
+              type: "needs_input",
+              action: inputSpec.action,
+              missing: inputSpec.missing,
+              context: inputSpec.context,
+            });
+          } catch {
+            // If JSON parsing fails, just stream the raw text
+          }
+          // Remove the NEEDS_INPUT block from the streamed text
+          cleanResponse = response
+            .replace(/\n?\[NEEDS_INPUT\][\s\S]*?\[\/NEEDS_INPUT\]/, "")
+            .trim();
+        }
+
         // Stream the response text token-by-token for natural feel
-        const response = pipelineResult.response;
+        const response = cleanResponse;
         const words = response.split(/(\s+)/);
         for (const word of words) {
           if (aborted) break;

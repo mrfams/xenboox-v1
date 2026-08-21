@@ -167,7 +167,7 @@ export function HelpAssistant() {
               <div className="space-y-2">
                 <div className="whitespace-pre-wrap">{m.content}</div>
                 <Link
-                  href="/dashboard/chat"
+                  href="/dashboard"
                   className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
                 >
                   Ask the CFO agent for deeper help

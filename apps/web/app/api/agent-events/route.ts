@@ -123,6 +123,13 @@ export type AgentEvent =
         createdAt: Date | string;
       };
       timestamp: string;
+    }
+  | {
+      type: "data_changed";
+      surface: string;
+      entity: string;
+      action: string;
+      timestamp: string;
     };
 
 // Polling interval for database changes (in milliseconds)
@@ -468,6 +475,7 @@ export async function POST(req: NextRequest) {
     "task_completed",
     "approval_needed",
     "notification_created",
+    "data_changed",
   ];
   if (!event.type || !validEventTypes.includes(event.type)) {
     return Response.json({ error: "Invalid event type" }, { status: 400 });

@@ -68,13 +68,13 @@ export function AICommandBar({
   const handleSubmit = (value?: string) => {
     const text = value || query;
     if (!text.trim()) return;
-    router.push(`/dashboard/chat?initial=${encodeURIComponent(text.trim())}`);
+    router.push(`/dashboard?prompt=${encodeURIComponent(text.trim())}`);
     setQuery("");
     setShowSuggestions(false);
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    router.push(`/dashboard/chat?initial=${encodeURIComponent(suggestion)}`);
+    router.push(`/dashboard?prompt=${encodeURIComponent(suggestion)}`);
     setShowSuggestions(false);
   };
 
@@ -106,9 +106,7 @@ export function AICommandBar({
       if (action.kind === "page") {
         router.push(action.page.href);
       } else {
-        router.push(
-          `/dashboard/chat?initial=${encodeURIComponent(action.query)}`,
-        );
+        router.push(`/dashboard?prompt=${encodeURIComponent(action.query)}`);
       }
       setQuery("");
       setShowSuggestions(false);

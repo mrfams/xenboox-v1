@@ -234,11 +234,10 @@ test.describe("Authentication Flows", () => {
       page,
     }) => {
       const protectedRoutes = [
-        "/dashboard/ap/invoices",
-        "/dashboard/ar/invoices",
-        "/dashboard/treasury",
-        "/dashboard/close",
-        "/dashboard/chat",
+        "/dashboard/activity-hub",
+        "/dashboard/financial-pulse",
+        "/dashboard/ledger",
+        "/dashboard/operations",
         "/dashboard/settings",
       ];
 

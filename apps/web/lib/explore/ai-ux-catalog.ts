@@ -49,7 +49,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "The CFO agent plans the close, department agents run their checklists, the ledger posts, the reporting agent writes the month-end report, and compliance certifies the chain.",
     status: "shipped",
     traceId: "month-end-close",
-    href: "/dashboard/close",
+    href: "/dashboard",
     source: "Digits Agentic Close · Sage Close Assistant",
   },
   {
@@ -60,7 +60,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "The document pipeline ingests a statement, the reconciliation agent matches every line to invoices and bills, and only exceptions reach you.",
     status: "shipped",
     traceId: "bank-reconciliation",
-    href: "/dashboard/banking",
+    href: "/dashboard/operations",
     source: "Xero auto-reconciliation",
   },
   {
@@ -71,7 +71,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Every transaction is read, learned from your past coding, and posted at high confidence while anomalies and low-confidence items pause for review.",
     status: "shipped",
     traceId: "transaction-categorization",
-    href: "/dashboard/transactions",
+    href: "/dashboard/ledger",
     source: "QuickBooks Accounting AI · Xero Smart Coding",
   },
   {
@@ -82,7 +82,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Upload a PDF or photo; the document agent OCRs it, resolves the vendor and tax treatment, and drafts a bill — every figure traceable to the source.",
     status: "shipped",
     traceId: "document-extraction",
-    href: "/dashboard/documents",
+    href: "/dashboard",
     source: "Xero Hubdoc",
   },
   {
@@ -93,7 +93,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "An accepted estimate becomes a ready-to-send invoice — lines, terms, and tax treatment carried over and cross-checked before one-click dispatch.",
     status: "shipped",
     traceId: "invoice-creation",
-    href: "/dashboard/invoicing",
+    href: "/dashboard",
     source: "QuickBooks AI Invoice Generator",
   },
   {
@@ -104,7 +104,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Gross pay, statutory deductions, net pay, and payslips computed against the live tax rules engine, verified, and posted in a single run.",
     status: "shipped",
     traceId: "payroll-run",
-    href: "/dashboard/payroll",
+    href: "/dashboard/operations",
     source: "Sage · QuickBooks Payroll",
   },
   {
@@ -126,7 +126,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Overdue invoices are chased automatically with tone tuned per customer; stubborn accounts escalate to you with full context. Live on Customers with aging queue, drafted reminders, and send-to-email.",
     status: "shipped",
     traceId: "collections-flow",
-    href: "/dashboard/customers",
+    href: "/dashboard",
     source: "Brex Agents · Intercom Fin",
   },
   {
@@ -137,7 +137,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Payables are ranked by due date against your real cash position and batched into an executable plan — pay now, schedule, or hold, capped at what you can actually fund. Live on Bills with the full ranked schedule.",
     status: "shipped",
     traceId: "vendor-payments",
-    href: "/dashboard/bills",
+    href: "/dashboard",
     source: "Brex · Ramp payables",
   },
   {
@@ -148,7 +148,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Vendor records are deduplicated, tax-flagged, and enriched with payment terms — so payables stay clean and 1099-ready. Live on Vendors: duplicates (shared tax ID or name), missing tax IDs, and missing terms all surfaced with severity.",
     status: "shipped",
     traceId: "vendor-profile",
-    href: "/dashboard/vendors",
+    href: "/dashboard",
     source: "Xero Contacts · QuickBooks Vendor Center",
   },
   {
@@ -170,7 +170,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Every expense is checked against your policy before posting — duplicates, over-limit spend, and missing receipts get flagged with notes.",
     status: "shipped",
     traceId: "expense-review",
-    href: "/dashboard/expenses",
+    href: "/dashboard",
     source: "Sage · Expensify AI",
   },
   {
@@ -192,7 +192,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Accepted quotes become invoices automatically while expiring ones get a final nudge — the sales-to-cash handoff runs itself.",
     status: "shipped",
     traceId: "estimate-conversion",
-    href: "/dashboard/estimates",
+    href: "/dashboard",
     source: "QuickBooks Estimate → Invoice",
   },
   {
@@ -203,7 +203,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Describe the adjustment in plain words — the controller structures it and the ledger posts a balanced, audit-traced entry.",
     status: "shipped",
     traceId: "journal-entry-automation",
-    href: "/dashboard/journal",
+    href: "/dashboard/ledger",
     source: "Xero Journal Assistant",
   },
   {
@@ -214,7 +214,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Depreciation is computed per asset, verified against policy, and posted in one controlled run — fully-depreciated assets flagged.",
     status: "shipped",
     traceId: "depreciation-run",
-    href: "/dashboard/fixed-assets",
+    href: "/dashboard/ledger",
     source: "Sage Fixed Assets",
   },
   {
@@ -225,7 +225,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "The controller reviews account structure, suggests new accounts from real transaction patterns, and flags dormant ones.",
     status: "shipped",
     traceId: "chart-of-accounts-review",
-    href: "/dashboard/chart-of-accounts",
+    href: "/dashboard/ledger",
     source: "QuickBooks COA cleanup",
   },
   {
@@ -236,7 +236,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "VAT, PAYE, and corporate liabilities are computed from the live tax rules engine and returns are drafted for review.",
     status: "shipped",
     traceId: "tax-filing-prep",
-    href: "/dashboard/tax-compliance",
+    href: "/dashboard/operations",
     source: "Avalara · Xero Tax",
   },
   {
@@ -247,7 +247,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "AR, AP, and cash subledgers are reconciled against the general ledger — every difference traced to its source entry.",
     status: "shipped",
     traceId: "ledger-reconciliation",
-    href: "/dashboard/reconciliation",
+    href: "/dashboard/operations",
     source: "Dynamics 365 reconciliation",
   },
   {
@@ -258,7 +258,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "The reporting agent builds the P&L, balance sheet, and cash flow with variance narratives — CFO-reviewed before publication.",
     status: "shipped",
     traceId: "report-generation",
-    href: "/dashboard/reports",
+    href: "/dashboard/financial-pulse",
     source: "Basis · Sage Intacct reports",
   },
   {
@@ -269,7 +269,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "PAYE, social security, and year-end certificates are prepared from the payroll run — ready to file.",
     status: "shipped",
     traceId: "payroll-filing",
-    href: "/dashboard/payroll",
+    href: "/dashboard/operations",
     source: "Sage Payroll · QuickBooks Payroll",
   },
   {
@@ -280,7 +280,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Incoming payments are matched to open invoices — short-payments and overpayments flagged before posting.",
     status: "shipped",
     traceId: "payment-matching",
-    href: "/dashboard/invoicing",
+    href: "/dashboard",
     source: "Xero payment matching",
   },
   {
@@ -291,7 +291,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Every bill is checked against purchase orders and routed through the right approval chain before it posts. Live on Bills: each pending bill gets a routing decision (auto-approve, review, escalate) with a confidence score.",
     status: "shipped",
     traceId: "bill-approval",
-    href: "/dashboard/bills",
+    href: "/dashboard",
     source: "Melio · BILL approvals",
   },
   {
@@ -302,7 +302,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Employee reimbursements are compiled, policy-checked, and batched into a single payment run.",
     status: "shipped",
     traceId: "expense-reimbursement",
-    href: "/dashboard/expenses",
+    href: "/dashboard",
     source: "Expensify · Ramp reimbursements",
   },
   {
@@ -313,7 +313,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Credit limits are reviewed against aging and exposure — over-limit customers flagged before they ship. Live on Customers: exposure vs limit per customer with utilization, overdue balances, and a concrete recommendation.",
     status: "shipped",
     traceId: "credit-limit-review",
-    href: "/dashboard/customers",
+    href: "/dashboard",
     source: "Brex credit risk",
   },
   {
@@ -324,7 +324,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "W-9 and W-8 forms are requested, tracked, and verified so 1099 season never gets held up. Live on Vendors: the collection queue tracks on-file, missing, and expired forms per vendor with one-click mark-received.",
     status: "shipped",
     traceId: "w9-collection",
-    href: "/dashboard/vendors",
+    href: "/dashboard",
     source: "Track1099 · Avalara 1099",
   },
 
@@ -383,7 +383,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     description:
       "The AI Command Center streams answers with live agent-activity blocks — actions, confidence, delegations, and durations as the response builds.",
     status: "shipped",
-    href: "/dashboard/chat",
+    href: "/dashboard",
     source: "Xero JAX · ChatGPT",
   },
   {
@@ -393,7 +393,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     description:
       "Ask Xenboox from any data page — the AI sees your filters, metrics, and record count and answers against that exact context.",
     status: "shipped",
-    href: "/dashboard/transactions",
+    href: "/dashboard/ledger",
     source: "GitHub Copilot (in-context) · Digits Ask",
   },
   {
@@ -403,7 +403,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     description:
       "Hover any row and ask about that exact record — the copilot focuses on the row you point at, not the whole page.",
     status: "shipped",
-    href: "/dashboard/transactions",
+    href: "/dashboard/ledger",
     source: "Cursor-style in-context AI",
   },
   {
@@ -413,7 +413,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     description:
       "AI-generated reports open in a sandboxed viewer where you can select any passage and ask the AI to redo or change it — versioned, never destructive.",
     status: "shipped",
-    href: "/dashboard/documents/artifacts",
+    href: "/dashboard",
     source: "Claude artifacts · ChatGPT Canvas",
   },
   {
@@ -423,7 +423,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     description:
       "Quotes, invoices, and bills drafted for you from a note, document, or estimate — reviewed by you, not written from scratch.",
     status: "shipped",
-    href: "/dashboard/estimates",
+    href: "/dashboard",
     source: "QuickBooks AI Invoice Generator",
   },
   {
@@ -455,7 +455,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     description:
       "Low-confidence or high-value actions pause in a review queue with the exact proposed entry — approve, reject, or request changes.",
     status: "shipped",
-    href: "/dashboard/review-queue",
+    href: "/dashboard/activity-hub",
     source: "Xero JAX Assure · Basis",
   },
   {
@@ -483,7 +483,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
     description:
       "Every recommendation maps back to the rule, historical transaction, or policy behind it — CFO narratives and anomaly signals each trace to the exact ledger line, variance, or deadline behind them.",
     status: "shipped",
-    href: "/dashboard/reports",
+    href: "/dashboard/financial-pulse",
     source: "Xero JAX Assure · Glean",
   },
   {
@@ -494,7 +494,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Recent postings are audited for duplicates, unbalanced rounding, and skipped approvals — corrections drafted for one-click sign-off. Live on Journal with Review & Post diff confirmations.",
     status: "shipped",
     traceId: "journal-review",
-    href: "/dashboard/journal",
+    href: "/dashboard/ledger",
     source: "Xero / QuickBooks audit trails",
   },
   {
@@ -505,7 +505,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Open estimates are checked against real costs — expiring quotes nudged, under-priced ones flagged for re-quote. Live on Estimates: implied margin vs the entity's actual cost base, with expiring and under-priced flags.",
     status: "shipped",
     traceId: "estimate-margin-review",
-    href: "/dashboard/estimates",
+    href: "/dashboard",
     source: "QuickBooks Estimate → Invoice",
   },
   {
@@ -516,7 +516,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Transaction patterns reveal where the chart forces awkward postings — new accounts, merges, and renames proposed safely.",
     status: "shipped",
     traceId: "coa-suggest-accounts",
-    href: "/dashboard/chart-of-accounts",
+    href: "/dashboard/ledger",
     source: "Xero Chart of Accounts",
   },
   {
@@ -527,7 +527,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "The bank feed is matched against the ledger automatically — only the genuinely unclear lines wait on you.",
     status: "shipped",
     traceId: "reconciliation-automatch",
-    href: "/dashboard/reconciliation",
+    href: "/dashboard/operations",
     source: "QuickBooks Bank Feeds",
   },
   {
@@ -538,7 +538,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "The asset register is scanned for fully-depreciated items, disposal candidates, and impairment risk.",
     status: "shipped",
     traceId: "fixed-assets-health",
-    href: "/dashboard/fixed-assets",
+    href: "/dashboard/ledger",
     source: "Sage Fixed Assets",
   },
   {
@@ -549,7 +549,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Filings, liabilities, and deadlines are cross-checked across every active jurisdiction before anything is late.",
     status: "shipped",
     traceId: "tax-compliance-check",
-    href: "/dashboard/tax-compliance",
+    href: "/dashboard/operations",
     source: "Avalara · Basis",
   },
   {
@@ -582,7 +582,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Repetitive manual work is observed and turned into a ready-to-enable automation recipe. Live in Automation Studio with AI-suggested schedules, entity-scoped execution, and full history.",
     status: "shipped",
     traceId: "automation-suggestion",
-    href: "/dashboard/automation",
+    href: "/dashboard",
     source: "Zapier · QuickBooks Automation",
   },
   {
@@ -593,7 +593,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Pending approvals are triaged by the agents first — routine items resolved, policy conflicts escalated to you. Live on Review Queue with one-click approve and diff confirmation.",
     status: "shipped",
     traceId: "approval-pre-review",
-    href: "/dashboard/review-queue",
+    href: "/dashboard/activity-hub",
     source: "Basis · Digits review queues",
   },
   {
@@ -604,7 +604,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Every document lands, gets extracted, matched, and linked into the audit trail — the inbox works itself empty.",
     status: "shipped",
     traceId: "inbox-processing",
-    href: "/dashboard/inbox",
+    href: "/dashboard/activity-hub",
     source: "Dext · AutoEntry",
   },
   {
@@ -626,7 +626,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "Today's workforce summary — tasks dispatched, completed, and escalated across all three tiers.",
     status: "shipped",
     traceId: "workforce-review",
-    href: "/dashboard/agents",
+    href: "/dashboard/activity-hub",
     source: "LangFuse agent monitoring",
   },
   {
@@ -659,7 +659,7 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "A live question classified, routed, researched, and answered — exactly what your real streaming answers will look like.",
     status: "shipped",
     traceId: "command-center-demo",
-    href: "/dashboard/chat",
+    href: "/dashboard",
     source: "Perplexity · ChatGPT reasoning UX",
   },
 ];
@@ -671,8 +671,8 @@ export const AI_UX_EXPLAINER = {
   tagline: "Play it before the models arrive.",
   body: "Xenboox is an AI-native platform: 20 agents, three tiers, one ledger. The live LLM agents are the last mile — every interaction they will have is already designed and playable here as high-fidelity simulations. Click Run on any workflow and watch the CFO agent plan, delegate, work, and post — the exact experience the live agents will deliver.",
   surfaces: [
-    { label: "Close Center", href: "/dashboard/close" },
-    { label: "Transactions", href: "/dashboard/transactions" },
-    { label: "AI Command Center", href: "/dashboard/chat" },
+    { label: "Close Center", href: "/dashboard" },
+    { label: "Transactions", href: "/dashboard/ledger" },
+    { label: "AI Command Center", href: "/dashboard" },
   ],
 } as const;

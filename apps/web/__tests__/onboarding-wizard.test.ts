@@ -242,7 +242,7 @@ describe("Onboarding Wizard", () => {
         { href: "/dashboard/coa", title: "Chart of Accounts" },
         { href: "/dashboard/treasury", title: "Bank Accounts" },
         { href: "/dashboard/settings", title: "Team Settings" },
-        { href: "/dashboard/chat", title: "AI Assistant" },
+        { href: "/dashboard", title: "AI Assistant" },
       ];
       expect(links).toHaveLength(4);
       links.forEach((link) => {

@@ -252,7 +252,7 @@ export function DashboardChatScreen({
       <div className="flex items-center justify-center gap-3 border-t border-border/50 px-6 py-2">
         {conversationId && (
           <Link
-            href={`/dashboard/chat?c=${conversationId}`}
+            href="/dashboard"
             className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-card px-2.5 py-1 text-[10px] font-medium text-primary transition-all hover:border-primary/30 hover:bg-primary/5"
             title="Open this conversation in the full chat workspace"
           >

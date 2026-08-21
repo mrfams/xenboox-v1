@@ -24,7 +24,7 @@ test.describe("W.F06 Documents & Dialogs", () => {
   test("06.01 documents page loads and shows file list or empty state", async ({
     page,
   }) => {
-    await page.goto("/dashboard/documents", {
+    await page.goto("/dashboard", {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });
@@ -44,12 +44,12 @@ test.describe("W.F06 Documents & Dialogs", () => {
     page,
   }) => {
     // Navigate to documents page to check if there's a document
-    await page.goto("/dashboard/documents", {
+    await page.goto("/dashboard", {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });
     // Try to find a document link and click it
-    const docLink = page.locator('a[href*="/dashboard/documents/"]').first();
+    const docLink = page.locator('a[href="/dashboard"]').first();
     const hasDocLink = await docLink.isVisible().catch(() => false);
     if (hasDocLink) {
       await docLink.click();
@@ -87,7 +87,7 @@ test.describe("W.F06 Documents & Dialogs", () => {
   });
 
   test("06.04 ingestion page loads", async ({ page }) => {
-    await page.goto("/dashboard/ingestion", {
+    await page.goto("/dashboard", {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });

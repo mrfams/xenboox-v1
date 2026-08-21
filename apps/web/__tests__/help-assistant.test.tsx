@@ -136,7 +136,7 @@ describe("HelpAssistant", () => {
     );
 
     await waitFor(() => {
-      const link = container.querySelector('a[href="/dashboard/chat"]');
+      const link = container.querySelector('a[href="/dashboard"]');
       expect(link).not.toBeNull();
     });
   });

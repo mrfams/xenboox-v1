@@ -105,7 +105,7 @@ const TOPICS: HelpTopic[] = [
     title: "Connect a bank account",
     description:
       "Link your bank, import statements, and let AI categorize transactions.",
-    href: "/dashboard/banking",
+    href: "/dashboard/operations",
     icon: Wallet,
     group: "In-app guides",
     keywords: ["bank", "account", "import", "statement", "transaction"],
@@ -114,7 +114,7 @@ const TOPICS: HelpTopic[] = [
     title: "Create an invoice",
     description:
       "Bill customers, track payments, and convert quotes to invoices.",
-    href: "/dashboard/invoicing",
+    href: "/dashboard",
     icon: Receipt,
     group: "In-app guides",
     keywords: ["invoice", "bill customer", "sales", "receivables", "quote"],
@@ -123,7 +123,7 @@ const TOPICS: HelpTopic[] = [
     title: "Run payroll",
     description:
       "Process a pay run with gross pay, statutory deductions, and net pay.",
-    href: "/dashboard/payroll",
+    href: "/dashboard",
     icon: Users,
     group: "In-app guides",
     keywords: ["payroll", "salary", "wages", "pay run", "employees"],
@@ -131,7 +131,7 @@ const TOPICS: HelpTopic[] = [
   {
     title: "Reconcile accounts",
     description: "Match bank lines to your books and keep balances in check.",
-    href: "/dashboard/reconciliation/center",
+    href: "/dashboard/operations",
     icon: RefreshCw,
     group: "In-app guides",
     keywords: ["reconcile", "match", "bank", "balance"],
@@ -139,7 +139,7 @@ const TOPICS: HelpTopic[] = [
   {
     title: "Review agent work",
     description: "Approve or reject what the Xenboox agent workforce produces.",
-    href: "/dashboard/inbox",
+    href: "/dashboard/activity-hub",
     icon: Inbox,
     group: "In-app guides",
     keywords: ["approve", "review", "inbox", "pending", "queue", "agent"],
@@ -364,7 +364,7 @@ export default function HelpPage() {
                     Try a different keyword, or ask the AI assistant directly.
                   </p>
                   <Link
-                    href={`/dashboard/chat?initial=${encodeURIComponent(
+                    href={`/dashboard?prompt=${encodeURIComponent(
                       `I need help with: ${query}`,
                     )}`}
                     className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
@@ -378,7 +378,7 @@ export default function HelpPage() {
               {/* Still stuck */}
               <section className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Link
-                  href="/dashboard/chat"
+                  href="/dashboard"
                   className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-indigo-800"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 text-white">

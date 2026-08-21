@@ -11,6 +11,7 @@ import {
   type DelegationEvent,
   type DocumentCreatedEvent,
   type DoneEvent,
+  type NeedsInputEvent,
 } from "@/lib/hooks/use-streaming-chat";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -94,6 +95,9 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     null,
   );
   const [isChatActive, setIsChatActive] = useState(false);
+  const [pendingInput, setPendingInput] = useState<NeedsInputEvent | null>(
+    null,
+  );
   // Guards against a stale response overwriting a newer load when the user
   // clicks two different conversations in quick succession.
   const loadRequestRef = useRef(0);
@@ -184,6 +188,9 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     },
     onApprovalNeeded: (approval) => {
       approvalsRef.current = [...approvalsRef.current, approval];
+    },
+    onNeedsInput: (input) => {
+      setPendingInput(input);
     },
     onComplete: commitAssistantMessage,
     onError: handleStreamError,
@@ -282,6 +289,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     delegations,
     documents,
     approvals,
+    pendingInput,
     sendMessage,
     newChat,
     exitChat,

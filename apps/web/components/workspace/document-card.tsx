@@ -217,7 +217,7 @@ export function DocumentCard({
           )}
           {documentId && (
             <a
-              href={`/dashboard/documents?id=${documentId}`}
+              href="/dashboard"
               onClick={(e) => e.stopPropagation()}
               className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               title="Open in Documents"

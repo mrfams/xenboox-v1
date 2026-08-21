@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import Link from "next/link";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   BookOpen,
   FileText,
@@ -10,33 +9,35 @@ import {
   RefreshCw,
   Search,
   Bot,
-  Filter,
   ChevronDown,
-  User,
+  ChevronRight,
   ArrowUpRight,
   CheckCircle2,
   AlertTriangle,
+  Loader2,
+  X,
+  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
-import { ConfidenceBadge } from "@/components/shared/ai-native";
-import { ActorBadge } from "@/components/shared/ai-native";
+import { useModuleAi } from "@/components/module/module-ai-context";
+import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 
 // ─── Ledger ───────────────────────────────────────────────────────────────
 //
 // The accounting records. For when you need to look at specific entries,
-// verify the books, or trace a transaction. Not for daily use — for
-// investigation and verification.
+// verify the books, or trace a transaction.
 //
 // Replaces: journal, chart-of-accounts, trial-balance, fixed-assets, transactions
 
 type LedgerTab =
   "journal" | "coa" | "trial-balance" | "fixed-assets" | "reconciliation";
 
-const TABS: { key: LedgerTab; label: string; icon: typeof BookOpen }[] = [
+const TABS: { key: LedgerTab; label: string; icon: LucideIcon }[] = [
   { key: "journal", label: "Journal", icon: FileText },
   { key: "coa", label: "Chart of Accounts", icon: Landmark },
   { key: "trial-balance", label: "Trial Balance", icon: BookOpen },
@@ -44,27 +45,350 @@ const TABS: { key: LedgerTab; label: string; icon: typeof BookOpen }[] = [
   { key: "reconciliation", label: "Reconciliation", icon: RefreshCw },
 ];
 
+// ─── Journal Entry Detail Drawer ──────────────────────────────────────────
+
+function JournalEntryDrawer({
+  entryId,
+  onClose,
+}: {
+  entryId: string;
+  onClose: () => void;
+}) {
+  const { entityId } = useEntity();
+  const { openWithFocus } = useModuleAi();
+
+  const { data: entry, isLoading } = trpc.journal.getById.useQuery(
+    { id: entryId },
+    { enabled: !!entityId && !!entryId },
+  );
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!entryId) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-900/10 backdrop-blur-[2px]"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Journal entry details"
+        className="flex h-full w-full max-w-[480px] flex-col border-l border-border/60 bg-card shadow-2xl"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <FileText className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              {isLoading ? (
+                <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+              ) : (
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {entry?.entryNumber
+                    ? `JE-${String(entry.entryNumber).padStart(4, "0")}`
+                    : "Loading..."}
+                </p>
+              )}
+              <p className="truncate text-[11px] text-muted-foreground">
+                Journal Entry Details
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-16 animate-pulse rounded-lg bg-muted/30"
+                />
+              ))}
+            </div>
+          ) : !entry ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <AlertTriangle className="h-8 w-8 text-muted-foreground/30 mb-2" />
+              <p className="text-sm text-muted-foreground">Entry not found</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Metadata */}
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Date</span>
+                  <span className="text-xs font-medium text-foreground">
+                    {entry.date
+                      ? new Date(entry.date).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Status</span>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                      entry.status === "posted"
+                        ? "bg-blue-500/10 text-blue-500"
+                        : entry.status === "pending_review"
+                          ? "bg-amber-500/10 text-amber-500"
+                          : entry.status === "reversed"
+                            ? "bg-red-500/10 text-red-500"
+                            : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {entry.status === "posted"
+                      ? "Posted"
+                      : entry.status === "pending_review"
+                        ? "Pending"
+                        : entry.status === "reversed"
+                          ? "Voided"
+                          : entry.status}
+                  </span>
+                </div>
+                {entry.description && (
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      Description
+                    </span>
+                    <span className="text-xs text-foreground text-right">
+                      {entry.description}
+                    </span>
+                  </div>
+                )}
+                {entry.source && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      Source
+                    </span>
+                    <span className="text-xs font-medium text-foreground capitalize">
+                      {entry.source.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Lines */}
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">
+                  Entry Lines
+                </h4>
+                {entry.lines && entry.lines.length > 0 ? (
+                  <div className="rounded-xl border border-border/50 overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                            Account
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                            Debit
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                            Credit
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {entry.lines.map(
+                          (line: {
+                            id: string;
+                            accountId: string;
+                            debit: string | null;
+                            credit: string | null;
+                            description?: string | null;
+                          }) => {
+                            const debit = parseFloat(line.debit ?? "0");
+                            const credit = parseFloat(line.credit ?? "0");
+                            return (
+                              <tr
+                                key={line.id}
+                                className="border-b last:border-0 hover:bg-muted/20"
+                              >
+                                <td className="px-3 py-1.5">
+                                  <p className="text-foreground font-medium">
+                                    {line.description ?? "—"}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground/60 font-mono">
+                                    {line.accountId.slice(0, 8)}…
+                                  </p>
+                                </td>
+                                <td className="px-3 py-1.5 text-right tabular-nums">
+                                  {debit > 0 ? (
+                                    <span className="text-foreground">
+                                      {formatCurrency(debit)}
+                                    </span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </td>
+                                <td className="px-3 py-1.5 text-right tabular-nums">
+                                  {credit > 0 ? (
+                                    <span className="text-foreground">
+                                      {formatCurrency(credit)}
+                                    </span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          },
+                        )}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 font-semibold">
+                          <td className="px-3 py-2 text-foreground">Total</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                            {formatCurrency(
+                              entry.lines.reduce(
+                                (sum: number, l: { debit: string | null }) =>
+                                  sum + parseFloat(l.debit ?? "0"),
+                                0,
+                              ),
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                            {formatCurrency(
+                              entry.lines.reduce(
+                                (sum: number, l: { credit: string | null }) =>
+                                  sum + parseFloat(l.credit ?? "0"),
+                                0,
+                              ),
+                            )}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground py-4 text-center">
+                    No lines found
+                  </p>
+                )}
+              </div>
+
+              {/* AI Actions */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithFocus(
+                      {
+                        kind: "Journal Entry",
+                        name: entry.entryNumber
+                          ? `JE-${String(entry.entryNumber).padStart(4, "0")}`
+                          : "this entry",
+                        id: entry.id,
+                        fields: [
+                          { label: "Date", value: entry.date ?? "—" },
+                          { label: "Status", value: entry.status },
+                          {
+                            label: "Description",
+                            value: entry.description ?? "—",
+                          },
+                          { label: "Source", value: entry.source ?? "—" },
+                        ],
+                      },
+                      `Explain this journal entry. Why was it created, what accounts are affected, and is it correct?`,
+                    )
+                  }
+                  className="flex w-full items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Explain this entry
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithFocus(
+                      {
+                        kind: "Journal Entry",
+                        name: entry.entryNumber
+                          ? `JE-${String(entry.entryNumber).padStart(4, "0")}`
+                          : "this entry",
+                        id: entry.id,
+                        fields: [{ label: "Status", value: entry.status }],
+                      },
+                      `Show the audit trail for this journal entry. Who created it, when, and what changes were made?`,
+                    )
+                  }
+                  className="flex w-full items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                  Show audit trail
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Journal View ──────────────────────────────────────────────────────────
 
 function JournalView() {
   const { entityId } = useEntity();
+  const { openWithFocus } = useModuleAi();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
 
   const { data: journalData, isLoading } =
     trpc.journal.listWithDetails.useQuery(
-      { status: "all", limit: 20 },
+      {
+        status: activeFilter as
+          "all" | "draft" | "pending" | "approved" | "posted" | "voided",
+        search: searchQuery || undefined,
+        limit: pageSize,
+        offset: page * pageSize,
+      },
       { enabled: !!entityId },
     );
-  const journalEntries = journalData?.entries;
+
+  const { data: tabCounts } = trpc.journal.getTabCounts.useQuery(undefined, {
+    enabled: !!entityId,
+  });
+
+  const journalEntries = journalData?.entries ?? [];
+  const totalPages = journalData?.totalPages ?? 1;
 
   const filters = [
-    "All",
-    "Today",
-    "This Week",
-    "Unposted",
-    "AI-Posted",
-    "Manual",
+    { label: "All", value: "all", count: tabCounts?.all },
+    { label: "Draft", value: "draft", count: tabCounts?.draft },
+    { label: "Pending", value: "pending", count: tabCounts?.pending },
+    { label: "Posted", value: "posted", count: tabCounts?.posted },
+    { label: "Voided", value: "voided", count: tabCounts?.voided },
   ];
 
   return (
@@ -82,36 +406,50 @@ function JournalView() {
           id="journal-search"
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setPage(0);
+          }}
           placeholder='Search entries — try "Trust Bank invoice" or "rent expense"...'
           className="w-full rounded-xl border border-border/50 bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
         />
-        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          <span
-            className="inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted/30 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/50"
-            aria-hidden="true"
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setPage(0);
+            }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <Bot className="h-2.5 w-2.5" />
-            AI
-          </span>
-        </div>
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Quick filters */}
       <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {filters.map((filter) => (
           <button
-            key={filter}
+            key={filter.value}
             type="button"
-            onClick={() => setActiveFilter(filter.toLowerCase())}
+            onClick={() => {
+              setActiveFilter(filter.value);
+              setPage(0);
+            }}
             className={cn(
-              "inline-flex items-center rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
-              activeFilter === filter.toLowerCase()
+              "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
+              activeFilter === filter.value
                 ? "border-primary/25 bg-primary/10 text-primary"
                 : "border-border/40 bg-background/50 text-muted-foreground/70 hover:border-primary/25 hover:text-primary/80",
             )}
           >
-            {filter}
+            {filter.label}
+            {filter.count !== undefined && filter.count > 0 && (
+              <span className="rounded-full bg-muted/60 px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
+                {filter.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -126,71 +464,146 @@ function JournalView() {
             />
           ))}
         </div>
-      ) : !journalEntries || journalEntries.length === 0 ? (
+      ) : journalEntries.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
           <FileText
             className="h-12 w-12 text-muted-foreground/30 mb-3"
             aria-hidden="true"
           />
           <p className="text-sm font-medium text-foreground">
-            No journal entries yet
+            {searchQuery
+              ? "No entries match your search"
+              : "No journal entries yet"}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Entries will appear here as agents post them
+            {searchQuery
+              ? "Try a different search term"
+              : "Entries will appear here as agents post them"}
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {journalEntries.map((entry) => (
-            <div
-              key={entry.id}
-              className="rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:shadow-md"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {entry.description ??
-                        `Journal Entry ${entry.entryNumber}`}
-                    </p>
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold",
-                        entry.statusColor === "emerald"
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : entry.statusColor === "blue"
-                            ? "bg-blue-500/10 text-blue-500"
-                            : entry.statusColor === "amber"
-                              ? "bg-amber-500/10 text-amber-500"
-                              : entry.statusColor === "red"
-                                ? "bg-red-500/10 text-red-500"
-                                : "bg-muted text-muted-foreground",
+        <>
+          <div className="space-y-2">
+            {journalEntries.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                onClick={() => setSelectedEntryId(entry.id)}
+                className="w-full text-left rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:shadow-md hover:border-border/80 group"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                        {entry.description ?? entry.entryNumber}
+                      </p>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold shrink-0",
+                          entry.statusColor === "emerald"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : entry.statusColor === "blue"
+                              ? "bg-blue-500/10 text-blue-500"
+                              : entry.statusColor === "amber"
+                                ? "bg-amber-500/10 text-amber-500"
+                                : entry.statusColor === "red"
+                                  ? "bg-red-500/10 text-red-500"
+                                  : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {entry.status}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {entry.entryNumber} ·{" "}
+                      {entry.date
+                        ? new Date(entry.date).toLocaleDateString("en-US")
+                        : ""}
+                      {entry.source && entry.source !== "Manual" && (
+                        <>
+                          {" · "}
+                          <span className="text-muted-foreground/70">
+                            {entry.source}
+                          </span>
+                        </>
                       )}
-                    >
-                      {entry.status}
-                    </span>
+                    </p>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {entry.entryNumber} ·{" "}
-                    {entry.date
-                      ? new Date(entry.date).toLocaleDateString("en-US")
-                      : ""}
-                  </p>
+                  <div className="text-right shrink-0 flex items-center gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground tabular-nums">
+                        {formatCurrency(entry.debit)}
+                      </p>
+                      {entry.credit > 0 && (
+                        <p className="text-[10px] text-muted-foreground tabular-nums">
+                          Cr: {formatCurrency(entry.credit)}
+                        </p>
+                      )}
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/50 transition-colors" />
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    {formatCurrency(entry.debit)}
-                  </p>
-                </div>
-              </div>
 
-              {/* Actor + confidence row */}
-              <div className="mt-2 flex items-center gap-3">
-                <ActorBadge actor={entry.isAiGenerated ? "ai" : "human"} />
+                {/* Source + AI badge */}
+                <div className="mt-2 flex items-center gap-2">
+                  {entry.isAiGenerated && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                      <Bot className="h-2.5 w-2.5" />
+                      AI-Posted
+                    </span>
+                  )}
+                  {entry.createdBy && (
+                    <span className="text-[10px] text-muted-foreground/50">
+                      by {entry.createdBy}
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs text-muted-foreground">
+                Page {page + 1} of {totalPages}
+                {journalData?.totalCount !== undefined && (
+                  <span className="ml-1">
+                    ({journalData.totalCount} entries)
+                  </span>
+                )}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="rounded-lg border border-border/50 bg-background px-2.5 py-1 text-xs text-foreground hover:bg-accent disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((p) => Math.min(totalPages - 1, p + 1))
+                  }
+                  disabled={page >= totalPages - 1}
+                  className="rounded-lg border border-border/50 bg-background px-2.5 py-1 text-xs text-foreground hover:bg-accent disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  Next
+                </button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
+      )}
+
+      {/* Detail drawer */}
+      {selectedEntryId && (
+        <JournalEntryDrawer
+          entryId={selectedEntryId}
+          onClose={() => setSelectedEntryId(null)}
+        />
       )}
     </div>
   );
@@ -200,6 +613,7 @@ function JournalView() {
 
 function COAView() {
   const { entityId } = useEntity();
+  const { openWithFocus } = useModuleAi();
 
   const { data: accounts, isLoading } = trpc.coa.listHierarchy.useQuery(
     undefined,
@@ -242,6 +656,19 @@ function COAView() {
           <p className="text-xs text-muted-foreground mt-1">
             Your chart of accounts will appear here
           </p>
+          <button
+            type="button"
+            onClick={() =>
+              openWithFocus(
+                { kind: "Chart of Accounts", name: "All Accounts" },
+                "Help me set up my chart of accounts",
+              )
+            }
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Set up with AI
+          </button>
         </div>
       ) : (
         <div className="space-y-4">
@@ -252,22 +679,44 @@ function COAView() {
               </h4>
               <div className="space-y-1">
                 {typeAccounts.map((account) => (
-                  <div
+                  <button
                     key={account.id}
-                    className="flex items-center justify-between rounded-lg border border-transparent px-3 py-2 transition-colors hover:border-border/50 hover:bg-card/60"
+                    type="button"
+                    onClick={() =>
+                      openWithFocus(
+                        {
+                          kind: "Account",
+                          name: account.name,
+                          id: account.id,
+                          fields: [
+                            { label: "Code", value: account.code ?? "—" },
+                            { label: "Type", value: account.type ?? "—" },
+                            {
+                              label: "Subtype",
+                              value: account.subtype?.replace(/_/g, " ") ?? "—",
+                            },
+                          ],
+                        },
+                        `Explain this account: ${account.name}. What's the balance and recent activity?`,
+                      )
+                    }
+                    className="flex w-full items-center justify-between rounded-lg border border-transparent px-3 py-2 text-left transition-all hover:border-border/50 hover:bg-card/60 group"
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-mono text-muted-foreground/60 w-12">
                         {account.code}
                       </span>
-                      <span className="text-sm text-foreground">
+                      <span className="text-sm text-foreground group-hover:text-primary transition-colors">
                         {account.name}
                       </span>
                     </div>
-                    <span className="text-sm font-medium text-foreground tabular-nums">
-                      {account.subtype?.replace(/_/g, " ")}
-                    </span>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground/60">
+                        {account.subtype?.replace(/_/g, " ")}
+                      </span>
+                      <Sparkles className="h-3 w-3 text-primary/0 group-hover:text-primary/50 transition-colors" />
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -282,6 +731,7 @@ function COAView() {
 
 function TrialBalanceView() {
   const { entityId } = useEntity();
+  const { openWithFocus } = useModuleAi();
 
   const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
     enabled: !!entityId,
@@ -307,29 +757,58 @@ function TrialBalanceView() {
             : "border-red-500/20 bg-red-500/[0.03]",
         )}
       >
-        <div className="flex items-center gap-3">
-          {isBalanced ? (
-            <CheckCircle2
-              className="h-5 w-5 text-emerald-500"
-              aria-hidden="true"
-            />
-          ) : (
-            <AlertTriangle
-              className="h-5 w-5 text-red-500"
-              aria-hidden="true"
-            />
-          )}
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              {isBalanced
-                ? "Trial Balance is balanced"
-                : "Trial Balance is out of balance"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Total Debits: {formatCurrency(totalDebit)} · Total Credits:{" "}
-              {formatCurrency(totalCredit)}
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {isBalanced ? (
+              <CheckCircle2
+                className="h-5 w-5 text-emerald-500"
+                aria-hidden="true"
+              />
+            ) : (
+              <AlertTriangle
+                className="h-5 w-5 text-red-500"
+                aria-hidden="true"
+              />
+            )}
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {isBalanced
+                  ? "Trial Balance is balanced"
+                  : "Trial Balance is out of balance"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Total Debits: {formatCurrency(totalDebit)} · Total Credits:{" "}
+                {formatCurrency(totalCredit)}
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              openWithFocus(
+                {
+                  kind: "Trial Balance",
+                  name: "Current Period",
+                  fields: [
+                    {
+                      label: "Total Debits",
+                      value: formatCurrency(totalDebit),
+                    },
+                    {
+                      label: "Total Credits",
+                      value: formatCurrency(totalCredit),
+                    },
+                    { label: "Balanced", value: isBalanced ? "Yes" : "No" },
+                  ],
+                },
+                "Explain my trial balance. Are there any accounts that look unusual or need attention?",
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Sparkles className="h-3 w-3" />
+            Ask AI
+          </button>
         </div>
       </div>
 
@@ -432,25 +911,34 @@ function TrialBalanceView() {
 // ─── Fixed Assets View ─────────────────────────────────────────────────────
 
 function FixedAssetsView() {
+  const { openWithFocus } = useModuleAi();
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-      <Building2
-        className="h-12 w-12 text-muted-foreground/30 mb-3"
-        aria-hidden="true"
-      />
-      <p className="text-sm font-medium text-foreground">Fixed Assets</p>
-      <p className="text-xs text-muted-foreground mt-1">
-        Asset register, depreciation schedules, and disposal tracking coming
-        soon
-      </p>
-      <button
-        type="button"
-        aria-label="Ask AI about fixed assets"
-        className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-      >
-        <Bot className="h-3.5 w-3.5" aria-hidden="true" />
-        Ask AI about fixed assets
-      </button>
+    <div className="space-y-4">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
+        <Building2
+          className="h-12 w-12 text-muted-foreground/30 mb-3"
+          aria-hidden="true"
+        />
+        <p className="text-sm font-medium text-foreground">Fixed Assets</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+          Asset register, depreciation schedules, and disposal tracking. Ask the
+          AI to manage your fixed assets.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            openWithFocus(
+              { kind: "Fixed Assets", name: "Asset Register" },
+              "Help me set up and manage my fixed assets. Show me the depreciation schedule.",
+            )
+          }
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Ask AI about fixed assets
+        </button>
+      </div>
     </div>
   );
 }
@@ -458,38 +946,39 @@ function FixedAssetsView() {
 // ─── Reconciliation View ───────────────────────────────────────────────────
 
 function ReconciliationView() {
+  const { openWithFocus } = useModuleAi();
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-      <RefreshCw
-        className="h-12 w-12 text-muted-foreground/30 mb-3"
-        aria-hidden="true"
-      />
-      <p className="text-sm font-medium text-foreground">Reconciliation</p>
-      <p className="text-xs text-muted-foreground mt-1">
-        Bank statement matching and reconciliation — AI-powered, drag-to-match
-      </p>
-      <button
-        type="button"
-        aria-label="Ask AI to reconcile"
-        className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-      >
-        <Bot className="h-3.5 w-3.5" aria-hidden="true" />
-        Ask AI to reconcile
-      </button>
+    <div className="space-y-4">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
+        <RefreshCw
+          className="h-12 w-12 text-muted-foreground/30 mb-3"
+          aria-hidden="true"
+        />
+        <p className="text-sm font-medium text-foreground">Reconciliation</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+          Bank statement matching and reconciliation — AI-powered,
+          drag-to-match. Ask the AI to reconcile your accounts.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            openWithFocus(
+              { kind: "Reconciliation", name: "Bank Reconciliation" },
+              "Help me reconcile my bank transactions. Show unmatched items.",
+            )
+          }
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Ask AI to reconcile
+        </button>
+      </div>
     </div>
   );
 }
 
-// ─── Page ──────────────────────────────────────────────────────────────────
-
 // ─── Keyboard-Navigable Tab List ──────────────────────────────────────────
-//
-// WAI-ARIA Tabs pattern:
-//   Arrow Left/Right: move between tabs
-//   Home: first tab
-//   End: last tab
-//   Tab: move focus into the active tab panel
-//   Enter/Space: activate focused tab
 
 function LedgerTabList({
   tabs,
@@ -501,7 +990,6 @@ function LedgerTabList({
   onTabChange: (key: LedgerTab) => void;
 }) {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
   const tabIndex = tabs.findIndex((t) => t.key === activeTab);
 
   const focusTab = useCallback(
@@ -576,8 +1064,15 @@ function LedgerTabList({
   );
 }
 
+// ─── Page ──────────────────────────────────────────────────────────────────
+
 export default function LedgerPage() {
+  const { entityId } = useEntity();
   const [activeTab, setActiveTab] = useState<LedgerTab>("journal");
+
+  // ── Cross-surface sync ────────────────────────────────────────────────
+  // Listen for data_changed events from other surfaces and refetch
+  useSurfaceSync({ entityId, surfaces: ["ledger"] });
 
   const tabContent = {
     journal: <JournalView />,

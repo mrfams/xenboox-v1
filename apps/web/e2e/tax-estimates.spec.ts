@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 // ─── Tax & Compliance + Estimates E2E ─────────────────────────────────────
 //
 // Covers the two new competitive-parity surfaces:
-//   - /dashboard/estimates (quotes lifecycle, summary, tabs)
+//   - /dashboard (quotes lifecycle, summary, tabs)
 //   - /dashboard/tax-compliance (deadline liveness, VAT/WHT, 1099, packages)
 // Runs in the authenticated `chromium` project (storageState).
 
@@ -30,7 +30,7 @@ test.describe("Tax & Compliance Center", () => {
   });
 
   test("renders header and jurisdiction tabs", async ({ page }) => {
-    await page.goto("/dashboard/tax-compliance", {
+    await page.goto("/dashboard/operations", {
       waitUntil: "domcontentloaded",
     });
     await expect(page.getByText("Tax & Compliance Center")).toBeVisible({
@@ -53,7 +53,7 @@ test.describe("Tax & Compliance Center", () => {
   test("shows filing deadline liveness with urgency chips", async ({
     page,
   }) => {
-    await page.goto("/dashboard/tax-compliance", {
+    await page.goto("/dashboard/operations", {
       waitUntil: "domcontentloaded",
     });
     // The liveness table renders either real deadlines or the empty state —
@@ -66,7 +66,7 @@ test.describe("Tax & Compliance Center", () => {
   test("1099 forms tab renders threshold cards and contractor table", async ({
     page,
   }) => {
-    await page.goto("/dashboard/tax-compliance", {
+    await page.goto("/dashboard/operations", {
       waitUntil: "domcontentloaded",
     });
     await page.getByRole("button", { name: "1099 Forms" }).click();
@@ -84,7 +84,7 @@ test.describe("Tax & Compliance Center", () => {
   });
 
   test("deadlines tab lists filings with countdown", async ({ page }) => {
-    await page.goto("/dashboard/tax-compliance", {
+    await page.goto("/dashboard/operations", {
       waitUntil: "domcontentloaded",
     });
     await page.getByRole("button", { name: "Deadlines" }).click();
@@ -104,7 +104,7 @@ test.describe("Estimates & Quotes", () => {
   });
 
   test("renders estimates workspace with summary cards", async ({ page }) => {
-    await page.goto("/dashboard/estimates", { waitUntil: "domcontentloaded" });
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Estimates & Quotes")).toBeVisible({
       timeout: 20000,
     });
@@ -117,7 +117,7 @@ test.describe("Estimates & Quotes", () => {
   });
 
   test("status filter tabs navigate the list", async ({ page }) => {
-    await page.goto("/dashboard/estimates", { waitUntil: "domcontentloaded" });
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Draft", exact: true }).click();
     await expect(page.getByText(/Showing \d+ of \d+ estimates/)).toBeVisible({
       timeout: 20000,
@@ -127,7 +127,7 @@ test.describe("Estimates & Quotes", () => {
   test("money nav highlights both new pages", async ({ page }) => {
     // AISidebar groups both routes under the Money section — the Money
     // link must be active when on either page.
-    for (const route of ["/dashboard/estimates", "/dashboard/tax-compliance"]) {
+    for (const route of ["/dashboard", "/dashboard/operations"]) {
       await page.goto(route, { waitUntil: "domcontentloaded" });
       const moneyLink = page.locator('aside a[href="/dashboard/money"]');
       await expect(moneyLink).toBeVisible({ timeout: 20000 });

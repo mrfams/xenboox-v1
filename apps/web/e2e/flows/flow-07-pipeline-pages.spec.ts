@@ -12,22 +12,14 @@ const TEST_EMAIL = process.env.TEST_EMAIL || "demo@xenboox.com";
 const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo1234";
 
 const pipelinePages = [
-  "/dashboard/payroll/pipeline",
-  "/dashboard/payroll/runs",
-  "/dashboard/payroll/employees",
-  "/dashboard/tax-compliance/pipeline",
-  "/dashboard/audit/pipeline",
-  "/dashboard/analytics/pipeline",
-  "/dashboard/expense/pipeline",
-  "/dashboard/budget/pipeline",
-  "/dashboard/fixed-assets/pipeline",
-  "/dashboard/inventory/pipeline",
-  "/dashboard/consolidation/pipeline",
-  "/dashboard/jurisdiction",
-  "/dashboard/benchmarking",
-  "/dashboard/api-keys",
-  "/dashboard/branding",
-  "/dashboard/firm",
+  "/dashboard",
+  "/dashboard/activity-hub",
+  "/dashboard/financial-pulse",
+  "/dashboard/ledger",
+  "/dashboard/operations",
+  "/dashboard/audit-trail",
+  "/dashboard/settings",
+  "/dashboard/help",
 ];
 
 test.describe("W.F07 Pipeline Pages", () => {

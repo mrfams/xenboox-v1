@@ -56,6 +56,21 @@ export interface ApprovalEvent {
   amount?: string;
 }
 
+export interface NeedsInputField {
+  field: string;
+  label: string;
+  type: "text" | "number" | "date" | "select" | "textarea";
+  required: boolean;
+  options?: string[];
+}
+
+export interface NeedsInputEvent {
+  type: "needs_input";
+  action: string;
+  missing: NeedsInputField[];
+  context?: Record<string, unknown>;
+}
+
 export interface ToolCallEvent {
   type: "tool_call";
   toolName: string;
@@ -127,6 +142,7 @@ interface UseStreamingChatOptions {
   onDelegation?: (delegation: DelegationEvent) => void;
   onDocumentCreated?: (doc: DocumentCreatedEvent) => void;
   onApprovalNeeded?: (approval: ApprovalEvent) => void;
+  onNeedsInput?: (input: NeedsInputEvent) => void;
   onToolCall?: (trace: ToolTrace) => void;
   onToken?: (token: string) => void;
   onComplete?: (fullResponse: string, metadata: DoneEvent) => void;
@@ -143,6 +159,7 @@ export function useStreamingChat({
   onDelegation,
   onDocumentCreated,
   onApprovalNeeded,
+  onNeedsInput,
   onToolCall,
   onToken,
   onComplete,
@@ -250,6 +267,10 @@ export function useStreamingChat({
                   case "approval_needed":
                     setApprovals((prev) => [...prev, data]);
                     onApprovalNeeded?.(data);
+                    break;
+
+                  case "needs_input":
+                    onNeedsInput?.(data as NeedsInputEvent);
                     break;
 
                   case "tool_call": {

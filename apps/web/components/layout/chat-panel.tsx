@@ -319,8 +319,11 @@ export function ChatPanel({
         {
           type: "actions",
           buttons: [
-            { label: "View Full Report", href: "/dashboard/reports" },
-            { label: "Check Approvals", href: "/dashboard/review-queue" },
+            {
+              label: "View Financial Pulse",
+              href: "/dashboard/financial-pulse",
+            },
+            { label: "Check Approvals", href: "/dashboard/activity-hub" },
           ],
         },
       ],
@@ -417,7 +420,7 @@ export function ChatPanel({
         {
           type: "actions",
           buttons: [
-            { label: "Open Approval Queue", href: "/dashboard/review-queue" },
+            { label: "Open Activity Hub", href: "/dashboard/activity-hub" },
           ],
         },
       ];
@@ -478,8 +481,11 @@ export function ChatPanel({
         {
           type: "actions",
           buttons: [
-            { label: "Full P&L Statement", href: "/dashboard/reports" },
-            { label: "Budget vs Actual", href: "/dashboard/budget/pipeline" },
+            {
+              label: "View Financial Pulse",
+              href: "/dashboard/financial-pulse",
+            },
+            { label: "Check Ledger", href: "/dashboard/ledger" },
           ],
         },
       ];

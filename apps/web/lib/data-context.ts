@@ -11,12 +11,7 @@
 // ─── Data Types ───────────────────────────────────────────────────────────
 
 export type DataType =
-  | "currency"
-  | "date"
-  | "status"
-  | "percentage"
-  | "record-name"
-  | "generic";
+  "currency" | "date" | "status" | "percentage" | "record-name" | "generic";
 
 // ─── Detection ────────────────────────────────────────────────────────────
 
@@ -81,20 +76,12 @@ export function detectDataType(text: string, domContext?: string): DataType {
 // ─── Route → Page Name Mapping ────────────────────────────────────────────
 
 const ROUTE_PAGE: Record<string, string> = {
-  "/dashboard/payroll": "payroll",
-  "/dashboard/invoicing": "invoicing",
-  "/dashboard/transactions": "transactions",
-  "/dashboard/bills": "bills",
-  "/dashboard/expenses": "expenses",
-  "/dashboard/reports": "reports",
-  "/dashboard/journal": "journal",
-  "/dashboard/banking": "banking",
-  "/dashboard/reconciliation": "reconciliation",
-  "/dashboard/reconciliation/center": "reconciliation",
-  "/dashboard/customers": "customers",
-  "/dashboard/vendors": "vendors",
-  "/dashboard/tax-compliance": "tax-compliance",
-  "/dashboard/close": "close",
+  "/dashboard": "command-center",
+  "/dashboard/activity-hub": "activity-hub",
+  "/dashboard/financial-pulse": "financial-pulse",
+  "/dashboard/ledger": "ledger",
+  "/dashboard/operations": "operations",
+  "/dashboard/audit-trail": "audit-trail",
 };
 
 export function getPageFromRoute(pathname: string): string | null {

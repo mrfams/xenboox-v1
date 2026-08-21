@@ -32,9 +32,15 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { DashboardSkeleton } from "@/components/shared/skeletons";
 import { dashboardQueryOptions } from "@/lib/trpc/query-options";
 import { Button } from "@/components/ui";
+import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { ConfidenceBadge } from "@/components/shared/ai-native";
 import { ActorBadge } from "@/components/shared/ai-native";
 import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
+import { useSrAnnounce } from "@/lib/hooks/use-sr-announce";
+import type {
+  NeedsInputEvent,
+  NeedsInputField,
+} from "@/lib/hooks/use-streaming-chat";
 
 // ─── AI-Native Command Center ─────────────────────────────────────────────
 //
@@ -316,24 +322,199 @@ function ProactiveBriefing() {
 // Rich messages with inline actions — approve, reject, recode — directly
 // in the conversation. No page navigation needed.
 
+function InlineInputForm({
+  spec,
+  onSubmit,
+}: {
+  spec: NeedsInputEvent;
+  onSubmit: (text: string) => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pre-fill with known context
+  useEffect(() => {
+    if (spec.context) {
+      const prefill: Record<string, string> = {};
+      for (const [key, val] of Object.entries(spec.context)) {
+        if (val != null) prefill[key] = String(val);
+      }
+      setValues(prefill);
+    }
+  }, [spec.context]);
+
+  const handleSubmit = () => {
+    // Build a natural language message from the form values
+    const parts: string[] = [];
+    for (const field of spec.missing) {
+      const val = values[field.field];
+      if (val) {
+        parts.push(`${field.label}: ${val}`);
+      } else if (field.required) {
+        return; // Don't submit if required field is empty
+      }
+    }
+    if (parts.length === 0) return;
+    setIsSubmitting(true);
+    onSubmit(`For the ${spec.action.replace(/_/g, " ")}: ${parts.join(". ")}`);
+  };
+
+  const allRequiredFilled = spec.missing
+    .filter((f) => f.required)
+    .every((f) => values[f.field]?.trim());
+
+  return (
+    <div className="flex gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+        <Bot className="h-4 w-4 text-primary/70" />
+      </div>
+      <div className="max-w-[85%] rounded-2xl border border-primary/20 bg-primary/[0.03] px-4 py-3">
+        <p className="text-sm font-medium text-foreground mb-3">
+          I need a few details to {spec.action.replace(/_/g, " ")}:
+        </p>
+        <div className="space-y-3">
+          {spec.missing.map((field) => (
+            <div key={field.field}>
+              <label
+                htmlFor={`needs-input-${field.field}`}
+                className="block text-xs font-medium text-muted-foreground mb-1"
+              >
+                {field.label}
+                {field.required && (
+                  <span className="text-red-500 ml-0.5">*</span>
+                )}
+              </label>
+              {field.type === "select" && field.options ? (
+                <select
+                  id={`needs-input-${field.field}`}
+                  value={values[field.field] ?? ""}
+                  onChange={(e) =>
+                    setValues((prev) => ({
+                      ...prev,
+                      [field.field]: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
+                >
+                  <option value="">Select...</option>
+                  {field.options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              ) : field.type === "textarea" ? (
+                <textarea
+                  id={`needs-input-${field.field}`}
+                  value={values[field.field] ?? ""}
+                  onChange={(e) =>
+                    setValues((prev) => ({
+                      ...prev,
+                      [field.field]: e.target.value,
+                    }))
+                  }
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
+                />
+              ) : (
+                <input
+                  id={`needs-input-${field.field}`}
+                  type={
+                    field.type === "number"
+                      ? "number"
+                      : field.type === "date"
+                        ? "date"
+                        : "text"
+                  }
+                  value={values[field.field] ?? ""}
+                  onChange={(e) =>
+                    setValues((prev) => ({
+                      ...prev,
+                      [field.field]: e.target.value,
+                    }))
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!allRequiredFilled || isSubmitting}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+              allRequiredFilled && !isSubmitting
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground cursor-not-allowed",
+            )}
+          >
+            {isSubmitting ? (
+              <RefreshCw
+                className="h-3.5 w-3.5 animate-spin"
+                aria-hidden="true"
+              />
+            ) : (
+              <Send className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            {isSubmitting ? "Sending..." : "Submit"}
+          </button>
+          <span className="text-[10px] text-muted-foreground/50">
+            Press Enter to submit
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConversationThread({
   messages,
   isStreaming,
   streamedContent,
   approvals,
   documents,
+  pendingInput,
+  onSendMessage,
 }: {
   messages: ReturnType<typeof useDashboardChat>["messages"];
   isStreaming: boolean;
   streamedContent: string;
   approvals: ReturnType<typeof useDashboardChat>["approvals"];
   documents: ReturnType<typeof useDashboardChat>["documents"];
+  pendingInput: NeedsInputEvent | null;
+  onSendMessage: (text: string) => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [processingApproval, setProcessingApproval] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming, streamedContent]);
+
+  const handleApprovalAction = useCallback(
+    (action: "approve" | "reject" | "review", approvalTitle: string) => {
+      setProcessingApproval(approvalTitle);
+      const message =
+        action === "approve"
+          ? `Approved: ${approvalTitle}`
+          : action === "reject"
+            ? `Rejected: ${approvalTitle}`
+            : `Please review: ${approvalTitle}`;
+      onSendMessage(message);
+    },
+    [onSendMessage],
+  );
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -448,15 +629,35 @@ function ConversationThread({
                 <button
                   type="button"
                   aria-label="Approve"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-500/20 transition-colors"
+                  disabled={processingApproval === approval.title}
+                  onClick={() =>
+                    handleApprovalAction("approve", approval.title)
+                  }
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    processingApproval === approval.title
+                      ? "bg-emerald-500/20 text-emerald-700 cursor-wait"
+                      : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20",
+                  )}
                 >
-                  <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
-                  Approve
+                  {processingApproval === approval.title ? (
+                    <RefreshCw
+                      className="h-3.5 w-3.5 animate-spin"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {processingApproval === approval.title
+                    ? "Processing..."
+                    : "Approve"}
                 </button>
                 <button
                   type="button"
                   aria-label="Review"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                  disabled={processingApproval === approval.title}
+                  onClick={() => handleApprovalAction("review", approval.title)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50"
                 >
                   <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                   Review
@@ -464,15 +665,41 @@ function ConversationThread({
                 <button
                   type="button"
                   aria-label="Reject"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 transition-colors"
+                  disabled={processingApproval === approval.title}
+                  onClick={() => handleApprovalAction("reject", approval.title)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    processingApproval === approval.title
+                      ? "bg-red-500/20 text-red-700 cursor-wait"
+                      : "bg-red-500/10 text-red-600 hover:bg-red-500/20",
+                  )}
                 >
-                  <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
-                  Reject
+                  {processingApproval === approval.title ? (
+                    <RefreshCw
+                      className="h-3.5 w-3.5 animate-spin"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {processingApproval === approval.title
+                    ? "Processing..."
+                    : "Reject"}
                 </button>
               </div>
             </div>
           </div>
         ))}
+
+        {/* Inline input form from AI */}
+        {pendingInput && !isStreaming && (
+          <InlineInputForm
+            spec={pendingInput}
+            onSubmit={(text) => {
+              onSendMessage(text);
+            }}
+          />
+        )}
 
         {/* Document artifacts */}
         {documents.map((doc, i) => (
@@ -648,6 +875,11 @@ export default function CommandCenterPage() {
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(" ")[0];
   const { entityId } = useEntity();
+  const { announce } = useSrAnnounce();
+
+  // ── Cross-surface sync ────────────────────────────────────────────────
+  // Listen for data_changed events from other surfaces and refetch
+  useSurfaceSync({ entityId, surfaces: ["command-center"] });
 
   const {
     messages,
@@ -655,8 +887,18 @@ export default function CommandCenterPage() {
     streamedContent,
     approvals,
     documents,
+    pendingInput,
     sendMessage,
   } = useDashboardChat({ entityId });
+
+  // Announce streaming status to screen readers
+  useEffect(() => {
+    if (isStreaming && !streamedContent) {
+      announce("AI is thinking...");
+    } else if (isStreaming && streamedContent) {
+      announce("AI is responding...");
+    }
+  }, [isStreaming, streamedContent, announce]);
 
   const handleSubmit = useCallback(
     (value: string) => {
@@ -666,7 +908,7 @@ export default function CommandCenterPage() {
   );
 
   return (
-    <div className="flex h-full flex-col pb-16 md:pb-0">
+    <div className="flex h-full flex-col pb-16 md:pb-0" aria-busy={isStreaming}>
       {/* Greeting */}
       <div className="px-4 pt-6 sm:px-6">
         <AIGreeting firstName={firstName} />
@@ -684,6 +926,8 @@ export default function CommandCenterPage() {
         streamedContent={streamedContent}
         approvals={approvals}
         documents={documents}
+        pendingInput={pendingInput}
+        onSendMessage={sendMessage}
       />
 
       {/* AI Input — fixed at bottom */}

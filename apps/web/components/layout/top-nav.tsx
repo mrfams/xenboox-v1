@@ -14,12 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import {
-  Button,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui";
+import { Button, Avatar, AvatarFallback, AvatarImage } from "@/components/ui";
 import { AICommandBar } from "@/components/shared/ai-command-bar";
 import { EntitySwitcher } from "@/components/layout/entity-switcher";
 import { CommandPalette } from "@/components/shared/command-palette";
@@ -380,7 +375,7 @@ export function TopNav({
                 </div>
                 <div className="border-t px-3 py-2">
                   <Link
-                    href="/dashboard/notifications"
+                    href="/dashboard/activity-hub"
                     className="flex items-center gap-2 text-xs text-primary hover:underline"
                     onClick={() => setNotifOpen(false)}
                   >

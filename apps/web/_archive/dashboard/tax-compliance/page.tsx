@@ -190,10 +190,7 @@ function DeductionDiscoveryPanel({
     opportunities: Array<{
       id: string;
       type:
-        | "wht_recovery"
-        | "vat_refund"
-        | "unfiled_return"
-        | "liability_review";
+        "wht_recovery" | "vat_refund" | "unfiled_return" | "liability_review";
       title: string;
       description: string;
       estimatedSavings: number;

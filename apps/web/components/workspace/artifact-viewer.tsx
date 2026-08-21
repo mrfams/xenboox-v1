@@ -617,7 +617,7 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
               <span className="hidden sm:inline">Download</span>
             </button>
             <Link
-              href="/dashboard/documents/artifacts"
+              href="/dashboard"
               target="_blank"
               className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/30 hover:text-primary"
               title="Open in Documents"
@@ -683,7 +683,7 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
                 Documents module instead.
               </p>
               <Link
-                href="/dashboard/documents/artifacts"
+                href="/dashboard"
                 className="mt-1 rounded-lg border border-border/50 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
               >
                 Go to Documents

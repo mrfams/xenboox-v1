@@ -479,7 +479,7 @@ export const dashboardRouter = router({
       briefingItems.push({
         id: "runway",
         ...buildRunwayBriefing(runwayMonths, avgMonthlyBurn),
-        href: "/dashboard/banking",
+        href: "/dashboard/operations",
         audience: ["decision", "oversight"],
       });
 
@@ -538,7 +538,7 @@ export const dashboardRouter = router({
               ? `${avgDaysOverdue} day${avgDaysOverdue !== 1 ? "s" : ""} overdue on average`
               : "Payment overdue",
           statusLabel: "Follow up required",
-          href: "/dashboard/bills",
+          href: "/dashboard/activity-hub",
           audience: ["decision", "operations"],
         });
       }
@@ -569,7 +569,7 @@ export const dashboardRouter = router({
           value: `${pendingJournals} ${pendingJournals > 1 ? "entries" : "entry"}`,
           detail: "Awaiting approval before posting",
           statusLabel: "Ready for review",
-          href: "/dashboard/journal",
+          href: "/dashboard/ledger",
           audience: ["operations"],
         });
       }
@@ -600,7 +600,7 @@ export const dashboardRouter = router({
           value: `${escalations} flagged`,
           detail: "AI-flagged transactions requiring review",
           statusLabel: "Review now",
-          href: "/dashboard/review-queue",
+          href: "/dashboard/activity-hub",
           audience: ["decision", "operations"],
         });
       }
@@ -832,7 +832,7 @@ export const dashboardRouter = router({
             year: "numeric",
           }),
           urgency: daysLeft <= 7 ? "upcoming" : "normal",
-          href: "/dashboard/tax-compliance",
+          href: "/dashboard/operations",
         });
       }
 
@@ -857,7 +857,7 @@ export const dashboardRouter = router({
               ? `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`
               : `Due in ${daysLeft} days`,
           statusLabel: daysLeft <= 7 ? "Due soon" : "On schedule",
-          href: "/dashboard/tax-compliance",
+          href: "/dashboard/operations",
           audience: ["decision", "operations", "oversight"],
         });
       }
@@ -884,7 +884,7 @@ export const dashboardRouter = router({
           label: `Invoice ${invoice.invoiceNumber} due`,
           date: invoice.dueDate,
           urgency: "normal",
-          href: "/dashboard/bills",
+          href: "/dashboard/activity-hub",
         });
       }
 
@@ -923,7 +923,7 @@ export const dashboardRouter = router({
               day: "numeric",
             }),
             urgency: daysLeft <= 7 ? "upcoming" : "normal",
-            href: "/dashboard/payroll",
+            href: "/dashboard/operations",
           });
         }
       }

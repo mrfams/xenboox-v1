@@ -21,7 +21,7 @@ test.describe("W.F05 Reports & Export", () => {
   });
 
   test("05.01 reports hub page loads with report cards", async ({ page }) => {
-    await page.goto("/dashboard/reports", {
+    await page.goto("/dashboard/financial-pulse", {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });
@@ -29,7 +29,7 @@ test.describe("W.F05 Reports & Export", () => {
   });
 
   test("05.02 profit and loss report loads", async ({ page }) => {
-    await page.goto("/dashboard/reports/profit-and-loss", {
+    await page.goto("/dashboard/financial-pulse", {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });
@@ -37,7 +37,7 @@ test.describe("W.F05 Reports & Export", () => {
   });
 
   test("05.03 balance sheet loads", async ({ page }) => {
-    await page.goto("/dashboard/reports/balance-sheet", {
+    await page.goto("/dashboard/financial-pulse", {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });

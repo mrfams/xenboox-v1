@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   Activity,
   TrendingUp,
@@ -14,13 +13,16 @@ import {
   Sparkles,
   ChevronRight,
   RefreshCw,
+  ArrowRightLeft,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
+import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { AiNarrativeHeader } from "@/components/shared/ai-native";
+import { useModuleAi } from "@/components/module/module-ai-context";
 
 // ─── Financial Pulse ──────────────────────────────────────────────────────
 //
@@ -78,23 +80,29 @@ function MiniSparkline({
 function KPICard({
   label,
   value,
+  previousValue,
   change,
   icon: Icon,
   color,
   sparkline,
+  onAskAi,
+  aiPrompt,
 }: {
   label: string;
   value: string;
+  previousValue?: string;
   change?: string;
   icon: typeof TrendingUp;
   color: string;
   sparkline?: number[];
+  onAskAi?: () => void;
+  aiPrompt?: string;
 }) {
   const isPositive = change?.startsWith("+");
   const isNegative = change?.startsWith("-");
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md">
+    <div className="group relative text-left rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md w-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon className={cn("h-4 w-4", color)} aria-hidden="true" />
@@ -132,6 +140,27 @@ function KPICard({
           </span>
         )}
       </div>
+      {/* Prior period comparison */}
+      {previousValue && (
+        <p className="mt-1 text-[10px] text-muted-foreground/60">
+          vs {previousValue} prior period
+        </p>
+      )}
+      {/* Ask AI — appears on hover */}
+      {onAskAi && aiPrompt && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAskAi();
+          }}
+          className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] font-medium text-primary opacity-0 transition-all hover:bg-primary/10 group-hover:opacity-100"
+          title={`Ask AI about ${label.toLowerCase()}`}
+        >
+          <Sparkles className="h-2.5 w-2.5" />
+          Ask AI
+        </button>
+      )}
     </div>
   );
 }
@@ -223,15 +252,13 @@ function AiFinancialNarrative({
 
 // ─── Scenario Planner ──────────────────────────────────────────────────────
 
-function ScenarioPlanner() {
+function ScenarioPlanner({ onAskAi }: { onAskAi: (prompt: string) => void }) {
   const [query, setQuery] = useState("");
-  const [isThinking, setIsThinking] = useState(false);
 
   const handleSubmit = () => {
     if (!query.trim()) return;
-    setIsThinking(true);
-    // In production, this would call the AI to model the scenario
-    setTimeout(() => setIsThinking(false), 2000);
+    onAskAi(`Model this scenario: ${query}`);
+    setQuery("");
   };
 
   return (
@@ -262,14 +289,10 @@ function ScenarioPlanner() {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!query.trim() || isThinking}
+          disabled={!query.trim()}
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
         >
-          {isThinking ? (
-            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5" />
-          )}
+          <Sparkles className="h-3.5 w-3.5" />
           Model
         </button>
       </div>
@@ -284,7 +307,7 @@ const REPORTS = [
     id: "pnl",
     label: "Profit & Loss",
     description: "Revenue, expenses, and net income",
-    href: "/dashboard/ledger",
+    aiPrompt: "Show me my profit and loss statement",
     icon: TrendingUp,
     color: "bg-blue-500/10 text-blue-500",
   },
@@ -292,7 +315,7 @@ const REPORTS = [
     id: "balance-sheet",
     label: "Balance Sheet",
     description: "Assets, liabilities, and equity",
-    href: "/dashboard/ledger",
+    aiPrompt: "Show me my balance sheet",
     icon: BarChart3,
     color: "bg-emerald-500/10 text-emerald-500",
   },
@@ -300,7 +323,7 @@ const REPORTS = [
     id: "cash-flow",
     label: "Cash Flow",
     description: "Cash in, cash out, net movement",
-    href: "/dashboard/operations",
+    aiPrompt: "Show me my cash flow statement",
     icon: Wallet,
     color: "bg-purple-500/10 text-purple-500",
   },
@@ -308,7 +331,7 @@ const REPORTS = [
     id: "trial-balance",
     label: "Trial Balance",
     description: "Debits equal credits verification",
-    href: "/dashboard/ledger",
+    aiPrompt: "Show me my trial balance",
     icon: FileText,
     color: "bg-amber-500/10 text-amber-500",
   },
@@ -318,9 +341,14 @@ const REPORTS = [
 
 export default function FinancialPulsePage() {
   const { entityId } = useEntity();
+  const { openWithFocus } = useModuleAi();
+
+  // ── Cross-surface sync ────────────────────────────────────────────────
+  // Listen for data_changed events from other surfaces and refetch
+  useSurfaceSync({ entityId, surfaces: ["financial-pulse"] });
 
   const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
-    {},
+    { period: "this_month" },
     { enabled: !!entityId },
   );
 
@@ -347,28 +375,52 @@ export default function FinancialPulsePage() {
       }
     : undefined;
 
-  // Generate sparkline data from real values (simulated trend)
-  const revenueSparkline = pnl?.revenue
-    ? [
-        pnl.revenue * 0.85,
-        pnl.revenue * 0.9,
-        pnl.revenue * 0.95,
-        pnl.revenue * 0.92,
-        pnl.revenue * 0.98,
-        pnl.revenue,
-      ]
-    : [];
+  // Real sparkline data from the backend (monthly totals)
+  const revenueSparkline = dashboardData?.businessHealth.revenueSparkline ?? [];
+  const expenseSparkline =
+    dashboardData?.businessHealth.expensesSparkline ?? [];
+  const cashSparkline = dashboardData?.businessHealth.cashSparkline ?? [];
 
-  const expenseSparkline = pnl?.expenses
-    ? [
-        pnl.expenses * 0.9,
-        pnl.expenses * 0.92,
-        pnl.expenses * 0.95,
-        pnl.expenses * 0.97,
-        pnl.expenses * 0.99,
-        pnl.expenses,
-      ]
-    : [];
+  // Helper to open copilot with a financial question
+  const askAiAbout = (prompt: string) => {
+    openWithFocus(
+      {
+        kind: "Financial Pulse",
+        name: "Financial Overview",
+        fields: [
+          {
+            label: "Revenue",
+            value: formatCurrency(pnl?.revenue ?? 0),
+          },
+          {
+            label: "Expenses",
+            value: formatCurrency(pnl?.expenses ?? 0),
+          },
+          {
+            label: "Net Profit",
+            value: formatCurrency(pnlData?.current.netProfit ?? 0),
+          },
+          {
+            label: "Cash Balance",
+            value: formatCurrency(overview?.cashBalance ?? 0),
+          },
+          {
+            label: "Revenue Change",
+            value: pnl?.revenueChange
+              ? `${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}%`
+              : "N/A",
+          },
+          {
+            label: "Expenses Change",
+            value: pnl?.expensesChange
+              ? `${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%`
+              : "N/A",
+          },
+        ],
+      },
+      prompt,
+    );
+  };
 
   return (
     <ModulePageShell
@@ -387,7 +439,10 @@ export default function FinancialPulsePage() {
         { label: "Model next quarter", prompt: "Model next quarter" },
       ]}
     >
-      <div className="space-y-6 p-3 pb-20 sm:p-6 md:pb-6">
+      <div
+        className="space-y-6 p-3 pb-20 sm:p-6 md:pb-6"
+        aria-busy={!dashboardData && !pnlData}
+      >
         {/* AI Narrative */}
         <AiFinancialNarrative overview={overview} pnl={pnl} />
 
@@ -396,6 +451,13 @@ export default function FinancialPulsePage() {
           <KPICard
             label="Revenue"
             value={formatCurrency(pnl?.revenue ?? 0)}
+            previousValue={
+              pnl?.revenueChange
+                ? formatCurrency(
+                    (pnl.revenue ?? 0) / (1 + (pnl.revenueChange ?? 0) / 100),
+                  )
+                : undefined
+            }
             change={
               pnl?.revenueChange
                 ? `${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}%`
@@ -404,10 +466,23 @@ export default function FinancialPulsePage() {
             icon={TrendingUp}
             color="text-emerald-500"
             sparkline={revenueSparkline}
+            onAskAi={() =>
+              askAiAbout(
+                "Explain my revenue position and trends. What's driving the change vs last month?",
+              )
+            }
+            aiPrompt="Explain revenue"
           />
           <KPICard
             label="Expenses"
             value={formatCurrency(pnl?.expenses ?? 0)}
+            previousValue={
+              pnl?.expensesChange
+                ? formatCurrency(
+                    (pnl.expenses ?? 0) / (1 + (pnl.expensesChange ?? 0) / 100),
+                  )
+                : undefined
+            }
             change={
               pnl?.expensesChange
                 ? `${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%`
@@ -416,23 +491,47 @@ export default function FinancialPulsePage() {
             icon={TrendingDown}
             color="text-red-500"
             sparkline={expenseSparkline}
+            onAskAi={() =>
+              askAiAbout(
+                "Break down my expenses. What's the biggest cost driver and how can I reduce it?",
+              )
+            }
+            aiPrompt="Explain expenses"
           />
           <KPICard
             label="Net Profit"
             value={formatCurrency(pnlData?.current.netProfit ?? 0)}
+            change={
+              pnl?.revenueChange && pnl?.expensesChange
+                ? `${pnl.revenueChange - pnl.expensesChange > 0 ? "+" : ""}${(pnl.revenueChange - pnl.expensesChange).toFixed(1)}% spread`
+                : undefined
+            }
             icon={BarChart3}
             color="text-primary"
+            onAskAi={() =>
+              askAiAbout(
+                "Explain my profitability. Is my margin improving or declining? What should I focus on?",
+              )
+            }
+            aiPrompt="Explain profit"
           />
           <KPICard
             label="Cash Balance"
             value={formatCurrency(overview?.cashBalance ?? 0)}
             icon={Wallet}
             color="text-blue-500"
+            sparkline={cashSparkline}
+            onAskAi={() =>
+              askAiAbout(
+                "Explain my cash position. How many months of runway do I have? What's the trend?",
+              )
+            }
+            aiPrompt="Explain cash"
           />
         </div>
 
         {/* Scenario Planner */}
-        <ScenarioPlanner />
+        <ScenarioPlanner onAskAi={askAiAbout} />
 
         {/* Report Library */}
         <section>
@@ -443,10 +542,11 @@ export default function FinancialPulsePage() {
             {REPORTS.map((report) => {
               const Icon = report.icon;
               return (
-                <Link
+                <button
                   key={report.id}
-                  href={report.href}
-                  className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md"
+                  type="button"
+                  onClick={() => askAiAbout(report.aiPrompt)}
+                  className="group text-left rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md"
                 >
                   <div className="flex items-start gap-3">
                     <div
@@ -467,9 +567,9 @@ export default function FinancialPulsePage() {
                         {report.description}
                       </p>
                     </div>
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                   </div>
-                </Link>
+                </button>
               );
             })}
           </div>
@@ -481,22 +581,29 @@ export default function FinancialPulsePage() {
             Quick Actions
           </h3>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/dashboard/ledger"
+            <button
+              type="button"
+              onClick={() => askAiAbout("Show me my trial balance")}
               className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
             >
               <FileText className="h-4 w-4" aria-hidden="true" />
               View Ledger
-            </Link>
-            <Link
-              href="/dashboard/operations"
-              className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-            >
-              <Wallet className="h-4 w-4" aria-hidden="true" />
-              Banking
-            </Link>
+            </button>
             <button
               type="button"
+              onClick={() => askAiAbout("Show me my cash flow for this month")}
+              className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+            >
+              <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
+              Cash Flow
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                askAiAbout(
+                  "Generate a comprehensive financial report for this month",
+                )
+              }
               className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
             >
               <Bot className="h-4 w-4" aria-hidden="true" />

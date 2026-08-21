@@ -58,36 +58,36 @@ const KNOWLEDGE_BASE: HelpKnowledge[] = [
   },
   {
     topic: "Connect a bank account",
-    path: "/dashboard/banking",
+    path: "/dashboard/operations",
     description:
       "Link your bank, import statements, and let AI categorize transactions.",
     keywords: ["bank", "account", "import", "statement", "transaction"],
   },
   {
     topic: "Create an invoice",
-    path: "/dashboard/invoicing",
+    path: "/dashboard",
     description:
       "Bill customers, track payments, and convert quotes to invoices.",
     keywords: ["invoice", "bill customer", "sales", "receivables", "quote"],
   },
   {
     topic: "Run payroll",
-    path: "/dashboard/payroll",
+    path: "/dashboard",
     description:
       "Process a pay run with gross pay, statutory deductions, and net pay.",
     keywords: ["payroll", "salary", "wages", "pay run", "employees"],
   },
   {
     topic: "Reconcile accounts",
-    path: "/dashboard/reconciliation/center",
+    path: "/dashboard/operations",
     description: "Match bank lines to your books and keep balances in check.",
     keywords: ["reconcile", "match", "bank", "balance"],
   },
   {
     topic: "Review agent work",
-    path: "/dashboard/inbox",
+    path: "/dashboard/activity-hub",
     description: "Approve or reject what the Xenboox agent workforce produces.",
-    keywords: ["approve", "review", "inbox", "pending", "queue", "agent"],
+    keywords: ["approve", "review", "activity", "pending", "queue", "agent"],
   },
   {
     topic: "Manage users & roles",
@@ -97,29 +97,29 @@ const KNOWLEDGE_BASE: HelpKnowledge[] = [
     keywords: ["users", "team", "roles", "permissions", "invite", "settings"],
   },
   {
-    topic: "Automation Studio",
-    path: "/dashboard/automation",
+    topic: "Automation",
+    path: "/dashboard",
     description:
-      "Create recurring rules that automate bills, invoices, and payroll — AI-suggested schedules and entity-scoped execution.",
+      "Automate bills, invoices, and payroll — ask the AI to set up recurring rules.",
     keywords: ["automation", "recurring", "schedule", "rules", "autopay"],
   },
   {
     topic: "AI Command Center",
-    path: "/dashboard/chat",
+    path: "/dashboard",
     description:
-      "Chat with the CFO agent — ask questions about your books, pin records with @, and get agent-run workflows.",
-    keywords: ["chat", "cfo", "agent", "ask", "command", "@", "mention"],
+      "Chat with the CFO agent — ask questions about your books, and get agent-run workflows.",
+    keywords: ["chat", "cfo", "agent", "ask", "command"],
   },
   {
     topic: "Bill-to-PO matching",
-    path: "/dashboard/bills",
+    path: "/dashboard",
     description:
       "Match supplier bills to open purchase orders with AI suggestions before approving.",
     keywords: ["bill", "po", "purchase order", "match", "supplier", "ap"],
   },
   {
     topic: "Scenario planning",
-    path: "/dashboard/insights",
+    path: "/dashboard/financial-pulse",
     description:
       "Project cash runway under what-if assumptions — revenue growth and expense cuts on your real cash data.",
     keywords: [
@@ -146,13 +146,13 @@ Rules:
 - Answer ONLY about Xenboox and accounting workflows inside it. Never invent features that don't exist.
 - When the user's question maps to a known topic, give 2–4 concrete steps, then point them to the exact page: "Go to <path>" (use the real dashboard or docs path).
 - If the question is about their financial data (balances, invoices, reports), gently explain WHERE in Xenboox they'd find the answer rather than fabricating numbers.
-- If you genuinely don't know, say so and suggest asking the CFO agent in the AI Command Center (/dashboard/chat).
+- If you genuinely don't know, say so and suggest asking the CFO agent in the AI Command Center (/dashboard).
 - Keep answers concise (under ~180 words), scannable, and friendly. Use short numbered steps where helpful.
 
 Known help topics you can point users to:
 ${catalog}
 
-You can also mention these pages: /dashboard/transactions, /dashboard/reports, /dashboard/vendors, /dashboard/customers, /dashboard/treasury, /dashboard/explore, /docs/faq.`;
+You can also mention these surfaces: /dashboard/activity-hub (Activity Hub), /dashboard/financial-pulse (Financial Pulse), /dashboard/ledger (Ledger), /dashboard/operations (Operations), /docs/faq.`;
 }
 
 function sse(event: string, data?: Record<string, unknown>): string {

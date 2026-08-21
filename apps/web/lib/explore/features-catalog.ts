@@ -53,7 +53,7 @@ export const FEATURES: Feature[] = [
     description:
       "A full conversation with the CFO agent: ask questions, delegate tasks, request changes, and approve or reject agent recommendations — all routed to the right specialist agent.",
     status: "shipped",
-    href: "/dashboard/chat",
+    href: "/dashboard",
     source: "Xero JAX · QuickBooks Intuit Assist · Sage Copilot",
   },
   {
@@ -63,7 +63,7 @@ export const FEATURES: Feature[] = [
     description:
       "Pages built on the module shell carry an 'Ask Xenboox' button. The AI sees exactly the page you're on (filters, metrics, record count) and answers, explains, or tasks itself using live entity-scoped data. Rollout across the remaining module pages is in progress.",
     status: "shipped",
-    href: "/dashboard/transactions",
+    href: "/dashboard/ledger",
     source: "Xero JAX · Digits Ask · GitHub Copilot (in-context)",
   },
   {
@@ -73,7 +73,7 @@ export const FEATURES: Feature[] = [
     description:
       "The pipeline distinguishes questions from instructions, corrections, and approval responses — so 'explain this' and 'change this' are handled differently.",
     status: "shipped",
-    href: "/dashboard/chat",
+    href: "/dashboard",
     source: "Digits AGL · Basis",
   },
   {
@@ -83,7 +83,7 @@ export const FEATURES: Feature[] = [
     description:
       '"What\'s driving my profit?", "Why is this variance here?", "Show me overdue invoices" — answered in plain language against live data.',
     status: "shipped",
-    href: "/dashboard/chat",
+    href: "/dashboard",
     source: "QuickBooks Intelligence Chat · Brex Intelligent Finance",
   },
   {
@@ -114,7 +114,7 @@ export const FEATURES: Feature[] = [
     description:
       "Automatic import from connected bank feeds and mobile-money wallets so transactions flow in continuously.",
     status: "shipped",
-    href: "/dashboard/banking",
+    href: "/dashboard/operations",
     source: "QuickBooks Bank Feeds · Xero",
   },
   {
@@ -124,7 +124,7 @@ export const FEATURES: Feature[] = [
     description:
       "AI suggests categories, accounts, and tax treatments from historical patterns and vendor behavior.",
     status: "shipped",
-    href: "/dashboard/transactions",
+    href: "/dashboard/ledger",
     source: "QuickBooks Accounting AI · Xero Smart Coding",
   },
   {
@@ -134,7 +134,7 @@ export const FEATURES: Feature[] = [
     description:
       "Auto-match bank lines to bills, invoices, and transfers — with suggestions you approve before posting.",
     status: "shipped",
-    href: "/dashboard/reconciliation/center",
+    href: "/dashboard/operations",
     source: "Xero auto-reconciliation · QuickBooks",
   },
   {
@@ -144,7 +144,7 @@ export const FEATURES: Feature[] = [
     description:
       "Upload, snap, or forward receipts and invoices; the document pipeline extracts data into draft entries.",
     status: "shipped",
-    href: "/dashboard/documents",
+    href: "/dashboard",
     source: "Xero Hubdoc · QuickBooks Photo-to-Invoice",
   },
   {
@@ -154,7 +154,7 @@ export const FEATURES: Feature[] = [
     description:
       "Turn a photo, PDF, or note into a ready-to-send invoice or bill. Documents extract and link into the audit trail; accepted estimates convert to invoices with lines, terms, and tax treatment carried over.",
     status: "shipped",
-    href: "/dashboard/documents",
+    href: "/dashboard",
     source: "QuickBooks AI Invoice Generator · Xero",
   },
   {
@@ -164,7 +164,7 @@ export const FEATURES: Feature[] = [
     description:
       "Batch high-confidence items for one-click approval with clear confidence cues — green (safe), amber (verify), red (hold). Live in the review queues and journal approval flow with before/after diff confirmations.",
     status: "shipped",
-    href: "/dashboard/review-queue",
+    href: "/dashboard/activity-hub",
     source: "QuickBooks Ready to post · Review Signals",
   },
   {
@@ -214,7 +214,7 @@ export const FEATURES: Feature[] = [
     description:
       "Ask any business question in plain language and get an answer computed from your live ledger — no report-building required.",
     status: "shipped",
-    href: "/dashboard/chat",
+    href: "/dashboard",
     source: "QuickBooks · Digits Ask · Brex Intelligent Finance",
   },
   {
@@ -224,7 +224,7 @@ export const FEATURES: Feature[] = [
     description:
       "Auto-written commentary for P&L, balance sheet, and variance — explaining the numbers, not just showing them. Live on Reports as the CFO Narrative: every sentence traces to a real period-over-period variance, with confidence and watch flags.",
     status: "shipped",
-    href: "/dashboard/reports",
+    href: "/dashboard/financial-pulse",
     source: "Sage Variance Analysis · Basis",
   },
   {
@@ -285,7 +285,7 @@ export const FEATURES: Feature[] = [
     description:
       "Continuously scan for missed deductions and tax-saving opportunities aligned to current rules. Live on the Tax & Compliance Center: unrecovered WHT credits, unclaimed refundable VAT, unfiled returns, and liability drift — each traced to the record behind it.",
     status: "shipped",
-    href: "/dashboard/tax-compliance",
+    href: "/dashboard/operations",
     source: "QuickBooks Business Tax AI",
   },
   {
@@ -295,7 +295,7 @@ export const FEATURES: Feature[] = [
     description:
       "Flag filing or calculation issues and suggest fixes before they become problems. Live on the Tax & Compliance Center: overdue and due-soon filings, unfiled calculations, net-position swings, and refundable positions each trace to the record behind them.",
     status: "shipped",
-    href: "/dashboard/tax-compliance",
+    href: "/dashboard/operations",
     source: "QuickBooks Sales Tax AI",
   },
 
@@ -307,7 +307,7 @@ export const FEATURES: Feature[] = [
     description:
       "An orchestrated close: department agents run their checklists, results aggregate, and you sign off.",
     status: "shipped",
-    href: "/dashboard/close",
+    href: "/dashboard",
     source: "Digits Agentic Close · Sage Close Assistant",
   },
   {
@@ -327,7 +327,7 @@ export const FEATURES: Feature[] = [
     description:
       "Low-confidence or high-value agent actions pause in a review queue for approve / reject / request-changes.",
     status: "shipped",
-    href: "/dashboard/review-queue",
+    href: "/dashboard/activity-hub",
     source: "Xero JAX Assure · Basis",
   },
   {
@@ -347,7 +347,7 @@ export const FEATURES: Feature[] = [
     description:
       "Statistical review of journal entries against the entity's own history — unbalanced entries, 4σ+ amounts, exact duplicates, suspicious round numbers, and low-confidence postings, each linked back to the entry. Live on Journal → Unusual Activity and Insights.",
     status: "shipped",
-    href: "/dashboard/journal",
+    href: "/dashboard/ledger",
     source: "Sage GL Outlier Detection",
   },
   {
@@ -368,7 +368,7 @@ export const FEATURES: Feature[] = [
     description:
       "20 agents in a three-tier hierarchy — CFO agent on top, department heads, and worker agents beneath. Workers never talk to each other; everything flows through management.",
     status: "shipped",
-    href: "/dashboard/agents",
+    href: "/dashboard/activity-hub",
     source: "Digits (Bookkeeper/Reconciliation/Review agents) · Basis",
   },
   {
@@ -388,7 +388,7 @@ export const FEATURES: Feature[] = [
     description:
       "Agents that work in the background and surface pre-drafted work — flagged discrepancies, matched transactions, reminders — ready for your review. Live on the Work feed with real notifications and your pending-approval queue.",
     status: "shipped",
-    href: "/dashboard/work",
+    href: "/dashboard/activity-hub",
     source: "QuickBooks Business Feed · Intercom Fin",
   },
   {
@@ -398,7 +398,7 @@ export const FEATURES: Feature[] = [
     description:
       "Pin a document, transaction, or policy into a chat with '@' so the AI anchors its reasoning to that exact record. Type '@' in the AI Command Center composer to pin documents, transactions, invoices, bills, accounts, customers, or suppliers — every pin is re-resolved entity-scoped before it reaches the agent, and pinned chips persist in message history.",
     status: "shipped",
-    href: "/dashboard/chat",
+    href: "/dashboard",
     source: "Notion AI · GitHub Copilot chat",
   },
   {
@@ -417,7 +417,7 @@ export const FEATURES: Feature[] = [
     description:
       "Every recommendation maps back to the rule, historical transaction, or policy behind it. CFO narratives and anomaly signals each trace to the exact ledger line, variance, or deadline behind them.",
     status: "shipped",
-    href: "/dashboard/reports",
+    href: "/dashboard/financial-pulse",
     source: "Xero JAX Assure · Glean",
   },
 ];
@@ -441,7 +441,7 @@ export const ASK_XENBOOX_EXPLAINER = {
     },
   ],
   surfaces: [
-    { label: "AI Command Center", href: "/dashboard/chat" },
-    { label: "Ask Xenboox on data pages", href: "/dashboard/transactions" },
+    { label: "AI Command Center", href: "/dashboard" },
+    { label: "Ask Xenboox on data pages", href: "/dashboard/ledger" },
   ],
 } as const;

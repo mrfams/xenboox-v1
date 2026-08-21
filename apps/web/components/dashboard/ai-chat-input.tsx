@@ -68,7 +68,7 @@ export function AIChatInput({ className }: AIChatInputProps) {
   const handleSubmit = (value: string) => {
     const trimmed = value.trim();
     if (trimmed) {
-      router.push(`/dashboard/chat?initial=${encodeURIComponent(trimmed)}`);
+      router.push(`/dashboard?prompt=${encodeURIComponent(trimmed)}`);
       setInputValue("");
     }
   };

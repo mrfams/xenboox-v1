@@ -34,19 +34,21 @@ test.describe("W.F02 Login → Dashboard → Navigation", () => {
   }) => {
     // The sidebar should have nav groups
     await expect(page.locator('[data-tour="sidebar"]')).toBeVisible();
-    // Main nav items should exist
+    // Main nav items should exist — 5 surfaces
     await expect(
-      page.locator('aside a[href="/dashboard/chat"]').first(),
+      page.locator('aside a[href="/dashboard"]').first(),
     ).toBeVisible();
   });
 
-  test("02.03 approvals link exists in sidebar", async ({ page }) => {
-    const approvalsLink = page.locator('aside a[href*="review-queue"]').first();
-    await expect(approvalsLink).toBeVisible();
+  test("02.03 activity hub link exists in sidebar", async ({ page }) => {
+    const activityLink = page
+      .locator('aside a[href="/dashboard/activity-hub"]')
+      .first();
+    await expect(activityLink).toBeVisible();
     // Click to navigate
-    await approvalsLink.click();
-    await page.waitForURL("**/review-queue**", { timeout: 15000 });
-    expect(page.url()).toContain("review-queue");
+    await activityLink.click();
+    await page.waitForURL("**/activity-hub**", { timeout: 15000 });
+    expect(page.url()).toContain("activity-hub");
   });
 
   test("02.04 guided tour button is visible and clickable", async ({
@@ -108,39 +110,29 @@ test.describe("W.F02 Login → Dashboard → Navigation", () => {
       });
   });
 
-  test("02.08 navigate to CoA page via sidebar", async ({ page }) => {
-    await page.locator('aside a[href*="/dashboard/coa"]').first().click();
-    await page.waitForURL("**/dashboard/coa**", { timeout: 15000 });
-    expect(page.url()).toContain("/dashboard/coa");
+  test("02.08 navigate to Ledger page via sidebar", async ({ page }) => {
+    await page.locator('aside a[href="/dashboard/ledger"]').first().click();
+    await page.waitForURL("**/dashboard/ledger**", { timeout: 15000 });
+    expect(page.url()).toContain("/dashboard/ledger");
     await expect(page.locator("body")).toBeVisible();
   });
 
-  test("02.09 navigate to Journal page via Accounting hub", async ({
+  test("02.09 navigate to Financial Pulse page via sidebar", async ({
     page,
   }) => {
-    // Accounting (Chart of Accounts) is the sidebar entry; Journal is a tab on it
-    await page.locator('aside a[href*="/dashboard/coa"]').first().click();
-    await page.waitForURL("**/dashboard/coa**", { timeout: 15000 });
-    await page.locator('a[href="/dashboard/journal"]').first().click();
-    await page.waitForURL("**/dashboard/journal**", { timeout: 15000 });
-    expect(page.url()).toContain("/dashboard/journal");
+    await page
+      .locator('aside a[href="/dashboard/financial-pulse"]')
+      .first()
+      .click();
+    await page.waitForURL("**/dashboard/financial-pulse**", { timeout: 15000 });
+    expect(page.url()).toContain("/dashboard/financial-pulse");
     await expect(page.locator("body")).toBeVisible();
   });
 
-  test("02.10 navigate to Treasury page via Money hub", async ({ page }) => {
-    // Money (Cash) is the sidebar entry; Bank & Recon (Treasury) is a tab on it
-    await page.locator('aside a[href*="/dashboard/cash"]').first().click();
-    await page.waitForURL("**/dashboard/cash**", { timeout: 15000 });
-    await page.locator('a[href="/dashboard/treasury"]').first().click();
-    await page.waitForURL("**/dashboard/treasury**", { timeout: 15000 });
-    expect(page.url()).toContain("/dashboard/treasury");
-    await expect(page.locator("body")).toBeVisible();
-  });
-
-  test("02.11 navigate to Reports page via sidebar", async ({ page }) => {
-    await page.locator('aside a[href*="/dashboard/reports"]').first().click();
-    await page.waitForURL("**/dashboard/reports**", { timeout: 15000 });
-    expect(page.url()).toContain("/dashboard/reports");
+  test("02.10 navigate to Operations page via sidebar", async ({ page }) => {
+    await page.locator('aside a[href="/dashboard/operations"]').first().click();
+    await page.waitForURL("**/dashboard/operations**", { timeout: 15000 });
+    expect(page.url()).toContain("/dashboard/operations");
     await expect(page.locator("body")).toBeVisible();
   });
 

@@ -73,7 +73,7 @@ export const PAGES: PageEntry[] = [
     group: "Overview & AI",
   },
   {
-    href: "/dashboard/chat",
+    href: "/dashboard",
     title: "AI Command Center",
     description:
       "Chat with the CFO agent — ask questions, delegate tasks, request changes, and approve agent work.",
@@ -81,7 +81,7 @@ export const PAGES: PageEntry[] = [
     group: "Overview & AI",
   },
   {
-    href: "/dashboard/work",
+    href: "/dashboard/activity-hub",
     title: "Work",
     description:
       "Your task center — inbox items, approvals, and agent-generated work queued for you.",
@@ -89,7 +89,7 @@ export const PAGES: PageEntry[] = [
     group: "Overview & AI",
   },
   {
-    href: "/dashboard/inbox",
+    href: "/dashboard/activity-hub",
     title: "Inbox",
     description:
       "Documents and transactions waiting for review, categorization, or approval.",
@@ -97,7 +97,7 @@ export const PAGES: PageEntry[] = [
     group: "Overview & AI",
   },
   {
-    href: "/dashboard/review-queue",
+    href: "/dashboard/activity-hub",
     title: "Review Queue",
     description:
       "Low-confidence or high-value agent output that needs your sign-off before posting.",
@@ -113,7 +113,7 @@ export const PAGES: PageEntry[] = [
     group: "Overview & AI",
   },
   {
-    href: "/dashboard/agents",
+    href: "/dashboard/activity-hub",
     title: "Agents",
     description:
       "Meet the Xenboox workforce — the CFO agent and the specialist agents beneath it.",
@@ -140,7 +140,7 @@ export const PAGES: PageEntry[] = [
 
   // ── Money ──────────────────────────────────────────────────────────────
   {
-    href: "/dashboard/transactions",
+    href: "/dashboard/ledger",
     title: "Transactions",
     description:
       "All transactions, intelligently categorized. Review, recategorize, and post.",
@@ -149,7 +149,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/banking",
+    href: "/dashboard/operations",
     title: "Banking",
     description:
       "Connected bank accounts, imported statements, and transactions to process.",
@@ -166,7 +166,7 @@ export const PAGES: PageEntry[] = [
     group: "Money",
   },
   {
-    href: "/dashboard/reconciliation",
+    href: "/dashboard/operations",
     title: "Reconciliation",
     description: "Match bank lines to your books and keep accounts in balance.",
     icon: ScanSearch,
@@ -174,7 +174,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/reconciliation/center",
+    href: "/dashboard/operations",
     title: "Reconciliation Center",
     description:
       "The command post for reconciliations — open items, matches, and suggestions.",
@@ -184,7 +184,7 @@ export const PAGES: PageEntry[] = [
 
   // ── Sales ──────────────────────────────────────────────────────────────
   {
-    href: "/dashboard/customers",
+    href: "/dashboard",
     title: "Customers",
     description:
       "Customer relationships, credit, and receivables — with AI support.",
@@ -193,7 +193,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/invoicing",
+    href: "/dashboard",
     title: "Invoicing",
     description:
       "Create, send, and track customer invoices. Convert estimates in a click.",
@@ -202,7 +202,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/estimates",
+    href: "/dashboard",
     title: "Estimates & Quotes",
     description:
       "Draft quotes for customers and convert them to invoices when accepted.",
@@ -212,7 +212,7 @@ export const PAGES: PageEntry[] = [
 
   // ── Purchasing & Expenses ──────────────────────────────────────────────
   {
-    href: "/dashboard/vendors",
+    href: "/dashboard",
     title: "Vendors",
     description: "Manage vendors, payments, and relationships with suppliers.",
     icon: Truck,
@@ -220,7 +220,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/bills",
+    href: "/dashboard",
     title: "Bills",
     description:
       "Vendor bills and payables — extract, review, and pay with confidence.",
@@ -229,7 +229,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/expenses",
+    href: "/dashboard",
     title: "Expenses",
     description: "Track, categorize, and manage business expenses with AI.",
     icon: Handshake,
@@ -239,7 +239,7 @@ export const PAGES: PageEntry[] = [
 
   // ── Accounting & Payroll ───────────────────────────────────────────────
   {
-    href: "/dashboard/journal",
+    href: "/dashboard/ledger",
     title: "General Ledger",
     description:
       "Journal entries, trial balance, and the ledger — reviewed with AI assistance.",
@@ -248,7 +248,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/chart-of-accounts",
+    href: "/dashboard/ledger",
     title: "Chart of Accounts",
     description:
       "Design the account structure that maps to how your business works.",
@@ -256,7 +256,7 @@ export const PAGES: PageEntry[] = [
     group: "Accounting & Payroll",
   },
   {
-    href: "/dashboard/fixed-assets",
+    href: "/dashboard/ledger",
     title: "Fixed Assets",
     description:
       "Track assets, depreciation, and disposals over their useful life.",
@@ -264,7 +264,7 @@ export const PAGES: PageEntry[] = [
     group: "Accounting & Payroll",
   },
   {
-    href: "/dashboard/payroll",
+    href: "/dashboard/operations",
     title: "Payroll",
     description:
       "Run payroll periods — gross pay, statutory deductions, and net pay per run.",
@@ -273,7 +273,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/tax-compliance",
+    href: "/dashboard/operations",
     title: "Tax & Compliance",
     description:
       "Withholding records, VAT, and jurisdiction tax rules — configured your way.",
@@ -281,7 +281,7 @@ export const PAGES: PageEntry[] = [
     group: "Accounting & Payroll",
   },
   {
-    href: "/dashboard/close",
+    href: "/dashboard",
     title: "Close Center",
     description:
       "The autonomous month-end close — checklist, tasks, and sign-off.",
@@ -289,7 +289,7 @@ export const PAGES: PageEntry[] = [
     group: "Accounting & Payroll",
   },
   {
-    href: "/dashboard/reports",
+    href: "/dashboard/financial-pulse",
     title: "Reports",
     description:
       "Profit & loss, balance sheet, cash flow, and more — with AI-written narratives.",
@@ -300,7 +300,7 @@ export const PAGES: PageEntry[] = [
 
   // ── Documents & Data ───────────────────────────────────────────────────
   {
-    href: "/dashboard/documents",
+    href: "/dashboard",
     title: "Documents",
     description:
       "Store, organize, and manage financial documents. AI extracts and categorizes.",
@@ -309,7 +309,7 @@ export const PAGES: PageEntry[] = [
     copilot: true,
   },
   {
-    href: "/dashboard/documents/artifacts",
+    href: "/dashboard",
     title: "Document Artifacts",
     description:
       "Chat artifacts and AI-generated outputs attached to your conversations.",
@@ -319,7 +319,7 @@ export const PAGES: PageEntry[] = [
 
   // ── Administration ─────────────────────────────────────────────────────
   {
-    href: "/dashboard/automation",
+    href: "/dashboard",
     title: "Automation",
     description:
       "Rules and triggers that let Xenboox run routine work for you.",

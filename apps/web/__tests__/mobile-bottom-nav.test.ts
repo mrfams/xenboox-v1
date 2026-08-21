@@ -4,9 +4,9 @@ describe("Mobile Bottom Nav with Onboarding Progress", () => {
   describe("Navigation items", () => {
     const NAV_ITEMS = [
       { label: "Home", href: "/dashboard" },
-      { label: "AI Chat", href: "/dashboard/chat" },
-      { label: "Reports", href: "/dashboard/reports" },
-      { label: "Books", href: "/dashboard/journal" },
+      { label: "AI Chat", href: "/dashboard" },
+      { label: "Reports", href: "/dashboard/financial-pulse" },
+      { label: "Books", href: "/dashboard/ledger" },
       { label: "More", href: "/dashboard/settings" },
     ];
 
