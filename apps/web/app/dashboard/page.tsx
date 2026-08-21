@@ -37,6 +37,10 @@ import { ConfidenceBadge } from "@/components/shared/ai-native";
 import { ActorBadge } from "@/components/shared/ai-native";
 import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import { useSrAnnounce } from "@/lib/hooks/use-sr-announce";
+import {
+  ConversationThinkingSteps,
+  ToolCallTraceCard,
+} from "@/components/chat/thinking-steps";
 import type {
   NeedsInputEvent,
   NeedsInputField,
@@ -480,6 +484,8 @@ function ConversationThread({
   messages,
   isStreaming,
   streamedContent,
+  thinkingEvents,
+  toolTraces,
   approvals,
   documents,
   pendingInput,
@@ -488,6 +494,8 @@ function ConversationThread({
   messages: ReturnType<typeof useDashboardChat>["messages"];
   isStreaming: boolean;
   streamedContent: string;
+  thinkingEvents: ReturnType<typeof useDashboardChat>["thinkingEvents"];
+  toolTraces: ReturnType<typeof useDashboardChat>["toolTraces"];
   approvals: ReturnType<typeof useDashboardChat>["approvals"];
   documents: ReturnType<typeof useDashboardChat>["documents"];
   pendingInput: NeedsInputEvent | null;
@@ -557,6 +565,22 @@ function ConversationThread({
               )}
             </div>
           </div>
+        ))}
+
+        {/* Thinking steps — shown while AI is processing */}
+        {isStreaming && thinkingEvents.length > 0 && (
+          <ConversationThinkingSteps
+            events={thinkingEvents}
+            isStreaming={isStreaming}
+          />
+        )}
+
+        {/* Tool call traces — shown when AI calls tools */}
+        {toolTraces.map((trace, i) => (
+          <ToolCallTraceCard
+            key={`tool-${i}-${trace.toolName}`}
+            trace={trace}
+          />
         ))}
 
         {/* Streaming response */}
@@ -885,8 +909,10 @@ export default function CommandCenterPage() {
     messages,
     isStreaming,
     streamedContent,
+    thinkingEvents,
     approvals,
     documents,
+    toolTraces,
     pendingInput,
     sendMessage,
   } = useDashboardChat({ entityId });
@@ -924,6 +950,8 @@ export default function CommandCenterPage() {
         messages={messages}
         isStreaming={isStreaming}
         streamedContent={streamedContent}
+        thinkingEvents={thinkingEvents}
+        toolTraces={toolTraces}
         approvals={approvals}
         documents={documents}
         pendingInput={pendingInput}

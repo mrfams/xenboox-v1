@@ -167,9 +167,11 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     isStreaming,
     streamedContent,
     agentActivities,
+    thinkingEvents,
     delegations,
     documents,
     approvals,
+    toolTraces,
   } = useStreamingChat({
     entityId: entityId ?? "",
     onConversationCreated: (id, title) => {
@@ -286,9 +288,11 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     isStreaming,
     streamedContent,
     agentActivities,
+    thinkingEvents,
     delegations,
     documents,
     approvals,
+    toolTraces,
     pendingInput,
     sendMessage,
     newChat,
