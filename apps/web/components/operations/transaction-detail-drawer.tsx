@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   ExternalLink,
+  Tag,
+  LinkIcon,
+  Flag,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
@@ -264,7 +267,8 @@ export function TransactionDetailDrawer({
 
         {/* Actions */}
         {detail && (
-          <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-sm px-4 py-3">
+          <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-sm px-4 py-3 space-y-2">
+            {/* Action buttons */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -272,6 +276,29 @@ export function TransactionDetailDrawer({
                 className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
               >
                 Close
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <Tag className="h-3 w-3" aria-hidden="true" />
+                Recode
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <LinkIcon className="h-3 w-3" aria-hidden="true" />
+                Match to invoice
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <Flag className="h-3 w-3" aria-hidden="true" />
+                Flag for review
               </button>
             </div>
           </div>
