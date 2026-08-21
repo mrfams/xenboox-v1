@@ -105,16 +105,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Map MIME type to document type enum (default to "supporting")
+    const docType =
+      file.type === "application/pdf"
+        ? "supporting"
+        : file.type.startsWith("image/")
+          ? "receipt"
+          : file.type.includes("spreadsheet") || file.type.includes("excel")
+            ? "invoice"
+            : file.type.includes("word") || file.type.includes("document")
+              ? "contract"
+              : "supporting";
+
     // Create document registry entry
     const [doc] = await db
       .insert(documents)
       .values({
         entityId,
         name: file.name,
-        type: file.type,
-        size: file.size,
-        storagePath,
-        ocrText: null, // Will be processed by document agent
+        type: docType,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        r2Key: storagePath,
+        r2Bucket: process.env.R2_BUCKET_NAME ?? "xenboox-documents",
+        uploadedBy: session.user.id,
         metadata: {
           uploadedBy: session.user.id,
           uploadedAt: new Date().toISOString(),
@@ -126,8 +140,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       documentId: doc.id,
       name: file.name,
-      type: file.type,
-      size: file.size,
+      type: doc.type,
+      size: doc.sizeBytes,
     });
   } catch (error) {
     logger.error({ err: error }, "Upload failed");
