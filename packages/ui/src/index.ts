@@ -88,3 +88,9 @@ export {
   AgentAttribution,
   type AgentAttributionProps,
 } from "./agent-attribution";
+export {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "./tooltip";

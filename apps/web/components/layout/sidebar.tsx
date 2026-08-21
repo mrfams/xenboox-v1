@@ -7,16 +7,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   MessageSquare,
   Inbox,
-  Zap,
   Activity,
   BookOpen,
   ArrowLeftRight,
   Settings,
   HelpCircle,
   History,
-  Database,
-  Network,
-  Upload,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,7 +33,7 @@ import {
 
 // ─── AI-Native Sidebar ─────────────────────────────────────────────────────
 //
-// 5 surfaces, not 21. The human's mental model, not the accountant's:
+// 5 surfaces. The AI absorbs navigation. Users talk, the AI acts.
 //   1. Command Center  — AI is your CFO. Talk, it acts.
 //   2. Activity Hub    — What needs YOUR attention right now.
 //   3. Financial Pulse — AI-narrated financial health.
@@ -52,6 +48,12 @@ type NavItem = {
   match?: string[];
   shortcut?: string;
 };
+
+// ─── AI-Native 5-Surface Navigation ───────────────────────────────────────
+//
+// 5 surfaces, not 40 pages. The AI absorbs navigation.
+// Users talk to the AI in Command Center. The AI acts.
+// These 5 surfaces are the human's view into what the AI is doing.
 
 const primaryNavItems: NavItem[] = [
   {
@@ -68,14 +70,6 @@ const primaryNavItems: NavItem[] = [
     attentionKey: "activity-hub",
     match: ["/dashboard/activity-hub"],
     shortcut: "2",
-  },
-  {
-    label: "Auto-Approve",
-    href: "/dashboard/auto-approve",
-    icon: Zap,
-    attentionKey: "auto-approve",
-    match: ["/dashboard/auto-approve"],
-    shortcut: "3",
   },
   {
     label: "Financial Pulse",
@@ -105,13 +99,6 @@ const primaryNavItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   { label: "Audit Trail", href: "/dashboard/audit-trail", icon: History },
-  { label: "Knowledge Base", href: "/dashboard/knowledge", icon: Database },
-  {
-    label: "Knowledge Graph",
-    href: "/dashboard/knowledge-graph",
-    icon: Network,
-  },
-  { label: "Batch Ingestion", href: "/dashboard/ingestion", icon: Upload },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

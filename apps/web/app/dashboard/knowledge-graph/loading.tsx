@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@xenboox/ui";
 
 export default function KnowledgeGraphLoading() {
   return (

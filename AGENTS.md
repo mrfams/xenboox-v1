@@ -5,29 +5,36 @@
 
 ---
 
-## ⚠️ WEB-ONLY DEVELOPMENT ACTIVE
+## ⚠️ AI-NATIVE PLATFORM — WEB ONLY
 
-**All agents MUST only work on the web app (`apps/web/`).** Mobile (`apps/mobile/`) and Desktop (`apps/desktop/`) are explicitly out of scope until further notice.
+**Xenboox is an AI-native accounting platform.** The AI handles the work. Humans make decisions. This is NOT a traditional SaaS page-per-function tool.
 
-- ❌ Do NOT create, modify, or reference files in `apps/mobile/` or `apps/desktop/`
-- ❌ Do NOT install mobile or desktop dependencies
-- ❌ Do NOT run builds, tests, or typechecks for mobile/desktop
+**Scope:** Only work on the web app (`apps/web/`). Mobile and Desktop have been removed from the repo.
+
 - ✅ Only work in `apps/web/`, `packages/db/`, `packages/agents/`, `packages/ui/`, `packages/jobs/`
 - ✅ Only run `pnpm dev --filter=web`, `pnpm typecheck --filter=web`, `pnpm test --filter=web`
-
-This applies to ALL sessions until explicitly changed by the user.
+- ❌ Do NOT create new SaaS-style pages (one page per function). The AI absorbs navigation.
+- ❌ Do NOT add pages to the sidebar without user approval. The sidebar has 5 surfaces, not 40.
 
 ---
 
 ## Project Overview
 
-Xenboox is an AI-native, full-stack accounting platform. 19 agents in a three-tier hierarchy. 20 modules. **Currently web-only** — mobile and desktop are out of scope.
+Xenboox is an **AI-native, full-stack accounting platform.** 19 AI agents in a three-tier hierarchy handle the accounting work. Humans make decisions. The AI is the interface — users talk, the AI acts.
+
+**The 5-Surface AI-Native Model:**
+
+| Surface         | Purpose                                                                          |
+| --------------- | -------------------------------------------------------------------------------- |
+| Command Center  | Conversational AI interface — handles ALL create/update/approve actions via chat |
+| Activity Hub    | Human-in-the-loop queue — surfaces ALL things needing human decision             |
+| Financial Pulse | AI-narrated financial health — explains what numbers mean                        |
+| Ledger          | The record of truth — when you need to look at the books directly                |
+| Operations      | Money in, money out — AI manages cash flow, you approve                          |
 
 **Tech Stack (Locked):**
 
-- Web Frontend: Next.js 15 + TypeScript + Shadcn/ui + Tailwind
-- Mobile Frontend: React Native (Expo) + TypeScript + NativeWind
-- Desktop Frontend: Tauri (Rust backend + React/Shadcn webview)
+- Frontend: Next.js 15 + TypeScript + Shadcn/ui + Tailwind
 - API: tRPC
 - Auth: Auth.js v5
 - Database: Neon PostgreSQL
@@ -37,7 +44,7 @@ Xenboox is an AI-native, full-stack accounting platform. 19 agents in a three-ti
 - Job Queue: Trigger.dev
 - Storage: Cloudflare R2
 - Email: Resend
-- Deployment: Vercel (web), App Store + Google Play (mobile), .msi + .dmg (desktop)
+- Deployment: Vercel
 - Observability: LangFuse
 
 ---
@@ -51,22 +58,14 @@ xenboox/
 ├── DATABASE.md
 ├── XENBOOX_PRD.md
 ├── apps/
-│   ├── web/                    # Next.js 15 web platform
-│   │   ├── app/                # App Router (routes)
-│   │   ├── components/         # React components
-│   │   ├── lib/                # Utilities, tRPC context
-│   │   └── public/             # Static assets
-│   ├── mobile/                 # React Native (Expo) mobile app
-│   │   ├── app/                # Expo Router screens
-│   │   ├── components/         # React Native components
-│   │   ├── lib/                # Utilities, tRPC client
-│   │   └── assets/             # Icons, splash screens
-│   └── desktop/                # Tauri desktop app
-│       ├── src-tauri/          # Rust backend
-│       │   ├── src/            # Rust source
-│       │   ├── Cargo.toml      # Rust dependencies
-│       │   └── tauri.conf.json # Tauri config
-│       └── src/                # React frontend (shared with web)
+│   └── web/                    # Next.js 15 web platform (AI-native dashboard)
+│       ├── app/                # App Router (routes)
+│       │   └── dashboard/      # 5 surfaces + settings/help/audit-trail
+│       ├── components/         # React components
+│       │   ├── shared/ai-native/  # AI-native UI components
+│       │   └── layout/         # Sidebar, top-nav, mobile nav
+│       ├── lib/                # Utilities, tRPC context, hooks
+│       └── public/             # Static assets
 ├── packages/
 │   ├── agents/                 # LangGraph agent definitions
 │   │   ├── core/               # Shared agent utilities

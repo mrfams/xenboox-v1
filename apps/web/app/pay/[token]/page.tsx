@@ -19,10 +19,7 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
-import { Button } from "@xenboox/ui/button";
-import { Input } from "@xenboox/ui/input";
-import { Label } from "@xenboox/ui/label";
-import { Badge } from "@xenboox/ui/badge";
+import { Button, Input, Label, Badge } from "@xenboox/ui";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 

@@ -22,7 +22,7 @@ import { generateConversationSummary } from "@/lib/chat/conversation-summary";
 import { buildMemoryContextBlock } from "@/lib/chat/cross-conversation-memory";
 import { logger } from "@/lib/logger";
 import { generateChatArtifacts } from "@/lib/chat/artifact-service";
-import { publishSseEvent } from "@/lib/sse/broadcast";
+import { publishSseEvent, publishAttentionSignal } from "@/lib/sse/broadcast";
 import {
   buildPageContextBlock,
   type PageContextPayload,
@@ -607,6 +607,17 @@ export async function POST(req: NextRequest) {
                   message: toolData.message,
                   timestamp: new Date().toISOString(),
                 });
+
+                // Publish attention signal — documents processed
+                if ((toolData.completedDocuments ?? 0) > 0) {
+                  void publishAttentionSignal(entityId, {
+                    surface: "activity-hub",
+                    tone: "new",
+                    delta: toolData.completedDocuments ?? 0,
+                    count: toolData.completedDocuments ?? 0,
+                    message: `${toolData.completedDocuments} document(s) processed`,
+                  });
+                }
               }
             }
 
@@ -693,6 +704,15 @@ export async function POST(req: NextRequest) {
           pipelineResult.escalationItems &&
           pipelineResult.escalationItems.length > 0
         ) {
+          // Publish attention signal — Activity Hub needs human action
+          void publishAttentionSignal(entityId, {
+            surface: "activity-hub",
+            tone: "action",
+            delta: pipelineResult.escalationItems.length,
+            count: pipelineResult.escalationItems.length,
+            message: `${pipelineResult.escalationItems.length} item(s) need your attention`,
+          });
+
           for (const item of pipelineResult.escalationItems) {
             enqueue({
               type: "approval_needed",
@@ -708,13 +728,42 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Detect [DATA_TABLE] blocks in the response — the AI uses this
+        // structured format to show query results as interactive tables.
+        const dataTableMatches = [
+          ...pipelineResult.response.matchAll(
+            /\[DATA_TABLE\]\s*\n(\{[\s\S]*?\})\s*\n\[\/DATA_TABLE\]/g,
+          ),
+        ];
+        let cleanResponse = pipelineResult.response;
+        if (dataTableMatches.length > 0) {
+          for (const match of dataTableMatches) {
+            try {
+              const tableSpec = JSON.parse(match[1]);
+              enqueue({
+                type: "data_table",
+                title: tableSpec.title,
+                columns: tableSpec.columns ?? [],
+                rows: tableSpec.rows ?? [],
+                summary: tableSpec.summary,
+                currency: tableSpec.currency,
+              });
+            } catch {
+              // If JSON parsing fails, just stream the raw text
+            }
+          }
+          // Remove all DATA_TABLE blocks from the streamed text
+          cleanResponse = pipelineResult.response
+            .replace(/\n?\[DATA_TABLE\][\s\S]*?\[\/DATA_TABLE\]/g, "")
+            .trim();
+        }
+
         // Detect [NEEDS_INPUT] block in the response — the AI uses this
         // structured format to signal it needs specific information from the
         // user before it can execute an action.
-        const needsInputMatch = response.match(
+        const needsInputMatch = cleanResponse.match(
           /\[NEEDS_INPUT\]\s*\n(\{[\s\S]*?\})\s*\n\[\/NEEDS_INPUT\]/,
         );
-        let cleanResponse = response;
         if (needsInputMatch) {
           try {
             const inputSpec = JSON.parse(needsInputMatch[1]);
@@ -728,14 +777,13 @@ export async function POST(req: NextRequest) {
             // If JSON parsing fails, just stream the raw text
           }
           // Remove the NEEDS_INPUT block from the streamed text
-          cleanResponse = response
+          cleanResponse = cleanResponse
             .replace(/\n?\[NEEDS_INPUT\][\s\S]*?\[\/NEEDS_INPUT\]/, "")
             .trim();
         }
 
         // Stream the response text token-by-token for natural feel
-        const response = cleanResponse;
-        const words = response.split(/(\s+)/);
+        const words = cleanResponse.split(/(\s+)/);
         for (const word of words) {
           if (aborted) break;
           enqueue({ type: "token", content: word });
@@ -753,6 +801,18 @@ export async function POST(req: NextRequest) {
             docType: artifact.docType,
             mimeType: artifact.mimeType,
             sizeBytes: artifact.sizeBytes,
+          });
+        }
+
+        // Publish attention signal when documents are generated
+        if (artifacts.length > 0) {
+          const docTypes = artifacts.map((a) => a.docType).join(", ");
+          void publishAttentionSignal(entityId, {
+            surface: "financial-pulse",
+            tone: "new",
+            delta: artifacts.length,
+            count: artifacts.length,
+            message: `${artifacts.length} document(s) generated: ${docTypes}`,
           });
         }
 
@@ -782,7 +842,7 @@ export async function POST(req: NextRequest) {
         await db
           .update(chatMessages)
           .set({
-            content: response,
+            content: pipelineResult.response,
             status: "completed",
             confidence: pipelineResult.confidence,
             agentModel: `cfo-pipeline-v1 (${pipelineResult.agentId})`,

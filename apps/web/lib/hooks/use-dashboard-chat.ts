@@ -15,6 +15,7 @@ import {
   type NeedsInputEvent,
   type KnowledgeCitationEvent,
   type BatchIngestionResultEvent,
+  type DataTableEvent,
 } from "@/lib/hooks/use-streaming-chat";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ export interface DashboardChatMessage {
   approvals: ApprovalEvent[];
   citations: KnowledgeCitationEvent[];
   batchResults: BatchIngestionResultEvent[];
+  dataTables: DataTableEvent[];
   confidence?: number;
   durationMs?: number;
   createdAt: number;
@@ -78,6 +80,7 @@ export function mapHistoryRowToMessage(row: {
     approvals: [],
     citations: [],
     batchResults: [],
+    dataTables: [],
     confidence: row.confidence ?? undefined,
     durationMs: row.latencyMs ?? undefined,
     createdAt: new Date(row.createdAt).getTime(),
@@ -124,10 +127,12 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     approvalsRef.current = [];
     citationsRef.current = [];
     batchResultsRef.current = [];
+    dataTablesRef.current = [];
   }, []);
 
   const citationsRef = useRef<KnowledgeCitationEvent[]>([]);
   const batchResultsRef = useRef<BatchIngestionResultEvent[]>([]);
+  const dataTablesRef = useRef<DataTableEvent[]>([]);
 
   const commitAssistantMessage = useCallback(
     (fullResponse: string, meta: DoneEvent) => {
@@ -144,6 +149,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
           approvals: approvalsRef.current,
           citations: citationsRef.current,
           batchResults: batchResultsRef.current,
+          dataTables: dataTablesRef.current,
           confidence: meta.confidence,
           durationMs: meta.durationMs,
           createdAt: Date.now(),
@@ -188,6 +194,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     documents,
     approvals,
     toolTraces,
+    dataTables,
   } = useStreamingChat({
     entityId: entityId ?? "",
     onConversationCreated: (id, title) => {
@@ -212,6 +219,9 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     },
     onBatchIngestionResult: (result) => {
       batchResultsRef.current = [...batchResultsRef.current, result];
+    },
+    onDataTable: (table) => {
+      dataTablesRef.current = [...dataTablesRef.current, table];
     },
     onNeedsInput: (input) => {
       setPendingInput(input);
@@ -320,6 +330,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     documents,
     approvals,
     toolTraces,
+    dataTables,
     pendingInput,
     sendMessage,
     newChat,

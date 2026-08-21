@@ -9,7 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { uuidId, entityId, timestamps } from "./helpers";
-import { entities } from "./auth";
+import { entities } from "./organization";
 
 // ─── Auto-Approve Rules Schema ─────────────────────────────────────────────
 //

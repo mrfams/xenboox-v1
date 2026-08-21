@@ -47,6 +47,28 @@ export async function publishSseEvent(
 }
 
 /**
+ * Publish an attention signal event to Redis for cross-instance delivery.
+ * This is a convenience wrapper that formats the event for attention SSE.
+ */
+export async function publishAttentionSignal(
+  entityId: string,
+  event: {
+    surface: string;
+    tone: "action" | "new";
+    delta: number;
+    count: number;
+    message?: string;
+  },
+): Promise<void> {
+  await publishSseEvent(entityId, {
+    type: "attention_changed",
+    entityId,
+    ...event,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
  * Drain pending SSE events from Redis for a given entity.
  * Returns all events and trims the list to prevent re-delivery.
  * Called by the SSE polling loop.

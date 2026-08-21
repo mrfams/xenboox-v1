@@ -3,24 +3,28 @@
 > Architecture decisions, patterns, and conventions for the Xenboox platform.
 > Every engineer (human or AI) must understand these before writing code.
 >
-> **SCOPE: Web-only (`apps/web/`).** Mobile and desktop are out of scope.
+> **AI-NATIVE PLATFORM.** Xenboox is an AI-native accounting platform. The AI absorbs navigation — users talk, the AI acts. Web-only. Mobile and Desktop have been removed from the repo.
 
 ---
 
 ## 1. System Architecture Overview
 
+**AI-Native Model:** Users talk to the AI in Command Center. The AI handles all accounting functions. 5 surfaces provide visibility — not navigation.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        CLIENTS                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
-│  │   Web    │  │  Mobile  │  │ Desktop  │                 │
-│  │ Next.js  │  │ React    │  │  Tauri   │                 │
-│  │  15 App  │  │ Native   │  │ (Rust+React)│              │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘                 │
-│       │              │              │                       │
-└───────┼──────────────┼──────────────┼───────────────────────┘
-        │              │              │
-        ▼              ▼              ▼
+│                        CLIENT                               │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              Next.js 15 Web App                      │  │
+│  │  ┌─────────────────────────────────────────────────┐ │  │
+│  │  │  5 AI-Native Surfaces                           │ │  │
+│  │  │  Command Center │ Activity Hub │ Financial Pulse│ │  │
+│  │  │  Ledger         │ Operations                    │ │  │
+│  │  └─────────────────────────────────────────────────┘ │  │
+│  └──────────────────────┬───────────────────────────────┘  │
+└─────────────────────────┼───────────────────────────────────┘
+                          │
+                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     API LAYER                               │
 │  ┌──────────────────────────────────────────────────┐      │
@@ -68,45 +72,32 @@
 ```
 xenboox/
 ├── apps/
-│   ├── web/                        # Next.js 15 web platform
-│   │   ├── app/                    # App Router
-│   │   │   ├── (auth)/             # Auth routes (login, register)
-│   │   │   ├── (dashboard)/        # Dashboard routes (main app)
-│   │   │   ├── api/                # API routes (tRPC handler)
-│   │   │   └── layout.tsx          # Root layout
-│   │   ├── components/             # React components
-│   │   │   ├── ui/                 # Shadcn components (re-exported)
-│   │   │   ├── dashboard/          # Dashboard components
-│   │   │   ├── auth/               # Auth components
-│   │   │   └── shared/             # Shared components
-│   │   ├── lib/                    # Utilities
-│   │   │   ├── trpc/               # tRPC client setup
-│   │   │   ├── auth/               # Auth configuration
-│   │   │   ├── db/                 # Database client
-│   │   │   └── utils.ts            # Shared utilities
-│   │   └── public/                 # Static assets
-│   │
-│   ├── mobile/                     # React Native (Expo) mobile app
-│   │   ├── app/                    # Expo Router screens
-│   │   │   ├── (auth)/             # Auth screens
-│   │   │   ├── (tabs)/             # Tab navigator screens
-│   │   │   └── _layout.tsx         # Root layout
-│   │   ├── components/             # React Native components
-│   │   ├── lib/                    # Utilities
-│   │   │   ├── trpc/               # tRPC client (shared API)
-│   │   │   ├── auth/               # Expo Auth Session
-│   │   │   └── utils.ts            # Shared utilities
-│   │   └── assets/                 # Icons, splash screens
-│   │
-│   └── desktop/                    # Tauri desktop app
-│       ├── src-tauri/              # Rust backend
-│       │   ├── src/                # Rust source (main.rs, commands/)
-│       │   ├── Cargo.toml          # Rust dependencies
-│       │   └── tauri.conf.json     # Tauri config
-│       └── src/                    # React frontend (shared components with web)
-│           ├── app/                # Tauri-specific routes
-│           ├── components/         # Shared + desktop-specific components
-│           └── lib/                # Shared utilities
+│   └── web/                        # Next.js 15 web platform (AI-native)
+│       ├── app/                    # App Router
+│       │   ├── (auth)/             # Auth routes (login, register)
+│       │   ├── dashboard/          # 5 AI-native surfaces + utilities
+│       │   │   ├── page.tsx        # Command Center (primary AI interface)
+│       │   │   ├── activity-hub/   # Human-in-the-loop queue
+│       │   │   ├── financial-pulse/# AI-narrated financial health
+│       │   │   ├── ledger/         # Record of truth
+│       │   │   ├── operations/     # Money flow
+│       │   │   ├── audit-trail/    # Compliance
+│       │   │   ├── settings/       # User configuration
+│       │   │   └── help/           # User support
+│       │   ├── api/                # API routes (tRPC handler, SSE streams)
+│       │   └── layout.tsx          # Root layout
+│       ├── components/             # React components
+│       │   ├── ui/                 # Shadcn components (re-exported)
+│       │   ├── shared/ai-native/   # AI-native UI (confidence badges, etc.)
+│       │   ├── layout/             # Sidebar, top-nav, mobile nav
+│       │   ├── chat/               # Chat components (thinking steps, etc.)
+│       │   └── finance/            # Finance-specific components
+│       ├── lib/                    # Utilities
+│       │   ├── trpc/               # tRPC client setup
+│       │   ├── hooks/              # Custom hooks (attention signals, etc.)
+│       │   ├── auth/               # Auth configuration
+│       │   └── utils.ts            # Shared utilities
+│       └── public/                 # Static assets
 │
 ├── packages/
 │   ├── agents/                     # LangGraph agent definitions
@@ -745,7 +736,7 @@ NODE_ENV=                       # development | production
 | ORM             | Drizzle                     | Type-safe, SQL-like API, good Neon support, lightweight             |
 | Agent Framework | LangGraph                   | Stateful graph maps to three-tier hierarchy, native HITL            |
 | Job Queue       | Trigger.dev                 | Long-running agent workflows, Vercel-native integration             |
-| Desktop         | Tauri                       | Rust backend for file processing, lean security model               |
+| AI-Native UI    | 5-surface dashboard         | Command Center, Activity Hub, Financial Pulse, Ledger, Operations   |
 | LLM             | Claude Sonnet + Haiku       | Sonnet for complex reasoning, Haiku for cost-effective worker tasks |
 | Observability   | LangFuse                    | Open source, self-hostable, purpose-built for LLM apps              |
 | Storage         | Cloudflare R2               | S3-compatible, no egress fees, global edge                          |

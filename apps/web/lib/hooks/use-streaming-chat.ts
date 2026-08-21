@@ -108,6 +108,35 @@ export interface KnowledgeCitationEvent {
   durationMs?: number;
 }
 
+export interface DataTableColumn {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  align?: "left" | "center" | "right";
+  format?: "currency" | "number" | "percent" | "date" | "text";
+  currency?: string;
+}
+
+export interface DataTableRow {
+  id: string;
+  cells: Record<string, string | number | boolean | null>;
+  detail?: Record<string, string | number | boolean | null>;
+}
+
+export interface DataTableSummary {
+  label: string;
+  cells: Record<string, string | number | boolean | null>;
+}
+
+export interface DataTableEvent {
+  type: "data_table";
+  title?: string;
+  columns: DataTableColumn[];
+  rows: DataTableRow[];
+  summary?: DataTableSummary;
+  currency?: string;
+}
+
 export interface BatchIngestionResultEvent {
   type: "batch_ingestion_result";
   batchId: string;
@@ -156,6 +185,7 @@ type SSEEvent =
   | DelegationEvent
   | DocumentCreatedEvent
   | ApprovalEvent
+  | DataTableEvent
   | ToolCallEvent
   | ToolResultEvent
   | TokenEvent
@@ -175,6 +205,7 @@ interface UseStreamingChatOptions {
   onKnowledgeCitations?: (citations: KnowledgeCitationEvent) => void;
   onBatchIngestionResult?: (result: BatchIngestionResultEvent) => void;
   onNeedsInput?: (input: NeedsInputEvent) => void;
+  onDataTable?: (table: DataTableEvent) => void;
   onToolCall?: (trace: ToolTrace) => void;
   onToken?: (token: string) => void;
   onComplete?: (fullResponse: string, metadata: DoneEvent) => void;
@@ -194,6 +225,7 @@ export function useStreamingChat({
   onKnowledgeCitations,
   onBatchIngestionResult,
   onNeedsInput,
+  onDataTable,
   onToolCall,
   onToken,
   onComplete,
@@ -209,6 +241,7 @@ export function useStreamingChat({
   const [approvals, setApprovals] = useState<ApprovalEvent[]>([]);
   const [documents, setDocuments] = useState<DocumentCreatedEvent[]>([]);
   const [toolTraces, setToolTraces] = useState<ToolTrace[]>([]);
+  const [dataTables, setDataTables] = useState<DataTableEvent[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
@@ -229,6 +262,7 @@ export function useStreamingChat({
       setApprovals([]);
       setDocuments([]);
       setToolTraces([]);
+      setDataTables([]);
 
       try {
         abortControllerRef.current = new AbortController();
@@ -305,6 +339,11 @@ export function useStreamingChat({
 
                   case "needs_input":
                     onNeedsInput?.(data as NeedsInputEvent);
+                    break;
+
+                  case "data_table":
+                    setDataTables((prev) => [...prev, data as DataTableEvent]);
+                    onDataTable?.(data as DataTableEvent);
                     break;
 
                   case "knowledge_citations":
@@ -394,6 +433,8 @@ export function useStreamingChat({
       onDelegation,
       onDocumentCreated,
       onApprovalNeeded,
+      onNeedsInput,
+      onDataTable,
       onToolCall,
       onToken,
       onComplete,
@@ -417,5 +458,6 @@ export function useStreamingChat({
     approvals,
     documents,
     toolTraces,
+    dataTables,
   };
 }

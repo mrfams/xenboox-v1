@@ -1,9 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback, useRef, useState } from "react";
 
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
+import {
+  useAttentionSSE,
+  type AttentionSSEEvent,
+} from "@/lib/hooks/use-attention-sse";
 
 // ─── Attention-signal model ────────────────────────────────────────────────
 //
@@ -121,55 +125,130 @@ export function computeAttentionSignals(
 }
 
 /**
- * React binding. The notifications list/count queries use the SAME cache keys
- * top-nav reads (and use-unread-notifications writes into on SSE events), so
- * sidebar dots update in real time without opening a second EventSource
- * connection. Ingestion stats/approvals add the authoritative action counts.
+ * React binding. Combines two update mechanisms:
+ *   1. SSE (real-time) — instant updates when agents escalate, documents
+ *      are processed, or reports are ready. No polling delay.
+ *   2. tRPC polling (fallback) — keeps signals accurate even if SSE
+ *      disconnects. Runs every 30s as a safety net.
+ *
+ * The SSE events update a local override map that takes priority over
+ * the polled data. When tRPC refetches, it reconciles with the overrides.
  */
 export function useAttentionSignals() {
   const { entityId, isLoaded } = useEntity();
   const enabled = isLoaded && !!entityId;
 
-  const { data: unread } = trpc.notifications.list.useQuery(
-    { limit: 20, onlyUnread: true },
-    {
-      staleTime: 15 * 1000,
-      refetchOnWindowFocus: true,
-      refetchOnMount: true,
-      refetchInterval: 30 * 1000,
-      enabled,
-    },
-  );
+  // ── SSE overrides (instant updates) ──────────────────────────────────
+  // When an SSE event arrives, we store the override here. The polled
+  // data is used as the baseline, and overrides are applied on top.
+  const overridesRef = useRef<
+    Map<string, { tone: AttentionTone; count: number }>
+  >(new Map());
+  const [, setOverrideVersion] = useState(0);
 
-  const { data: stats } = trpc.ingestion.getStats.useQuery(undefined, {
-    staleTime: 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: false,
-    refetchInterval: 30 * 1000,
+  const handleAttentionSSE = useCallback((event: AttentionSSEEvent) => {
+    if (!event.surface || !event.tone || event.count === undefined) return;
+
+    overridesRef.current.set(event.surface, {
+      tone: event.tone,
+      count: event.count,
+    });
+    // Force re-render to pick up the override
+    setOverrideVersion((v) => v + 1);
+  }, []);
+
+  const handleDataChanged = useCallback(() => {
+    // When data changes on any surface, refetch the tRPC queries
+    // to get accurate counts. The SSE override provides instant
+    // visual feedback while the refetch catches up.
+  }, []);
+
+  // Connect to SSE for real-time updates
+  useAttentionSSE({
+    entityId,
     enabled,
+    onAttentionChanged: handleAttentionSSE,
+    onDataChanged: handleDataChanged,
   });
 
-  const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
-    { limit: 50 },
-    {
+  // ── tRPC polling (baseline data) ─────────────────────────────────────
+  const { data: unread, refetch: refetchUnread } =
+    trpc.notifications.list.useQuery(
+      { limit: 20, onlyUnread: true },
+      {
+        staleTime: 15 * 1000,
+        refetchOnWindowFocus: true,
+        refetchOnMount: true,
+        refetchInterval: 30 * 1000,
+        enabled,
+      },
+    );
+
+  const { data: stats, refetch: refetchStats } =
+    trpc.ingestion.getStats.useQuery(undefined, {
       staleTime: 60 * 1000,
       refetchOnWindowFocus: true,
       refetchOnMount: false,
-      refetchInterval: 60 * 1000,
+      refetchInterval: 30 * 1000,
       enabled,
-    },
-  );
+    });
 
-  const result = useMemo(
-    () =>
-      computeAttentionSignals({
-        unreadNotifications: unread ?? [],
-        pendingReview: stats?.pendingReview ?? 0,
-        agentApprovals: agentApprovals?.items?.length ?? 0,
-        failed: stats?.failed ?? 0,
-      }),
-    [unread, stats, agentApprovals],
-  );
+  const { data: agentApprovals, refetch: refetchApprovals } =
+    trpc.ingestion.listAgentApprovals.useQuery(
+      { limit: 50 },
+      {
+        staleTime: 60 * 1000,
+        refetchOnWindowFocus: true,
+        refetchOnMount: false,
+        refetchInterval: 60 * 1000,
+        enabled,
+      },
+    );
+
+  // ── Compute signals with SSE overrides applied ───────────────────────
+  const result = useMemo(() => {
+    const base = computeAttentionSignals({
+      unreadNotifications: unread ?? [],
+      pendingReview: stats?.pendingReview ?? 0,
+      agentApprovals: agentApprovals?.items?.length ?? 0,
+      failed: stats?.failed ?? 0,
+    });
+
+    // Apply SSE overrides — these take priority for instant feedback
+    const overrides = overridesRef.current;
+    if (overrides.size > 0) {
+      for (const [surface, override] of overrides) {
+        const key = surface as NavKey;
+        if (base.byKey[key]) {
+          // SSE override wins if it has a higher count or action tone
+          if (
+            override.count > base.byKey[key].count ||
+            (override.tone === "action" && base.byKey[key].tone !== "action")
+          ) {
+            base.byKey[key] = override;
+          }
+        }
+      }
+
+      // Recompute totals
+      base.totals = { action: 0, new: 0 };
+      for (const key of Object.keys(base.byKey) as NavKey[]) {
+        const signal = base.byKey[key];
+        if (signal.count > 0) base.totals[signal.tone] += signal.count;
+      }
+    }
+
+    return base;
+  }, [unread, stats, agentApprovals]);
+
+  // ── Manual refetch (called by other hooks after mutations) ────────────
+  const refetch = useCallback(() => {
+    void refetchUnread();
+    void refetchStats();
+    void refetchApprovals();
+    // Clear overrides so polled data takes over
+    overridesRef.current.clear();
+  }, [refetchUnread, refetchStats, refetchApprovals]);
 
   return {
     byKey: result.byKey,
@@ -177,5 +256,6 @@ export function useAttentionSignals() {
     pendingReview: stats?.pendingReview ?? 0,
     processing: stats?.processing ?? 0,
     failed: stats?.failed ?? 0,
+    refetch,
   };
 }

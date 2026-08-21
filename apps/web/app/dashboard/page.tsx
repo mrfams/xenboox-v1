@@ -60,9 +60,11 @@ import {
   type Reaction,
 } from "@/components/chat/message-reactions";
 import { ConversationMemory } from "@/components/chat/conversation-memory";
+import { DataTableInline } from "@/components/chat/data-table-inline";
 import type {
   NeedsInputEvent,
   NeedsInputField,
+  DataTableEvent,
 } from "@/lib/hooks/use-streaming-chat";
 
 // ─── AI-Native Command Center ─────────────────────────────────────────────
@@ -586,6 +588,7 @@ function ConversationThread({
   toolTraces,
   approvals,
   documents,
+  dataTables,
   pendingInput,
   onSendMessage,
 }: {
@@ -596,6 +599,7 @@ function ConversationThread({
   toolTraces: ReturnType<typeof useDashboardChat>["toolTraces"];
   approvals: ReturnType<typeof useDashboardChat>["approvals"];
   documents: ReturnType<typeof useDashboardChat>["documents"];
+  dataTables: DataTableEvent[];
   pendingInput: NeedsInputEvent | null;
   onSendMessage: (text: string) => void;
 }) {
@@ -810,6 +814,26 @@ function ConversationThread({
                 )}
             </div>
 
+            {/* Committed data tables (from completed messages) */}
+            {msg.role === "assistant" &&
+              msg.dataTables &&
+              msg.dataTables.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {msg.dataTables.map((table, i) => (
+                    <DataTableInline
+                      key={`committed-table-${msg.id}-${i}`}
+                      title={table.title}
+                      columns={table.columns}
+                      rows={table.rows}
+                      summary={table.summary}
+                      currency={table.currency}
+                      selectable={table.rows.length > 1}
+                      expandable={table.rows.some((r) => r.detail)}
+                    />
+                  ))}
+                </div>
+              )}
+
             {/* Message Reactions */}
             <div className="flex items-center gap-2 mt-1">
               <MessageReactions
@@ -890,6 +914,27 @@ function ConversationThread({
             </div>
           </div>
         )}
+
+        {/* Streaming data tables (shown while AI is still responding) */}
+        {isStreaming &&
+          dataTables.map((table, i) => (
+            <div key={`streaming-table-${i}`} className="flex gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+                <Bot className="h-4 w-4 text-primary/70" />
+              </div>
+              <div className="max-w-[90%]">
+                <DataTableInline
+                  title={table.title}
+                  columns={table.columns}
+                  rows={table.rows}
+                  summary={table.summary}
+                  currency={table.currency}
+                  selectable={table.rows.length > 1}
+                  expandable={table.rows.some((r) => r.detail)}
+                />
+              </div>
+            </div>
+          ))}
 
         {/* Inline approval cards from streaming */}
         {approvals.map((approval, i) => (
@@ -976,6 +1021,26 @@ function ConversationThread({
                     : "Reject"}
                 </button>
               </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Interactive data tables from AI */}
+        {dataTables.map((table, i) => (
+          <div key={`table-${i}`} className="flex gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+              <Bot className="h-4 w-4 text-primary/70" />
+            </div>
+            <div className="max-w-[90%]">
+              <DataTableInline
+                title={table.title}
+                columns={table.columns}
+                rows={table.rows}
+                summary={table.summary}
+                currency={table.currency}
+                selectable={table.rows.length > 1}
+                expandable={table.rows.some((r) => r.detail)}
+              />
             </div>
           </div>
         ))}
@@ -1265,6 +1330,7 @@ export default function CommandCenterPage() {
           toolTraces={toolTraces}
           approvals={approvals}
           documents={documents}
+          dataTables={dataTables}
           pendingInput={pendingInput}
           onSendMessage={sendMessage}
         />

@@ -4,7 +4,7 @@ import {
   salesInvoices,
   customers,
   salesInvoiceLines,
-  organizationEntities,
+  entities,
 } from "@xenboox/db/schema";
 
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
@@ -411,8 +411,8 @@ export const invoicingRouter = router({
         where: eq(customers.id, invoice.customerId),
       });
 
-      const entity = await db.query.organizationEntities.findFirst({
-        where: eq(organizationEntities.id, entityId),
+      const entity = await db.query.entities.findFirst({
+        where: eq(entities.id, entityId),
       });
 
       const lines = await db.query.salesInvoiceLines.findMany({
@@ -493,8 +493,8 @@ export const invoicingRouter = router({
       }
 
       // Generate PDF
-      const entity = await db.query.organizationEntities.findFirst({
-        where: eq(organizationEntities.id, entityId),
+      const entity = await db.query.entities.findFirst({
+        where: eq(entities.id, entityId),
       });
 
       const lines = await db.query.salesInvoiceLines.findMany({

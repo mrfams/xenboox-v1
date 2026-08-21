@@ -12,7 +12,7 @@
  */
 
 import { z } from "zod";
-import { router, protectedProcedure } from "@/lib/trpc";
+import { router, protectedProcedure } from "@/lib/trpc/server";
 import { db } from "@xenboox/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { documents, auditLog } from "@xenboox/db/schema";

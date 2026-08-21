@@ -522,7 +522,7 @@ export default function ActivityHubPage() {
 
   // ── Cross-surface sync ────────────────────────────────────────────────
   // Listen for data_changed events from other surfaces and refetch
-  useSurfaceSync({ entityId, surfaces: ["activity-hub"] });
+  useSurfaceSync({ entityId: entityId ?? "", surfaces: ["activity-hub"] });
 
   // ── Optimistic state ───────────────────────────────────────────────────
   // Track which items are being processed, succeeded, or failed
@@ -610,6 +610,173 @@ export default function ActivityHubPage() {
       toast.info("Undone", { description: "Changes have been reverted." });
     },
     [refetchApprovals],
+  );
+
+  // Build activity items from real data
+  const activityItems: ActivityItemData[] = [];
+  // Track which IDs we've already added (dedup)
+  const addedIds = new Set<string>();
+
+  // Add agent approvals as approvals
+  if (agentApprovals?.items) {
+    for (const approval of agentApprovals.items) {
+      if (addedIds.has(approval.id)) continue;
+      addedIds.add(approval.id);
+      if (itemStates[approval.id] === "success") continue;
+      activityItems.push({
+        id: approval.id,
+        itemType: "agent_activity",
+        type: "approval",
+        title: approval.title ?? "Agent action pending",
+        description: approval.description ?? "Requires your review",
+        agent: approval.workflow ?? "AI Agent",
+        confidence: approval.confidence ?? undefined,
+        sourceDoc: approval.documentName ?? undefined,
+        actions: [
+          { label: "Approve", variant: "approve" },
+          { label: "Review", variant: "review" },
+          { label: "Reject", variant: "reject" },
+        ],
+      });
+    }
+  }
+
+  // Add pending review items as reviews
+  if (ingestionStats && ingestionStats.pendingReview > 0) {
+    if (!addedIds.has("pending-review")) {
+      addedIds.add("pending-review");
+      if (itemStates["pending-review"] !== "success") {
+        activityItems.push({
+          id: "pending-review",
+          itemType: "ingestion",
+          type: "review",
+          title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
+          description:
+            "Documents processed by AI, awaiting your verification before posting",
+          agent: "Document Agent",
+          actions: [
+            {
+              label: "Review all",
+              variant: "review",
+            },
+            { label: "Auto-approve", variant: "approve" },
+          ],
+        });
+      }
+    }
+  }
+
+  // Add agent alerts as first-class items (urgent/approval/info based on severity)
+  if (agentAlerts?.alerts) {
+    for (const alert of agentAlerts.alerts) {
+      if (addedIds.has(alert.id)) continue;
+      addedIds.add(alert.id);
+      if (itemStates[alert.id] === "success") continue;
+
+      const itemType: "urgent" | "approval" | "info" =
+        alert.priority === "critical"
+          ? "urgent"
+          : alert.priority === "high"
+            ? "approval"
+            : "info";
+
+      activityItems.push({
+        id: alert.id,
+        itemType: "notification",
+        type: itemType,
+        title: alert.title,
+        description: alert.body ?? "",
+        agent: alert.agentSource.replace(/-agent$/, "").replace(/_/g, " "),
+        actions: alert.actionRequired
+          ? [
+              { label: "Review", variant: "review" },
+              { label: "Dismiss", variant: "default" },
+            ]
+          : [{ label: "View", variant: "default" }],
+      });
+    }
+  }
+
+  // Add regular notifications as info items (lower priority than agent alerts)
+  if (notifications) {
+    for (const notification of notifications.slice(0, 5)) {
+      if (addedIds.has(notification.id)) continue;
+      addedIds.add(notification.id);
+      if (itemStates[notification.id] === "success") continue;
+      activityItems.push({
+        id: notification.id,
+        itemType: "notification",
+        type: "info",
+        title: notification.title,
+        description: notification.body ?? "",
+        actions: [{ label: "View", variant: "default" }],
+      });
+    }
+  }
+
+  // ── Real mutation handler ──────────────────────────────────────────────
+  const handleAction = useCallback(
+    async (itemId: string, action: string, itemType: string) => {
+      setItemStates((prev) => ({ ...prev, [itemId]: "processing" }));
+
+      try {
+        if (itemType === "agent_activity") {
+          await resolveApproval.mutateAsync({
+            itemId,
+            itemType: "agent_escalation",
+            action: action === "approve" ? "approved" : "rejected",
+            reason:
+              action === "approve"
+                ? "Approved from Activity Hub"
+                : "Rejected from Activity Hub",
+          });
+        } else if (itemType === "ingestion") {
+          if (action === "approve") {
+            await approveIngestion.mutateAsync({ documentId: itemId });
+          } else {
+            await rejectIngestion.mutateAsync({
+              documentId: itemId,
+              reason: "Rejected from Activity Hub",
+            });
+          }
+        } else if (itemType === "notification") {
+          await markNotificationRead.mutateAsync({ id: itemId });
+        }
+
+        setItemStates((prev) => ({ ...prev, [itemId]: "success" }));
+        const actionLabel = action === "approve" ? "Approved" : "Rejected";
+        toast.success(actionLabel, {
+          description: `Item has been ${actionLabel.toLowerCase()} successfully.`,
+          duration: 3000,
+        });
+        announce(`${actionLabel} successfully`);
+        emitDataChanged("activity-hub", `${action}_${itemType}`, entityId);
+
+        setTimeout(() => {
+          setItemStates((prev) => {
+            const next = { ...prev };
+            delete next[itemId];
+            return next;
+          });
+        }, 2000);
+      } catch (error) {
+        setItemStates((prev) => ({ ...prev, [itemId]: "error" }));
+        toast.error("Action failed", {
+          description:
+            error instanceof Error ? error.message : "Please try again.",
+          duration: 5000,
+        });
+        announce("Action failed. Please try again.", "assertive");
+        setTimeout(() => {
+          setItemStates((prev) => {
+            const next = { ...prev };
+            delete next[itemId];
+            return next;
+          });
+        }, 3000);
+      }
+    },
+    [resolveApproval, approveIngestion, rejectIngestion, markNotificationRead],
   );
 
   // ── Batch approve/reject handler ────────────────────────────────────────
@@ -715,182 +882,6 @@ export default function ActivityHubPage() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedIds, confirmRejectOpen, handleBatchAction]);
-
-  // ── Real mutation handler ──────────────────────────────────────────────
-  const handleAction = useCallback(
-    async (itemId: string, action: string, itemType: string) => {
-      setItemStates((prev) => ({ ...prev, [itemId]: "processing" }));
-
-      try {
-        if (itemType === "agent_activity") {
-          // Agent activity items → approvals.resolve with agent_escalation type
-          await resolveApproval.mutateAsync({
-            itemId,
-            itemType: "agent_escalation",
-            action: action === "approve" ? "approved" : "rejected",
-            reason:
-              action === "approve"
-                ? "Approved from Activity Hub"
-                : "Rejected from Activity Hub",
-          });
-        } else if (itemType === "ingestion") {
-          // Ingestion review items → approveReview or rejectReview
-          if (action === "approve") {
-            await approveIngestion.mutateAsync({ documentId: itemId });
-          } else {
-            await rejectIngestion.mutateAsync({
-              documentId: itemId,
-              reason: "Rejected from Activity Hub",
-            });
-          }
-        } else if (itemType === "notification") {
-          // Notifications → mark as read
-          await markNotificationRead.mutateAsync({ notificationId: itemId });
-        }
-
-        setItemStates((prev) => ({ ...prev, [itemId]: "success" }));
-        const actionLabel = action === "approve" ? "Approved" : "Rejected";
-        toast.success(actionLabel, {
-          description: `Item has been ${actionLabel.toLowerCase()} successfully.`,
-          duration: 3000,
-        });
-        // Announce to screen readers
-        announce(`${actionLabel} successfully`);
-
-        // Emit cross-surface event so other surfaces refetch
-        emitDataChanged("activity-hub", `${action}_${itemType}`, entityId);
-
-        setTimeout(() => {
-          setItemStates((prev) => {
-            const next = { ...prev };
-            delete next[itemId];
-            return next;
-          });
-        }, 2000);
-      } catch (error) {
-        setItemStates((prev) => ({ ...prev, [itemId]: "error" }));
-        toast.error("Action failed", {
-          description:
-            error instanceof Error ? error.message : "Please try again.",
-          duration: 5000,
-        });
-        // Announce error to screen readers
-        announce("Action failed. Please try again.", "assertive");
-        setTimeout(() => {
-          setItemStates((prev) => {
-            const next = { ...prev };
-            delete next[itemId];
-            return next;
-          });
-        }, 3000);
-      }
-    },
-    [resolveApproval, approveIngestion, rejectIngestion, markNotificationRead],
-  );
-
-  // Build activity items from real data
-  const activityItems: ActivityItemData[] = [];
-  // Track which IDs we've already added (dedup)
-  const addedIds = new Set<string>();
-
-  // Add agent approvals as approvals
-  if (agentApprovals?.items) {
-    for (const approval of agentApprovals.items) {
-      if (addedIds.has(approval.id)) continue;
-      addedIds.add(approval.id);
-      // Skip items that have been optimistically processed
-      if (itemStates[approval.id] === "success") continue;
-      activityItems.push({
-        id: approval.id,
-        itemType: "agent_activity",
-        type: "approval",
-        title: approval.title ?? "Agent action pending",
-        description: approval.description ?? "Requires your review",
-        agent: approval.workflow ?? "AI Agent",
-        confidence: approval.confidence ?? undefined,
-        sourceDoc: approval.documentName ?? undefined,
-        actions: [
-          { label: "Approve", variant: "approve" },
-          { label: "Review", variant: "review" },
-          { label: "Reject", variant: "reject" },
-        ],
-      });
-    }
-  }
-
-  // Add pending review items as reviews
-  if (ingestionStats && ingestionStats.pendingReview > 0) {
-    if (!addedIds.has("pending-review")) {
-      addedIds.add("pending-review");
-      if (itemStates["pending-review"] !== "success") {
-        activityItems.push({
-          id: "pending-review",
-          itemType: "ingestion",
-          type: "review",
-          title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
-          description:
-            "Documents processed by AI, awaiting your verification before posting",
-          agent: "Document Agent",
-          actions: [
-            {
-              label: "Review all",
-              variant: "review",
-            },
-            { label: "Auto-approve", variant: "approve" },
-          ],
-        });
-      }
-    }
-  }
-
-  // Add agent alerts as first-class items (urgent/approval/info based on severity)
-  if (agentAlerts?.alerts) {
-    for (const alert of agentAlerts.alerts) {
-      if (addedIds.has(alert.id)) continue;
-      addedIds.add(alert.id);
-      if (itemStates[alert.id] === "success") continue;
-
-      // Map notification type + priority to activity item type
-      const itemType: "urgent" | "approval" | "info" =
-        alert.priority === "critical"
-          ? "urgent"
-          : alert.priority === "high"
-            ? "approval"
-            : "info";
-
-      activityItems.push({
-        id: alert.id,
-        itemType: "notification",
-        type: itemType,
-        title: alert.title,
-        description: alert.body ?? "",
-        agent: alert.agentSource.replace(/-agent$/, "").replace(/_/g, " "),
-        actions: alert.actionRequired
-          ? [
-              { label: "Review", variant: "review" },
-              { label: "Dismiss", variant: "default" },
-            ]
-          : [{ label: "View", variant: "default" }],
-      });
-    }
-  }
-
-  // Add regular notifications as info items (lower priority than agent alerts)
-  if (notifications) {
-    for (const notification of notifications.slice(0, 5)) {
-      if (addedIds.has(notification.id)) continue;
-      addedIds.add(notification.id);
-      if (itemStates[notification.id] === "success") continue;
-      activityItems.push({
-        id: notification.id,
-        itemType: "notification",
-        type: "info",
-        title: notification.title,
-        description: notification.body ?? "",
-        actions: [{ label: "View", variant: "default" }],
-      });
-    }
-  }
 
   // Sort by urgency: urgent > approval > review > info
   const typeOrder = { urgent: 0, approval: 1, review: 2, info: 3 };

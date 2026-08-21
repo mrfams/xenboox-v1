@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
-import { useEntity } from "@/components/providers/entity-context";
+import { useEntity } from "@/lib/entity-context";
 import { Card, CardContent } from "@xenboox/ui";
 import { Badge } from "@xenboox/ui";
 import { Button } from "@xenboox/ui";

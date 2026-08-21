@@ -12,7 +12,7 @@
 
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc/client";
-import { useEntity } from "@/components/providers/entity-context";
+import { useEntity } from "@/lib/entity-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui";
 import { Button } from "@xenboox/ui";
 import { Input } from "@xenboox/ui";
