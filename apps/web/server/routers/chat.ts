@@ -1525,4 +1525,33 @@ export const chatRouter = router({
         )
         .slice(0, input.limit * 3);
     }),
+
+  /**
+   * Search for relevant past conversations based on a query.
+   * Used for conversation memory — when the user asks about something
+   * from a past conversation, this finds the relevant context.
+   */
+  searchRelevantConversations: rlsProtectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(1).max(500),
+        limit: z.number().min(1).max(10).default(5),
+        excludeConversationId: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { searchRelevantConversations } =
+        await import("@/lib/chat/cross-conversation-memory");
+
+      const results = await searchRelevantConversations(
+        ctx.entityId!,
+        input.query,
+        input.limit,
+      );
+
+      // Filter out the current conversation if specified
+      return results.filter(
+        (r) => r.conversation.id !== input.excludeConversationId,
+      );
+    }),
 });

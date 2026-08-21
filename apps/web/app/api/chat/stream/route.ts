@@ -19,6 +19,7 @@ import { auth } from "@/lib/auth";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 import { generateConversationTitle } from "@/lib/chat/conversation-title";
 import { generateConversationSummary } from "@/lib/chat/conversation-summary";
+import { buildMemoryContextBlock } from "@/lib/chat/cross-conversation-memory";
 import { logger } from "@/lib/logger";
 import { generateChatArtifacts } from "@/lib/chat/artifact-service";
 import { publishSseEvent } from "@/lib/sse/broadcast";
@@ -480,13 +481,39 @@ export async function POST(req: NextRequest) {
           text: "Reading your request and loading the entity context…",
         });
 
+        // Retrieve cross-conversation memory for context from past conversations.
+        enqueue({
+          type: "thinking",
+          agent: "CFO Agent",
+          step: "memory_retrieval",
+          label: "Memory Retrieval",
+          text: "Searching past conversations for relevant context…",
+        });
+
+        const memoryContextBlock = await buildMemoryContextBlock(
+          entityId,
+          message,
+          convId,
+        );
+
+        if (memoryContextBlock) {
+          enqueue({
+            type: "thinking",
+            agent: "CFO Agent",
+            step: "memory_retrieval",
+            label: "Memory Retrieval",
+            text: "Found relevant context from past conversations.",
+          });
+        }
+
         // Invoke the real CFO pipeline — page context rides the same seam as
         // file context, so the agent knows what the user is looking at.
         const fullMessage =
           message +
           fileContext +
           (pageContextBlock ? `\n\n${pageContextBlock}` : "") +
-          pinnedContextBlock;
+          pinnedContextBlock +
+          (memoryContextBlock ? `\n\n${memoryContextBlock}` : "");
 
         // Stream tool events as they happen
         const toolEvents: Array<{

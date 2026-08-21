@@ -58,6 +58,7 @@ import {
   MessageReactions,
   type Reaction,
 } from "@/components/chat/message-reactions";
+import { ConversationMemory } from "@/components/chat/conversation-memory";
 import type {
   NeedsInputEvent,
   NeedsInputField,
@@ -1177,6 +1178,15 @@ export default function CommandCenterPage() {
         {/* Proactive Briefing */}
         <div className="px-4 pt-4 sm:px-6">
           <ProactiveBriefing />
+        </div>
+
+        {/* Conversation Memory — shows relevant past conversations */}
+        <div className="px-4 sm:px-6">
+          <ConversationMemory
+            currentQuery={messages[messages.length - 1]?.content ?? ""}
+            currentConversationId={conversationId ?? undefined}
+            onJumpToConversation={(id) => loadConversation(id)}
+          />
         </div>
 
         {/* Conversation Thread */}
