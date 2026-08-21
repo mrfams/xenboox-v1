@@ -31,6 +31,7 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { TransactionDetailDrawer } from "@/components/operations/transaction-detail-drawer";
+import { CashFlowChart } from "@/components/finance/cash-flow-chart";
 
 // ─── Operations ───────────────────────────────────────────────────────────
 //
@@ -712,6 +713,9 @@ export default function OperationsPage() {
         >
           {/* Money Flow Summary */}
           <MoneyFlowSummary />
+
+          {/* Cash Flow Visualization */}
+          <CashFlowChart data={cashPosition} isLoading={!cashPosition} />
 
           {/* Money Out / Money In side by side */}
           <div className="grid gap-4 sm:grid-cols-2">
