@@ -13,6 +13,8 @@ import {
   Settings,
   HelpCircle,
   History,
+  Database,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 
@@ -92,6 +94,8 @@ const primaryNavItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   { label: "Audit Trail", href: "/dashboard/audit-trail", icon: History },
+  { label: "Knowledge Base", href: "/dashboard/knowledge", icon: Database },
+  { label: "Batch Ingestion", href: "/dashboard/ingestion", icon: Upload },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -269,7 +273,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               ? `${item.label}, keyboard shortcut ${item.shortcut}`
               : undefined
         }
-        title={item.shortcut ? `${item.label} (Press ${item.shortcut})` : item.label}
+        title={
+          item.shortcut ? `${item.label} (Press ${item.shortcut})` : item.label
+        }
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
           "lg:justify-center lg:group-hover:justify-start",
