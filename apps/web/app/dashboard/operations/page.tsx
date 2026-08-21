@@ -23,6 +23,7 @@ import {
   Loader2,
 } from "lucide-react";
 
+import Link from "next/link";
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -732,14 +733,8 @@ export default function OperationsPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    openWithFocus(
-                      { kind: "Bills", name: "Accounts Payable" },
-                      "Show me all bills that need paying. What's overdue?",
-                    )
-                  }
+                <Link
+                  href="/dashboard/operations/bills"
                   className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
                 >
                   <div className="flex items-center gap-2">
@@ -755,7 +750,7 @@ export default function OperationsPage() {
                   <span className="text-xs text-muted-foreground">
                     {pendingBills} pending
                   </span>
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() =>
@@ -810,14 +805,8 @@ export default function OperationsPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    openWithFocus(
-                      { kind: "Invoices", name: "Accounts Receivable" },
-                      "Show me all outstanding invoices. Who owes me money and who's overdue?",
-                    )
-                  }
+                <Link
+                  href="/dashboard/operations/invoices"
                   className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
                 >
                   <div className="flex items-center gap-2">
@@ -827,7 +816,7 @@ export default function OperationsPage() {
                     </span>
                   </div>
                   <span className="text-xs text-muted-foreground">AR</span>
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() =>
