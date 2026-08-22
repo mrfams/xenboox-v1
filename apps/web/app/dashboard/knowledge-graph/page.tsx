@@ -34,11 +34,11 @@ type GraphNode = {
   id: string;
   label: string;
   type: string;
-  description?: string;
+  description: string | null;
   internalId: string;
   internalTable: string;
   size: number;
-  metadata?: Record<string, unknown>;
+  metadata: Record<string, unknown> | null;
 };
 
 const NODE_ICONS: Record<
