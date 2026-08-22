@@ -686,6 +686,10 @@ export default function OperationsPage() {
     {},
     { enabled: !!entityId },
   );
+  const { data: cashPosition } = trpc.banking.getCashPosition.useQuery(
+    {},
+    { enabled: !!entityId },
+  );
 
   const overdueBills = billsOverview?.statusCounts.overdue ?? 0;
   const pendingBills =
