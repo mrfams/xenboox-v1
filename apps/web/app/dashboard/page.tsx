@@ -1176,6 +1176,7 @@ function AiInput({
   uploadedFiles,
   onFilesUploaded,
   onClearFiles,
+  messages,
 }: {
   onSubmit: (value: string, files?: UploadedFile[]) => void;
   isResponding: boolean;
@@ -1183,6 +1184,7 @@ function AiInput({
   uploadedFiles: UploadedFile[];
   onFilesUploaded: (files: UploadedFile[]) => void;
   onClearFiles: () => void;
+  messages: ReturnType<typeof useDashboardChat>["messages"];
 }) {
   const pageContext = usePageContext();
   const [inputValue, setInputValue] = useState("");
@@ -1273,7 +1275,7 @@ function AiInput({
             <div className="absolute -top-6 left-4 flex items-center gap-1">
               <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[9px] font-medium text-primary">
                 <Sparkles className="h-2.5 w-2.5" />
-                {pageContext.kind} context attached
+                {pageContext.page} context attached
               </span>
             </div>
           )}
@@ -1493,6 +1495,7 @@ export default function CommandCenterPage() {
               setUploadedFiles((prev) => [...prev, ...files])
             }
             onClearFiles={() => setUploadedFiles([])}
+            messages={messages}
           />
         </div>
       </div>
