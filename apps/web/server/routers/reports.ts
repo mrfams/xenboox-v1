@@ -301,6 +301,14 @@ export const reportsRouter = router({
 
       let revenue = 0;
       let expenses = 0;
+      const revenueByAccountMap = new Map<
+        string,
+        { accountName: string; accountCode: string; amount: number }
+      >();
+      const expensesByAccountMap = new Map<
+        string,
+        { accountName: string; accountCode: string; amount: number }
+      >();
 
       for (const line of lines) {
         const account = accountMap.get(line.accountId);
@@ -308,9 +316,42 @@ export const reportsRouter = router({
 
         const amount =
           parseFloat(line.credit ?? "0") - parseFloat(line.debit ?? "0");
-        if (account.type === "revenue") revenue += Math.abs(amount);
-        if (account.type === "expense") expenses += Math.abs(amount);
+        if (account.type === "revenue") {
+          const abs = Math.abs(amount);
+          revenue += abs;
+          const existing = revenueByAccountMap.get(account.id);
+          if (existing) {
+            existing.amount += abs;
+          } else {
+            revenueByAccountMap.set(account.id, {
+              accountName: account.name,
+              accountCode: account.code,
+              amount: abs,
+            });
+          }
+        }
+        if (account.type === "expense") {
+          const abs = Math.abs(amount);
+          expenses += abs;
+          const existing = expensesByAccountMap.get(account.id);
+          if (existing) {
+            existing.amount += abs;
+          } else {
+            expensesByAccountMap.set(account.id, {
+              accountName: account.name,
+              accountCode: account.code,
+              amount: abs,
+            });
+          }
+        }
       }
+
+      const revenueByAccount = Array.from(revenueByAccountMap.values()).sort(
+        (a, b) => b.amount - a.amount,
+      );
+      const expensesByAccount = Array.from(expensesByAccountMap.values()).sort(
+        (a, b) => b.amount - a.amount,
+      );
 
       const cogs = expenses * 0.65;
       const grossProfit = revenue - cogs;
@@ -318,7 +359,17 @@ export const reportsRouter = router({
       const opProfit = grossProfit - opExpenses;
       const netProfit = revenue - expenses;
 
-      return { revenue, cogs, grossProfit, opExpenses, opProfit, netProfit };
+      return {
+        revenue,
+        expenses,
+        cogs,
+        grossProfit,
+        opExpenses,
+        opProfit,
+        netProfit,
+        revenueByAccount,
+        expensesByAccount,
+      };
     };
 
     const currentPnl = await getPnlForMonth(currentYear, currentMonth);
