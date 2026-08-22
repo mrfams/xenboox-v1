@@ -63,7 +63,7 @@ export default function PayPage() {
   const token = params?.token as string;
 
   const [status, setStatus] = useState<PaymentStatus>("loading");
-  const [selectedMethod, setSelectedMethod] = useState<string>("");
+  const [selectedMethod, setSelectedMethod] = useState<"card" | "bank_transfer" | "mobile_money" | "cash" | "">("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -368,7 +368,7 @@ export default function PayPage() {
             return (
               <button
                 key={method.id}
-                onClick={() => setSelectedMethod(method.id)}
+                onClick={() => setSelectedMethod(method.id as "card" | "bank_transfer" | "mobile_money" | "cash")}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
                   isSelected
