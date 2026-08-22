@@ -598,6 +598,7 @@ function ConversationThread({
   approvals,
   documents,
   dataTables,
+  charts,
   pendingInput,
   onSendMessage,
 }: {
@@ -1383,6 +1384,8 @@ export default function CommandCenterPage() {
     documents,
     toolTraces,
     pendingInput,
+    dataTables,
+    charts,
     sendMessage,
     loadConversation,
     newChat,
