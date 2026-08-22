@@ -222,18 +222,20 @@ export function CashFlowChart({
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
-                formatter={(value: number, name: string) => [
-                  formatCurrency(value),
-                  name === "incoming"
-                    ? "Incoming"
-                    : name === "outgoing"
-                      ? "Outgoing"
-                      : "Balance",
-                ] as [string, string]}
+                formatter={(value: number, name: string, ..._rest: any[]) =>
+                  [
+                    formatCurrency(value),
+                    name === "incoming"
+                      ? "Incoming"
+                      : name === "outgoing"
+                        ? "Outgoing"
+                        : "Balance",
+                  ] as [string, string]
+                }
               />
               <Legend
                 wrapperStyle={{ fontSize: "11px" }}
-                formatter={(value) =>
+                formatter={(value: string, ..._rest: any[]) =>
                   value === "incoming"
                     ? "Incoming"
                     : value === "outgoing"

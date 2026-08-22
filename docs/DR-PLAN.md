@@ -61,7 +61,7 @@
 
 1. Neon: create new project in `eu-central-1` (Frankfurt)
 2. Restore from R2 backup: decrypt → `psql` import
-3. Vercel: redeploy to `cdg1` (Paris) via `vercel.json` region config
+3. Vercel: redeploy to `cdg1` (Paris) via `apps/web/vercel.json` region config
 4. Update DNS CNAME to new Vercel deployment
 5. Update `DATABASE_URL` and all env vars
 6. **Expected time:** 30-60 minutes

@@ -241,10 +241,10 @@ Add each variable from the sections above. Most should be marked as "Production"
 ### Step 3: Configure build
 
 - **Framework preset:** Next.js
-- **Build command:** `pnpm build --filter @xenboox/web`
-- **Output directory:** `apps/web/.next`
-- **Install command:** `pnpm install --no-frozen-lockfile`
-- **Root directory:** `./`
+- **Build command:** `pnpm build`
+- **Output directory:** `.next`
+- **Install command:** `pnpm install`
+- **Root directory:** `apps/web`
 
 ### Step 4: First deployment
 

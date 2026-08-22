@@ -163,14 +163,14 @@ Xenboox has a strong architectural foundation with an ambitious vision for AI-na
 
 ### 3.3 Deployment & Release
 
-| Issue                                   | Severity | Detail                                                                                                                                                                                            |
-| --------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Single-Region Deployment**            | HIGH     | Vercel configured with `"regions": ["iad1"]` — single US East region. No multi-region failover. African users face 200-500ms latency.                                                             |
-| **No Blue-Green or Canary Deployments** | HIGH     | Vercel does instant roll-forward. No gradual rollout, no canary analysis, no automatic rollback on increased error rates.                                                                         |
-| **No Feature Flags**                    | HIGH     | No LaunchDarkly/Flagsmith/Custom feature flag system. All features are either on or off per deploy. Impossible to do gradual rollouts or A/B testing.                                             |
-| **No Infrastructure as Code**           | HIGH     | Vercel config in `vercel.json` is minimal. Neon, Upstash, R2, Resend, LangFuse are all configured manually through their dashboards. No Terraform/Pulumi/CDK. No disaster recovery replicability. |
-| **No Containerization**                 | MEDIUM   | Desktop app uses Tauri, but API/web uses Vercel serverless. No Docker images for local development parity.                                                                                        |
-| **No Rollback Procedure**               | HIGH     | No documented rollback procedure. Vercel can redeploy previous versions, but DB migrations are irreversible.                                                                                      |
+| Issue                                   | Severity | Detail                                                                                                                                                                                                     |
+| --------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Single-Region Deployment**            | HIGH     | Vercel configured with `"regions": ["iad1"]` — single US East region. No multi-region failover. African users face 200-500ms latency.                                                                      |
+| **No Blue-Green or Canary Deployments** | HIGH     | Vercel does instant roll-forward. No gradual rollout, no canary analysis, no automatic rollback on increased error rates.                                                                                  |
+| **No Feature Flags**                    | HIGH     | No LaunchDarkly/Flagsmith/Custom feature flag system. All features are either on or off per deploy. Impossible to do gradual rollouts or A/B testing.                                                      |
+| **No Infrastructure as Code**           | HIGH     | Vercel config in `apps/web/vercel.json` is minimal. Neon, Upstash, R2, Resend, LangFuse are all configured manually through their dashboards. No Terraform/Pulumi/CDK. No disaster recovery replicability. |
+| **No Containerization**                 | MEDIUM   | Desktop app uses Tauri, but API/web uses Vercel serverless. No Docker images for local development parity.                                                                                                 |
+| **No Rollback Procedure**               | HIGH     | No documented rollback procedure. Vercel can redeploy previous versions, but DB migrations are irreversible.                                                                                               |
 
 ---
 

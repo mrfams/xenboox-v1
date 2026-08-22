@@ -17,7 +17,6 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  type TooltipProps,
 } from "recharts";
 import { Download, Maximize2, Minimize2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -107,7 +106,17 @@ function ChartTooltip({
   payload,
   label,
   currency,
-}: TooltipProps<number, string> & { currency?: string }) {
+}: {
+  active?: boolean;
+  payload?: Array<{
+    name?: string;
+    value?: number;
+    color?: string;
+    dataKey?: string;
+  }>;
+  label?: string;
+  currency?: string;
+}) {
   if (!active || !payload?.length) return null;
 
   return (

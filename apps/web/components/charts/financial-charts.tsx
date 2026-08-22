@@ -13,7 +13,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  type TooltipProps,
 } from "recharts";
 import {
   Sparkles,
@@ -72,7 +71,7 @@ export function TimeRangeSelector({
 
 // ─── Chart Tooltip ─────────────────────────────────────────────────────────
 
-type ChartTooltipProps = TooltipProps<number, string> & {
+type ChartTooltipProps = {
   payload?: Array<{
     name?: string;
     value?: number;
@@ -82,6 +81,7 @@ type ChartTooltipProps = TooltipProps<number, string> & {
   label?: string;
   currency?: string;
   formatter?: (value: number | undefined) => string;
+  active?: boolean;
 };
 
 function ChartTooltip({
@@ -439,7 +439,9 @@ export function MarginTrendChart({
               domain={[0, "auto"]}
             />
             <Tooltip
-              content={<ChartTooltip formatter={(v) => `${(v ?? 0).toFixed(1)}%`} />}
+              content={
+                <ChartTooltip formatter={(v) => `${(v ?? 0).toFixed(1)}%`} />
+              }
             />
             {filteredData[0]?.target !== undefined && (
               <Line

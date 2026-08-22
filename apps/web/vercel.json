@@ -1,5 +1,32 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
+  "installCommand": "pnpm install",
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/daily-digest",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/month-end-close",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/webhooks/process?batch=200",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/data-retention",
+      "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/audit-archive",
+      "schedule": "0 2 * * 0"
+    }
+  ],
   "headers": [
     {
       "source": "/_next/static/(.*)",

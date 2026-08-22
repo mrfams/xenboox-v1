@@ -41,7 +41,7 @@ paste the real values into the cell's Vercel env.
 ## 3. Per-cell setup checklist (user)
 
 1. **Vercel**: duplicate the project per cell (or one project + `regions` in
-   vercel.json); set `XENBOOX_REGION` + that cell's `DATABASE_URL_*`/`R2_*`.
+   `apps/web/vercel.json`); set `XENBOOX_REGION` + that cell's `DATABASE_URL_*`/`R2_*`.
 2. **Neon**: one project per cell in the cell's compute region; restore the
    schema (migrations) into each.
 3. **R2**: one bucket per cell; store the keys in that cell's Vercel env.
@@ -49,7 +49,7 @@ paste the real values into the cell's Vercel env.
    `NEXT_PUBLIC_APP_URL` + `AUTH_URL` per cell.
 5. **Mapping**: seed `XENBOOX_REGION_MAP` (or the DB mapping table when the
    control plane ships) so every tenant resolves to its home cell.
-6. **vercel.json**: after Phase 2, add the cell region to `regions`:
+6. **`apps/web/vercel.json`**: after Phase 2, add the cell region to `regions`:
    ```json
    { "regions": ["iad1", "cpt1"] }
    ```
