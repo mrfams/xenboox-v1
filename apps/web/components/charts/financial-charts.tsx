@@ -72,16 +72,25 @@ export function TimeRangeSelector({
 
 // ─── Chart Tooltip ─────────────────────────────────────────────────────────
 
+type ChartTooltipProps = TooltipProps<number, string> & {
+  payload?: Array<{
+    name?: string;
+    value?: number;
+    color?: string;
+    dataKey?: string;
+  }>;
+  label?: string;
+  currency?: string;
+  formatter?: (value: number) => string;
+};
+
 function ChartTooltip({
   active,
   payload,
   label,
   currency = "GMD",
   formatter,
-}: TooltipProps<number, string> & {
-  currency?: string;
-  formatter?: (value: number) => string;
-}) {
+}: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
 
   return (
