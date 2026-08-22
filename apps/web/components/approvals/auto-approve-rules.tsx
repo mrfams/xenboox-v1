@@ -139,7 +139,7 @@ export function AutoApproveRules() {
       {/* Tab content */}
       {activeTab === "rules" && (
         <RulesList
-          rules={rules ?? []}
+          rules={(rules ?? []) as any}
           isLoading={isLoading}
           onRefresh={refetchRules}
           currency={entityCurrency ?? ""}
