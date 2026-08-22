@@ -18,13 +18,10 @@ const baseConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // The dashboard router (2177 lines, 7 procedures) exceeds TypeScript's type
-  // inference limits on Vercel's constrained build machine (2 cores, 8 GB).
-  // This causes AppRouter type to collapse, breaking tRPC client types.
-  // TODO: split dashboard router into smaller files to fix root cause.
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // typescript: { ignoreBuildErrors: true } — was temporarily enabled to
+  // unblock builds while the dashboard router was a 2177-line monolith.
+  // Now that it's been split into 7 focused files, TS can infer types
+  // within each file without hitting Vercel's type-inference limits.
   transpilePackages: [
     "@xenboox/ui",
     "@xenboox/db",
