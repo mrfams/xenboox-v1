@@ -369,7 +369,7 @@ function RecentTransactions({
       ) : (
         <div className="space-y-1">
           {transactions.map((tx) => {
-            const amount = parseFloat(tx.amount);
+            const amount = tx.amount;
             const isPositive = amount > 0;
             return (
               <button
