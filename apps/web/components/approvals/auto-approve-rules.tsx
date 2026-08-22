@@ -154,7 +154,9 @@ export function AutoApproveRules() {
         />
       )}
 
-      {activeTab === "stats" && <StatsView stats={stats} currency={entityCurrency ?? ""} />}
+      {activeTab === "stats" && (
+        <StatsView stats={stats} currency={entityCurrency ?? ""} />
+      )}
 
       {/* Create modal */}
       {showCreateModal && (
@@ -228,8 +230,13 @@ function RulesList({
     onSuccess: () => onRefresh(),
   });
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const deleteMutation = trpc.autoApprove.deleteRule.useMutation({
-    onSuccess: () => onRefresh(),
+    onSuccess: () => {
+      onRefresh();
+      setDeleteConfirmId(null);
+    },
   });
 
   if (isLoading) {
@@ -257,108 +264,150 @@ function RulesList({
   }
 
   return (
-    <div className="space-y-3">
-      {rules.map((rule) => (
-        <div
-          key={rule.id}
-          className={cn(
-            "rounded-xl border bg-card p-4 transition-all",
-            rule.isActive
-              ? "border-border/50 hover:shadow-md"
-              : "border-border/30 opacity-60",
-          )}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl",
-                  rule.isActive ? "bg-primary/10" : "bg-muted/30",
-                )}
-              >
-                {rule.createdBy === "ai" ? (
-                  <Sparkles className="h-5 w-5 text-primary" />
-                ) : (
-                  <Zap className="h-5 w-5 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {rule.name}
-                </p>
-                {rule.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {rule.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mt-2">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
-                      rule.action === "auto_approve"
-                        ? "bg-emerald-500/10 text-emerald-500"
-                        : rule.action === "auto_approve_with_limit"
-                          ? "bg-amber-500/10 text-amber-500"
-                          : "bg-red-500/10 text-red-500",
-                    )}
-                  >
-                    {rule.action === "auto_approve"
-                      ? "Auto-Approve"
-                      : rule.action === "auto_approve_with_limit"
-                        ? "With Limit"
-                        : "Escalate"}
-                  </span>
-                  {rule.maxAmount && (
-                    <span className="text-[10px] text-muted-foreground">
-                      Max:{" "}
-                      {formatCurrency(parseFloat(rule.maxAmount), currency)}
-                    </span>
+    <>
+      <div className="space-y-3">
+        {rules.map((rule) => (
+          <div
+            key={rule.id}
+            className={cn(
+              "rounded-xl border bg-card p-4 transition-all",
+              rule.isActive
+                ? "border-border/50 hover:shadow-md"
+                : "border-border/30 opacity-60",
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl",
+                    rule.isActive ? "bg-primary/10" : "bg-muted/30",
                   )}
-                  {rule.confidence && parseFloat(rule.confidence) > 0 && (
-                    <span className="text-[10px] text-muted-foreground">
-                      {Math.round(parseFloat(rule.confidence) * 100)}%
-                      confidence
-                    </span>
+                >
+                  {rule.createdBy === "ai" ? (
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  ) : (
+                    <Zap className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {rule.name}
+                  </p>
+                  {rule.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {rule.description}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 mt-2">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                        rule.action === "auto_approve"
+                          ? "bg-emerald-500/10 text-emerald-500"
+                          : rule.action === "auto_approve_with_limit"
+                            ? "bg-amber-500/10 text-amber-500"
+                            : "bg-red-500/10 text-red-500",
+                      )}
+                    >
+                      {rule.action === "auto_approve"
+                        ? "Auto-Approve"
+                        : rule.action === "auto_approve_with_limit"
+                          ? "With Limit"
+                          : "Escalate"}
+                    </span>
+                    {rule.maxAmount && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Max:{" "}
+                        {formatCurrency(parseFloat(rule.maxAmount), currency)}
+                      </span>
+                    )}
+                    {rule.confidence && parseFloat(rule.confidence) > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {Math.round(parseFloat(rule.confidence) * 100)}%
+                        confidence
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleMutation.mutate({ ruleId: rule.id })}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  {rule.isActive ? (
+                    <ToggleRight className="h-5 w-5 text-primary" />
+                  ) : (
+                    <ToggleLeft className="h-5 w-5" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmId(rule.id)}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => toggleMutation.mutate({ ruleId: rule.id })}
-                className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                {rule.isActive ? (
-                  <ToggleRight className="h-5 w-5 text-primary" />
-                ) : (
-                  <ToggleLeft className="h-5 w-5" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => deleteMutation.mutate({ ruleId: rule.id })}
-                className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+            {/* Trigger count */}
+            <div className="mt-3 pt-3 border-t border-border/30 flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">
+                Triggered {rule.triggerCount} time
+                {rule.triggerCount !== 1 ? "s" : ""}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Created by {rule.createdBy === "ai" ? "AI" : "User"}
+              </span>
             </div>
           </div>
+        ))}
+      </div>
 
-          {/* Trigger count */}
-          <div className="mt-3 pt-3 border-t border-border/30 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">
-              Triggered {rule.triggerCount} time
-              {rule.triggerCount !== 1 ? "s" : ""}
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              Created by {rule.createdBy === "ai" ? "AI" : "User"}
-            </span>
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmId && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/50"
+            onClick={() => setDeleteConfirmId(null)}
+          />
+          <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm">
+            <div className="rounded-xl border bg-card p-6 shadow-lg">
+              <h3 className="text-sm font-semibold text-foreground mb-2">
+                Delete Rule
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Are you sure you want to delete this auto-approve rule? This
+                action cannot be undone.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    deleteMutation.mutate({ ruleId: deleteConfirmId })
+                  }
+                  disabled={deleteMutation.isPending}
+                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        </>
+      )}
+    </>
   );
 }
 

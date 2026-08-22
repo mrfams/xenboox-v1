@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import {
-  ChevronDown,
-  Check,
-  Building2,
-  Plus,
-  X,
-  Loader2,
-  Trash2,
-} from "lucide-react";
+import { ChevronDown, Check, Building2, Plus, X, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
@@ -34,9 +26,6 @@ export function EntitySwitcher() {
   const [newEntityName, setNewEntityName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
   const utils = trpc.useUtils();
 
   // tRPC queries and mutations
@@ -49,7 +38,6 @@ export function EntitySwitcher() {
   });
   const createEntityMutation = trpc.organization.createEntity.useMutation();
   const createOrgMutation = trpc.organization.create.useMutation();
-  const deleteEntityMutation = trpc.organization.deleteEntity.useMutation();
 
   // Fetch entities via tRPC
   useEffect(() => {
@@ -199,36 +187,6 @@ export function EntitySwitcher() {
     listOrgsQuery,
   ]);
 
-  // Handle delete entity
-  const handleDeleteEntity = useCallback(
-    async (entityIdToDelete: string) => {
-      setIsDeleting(true);
-      try {
-        await deleteEntityMutation.mutateAsync({
-          entityId: entityIdToDelete,
-        });
-
-        // If we deleted the currently selected entity, switch to another one
-        if (entityId === entityIdToDelete) {
-          const remaining = entities.filter((e) => e.id !== entityIdToDelete);
-          if (remaining.length > 0) {
-            setEntityId(remaining[0].id, remaining[0].role);
-          } else {
-            setEntityId("");
-          }
-        }
-
-        await utils.organization.listUserEntities.invalidate();
-        setDeleteConfirmId(null);
-      } catch (error) {
-        console.error("Failed to delete entity:", error);
-      } finally {
-        setIsDeleting(false);
-      }
-    },
-    [entityId, entities, setEntityId, deleteEntityMutation, utils],
-  );
-
   const userRole = currentEntity?.role;
   const isOwnerOrAdmin = userRole === "owner" || userRole === "admin";
 
@@ -346,20 +304,6 @@ export function EntitySwitcher() {
                         )}
                       </p>
                     </div>
-                    {/* Delete button — owner/admin only */}
-                    {isOwnerOrAdmin && entities.length > 1 && (
-                      <button
-                        type="button"
-                        className="opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteConfirmId(entity.id);
-                        }}
-                        title="Delete entity"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
                   </button>
                 </div>
               ))}
@@ -382,18 +326,6 @@ export function EntitySwitcher() {
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      {deleteConfirmId && (
-        <DeleteEntityDialog
-          entityName={
-            entities.find((e) => e.id === deleteConfirmId)?.name ?? ""
-          }
-          onConfirm={() => handleDeleteEntity(deleteConfirmId)}
-          onCancel={() => setDeleteConfirmId(null)}
-          isDeleting={isDeleting}
-        />
-      )}
-
       {/* Create Entity Dialog */}
       {showCreateDialog && (
         <CreateEntityDialog
@@ -410,89 +342,6 @@ export function EntitySwitcher() {
           error={createError}
         />
       )}
-    </>
-  );
-}
-
-// ─── Delete Entity Dialog ───────────────────────────────────────────────
-
-function DeleteEntityDialog({
-  entityName,
-  onConfirm,
-  onCancel,
-  isDeleting,
-}: {
-  entityName: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  isDeleting: boolean;
-}) {
-  const [confirmText, setConfirmText] = useState("");
-
-  return (
-    <>
-      <div className="fixed inset-0 z-50 bg-black/50" onClick={onCancel} />
-      <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-md max-h-[85vh] overflow-y-auto">
-        <div className="rounded-xl border bg-card p-6 shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Delete Entity
-            </h2>
-          </div>
-
-          <p className="text-xs text-muted-foreground mb-2">
-            This will permanently deactivate <strong>{entityName}</strong> and
-            revoke all user access. Journal entries, invoices, and other
-            financial records will be preserved but inaccessible.
-          </p>
-          <p className="text-xs text-muted-foreground mb-4">
-            Type <strong>{entityName}</strong> to confirm.
-          </p>
-
-          <input
-            type="text"
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            placeholder={`Type "${entityName}" to confirm`}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-destructive/30"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && confirmText === entityName) {
-                onConfirm();
-              }
-            }}
-          />
-
-          <div className="flex items-center justify-end gap-2 mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCancel}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={onConfirm}
-              disabled={confirmText !== entityName || isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Entity"
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
     </>
   );
 }

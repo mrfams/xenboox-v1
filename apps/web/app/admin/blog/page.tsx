@@ -52,6 +52,7 @@ export default function BlogAdminPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState<EditorForm>(emptyForm);
 
   const { data, isLoading } = trpc.content.adminListPosts.useQuery({
@@ -151,9 +152,12 @@ export default function BlogAdminPage() {
   };
 
   const handleDeletePost = (postId: string) => {
-    if (confirm("Are you sure you want to delete this post?")) {
-      deletePost.mutate({ id: postId });
-    }
+    deletePost.mutate(
+      { id: postId },
+      {
+        onSuccess: () => setDeleteConfirmId(null),
+      },
+    );
   };
 
   const handleTogglePublish = (post: (typeof posts)[number]) => {
@@ -434,7 +438,7 @@ export default function BlogAdminPage() {
                               <Edit2 className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleDeletePost(post.id)}
+                              onClick={() => setDeleteConfirmId(post.id)}
                               className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               title="Delete"
                             >
@@ -573,6 +577,44 @@ export default function BlogAdminPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmId && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/50"
+            onClick={() => setDeleteConfirmId(null)}
+          />
+          <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm">
+            <div className="rounded-xl border bg-white p-6 shadow-lg">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2">
+                Delete Post
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Are you sure you want to delete this blog post? This action
+                cannot be undone.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeletePost(deleteConfirmId)}
+                  disabled={deletePost.isPending}
+                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deletePost.isPending ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
