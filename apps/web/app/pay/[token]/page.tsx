@@ -106,11 +106,12 @@ export default function PayPage() {
       return;
     }
 
-    setPaymentAmount(data.amount ?? "");
+    const invoiceData = data as { found: true; amount: string; currency: string; paymentMethods: string | null; customerName: string; invoiceNumber?: string; dueDate?: string };
+    setPaymentAmount(invoiceData.amount ?? "");
     setStatus("ready");
   }, [resolveToken.data, resolveToken.isLoading]);
 
-  const data = resolveToken.data?.found ? resolveToken.data : null;
+  const data = resolveToken.data?.found ? resolveToken.data as { found: true; amount: string; currency: string; paymentMethods: string | null; customerName: string; invoiceNumber?: string; dueDate?: string } : null;
 
   const handlePayment = useCallback(() => {
     if (!selectedMethod || !paymentAmount) return;
