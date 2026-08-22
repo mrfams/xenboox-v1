@@ -679,8 +679,11 @@ const REPORTS = [
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function FinancialPulsePage() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
+
+  const { data: entities } = trpc.organization.listUserEntities.useQuery();
+  const entity = entities?.find((e) => e.id === entityId);
 
   // ── Cross-surface sync ────────────────────────────────────────────────
   // Listen for data_changed events from other surfaces and refetch
