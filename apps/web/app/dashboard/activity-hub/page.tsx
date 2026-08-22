@@ -215,7 +215,7 @@ function ActivityItemCard({
   return (
     <div
       className={cn(
-        "rounded-xl border p-4 transition-all duration-200 hover:shadow-md",
+        "rounded-xl border p-3 transition-all duration-200 hover:shadow-md",
         config.border,
         config.bg,
         itemState === "success" && "opacity-60",
@@ -237,12 +237,12 @@ function ActivityItemCard({
         )}
         <div
           className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
             config.iconBg,
           )}
         >
           <Icon
-            className={cn("h-5 w-5", config.iconColor)}
+            className={cn("h-4 w-4", config.iconColor)}
             aria-hidden="true"
           />
         </div>
@@ -282,37 +282,29 @@ function ActivityItemCard({
 
           {/* AI Recommendation / Reasoning */}
           {item.recommendation && (
-            <div className="mt-2.5 rounded-lg border border-primary/10 bg-primary/[0.03] px-3 py-2">
-              <div className="flex items-center gap-1.5 mb-1">
+            <div className="mt-2 rounded-lg border border-primary/10 bg-primary/[0.03] px-2.5 py-1.5">
+              <div className="flex items-center gap-1.5">
                 <Lightbulb
-                  className="h-3 w-3 text-primary"
+                  className="h-3 w-3 text-primary shrink-0"
                   aria-hidden="true"
                 />
-                <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
-                  AI Recommendation
-                </span>
+                <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">
+                  {item.recommendation}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {item.recommendation}
-              </p>
             </div>
           )}
 
           {/* Risk Assessment Bar */}
           {item.confidence !== undefined && (
-            <div className="mt-2.5">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5">
-                  <Shield className="h-3 w-3" aria-hidden="true" />
-                  <span className={cn("text-[10px] font-semibold", risk.color)}>
-                    {risk.label}
-                  </span>
-                </div>
-                <span className="text-[10px] text-muted-foreground">
-                  {Math.round(item.confidence * 100)}% confidence
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <Shield className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span className={cn("text-[10px] font-semibold", risk.color)}>
+                  {risk.label}
                 </span>
               </div>
-              <div className="h-1.5 w-full rounded-full bg-muted/40">
+              <div className="h-1 flex-1 max-w-[80px] rounded-full bg-muted/40">
                 <div
                   className={cn(
                     "h-full rounded-full transition-all",
@@ -330,7 +322,7 @@ function ActivityItemCard({
           )}
 
           {/* Supporting Data Row */}
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {item.sourceDoc && (
               <div className="inline-flex items-center gap-1 rounded-md bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground">
                 <FileCheck className="h-3 w-3" aria-hidden="true" />
@@ -354,7 +346,7 @@ function ActivityItemCard({
 
       {/* Inline actions with optional note */}
       {item.actions.length > 0 && itemState !== "success" && (
-        <div className="mt-3 ml-13 space-y-2">
+        <div className="mt-2 ml-11 space-y-1.5">
           {/* Note input — toggle-able */}
           {showNote && (item.type === "approval" || item.type === "urgent") && (
             <div className="relative">
@@ -393,7 +385,9 @@ function ActivityItemCard({
                         setNote("");
                         setShowNote(false);
                       }
-                    : undefined,
+                    : a.variant === "review"
+                      ? () => onViewItem?.(item)
+                      : undefined,
                 icon:
                   a.variant === "approve"
                     ? ThumbsUp
@@ -1232,7 +1226,7 @@ export default function ActivityHubPage() {
       ]}
     >
       <div
-        className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6"
+        className="mx-auto max-w-4xl space-y-4 p-3 pb-20 sm:p-6 md:pb-6"
         aria-busy={Object.values(itemStates).some((s) => s === "processing")}
       >
         {/* Stats */}
