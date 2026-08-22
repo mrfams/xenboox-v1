@@ -237,21 +237,23 @@ function ProactiveBriefing() {
   const [isLoadingBriefing, setIsLoadingBriefing] = useState(true);
 
   // Fetch AI briefing
-  const { data: aiBriefing } = trpc.dashboard.getAiBriefing.useQuery(
+  const { data: aiBriefing, isError } = trpc.dashboard.getAiBriefing.useQuery(
     undefined,
     {
       enabled: !!entityId,
       staleTime: 5 * 60 * 1000, // 5 minutes
-      onSuccess: (data) => {
-        setBriefingText(data.text);
-        setBriefingActions(data.actions ?? []);
-        setIsLoadingBriefing(false);
-      },
-      onError: () => {
-        setIsLoadingBriefing(false);
-      },
     },
   );
+
+  useEffect(() => {
+    if (aiBriefing) {
+      setBriefingText(aiBriefing.text);
+      setBriefingActions(aiBriefing.actions ?? []);
+      setIsLoadingBriefing(false);
+    } else if (isError || (!entityId && !aiBriefing)) {
+      setIsLoadingBriefing(false);
+    }
+  }, [aiBriefing, isError, entityId]);
 
   // Loading state
   if (isLoadingBriefing) {
