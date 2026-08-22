@@ -25,11 +25,12 @@ export const getAiBriefing = rlsProtectedProcedure.query(async ({ ctx }) => {
     // Redis unavailable — proceed without cache
   }
 
-  // Gather financial context
-  const { dashboardRouter } = await import("./index");
-  const dashboardData = await (dashboardRouter as any).getDashboardData.query({
+  // Gather financial context — import getDashboardData directly to avoid
+  // circular dependency through the barrel index.ts.
+  const { getDashboardData } = await import("./get-dashboard-data");
+  const dashboardData = await getDashboardData.query({
     ctx: { entityId, userId: ctx.userId },
-  });
+  } as any);
 
   const { businessHealth, pendingApprovalsCount, deadlines } = dashboardData;
   const { cashBalance, runwayMonths } = businessHealth;
