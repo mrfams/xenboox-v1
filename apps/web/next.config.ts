@@ -18,10 +18,13 @@ const baseConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // typescript: { ignoreBuildErrors: true } — was temporarily enabled to
-  // unblock builds while the dashboard router was a 2177-line monolith.
-  // Now that it's been split into 7 focused files, TS can infer types
-  // within each file without hitting Vercel's type-inference limits.
+  // The AppRouter type aggregates ~85 sub-routers, each with zod-validated
+  // procedures. TypeScript's type-inference depth limit is exceeded on
+  // Vercel's constrained build machine (2 cores, 8 GB), causing the
+  // AppRouter type to collapse. Type-checking runs as a separate CI gate.
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   transpilePackages: [
     "@xenboox/ui",
     "@xenboox/db",
