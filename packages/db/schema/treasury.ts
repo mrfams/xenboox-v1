@@ -123,6 +123,13 @@ export const bankTransactions = pgTable(
       () => journalEntries.id,
     ),
     source: text("source").default("manual"),
+    category: text("category").default("Uncategorized"),
+    glAccountId: uuid("gl_account_id").references(() => chartOfAccounts.id),
+    categorizationConfidence: numeric("categorization_confidence", {
+      precision: 3,
+      scale: 2,
+    }),
+    categorizedBy: text("categorized_by"), // "ai" | "rule" | "manual"
     metadata: jsonb("metadata").default({}).$type<Record<string, unknown>>(),
     ...timestamps,
   },

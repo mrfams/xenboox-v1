@@ -397,13 +397,10 @@ function RecentTransactions({
                     </p>
                     <p className="text-[10px] text-muted-foreground">
                       {tx.date
-                        ? new Date(tx.date).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "short",
-                              day: "numeric",
-                            },
-                          )
+                        ? new Date(tx.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })
                         : ""}
                       {!tx.isReconciled && (
                         <span className="ml-1.5 text-amber-500 font-medium">
@@ -757,6 +754,20 @@ export default function OperationsPage() {
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {pendingBills} pending
+                  </span>
+                </Link>
+                <Link
+                  href="/dashboard/operations/banking"
+                  className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
+                >
+                  <div className="flex items-center gap-2">
+                    <Landmark className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-xs text-foreground group-hover:text-primary transition-colors">
+                      Banking & Feeds
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    AI-categorized
                   </span>
                 </Link>
                 <button

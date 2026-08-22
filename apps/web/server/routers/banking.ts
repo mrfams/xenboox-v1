@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   eq,
   and,
+  or,
   asc,
   desc,
   sql,
@@ -799,6 +800,225 @@ export const bankingRouter = router({
         return { success: true };
       } catch (error) {
         handleMutationError(error, "Failed to delete bank rule");
+      }
+    }),
+
+  /**
+   * Update a transaction's category (inline override).
+   * Sets categorizedBy to 'manual' so the AI learns from this override.
+   */
+  updateTransactionCategory: rlsMutateProcedure
+    .input(
+      z.object({
+        transactionId: z.string().uuid(),
+        category: z.string().min(1),
+        glAccountId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const existing = await db.query.bankTransactions.findFirst({
+          where: and(
+            eq(bankTransactions.id, input.transactionId),
+            eq(bankTransactions.entityId, ctx.entityId!),
+          ),
+        });
+        if (!existing) {
+          throw new Error("Transaction not found");
+        }
+
+        await db
+          .update(bankTransactions)
+          .set({
+            category: input.category,
+            glAccountId: input.glAccountId ?? existing.glAccountId,
+            categorizedBy: "manual",
+            categorizationConfidence: 1.0,
+          })
+          .where(eq(bankTransactions.id, input.transactionId));
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "banking.updateCategory",
+          entityType: "bank_transaction",
+          entityIdRef: input.transactionId,
+          oldValues: {
+            category: existing.category,
+            categorizedBy: existing.categorizedBy,
+          },
+          newValues: {
+            category: input.category,
+            categorizedBy: "manual",
+          },
+        });
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to update category");
+      }
+    }),
+
+  /**
+   * Auto-categorize all uncategorized transactions using rules + AI heuristics.
+   * Returns count of newly categorized transactions.
+   */
+  autoCategorize: rlsMutateProcedure
+    .input(z.object({ accountId: z.string().uuid().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId!;
+
+        // Get active rules sorted by priority
+        const rules = await db.query.bankRules.findMany({
+          where: and(
+            eq(bankRules.entityId, entityId),
+            eq(bankRules.isActive, true),
+          ),
+          orderBy: [asc(bankRules.priority)],
+        });
+
+        // Get uncategorized transactions
+        const conditions = [
+          eq(bankTransactions.entityId, entityId),
+          or(
+            sql`${bankTransactions.category} IS NULL`,
+            eq(bankTransactions.category, "Uncategorized"),
+          ),
+        ];
+        if (input.accountId) {
+          conditions.push(eq(bankTransactions.bankAccountId, input.accountId));
+        }
+
+        const uncategorized = await db.query.bankTransactions.findMany({
+          where: and(...conditions),
+          limit: 100,
+        });
+
+        let categorizedCount = 0;
+
+        for (const tx of uncategorized) {
+          let matchedCategory: string | null = null;
+          let matchedGlAccountId: string | null = null;
+          let matchedBy: string = "ai";
+          let confidence: number = 0.7;
+
+          // Try rules first
+          for (const rule of rules) {
+            const desc = tx.description.toLowerCase();
+            const matchVal = rule.matchValue.toLowerCase();
+            let matches = false;
+
+            switch (rule.matchType) {
+              case "contains":
+                matches = desc.includes(matchVal);
+                break;
+              case "starts_with":
+                matches = desc.startsWith(matchVal);
+                break;
+              case "exact":
+                matches = desc === matchVal;
+                break;
+              case "regex":
+                try {
+                  matches = new RegExp(rule.matchValue, "i").test(desc);
+                } catch {
+                  matches = false;
+                }
+                break;
+            }
+
+            if (matches) {
+              matchedCategory = rule.category;
+              matchedGlAccountId = rule.glAccountId;
+              matchedBy = "rule";
+              confidence = 0.95;
+              break;
+            }
+          }
+
+          // AI keyword heuristics fallback
+          if (!matchedCategory) {
+            const desc = tx.description.toLowerCase();
+            if (
+              desc.includes("stripe") ||
+              desc.includes("fee") ||
+              desc.includes("charge")
+            ) {
+              matchedCategory = "Bank Fees";
+              confidence = 0.8;
+            } else if (
+              desc.includes("salary") ||
+              desc.includes("payroll") ||
+              desc.includes("wage")
+            ) {
+              matchedCategory = "Payroll";
+              confidence = 0.85;
+            } else if (desc.includes("rent") || desc.includes("lease")) {
+              matchedCategory = "Rent & Lease";
+              confidence = 0.8;
+            } else if (
+              desc.includes("electric") ||
+              desc.includes("water") ||
+              desc.includes("internet") ||
+              desc.includes("utility")
+            ) {
+              matchedCategory = "Utilities";
+              confidence = 0.8;
+            } else if (
+              desc.includes("uber") ||
+              desc.includes("lyft") ||
+              desc.includes("taxi") ||
+              desc.includes("fuel")
+            ) {
+              matchedCategory = "Travel & Transport";
+              confidence = 0.75;
+            } else if (
+              desc.includes("restaurant") ||
+              desc.includes("food") ||
+              desc.includes("meal") ||
+              desc.includes("coffee")
+            ) {
+              matchedCategory = "Meals & Entertainment";
+              confidence = 0.75;
+            } else if (
+              desc.includes("software") ||
+              desc.includes("saas") ||
+              desc.includes("subscription")
+            ) {
+              matchedCategory = "Software & Subscriptions";
+              confidence = 0.75;
+            } else if (
+              desc.includes("marketing") ||
+              desc.includes("ad ") ||
+              desc.includes("facebook ads") ||
+              desc.includes("google ads")
+            ) {
+              matchedCategory = "Marketing";
+              confidence = 0.7;
+            } else if (tx.amount > 0) {
+              matchedCategory = "Revenue";
+              confidence = 0.6;
+            }
+          }
+
+          if (matchedCategory) {
+            await db
+              .update(bankTransactions)
+              .set({
+                category: matchedCategory,
+                glAccountId: matchedGlAccountId ?? undefined,
+                categorizedBy: matchedBy,
+                categorizationConfidence: confidence.toString(),
+              })
+              .where(eq(bankTransactions.id, tx.id));
+            categorizedCount++;
+          }
+        }
+
+        return { categorizedCount, totalProcessed: uncategorized.length };
+      } catch (error) {
+        handleMutationError(error, "Failed to auto-categorize");
       }
     }),
 });
