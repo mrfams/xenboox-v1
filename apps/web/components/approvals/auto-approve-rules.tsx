@@ -148,7 +148,7 @@ export function AutoApproveRules() {
 
       {activeTab === "log" && (
         <AuditLog
-          logs={logData?.logs ?? []}
+          logs={(logData?.logs ?? []) as any}
           isLoading={isLogLoading}
           currency={entityCurrency ?? ""}
         />
