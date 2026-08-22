@@ -81,7 +81,7 @@ type ChartTooltipProps = TooltipProps<number, string> & {
   }>;
   label?: string;
   currency?: string;
-  formatter?: (value: number) => string;
+  formatter?: (value: number | undefined) => string;
 };
 
 function ChartTooltip({
@@ -307,7 +307,7 @@ export function ExpenseBreakdownChart({
               content={
                 <ChartTooltip
                   currency={currency}
-                  formatter={(v) => `${currency} ${v.toLocaleString()}`}
+                  formatter={(v) => `${currency} ${(v ?? 0).toLocaleString()}`}
                 />
               }
             />
@@ -439,7 +439,7 @@ export function MarginTrendChart({
               domain={[0, "auto"]}
             />
             <Tooltip
-              content={<ChartTooltip formatter={(v) => `${v.toFixed(1)}%`} />}
+              content={<ChartTooltip formatter={(v) => `${(v ?? 0).toFixed(1)}%`} />}
             />
             {filteredData[0]?.target !== undefined && (
               <Line
