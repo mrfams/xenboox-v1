@@ -37,7 +37,7 @@ const handler = (req: Request) =>
         headers: Object.fromEntries(req.headers.entries()),
       };
     },
-    onError: ({ error, path }: { error: Error; path?: string }) => {
+    onError: ({ error, path }) => {
       if (error instanceof TRPCError) {
         log.warn({ code: error.code, path }, error.message);
       } else {

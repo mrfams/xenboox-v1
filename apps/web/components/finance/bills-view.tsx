@@ -30,6 +30,7 @@ import {
   Eye,
   Loader2,
   TrendingDown,
+  FileText,
 } from "lucide-react";
 import { cn } from "@xenboox/ui";
 import { formatCurrency } from "@/lib/utils";

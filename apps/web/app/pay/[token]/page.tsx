@@ -96,9 +96,13 @@ export default function PayPage() {
 
     const data = resolveToken.data;
     if (!data.found) {
-      if (data.reason === "expired") setStatus("expired");
-      else if (data.reason === "paid") setStatus("paid");
-      else setStatus("not-found");
+      if ("reason" in data) {
+        if (data.reason === "expired") setStatus("expired");
+        else if (data.reason === "paid") setStatus("paid");
+        else setStatus("not-found");
+      } else {
+        setStatus("not-found");
+      }
       return;
     }
 

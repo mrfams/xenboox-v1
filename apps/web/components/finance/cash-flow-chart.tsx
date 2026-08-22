@@ -229,7 +229,7 @@ export function CashFlowChart({
                     : name === "outgoing"
                       ? "Outgoing"
                       : "Balance",
-                ]}
+                ] as [string, string]}
               />
               <Legend
                 wrapperStyle={{ fontSize: "11px" }}
