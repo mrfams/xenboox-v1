@@ -75,7 +75,7 @@ const SURFACE_QUERY_MAP: Record<Surface, string[][]> = {
 };
 
 interface UseSurfaceSyncOptions {
-  entityId: string;
+  entityId: string | null | undefined;
   surfaces?: Surface[];
   enabled?: boolean;
 }
