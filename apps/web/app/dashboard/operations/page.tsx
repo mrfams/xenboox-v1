@@ -396,8 +396,8 @@ function RecentTransactions({
                       {tx.description ?? tx.reference ?? "Transaction"}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {tx.transactionDate
-                        ? new Date(tx.transactionDate).toLocaleDateString(
+                      {tx.date
+                        ? new Date(tx.date).toLocaleDateString(
                             "en-US",
                             {
                               month: "short",
