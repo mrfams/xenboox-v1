@@ -233,7 +233,7 @@ function BatchHistoryCard({
 }: {
   batch: {
     batchId: string;
-    createdAt: Date;
+    createdAt: string | Date;
     progress?: {
       status: string;
       totalDocuments: number;
@@ -259,8 +259,8 @@ function BatchHistoryCard({
               Batch {batch.batchId.slice(0, 8)}...
             </p>
             <p className="text-xs text-muted-foreground">
-              {batch.createdAt.toLocaleDateString()}{" "}
-              {batch.createdAt.toLocaleTimeString()}
+              {new Date(batch.createdAt).toLocaleDateString()}{" "}
+              {new Date(batch.createdAt).toLocaleTimeString()}
             </p>
           </div>
         </div>
