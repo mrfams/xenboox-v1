@@ -1084,7 +1084,7 @@ export default function FinancialPulsePage() {
               revenue: v,
               prior: expenseSparkline[i] ? undefined : undefined,
             }))}
-            currency={entity.currency || "GMD"}
+            currency={entity?.currency || "GMD"}
             onAskAi={() =>
               askAiAbout(
                 "Explain my revenue trend. What's driving the changes?",
@@ -1097,7 +1097,7 @@ export default function FinancialPulsePage() {
               incoming: v,
               outgoing: expenseSparkline[i] ?? 0,
             }))}
-            currency={entity.currency || "GMD"}
+            currency={entity?.currency || "GMD"}
             onAskAi={() =>
               askAiAbout(
                 "Analyze my cash flow. Am I spending more than I'm earning?",
@@ -1124,7 +1124,7 @@ export default function FinancialPulsePage() {
           />
           <ExpenseBreakdownChart
             data={expenseBreakdownData}
-            currency={entity.currency || "GMD"}
+            currency={entity?.currency || "GMD"}
             onAskAi={() =>
               askAiAbout(
                 "Break down my expenses. What's the biggest cost driver?",
@@ -1181,8 +1181,8 @@ export default function FinancialPulsePage() {
               const reportData =
                 report.id === "pnl" && pnlData
                   ? buildPnlReport({
-                      entityName: entity.name || "Your Business",
-                      currency: entity.currency || "GMD",
+                      entityName: entity?.name || "Your Business",
+                      currency: entity?.currency || "GMD",
                       period: new Date().toLocaleDateString("en-US", {
                         month: "long",
                         year: "numeric",
@@ -1211,8 +1211,8 @@ export default function FinancialPulsePage() {
                     })
                   : report.id === "cash-flow"
                     ? buildCashFlowReport({
-                        entityName: entity.name || "Your Business",
-                        currency: entity.currency || "GMD",
+                        entityName: entity?.name || "Your Business",
+                        currency: entity?.currency || "GMD",
                         period: new Date().toLocaleDateString("en-US", {
                           month: "long",
                           year: "numeric",
@@ -1233,8 +1233,8 @@ export default function FinancialPulsePage() {
                       })
                     : {
                         title: report.label,
-                        entityName: entity.name || "Your Business",
-                        currency: entity.currency || "GMD",
+                        entityName: entity?.name || "Your Business",
+                        currency: entity?.currency || "GMD",
                         generatedAt: new Date(),
                         sections: [],
                       };
