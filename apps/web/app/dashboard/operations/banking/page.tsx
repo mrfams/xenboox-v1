@@ -27,6 +27,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { TransactionRow } from "@/components/banking/transaction-row";
 import { BankConnectionCard } from "@/components/banking/bank-connection-card";
+import { BankConnectionDialog } from "@/components/banking/bank-connection-dialog";
 import { BankRulesManager } from "@/components/banking/bank-rules-manager";
 
 // ─── Banking Page ──────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ export default function BankingPage() {
   const [accountFilter, setAccountFilter] = useState<string | undefined>(
     undefined,
   );
+  const [showConnectionDialog, setShowConnectionDialog] = useState(false);
 
   const tabs: { id: Tab; label: string; icon: typeof Landmark }[] = [
     { id: "transactions", label: "Transactions", icon: ArrowUpRight },
@@ -98,11 +100,23 @@ export default function BankingPage() {
             setStatusFilter={setStatusFilter}
             accountFilter={accountFilter}
             setAccountFilter={setAccountFilter}
+            onConnect={() => setShowConnectionDialog(true)}
           />
         )}
-        {activeTab === "connections" && <ConnectionsTab entityId={entityId} />}
+        {activeTab === "connections" && (
+          <ConnectionsTab
+            entityId={entityId}
+            onConnect={() => setShowConnectionDialog(true)}
+          />
+        )}
         {activeTab === "rules" && <RulesTab entityId={entityId} />}
       </div>
+
+      {/* Bank Connection Dialog */}
+      <BankConnectionDialog
+        open={showConnectionDialog}
+        onClose={() => setShowConnectionDialog(false)}
+      />
     </ModulePageShell>
   );
 }
@@ -117,6 +131,7 @@ function TransactionsTab({
   setStatusFilter,
   accountFilter,
   setAccountFilter,
+  onConnect,
 }: {
   entityId: string;
   searchQuery: string;
@@ -125,6 +140,7 @@ function TransactionsTab({
   setStatusFilter: (s: "all" | "reconciled" | "unreconciled") => void;
   accountFilter: string | undefined;
   setAccountFilter: (a: string | undefined) => void;
+  onConnect: () => void;
 }) {
   const [page, setPage] = useState(0);
   const limit = 50;
@@ -267,7 +283,10 @@ function TransactionsTab({
               : "Connect a bank account to get started"}
           </p>
           {!hasConnections && (
-            <button className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-4 py-2 text-xs font-medium text-primary hover:bg-primary/15 transition-colors">
+            <button
+              onClick={onConnect}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-4 py-2 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+            >
               <Link2 className="h-3.5 w-3.5" />
               Connect Bank Account
             </button>
@@ -311,11 +330,11 @@ function TransactionsTab({
   );
 }
 
-// ─── Connections Tab ───────────────────────────────────────────────────────
-
-function ConnectionsTab({ entityId }: { entityId: string }) {
-  const { data: connections, isLoading } =
-    trpc.banking.listConnections.useQuery(undefined, { enabled: !!entityId });
+// ─── Connections Tab ───────────────────────────────────────────────────────function ConnectionsTab({ entityId, onConnect }: { entityId: string; onConnect: () => void }) {
+  const { data: connections, isLoading } = trpc.banking.listConnections.useQuery(
+    undefined,
+    { enabled: !!entityId }
+  );
 
   return (
     <div className="space-y-3">
@@ -323,7 +342,10 @@ function ConnectionsTab({ entityId }: { entityId: string }) {
         <p className="text-xs text-muted-foreground">
           {connections?.length ?? 0} connected accounts
         </p>
-        <button className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors">
+        <button
+          onClick={onConnect}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+        >
           <Plus className="h-3.5 w-3.5" />
           Connect Account
         </button>
@@ -348,7 +370,10 @@ function ConnectionsTab({ entityId }: { entityId: string }) {
             Connect your bank to automatically import and categorize
             transactions
           </p>
-          <button className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-4 py-2 text-xs font-medium text-primary hover:bg-primary/15 transition-colors">
+          <button
+            onClick={onConnect}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-4 py-2 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+          >
             <Sparkles className="h-3.5 w-3.5" />
             Connect with AI
           </button>
