@@ -476,7 +476,7 @@ function JournalView() {
       {/* Create Entry Button */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {journalData?.total ?? 0} entries total
+          {journalData?.totalCount ?? 0} entries total
         </p>
         <button
           type="button"
