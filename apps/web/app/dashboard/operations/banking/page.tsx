@@ -330,11 +330,17 @@ function TransactionsTab({
   );
 }
 
-// ─── Connections Tab ───────────────────────────────────────────────────────function ConnectionsTab({ entityId, onConnect }: { entityId: string; onConnect: () => void }) {
-  const { data: connections, isLoading } = trpc.banking.listConnections.useQuery(
-    undefined,
-    { enabled: !!entityId }
-  );
+// ─── Connections Tab ───────────────────────────────────────────────────────
+
+function ConnectionsTab({
+  entityId,
+  onConnect,
+}: {
+  entityId: string;
+  onConnect: () => void;
+}) {
+  const { data: connections, isLoading } =
+    trpc.banking.listConnections.useQuery(undefined, { enabled: !!entityId });
 
   return (
     <div className="space-y-3">
