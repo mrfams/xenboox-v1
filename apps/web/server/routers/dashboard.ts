@@ -18,6 +18,8 @@ import {
   invoicesAp,
   salesInvoices,
   journalEntries,
+  journalEntryLines,
+  chartOfAccounts,
   documents,
   documentViews,
   conversations,
@@ -31,6 +33,7 @@ import {
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { formatCurrency } from "@/lib/utils";
 import {
   buildRunwayBriefing,
   computeRunwayMonths,
@@ -50,6 +53,21 @@ const filingTypeLabels: Record<string, string> = {
   corporate_tax: "Corporate Tax Due",
   social_security: "SSNIT Due",
 };
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 // Fills the trailing N-month window (index 0 = N months back, last = current)
 // from a single GROUP BY-month query — the replacement for the old
@@ -1117,20 +1135,6 @@ export const dashboardRouter = router({
   getDashboardSuggestions: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const now = new Date();
-    const MONTH_NAMES = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
     const currentMonth = MONTH_NAMES[now.getMonth()];
 
     const suggestions: Array<{
