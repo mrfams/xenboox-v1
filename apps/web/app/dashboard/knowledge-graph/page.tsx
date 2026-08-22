@@ -62,7 +62,7 @@ const NODE_ICONS: Record<
 };
 
 export default function KnowledgeGraphPage() {
-  const { entityId, currency } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
 
@@ -189,7 +189,7 @@ export default function KnowledgeGraphPage() {
                 isLoading={isRelationshipsLoading}
                 onAskAbout={askAboutNode}
                 onClose={() => setSelectedNode(null)}
-                currency={currency}
+                currency={entityCurrency ?? ""}
               />
             ) : (
               <div className="rounded-xl border border-border/50 bg-card p-6">

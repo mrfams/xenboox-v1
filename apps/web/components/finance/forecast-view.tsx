@@ -26,7 +26,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 type ForecastTab = "overview" | "revenue" | "expenses" | "cashflow";
 
 export function ForecastView() {
-  const { entityId, currency } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const [activeTab, setActiveTab] = useState<ForecastTab>("overview");
 
   const { data: forecast, isLoading } = trpc.dashboard.getAiForecast.useQuery(
@@ -230,13 +230,13 @@ export function ForecastView() {
           label="Revenue Trend"
           value={trends.revenueTrend}
           avg={trends.avgRevenue}
-          currency={currency}
+          currency={entityCurrency ?? ""}
         />
         <TrendCard
           label="Expense Trend"
           value={trends.expenseTrend}
           avg={trends.avgExpenses}
-          currency={currency}
+          currency={entityCurrency ?? ""}
           invertColors
         />
         <div className="rounded-xl border border-border/50 bg-card p-3">

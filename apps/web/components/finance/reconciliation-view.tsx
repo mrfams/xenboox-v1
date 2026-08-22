@@ -29,7 +29,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 type ReconTab = "unmatched" | "ai-matches" | "history";
 
 export function ReconciliationView() {
-  const { entityId, currency } = useEntity();
+  const { entityId } = useEntity();
   const [activeTab, setActiveTab] = useState<ReconTab>("unmatched");
   const [selectedBankAccountId, setSelectedBankAccountId] = useState<
     string | undefined

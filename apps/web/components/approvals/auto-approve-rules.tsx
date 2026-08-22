@@ -31,7 +31,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 type RuleTab = "rules" | "log" | "stats";
 
 export function AutoApproveRules() {
-  const { entityId, currency } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const [activeTab, setActiveTab] = useState<RuleTab>("rules");
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -142,7 +142,7 @@ export function AutoApproveRules() {
           rules={rules ?? []}
           isLoading={isLoading}
           onRefresh={refetchRules}
-          currency={currency}
+          currency={entityCurrency ?? ""}
         />
       )}
 
@@ -150,11 +150,11 @@ export function AutoApproveRules() {
         <AuditLog
           logs={logData?.logs ?? []}
           isLoading={isLogLoading}
-          currency={currency}
+          currency={entityCurrency ?? ""}
         />
       )}
 
-      {activeTab === "stats" && <StatsView stats={stats} currency={currency} />}
+      {activeTab === "stats" && <StatsView stats={stats} currency={entityCurrency ?? ""} />}
 
       {/* Create modal */}
       {showCreateModal && (
@@ -164,7 +164,7 @@ export function AutoApproveRules() {
             setShowCreateModal(false);
             refetchRules();
           }}
-          currency={currency}
+          currency={entityCurrency ?? ""}
         />
       )}
     </div>

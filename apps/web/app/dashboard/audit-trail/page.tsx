@@ -20,6 +20,9 @@ import {
   XCircle,
   AlertTriangle,
   Eye,
+  BookOpen,
+  Users,
+  RefreshCw,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -114,8 +117,6 @@ const ACTION_CATEGORIES: Record<string, ActionCategory> = {
     surface: "Operations",
   },
 };
-
-import { BookOpen, Users, RefreshCw } from "lucide-react";
 
 function getCategoryForAction(action: string): ActionCategory {
   for (const [prefix, category] of Object.entries(ACTION_CATEGORIES)) {

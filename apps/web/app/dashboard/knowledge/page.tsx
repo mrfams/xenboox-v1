@@ -187,7 +187,7 @@ export default function KnowledgeBasePage() {
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {citation.createdAt?.toLocaleDateString()}
+                          {citation.createdAt ? new Date(citation.createdAt).toLocaleDateString() : "—"}
                         </div>
                       </div>
                     </div>

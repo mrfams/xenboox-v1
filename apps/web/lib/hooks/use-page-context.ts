@@ -59,7 +59,7 @@ const SURFACE_CONFIG: Record<
 
 export function usePageContext(): PageContextPayload | undefined {
   const pathname = usePathname();
-  const { entityId, entityName, currency } = useEntity();
+  const { entityId } = useEntity();
 
   return useMemo(() => {
     if (!pathname) return undefined;

@@ -1181,6 +1181,7 @@ function AiInput({
   onFilesUploaded: (files: UploadedFile[]) => void;
   onClearFiles: () => void;
 }) {
+  const pageContext = usePageContext();
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
