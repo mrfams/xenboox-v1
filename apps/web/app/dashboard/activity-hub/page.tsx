@@ -70,7 +70,7 @@ type ActivityItemData = {
   confidence?: number;
   amount?: string;
   sourceDoc?: string;
-  createdAt?: string;
+  createdAt?: string | Date;
   recommendation?: string;
   metadata?: Record<string, unknown>;
   detail?: Record<string, unknown>;
@@ -84,7 +84,7 @@ type ActivityItemData = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function timeAgo(dateStr: string | undefined): string {
+function timeAgo(dateStr: string | Date | undefined): string {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);

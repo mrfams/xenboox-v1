@@ -183,10 +183,10 @@ function BankingCards() {
           <h3 className="text-sm font-semibold text-foreground">
             Banking & Cash
           </h3>
-          {bankData?.unreconciledCount !== undefined &&
-            bankData.unreconciledCount > 0 && (
+          {bankData?.summary?.unreconciledAccounts != null &&
+            bankData.summary.unreconciledAccounts > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-500">
-                {bankData.unreconciledCount} unreconciled
+                {bankData.summary.unreconciledAccounts} unreconciled
               </span>
             )}
         </div>
@@ -200,12 +200,12 @@ function BankingCards() {
                 fields: [
                   {
                     label: "Total Balance",
-                    value: formatCurrency(bankData?.totalBalance ?? 0),
+                    value: formatCurrency(bankData?.summary?.totalBalance ?? 0),
                   },
                   { label: "Accounts", value: String(accounts.length) },
                   {
                     label: "Unreconciled",
-                    value: String(bankData?.unreconciledCount ?? 0),
+                    value: String(bankData?.summary?.unreconciledAccounts ?? 0),
                   },
                 ],
               },
