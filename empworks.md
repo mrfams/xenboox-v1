@@ -15,7 +15,7 @@
 
 | #   | Finding                                                            | Severity | Fix                                             | Status |
 | --- | ------------------------------------------------------------------ | -------- | ----------------------------------------------- | ------ |
-| 1   | Blog posts still short (1,000-1,200 words)                         | HIGH     | Expand to 1,500-3,000 words for SEO             | ⬜     |
+| 1   | ~~Blog posts still short~~ ✅                                      | HIGH     | All 6 posts are 10-14 min reads (1,500-2,800w)  | ✅     |
 | 2   | Pricing missing trust signals ("No credit card", "Cancel anytime") | HIGH     | Add trust badges and guarantee                  | ✅     |
 | 3   | About page is generic — no real people                             | HIGH     | Add founder story, team photos, Gambian context | ✅     |
 | 4   | Blog post missing author card and related posts                    | MEDIUM   | Add author card + "You might also like" section | ⬜     |
@@ -100,7 +100,7 @@
 | 1   | ~~Missing idempotency key on payment creation~~ ✅ | HIGH     | Client-generated idempotency key (already in rlsMutateProcedure) | ✅     |
 | 2   | N+1 query pattern in `banking.ts` autoCategorize   | MEDIUM   | Batch `db.update()` calls                                        | ⬜     |
 | 3   | Error swallowing on PDF download                   | MEDIUM   | Replace silent `catch {}` with `logger.error()`                  | ⬜     |
-| 4   | Blog posts below 1,500 words                       | LOW      | Expand content                                                   | ⬜     |
+| 4   | ~~Blog posts below 1,500 words~~ ✅                | LOW      | All posts already 1,500+ words                                   | ✅     |
 | 5   | No timeout on bank-feed-sync cron job              | MEDIUM   | Add 30s AbortController timeout                                  | ⬜     |
 | 6   | Clipboard write missing error handling             | LOW      | Add try/catch fallback                                           | ⬜     |
 
@@ -112,7 +112,7 @@
 | --- | --------------------------------------------- | -------- | ------------------------------------------------- | ------ |
 | 1   | ~~No JSON-LD structured data on any page~~ ✅ | HIGH     | Organization, Product, Article, FAQ, Breadcrumb   | ✅     |
 | 2   | Pricing missing trust signals                 | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
-| 3   | Blog posts below 1,500 words                  | MEDIUM   | Expand content                                    | ⬜     |
+| 3   | ~~Blog posts below 1,500 words~~ ✅           | MEDIUM   | All posts already 1,500+ words                    | ✅     |
 | 4   | No author bios on blog                        | MEDIUM   | Add author card                                   | ⬜     |
 | 5   | No social share buttons on blog               | MEDIUM   | Add share bar                                     | ⬜     |
 | 6   | No "Most Popular" badge on pricing            | MEDIUM   | Highlight recommended tier                        | ⬜     |
@@ -377,7 +377,7 @@
 | --- | ---------------------------------------------- | ----------------------------- |
 | 1   | ~~Pricing missing trust signals~~ ✅           | #1, #2, #4, #5, #8, #9        |
 | 2   | ~~About page is generic~~ ✅                   | #1, #2, #4, #14               |
-| 3   | Blog posts below 1,500 words                   | #1, #2, #4, #7, #8            |
+| 3   | ~~Blog posts below 1,500 words~~ ✅            | #1, #2, #4, #7, #8            |
 | 4   | ~~No JSON-LD structured data~~ ✅              | #8 Marketing Critic           |
 | 5   | No demo video                                  | #9 Sales Rep                  |
 | 6   | ~~15+ icon buttons missing aria-label~~ ✅     | #5 Design Critic              |
