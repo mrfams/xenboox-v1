@@ -76,3 +76,4 @@ export * from "./conflict-resolution-history";
 export * from "./recurring";
 export * from "./payment-links";
 export * from "./ai-corrections";
+export * from "./daily-close";

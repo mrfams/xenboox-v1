@@ -37,6 +37,7 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import { ConfidenceBadge } from "@/components/shared/ai-native";
 import { ActorBadge } from "@/components/shared/ai-native";
 import { InlineActions } from "@/components/shared/ai-native";
+import { PageEmptyState } from "@/components/shared/page-empty-state";
 import { emitDataChanged } from "@/lib/hooks/use-surface-sync";
 
 // ─── Activity Hub ─────────────────────────────────────────────────────────
@@ -152,6 +153,7 @@ function ActivityItemCard({
   isSelected,
   onToggleSelect,
   canSelect,
+  onSnooze,
 }: {
   item: ActivityItemData;
   itemState?: ItemState;
@@ -165,6 +167,7 @@ function ActivityItemCard({
   isSelected?: boolean;
   onToggleSelect?: (itemId: string) => void;
   canSelect?: boolean;
+  onSnooze?: (item: ActivityItemData) => void;
 }) {
   const [note, setNote] = useState("");
   const [showNote, setShowNote] = useState(false);
@@ -415,11 +418,7 @@ function ActivityItemCard({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    toast.info("Snoozed for 1 hour", {
-                      description: "This item will reappear in your queue.",
-                    });
-                  }}
+                  onClick={() => onSnooze?.(item)}
                   className="rounded-lg px-2 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
                   aria-label="Snooze for 1 hour"
                 >
@@ -598,7 +597,7 @@ function ItemDetailDrawer({
                   {Math.round(item.confidence * 100)}%
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-white/50">
+              <div className="h-2 w-full rounded-full bg-muted/40">
                 <div
                   className={cn(
                     "h-full rounded-full transition-all",
@@ -783,32 +782,62 @@ export default function ActivityHubPage() {
   // ── Selection state ─────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
+  const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
+
+  // ── Snooze state ────────────────────────────────────────────────────────
+  // id → timestamp when the item should reappear
+  const [snoozedItems, setSnoozedItems] = useState<
+    Record<string, { item: ActivityItemData; restoreAt: number }>
+  >({});
 
   // Fetch real data — refetchInterval provides polling fallback if SSE drops
-  const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
+  const {
+    data: ingestionStats,
+    isError: ingestionError,
+    refetch: refetchIngestion,
+  } = trpc.ingestion.getStats.useQuery(undefined, {
     enabled: !!entityId,
     refetchInterval: 30_000, // 30s polling fallback (degraded mode per §16.2)
   });
-  const { data: agentApprovals, refetch: refetchApprovals } =
-    trpc.ingestion.listAgentApprovals.useQuery(
-      { limit: 50 },
-      {
-        enabled: !!entityId,
-        refetchInterval: 15_000, // 15s polling fallback — approvals are time-sensitive
-      },
-    );
-  const { data: notifications } = trpc.notifications.list.useQuery(
+  const {
+    data: agentApprovals,
+    isError: approvalsError,
+    refetch: refetchApprovals,
+  } = trpc.ingestion.listAgentApprovals.useQuery(
+    { limit: 50 },
+    {
+      enabled: !!entityId,
+      refetchInterval: 15_000, // 15s polling fallback — approvals are time-sensitive
+    },
+  );
+  const {
+    data: notifications,
+    isError: notificationsError,
+    refetch: refetchNotifications,
+  } = trpc.notifications.list.useQuery(
     { limit: 20, onlyUnread: false },
     { enabled: !!entityId, refetchInterval: 30_000 },
   );
-  const { data: agentAlerts, refetch: refetchAlerts } =
-    trpc.notifications.listAgentAlerts.useQuery(
-      { limit: 20, unreadOnly: false },
-      {
-        enabled: !!entityId,
-        refetchInterval: 15_000, // Alerts are time-sensitive
-      },
-    );
+  const {
+    data: agentAlerts,
+    isError: alertsError,
+    refetch: refetchAlerts,
+  } = trpc.notifications.listAgentAlerts.useQuery(
+    { limit: 20, unreadOnly: false },
+    {
+      enabled: !!entityId,
+      refetchInterval: 15_000, // Alerts are time-sensitive
+    },
+  );
+
+  // Daily close exceptions
+  const { data: dailyCloseExceptions } = trpc.dailyClose.getExceptions.useQuery(
+    undefined,
+    {
+      enabled: !!entityId,
+      refetchInterval: 30_000,
+    },
+  );
 
   // ── Mutations ───────────────────────────────────────────────────────────
   const resolveApproval = trpc.approvals.resolve.useMutation({
@@ -869,6 +898,55 @@ export default function ActivityHubPage() {
     },
     [refetchApprovals],
   );
+
+  // ── Snooze handler ──────────────────────────────────────────────────────
+  // Real client-side snooze: hides the item and restores it after a delay.
+  const handleSnooze = useCallback(
+    (item: ActivityItemData, durationMs: number = 3600_000) => {
+      const restoreAt = Date.now() + durationMs;
+      setSnoozedItems((prev) => ({
+        ...prev,
+        [item.id]: { item, restoreAt },
+      }));
+
+      const minutes = Math.round(durationMs / 60000);
+      toast.info(`Snoozed for ${minutes} hour${minutes === 1 ? "" : "s"}`, {
+        description: "This item will reappear in your queue.",
+        action: {
+          label: "Restore now",
+          onClick: () => {
+            setSnoozedItems((prev) => {
+              const next = { ...prev };
+              delete next[item.id];
+              return next;
+            });
+          },
+        },
+        duration: durationMs,
+      });
+
+      // Auto-restore when the timer expires
+      setTimeout(() => {
+        setSnoozedItems((prev) => {
+          // Only remove if still snoozed (user may have restored manually)
+          if (!prev[item.id]) return prev;
+          const next = { ...prev };
+          delete next[item.id];
+          return next;
+        });
+      }, durationMs);
+    },
+    [],
+  );
+
+  // Restore a snoozed item immediately
+  const handleUnsnooze = useCallback((itemId: string) => {
+    setSnoozedItems((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  }, []);
 
   // Build activity items from real data
   const activityItems: ActivityItemData[] = [];
@@ -983,6 +1061,35 @@ export default function ActivityHubPage() {
     }
   }
 
+  // Add daily close exceptions as urgent items
+  if (dailyCloseExceptions && dailyCloseExceptions.length > 0) {
+    for (const run of dailyCloseExceptions) {
+      if (addedIds.has(`daily-close-${run.id}`)) continue;
+      addedIds.add(`daily-close-${run.id}`);
+      if (itemStates[`daily-close-${run.id}`] === "success") continue;
+      
+      const exceptions = (run.exceptions ?? []) as Array<{
+        type: string;
+        description: string;
+        agentId: string;
+        confidence: number;
+      }>;
+      
+      activityItems.push({
+        id: `daily-close-${run.id}`,
+        itemType: "notification",
+        type: "urgent",
+        title: `Daily close exception — ${run.closeDate}`,
+        description: exceptions.map((e) => e.description).join("; ") || "Exceptions detected during daily close",
+        agent: "Daily Close Pipeline",
+        actions: [
+          { label: "Review", variant: "review" },
+          { label: "Dismiss", variant: "default" },
+        ],
+      });
+    }
+  }
+
   // ── Real mutation handler ──────────────────────────────────────────────
   const handleAction = useCallback(
     async (
@@ -1023,7 +1130,11 @@ export default function ActivityHubPage() {
         const actionLabel = action === "approve" ? "Approved" : "Rejected";
         toast.success(actionLabel, {
           description: `Item has been ${actionLabel.toLowerCase()} successfully.${reason ? ` Note: "${reason}"` : ""}`,
-          duration: 3000,
+          duration: 6000,
+          action: {
+            label: "Undo",
+            onClick: () => undoBatchAction([itemId]),
+          },
         });
         announce(`${actionLabel} successfully`);
         if (entityId) {
@@ -1054,7 +1165,7 @@ export default function ActivityHubPage() {
         }, 3000);
       }
     },
-    [resolveApproval, approveIngestion, rejectIngestion, markNotificationRead],
+    [resolveApproval, approveIngestion, rejectIngestion, markNotificationRead, undoBatchAction],
   );
 
   // ── Batch approve/reject handler ────────────────────────────────────────
@@ -1145,12 +1256,12 @@ export default function ActivityHubPage() {
       )
         return;
       if ((document.activeElement as HTMLElement)?.isContentEditable) return;
-      // Ignore if confirm dialog is open
-      if (confirmRejectOpen) return;
+      // Ignore if either confirm dialog is open
+      if (confirmRejectOpen || confirmApproveOpen) return;
 
       if (e.key === "a") {
         e.preventDefault();
-        handleBatchAction("approve");
+        setConfirmApproveOpen(true);
       } else if (e.key === "r") {
         e.preventDefault();
         setConfirmRejectOpen(true);
@@ -1159,13 +1270,13 @@ export default function ActivityHubPage() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIds, confirmRejectOpen, handleBatchAction]);
+  }, [selectedIds, confirmRejectOpen, confirmApproveOpen, handleBatchAction]);
 
   // Sort by urgency: urgent > approval > review > info
   const typeOrder = { urgent: 0, approval: 1, review: 2, info: 3 };
-  const sorted = [...activityItems].sort(
-    (a, b) => (typeOrder[a.type] ?? 4) - (typeOrder[b.type] ?? 4),
-  );
+  const sorted = [...activityItems]
+    .filter((item) => !snoozedItems[item.id]) // exclude snoozed items
+    .sort((a, b) => (typeOrder[a.type] ?? 4) - (typeOrder[b.type] ?? 4));
 
   // Filter items
   const filteredItems =

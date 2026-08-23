@@ -679,6 +679,95 @@ const REPORTS = [
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function FinancialPulsePage() {
+
+// ─── Daily Close Status Component ─────────────────────────────────────────
+function DailyCloseStatus() {
+  const { entityId } = useEntity();
+  const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]!);
+  
+  const { data: todayRun, isLoading: todayLoading } = trpc.dailyClose.getToday.useQuery(
+    undefined,
+    { refetchInterval: 30_000 } // Poll every 30s
+  );
+  
+  const { data: stats, isLoading: statsLoading } = trpc.dailyClose.getStats.useQuery();
+
+  if (todayLoading || statsLoading) {
+    return (
+      <div className="rounded-xl border bg-card p-4 animate-pulse">
+        <div className="h-4 bg-muted rounded w-48 mb-2" />
+        <div className="h-3 bg-muted rounded w-32" />
+      </div>
+    );
+  }
+
+  const statusColor = !todayRun
+    ? "text-muted-foreground"
+    : todayRun.status === "completed"
+      ? "text-emerald-500"
+      : todayRun.status === "exception"
+        ? "text-amber-500"
+        : todayRun.status === "failed"
+          ? "text-red-500"
+          : "text-blue-500";
+
+  const statusLabel = !todayRun
+    ? "Not yet run"
+    : todayRun.status === "completed"
+      ? "All clear"
+      : todayRun.status === "exception"
+        ? `${todayRun.exceptions?.length ?? 0} exception(s)`
+        : todayRun.status === "failed"
+          ? "Failed"
+          : "In progress";
+
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Bot className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Daily Close</span>
+        </div>
+        <span className={`text-xs font-medium ${statusColor}`}>
+          {statusLabel}
+        </span>
+      </div>
+      
+      <div className="grid grid-cols-4 gap-3 text-center">
+        <div>
+          <div className="text-lg font-bold">{stats?.completed ?? 0}</div>
+          <div className="text-[10px] text-muted-foreground">Clean days</div>
+        </div>
+        <div>
+          <div className="text-lg font-bold text-amber-500">{stats?.exceptions ?? 0}</div>
+          <div className="text-[10px] text-muted-foreground">Exceptions</div>
+        </div>
+        <div>
+          <div className="text-lg font-bold">{stats?.totalTransactions ?? 0}</div>
+          <div className="text-[10px] text-muted-foreground">Transactions</div>
+        </div>
+        <div>
+          <div className="text-lg font-bold text-emerald-500">
+            {stats ? Math.round(stats.autoMatchRate * 100) : 0}%
+          </div>
+          <div className="text-[10px] text-muted-foreground">Auto-matched</div>
+        </div>
+      </div>
+
+      {todayRun && todayRun.status === "exception" && todayRun.exceptions && (
+        <div className="mt-3 space-y-1">
+          {(todayRun.exceptions as any[]).slice(0, 3).map((ex: any, i: number) => (
+            <div key={i} className="flex items-center gap-2 text-xs text-amber-600">
+              <span>⚠️</span>
+              <span className="truncate">{ex.description}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
 
@@ -1075,6 +1164,9 @@ export default function FinancialPulsePage() {
             aiPrompt="Explain cash"
           />
         </div>
+
+        {/* Daily Close Status */}
+        <DailyCloseStatus />
 
         {/* Interactive Charts */}
         <div className="grid gap-4 sm:grid-cols-2">

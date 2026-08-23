@@ -87,6 +87,7 @@ import { paymentLinksRouter } from "./payment-links";
 import { aiCorrectionsRouter } from "./ai-corrections";
 import { knowledgeRagRouter } from "./knowledge-rag";
 import { knowledgeGraphRouter } from "./knowledge-graph";
+import { dailyCloseRouter } from "./daily-close";
 import { autoApproveRouter } from "./auto-approve";
 import { batchIngestionRouter } from "./batch-ingestion";
 
@@ -142,6 +143,7 @@ export const appRouter = router({
   invitations: invitationsRouter,
   dashboard: dashboardRouter,
   aiWorkspace: aiWorkspaceRouter,
+  dailyClose: dailyCloseRouter,
   inbox: inboxRouter,
   transactions: transactionsRouter,
   banking: bankingRouter,

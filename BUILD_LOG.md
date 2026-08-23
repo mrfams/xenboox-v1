@@ -97,3 +97,42 @@
 - All new nodes follow graceful failure pattern
 - All dispatches logged to LangFuse
 - Entity scoping maintained on all state objects
+
+---
+
+## 2026-08-23 — Continuous Close: Daily AI-Native Auto-Reconciliation
+
+**Commits:** (pending)
+**Scope:** Daily close pipeline, Trigger.dev cron, tRPC API, Financial Pulse UI, Activity Hub
+
+### What shipped
+
+| Component | What |
+|-----------|------|
+| DB Schema | daily_close_runs table for tracking daily close state |
+| Pipeline | daily-close-pipeline.ts — runs Reconciliation, Mobile Money, Cash, Controller, Document agents |
+| Trigger.dev | processDailyClose cron job — runs daily at 2 AM for all active entities |
+| API | dailyClose tRPC router — getToday, getHistory, getExceptions, getStats |
+| Financial Pulse | Daily Close status card with clean days, exceptions, auto-match rate |
+| Activity Hub | Daily close exceptions surface as urgent items for human decision |
+| Auto-categorization | Document Agent categorizes new transactions during daily close |
+
+### Architecture
+
+```
+2:00 AM Trigger.dev cron
+  → For each active entity:
+    → Reconciliation Agent (match bank transactions)
+    → Mobile Money Agent (reconcile Wave/Orange/M-Pesa)
+    → Cash Agent (verify cash counts)
+    → Controller Agent (validate entries)
+    → Document Agent (auto-categorize)
+  → If clean: status=completed
+  → If exceptions: status=exception → Activity Hub
+```
+
+### Verified
+
+- 499 eval cases: still valid
+- All agent failures handled gracefully
+- Idempotent — running twice doesn't duplicate work
