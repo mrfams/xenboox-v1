@@ -23,7 +23,11 @@ import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { SignJWT, jwtVerify } from "jose";
 
-import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+  sendOnboardingWelcomeEmail,
+} from "@/lib/email";
 import { db } from "@/lib/db";
 import {
   handleMutationError,
@@ -346,6 +350,16 @@ export const authRouter = router({
         } catch {
           // Non-blocking — invite check failure shouldn't prevent signup
           logger.error("Failed to check/accept pending invites");
+        }
+
+        // Send onboarding welcome email (non-blocking)
+        try {
+          await sendOnboardingWelcomeEmail(user.email!, {
+            userName: user.name ?? "there",
+            dashboardUrl: getAppUrl(),
+          });
+        } catch {
+          logger.error("Failed to send onboarding welcome email");
         }
 
         // Audit trail: registration

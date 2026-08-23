@@ -14,6 +14,10 @@
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/cron/bank-feed-sync",
+      "schedule": "0 */6 * * *"
+    },
+    {
       "path": "/api/webhooks/process?batch=200",
       "schedule": "0 5 * * *"
     },
@@ -24,6 +28,10 @@
     {
       "path": "/api/cron/audit-archive",
       "schedule": "0 2 * * 0"
+    },
+    {
+      "path": "/api/cron/onboarding-drip",
+      "schedule": "0 10 * * *"
     }
   ]
 }

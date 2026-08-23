@@ -29,9 +29,13 @@ import {
   Loader2,
   FileText,
   Plus,
+  Link2,
 } from "lucide-react";
 import { cn } from "@xenboox/ui";
 import { formatCurrency } from "@/lib/utils";
+import { InvoiceDetailPanel } from "@/components/finance/invoice-detail-panel";
+import { CreatePaymentLinkDialog } from "@/components/dashboard/create-payment-link-dialog";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -252,6 +256,26 @@ function InvoiceRow({
   onRefresh: () => void;
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showPaymentLink, setShowPaymentLink] = useState(false);
+
+  const sendEmail = trpc.invoicing.sendInvoiceEmail.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Invoice sent to ${data.sentTo}`);
+      onRefresh();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleSend = () => {
+    setIsProcessing(true);
+    sendEmail.mutate(
+      { invoiceId: invoice.id },
+      { onSettled: () => setIsProcessing(false) },
+    );
+  };
 
   // Status badge
   const getStatusBadge = (status: string) => {
@@ -337,7 +361,12 @@ function InvoiceRow({
 
         {/* Actions */}
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setShowDetail(true)}
+          >
             <Eye className="h-4 w-4" />
           </Button>
           {invoice.status !== "paid" && (
@@ -345,6 +374,7 @@ function InvoiceRow({
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
+              onClick={handleSend}
               disabled={isProcessing}
             >
               {isProcessing ? (
@@ -354,8 +384,36 @@ function InvoiceRow({
               )}
             </Button>
           )}
+          {invoice.status !== "paid" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setShowPaymentLink(true)}
+            >
+              <Link2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Detail Panel */}
+      {showDetail && (
+        <InvoiceDetailPanel
+          invoiceId={invoice.id}
+          onClose={() => setShowDetail(false)}
+        />
+      )}
+
+      {/* Payment Link Dialog */}
+      {showPaymentLink && (
+        <CreatePaymentLinkDialog
+          invoiceId={invoice.id}
+          balance={invoice.balance}
+          currency="GMD"
+          onClose={() => setShowPaymentLink(false)}
+        />
+      )}
     </div>
   );
 }

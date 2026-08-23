@@ -10,6 +10,12 @@ import { AssetCreatedEmail } from "@xenboox/email";
 import { InventoryAlertEmail } from "@xenboox/email";
 import { PasswordResetEmail } from "@xenboox/email";
 import { VerificationEmail } from "@xenboox/email";
+import { OnboardingWelcomeEmail } from "@xenboox/email";
+import { OnboardingDay1Email } from "@xenboox/email";
+import { OnboardingDay3Email } from "@xenboox/email";
+import { OnboardingDay7Email } from "@xenboox/email";
+import { OnboardingDay14Email } from "@xenboox/email";
+import { OnboardingDay30Email } from "@xenboox/email";
 
 import { resend, EMAIL_FROM } from "./resend";
 
@@ -387,4 +393,106 @@ export async function sendInvoiceEmail(props: {
     });
     throw new Error(`Invoice email send failed: ${error.message}`);
   }
+}
+
+// ─── Onboarding Email Sequence ────────────────────────────────────────────
+
+export async function sendOnboardingWelcomeEmail(
+  to: string,
+  props: {
+    userName: string;
+    dashboardUrl: string;
+  },
+) {
+  const html = await render(OnboardingWelcomeEmail(props));
+  await sendEmail({
+    to,
+    subject: "Welcome to Xenboox! Let's get your books set up",
+    html,
+  });
+}
+
+export async function sendOnboardingDay1Email(
+  to: string,
+  props: {
+    userName: string;
+    dashboardUrl: string;
+    hasConnectedBank: boolean;
+  },
+) {
+  const html = await render(OnboardingDay1Email(props));
+  await sendEmail({
+    to,
+    subject: "How's your first day going?",
+    html,
+  });
+}
+
+export async function sendOnboardingDay3Email(
+  to: string,
+  props: {
+    userName: string;
+    dashboardUrl: string;
+    transactionsProcessed: number;
+    timeSavedMinutes: number;
+  },
+) {
+  const html = await render(OnboardingDay3Email(props));
+  await sendEmail({
+    to,
+    subject:
+      props.transactionsProcessed > 0
+        ? `Your AI has processed ${props.transactionsProcessed} transactions`
+        : "Have you seen your first AI insight?",
+    html,
+  });
+}
+
+export async function sendOnboardingDay7Email(
+  to: string,
+  props: {
+    userName: string;
+    dashboardUrl: string;
+  },
+) {
+  const html = await render(OnboardingDay7Email(props));
+  await sendEmail({
+    to,
+    subject: "Ready for the next level?",
+    html,
+  });
+}
+
+export async function sendOnboardingDay14Email(
+  to: string,
+  props: {
+    userName: string;
+    dashboardUrl: string;
+    transactionsCategorized: number;
+    reportsGenerated: number;
+  },
+) {
+  const html = await render(OnboardingDay14Email(props));
+  await sendEmail({
+    to,
+    subject: "How's Xenboox working for you?",
+    html,
+  });
+}
+
+export async function sendOnboardingDay30Email(
+  to: string,
+  props: {
+    userName: string;
+    dashboardUrl: string;
+    transactionsCategorized: number;
+    timeSavedHours: number;
+  },
+) {
+  const html = await render(OnboardingDay30Email(props));
+  await sendEmail({
+    to,
+    subject: "You're becoming a power user! 🎉",
+    html,
+  });
 }

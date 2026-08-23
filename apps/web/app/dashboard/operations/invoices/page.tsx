@@ -10,6 +10,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Send,
+  MoreHorizontal,
+  Eye,
+  Link2,
+  DollarSign,
+  Download,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +27,8 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { CreateInvoiceDialog } from "@/components/dashboard/create-invoice-dialog";
+import { InvoiceDetailPanel } from "@/components/finance/invoice-detail-panel";
+import { toast } from "sonner";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +101,10 @@ export default function InvoicesPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
+    null,
+  );
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
   const { data, isLoading } = trpc.invoicing.listInvoices.useQuery(
     {
@@ -206,7 +218,90 @@ export default function InvoicesPage() {
       render: (row) => <InvoiceStatusBadge status={row.status} />,
     },
     {
-      key: "id",
+      key: "actions",
+      label: "",
+      width: "40px",
+      render: (row) => (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActionMenuId(actionMenuId === row.id ? null : row.id);
+            }}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+          {actionMenuId === row.id && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setActionMenuId(null)}
+              />
+              <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl border border-border bg-card p-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedInvoiceId(row.id);
+                    setActionMenuId(null);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                >
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                  View Details
+                </button>
+                {row.status !== "paid" && row.status !== "voided" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSendInvoice(row.id);
+                    }}
+                    disabled={sendInvoiceEmail.isPending}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    <Send className="h-4 w-4 text-muted-foreground" />
+                    Send Invoice
+                  </button>
+                )}
+                {row.status !== "paid" && row.status !== "voided" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedInvoiceId(row.id);
+                      setActionMenuId(null);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Link2 className="h-4 w-4 text-muted-foreground" />
+                    Payment Link
+                  </button>
+                )}
+                {row.status !== "paid" && row.status !== "voided" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedInvoiceId(row.id);
+                      setActionMenuId(null);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                  >
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    Record Payment
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "chevron",
       label: "",
       width: "40px",
       render: () => (
@@ -216,22 +311,21 @@ export default function InvoicesPage() {
   ];
 
   const handleRowClick = (row: Invoice) => {
-    openWithFocus(
-      {
-        kind: "Invoice",
-        name: row.invoiceNumber ?? "Invoice",
-        id: row.id,
-        fields: [
-          { label: "Customer", value: row.customerName ?? "—" },
-          { label: "Date", value: row.date ?? "—" },
-          { label: "Due Date", value: row.dueDate ?? "—" },
-          { label: "Total", value: formatCurrency(row.total ?? 0) },
-          { label: "Balance", value: formatCurrency(row.balance ?? 0) },
-          { label: "Status", value: row.status ?? "—" },
-        ],
-      },
-      `Show me invoice ${row.invoiceNumber}. What's the payment status and history?`,
-    );
+    setSelectedInvoiceId(row.id);
+  };
+
+  const sendInvoiceEmail = trpc.invoicing.sendInvoiceEmail.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Invoice sent to ${data.sentTo}`);
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleSendInvoice = (invoiceId: string) => {
+    sendInvoiceEmail.mutate({ invoiceId });
+    setActionMenuId(null);
   };
 
   return (
@@ -321,6 +415,14 @@ export default function InvoicesPage() {
         <CreateInvoiceDialog
           onClose={() => setShowCreateDialog(false)}
           onCreated={() => setShowCreateDialog(false)}
+        />
+      )}
+
+      {/* Detail Panel */}
+      {selectedInvoiceId && (
+        <InvoiceDetailPanel
+          invoiceId={selectedInvoiceId}
+          onClose={() => setSelectedInvoiceId(null)}
         />
       )}
     </ModulePageShell>
