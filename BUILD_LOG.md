@@ -260,3 +260,52 @@
 - `packages/agents/platform/reporting-agent/nodes.ts` — added donor report node
 - `packages/jobs/donor-reports.ts` — new Trigger.dev cron job
 - `packages/jobs/index.ts` — exported new job
+
+---
+
+## 2026-08-23 — Donor Portal with Magic-Link Authentication
+
+**Commit:** 4d55f0f
+**Scope:** External donor portal with magic-link auth for read-only project access
+
+### What shipped
+
+| Component | What |
+|-----------|------|
+| DB Schema | donor_portal_tokens — single-use, 24h expiry, rate limited |
+| API | POST /api/donor-portal/request — sends magic-link email via Resend |
+| API | GET /api/donor-portal/verify — validates token, redirects to dashboard |
+| API | GET /api/donor-portal/projects — returns donor-scoped projects + reports |
+| Page | /donor-portal — landing page with email input |
+| Page | /donor-portal/auth — intermediate redirect page |
+| Page | /donor-portal/dashboard — read-only portal with projects, budget vs actual, reports |
+
+### Security
+
+- Single-use tokens with 24-hour expiry
+- Rate limited (1 request per 5 minutes)
+- Donor-scoped queries (only shows their projects)
+- Read-only access (no mutations possible)
+- Generic error messages (no email enumeration)
+- Tokens stored in database, not in cookies/localStorage
+
+### Flow
+
+```
+Donor visits /donor-portal
+  → Enters email + entity ID
+  → POST /api/donor-portal/request
+    → Verifies donor exists (isDonor=true)
+    → Generates crypto.randomBytes(32) token
+    → Stores in donor_portal_tokens table
+    → Sends magic-link email via Resend
+  → Donor clicks link in email
+    → /donor-portal/auth?token=xxx (intermediate page)
+    → GET /api/donor-portal/verify?token=xxx
+      → Validates token (single-use, 24h expiry)
+      → Marks token as used
+      → Redirects to /donor-portal/dashboard?donor=X&entity=Y
+  → Dashboard loads
+    → GET /api/donor-portal/projects?donor=X&entity=Y
+    → Shows projects, budget vs actual, report history
+```
