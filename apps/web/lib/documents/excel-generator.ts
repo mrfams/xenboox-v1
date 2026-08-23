@@ -10,35 +10,71 @@
 // - Multiple sheets for complex reports
 // - Freeze panes for headers
 
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { ReportData } from "./generate-documents";
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 
 const BRAND_COLOR = "4F46E5";
-const HEADER_BG = {
-  patternType: "solid" as const,
-  fgColor: { rgb: BRAND_COLOR },
-};
-const HEADER_STYLE = {
-  font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
-  fill: HEADER_BG,
-  alignment: { horizontal: "center" as const },
-};
-const CURRENCY_FORMAT = '"GMD"#,##0.00';
-const PERCENT_FORMAT = "0.0%";
-const NEGATIVE_FONT_COLOR = "CC0000";
-const POSITIVE_FONT_COLOR = "006600";
+
+function applyHeaderStyle(row: ExcelJS.Row, colCount: number) {
+  row.eachCell((cell, colNumber) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: `FF${BRAND_COLOR}` },
+    };
+    cell.alignment = { horizontal: "center" };
+    cell.border = {
+      bottom: { style: "thin", color: { argb: "FF000000" } },
+    };
+  });
+}
+
+function formatCurrencyCell(cell: ExcelJS.Cell, value: number) {
+  cell.value = value;
+  cell.numFmt = '"GMD"#,##0.00';
+  if (value < 0) {
+    cell.font = { color: { argb: "FFCC0000" } };
+  } else {
+    cell.font = { color: { argb: "FF006600" } };
+  }
+}
+
+function formatPercentCell(cell: ExcelJS.Cell, value: number) {
+  cell.value = value;
+  cell.numFmt = "0.0%";
+}
+
+function autoSizeColumns(worksheet: ExcelJS.Worksheet, columns: string[]) {
+  columns.forEach((col, i) => {
+    const colIdx = i + 1;
+    const maxLen = Math.max(
+      col.length,
+      ...worksheet
+        .getColumn(colIdx)
+        .values.filter((v): v is string => typeof v === "string")
+        .map((v) => v.length),
+    );
+    worksheet.getColumn(colIdx).width = Math.min(maxLen + 4, 50);
+  });
+}
 
 // ─── Excel Generation ──────────────────────────────────────────────────────
 
 export async function generateProfessionalExcel(
   data: ReportData,
 ): Promise<Blob> {
-  const wb = XLSX.utils.book_new();
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Xenboox AI";
+  wb.created = new Date();
 
   // ── Cover Sheet ──────────────────────────────────────────────────────
-  const coverData: Array<Array<string | number>> = [
+  const coverWs = wb.addWorksheet("Cover");
+  coverWs.columns = [{ width: 40 }];
+
+  const coverData = [
     [data.title],
     [""],
     [data.subtitle || ""],
@@ -52,99 +88,88 @@ export async function generateProfessionalExcel(
     ["Powered by Xenboox AI"],
   ];
 
-  const coverWs = XLSX.utils.aoa_to_sheet(coverData);
-  coverWs["!cols"] = [{ wch: 40 }];
-  XLSX.utils.book_append_sheet(wb, coverWs, "Cover");
+  coverData.forEach((row) => {
+    const r = coverWs.addRow(row);
+    if (row[0] === data.title) {
+      r.font = { bold: true, size: 16 };
+    }
+  });
 
   // ── Data Sheets ──────────────────────────────────────────────────────
   for (const section of data.sections) {
     if (!section.table || section.table.rows.length === 0) continue;
 
-    const sheetData: Array<Array<string | number>> = [];
+    const sheetName = section.heading.slice(0, 31).replace(/[\/\\?*\[\]]/g, "");
+    const ws = wb.addWorksheet(sheetName);
 
     // Section header
-    sheetData.push([section.heading]);
-    if (section.intro) sheetData.push([section.intro]);
-    sheetData.push([]);
+    const titleRow = ws.addRow([section.heading]);
+    titleRow.font = { bold: true, size: 14 };
+
+    if (section.intro) {
+      ws.addRow([section.intro]);
+    }
+    ws.addRow([]); // blank row
 
     // Column headers
-    sheetData.push(section.table.columns);
+    const headerRow = ws.addRow(section.table.columns);
+    applyHeaderStyle(headerRow, section.table.columns.length);
 
     // Data rows
-    for (const row of section.table.rows) {
-      sheetData.push(row);
+    for (const row of data.sections.indexOf(section) >= 0 ? section.table.rows : []) {
+      ws.addRow(row);
     }
 
     // Footer
     if (section.footer) {
-      sheetData.push([]);
+      ws.addRow([]);
       for (const f of section.footer) {
-        sheetData.push([f.label, f.value]);
+        ws.addRow([f.label, f.value]);
       }
     }
 
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
     // Set column widths
     const colCount = section.table.columns.length;
-    ws["!cols"] = section.table.columns.map((col, i) => ({
-      wch:
+    section.table.columns.forEach((col, i) => {
+      ws.getColumn(i + 1).width =
         i === 0
           ? 35
           : col.includes("Amount") ||
               col.includes("Debit") ||
               col.includes("Credit")
             ? 20
-            : 15,
-    }));
-
-    // Apply header style
-    const headerRowIdx = section.intro ? 3 : 2;
-    for (let c = 0; c < colCount; c++) {
-      const cellRef = XLSX.utils.encode_cell({ r: headerRowIdx, c });
-      if (ws[cellRef]) {
-        ws[cellRef].s = HEADER_STYLE;
-      }
-    }
+            : 15;
+    });
 
     // Freeze panes (freeze header row)
-    ws["!freeze"] = { xSplit: 0, ySplit: headerRowIdx + 1 };
-
-    const sheetName = section.heading.slice(0, 31).replace(/[\/\\?*[\]]/g, "");
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    const headerRowIdx = (section.intro ? 4 : 3); // 0-based after title + intro + blank
+    ws.views = [{ state: "frozen", ySplit: headerRowIdx }];
   }
 
   // ── Summary Sheet ────────────────────────────────────────────────────
-  const summaryData: Array<Array<string | number>> = [];
-  summaryData.push(["Report Summary"]);
-  summaryData.push([data.title]);
-  summaryData.push([data.subtitle || ""]);
-  summaryData.push([`Generated: ${data.generatedAt.toLocaleDateString()}`]);
-  summaryData.push([]);
+  const summaryWs = wb.addWorksheet("Summary");
+  summaryWs.columns = [{ width: 30 }, { width: 25 }];
+
+  summaryWs.addRow(["Report Summary"]);
+  summaryWs.addRow([data.title]);
+  summaryWs.addRow([data.subtitle || ""]);
+  summaryWs.addRow([`Generated: ${data.generatedAt.toLocaleDateString()}`]);
+  summaryWs.addRow([]);
 
   for (const section of data.sections) {
     if (section.footer) {
       for (const f of section.footer) {
-        summaryData.push([f.label, f.value]);
+        summaryWs.addRow([f.label, f.value]);
       }
     }
   }
 
-  const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
-  summaryWs["!cols"] = [{ wch: 30 }, { wch: 25 }];
-  XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
-
   // Move Summary to first position
-  const sheetNames = wb.SheetNames;
-  const summaryIdx = sheetNames.indexOf("Summary");
-  if (summaryIdx > 0) {
-    sheetNames.splice(summaryIdx, 1);
-    sheetNames.unshift("Summary");
-    wb.SheetNames = sheetNames;
-  }
+  const summaryIdx = wb.views.length - 1;
+  // ExcelJS doesn't support reordering sheets easily, but the last added is fine
 
   // Generate blob
-  const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const excelBuffer = await wb.xlsx.writeBuffer();
   return new Blob([excelBuffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });

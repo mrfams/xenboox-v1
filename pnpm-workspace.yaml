@@ -4,3 +4,4 @@ packages:
 
 overrides:
   drizzle-orm: "0.44.2"
+  fast-xml-parser: ">=5.7.0"

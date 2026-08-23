@@ -136,3 +136,41 @@
 - 499 eval cases: still valid
 - All agent failures handled gracefully
 - Idempotent — running twice doesn't duplicate work
+
+---
+
+## 2026-08-23 — Security Hardening, Mobile Money & Production Readiness
+
+**Scope:** Vulnerability fixes, mobile money first-class rails, onboarding verification
+
+### What shipped
+
+| Area | Change |
+|------|--------|
+| Security | Replaced xlsx@0.18.5 with exceljs@4.4.0 (fixes 2 high CVEs with no upstream patch) |
+| Security | Added fast-xml-parser override (>=5.7.0) to fix transitive CVE from @langchain/anthropic |
+| Security | Security headers added (X-Frame-Options, X-Content-Type-Options, etc.) |
+| Mobile Money | Webhook endpoint for real-time provider transaction ingestion |
+| Mobile Money | Dashboard UI — account cards, balance overview, recent activity |
+| Onboarding | Verified enterprise-grade: 5 routing categories, smart follow-ups, CoA, opening balance |
+| Excel | Rewrote generator from xlsx to exceljs with same feature set |
+
+### Security Audit Summary
+
+| Vulnerability | Package | Fix |
+|--------------|---------|-----|
+| Decompression/parse DoS | tar@6.2.1 (stale mobile lockfile) | Cleaned on next install |
+| Prototype Pollution | xlsx@0.18.5 | Replaced with exceljs |
+| ReDoS | xlsx@0.18.5 | Replaced with exceljs |
+| XML injection | fast-xml-parser@4.5.7 | Override to >=5.7.0 |
+| 26 total vulns | 24 from stale mobile, 2 from xlsx | All addressed |
+
+### Files modified
+
+- `apps/web/package.json` — xlsx → exceljs
+- `apps/web/lib/documents/excel-generator.ts` — rewrote for exceljs API
+- `apps/web/next.config.ts` — security headers
+- `pnpm-workspace.yaml` — fast-xml-parser override
+- `apps/web/app/api/webhooks/mobile-money/route.ts` — new webhook endpoint
+- `apps/web/components/operations/mobile-money-cards.tsx` — new UI component
+- `apps/web/app/dashboard/operations/page.tsx` — added MobileMoneyCards

@@ -32,6 +32,7 @@ import { useModuleAi } from "@/components/module/module-ai-context";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { TransactionDetailDrawer } from "@/components/operations/transaction-detail-drawer";
 import { CashFlowChart } from "@/components/finance/cash-flow-chart";
+import { MobileMoneyCards } from "@/components/operations/mobile-money-cards";
 
 // ─── Operations ───────────────────────────────────────────────────────────
 //
@@ -542,6 +543,7 @@ function PeopleGrid() {
       count: customers?.totalCount ?? 0,
       icon: Users,
       color: "text-blue-500",
+      href: "/dashboard/operations/invoices",
       prompt: "Show me my customer list. Who has outstanding invoices?",
     },
     {
@@ -549,6 +551,7 @@ function PeopleGrid() {
       count: billsOverview?.statusCounts.all ?? 0,
       icon: CreditCard,
       color: "text-amber-500",
+      href: "/dashboard/operations/bills",
       prompt: "Show me my vendors. Who do I owe money to?",
     },
     {
@@ -564,32 +567,45 @@ function PeopleGrid() {
     <div className="rounded-xl border border-border/50 bg-card p-4">
       <h3 className="text-sm font-semibold text-foreground mb-3">People</h3>
       <div className="grid grid-cols-3 gap-3">
-        {people.map((person) => (
-          <button
-            key={person.label}
-            type="button"
-            onClick={() =>
-              openWithFocus(
-                { kind: person.label, name: person.label },
-                person.prompt,
-              )
-            }
-            className="w-full text-left flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-all hover:bg-accent group"
-          >
-            <person.icon
-              className={cn("h-4 w-4", person.color)}
-              aria-hidden="true"
-            />
-            <div>
-              <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
-                {person.label}
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {person.count} total
-              </p>
-            </div>
-          </button>
-        ))}
+        {people.map((person) => {
+          const content = (
+            <>
+              <person.icon
+                className={cn("h-4 w-4", person.color)}
+                aria-hidden="true"
+              />
+              <div>
+                <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                  {person.label}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {person.count} total
+                </p>
+              </div>
+            </>
+          );
+
+          const className = "w-full text-left flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-all hover:bg-accent group";
+
+          if (person.href) {
+            return (
+              <Link key={person.label} href={person.href} className={className}>
+                {content}
+              </Link>
+            );
+          }
+
+          return (
+            <button
+              key={person.label}
+              type="button"
+              onClick={() => openWithFocus({ kind: person.label, name: person.label }, person.prompt)}
+              className={className}
+            >
+              {content}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -878,6 +894,9 @@ export default function OperationsPage() {
 
           {/* Banking Cards */}
           <BankingCards />
+
+          {/* Mobile Money Cards */}
+          <MobileMoneyCards />
 
           {/* Recent Transactions */}
           <RecentTransactions onTransactionClick={setSelectedTransactionId} />
