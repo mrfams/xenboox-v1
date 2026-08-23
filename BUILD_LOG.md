@@ -188,3 +188,33 @@
 | Commit | What |
 |--------|------|
 | `b3e614b` | Security hardening + mobile money first-class rails |
+
+---
+
+## 2026-08-23 — Donor & Grant Reporting Module (NGO Segment)
+
+**Commit:** 0987c98
+**Scope:** Full donor/grant reporting module per PRD §4.16
+
+### What shipped
+
+| Component | What |
+|-----------|------|
+| DB Schema | donor_projects + donor_report_snapshots (already existed) |
+| tRPC Router | donorGrant — 8 procedures: listProjects, getProject, createProject, updateProject, getBudgetVsActual, listReportSnapshots, generateReport, submitReport, donorPortalProjects, donorPortalProjectDetail, getStats |
+| Frontend | /dashboard/donor-reporting — stats overview, project cards with progress bars, recent reports, AI quick actions |
+| Sidebar | Added "Donor Reporting" under Operations sub-nav |
+| Donor Portal | Read-only access for donors to view their funded projects |
+
+### Features
+
+- **Budget vs Actual** — per project, per category, with variance tracking
+- **Report Snapshots** — draft → final → submitted workflow
+- **Donor Formats** — USAID, EU, World Bank, AfDB, custom
+- **Donor Portal** — read-only, project-scoped access
+- **AI-Native** — all actions available via Command Center conversation
+
+### Verified
+
+- Site live: ✅ (200 OK)
+- Vulnerability count: 24 (unchanged — not affected by this change)
