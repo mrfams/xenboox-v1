@@ -238,18 +238,18 @@
 
 ## Employee #17: Enterprise Readiness — Score: 5.5/10
 
-| #   | Finding                       | Severity | Fix                             | Status |
-| --- | ----------------------------- | -------- | ------------------------------- | ------ |
-| 1   | No health check endpoints     | HIGH     | Add `/api/health`               | ⬜     |
-| 2   | No APM / distributed tracing  | HIGH     | Add OpenTelemetry               | ⬜     |
-| 3   | No centralized logging        | HIGH     | Add Logflare                    | ⬜     |
-| 4   | No E2E tests                  | HIGH     | Add Playwright tests            | ⬜     |
-| 5   | No SOC 2 policy docs          | MEDIUM   | Create formal security policies | ⬜     |
-| 6   | No GDPR consent management    | MEDIUM   | Add consent tracking            | ⬜     |
-| 7   | No bulk import/export         | MEDIUM   | Add CSV/Excel import            | ⬜     |
-| 8   | No dependency scanning in CI  | MEDIUM   | Add `pnpm audit` to CI          | ⬜     |
-| 9   | No business metrics dashboard | MEDIUM   | Build internal admin dashboard  | ⬜     |
-| 10  | No plugin architecture        | LOW      | Design plugin system            | ⬜     |
+| #   | Finding                          | Severity | Fix                               | Status |
+| --- | -------------------------------- | -------- | --------------------------------- | ------ |
+| 1   | ~~No health check endpoints~~ ✅ | HIGH     | /api/health, /ready, /live probes | ✅     |
+| 2   | No APM / distributed tracing     | HIGH     | Add OpenTelemetry                 | ⬜     |
+| 3   | No centralized logging           | HIGH     | Add Logflare                      | ⬜     |
+| 4   | No E2E tests                     | HIGH     | Add Playwright tests              | ⬜     |
+| 5   | No SOC 2 policy docs             | MEDIUM   | Create formal security policies   | ⬜     |
+| 6   | No GDPR consent management       | MEDIUM   | Add consent tracking              | ⬜     |
+| 7   | No bulk import/export            | MEDIUM   | Add CSV/Excel import              | ⬜     |
+| 8   | No dependency scanning in CI     | MEDIUM   | Add `pnpm audit` to CI            | ⬜     |
+| 9   | No business metrics dashboard    | MEDIUM   | Build internal admin dashboard    | ⬜     |
+| 10  | No plugin architecture           | LOW      | Design plugin system              | ⬜     |
 
 ---
 
@@ -392,7 +392,7 @@
 | 15  | No staging environment                         | #16 DevOps                    |
 | 16  | No uptime monitoring                           | #16 DevOps                    |
 | 17  | No cost monitoring                             | #16 DevOps                    |
-| 18  | No health check endpoints                      | #17 Enterprise                |
+| 18  | ~~No health check endpoints~~ ✅               | #17 Enterprise                |
 | 19  | No APM / distributed tracing                   | #17 Enterprise                |
 | 20  | No centralized logging                         | #17 Enterprise                |
 | 21  | No E2E tests                                   | #17 Enterprise                |
