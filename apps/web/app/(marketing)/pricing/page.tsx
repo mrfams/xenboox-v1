@@ -12,7 +12,7 @@ const monthlyTiers = [
     name: "Free",
     price: "$0",
     period: "forever",
-    description: "For solo founders and small businesses getting started.",
+    description: "For solo founders getting started with AI accounting.",
     features: [
       "1 entity",
       "1 AI agent (CFO)",
@@ -30,15 +30,15 @@ const monthlyTiers = [
     name: "Starter",
     price: "$29",
     period: "/month",
-    description: "For growing businesses that need AI-powered automation.",
+    description: "For growing businesses that need the full agent workforce.",
     features: [
       "Up to 3 entities",
-      "All 21 AI agents",
+      "All 19 AI agents",
       "Unlimited journal entries",
       "Full AP/AR module",
       "Payroll processing",
       "Treasury & bank reconciliation",
-      "Web + mobile apps",
+      "Web app",
       "Email support",
     ],
     cta: "Get Started",
@@ -49,15 +49,16 @@ const monthlyTiers = [
     name: "Business",
     price: "$79",
     period: "/month",
-    description: "For established businesses with complex accounting needs.",
+    description:
+      "For established businesses with multi-entity, multi-currency needs.",
     features: [
       "Up to 10 entities",
-      "All 21 AI agents",
+      "All 19 AI agents",
       "Unlimited everything",
       "Multi-currency support",
       "Fixed assets & depreciation",
       "Inventory management",
-      "All 3 platforms",
+      "Web app",
       "Priority support",
       "Custom integrations",
     ],
@@ -94,7 +95,7 @@ const faqs = [
   },
   {
     q: "Can I use Xenboox on my phone?",
-    a: "Yes. Available on web, iOS, Android, Windows, and macOS with seamless sync across platforms.",
+    a: "Yes. Xenboox is a responsive web app that works great on any device — phone, tablet, or desktop.",
   },
   {
     q: "What happens to my data if I cancel?",
@@ -135,7 +136,8 @@ export default function PricingPage() {
                 <span className="text-primary">pricing</span>
               </h1>
               <p className="mt-6 max-w-2xl mx-auto text-lg leading-relaxed text-muted-foreground">
-                Start free. Scale as you grow. No hidden fees.
+                Start free with 1 agent. Upgrade when you need the full team.
+                Cancel anytime — your data stays yours.
               </p>
 
               {/* Billing Toggle */}
@@ -288,7 +290,7 @@ export default function PricingPage() {
               Ready to get started?
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Join thousands of businesses using Xenboox.
+              Start closing your books in days, not weeks.
             </p>
             <Link
               href="/register"

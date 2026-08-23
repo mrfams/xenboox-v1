@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Calendar, Search, Tag, Sparkles } from "lucide-react";
 
-import { Button } from "@/components/ui";
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
 import { trpc } from "@/lib/trpc/client";
+import { toast } from "sonner";
 
 const categories = [
   "All",
@@ -17,6 +17,60 @@ const categories = [
   "Company",
   "Tutorials",
 ];
+
+function BlogNewsletterForm() {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        toast.success(
+          "You're subscribed! Check your inbox for a welcome email.",
+        );
+        setEmail("");
+      } else {
+        toast.error("Something went wrong. Please try again.");
+      }
+    } catch {
+      toast.error("Network error. Please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row"
+    >
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@company.com"
+        required
+        aria-label="Email address"
+        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-paper placeholder-paper/40 outline-none backdrop-blur-sm transition-colors focus:border-primary/50"
+      />
+      <button
+        type="submit"
+        disabled={submitting}
+        className="shrink-0 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all duration-200 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {submitting ? "Subscribing..." : "Subscribe"}
+      </button>
+    </form>
+  );
+}
 
 export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -256,20 +310,7 @@ export default function BlogPage() {
                   Get product updates, engineering deep-dives, and insights
                   delivered to your inbox.
                 </p>
-                <form
-                  onSubmit={(e) => e.preventDefault()}
-                  className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row"
-                >
-                  <input
-                    type="email"
-                    placeholder="you@company.com"
-                    required
-                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-paper placeholder-paper/40 outline-none backdrop-blur-sm transition-colors focus:border-primary/50"
-                  />
-                  <Button type="submit" size="lg" className="shrink-0">
-                    Subscribe
-                  </Button>
-                </form>
+                <BlogNewsletterForm />
                 <p className="mt-4 text-xs text-paper/40">
                   No spam. Unsubscribe anytime.
                 </p>

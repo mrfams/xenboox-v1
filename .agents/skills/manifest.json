@@ -1,0 +1,320 @@
+{
+  "name": "xenboox-skills",
+  "version": "1.0.0",
+  "description": "Xenboox AI Skill System - Auto-firing skills based on task context",
+  "categories": {
+    "leadership": {
+      "skills": ["ceo-founder", "coo", "strategy-manager"],
+      "keywords": [
+        "strategy",
+        "vision",
+        "direction",
+        "competitive",
+        "market",
+        "investor",
+        "fundraise",
+        "board",
+        "mission",
+        "culture"
+      ],
+      "filePatterns": [],
+      "triggers": [
+        "strategic decision",
+        "company direction",
+        "competitive analysis",
+        "market positioning"
+      ]
+    },
+    "product": {
+      "skills": [
+        "product-manager",
+        "product-analyst",
+        "to-prd",
+        "to-spec",
+        "product-critique",
+        "product-reviewer",
+        "product-designer"
+      ],
+      "keywords": [
+        "feature",
+        "roadmap",
+        "user story",
+        "backlog",
+        "sprint",
+        "prioritize",
+        "mvp",
+        "product",
+        "release",
+        "user flow",
+        "product review"
+      ],
+      "filePatterns": [],
+      "triggers": [
+        "feature request",
+        "product planning",
+        "roadmap",
+        "user research",
+        "product critique",
+        "review product",
+        "product audit"
+      ]
+    },
+    "engineering": {
+      "skills": [
+        "software-architect",
+        "devops-engineer",
+        "security-engineer",
+        "implement",
+        "systematic-debugging",
+        "test-driven-development",
+        "engineering-critique"
+      ],
+      "keywords": [
+        "code",
+        "implement",
+        "bug",
+        "refactor",
+        "test",
+        "deploy",
+        "build",
+        "api",
+        "database",
+        "performance",
+        "security",
+        "architecture",
+        "review code",
+        "code review"
+      ],
+      "filePatterns": [
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.jsx",
+        "*.py",
+        "*.sql",
+        "*.prisma"
+      ],
+      "triggers": [
+        "implement feature",
+        "fix bug",
+        "refactor code",
+        "add test",
+        "deploy",
+        "security audit",
+        "engineering review",
+        "code critique",
+        "review this code"
+      ]
+    },
+    "design": {
+      "skills": [
+        "product-designer",
+        "ui-ux-designer",
+        "design-taste-frontend",
+        "high-end-visual-design",
+        "minimalist-ui",
+        "design-critique"
+      ],
+      "keywords": [
+        "ui",
+        "ux",
+        "design",
+        "mockup",
+        "prototype",
+        "wireframe",
+        "layout",
+        "component",
+        "style",
+        "accessibility",
+        "visual review",
+        "design review"
+      ],
+      "filePatterns": ["*.css", "*.scss", "*.styled.*", "*.module.css"],
+      "triggers": [
+        "design ui",
+        "create mockup",
+        "improve ux",
+        "accessibility review",
+        "style component",
+        "design critique",
+        "review design",
+        "visual audit"
+      ]
+    },
+    "content": {
+      "skills": [
+        "technical-writer",
+        "blog-writer",
+        "writing-beats",
+        "edit-article",
+        "copywriting",
+        "content-critique",
+        "ux-writer"
+      ],
+      "keywords": [
+        "blog",
+        "docs",
+        "writing",
+        "copy",
+        "content",
+        "article",
+        "documentation",
+        "tutorial",
+        "guide",
+        "messaging",
+        "microcopy"
+      ],
+      "filePatterns": ["*.md", "*.mdx", "*.txt", "*.mdoc"],
+      "triggers": [
+        "write blog",
+        "create documentation",
+        "edit content",
+        "write copy",
+        "technical writing",
+        "content review",
+        "copy critique",
+        "review copy"
+      ]
+    },
+    "marketing": {
+      "skills": [
+        "marketing-manager",
+        "seo-audit",
+        "marketing-psychology",
+        "content-strategy",
+        "programmatic-seo",
+        "marketing-critique",
+        "copywriter"
+      ],
+      "keywords": [
+        "seo",
+        "campaign",
+        "social",
+        "email",
+        "growth",
+        "marketing",
+        "brand",
+        "advertising",
+        "conversion",
+        "landing page",
+        "cta"
+      ],
+      "filePatterns": ["*marketing*", "*seo*", "*campaign*"],
+      "triggers": [
+        "seo audit",
+        "marketing strategy",
+        "campaign planning",
+        "growth hacking",
+        "marketing review",
+        "review marketing",
+        "conversion audit"
+      ]
+    },
+    "sales": {
+      "skills": ["sales-representative", "lead-researcher"],
+      "keywords": [
+        "lead",
+        "prospect",
+        "pipeline",
+        "deal",
+        "close",
+        "sale",
+        "demo",
+        "proposal",
+        "negotiate",
+        "crm"
+      ],
+      "filePatterns": [],
+      "triggers": [
+        "sales process",
+        "lead qualification",
+        "demo script",
+        "objection handling",
+        "closing techniques"
+      ]
+    },
+    "customerSuccess": {
+      "skills": [
+        "customer-success-manager",
+        "customer-support",
+        "onboarding-specialist"
+      ],
+      "keywords": [
+        "support",
+        "onboard",
+        "churn",
+        "health",
+        "retention",
+        "customer",
+        "help",
+        "ticket",
+        "satisfaction"
+      ],
+      "filePatterns": [],
+      "triggers": [
+        "customer support",
+        "onboarding flow",
+        "churn prevention",
+        "retention strategy"
+      ]
+    },
+    "research": {
+      "skills": ["competitor-analyst", "data-analyst", "ai-research-explore"],
+      "keywords": [
+        "research",
+        "analyze",
+        "data",
+        "metrics",
+        "insights",
+        "competitor",
+        "market research",
+        "survey"
+      ],
+      "filePatterns": [],
+      "triggers": [
+        "competitor analysis",
+        "data analysis",
+        "market research",
+        "a/b test"
+      ]
+    },
+    "operations": {
+      "skills": [
+        "project-manager",
+        "automation-specialist",
+        "finance-analyst",
+        "executing-plans",
+        "dispatching-parallel-agents"
+      ],
+      "keywords": [
+        "process",
+        "workflow",
+        "automate",
+        "optimize",
+        "scale",
+        "project",
+        "budget",
+        "finance",
+        "efficiency"
+      ],
+      "filePatterns": [],
+      "triggers": [
+        "process improvement",
+        "automation",
+        "project planning",
+        "budget analysis"
+      ]
+    }
+  },
+  "routing": {
+    "maxSkillsPerRequest": 5,
+    "confidenceThreshold": 0.6,
+    "fallbackSkills": ["grill-with-docs", "office-hours"]
+  },
+  "metadata": {
+    "totalSkills": 48,
+    "communitySkills": 23,
+    "customSkills": 25,
+    "lastUpdated": "2026-08-23"
+  }
+}

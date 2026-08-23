@@ -154,7 +154,7 @@ function ProductPreview() {
               className="h-1.5 w-1.5 animate-pulse rounded-full bg-balanced-green"
               aria-hidden="true"
             />
-            21 agents working
+            19 agents working
           </span>
         </div>
 

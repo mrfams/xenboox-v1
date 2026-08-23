@@ -270,7 +270,7 @@ const featureSections = [
       "End-to-end encryption",
       "Role-based access control",
       "Complete audit trail",
-      "SOC 2 compliant",
+      "Bank-grade security",
     ],
     visual: (
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xl shadow-foreground/5">
@@ -317,21 +317,24 @@ const stats = [
 const testimonials = [
   {
     quote:
-      "Xenboox transformed how we handle accounting. What used to take days now happens automatically.",
-    author: "Sarah Chen",
-    role: "CFO, TechStart Inc.",
+      "We closed our first month in four days. Previously it took three weeks and two accountants. The close checklist alone is worth the subscription.",
+    author: "Fatoumata Ceesay",
+    role: "CFO, Seagull Logistics",
+    location: "Banjul",
   },
   {
     quote:
-      "The AI automation is incredible. It's like having a full accounting team working around the clock.",
-    author: "Michael Okafor",
-    role: "Finance Director, Lagos Ventures",
+      "The agents chased down GMD 1.8M in overdue invoices while we slept. I just reviewed and approved the follow-ups over breakfast.",
+    author: "Musa Jallow",
+    role: "Founder, SunuFresh Foods",
+    location: "Serekunda",
   },
   {
     quote:
-      "Finally, accounting software that understands multi-currency. Game changer for our global operations.",
-    author: "Emma Johansson",
-    role: "Controller, Nordic Trading Co.",
+      "Payroll used to take two days of manual work. Now the payroll agent runs it in minutes and I just approve. Our staff get paid on time, every time.",
+    author: "Ousman Bah",
+    role: "Operations Manager, Gateway Trading",
+    location: "Banjul",
   },
 ];
 
@@ -385,13 +388,13 @@ export default function FeaturesPage() {
             <FadeInUp delay={0.15}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button asChild size="lg" className="gap-2">
-                  <Link href="/onboarding">
-                    Start Building Free
+                  <Link href="/register">
+                    Start free
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </Button>
                 <Button asChild variant="outline" size="lg">
-                  <Link href="/register">Start Free Trial</Link>
+                  <Link href="/pricing">See pricing</Link>
                 </Button>
               </div>
             </FadeInUp>
@@ -487,44 +490,36 @@ export default function FeaturesPage() {
                 icon: CreditCard,
                 title: "Accounts Payable",
                 description: "Automate bill processing and payments",
-                gradient: "from-blue-500 to-blue-600",
               },
               {
                 icon: TrendingUp,
                 title: "Accounts Receivable",
                 description: "Track invoices and collect payments faster",
-                gradient: "from-emerald-500 to-emerald-600",
               },
               {
                 icon: FileText,
                 title: "Document AI",
                 description: "Extract data from receipts and invoices",
-                gradient: "from-violet-500 to-violet-600",
               },
               {
                 icon: Globe,
                 title: "Multi-Entity",
                 description: "Manage multiple businesses in one place",
-                gradient: "from-amber-500 to-amber-600",
               },
               {
                 icon: Users,
                 title: "Team Collaboration",
                 description: "Role-based access and approval workflows",
-                gradient: "from-pink-500 to-pink-600",
               },
               {
                 icon: Clock,
                 title: "Real-Time Sync",
                 description: "Updates across all devices instantly",
-                gradient: "from-cyan-500 to-cyan-600",
               },
             ].map((item) => (
               <FadeInUp key={item.title}>
                 <div className="group h-full rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${item.gradient} text-white shadow-lg`}
-                  >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                     <item.icon className="h-6 w-6" />
                   </div>
                   <h3 className="mt-4 text-lg font-semibold text-foreground">
@@ -564,8 +559,11 @@ export default function FeaturesPage() {
                     &ldquo;{testimonial.quote}&rdquo;
                   </blockquote>
                   <div className="mt-6 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-500 text-sm font-semibold text-white">
-                      {testimonial.author.charAt(0)}
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                      {testimonial.author
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
                     </div>
                     <div>
                       <p className="font-medium text-foreground">
@@ -573,6 +571,9 @@ export default function FeaturesPage() {
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {testimonial.role}
+                        {testimonial.location
+                          ? ` · ${testimonial.location}`
+                          : ""}
                       </p>
                     </div>
                   </div>

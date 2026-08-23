@@ -62,7 +62,7 @@ const values = [
 
 const stats = [
   { value: "20+", label: "Accounting Modules", icon: Building2 },
-  { value: "3", label: "Platforms", icon: Globe },
+  { value: "19", label: "AI Agents", icon: Zap },
   { value: "99.9%", label: "Uptime SLA", icon: Shield },
   { value: "50+", label: "Currencies", icon: TrendingUp },
 ];
@@ -94,17 +94,17 @@ const team = [
   {
     name: "Engineering",
     description: "Building the platform that powers modern accounting",
-    icon: "⚡",
+    icon: Zap,
   },
   {
     name: "Product & Design",
     description: "Designing experiences that make complex simple",
-    icon: "🎯",
+    icon: Target,
   },
   {
     name: "Customer Success",
     description: "Ensuring every business succeeds with Xenboox",
-    icon: "🤝",
+    icon: Users,
   },
 ];
 
@@ -151,9 +151,9 @@ export default function AboutPage() {
             </FadeInUp>
             <FadeInUp delay={0.1}>
               <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">
-                We&apos;re a team of engineers, accountants, and dreamers
-                building the accounting platform that every business deserves —
-                but no one has built until now.
+                We&apos;re building the accounting platform that every business
+                deserves — AI agents that handle the books, so you can focus on
+                growing your business.
               </p>
             </FadeInUp>
           </div>
@@ -174,15 +174,14 @@ export default function AboutPage() {
                   Make world-class accounting accessible to every business
                 </h2>
                 <p className="mt-2 text-lg leading-relaxed text-muted-foreground">
-                  Accounting software hasn&apos;t kept pace with how modern
-                  businesses operate. Multi-currency transactions, mobile money,
-                  varying tax regimes, and remote teams are the norm — not the
-                  exception.
+                  Most accounting software was built for Western enterprises.
+                  Multi-currency, mobile money, and varying tax regimes are
+                  afterthoughts — not core features.
                 </p>
                 <p className="text-lg leading-relaxed text-muted-foreground">
-                  We&apos;re changing that. Xenboox is an AI-native platform
-                  where intelligent automation handles the heavy lifting, so you
-                  can focus on growing your business.
+                  Xenboox flips that. Built for businesses operating across
+                  borders from day one, with AI agents that handle the daily
+                  accounting grind automatically.
                 </p>
               </div>
             </FadeInUp>
@@ -299,7 +298,9 @@ export default function AboutPage() {
             {team.map((department, index) => (
               <FadeInUp key={department.name} delay={index * 0.1}>
                 <div className="group h-full rounded-2xl border border-border bg-card p-6 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5">
-                  <div className="mb-4 text-4xl">{department.icon}</div>
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mx-auto">
+                    <department.icon className="h-6 w-6" />
+                  </div>
                   <h3 className="text-lg font-semibold text-foreground">
                     {department.name}
                   </h3>
@@ -375,9 +376,9 @@ export default function AboutPage() {
         <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:py-20">
           <FadeInUp>
             <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">
-              We&apos;re building Xenboox because every small business in Africa
-              deserves the same financial tools as a Fortune 500 company —
-              powered by AI, built for their reality.
+              Every business deserves an accounting department that works around
+              the clock. Xenboox gives you 19 AI agents that handle invoicing,
+              payroll, compliance, and close — so you can focus on what matters.
             </p>
           </FadeInUp>
         </div>

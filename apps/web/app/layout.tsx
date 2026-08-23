@@ -140,7 +140,11 @@ export default async function RootLayout({
                 "AI-native full-stack accounting platform for African businesses",
               url: baseUrl,
               logo: `${baseUrl}/favicon.svg`,
-              sameAs: [],
+              sameAs: [
+                "https://twitter.com/xenboox",
+                "https://linkedin.com/company/xenboox",
+                "https://github.com/mrfams/xenboox",
+              ],
             }),
           }}
         />

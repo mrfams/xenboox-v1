@@ -9,11 +9,11 @@ const now = new Date();
 export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   {
     slug: "introducing-ai-accounting",
-    title: "Introducing AI-Native Accounting for Modern Businesses",
+    title: "Introducing AI-Native Accounting for Businesses in The Gambia",
     excerpt:
-      "How Xenboox uses artificial intelligence to transform accounting from a manual chore into an automated, intelligent system.",
+      "How Xenboox uses 19 specialized AI agents to transform accounting from a manual chore into an automated, intelligent system — built for Gambian businesses.",
     content:
-      "## The Problem\n\nAccounting hasn't changed in decades. Businesses still rely on manual data entry, spreadsheet formulas, and month-end scrambles to close their books.\n\n## Our Approach\n\nAt Xenboox, we've taken a fundamentally different approach. Instead of bolting AI onto legacy software, we built an accounting platform where AI is the core — not an add-on.\n\n### How It Works\n\n1. **Automated Data Entry** — Our AI reads invoices, receipts, and bank statements automatically\n2. **Smart Categorization** — Transactions are categorized based on your business patterns\n3. **Intelligent Reconciliation** — Bank feeds are matched with your books automatically\n4. **Real-Time Insights** — Get instant visibility into your financial health\n\n## The Results\n\nEarly users are seeing transformative results:\n\n- **90% reduction** in manual data entry\n- **3x faster** month-end close\n- **99.7% accuracy** on automated categorization\n- **Real-time** financial visibility\n\n---\n\n*Ready to transform your accounting? [Get started free](/register) today.*",
+      "## The Problem\n\nAccounting in The Gambia hasn't changed in decades. Businesses still rely on manual data entry, spreadsheet formulas, and month-end scrambles to close their books. Mobile money transactions pile up unrecorded. VAT deadlines slip through the cracks.\n\n## Our Approach\n\nAt Xenboox, we've taken a fundamentally different approach. Instead of bolting AI onto legacy software, we built an accounting platform where AI is the core — not an add-on. 19 specialized agents handle everything from invoicing to compliance.\n\n### How It Works\n\n1. **Automated Data Entry** — Our AI reads invoices, receipts, and bank statements automatically\n2. **Mobile Money Integration** — Africell and QCell transactions are captured and categorized\n3. **Smart Categorization** — Transactions are categorized based on your business patterns\n4. **Gambian Tax Compliance** — PAYE, VAT, and SSNIT are computed and filed automatically\n\n## The Results\n\nEarly users are seeing transformative results:\n\n- **90% reduction** in manual data entry\n- **3x faster** month-end close\n- **99.7% accuracy** on automated categorization\n- **Real-time** financial visibility\n\n---\n\n*Ready to transform your accounting? [Get started free](/register) today.*",
     category: "Product",
     status: "published",
     featured: true,
@@ -25,11 +25,11 @@ export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   },
   {
     slug: "why-traditional-accounting-fails",
-    title: "Why Traditional Accounting Software Fails Modern Businesses",
+    title: "Why Traditional Accounting Software Fails African Businesses",
     excerpt:
-      "The structural reasons legacy accounting tools don't work for today's businesses — and what we built instead.",
+      "Desktop-first design, single-currency assumptions, and zero mobile money support — here's what's broken and what we built instead.",
     content:
-      "## The Legacy Problem\n\nMost accounting software was built in the 1990s or 2000s for a different world. They assume you have a dedicated accountant, operate in a single currency, and prefer complex interfaces.\n\n## The Reality\n\nModern businesses face very different challenges: multi-currency operations, mobile-first workflows, real-time visibility, and intelligent automation.\n\n## The Xenboox Difference\n\nWe built Xenboox from the ground up to address these challenges:\n\n| Legacy Tools | Xenboox |\n|-------------|---------|\n| Desktop-first | Mobile-native |\n| Single currency | Multi-currency built-in |\n| Manual entry | AI-powered automation |\n| Monthly reports | Real-time dashboards |\n\n---\n\n*Experience the difference. [Try Xenboox free](/register).*",
+      "## The Legacy Problem\n\nMost accounting software was built in the 1990s or 2000s for Western enterprises. They assume you have a dedicated accountant, operate in a single currency, and prefer complex desktop interfaces.\n\n## The Reality for African Businesses\n\nBusinesses in The Gambia and across Africa face very different challenges: mobile money as a primary payment rail, multi-currency operations, varying tax regimes, and mobile-first workflows.\n\n## The Xenboox Difference\n\nWe built Xenboox from the ground up to address these challenges:\n\n| Legacy Tools | Xenboox |\n|-------------|---------|\n| Desktop-first | Mobile-native |\n| Single currency | Multi-currency built-in |\n| Manual entry | AI-powered automation |\n| No mobile money | Africell & QCell support |\n| Western tax only | PAYE, VAT, SSNIT built-in |\n\n---\n\n*Experience the difference. [Try Xenboox free](/register).*",
     category: "Accounting",
     status: "published",
     featured: true,
@@ -73,11 +73,11 @@ export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   },
   {
     slug: "security-best-practices",
-    title: "Security Best Practices for Your Financial Data",
+    title: "How Xenboox Protects Your Financial Data",
     excerpt:
-      "How we protect your data and what you can do to keep your account secure.",
+      "AES-256 encryption, entity isolation, and a complete audit trail — here's how we keep your books safe.",
     content:
-      "## Our Security Commitment\n\nAt Xenboox, security is our top priority.\n\n## How We Protect Your Data\n\n### Encryption\n\n- **At Rest:** AES-256 encryption for all stored data\n- **In Transit:** TLS 1.3 for all communications\n\n### Access Control\n\n- **Role-Based Access:** Granular permissions for team members\n- **Multi-Factor Authentication:** Required for all accounts\n\n### Infrastructure\n\n- **SOC 2 Compliant:** Regular third-party audits\n- **DDoS Protection:** Cloudflare enterprise protection\n- **Regular Backups:** Daily backups with 30-day retention\n\n---\n\n*Learn more about our security practices in our [Security Documentation](/docs/security).*",
+      "## Our Security Commitment\n\nAt Xenboox, security is our top priority.\n\n## How We Protect Your Data\n\n### Encryption\n\n- **At Rest:** AES-256 encryption for all stored data\n- **In Transit:** TLS 1.3 for all communications\n\n### Access Control\n\n- **Role-Based Access:** Granular permissions for team members\n- **Multi-Factor Authentication:** Required for all accounts\n\n### Infrastructure\n\n- **Bank-Grade Security:** Enterprise infrastructure on Vercel and Neon\n- **DDoS Protection:** Cloudflare enterprise protection\n- **Regular Backups:** Daily backups with 30-day retention\n\n---\n\n*Learn more about our security practices in our [Security Documentation](/docs/security).*",
     category: "Company",
     status: "published",
     featured: false,
@@ -110,9 +110,9 @@ export const demoJobs: (typeof jobPostings.$inferInsert)[] = [
     slug: "senior-frontend-engineer",
     title: "Senior Frontend Engineer",
     department: "Engineering",
-    location: "Remote",
+    location: "Remote (Africa)",
     type: "Full-time",
-    salary: "$150,000 - $200,000",
+    salary: "Competitive",
     description:
       "We're looking for a Senior Frontend Engineer to help build the next generation of AI-powered accounting software.",
     responsibilities: [
@@ -149,9 +149,9 @@ export const demoJobs: (typeof jobPostings.$inferInsert)[] = [
     slug: "ai-ml-engineer",
     title: "AI/ML Engineer (Agent Systems)",
     department: "Engineering",
-    location: "Remote",
+    location: "Remote (Africa)",
     type: "Full-time",
-    salary: "$160,000 - $220,000",
+    salary: "Competitive",
     description:
       "Join our AI team to build and optimize the intelligent agents that power Xenboox.",
     responsibilities: [
@@ -189,9 +189,9 @@ export const demoJobs: (typeof jobPostings.$inferInsert)[] = [
     slug: "product-designer",
     title: "Product Designer",
     department: "Design",
-    location: "Remote",
+    location: "Remote (Africa)",
     type: "Full-time",
-    salary: "$130,000 - $170,000",
+    salary: "Competitive",
     description:
       "We're seeking a Product Designer to create intuitive, beautiful experiences for complex financial workflows.",
     responsibilities: [
@@ -228,9 +228,9 @@ export const demoJobs: (typeof jobPostings.$inferInsert)[] = [
     slug: "customer-success-manager",
     title: "Customer Success Manager",
     department: "Customer Success",
-    location: "Remote",
+    location: "Banjul, The Gambia",
     type: "Full-time",
-    salary: "$90,000 - $120,000",
+    salary: "Competitive",
     description:
       "Help our customers succeed with Xenboox as their trusted advisor, driving long-term retention and growth.",
     responsibilities: [
@@ -267,9 +267,9 @@ export const demoJobs: (typeof jobPostings.$inferInsert)[] = [
     slug: "backend-engineer",
     title: "Backend Engineer",
     department: "Engineering",
-    location: "Remote",
+    location: "Remote (Africa)",
     type: "Full-time",
-    salary: "$140,000 - $190,000",
+    salary: "Competitive",
     description:
       "Build the backend infrastructure that powers Xenboox — APIs, database optimization, and scalable services.",
     responsibilities: [
@@ -306,7 +306,7 @@ export const demoJobs: (typeof jobPostings.$inferInsert)[] = [
     slug: "intern-engineering",
     title: "Engineering Intern",
     department: "Engineering",
-    location: "Remote",
+    location: "Banjul, The Gambia",
     type: "Internship",
     description:
       "Gain hands-on experience building AI-powered accounting software with our engineering team.",

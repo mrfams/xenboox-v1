@@ -10,8 +10,8 @@ import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 const navLinks = [
   { label: "Features", href: "/features" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Blog", href: "/blog" },
   { label: "Documentation", href: "/docs" },
-  { label: "Download", href: "/download" },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -19,10 +19,10 @@ const footerLinks = {
   product: [
     { label: "Features", href: "/features" },
     { label: "Pricing", href: "/pricing" },
-    { label: "Download", href: "/download" },
+    { label: "Blog", href: "/blog" },
     { label: "Documentation", href: "/docs" },
-    { label: "Changelog", href: "/docs" },
-    { label: "API Reference", href: "/docs" },
+    { label: "Changelog", href: "/docs/changelog" },
+    { label: "API Reference", href: "/docs/api" },
   ],
   company: [
     { label: "About", href: "/about" },
@@ -78,6 +78,65 @@ const socialLinks = [
     ),
   },
 ];
+
+function FooterNewsletterForm() {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+        setEmail("");
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <p className="mt-6 text-sm text-emerald-400 font-medium">
+        You're subscribed! Check your inbox for a welcome email.
+      </p>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mt-6 flex max-w-md mx-auto gap-3 flex-col sm:flex-row"
+    >
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Enter your email"
+        required
+        aria-label="Email address"
+        className="flex-1 h-10 rounded-lg border border-slate-700 bg-slate-800/50 px-4 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+      />
+      <button
+        type="submit"
+        disabled={submitting}
+        className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap disabled:opacity-50"
+      >
+        {submitting ? "Subscribing..." : "Subscribe"}
+      </button>
+    </form>
+  );
+}
 
 export default function MarketingLayout({
   children,
@@ -251,22 +310,7 @@ export default function MarketingLayout({
               Product updates, accounting best practices, and industry insights.
               No spam, unsubscribe anytime.
             </p>
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="mt-6 flex max-w-md mx-auto gap-3 flex-col sm:flex-row"
-            >
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 h-10 rounded-lg border border-slate-700 bg-slate-800/50 px-4 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-              />
-              <button
-                type="submit"
-                className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
-              >
-                Subscribe
-              </button>
-            </form>
+            <FooterNewsletterForm />
           </div>
 
           {/* Links */}

@@ -24,8 +24,8 @@ export function Cta() {
                 Let the agents do the books.
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-paper/70">
-                Join the first teams in The Gambia closing their books in days,
-                not weeks. Set up in under 30 minutes — no data entry required.
+                19 AI agents handle invoicing, payroll, compliance, and
+                month-end close. Set up in minutes — no data entry required.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Button asChild size="lg" className="gap-2">
@@ -44,7 +44,7 @@ export function Cta() {
                 </Button>
               </div>
               <p className="mt-5 text-sm text-paper/50">
-                Free for your first quarter. Cancel anytime.
+                Free tier available. No credit card required.
               </p>
             </div>
           </div>

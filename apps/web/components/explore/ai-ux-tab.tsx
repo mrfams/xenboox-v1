@@ -157,7 +157,7 @@ function AiUxHero() {
           ))}
           <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-indigo-100/80">
             <Bot className="h-3 w-3" />
-            21 agents · 3 tiers · 1 ledger
+            19 agents · 3 tiers · 1 ledger
           </span>
         </div>
       </div>

@@ -210,9 +210,9 @@ export default function CareersPage() {
         <div className="mx-auto max-w-6xl px-4 py-12">
           <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
             {[
-              { label: "Team Members", value: "25+", icon: Users },
-              { label: "Nationalities", value: "8", icon: Globe },
-              { label: "Countries Served", value: "12", icon: Building2 },
+              { label: "AI Agents", value: "19", icon: Users },
+              { label: "Accounting Modules", value: "20", icon: Building2 },
+              { label: "Currencies Supported", value: "50+", icon: Globe },
               {
                 label: "Open Roles",
                 value: `${jobListings.filter((j) => j.isActive).length}`,

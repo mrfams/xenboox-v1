@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Features",
+  title: "Features — AI-Native Accounting Platform",
   description:
-    "Discover the powerful features of Xenboox - AI automation, financial reporting, multi-currency support, and enterprise-grade security.",
+    "19 AI agents handle invoicing, payroll, compliance, and month-end close. Automated reconciliations, intelligent categorization, and real-time insights.",
 };
 
 export default function FeaturesLayout({

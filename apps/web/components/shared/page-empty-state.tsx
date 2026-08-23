@@ -546,7 +546,7 @@ export const PAGE_EMPTY_STATES = {
     iconBg: "bg-primary/10",
     title: "Your AI workforce is ready",
     description:
-      "21 AI agents are standing by to handle your accounting tasks. They'll appear here once they start processing work.",
+      "19 AI agents are standing by to handle your accounting tasks. They'll appear here once they start processing work.",
     actions: [
       { label: "Start with AI Chat", href: "/dashboard", icon: Bot },
       {

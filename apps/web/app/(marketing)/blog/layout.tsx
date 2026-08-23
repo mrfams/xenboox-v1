@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Blog",
-  description: "Latest news, insights, and updates from the Xenboox team.",
+  title: "Blog — AI Accounting Insights & Updates",
+  description:
+    "Product updates, engineering deep-dives, and insights from the team building the future of AI-native accounting for businesses worldwide.",
 };
 
 export default function BlogLayout({

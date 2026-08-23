@@ -33,8 +33,8 @@ const contactMethods = [
     icon: Phone,
     title: "Phone",
     description: "Available for priority support and enterprise inquiries.",
-    action: "+220 300 0000",
-    href: "tel:+2203000000",
+    action: "Contact us for details",
+    href: "mailto:hello@xenboox.com",
   },
   {
     icon: MapPin,

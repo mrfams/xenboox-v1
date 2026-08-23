@@ -285,25 +285,81 @@ Every plan MUST include ALL of these sections. No shortcuts.
 
 ## Skill Auto-Loading
 
-When starting a task, auto-load the relevant skill(s) from `.agents/skills/` based on task category:
+When starting a task, auto-load the relevant skill(s) from `.agents/skills/` based on task category. Skills are like employees — load the right one for the job, one at a time.
 
-| Task Category               | Skill(s) to Load                                        | Source       |
-| --------------------------- | ------------------------------------------------------- | ------------ |
-| **Code review / PR review** | `review`, `code-review`                                 | gstack, Matt |
-| **Bug diagnosis**           | `diagnosing-bugs`                                       | Matt         |
-| **New feature (TDD)**       | `tdd`                                                   | Matt         |
-| **Architecture / planning** | `plan-eng-review`, `domain-modeling`, `grill-with-docs` | gstack, Matt |
-| **Security audit**          | `cso`                                                   | gstack       |
-| **QA testing**              | `qa`                                                    | gstack       |
-| **Product questioning**     | `office-hours`                                          | gstack       |
-| **Agent work**              | `agent-eval`                                            | xenboox      |
-| **Database migration**      | `create-migration`                                      | xenboox      |
-| **New API route**           | `create-api-route`                                      | xenboox      |
-| **New module**              | `create-module`                                         | xenboox      |
-| **New agent**               | `create-agent`                                          | xenboox      |
-| **Month-end close**         | `month-end-close`                                       | xenboox      |
+**📖 Full skill directory:** `.agents/skills/FIRE.md` — fire any employee by name or trigger.
 
-Load the skill via the `skill` tool before starting work. For multi-category tasks, load all relevant skills.
+### Skill Routing Rules
+
+**Trigger phrases** → **Load this skill** (or say `fire [skill-name]`):
+
+| Trigger Phrase                            | Skill to Load           | When to Use                |
+| ----------------------------------------- | ----------------------- | -------------------------- |
+| "review code", "PR review", "check this"  | `review`                | Code quality review        |
+| "security audit", "is this secure"        | `cso`                   | Security assessment        |
+| "fix bug", "something's broken", "error"  | `diagnosing-bugs`       | Bug investigation          |
+| "add feature", "new feature", "build"     | `tdd`                   | Test-driven development    |
+| "architecture", "design", "how should we" | `plan-eng-review`       | Architecture planning      |
+| "what do users think", "validate"         | `office-hours`          | Product validation         |
+| "is this ready", "QA"                     | `qa`                    | Quality assurance          |
+| "migration", "schema change"              | `create-migration`      | Database changes           |
+| "API endpoint", "new route"               | `create-api-route`      | API development            |
+| "new module", "new page"                  | `create-module`         | Module scaffolding         |
+| "new agent", "AI agent"                   | `create-agent`          | Agent development          |
+| "close month", "period close"             | `month-end-close`       | Month-end close            |
+| "review design", "looks off"              | `design-critique`       | Design quality review      |
+| "review copy", "check wording"            | `content-critique`      | Content quality review     |
+| "product review", "is this right"         | `product-critique`      | Product quality review     |
+| "marketing review", "convert"             | `marketing-critique`    | Marketing quality review   |
+| "engineering review", "code quality"      | `engineering-critique`  | Engineering quality review |
+| "write blog", "content"                   | `blog-writer`           | Blog writing               |
+| "SEO", "search ranking"                   | `seo-audit`             | SEO optimization           |
+| "UX review", "user experience"            | `product-reviewer`      | UX quality review          |
+| "copy", "messaging"                       | `copywriter`            | Marketing copy             |
+| "design", "UI"                            | `design-taste-frontend` | Visual design              |
+
+### Critique Skills (Quality Gates)
+
+**Always load before shipping**:
+
+| Department  | Critique Skill         | What It Reviews              |
+| ----------- | ---------------------- | ---------------------------- |
+| Engineering | `engineering-critique` | Code, architecture, security |
+| Design      | `design-critique`      | Visual, UX, accessibility    |
+| Content     | `content-critique`     | Copy, messaging, brand voice |
+| Product     | `product-critique`     | Features, flows, value       |
+| Marketing   | `marketing-critique`   | Conversion, SEO, positioning |
+
+### How to Load
+
+1. **One at a time** — Don't load all skills at once
+2. **Match the trigger** — Use the table above to find the right skill
+3. **Load via `skill` tool** — `skill(name="engineering-critique")`
+4. **Or say `fire [name]`** — e.g. `fire engineering-critique`
+5. **Apply the skill** — Follow its checklist and output format
+6. **Move to next** — Only load next skill after finishing current
+
+### Example Workflow
+
+```
+User: "Review this PR for the new invoice feature"
+
+1. fire engineering-critique → Review code quality
+2. fire design-critique → Review UI/UX
+3. fire content-critique → Review copy
+4. fire product-critique → Review feature value
+5. Ship when all critiques pass
+```
+
+### Quick Critique Combos
+
+| Scenario       | Firing Order                                                   |
+| -------------- | -------------------------------------------------------------- |
+| Pre-ship       | `engineering` → `design` → `content` → `product` → `marketing` |
+| Marketing page | `design` → `content` → `marketing` → `seo-audit`               |
+| New feature    | `product` → `engineering` → `design` → `qa`                    |
+| Blog post      | `content` → `seo-audit` → `marketing`                          |
+| Security       | `security-engineer` → `cso` → `engineering`                    |
 
 ---
 

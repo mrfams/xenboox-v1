@@ -8,9 +8,14 @@ import { Security } from "@/components/marketing/security";
 import { Testimonials } from "@/components/marketing/testimonials";
 
 export const metadata: Metadata = {
-  title: "Home",
+  title: "AI-Native Accounting Platform — 19 Agents, Zero Data Entry",
   description:
-    "AI-native accounting platform for businesses worldwide. Automated journal entries, reconciliations, payroll, and financial reporting.",
+    "Xenboox is an AI-native accounting platform with 19 specialized agents that handle invoicing, payroll, compliance, and month-end close. Built for businesses in The Gambia and beyond.",
+  openGraph: {
+    title: "Xenboox — Your Entire Accounting Department, Running Autonomously",
+    description:
+      "19 AI agents handle invoicing, payroll, compliance, and month-end close. Agents do the work. You make the decisions.",
+  },
 };
 
 export default function HomePage() {

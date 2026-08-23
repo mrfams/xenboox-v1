@@ -67,7 +67,7 @@ export function Agents() {
         <FadeInUp>
           <SectionHeading
             eyebrow="The team"
-            title="A finance team of 21 agents. Three tiers of guardrails."
+            title="A finance team of 19 agents. Three tiers of guardrails."
             lead="Workers execute, managers review, the CFO decides. Every posting is attributed, logged, and reversible."
           />
         </FadeInUp>
