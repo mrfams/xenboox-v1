@@ -1,8 +1,10 @@
 # XENBOOX — Product Requirements Document (PRD)
 
+> ⚠️ **WEB ONLY** — Mobile and Desktop are postponed. All development focuses on the web app (`apps/web/`). Do not create mobile or desktop code.
+>
 > The complete, definitive product specification for Xenboox.
 > Single source of truth for all sessions — engineering, YC application, pitching, hiring, and building.
-> Version: v1.0 | Last updated: July 2026 | Authors: Founder + Claude (co-founder sessions)
+> Version: v1.0 | Last updated: August 2026 | Authors: Founder + Claude (co-founder sessions)
 
 ---
 
@@ -20,7 +22,7 @@ Xenboox is the first AI-native, full-stack accounting platform built for SMEs wo
 - Not built for Silicon Valley startups — built for real organizations doing real business
 - Not a narrow solution — a complete accounting platform covering every function
 - Not Western-first — built natively for SME needs, currencies, tax regimes, and payment rails
-- Not one surface — available on web, mobile, and desktop
+- One surface for now — **web only** (mobile and desktop are postponed)
 
 ---
 
@@ -56,7 +58,7 @@ Every serious accounting platform was built for Western markets with Western ass
 - Not built only for VC-backed tech startups
 - Not a licensed accounting firm
 - Not a replacement for a CPA for complex tax situations requiring professional judgment
-- Not a single-surface product — web, mobile, and desktop are all first-class
+- **Web-only for now** — mobile and desktop are postponed. All development focuses on the web app (`apps/web/`).
 
 ---
 

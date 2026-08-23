@@ -20,6 +20,9 @@ import {
   bankTxTypeEnum,
   statementLines,
   auditLog,
+  journalEntries,
+  journalEntryLines,
+  reconciliations,
 } from "@xenboox/db/schema";
 
 import {
@@ -230,13 +233,19 @@ export const bankingRouter = router({
       }
 
       // Calculate incoming and outgoing
+      // Amounts are stored as positive; the `type` field indicates direction
       const incoming = transactions
-        .filter((tx) => parseFloat(tx.amount) > 0)
+        .filter((tx) => tx.type === "deposit")
         .reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
 
       const outgoing = transactions
-        .filter((tx) => parseFloat(tx.amount) < 0)
-        .reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
+        .filter(
+          (tx) =>
+            tx.type === "withdrawal" ||
+            tx.type === "transfer" ||
+            tx.type === "fee",
+        )
+        .reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
 
       // Get current balance
       const accounts = await db.query.bankAccounts.findMany({

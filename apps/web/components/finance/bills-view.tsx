@@ -60,32 +60,29 @@ export function BillsView() {
   const [page, setPage] = useState(0);
   const limit = 20;
 
-  // Fetch bills
-  const { data, isLoading, refetch } = trpc.bills.listBills.useQuery(
-    {
-      status,
-      search: search || undefined,
-      limit,
-      offset: page * limit,
-    },
-    { enabled: !!entityId },
-  );
+  const { data, isLoading, isError, error, refetch } =
+    trpc.bills.listBills.useQuery(
+      {
+        status,
+        search: search || undefined,
+        limit,
+        offset: page * limit,
+      },
+      { enabled: !!entityId },
+    );
 
-  // Get summary stats
-  const { data: stats } = trpc.bills.getBillsTrend.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  const { data: overview, isError: overviewError } =
+    trpc.bills.getOverview.useQuery(undefined, {
+      enabled: !!entityId,
+    });
 
   const bills = data?.bills ?? [];
   const totalCount = data?.totalCount ?? 0;
 
-  // Calculate summary from bills
-  const totalOutstanding = bills
-    .filter((b) => b.status !== "paid")
-    .reduce((sum, b) => sum + (b.balance ?? b.totalAmount), 0);
-
-  const overdueCount = bills.filter((b) => b.status === "overdue").length;
-  const pendingCount = bills.filter((b) => b.status === "pending").length;
+  // Enterprise correctness: summary must come from server-side aggregation (getOverview), not from the current page slice.
+  const totalOutstanding = overview?.summary.totalOutstanding ?? 0;
+  const overdueCount = overview?.summary.overdueCount ?? 0;
+  const pendingCount = overview?.statusCounts?.approved ?? 0;
 
   return (
     <div className="space-y-4">
@@ -98,10 +95,12 @@ export function BillsView() {
                 <DollarSign className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold tabular-nums">
                   {formatCurrency(totalOutstanding)}
                 </div>
-                <div className="text-xs text-muted-foreground">Outstanding</div>
+                <div className="text-xs text-muted-foreground">
+                  Outstanding • entity total
+                </div>
               </div>
             </div>
           </CardContent>
@@ -184,17 +183,48 @@ export function BillsView() {
         </Tabs>
       </div>
 
+      {(isError || overviewError) && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          <p className="font-medium">Failed to load bills</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {(error as Error | undefined)?.message ??
+              "An error occurred. Please try again."}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => refetch()}
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* Bills List */}
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 text-primary animate-spin" />
+            <div className="space-y-2 p-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-16 animate-pulse rounded-lg bg-muted/40"
+                />
+              ))}
             </div>
           ) : bills.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No bills found</p>
+            <div className="text-center py-12">
+              <FileText
+                className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40"
+                aria-hidden
+              />
+              <p className="text-sm font-medium">No bills found</p>
+              <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+                {search || status !== "all"
+                  ? "Try adjusting filters or search. Bills are entity-scoped — switch entity if you expected results elsewhere."
+                  : "Create your first bill to get started. Bills are tracked with full audit trail and entity isolation."}
+              </p>
             </div>
           ) : (
             <div className="divide-y">

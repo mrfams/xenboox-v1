@@ -8,6 +8,26 @@
       "*": "ask"
     }
   },
+  "model": "z-ai/glm-5.3-free",
+  "small_model": "z-ai/glm-5.3-free",
+  "provider": {
+    "zenmux": {
+      "options": {
+        "baseURL": "https://zenmux.ai/api/v1",
+        "apiKey": "{env:ZENMUX_API_KEY}"
+      }
+    },
+    "z-ai": {
+      "options": {
+        "apiKey": "{env:Z_AI_API_KEY}"
+      }
+    },
+    "zai": {
+      "options": {
+        "apiKey": "{env:ZAI_API_KEY}"
+      }
+    }
+  },
   "mcp": {
     "gbrain": {
       "type": "local",

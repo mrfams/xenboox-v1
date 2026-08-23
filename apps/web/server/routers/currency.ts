@@ -188,6 +188,82 @@ export const currencyRouter = router({
       return rates;
     }),
 
+  // ── Global exchange rates (ECB-synced pool) ──
+  listGlobalRates: rlsProtectedProcedure
+    .use(requirePermission("multi_currency", "view"))
+    .input(
+      z
+        .object({
+          pairs: z
+            .array(
+              z.object({
+                from: z.string().length(3),
+                to: z.string().length(3),
+              }),
+            )
+            .optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      const cacheKey = `global:${JSON.stringify(input?.pairs ?? [])}`;
+      const cached = fxCache.get<
+        Array<{
+          fromCurrency: string;
+          toCurrency: string;
+          rate: string;
+          source: string;
+          validFrom: Date;
+        }>
+      >("_global", cacheKey);
+      if (cached) return cached;
+
+      // If specific pairs requested, resolve each one
+      if (input?.pairs && input.pairs.length > 0) {
+        const results = await Promise.all(
+          input.pairs.map(async (pair) => {
+            const rate = await db.query.exchangeRates.findFirst({
+              where: and(
+                eq(exchangeRates.fromCurrency, pair.from),
+                eq(exchangeRates.toCurrency, pair.to),
+              ),
+              orderBy: [desc(exchangeRates.validFrom)],
+            });
+            return rate ?? null;
+          }),
+        );
+        const filtered = results.filter(Boolean) as NonNullable<
+          (typeof results)[number]
+        >[];
+        fxCache.set("_global", cacheKey, filtered);
+        return filtered;
+      }
+
+      // Otherwise return the latest rate per unique pair
+      const allRates = await db
+        .select({
+          fromCurrency: exchangeRates.fromCurrency,
+          toCurrency: exchangeRates.toCurrency,
+          rate: exchangeRates.rate,
+          source: exchangeRates.source,
+          validFrom: exchangeRates.validFrom,
+        })
+        .from(exchangeRates)
+        .orderBy(desc(exchangeRates.validFrom));
+
+      // Deduplicate: keep only the newest rate per pair
+      const seen = new Set<string>();
+      const unique = allRates.filter((r) => {
+        const key = `${r.fromCurrency}:${r.toCurrency}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      fxCache.set("_global", cacheKey, unique);
+      return unique;
+    }),
+
   upsertRate: rlsMutateProcedure
     .use(requirePermission("multi_currency", "edit"))
     .input(

@@ -62,13 +62,23 @@ export function CashFlowChart({
 }) {
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
 
-  // Process data for chart
+  // Process data for chart — recompute when timeRange changes
   const chartData = useMemo(() => {
     if (!data?.dailyBalances) return [];
 
-    const entries = Object.entries(data.dailyBalances)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-30); // Last 30 days
+    const allEntries = Object.entries(data.dailyBalances).sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
+
+    // Slice based on selected time range
+    const daysMap: Record<TimeRange, number> = {
+      "7d": 7,
+      "30d": 30,
+      "90d": 90,
+      ytd: allEntries.length,
+    };
+    const sliceCount = daysMap[timeRange] ?? 30;
+    const entries = allEntries.slice(-sliceCount);
 
     return entries.map(([date, balance], index) => {
       const prevBalance = index > 0 ? entries[index - 1][1] : 0;
@@ -84,7 +94,7 @@ export function CashFlowChart({
         outgoing: dailyChange < 0 ? Math.abs(dailyChange) : 0,
       };
     });
-  }, [data]);
+  }, [data, timeRange]);
 
   // Summary stats
   const stats = useMemo(() => {

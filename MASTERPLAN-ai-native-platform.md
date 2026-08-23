@@ -1,5 +1,7 @@
 # Xenboox — Production-Grade AI-Native Platform Masterplan
 
+> ⚠️ **WEB ONLY** — Mobile and Desktop are postponed. All development focuses on the web app (`apps/web/`). Do not create mobile or desktop code.
+>
 > **Status:** Approved master plan (Plan → Build phase)
 > **Owner:** Engineering / Agent Platform
 > **Scope:** Full accounting platform — ingestion, model control plane, tool-calling, RAG, document/artifact storage, deterministic validation, and the agent runtime.

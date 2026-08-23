@@ -680,199 +680,256 @@ const REPORTS = [
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function FinancialPulsePage() {
+  // ─── Live Exchange Rates ─────────────────────────────────────────────────
 
-// ─── Live Exchange Rates ─────────────────────────────────────────────────
+  function LiveExchangeRates() {
+    const { entityId } = useEntity();
+    const { openWithFocus } = useModuleAi();
 
-function LiveExchangeRates() {
-  const { entityId } = useEntity();
-  const { openWithFocus } = useModuleAi();
+    const { data: settings } = trpc.currency.getSettings.useQuery(undefined, {
+      enabled: !!entityId,
+    });
 
-  const { data: settings } = trpc.currency.getSettings.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+    const { data: entityRates, isLoading: entityRatesLoading } =
+      trpc.currency.listRates.useQuery(undefined, {
+        enabled: !!entityId,
+      });
 
-  const { data: rates, isLoading } = trpc.currency.listRates.useQuery(
-    undefined,
-    { enabled: !!entityId },
-  );
+    const baseCurrency = settings?.baseCurrency ?? "GMD";
 
-  const baseCurrency = settings?.baseCurrency ?? "GMD";
+    // Show key rates for The Gambia market
+    const keyPairs = [
+      { from: "USD", to: baseCurrency, label: "USD" },
+      { from: "EUR", to: baseCurrency, label: "EUR" },
+      { from: "GBP", to: baseCurrency, label: "GBP" },
+    ];
 
-  // Show key rates for The Gambia market
-  const keyPairs = [
-    { from: "USD", to: baseCurrency, label: "USD" },
-    { from: "EUR", to: baseCurrency, label: "EUR" },
-    { from: "GBP", to: baseCurrency, label: "GBP" },
-  ];
-
-  // Find rates from the entity-scoped list or use approximate values
-  const displayRates = keyPairs.map((pair) => {
-    const found = rates?.find(
-      (r) => r.fromCurrency === pair.from && r.toCurrency === pair.to,
+    // Fetch global ECB-synced rates as fallback for any missing entity rates
+    const missingPairs = keyPairs.filter(
+      (pair) =>
+        !entityRates?.some(
+          (r) => r.fromCurrency === pair.from && r.toCurrency === pair.to,
+        ),
     );
-    return {
-      ...pair,
-      rate: found ? parseFloat(found.rate) : null,
-      source: found?.source ?? "ecb",
-    };
-  });
 
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border bg-card p-4 animate-pulse">
-        <div className="h-4 bg-muted rounded w-48 mb-2" />
-        <div className="h-3 bg-muted rounded w-32" />
-      </div>
-    );
-  }
+    const { data: globalRates, isLoading: globalRatesLoading } =
+      trpc.currency.listGlobalRates.useQuery(
+        {
+          pairs: missingPairs.map((p) => ({ from: p.from, to: p.to })),
+        },
+        { enabled: missingPairs.length > 0 },
+      );
 
-  return (
-    <div className="rounded-xl border border-border/50 bg-card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10">
-            <Globe className="h-3.5 w-3.5 text-blue-500" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">
-              Exchange Rates
-            </h3>
-            <p className="text-[10px] text-muted-foreground">
-              Base: {baseCurrency} · Updated daily from ECB
-            </p>
-          </div>
+    const isLoading = entityRatesLoading || globalRatesLoading;
+
+    // Merge: entity rates take precedence, fall back to global ECB rates
+    const displayRates = keyPairs.map((pair) => {
+      // 1. Try entity-scoped rate
+      const entityRate = entityRates?.find(
+        (r) => r.fromCurrency === pair.from && r.toCurrency === pair.to,
+      );
+      if (entityRate)
+        return {
+          ...pair,
+          rate: parseFloat(entityRate.rate),
+          source: entityRate.source ?? "entity",
+        };
+
+      // 2. Fall back to global ECB-synced rate
+      const globalRate = globalRates?.find(
+        (r) => r.fromCurrency === pair.from && r.toCurrency === pair.to,
+      );
+      if (globalRate)
+        return {
+          ...pair,
+          rate: parseFloat(globalRate.rate),
+          source: globalRate.source ?? "ecb",
+        };
+
+      // 3. No rate available
+      return { ...pair, rate: null, source: "ecb" };
+    });
+
+    if (isLoading) {
+      return (
+        <div className="rounded-xl border bg-card p-4 animate-pulse">
+          <div className="h-4 bg-muted rounded w-48 mb-2" />
+          <div className="h-3 bg-muted rounded w-32" />
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            openWithFocus(
-              {
-                kind: "Exchange Rates",
-                name: "Currency Rates",
-                fields: displayRates.map((r) => ({
-                  label: `${r.label}/${baseCurrency}`,
-                  value: r.rate ? r.rate.toFixed(4) : "N/A",
-                })),
-              },
-              "Show me current exchange rates. Any significant movements I should know about?",
-            )
-          }
-          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-        >
-          Ask AI
-          <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        </button>
-      </div>
+      );
+    }
 
-      <div className="grid grid-cols-3 gap-3">
-        {displayRates.map((r) => (
-          <div
-            key={r.label}
-            className="rounded-lg bg-background/50 p-3 text-center"
+    return (
+      <div className="rounded-xl border border-border/50 bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10">
+              <Globe className="h-3.5 w-3.5 text-blue-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Exchange Rates
+              </h3>
+              <p className="text-[10px] text-muted-foreground">
+                Base: {baseCurrency} · Updated daily from ECB
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              openWithFocus(
+                {
+                  kind: "Exchange Rates",
+                  name: "Currency Rates",
+                  fields: displayRates.map((r) => ({
+                    label: `${r.label}/${baseCurrency}`,
+                    value: r.rate ? r.rate.toFixed(4) : "N/A",
+                  })),
+                },
+                "Show me current exchange rates. Any significant movements I should know about?",
+              )
+            }
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
           >
-            <p className="text-[10px] font-medium text-muted-foreground/70">
-              {r.label}/{baseCurrency}
-            </p>
-            <p className="mt-1 text-base font-bold text-foreground tabular-nums">
-              {r.rate ? r.rate.toFixed(4) : "—"}
-            </p>
-            <p className="text-[9px] text-muted-foreground/50 uppercase">
-              {r.source}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Daily Close Status Component ─────────────────────────────────────────
-function DailyCloseStatus() {
-  const { entityId } = useEntity();
-  const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]!);
-  
-  const { data: todayRun, isLoading: todayLoading } = trpc.dailyClose.getToday.useQuery(
-    undefined,
-    { refetchInterval: 30_000 } // Poll every 30s
-  );
-  
-  const { data: stats, isLoading: statsLoading } = trpc.dailyClose.getStats.useQuery();
-
-  if (todayLoading || statsLoading) {
-    return (
-      <div className="rounded-xl border bg-card p-4 animate-pulse">
-        <div className="h-4 bg-muted rounded w-48 mb-2" />
-        <div className="h-3 bg-muted rounded w-32" />
-      </div>
-    );
-  }
-
-  const statusColor = !todayRun
-    ? "text-muted-foreground"
-    : todayRun.status === "completed"
-      ? "text-emerald-500"
-      : todayRun.status === "exception"
-        ? "text-amber-500"
-        : todayRun.status === "failed"
-          ? "text-red-500"
-          : "text-blue-500";
-
-  const statusLabel = !todayRun
-    ? "Not yet run"
-    : todayRun.status === "completed"
-      ? "All clear"
-      : todayRun.status === "exception"
-        ? `${todayRun.exceptions?.length ?? 0} exception(s)`
-        : todayRun.status === "failed"
-          ? "Failed"
-          : "In progress";
-
-  return (
-    <div className="rounded-xl border bg-card p-4" role="region" aria-label="Daily Close Status">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-primary" aria-hidden="true" />
-          <span className="text-sm font-medium">Daily Close</span>
+            Ask AI
+            <ChevronRight className="h-3 w-3" aria-hidden="true" />
+          </button>
         </div>
-        <span className={`text-xs font-medium ${statusColor}`} aria-live="polite">
-          {statusLabel}
-        </span>
-      </div>
-      
-      <div className="grid grid-cols-4 gap-3 text-center">
-        <div>
-          <div className="text-lg font-bold">{stats?.completed ?? 0}</div>
-          <div className="text-[10px] text-muted-foreground">Clean days</div>
-        </div>
-        <div>
-          <div className="text-lg font-bold text-amber-500">{stats?.exceptions ?? 0}</div>
-          <div className="text-[10px] text-muted-foreground">Exceptions</div>
-        </div>
-        <div>
-          <div className="text-lg font-bold">{stats?.totalTransactions ?? 0}</div>
-          <div className="text-[10px] text-muted-foreground">Transactions</div>
-        </div>
-        <div>
-          <div className="text-lg font-bold text-emerald-500">
-            {stats ? Math.round(stats.autoMatchRate * 100) : 0}%
-          </div>
-          <div className="text-[10px] text-muted-foreground">Auto-matched</div>
-        </div>
-      </div>
 
-      {todayRun && todayRun.status === "exception" && todayRun.exceptions && (
-        <div className="mt-3 space-y-1">
-          {(todayRun.exceptions as any[]).slice(0, 3).map((ex: any, i: number) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-amber-600">
-              <span>⚠️</span>
-              <span className="truncate">{ex.description}</span>
+        <div className="grid grid-cols-3 gap-3">
+          {displayRates.map((r) => (
+            <div
+              key={r.label}
+              className="rounded-lg bg-background/50 p-3 text-center"
+            >
+              <p className="text-[10px] font-medium text-muted-foreground/70">
+                {r.label}/{baseCurrency}
+              </p>
+              <p className="mt-1 text-base font-bold text-foreground tabular-nums">
+                {r.rate ? r.rate.toFixed(4) : "—"}
+              </p>
+              <p className="text-[9px] text-muted-foreground/50 uppercase">
+                {r.source}
+              </p>
             </div>
           ))}
         </div>
-      )}
-    </div>
-  );
-}
+      </div>
+    );
+  }
+
+  // ─── Daily Close Status Component ─────────────────────────────────────────
+  function DailyCloseStatus() {
+    const { entityId } = useEntity();
+    const [today, setToday] = useState(
+      () => new Date().toISOString().split("T")[0]!,
+    );
+
+    const { data: todayRun, isLoading: todayLoading } =
+      trpc.dailyClose.getToday.useQuery(
+        undefined,
+        { refetchInterval: 30_000 }, // Poll every 30s
+      );
+
+    const { data: stats, isLoading: statsLoading } =
+      trpc.dailyClose.getStats.useQuery();
+
+    if (todayLoading || statsLoading) {
+      return (
+        <div className="rounded-xl border bg-card p-4 animate-pulse">
+          <div className="h-4 bg-muted rounded w-48 mb-2" />
+          <div className="h-3 bg-muted rounded w-32" />
+        </div>
+      );
+    }
+
+    const statusColor = !todayRun
+      ? "text-muted-foreground"
+      : todayRun.status === "completed"
+        ? "text-emerald-500"
+        : todayRun.status === "exception"
+          ? "text-amber-500"
+          : todayRun.status === "failed"
+            ? "text-red-500"
+            : "text-blue-500";
+
+    const statusLabel = !todayRun
+      ? "Not yet run"
+      : todayRun.status === "completed"
+        ? "All clear"
+        : todayRun.status === "exception"
+          ? `${todayRun.exceptions?.length ?? 0} exception(s)`
+          : todayRun.status === "failed"
+            ? "Failed"
+            : "In progress";
+
+    return (
+      <div
+        className="rounded-xl border bg-card p-4"
+        role="region"
+        aria-label="Daily Close Status"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Bot className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span className="text-sm font-medium">Daily Close</span>
+          </div>
+          <span
+            className={`text-xs font-medium ${statusColor}`}
+            aria-live="polite"
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-4 gap-3 text-center">
+          <div>
+            <div className="text-lg font-bold">{stats?.completed ?? 0}</div>
+            <div className="text-[10px] text-muted-foreground">Clean days</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-amber-500">
+              {stats?.exceptions ?? 0}
+            </div>
+            <div className="text-[10px] text-muted-foreground">Exceptions</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold">
+              {stats?.totalTransactions ?? 0}
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              Transactions
+            </div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-emerald-500">
+              {stats ? Math.round(stats.autoMatchRate * 100) : 0}%
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              Auto-matched
+            </div>
+          </div>
+        </div>
+
+        {todayRun && todayRun.status === "exception" && todayRun.exceptions && (
+          <div className="mt-3 space-y-1">
+            {(todayRun.exceptions as any[])
+              .slice(0, 3)
+              .map((ex: any, i: number) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 text-xs text-amber-600"
+                >
+                  <span>⚠️</span>
+                  <span className="truncate">{ex.description}</span>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();

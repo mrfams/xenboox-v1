@@ -38,18 +38,24 @@ export function AutoApproveRules() {
   const {
     data: rules,
     isLoading,
+    isError: rulesError,
+    error: rulesErr,
     refetch: refetchRules,
   } = trpc.autoApprove.getRules.useQuery(undefined, { enabled: !!entityId });
 
-  const { data: stats } = trpc.autoApprove.getStats.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  const { data: stats, isError: statsError } =
+    trpc.autoApprove.getStats.useQuery(undefined, {
+      enabled: !!entityId,
+    });
 
-  const { data: logData, isLoading: isLogLoading } =
-    trpc.autoApprove.getLog.useQuery(
-      { limit: 50 },
-      { enabled: !!entityId && activeTab === "log" },
-    );
+  const {
+    data: logData,
+    isLoading: isLogLoading,
+    isError: logError,
+  } = trpc.autoApprove.getLog.useQuery(
+    { limit: 50 },
+    { enabled: !!entityId && activeTab === "log" },
+  );
 
   const suggestRulesMutation = trpc.autoApprove.suggestRules.useMutation({
     onSuccess: () => refetchRules(),
@@ -63,8 +69,18 @@ export function AutoApproveRules() {
 
   return (
     <div className="space-y-4">
+      {(rulesError || statsError || logError) && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-800 dark:text-amber-200">
+          <p className="font-medium">
+            Some data failed to load — policies still enforced server-side.
+          </p>
+          {rulesErr?.message && (
+            <p className="mt-1 text-muted-foreground">{rulesErr.message}</p>
+          )}
+        </div>
+      )}
       {/* Stats cards */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
           label="Active Rules"
           value={stats?.activeRules ?? 0}
@@ -139,7 +155,9 @@ export function AutoApproveRules() {
       {/* Tab content */}
       {activeTab === "rules" && (
         <RulesList
-          rules={(rules ?? []) as any}
+          rules={
+            (rules ?? []) as unknown as Parameters<typeof RulesList>[0]["rules"]
+          }
           isLoading={isLoading}
           onRefresh={refetchRules}
           currency={entityCurrency ?? ""}
@@ -148,7 +166,11 @@ export function AutoApproveRules() {
 
       {activeTab === "log" && (
         <AuditLog
-          logs={(logData?.logs ?? []) as any}
+          logs={
+            (logData?.logs ?? []) as unknown as Parameters<
+              typeof AuditLog
+            >[0]["logs"]
+          }
           isLoading={isLogLoading}
           currency={entityCurrency ?? ""}
         />

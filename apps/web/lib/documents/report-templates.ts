@@ -462,3 +462,110 @@ export function buildTrialBalanceReport(data: TrialBalanceData): ReportData {
     sections,
   };
 }
+
+// ─── Donor Report Template ────────────────────────────────────────────────
+
+export type DonorReportData = {
+  projectName: string;
+  projectCode: string | null;
+  period: string;
+  currency: string;
+  grantAmount: number;
+  amountDisbursed: number;
+  amountRemaining: number;
+  reportingFormat: string;
+  budgetVsActual: {
+    categories: Array<{
+      category: string;
+      budgeted: number;
+      actual: number;
+      variance: number;
+      variancePct: number;
+    }>;
+    totalBudgeted: number;
+    totalActual: number;
+    totalVariance: number;
+    totalVariancePct: number;
+  };
+  narrativeSummary: string | null;
+  status: string;
+  generatedAt: string;
+};
+
+export function buildDonorReportPdf(data: DonorReportData): ReportData {
+  const sections: ReportSection[] = [];
+
+  // Executive summary
+  if (data.narrativeSummary) {
+    sections.push({
+      heading: "Narrative Summary",
+      paragraphs: [data.narrativeSummary],
+    });
+  }
+
+  // Grant overview
+  sections.push({
+    heading: "Grant Overview",
+    table: {
+      columns: ["Metric", "Value"],
+      rows: [
+        ["Project Name", data.projectName],
+        ["Project Code", data.projectCode ?? "—"],
+        ["Reporting Period", data.period],
+        ["Reporting Format", data.reportingFormat.toUpperCase()],
+        [
+          "Report Status",
+          data.status.charAt(0).toUpperCase() + data.status.slice(1),
+        ],
+        ["Total Grant", formatAmount(data.grantAmount, data.currency)],
+        ["Amount Disbursed", formatAmount(data.amountDisbursed, data.currency)],
+        ["Amount Remaining", formatAmount(data.amountRemaining, data.currency)],
+        [
+          "Grant Utilization",
+          data.grantAmount > 0
+            ? `${((data.amountDisbursed / data.grantAmount) * 100).toFixed(1)}%`
+            : "0%",
+        ],
+      ],
+    },
+  });
+
+  // Budget vs Actual
+  const categories = data.budgetVsActual.categories;
+  if (categories.length > 0) {
+    sections.push({
+      heading: "Budget vs Actual",
+      intro: `Total budgeted: ${formatAmount(data.budgetVsActual.totalBudgeted, data.currency)} · Total actual: ${formatAmount(data.budgetVsActual.totalActual, data.currency)}`,
+      table: {
+        columns: ["Category", "Budgeted", "Actual", "Variance", "Variance %"],
+        rows: categories.map((c) => [
+          c.category,
+          formatAmount(c.budgeted, data.currency),
+          formatAmount(c.actual, data.currency),
+          `${c.variance > 0 ? "+" : ""}${formatAmount(c.variance, data.currency)}`,
+          `${c.variancePct > 0 ? "+" : ""}${c.variancePct.toFixed(1)}%`,
+        ]),
+      },
+      footer: [
+        {
+          label: "Total Variance",
+          value: `${data.budgetVsActual.totalVariance > 0 ? "+" : ""}${formatAmount(data.budgetVsActual.totalVariance, data.currency)} (${data.budgetVsActual.totalVariancePct > 0 ? "+" : ""}${data.budgetVsActual.totalVariancePct.toFixed(1)}%)`,
+        },
+      ],
+    });
+  } else {
+    sections.push({
+      heading: "Budget vs Actual",
+      paragraphs: ["No budget vs actual data available for this period."],
+    });
+  }
+
+  return {
+    title: "Donor Report",
+    subtitle: `${data.projectName} · ${data.period}`,
+    entityName: data.projectName,
+    currency: data.currency,
+    generatedAt: new Date(),
+    sections,
+  };
+}
