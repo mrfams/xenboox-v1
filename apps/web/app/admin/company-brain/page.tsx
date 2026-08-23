@@ -607,8 +607,11 @@ export default function CompanyBrainPage() {
                 className="cursor-pointer hover:bg-muted"
               >
                 Finance
-              </Badge>
-              <button className="p-1.5 border rounded-lg hover:bg-muted">
+              </Badge>{" "}
+              <button
+                aria-label="Attach file"
+                className="p-1.5 border rounded-lg hover:bg-muted"
+              >
                 <Paperclip className="h-4 w-4" />
               </button>
             </div>

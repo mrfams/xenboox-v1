@@ -876,7 +876,11 @@ export default function FeatureFlagsPage() {
                         : ""}
                     </td>
                     <td className="px-4 py-3">
-                      <button className="p-1 hover:bg-muted rounded">
+                      {" "}
+                      <button
+                        aria-label="More options"
+                        className="p-1 hover:bg-muted rounded"
+                      >
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
                     </td>

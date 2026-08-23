@@ -302,10 +302,7 @@ function DetailPanel({ item, onClose }: { item: any; onClose: () => void }) {
 
   const handleAction = async (
     action:
-      | "approve_match"
-      | "create_new_record"
-      | "request_more_info"
-      | "escalate",
+      "approve_match" | "create_new_record" | "request_more_info" | "escalate",
   ) => {
     setPendingAction(action);
     setDiffOpen(true);
@@ -860,7 +857,11 @@ export default function ReviewQueuePage() {
                       <StatusBadge status={item.status} />
                     </td>
                     <td className="px-4 py-3">
-                      <button className="p-1 hover:bg-slate-100 rounded">
+                      {" "}
+                      <button
+                        aria-label="More options"
+                        className="p-1 hover:bg-slate-100 rounded"
+                      >
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
                     </td>

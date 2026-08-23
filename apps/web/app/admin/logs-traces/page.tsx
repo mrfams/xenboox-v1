@@ -732,8 +732,11 @@ export default function LogsTracesPage() {
                             : ""}
                         </span>
                       </div>
-                    </div>
-                    <button className="p-1 hover:bg-muted rounded">
+                    </div>{" "}
+                    <button
+                      aria-label="Expand details"
+                      className="p-1 hover:bg-muted rounded"
+                    >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -785,8 +788,11 @@ export default function LogsTracesPage() {
                   <div className="flex items-center gap-2">
                     <button className="text-sm text-purple-600 hover:text-purple-700">
                       View in Explorer ↗
-                    </button>
-                    <button className="p-1 hover:bg-muted rounded">
+                    </button>{" "}
+                    <button
+                      aria-label="Expand details"
+                      className="p-1 hover:bg-muted rounded"
+                    >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>

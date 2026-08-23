@@ -953,7 +953,11 @@ export default function InfrastructureHealthPage() {
                       {service.lastCheckedAt ? "10s ago" : "N/A"}
                     </td>
                     <td className="py-3">
-                      <button className="p-1 hover:bg-muted rounded">
+                      {" "}
+                      <button
+                        aria-label="Expand details"
+                        className="p-1 hover:bg-muted rounded"
+                      >
                         <ChevronRight className="h-4 w-4" />
                       </button>
                     </td>

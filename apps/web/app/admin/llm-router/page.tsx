@@ -609,7 +609,11 @@ export default function LlmRouterPage() {
                           ${provider.costPerMillionTokens}
                         </td>
                         <td className="px-4 py-3">
-                          <button className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted">
+                          {" "}
+                          <button
+                            aria-label="More options"
+                            className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted"
+                          >
                             <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                           </button>
                         </td>
@@ -691,7 +695,11 @@ export default function LlmRouterPage() {
                           {rule.hitRate24h}%
                         </td>
                         <td className="px-4 py-3">
-                          <button className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted">
+                          {" "}
+                          <button
+                            aria-label="More options"
+                            className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted"
+                          >
                             <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                           </button>
                         </td>

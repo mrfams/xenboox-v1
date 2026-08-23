@@ -185,13 +185,22 @@ export default async function BlogPostPage({
               </div>
 
               <div className="flex items-center gap-2">
-                <button className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                <button
+                  aria-label="Share on Twitter"
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                >
                   <Twitter className="h-5 w-5" />
                 </button>
-                <button className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                <button
+                  aria-label="Share on LinkedIn"
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                >
                   <Linkedin className="h-5 w-5" />
                 </button>
-                <button className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                <button
+                  aria-label="Copy link"
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                >
                   <LinkIcon className="h-5 w-5" />
                 </button>
               </div>

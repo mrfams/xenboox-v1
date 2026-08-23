@@ -524,8 +524,11 @@ export default function WorkflowBuilderPage() {
                 aria-label="Refresh workflow data"
               >
                 <RefreshCw className="h-4 w-4" />
-              </button>
-              <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+              </button>{" "}
+              <button
+                aria-label="Move right"
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -551,8 +554,11 @@ export default function WorkflowBuilderPage() {
                   {v.version}
                 </option>
               ))}
-            </select>
-            <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            </select>{" "}
+            <button
+              aria-label="More options"
+              className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            >
               <MoreHorizontal className="h-4 w-4" />
             </button>
           </div>
@@ -625,8 +631,11 @@ export default function WorkflowBuilderPage() {
                       <p className="text-xs text-gray-500 truncate">
                         {agent.description}
                       </p>
-                    </div>
-                    <button className="p-1 text-gray-400 hover:text-indigo-600">
+                    </div>{" "}
+                    <button
+                      aria-label="Add item"
+                      className="p-1 text-gray-400 hover:text-indigo-600"
+                    >
                       <Plus className="h-4 w-4" />
                     </button>
                   </div>

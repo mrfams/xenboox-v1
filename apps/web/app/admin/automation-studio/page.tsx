@@ -505,19 +505,17 @@ export default function AutomationStudioPage() {
                 Pre-built automations for common accounting workflows.
               </p>
               <div className="grid grid-cols-5 gap-3">
-                {templates
-                  ?.slice(0, 5)
-                  .map((t: any) => (
-                    <TemplateCard
-                      key={t.id}
-                      name={t.name}
-                      description={t.description}
-                      tag={t.tag}
-                      icon={t.icon}
-                      iconColor={t.iconColor}
-                      iconBg={t.iconBg}
-                    />
-                  ))}
+                {templates?.slice(0, 5).map((t: any) => (
+                  <TemplateCard
+                    key={t.id}
+                    name={t.name}
+                    description={t.description}
+                    tag={t.tag}
+                    icon={t.icon}
+                    iconColor={t.iconColor}
+                    iconBg={t.iconBg}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -586,7 +584,11 @@ export default function AutomationStudioPage() {
                         <ConfidenceBar value={auto.aiConfidence ?? 0} />
                       </td>
                       <td className="px-4 py-3">
-                        <button className="p-1 hover:bg-gray-100 rounded">
+                        {" "}
+                        <button
+                          aria-label="More options"
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
                           <MoreHorizontal className="h-4 w-4 text-gray-400" />
                         </button>
                       </td>
