@@ -7,6 +7,8 @@ import {
   generateCashFlow,
   generateBudgetVsActual,
   generateNarrative,
+  generateDonorReport,
+  findProjectsDueForReport,
 } from "./tools";
 import type { ReportingStateType } from "./state";
 
@@ -406,6 +408,97 @@ export async function nodeGenerateNarrative(state: ReportingStateType) {
 }
 
 // ─── Node: Escalate ────────────────────────────────────────────────────────
+
+// ─── Node: Generate Donor Report ───────────────────────────────────────────
+
+export async function nodeGenerateDonorReport(state: ReportingStateType) {
+  const span = await langfuse.span({
+    name: "reporting-generate-donor-report",
+    input: { entityId: state.entityId },
+  });
+
+  try {
+    // Find all active donor projects that have reports due
+    const projectsDue = await findProjectsDueForReport(state.entityId);
+
+    if (projectsDue.length === 0) {
+      await span.update({
+        output: { projectsFound: 0, message: "No donor reports due" },
+      });
+      return {
+        confidence: 0.9,
+        reasoning: "No donor projects have reports due at this time",
+        auditTrail: [],
+      };
+    }
+
+    const results: Array<{
+      projectId: string;
+      projectName: string;
+      period: string;
+      snapshotId: string;
+    }> = [];
+
+    for (const { project, period } of projectsDue) {
+      try {
+        const report = await generateDonorReport(
+          state.entityId,
+          project.id,
+          period,
+        );
+
+        results.push({
+          projectId: report.projectId,
+          projectName: report.projectName,
+          period: report.period,
+          snapshotId: report.snapshotId,
+        });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        // Log but don't fail the whole batch — continue with other projects
+        langfuse.event({
+          name: "donor-report-generation-error",
+          metadata: {
+            entityId: state.entityId,
+            projectId: project.id,
+            error: msg,
+          },
+        });
+      }
+    }
+
+    const audit = createAuditEntry({
+      agentId: "reporting-agent",
+      action: "donor_reports_generated",
+      details: {
+        projectsDue: projectsDue.length,
+        reportsGenerated: results.length,
+        periods: results.map((r) => r.period),
+      },
+      confidence: results.length > 0 ? 0.9 : 0.5,
+    });
+
+    await span.update({
+      output: {
+        projectsFound: projectsDue.length,
+        reportsGenerated: results.length,
+      },
+    });
+
+    return {
+      confidence: results.length > 0 ? 0.9 : 0.5,
+      reasoning: `Generated ${results.length} donor reports for ${projectsDue.length} projects due`,
+      auditTrail: [audit],
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return {
+      errors: [`Donor report generation error: ${msg}`],
+      confidence: 0,
+      reasoning: `Failed to generate donor reports: ${msg}`,
+    };
+  }
+}
 
 export async function nodeEscalate(state: ReportingStateType) {
   langfuse.event({

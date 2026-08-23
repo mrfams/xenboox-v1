@@ -11,3 +11,4 @@ export { autoLinkDocument } from "./auto-link";
 export { sendMonthlyBankReminders } from "./reminders";
 export { runDocumentIngestion } from "./ingestion";
 export { processDailyClose } from "./daily-close";
+export { processDonorReports } from "./donor-reports";

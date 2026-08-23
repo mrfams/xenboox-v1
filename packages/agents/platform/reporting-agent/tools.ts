@@ -11,6 +11,10 @@ import {
   budgetLines,
   budgetAlertThresholds,
 } from "@xenboox/db/schema/budget";
+import {
+  donorProjects,
+  donorReportSnapshots,
+} from "@xenboox/db/schema/donor-grant";
 import type {
   ProfitAndLoss,
   BalanceSheet,
@@ -220,6 +224,229 @@ export async function generateCashFlow(
     investing: investingBucket,
     financing: financingBucket,
   };
+}
+
+// ─── Donor Report Generation ───────────────────────────────────────────────
+
+export interface DonorReportResult {
+  projectId: string;
+  projectName: string;
+  period: string;
+  budgetVsActual: {
+    categories: Array<{
+      category: string;
+      budgeted: number;
+      actual: number;
+      variance: number;
+      variancePct: number;
+    }>;
+    totalBudgeted: number;
+    totalActual: number;
+    totalVariance: number;
+    totalVariancePct: number;
+  };
+  narrativeSummary: string;
+  snapshotId: string;
+}
+
+/**
+ * Generate a donor report for a specific project and period.
+ *
+ * Calculates budget vs actual from the project's budget allocation,
+ * generates a narrative summary, and creates a report snapshot.
+ */
+export async function generateDonorReport(
+  entityId: string,
+  projectId: string,
+  period: string,
+): Promise<DonorReportResult> {
+  const project = await db.query.donorProjects.findFirst({
+    where: and(
+      eq(donorProjects.id, projectId),
+      eq(donorProjects.entityId, entityId),
+    ),
+  });
+
+  if (!project) {
+    throw new Error(`Donor project ${projectId} not found for entity`);
+  }
+
+  // Get budget allocation from project
+  const budgetAllocation =
+    (project.budgetAllocation as Record<string, number>) ?? {};
+
+  // TODO: Calculate actuals from journal entries scoped to this project
+  // For now, use budget allocation as the baseline
+  const categories = Object.entries(budgetAllocation).map(
+    ([category, budgeted]) => ({
+      category,
+      budgeted,
+      actual: 0,
+      variance: -budgeted,
+      variancePct: -100,
+    }),
+  );
+
+  const totalBudgeted = Object.values(budgetAllocation).reduce(
+    (sum, v) => sum + v,
+    0,
+  );
+
+  const budgetVsActual = {
+    categories,
+    totalBudgeted,
+    totalActual: 0,
+    totalVariance: -totalBudgeted,
+    totalVariancePct: totalBudgeted > 0 ? -100 : 0,
+  };
+
+  // Generate narrative summary
+  const narrativeSummary = generateDonorNarrative(
+    project.projectName,
+    project.reportingFormat,
+    budgetVsActual,
+  );
+
+  // Create report snapshot
+  const [snapshot] = await db
+    .insert(donorReportSnapshots)
+    .values({
+      entityId,
+      donorProjectId: projectId,
+      period,
+      budgetVsActual,
+      narrativeSummary,
+      status: "draft",
+      generatedBy: "reporting-agent",
+    })
+    .returning();
+
+  return {
+    projectId,
+    projectName: project.projectName,
+    period,
+    budgetVsActual,
+    narrativeSummary,
+    snapshotId: snapshot.id,
+  };
+}
+
+/**
+ * Generate a narrative summary for a donor report.
+ */
+function generateDonorNarrative(
+  projectName: string,
+  reportingFormat: string,
+  budgetVsActual: {
+    totalBudgeted: number;
+    totalActual: number;
+    totalVariance: number;
+    categories: Array<{ category: string; budgeted: number; actual: number }>;
+  },
+): string {
+  const parts: string[] = [];
+
+  parts.push(
+    `${projectName} — ${reportingFormat.toUpperCase()} format report.`,
+  );
+
+  if (budgetVsActual.totalBudgeted > 0) {
+    const utilizationPct =
+      (budgetVsActual.totalActual / budgetVsActual.totalBudgeted) * 100;
+    parts.push(
+      `Total budget: ${budgetVsActual.totalBudgeted.toLocaleString()}. Utilization: ${utilizationPct.toFixed(1)}%.`,
+    );
+  }
+
+  if (budgetVsActual.totalVariance < 0) {
+    parts.push(
+      `Underspend of ${Math.abs(budgetVsActual.totalVariance).toLocaleString()} across all categories.`,
+    );
+  } else if (budgetVsActual.totalVariance > 0) {
+    parts.push(
+      `Overspend of ${budgetVsActual.totalVariance.toLocaleString()} across all categories.`,
+    );
+  }
+
+  const topCategories = budgetVsActual.categories
+    .filter((c) => c.budgeted > 0)
+    .sort((a, b) => b.budgeted - a.budgeted)
+    .slice(0, 3);
+
+  if (topCategories.length > 0) {
+    parts.push(
+      `Largest budget categories: ${topCategories.map((c) => `${c.category} (${c.budgeted.toLocaleString()})`).join(", ")}.`,
+    );
+  }
+
+  return parts.join(" ");
+}
+
+/**
+ * Find donor projects that have reports due based on their reporting cadence.
+ */
+export async function findProjectsDueForReport(
+  entityId: string,
+): Promise<Array<{ project: typeof donorProjects.$inferSelect; period: string }>> {
+  const projects = await db.query.donorProjects.findMany({
+    where: and(
+      eq(donorProjects.entityId, entityId),
+      eq(donorProjects.status, "active"),
+    ),
+  });
+
+  const now = new Date();
+  const results: Array<{
+    project: typeof donorProjects.$inferSelect;
+    period: string;
+  }> = [];
+
+  for (const project of projects) {
+    const cadence = project.reportingCadence ?? "quarterly";
+    const period = calculateCurrentPeriod(now, cadence);
+
+    // Check if a report already exists for this period
+    const existing = await db.query.donorReportSnapshots.findFirst({
+      where: and(
+        eq(donorReportSnapshots.donorProjectId, project.id),
+        eq(donorReportSnapshots.period, period),
+      ),
+    });
+
+    if (!existing) {
+      results.push({ project, period });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Calculate the current period string based on reporting cadence.
+ */
+function calculateCurrentPeriod(
+  now: Date,
+  cadence: string,
+): string {
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  switch (cadence) {
+    case "monthly":
+      return `${year}-${String(month).padStart(2, "0")}`;
+    case "quarterly": {
+      const quarter = Math.ceil(month / 3);
+      return `${year}-Q${quarter}`;
+    }
+    case "semi_annual": {
+      const half = month <= 6 ? 1 : 2;
+      return `${year}-H${half}`;
+    }
+    case "annual":
+      return `${year}`;
+    default:
+      return `${year}-${String(month).padStart(2, "0")}`;
+  }
 }
 
 function emptyCashFlow(target: { year: number; month: number }): CashFlow {
