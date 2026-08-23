@@ -17,7 +17,7 @@
 | --- | ------------------------------------------------------------------ | -------- | ----------------------------------------------- | ------ |
 | 1   | Blog posts still short (1,000-1,200 words)                         | HIGH     | Expand to 1,500-3,000 words for SEO             | ⬜     |
 | 2   | Pricing missing trust signals ("No credit card", "Cancel anytime") | HIGH     | Add trust badges and guarantee                  | ✅     |
-| 3   | About page is generic — no real people                             | HIGH     | Add founder story, team photos, Gambian context | ⬜     |
+| 3   | About page is generic — no real people                             | HIGH     | Add founder story, team photos, Gambian context | ✅     |
 | 4   | Blog post missing author card and related posts                    | MEDIUM   | Add author card + "You might also like" section | ⬜     |
 | 5   | No sticky CTA on marketing pages                                   | MEDIUM   | Add floating "Start free" on scroll             | ⬜     |
 | 6   | Only 3 testimonials                                                | MEDIUM   | Add 3-5 more for social proof                   | ⬜     |
@@ -33,7 +33,7 @@
 | --- | -------------------------------------------- | -------- | ------------------------------------------------- | ------ |
 | 1   | Sticky CTA missing on all marketing pages    | HIGH     | Add floating "Start free" button on scroll        | ⬜     |
 | 2   | Pricing page lacks trust signals             | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
-| 3   | About page shows generic content             | HIGH     | Real team photos, founder story, Gambian context  | ⬜     |
+| 3   | About page shows generic content             | HIGH     | Real team photos, founder story, Gambian context  | ✅     |
 | 4   | Blog posts need 1,500+ words                 | MEDIUM   | Expand remaining content                          | ⬜     |
 | 5   | Blog post missing author card, related posts | MEDIUM   | Add to template                                   | ⬜     |
 | 6   | No JSON-LD on blog posts                     | MEDIUM   | Add Article schema                                | ⬜     |
@@ -63,7 +63,7 @@
 | #   | Finding                                         | Severity | Fix                                                  | Status |
 | --- | ----------------------------------------------- | -------- | ---------------------------------------------------- | ------ |
 | 1   | Pricing is feature-focused, not outcome-focused | HIGH     | Lead each tier with outcome ("Save 10+ hours/month") | ⬜     |
-| 2   | About page has no personality                   | HIGH     | Add founder story, "Why we built this"               | ⬜     |
+| 2   | About page has no personality                   | HIGH     | Add founder story, "Why we built this"               | ✅     |
 | 3   | Blog posts still below 1,500 words              | MEDIUM   | Expand content                                       | ⬜     |
 | 4   | Only 3 testimonials                             | MEDIUM   | Add more for social proof                            | ⬜     |
 | 5   | Blog post missing author card                   | MEDIUM   | Add author bio                                       | ⬜     |
@@ -200,7 +200,7 @@
 | 1   | "deterministically reconciled" is jargon-y      | MEDIUM   | Change to "Every number is checked before it hits the ledger" | ⬜     |
 | 2   | "Verified operators" is corporate               | MEDIUM   | Change to "Real teams, real books"                            | ⬜     |
 | 3   | Pricing is feature-focused, not outcome-focused | MEDIUM   | Lead with outcomes not features                               | ⬜     |
-| 4   | About page has no personality                   | HIGH     | Add founder story, team photos                                | ⬜     |
+| 4   | About page has no personality                   | HIGH     | Add founder story, team photos                                | ✅     |
 | 5   | Onboarding wizard is silent                     | MEDIUM   | Add welcome message                                           | ⬜     |
 | 6   | Settings header "AI Set Up Workspace"           | LOW      | Change to "Set Up with AI"                                    | ⬜     |
 
@@ -376,7 +376,7 @@
 | #   | Finding                                 | Employee                      |
 | --- | --------------------------------------- | ----------------------------- |
 | 1   | ~~Pricing missing trust signals~~ ✅    | #1, #2, #4, #5, #8, #9        |
-| 2   | About page is generic                   | #1, #2, #4, #14               |
+| 2   | ~~About page is generic~~ ✅            | #1, #2, #4, #14               |
 | 3   | Blog posts below 1,500 words            | #1, #2, #4, #7, #8            |
 | 4   | No JSON-LD structured data              | #8 Marketing Critic           |
 | 5   | No demo video                           | #9 Sales Rep                  |
