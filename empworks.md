@@ -221,18 +221,18 @@
 
 ## Employee #16: DevOps Engineer — Score: 6/10
 
-| #   | Finding                  | Severity | Fix                                       | Status |
-| --- | ------------------------ | -------- | ----------------------------------------- | ------ |
-| 1   | No staging environment   | HIGH     | Create Vercel preview deployments         | ⬜     |
-| 2   | No uptime monitoring     | HIGH     | Add BetterUptime or Pingdom               | ⬜     |
-| 3   | No cost monitoring       | HIGH     | Add Vercel cost dashboard + budget alerts | ⬜     |
-| 4   | No SLA defined           | MEDIUM   | Define 99.9% uptime SLA                   | ⬜     |
-| 5   | No on-call rotation      | MEDIUM   | Set up PagerDuty or Opsgenie              | ⬜     |
-| 6   | No post-mortem process   | MEDIUM   | Create post-mortem template               | ⬜     |
-| 7   | Test suite has TS errors | MEDIUM   | Fix 149 test files                        | ⬜     |
-| 8   | No automated rollback    | MEDIUM   | Add auto-rollback on error rate spike     | ⬜     |
-| 9   | No centralized logging   | LOW      | Add Logflare                              | ⬜     |
-| 10  | No capacity planning     | LOW      | Set up resource usage monitoring          | ⬜     |
+| #   | Finding                       | Severity | Fix                                       | Status |
+| --- | ----------------------------- | -------- | ----------------------------------------- | ------ |
+| 1   | ~~No staging environment~~ ✅ | HIGH     | Vercel preview deploys on every push      | ✅     |
+| 2   | No uptime monitoring          | HIGH     | Add BetterUptime or Pingdom               | ⬜     |
+| 3   | No cost monitoring            | HIGH     | Add Vercel cost dashboard + budget alerts | ⬜     |
+| 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                   | ⬜     |
+| 5   | No on-call rotation           | MEDIUM   | Set up PagerDuty or Opsgenie              | ⬜     |
+| 6   | No post-mortem process        | MEDIUM   | Create post-mortem template               | ⬜     |
+| 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                        | ⬜     |
+| 8   | No automated rollback         | MEDIUM   | Add auto-rollback on error rate spike     | ⬜     |
+| 9   | No centralized logging        | LOW      | Add Logflare                              | ⬜     |
+| 10  | No capacity planning          | LOW      | Set up resource usage monitoring          | ⬜     |
 
 ---
 
@@ -389,7 +389,7 @@
 | 12  | ~~No upsell prompts~~ ✅                       | #13 CSM                       |
 | 13  | ~~No feedback widget~~ ✅                      | #13 CSM                       |
 | 14  | ~~No proactive AI suggestions~~ ✅             | #15 Product Designer          |
-| 15  | No staging environment                         | #16 DevOps                    |
+| 15  | ~~No staging environment~~ ✅                  | #16 DevOps                    |
 | 16  | No uptime monitoring                           | #16 DevOps                    |
 | 17  | No cost monitoring                             | #16 DevOps                    |
 | 18  | ~~No health check endpoints~~ ✅               | #17 Enterprise                |
