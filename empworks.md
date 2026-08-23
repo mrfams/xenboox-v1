@@ -208,14 +208,14 @@
 
 ## Employee #15: Product Designer — Score: 8/10
 
-| #   | Finding                               | Severity | Fix                                                | Status |
-| --- | ------------------------------------- | -------- | -------------------------------------------------- | ------ |
-| 1   | No proactive AI suggestions           | HIGH     | AI should surface issues: "AI noticed X — review?" | ⬜     |
-| 2   | No keyboard shortcuts                 | MEDIUM   | Add Cmd+K search, Cmd+N new invoice, etc.          | ⬜     |
-| 3   | No drag-and-drop                      | MEDIUM   | Add for line items, file uploads, reordering       | ⬜     |
-| 4   | No universal undo                     | MEDIUM   | Add undo toast after mutations                     | ⬜     |
-| 5   | Tables don't have card view on mobile | MEDIUM   | Add responsive card view (mobile web)              | ⬜     |
-| 6   | Many actions still form-based         | LOW      | Move toward conversational AI                      | ⬜     |
+| #   | Finding                               | Severity | Fix                                          | Status |
+| --- | ------------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | ~~No proactive AI suggestions~~ ✅    | HIGH     | ProactiveBriefing with AI alerts + actions   | ✅     |
+| 2   | No keyboard shortcuts                 | MEDIUM   | Add Cmd+K search, Cmd+N new invoice, etc.    | ⬜     |
+| 3   | No drag-and-drop                      | MEDIUM   | Add for line items, file uploads, reordering | ⬜     |
+| 4   | No universal undo                     | MEDIUM   | Add undo toast after mutations               | ⬜     |
+| 5   | Tables don't have card view on mobile | MEDIUM   | Add responsive card view (mobile web)        | ⬜     |
+| 6   | Many actions still form-based         | LOW      | Move toward conversational AI                | ⬜     |
 
 ---
 
@@ -388,7 +388,7 @@
 | 11  | No retention emails                            | #13 CSM                       |
 | 12  | ~~No upsell prompts~~ ✅                       | #13 CSM                       |
 | 13  | ~~No feedback widget~~ ✅                      | #13 CSM                       |
-| 14  | No proactive AI suggestions                    | #15 Product Designer          |
+| 14  | ~~No proactive AI suggestions~~ ✅             | #15 Product Designer          |
 | 15  | No staging environment                         | #16 DevOps                    |
 | 16  | No uptime monitoring                           | #16 DevOps                    |
 | 17  | No cost monitoring                             | #16 DevOps                    |
