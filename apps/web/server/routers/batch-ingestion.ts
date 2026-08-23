@@ -16,6 +16,7 @@ import { router, protectedProcedure } from "@/lib/trpc/server";
 import { db } from "@xenboox/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { documents, auditLog } from "@xenboox/db/schema";
+import { logger } from "@/lib/logger";
 import {
   updateIngestionStatus,
   updateTerminalStatus,
@@ -160,7 +161,7 @@ export const batchIngestionRouter = router({
       if (autoProcess) {
         // Process asynchronously (in real implementation, use job queue)
         processBatchDocuments(batchId, entityId, docs).catch((error) => {
-          console.error(`[batch-ingestion] Batch ${batchId} failed:`, error);
+          logger.error(`Batch ${batchId} failed`, { batchId, error: error instanceof Error ? error.message : String(error) });
         });
       }
 

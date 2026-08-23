@@ -19,6 +19,34 @@ export interface DailyCloseParams {
   userId?: string;
 }
 
+export interface AgentStepResult {
+  confidence: number;
+  result: unknown;
+  errors: string[];
+}
+
+export interface ReconciliationResult {
+  matchedCount?: number;
+  unmatchedCount?: number;
+}
+
+export interface MobileMoneyResult {
+  matchedCount?: number;
+  discrepancies?: Array<{ amount: number; description: string }>;
+}
+
+export interface CashResult {
+  discrepancy?: { amount: number };
+}
+
+export interface ControllerResult {
+  rejectedEntries?: Array<{ id: string; description: string }>;
+}
+
+export interface CategorizeResult {
+  categorizedCount?: number;
+}
+
 export interface DailyCloseResult {
   success: boolean;
   closeDate: string;
@@ -79,7 +107,7 @@ export async function runDailyClose(
     });
 
     if (reconResult.result) {
-      const r = reconResult.result as any;
+      const r = reconResult.result as ReconciliationResult;
       autoMatched += r.matchedCount ?? 0;
       transactionsProcessed += (r.matchedCount ?? 0) + (r.unmatchedCount ?? 0);
       if (r.unmatchedCount > 0) {
@@ -107,7 +135,7 @@ export async function runDailyClose(
     });
 
     if (mmResult.result) {
-      const r = mmResult.result as any;
+      const r = mmResult.result as MobileMoneyResult;
       autoMatched += r.matchedCount ?? 0;
       if (r.discrepancies?.length > 0) {
         anomaliesDetected += r.discrepancies.length;
@@ -134,7 +162,7 @@ export async function runDailyClose(
     });
 
     if (cashResult.result) {
-      const r = cashResult.result as any;
+      const r = cashResult.result as CashResult;
       if (r.discrepancy) {
         anomaliesDetected++;
         needsHumanReview++;
@@ -160,7 +188,7 @@ export async function runDailyClose(
     });
 
     if (controllerResult.result) {
-      const r = controllerResult.result as any;
+      const r = controllerResult.result as ControllerResult;
       if (r.rejectedEntries?.length > 0) {
         anomaliesDetected += r.rejectedEntries.length;
         needsHumanReview += r.rejectedEntries.length;
@@ -186,7 +214,7 @@ export async function runDailyClose(
     });
 
     if (categorizeResult.result) {
-      const r = categorizeResult.result as any;
+      const r = categorizeResult.result as CategorizeResult;
       if (r.categorizedCount > 0) {
         autoMatched += r.categorizedCount;
         transactionsProcessed += r.categorizedCount;
