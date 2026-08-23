@@ -366,3 +366,31 @@ Donor visits /donor-portal
 - `packages/jobs/monthly-financial-reports.ts` — new cron job
 - `packages/jobs/report-generation.ts` — exported internal functions for reuse
 - `packages/jobs/index.ts` — added export
+
+---
+
+## 2026-08-23 — Donor Report Email Delivery
+
+**Commit:** 683118c
+**Scope:** Email delivery for completed donor reports via Resend
+
+### What shipped
+
+| Component | What |
+|-----------|------|
+| Email Utility | packages/jobs/lib/email.ts — shared Resend email for Trigger.dev jobs |
+| Donor Reports | Cron now sends email to donors after generating reports |
+| Email Content | Report period, budget vs actual summary, narrative, portal link |
+| Error Handling | Non-fatal — report generation continues even if email fails |
+
+### Email flow
+
+```
+Donor report generated
+  → Look up donor customer by project.donorCustomerId
+  → If donor has email:
+    → Build HTML email with budget vs actual summary
+    → Include link to donor portal
+    → Send via Resend
+    → Log success/failure (non-fatal)
+```
