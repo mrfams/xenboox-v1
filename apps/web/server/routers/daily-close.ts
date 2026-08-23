@@ -1,4 +1,4 @@
-import { router, protectedProcedure } from "../trpc";
+import { router, protectedProcedure } from "@/lib/trpc/server";
 import { db } from "@xenboox/db";
 import { dailyCloseRuns } from "@xenboox/db/schema/daily-close";
 import { eq, and, desc } from "drizzle-orm";
@@ -74,7 +74,8 @@ export const dailyCloseRouter = router({
       passRate: runs.length > 0 ? completed / runs.length : 0,
       totalTransactions,
       totalAutoMatched,
-      autoMatchRate: totalTransactions > 0 ? totalAutoMatched / totalTransactions : 0,
+      autoMatchRate:
+        totalTransactions > 0 ? totalAutoMatched / totalTransactions : 0,
     };
   }),
 });
