@@ -14,6 +14,10 @@ import {
 import { FadeInUp } from "@/components/marketing/reveal";
 import { NewsletterForm } from "@/components/marketing/newsletter-form";
 import {
+  ArticleJsonLd,
+  BreadcrumbJsonLd,
+} from "@/components/marketing/json-ld";
+import {
   getAllPublishedPostSlugs,
   getPostBySlug,
   getRelatedPosts,
@@ -132,6 +136,20 @@ export default async function BlogPostPage({
 
   return (
     <>
+      <ArticleJsonLd
+        title={post.title}
+        description={post.excerpt}
+        url={`https://xenboox.com/blog/${post.slug}`}
+        datePublished={post.date}
+        authorName={post.author.name}
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "/" },
+          { name: "Blog", url: "/blog" },
+          { name: post.title },
+        ]}
+      />
       {/* Back Link */}
       <div className="bg-white border-b border-slate-200">
         <div className="mx-auto max-w-4xl px-4 py-4">

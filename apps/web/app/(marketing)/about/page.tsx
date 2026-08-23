@@ -19,6 +19,7 @@ import {
 
 import { Button } from "@/components/ui";
 import { Section, SectionHeading } from "@/components/marketing/section";
+import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
 import { FadeInUp } from "@/components/marketing/reveal";
 
 const values = [
@@ -139,6 +140,9 @@ const team = [
 export default function AboutPage() {
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[{ name: "Home", url: "/" }, { name: "About" }]}
+      />
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-paper">
         <div

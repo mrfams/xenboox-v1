@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui";
+import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
 import {
   Section,
   SectionHeading,
@@ -341,6 +342,9 @@ const testimonials = [
 export default function FeaturesPage() {
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[{ name: "Home", url: "/" }, { name: "Features" }]}
+      />
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-paper">
         <div

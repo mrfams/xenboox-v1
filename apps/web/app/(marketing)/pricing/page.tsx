@@ -12,6 +12,11 @@ import {
 
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
+import {
+  FaqJsonLd,
+  BreadcrumbJsonLd,
+  ProductJsonLd,
+} from "@/components/marketing/json-ld";
 
 const monthlyTiers = [
   {
@@ -115,6 +120,15 @@ export default function PricingPage() {
 
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[{ name: "Home", url: "/" }, { name: "Pricing" }]}
+      />
+      <FaqJsonLd items={faqs.map((f) => ({ question: f.q, answer: f.a }))} />
+      <ProductJsonLd
+        name="Xenboox Starter"
+        description="Full access to all 19 AI agents, unlimited journal entries, AP/AR, payroll, and treasury."
+        price="29"
+      />
       {/* Hero */}
       <section className="relative overflow-hidden bg-paper">
         <div

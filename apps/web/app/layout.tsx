@@ -140,7 +140,7 @@ export default async function RootLayout({
               "@type": "Organization",
               name: "Xenboox",
               description:
-                "AI-native full-stack accounting platform for African businesses",
+                "AI-native full-stack accounting platform with 19 specialized agents for invoicing, payroll, compliance, and financial reporting.",
               url: baseUrl,
               logo: `${baseUrl}/favicon.svg`,
               sameAs: [

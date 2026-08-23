@@ -36,7 +36,7 @@
 | 3   | About page shows generic content                 | HIGH     | Real team photos, founder story, Gambian context  | ✅     |
 | 4   | Blog posts need 1,500+ words                     | MEDIUM   | Expand remaining content                          | ⬜     |
 | 5   | Blog post missing author card, related posts     | MEDIUM   | Add to template                                   | ⬜     |
-| 6   | No JSON-LD on blog posts                         | MEDIUM   | Add Article schema                                | ⬜     |
+| 6   | ~~No JSON-LD on blog posts~~ ✅                  | MEDIUM   | Article + Breadcrumb schemas added                | ✅     |
 | 7   | No social share buttons on blog                  | MEDIUM   | Add share bar                                     | ⬜     |
 | 8   | No reading time estimate                         | LOW      | Add to blog post header                           | ⬜     |
 | 9   | No "Related posts" section                       | LOW      | Add at bottom of blog posts                       | ⬜     |
@@ -108,15 +108,15 @@
 
 ## Employee #8: Marketing Critic — Score: 7.5/10
 
-| #   | Finding                                | Severity | Fix                                               | Status |
-| --- | -------------------------------------- | -------- | ------------------------------------------------- | ------ |
-| 1   | No JSON-LD structured data on any page | HIGH     | Add Organization, Product, Article schemas        | ⬜     |
-| 2   | Pricing missing trust signals          | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
-| 3   | Blog posts below 1,500 words           | MEDIUM   | Expand content                                    | ⬜     |
-| 4   | No author bios on blog                 | MEDIUM   | Add author card                                   | ⬜     |
-| 5   | No social share buttons on blog        | MEDIUM   | Add share bar                                     | ⬜     |
-| 6   | No "Most Popular" badge on pricing     | MEDIUM   | Highlight recommended tier                        | ⬜     |
-| 7   | Robots.txt needs verification          | LOW      | Verify configuration                              | ⬜     |
+| #   | Finding                                       | Severity | Fix                                               | Status |
+| --- | --------------------------------------------- | -------- | ------------------------------------------------- | ------ |
+| 1   | ~~No JSON-LD structured data on any page~~ ✅ | HIGH     | Organization, Product, Article, FAQ, Breadcrumb   | ✅     |
+| 2   | Pricing missing trust signals                 | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
+| 3   | Blog posts below 1,500 words                  | MEDIUM   | Expand content                                    | ⬜     |
+| 4   | No author bios on blog                        | MEDIUM   | Add author card                                   | ⬜     |
+| 5   | No social share buttons on blog               | MEDIUM   | Add share bar                                     | ⬜     |
+| 6   | No "Most Popular" badge on pricing            | MEDIUM   | Highlight recommended tier                        | ⬜     |
+| 7   | Robots.txt needs verification                 | LOW      | Verify configuration                              | ⬜     |
 
 ---
 
@@ -378,7 +378,7 @@
 | 1   | ~~Pricing missing trust signals~~ ✅           | #1, #2, #4, #5, #8, #9        |
 | 2   | ~~About page is generic~~ ✅                   | #1, #2, #4, #14               |
 | 3   | Blog posts below 1,500 words                   | #1, #2, #4, #7, #8            |
-| 4   | No JSON-LD structured data                     | #8 Marketing Critic           |
+| 4   | ~~No JSON-LD structured data~~ ✅              | #8 Marketing Critic           |
 | 5   | No demo video                                  | #9 Sales Rep                  |
 | 6   | ~~15+ icon buttons missing aria-label~~ ✅     | #5 Design Critic              |
 | 7   | ~~Missing idempotency on payment creation~~ ✅ | #7 Engineering Critic         |
