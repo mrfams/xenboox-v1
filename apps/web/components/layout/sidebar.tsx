@@ -25,6 +25,7 @@ import { Logo } from "@/components/ui/logo";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { Badge } from "@/components/ui";
 import { QuickActions } from "@/components/sidebar/quick-actions";
+import { SidebarUpgradePrompt } from "@/components/shared/upsell-banner";
 import {
   AttentionDot,
   CountPill,
@@ -418,6 +419,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="border-t border-white/[0.06] p-3">
           <QuickActions />
         </div>
+
+        {/* Upgrade Prompt (free users only) */}
+        <SidebarUpgradePrompt />
 
         {/* Help & Support */}
         <div className="border-t border-white/[0.06] p-3">

@@ -184,7 +184,7 @@
 | --- | -------------------------- | -------- | ---------------------------------------- | ------ | --- | --- | ------------------- | ---- | ------------------------------------ | --- || 1 | No customer health scoring | CRITICAL | Build health score model | ✅ |
 | 2 | No churn prevention system | CRITICAL | Build churn prediction + intervention | ✅ |
 | 3 | ~~No NPS survey~~ ✅ | HIGH | Quarterly NPS survey with API + storage | ✅ | | 4 | No retention emails | HIGH | Build post-onboarding email sequence | ✅ |
-| 5 | No upsell prompts | HIGH | Add "Upgrade to access" prompts | ⬜ |
+| 5 | ~~No upsell prompts~~ ✅ | HIGH | Upsell banner + sidebar upgrade prompt | ✅ |
 | 6 | No QBR template | HIGH | Build quarterly business review template | ⬜ |
 | 7 | ~~No feedback widget~~ ✅ | HIGH | NPS survey includes feedback comments | ✅ |
 | 8 | No referral program | MEDIUM | Build referral incentive system | ⬜ |
@@ -386,7 +386,7 @@
 | 9   | ~~No ROI calculator~~ ✅                       | #9 Sales Rep                  |
 | 10  | ~~No NPS survey~~ ✅                           | #13 CSM                       |
 | 11  | No retention emails                            | #13 CSM                       |
-| 12  | No upsell prompts                              | #13 CSM                       |
+| 12  | ~~No upsell prompts~~ ✅                       | #13 CSM                       |
 | 13  | ~~No feedback widget~~ ✅                      | #13 CSM                       |
 | 14  | No proactive AI suggestions                    | #15 Product Designer          |
 | 15  | No staging environment                         | #16 DevOps                    |
