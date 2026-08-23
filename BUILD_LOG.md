@@ -309,3 +309,29 @@ Donor visits /donor-portal
     → GET /api/donor-portal/projects?donor=X&entity=Y
     → Shows projects, budget vs actual, report history
 ```
+
+---
+
+## 2026-08-23 — Multi-Currency Live Exchange Rates
+
+**Commit:** b316ed6
+**Scope:** Scheduled exchange rate sync + live rates display on Financial Pulse
+
+### What shipped
+
+| Component | What |
+|-----------|------|
+| Trigger.dev Cron | syncExchangeRatesScheduled — daily at 1 AM from ECB API |
+| Idempotency | Skips if rates already synced today |
+| Live Rates UI | Exchange rates card on Financial Pulse (USD, EUR, GBP → GMD) |
+| Rate Resolution | Entity override → global pool → inverse lookup |
+| ECB Source | Daily reference rates for The Gambia market |
+
+### Existing infrastructure (already built)
+
+| Component | What |
+|-----------|------|
+| Currency Router | Full tRPC router: settings, list, upsert, delete, convert, revaluation |
+| FX Revaluation | Period-end gain/loss calculation on foreign currency lines |
+| Settings UI | Base currency, quick conversion, exchange rates table, FX revaluation |
+| Rate Caching | 60s entity-scoped cache, invalidated on manual upsert |
