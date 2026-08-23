@@ -1,6 +1,7 @@
 export { processMonthEndClose } from "./month-end-close";
 export { processDocument } from "./document-processing";
 export { syncExchangeRates } from "./exchange-rate-sync";
+export { syncExchangeRatesScheduled } from "./exchange-rate-cron";
 export { generateReport } from "./report-generation";
 export { importBankStatement } from "./bank-import";
 export { processInboundEmail } from "./email-processing";
