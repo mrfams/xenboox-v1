@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ArrowRight } from "lucide-react";
+import {
+  CheckCircle2,
+  ArrowRight,
+  Shield,
+  CreditCard,
+  RotateCcw,
+} from "lucide-react";
 
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -140,6 +146,22 @@ export default function PricingPage() {
                 Cancel anytime — your data stays yours.
               </p>
 
+              {/* Trust Signals */}
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <CreditCard className="h-4 w-4 text-emerald-500" />
+                  No credit card required
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <RotateCcw className="h-4 w-4 text-emerald-500" />
+                  Cancel anytime
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Shield className="h-4 w-4 text-emerald-500" />
+                  30-day money-back guarantee
+                </span>
+              </div>
+
               {/* Billing Toggle */}
               <div className="mt-8 flex items-center justify-center gap-3">
                 <div className="relative flex rounded-full border border-border bg-card p-0.5">
@@ -245,6 +267,39 @@ export default function PricingPage() {
           </div>
         </div>
       </Section>
+
+      {/* Trust Bar */}
+      <section className="border-t border-border bg-paper-2/60 py-8">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-emerald-500" />
+              <span>
+                <strong className="text-foreground">
+                  No credit card required
+                </strong>{" "}
+                to start your free plan
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-emerald-500" />
+              <span>
+                <strong className="text-foreground">Cancel anytime</strong> — no
+                lock-in contracts
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <Shield className="h-5 w-5 text-emerald-500" />
+              <span>
+                <strong className="text-foreground">
+                  30-day money-back guarantee
+                </strong>{" "}
+                on paid plans
+              </span>
+            </span>
+          </div>
+        </div>
+      </section>
 
       {/* FAQ */}
       <section className="border-t border-border bg-paper-2/60 py-12 sm:py-16">
