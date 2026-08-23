@@ -124,7 +124,7 @@
 
 | #   | Finding                                | Severity | Fix                                    | Status |
 | --- | -------------------------------------- | -------- | -------------------------------------- | ------ |
-| 1   | No ROI calculator on pricing           | HIGH     | Add "Save X hours/month" calculator    | ⬜     |
+| 1   | ~~No ROI calculator on pricing~~ ✅    | HIGH     | Interactive calculator on pricing page | ✅     |
 | 2   | No "Cancel anytime" / "No credit card" | HIGH     | Add trust signals                      | ✅     |
 | 3   | No demo video                          | HIGH     | Record 2-minute product walkthrough    | ⬜     |
 | 4   | No case studies                        | MEDIUM   | Write 2-3 detailed customer stories    | ⬜     |
@@ -383,7 +383,7 @@
 | 6   | ~~15+ icon buttons missing aria-label~~ ✅     | #5 Design Critic              |
 | 7   | ~~Missing idempotency on payment creation~~ ✅ | #7 Engineering Critic         |
 | 8   | ~~No sticky CTA~~ ✅                           | #2 Product Critic             |
-| 9   | No ROI calculator                              | #9 Sales Rep                  |
+| 9   | ~~No ROI calculator~~ ✅                       | #9 Sales Rep                  |
 | 10  | No NPS survey                                  | #13 CSM                       |
 | 11  | No retention emails                            | #13 CSM                       |
 | 12  | No upsell prompts                              | #13 CSM                       |

@@ -17,6 +17,7 @@ import {
   BreadcrumbJsonLd,
   ProductJsonLd,
 } from "@/components/marketing/json-ld";
+import { RoiCalculator } from "@/components/marketing/roi-calculator";
 
 const monthlyTiers = [
   {
@@ -312,6 +313,25 @@ export default function PricingPage() {
               </span>
             </span>
           </div>
+        </div>
+      </section>
+
+      {/* ROI Calculator */}
+      <section className="border-t border-border bg-background py-12 sm:py-16">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <FadeInUp>
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+                Calculate your savings
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                See how much time and money Xenboox saves your team
+              </p>
+            </div>
+          </FadeInUp>
+          <FadeInUp delay={0.1}>
+            <RoiCalculator />
+          </FadeInUp>
         </div>
       </section>
 
