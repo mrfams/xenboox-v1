@@ -335,3 +335,34 @@ Donor visits /donor-portal
 | FX Revaluation | Period-end gain/loss calculation on foreign currency lines |
 | Settings UI | Base currency, quick conversion, exchange rates table, FX revaluation |
 | Rate Caching | 60s entity-scoped cache, invalidated on manual upsert |
+
+---
+
+## 2026-08-23 — Monthly Financial Reports Auto-Generation
+
+**Commit:** 6023563
+**Scope:** Trigger.dev cron for P&L, Balance Sheet, Trial Balance, Cash Flow
+
+### What shipped
+
+| Component | What |
+|-----------|------|
+| Trigger.dev Cron | generateMonthlyFinancialReports — 2nd of each month at 4 AM |
+| Reports Generated | P&L, Balance Sheet, Trial Balance, Cash Flow |
+| Scope | All active entities |
+| Period | Last closed fiscal period |
+| Failure Handling | Graceful — continues with other reports if one fails |
+
+### Pipeline Order
+
+```
+2:00 AM — Daily Close (daily-close.ts)
+3:00 AM — Donor Reports (donor-reports.ts)
+4:00 AM — Financial Reports (monthly-financial-reports.ts) [2nd of month]
+```
+
+### Files
+
+- `packages/jobs/monthly-financial-reports.ts` — new cron job
+- `packages/jobs/report-generation.ts` — exported internal functions for reuse
+- `packages/jobs/index.ts` — added export
