@@ -78,7 +78,7 @@ export default function APDocPage() {
     <>
       <DocsPageHeader
         title="Accounts Payable"
-        description="Manage supplier relationships, purchase orders, invoices, and payments. The AP module streamlines your procure-to-pay workflow with automated approval routing and AI-powered invoice processing."
+        description="Manage supplier relationships, purchase orders, invoices, and payments. The AP module simplifies your procure-to-pay workflow with automated approval routing and AI-powered invoice processing."
         breadcrumbs={[
           { label: "Modules", href: "/docs/modules" },
           { label: "AP", href: "/docs/modules/ap" },

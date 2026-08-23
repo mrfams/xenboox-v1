@@ -83,7 +83,7 @@ const steps = [
   {
     title: "Explore AI Features",
     description:
-      "Xenboox includes AI-powered automation for accounting tasks. Start using these features to streamline your workflow.",
+      "Xenboox includes AI-powered automation for accounting tasks. Start using these features to simplify your workflow.",
     icon: Bot,
     details: [
       "Use the AI chat assistant for financial insights",
