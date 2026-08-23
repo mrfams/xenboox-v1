@@ -5,7 +5,9 @@
 > All findings from 24 employees that scored below 10/10.
 > Generated: August 23, 2026
 >
-> **Status Key:** `⬜` = Not started | `🔧` = In progress | `✅` = Fully fixed and verified
+> **Scope: WEB ONLY.** No mobile apps, no desktop apps, no PWA. The platform is a web-first AI-native accounting dashboard.
+>
+> **Status Key:** `⬜` = Not started | `🔧` = In progress | `✅` = Fully fixed and verified | `N/A` = Out of scope
 
 ---
 
@@ -149,7 +151,7 @@
 
 | #   | Finding                                              | Severity | Fix                                          | Status |
 | --- | ---------------------------------------------------- | -------- | -------------------------------------------- | ------ |
-| 1   | In-memory cache (`fxCache`) won't work in serverless | HIGH     | Migrate to Redis/Upstash                     | ⬜     |
+| 1   | In-memory cache (`fxCache`) won't work in serverless | HIGH     | Migrate to Redis/Upstash                     | ✅     |
 | 2   | No distributed tracing                               | MEDIUM   | Add OpenTelemetry for full request lifecycle | ⬜     |
 | 3   | No API versioning strategy                           | MEDIUM   | Define tRPC procedure versioning policy      | ⬜     |
 | 4   | No explicit connection pool config                   | MEDIUM   | Configure Neon pool: max, idleTimeout        | ⬜     |
@@ -212,7 +214,7 @@
 | 2   | No keyboard shortcuts                 | MEDIUM   | Add Cmd+K search, Cmd+N new invoice, etc.          | ⬜     |
 | 3   | No drag-and-drop                      | MEDIUM   | Add for line items, file uploads, reordering       | ⬜     |
 | 4   | No universal undo                     | MEDIUM   | Add undo toast after mutations                     | ⬜     |
-| 5   | Tables don't have card view on mobile | MEDIUM   | Add responsive card view                           | ⬜     |
+| 5   | Tables don't have card view on mobile | MEDIUM   | Add responsive card view (mobile web)              | ⬜     |
 | 6   | Many actions still form-based         | LOW      | Move toward conversational AI                      | ⬜     |
 
 ---
@@ -286,7 +288,7 @@
 
 | #   | Finding                         | Severity | Fix                                           | Status |
 | --- | ------------------------------- | -------- | --------------------------------------------- | ------ |
-| 1   | No mobile app                   | CRITICAL | Build PWA or React Native app                 | ⬜     |
+| 1   | No mobile app                   | N/A      | Web only — no mobile/desktop in scope         | N/A    |
 | 2   | No "Why Us vs Them" page        | HIGH     | Create `/compare/quickbooks`, `/compare/xero` | ⬜     |
 | 3   | No competitive comparison table | HIGH     | Add feature comparison on pricing page        | ⬜     |
 | 4   | Growth tier priced above Xero   | MEDIUM   | Justify premium or adjust pricing             | ⬜     |
@@ -300,7 +302,7 @@
 
 | #   | Finding                        | Severity | Fix                                          | Status |
 | --- | ------------------------------ | -------- | -------------------------------------------- | ------ |
-| 1   | No analytics event tracking    | CRITICAL | Add PostHog or Mixpanel                      | ⬜     |
+| 1   | No analytics event tracking    | CRITICAL | Add PostHog or Mixpanel                      | ✅     |
 | 2   | No activation funnel           | HIGH     | Track signup → setup → connect → first-value | ⬜     |
 | 3   | No retention tracking          | HIGH     | Build D1/D7/D30 retention curves             | ⬜     |
 | 4   | No internal business dashboard | HIGH     | Build admin dashboard                        | ⬜     |
@@ -315,7 +317,7 @@
 
 | #   | Finding                      | Severity | Fix                                       | Status |
 | --- | ---------------------------- | -------- | ----------------------------------------- | ------ |
-| 1   | No AARRR metrics tracked     | CRITICAL | Add PostHog for full funnel               | ⬜     |
+| 1   | No AARRR metrics tracked     | CRITICAL | Add PostHog for full funnel               | ✅     |
 | 2   | No north star metric defined | HIGH     | Define "Weekly Active AI Interactions"    | ⬜     |
 | 3   | No feature adoption tracking | HIGH     | Track events for every major feature      | ⬜     |
 | 4   | No user segmentation         | HIGH     | Segment by size, industry, usage, channel | ⬜     |
@@ -358,16 +360,16 @@
 
 ### 🔴 CRITICAL (Must fix before production) — 12 items
 
-| #   | Finding                                     | Employee                     |
-| --- | ------------------------------------------- | ---------------------------- |
-| 1   | No onboarding email sequence                | #10 Onboarding Specialist    |
-| 2   | No product tour / walkthrough               | #10 Onboarding Specialist    |
-| 3   | No customer health scoring                  | #13 Customer Success Manager |
-| 4   | No churn prevention system                  | #13 Customer Success Manager |
-| 5   | No AARRR metrics tracked                    | #22 Product Analyst          |
-| 6   | No analytics event tracking                 | #21 Data Analyst             |
-| 7   | No mobile app                               | #20 Competitor Analyst       |
-| 8   | No in-memory cache won't work in serverless | #11 Software Architect       |
+| #   | Finding                                            | Employee                     |
+| --- | -------------------------------------------------- | ---------------------------- |
+| 1   | No onboarding email sequence                       | #10 Onboarding Specialist    |
+| 2   | No product tour / walkthrough                      | #10 Onboarding Specialist    |
+| 3   | No customer health scoring                         | #13 Customer Success Manager |
+| 4   | No churn prevention system                         | #13 Customer Success Manager |
+| 5   | No AARRR metrics tracked                           | #22 Product Analyst          |
+| 6   | No analytics event tracking                        | #21 Data Analyst             |
+| 7   | ~~No mobile app~~ 🚫 Web only                      | #20 Competitor Analyst       |
+| 8   | ~~No in-memory cache won't work in serverless~~ ✅ | #11 Software Architect       |
 
 ### ⚡ HIGH (Should fix before production) — 45 items
 
