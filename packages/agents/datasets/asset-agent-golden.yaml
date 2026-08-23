@@ -720,7 +720,6 @@ cases:
         category: IT_EQUIPMENT
         cost: "24000.00"
         residualValue: "2000.00"
-        usefulLifeYears: 4
         depreciationMethod: straight_line
         usefulLifeYears: -4
     expected_output:

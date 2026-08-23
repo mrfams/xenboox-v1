@@ -317,6 +317,10 @@ When starting a task, auto-load the relevant skill(s) from `.agents/skills/` bas
 | "UX review", "user experience"            | `product-reviewer`      | UX quality review          |
 | "copy", "messaging"                       | `copywriter`            | Marketing copy             |
 | "design", "UI"                            | `design-taste-frontend` | Visual design              |
+| "run evals", "check agent scores"          | `eval-runner`           | Run agent eval suite       |
+| "test coverage", "what's untested"         | `test-coverage`         | Analyze test gaps          |
+| "agent eval", "golden dataset"             | `agent-eval`            | Create agent eval cases    |
+| "TDD", "red green refactor"                | `tdd`                   | Test-driven development    |
 
 ### Critique Skills (Quality Gates)
 
@@ -360,6 +364,8 @@ User: "Review this PR for the new invoice feature"
 | New feature    | `product` → `engineering` → `design` → `qa`                    |
 | Blog post      | `content` → `seo-audit` → `marketing`                          |
 | Security       | `security-engineer` → `cso` → `engineering`                    |
+| Pre-ship gate  | `eval-runner` → `test-coverage` → `engineering` → `design` → `content` → `product` → `marketing` |
+| Agent dev      | `create-agent` → `tdd` → `eval-runner` → `agent-eval`         |
 
 ---
 

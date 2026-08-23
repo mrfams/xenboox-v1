@@ -67,7 +67,11 @@
         "implement",
         "systematic-debugging",
         "test-driven-development",
-        "engineering-critique"
+        "engineering-critique",
+        "eval-runner",
+        "test-coverage",
+        "agent-eval",
+        "tdd"
       ],
       "keywords": [
         "code",
@@ -103,7 +107,13 @@
         "security audit",
         "engineering review",
         "code critique",
-        "review this code"
+        "review this code",
+        "run evals",
+        "check agent scores",
+        "evaluate agents",
+        "test coverage",
+        "what's untested",
+        "test gaps"
       ]
     },
     "design": {
@@ -312,7 +322,7 @@
     "fallbackSkills": ["grill-with-docs", "office-hours"]
   },
   "metadata": {
-    "totalSkills": 48,
+    "totalSkills": 52,
     "communitySkills": 23,
     "customSkills": 25,
     "lastUpdated": "2026-08-23"

@@ -127,17 +127,27 @@ fire engineering-critique → fire design-critique → fire content-critique →
 | `fire finance-analyst`       | Finance Analyst       | Budgeting, forecasting |
 | `fire month-end-close`       | Month-End Close       | Close orchestration    |
 
+### 🧪 Testing & Eval
+
+| Trigger                    | Skill            | Purpose                          |
+| -------------------------- | ---------------- | -------------------------------- |
+| `fire eval-runner`         | Eval Runner      | Run agent eval suite             |
+| `fire test-coverage`       | Test Coverage    | Analyze test gaps                |
+| `fire agent-eval`          | Agent Eval       | Create agent golden datasets     |
+| `fire tdd`                 | TDD              | Test-driven development          |
+| `fire test-driven-dev`     | Test-Driven Dev  | Strict red-green-refactor loop   |
+| `fire qa`                  | QA               | Browser-based testing            |
+| `fire verification`        | Verification     | Evidence before assertions       |
+
 ### 🛠️ Meta Skills
 
 | Trigger                               | Skill           | Purpose                    |
 | ------------------------------------- | --------------- | -------------------------- |
 | `fire review`                         | Code Review     | Production-quality review  |
-| `fire qa`                             | QA              | Browser-based testing      |
 | `fire cso`                            | CSO             | Security audit (OWASP)     |
 | `fire office-hours`                   | Office Hours    | Product interrogation      |
 | `fire grill-with-docs`                | Grill with Docs | Domain modeling session    |
 | `fire plan-eng-review`                | Plan Eng Review | Architecture planning      |
-| `fire verification-before-completion` | Verification    | Evidence before assertions |
 | `fire load-xenboox-context`           | Load Context    | Full project context       |
 
 ---
@@ -180,4 +190,16 @@ fire content-critique → fire seo-audit → fire marketing-critique
 
 ```
 fire security-engineer → fire cso → fire engineering-critique
+```
+
+### Pre-Ship Quality Gate (Tests + Evals + Critique)
+
+```
+fire eval-runner → fire test-coverage → fire engineering-critique → fire design-critique → fire content-critique → fire product-critique → fire marketing-critique
+```
+
+### Agent Development Flow
+
+```
+fire create-agent → fire tdd → fire eval-runner → fire agent-eval
 ```

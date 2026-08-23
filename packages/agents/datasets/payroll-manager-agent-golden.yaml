@@ -749,12 +749,14 @@ cases:
       payrollId: "PAY-2026-07"
       period: "2026-07"
       securityScan:
-        sqlInjectionAttempt: true
-        pattern: "1; DROP TABLE employees; --"
-        field: "employeeName"
-        xssAttempt: true
-        pattern: "<script>alert('xss')</script>"
-        field: "notes"
+        sqlInjection:
+          attempted: true
+          pattern: "1; DROP TABLE employees; --"
+          field: "employeeName"
+        xss:
+          attempted: true
+          pattern: "<script>alert('xss')</script>"
+          field: "notes"
     expected_output:
       status: "blocked"
       reason_code: "SECURITY_VIOLATION"
