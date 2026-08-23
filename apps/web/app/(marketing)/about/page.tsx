@@ -24,39 +24,39 @@ import { FadeInUp } from "@/components/marketing/reveal";
 const values = [
   {
     icon: Target,
-    title: "Mission-Driven",
+    title: "Built for here, not imported",
     description:
-      "We exist to give every business access to world-class financial tools. Not just the enterprises that can afford consultants — everyone.",
+      "We didn't adapt a Western product for Africa. We built for The Gambia first — mobile money, dalasi, PAYE, SSNIT — then expanded globally. If it doesn't work in Banjul, it doesn't ship.",
   },
   {
     icon: Eye,
-    title: "Radical Transparency",
+    title: "AI that explains itself",
     description:
-      "Our AI explains its reasoning. Our pricing is simple. Our roadmap is public. We believe trust is earned through openness.",
+      "Every AI decision comes with a confidence score and plain-English explanation. No black boxes. If the AI isn't sure, it asks you. You're always in control.",
   },
   {
     icon: Heart,
-    title: "Obsessive Quality",
+    title: "Accuracy is non-negotiable",
     description:
-      "Accounting demands precision. We ship nothing that isn't thoroughly tested, reviewed, and validated. Accuracy isn't a feature — it's a requirement.",
+      "Accounting is trust. Every journal entry is double-checked. Every report is auditable. We'd rather be right than fast — and we're both.",
   },
   {
     icon: Users,
-    title: "Customer-Obsessed",
+    title: "Built with real businesses",
     description:
-      "We talk to our users weekly. We ship what they need, not what we think they want. Their success is our success.",
+      "We talk to Gambian businesses every week — trading companies, NGOs, importers. They tell us what's broken. We fix it. Their problems are our roadmap.",
   },
   {
     icon: Zap,
-    title: "Move with Purpose",
+    title: "Ship fast, learn faster",
     description:
-      "We're fast but not reckless. Every decision is deliberate. We ship iteratively, learn constantly, and never stop improving.",
+      "We deploy daily. We listen to feedback the same day. We're a small team with big ambitions — speed is our advantage.",
   },
   {
     icon: Globe,
-    title: "Global by Design",
+    title: "Global from day one",
     description:
-      "Built for businesses operating across borders from day one. Multi-currency, multi-jurisdiction, multi-language — not bolted on later.",
+      "Multi-currency, multi-jurisdiction, multi-language. Not bolted on later. If you operate across borders — and most African businesses do — Xenboox was built for you.",
   },
 ];
 
@@ -64,7 +64,7 @@ const stats = [
   { value: "20+", label: "Accounting Modules", icon: Building2 },
   { value: "19", label: "AI Agents", icon: Zap },
   { value: "99.9%", label: "Uptime SLA", icon: Shield },
-  { value: "50+", label: "Currencies", icon: TrendingUp },
+  { value: "50+", label: "Currencies Supported", icon: TrendingUp },
 ];
 
 const principles = [
@@ -76,34 +76,62 @@ const principles = [
   {
     title: "Simplicity over features",
     description:
-      "Powerful doesn't mean complicated. We relentlessly simplify complex accounting workflows so you can focus on what matters.",
+      "Powerful doesn't mean complicated. We relentlessly simplify complex accounting workflows so you can focus on what matters — running your business.",
   },
   {
     title: "Security over convenience",
     description:
-      "We never compromise on data protection. End-to-end encryption, role-based access, complete audit trails — non-negotiable.",
+      "We never compromise on data protection. PostgreSQL row-level security, AES-256 encryption, complete audit trails — non-negotiable.",
   },
   {
     title: "Transparency over marketing",
     description:
-      "No buzzwords. No black boxes. We explain exactly how our AI works, what it costs, and how it helps your business.",
+      "No buzzwords. No black boxes. We explain exactly how our AI works, what it costs, and how it helps your business. Try it free and see for yourself.",
+  },
+];
+
+const timeline = [
+  {
+    year: "2024",
+    title: "The problem hits home",
+    description:
+      "Watching Gambian businesses struggle with QuickBooks and Xero — tools that don't understand mobile money, dalasi, or local tax rules. Month-end close takes days. Errors pile up. Nobody can afford a full accounting team.",
+  },
+  {
+    year: "2024",
+    title: "We start building",
+    description:
+      "Xenboox begins as a simple idea: what if AI could do the accounting? Not suggest what to do — actually do it. Categorize transactions, reconcile accounts, close the month, file compliance. All of it.",
+  },
+  {
+    year: "2025",
+    title: "19 agents, one platform",
+    description:
+      "We build a three-tier AI hierarchy — a CFO Agent that talks to you, department heads that manage the work, and worker agents that execute. Every agent logs its reasoning. Every action is auditable.",
+  },
+  {
+    year: "2025",
+    title: "Ready for production",
+    description:
+      "Full double-entry bookkeeping, real-time financial dashboards, automated month-end close, donor reporting, multi-currency support, and bank feed integration. The platform is live.",
   },
 ];
 
 const team = [
   {
     name: "Engineering",
-    description: "Building the platform that powers modern accounting",
+    description:
+      "Building the AI-native platform that powers modern accounting",
     icon: Zap,
   },
   {
     name: "Product & Design",
-    description: "Designing experiences that make complex simple",
+    description: "Making complex accounting feel simple and intuitive",
     icon: Target,
   },
   {
     name: "Customer Success",
-    description: "Ensuring every business succeeds with Xenboox",
+    description: "Ensuring every Gambian business succeeds with Xenboox",
     icon: Users,
   },
 ];
@@ -111,7 +139,7 @@ const team = [
 export default function AboutPage() {
   return (
     <>
-      {/* Hero Section */}
+      {/* Hero Section — Founder Story */}
       <section className="relative overflow-hidden bg-paper">
         <div
           className="pointer-events-none absolute inset-0"
@@ -145,16 +173,29 @@ export default function AboutPage() {
             </FadeInUp>
             <FadeInUp delay={0.05}>
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                The future of finance,{" "}
-                <span className="text-primary">built today</span>
+                We got tired of watching{" "}
+                <span className="text-primary">African businesses</span>{" "}
+                struggle with accounting
               </h1>
             </FadeInUp>
             <FadeInUp delay={0.1}>
               <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">
-                We&apos;re building the accounting platform that every business
-                deserves — AI agents that handle the books, so you can focus on
-                growing your business.
+                QuickBooks doesn&apos;t understand mobile money. Xero
+                doesn&apos;t know what dalasi is. Month-end close takes days
+                instead of hours. We built Xenboox because every business
+                deserves an accounting platform that actually works for them —
+                not an afterthought.
               </p>
+            </FadeInUp>
+            <FadeInUp delay={0.15}>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-600 border border-emerald-500/20">
+                  Built in The Gambia
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-primary border border-primary/20">
+                  For businesses across Africa
+                </span>
+              </div>
             </FadeInUp>
           </div>
         </div>
@@ -171,17 +212,17 @@ export default function AboutPage() {
                   Our Mission
                 </span>
                 <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                  Make world-class accounting accessible to every business
+                  Give every African business a world-class finance team
                 </h2>
                 <p className="mt-2 text-lg leading-relaxed text-muted-foreground">
-                  Most accounting software was built for Western enterprises.
-                  Multi-currency, mobile money, and varying tax regimes are
-                  afterthoughts — not core features.
+                  Not everyone can afford a CFO, an accountant, and a payroll
+                  specialist. But everyone deserves accurate books, clean
+                  reports, and financial clarity.
                 </p>
                 <p className="text-lg leading-relaxed text-muted-foreground">
-                  Xenboox flips that. Built for businesses operating across
-                  borders from day one, with AI agents that handle the daily
-                  accounting grind automatically.
+                  Xenboox gives you 19 AI agents that handle invoicing, payroll,
+                  reconciliation, compliance, and month-end close — the work of
+                  a full finance department, at a fraction of the cost.
                 </p>
               </div>
             </FadeInUp>
@@ -208,13 +249,53 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Values Section */}
+      {/* Timeline Section — Our Story */}
       <Section className="bg-paper">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <SectionHeading
+            eyebrow="Our story"
+            title="How Xenboox came to be"
+            lead="It started with a frustration every Gambian business owner knows."
+          />
+
+          <div className="mt-16 max-w-3xl mx-auto">
+            <div className="space-y-8">
+              {timeline.map((item, index) => (
+                <FadeInUp key={item.year + item.title} delay={index * 0.1}>
+                  <div className="relative flex gap-6">
+                    {/* Timeline line */}
+                    <div className="flex flex-col items-center">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                        {item.year.slice(-2)}
+                      </div>
+                      {index < timeline.length - 1 && (
+                        <div className="mt-2 h-full w-0.5 bg-border" />
+                      )}
+                    </div>
+                    {/* Content */}
+                    <div className="pb-8">
+                      <h3 className="text-xl font-semibold text-foreground">
+                        {item.title}
+                      </h3>
+                      <p className="mt-2 leading-relaxed text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                </FadeInUp>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Values Section */}
+      <Section className="bg-paper-2/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
             eyebrow="Our values"
             title="What we believe in"
-            lead="These principles guide every decision we make, from product design to customer support."
+            lead="These principles guide every decision — from product design to customer support."
           />
 
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -238,7 +319,7 @@ export default function AboutPage() {
       </Section>
 
       {/* Principles Section */}
-      <Section className="bg-paper-2/60">
+      <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-16 lg:grid-cols-2">
             <FadeInUp>
@@ -252,7 +333,8 @@ export default function AboutPage() {
                 </h2>
                 <p className="mt-2 text-lg leading-relaxed text-muted-foreground">
                   These aren&apos;t just words on a wall. They&apos;re the
-                  standards we hold ourselves to every day.
+                  standards we hold ourselves to every day — because your
+                  financial data demands it.
                 </p>
               </div>
             </FadeInUp>
@@ -286,12 +368,12 @@ export default function AboutPage() {
       </Section>
 
       {/* Team Section */}
-      <Section className="bg-paper">
+      <Section className="bg-paper-2/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
             eyebrow="Our team"
-            title="The people behind Xenboox"
-            lead="A small, focused team with big ambitions. We're building something that matters."
+            title="Small team, big mission"
+            lead="We're a focused team building something that matters — and we're hiring."
           />
 
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -315,7 +397,7 @@ export default function AboutPage() {
       </Section>
 
       {/* Why Xenboox Section */}
-      <Section className="bg-paper-2/60">
+      <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading eyebrow="Why Xenboox" title="Why we're different" />
 
@@ -327,11 +409,11 @@ export default function AboutPage() {
                 </h3>
                 <ul className="space-y-4">
                   {[
-                    "Manual data entry and reconciliation",
-                    "Spreadsheet-based tracking",
-                    "Month-end chaos and errors",
-                    "Expensive consultants and software",
-                    "One-size-fits-all Western solutions",
+                    "QuickBooks that doesn't understand mobile money or dalasi",
+                    "Month-end close that takes 3-5 days of manual work",
+                    "Spreadsheets tracking what the software should handle",
+                    "Hiring a full accounting team you can't afford",
+                    "Western tools bolted on as afterthoughts",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted">
@@ -351,11 +433,11 @@ export default function AboutPage() {
                 </h3>
                 <ul className="space-y-4">
                   {[
-                    "AI-powered automation that learns your business",
-                    "Real-time financial dashboards",
-                    "Automated month-end close",
-                    "Transparent, affordable pricing",
-                    "Built for global businesses from day one",
+                    "19 AI agents that handle your books while you sleep",
+                    "Month-end close in 10 minutes, not 5 days",
+                    "Real-time dashboards that explain what the numbers mean",
+                    "Built for Gambian businesses — PAYE, SSNIT, mobile money",
+                    "Free tier so you can try before you commit",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
@@ -372,13 +454,14 @@ export default function AboutPage() {
       </Section>
 
       {/* Mission Statement */}
-      <section className="border-y border-border bg-paper">
+      <section className="border-y border-border bg-paper-2/60">
         <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:py-20">
           <FadeInUp>
             <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">
               Every business deserves an accounting department that works around
               the clock. Xenboox gives you 19 AI agents that handle invoicing,
-              payroll, compliance, and close — so you can focus on what matters.
+              payroll, compliance, and close — so you can focus on growing your
+              business, not managing your books.
             </p>
           </FadeInUp>
         </div>
@@ -399,16 +482,15 @@ export default function AboutPage() {
               />
               <div className="relative mx-auto max-w-2xl">
                 <h2 className="text-3xl font-semibold tracking-tight text-paper sm:text-4xl lg:text-5xl">
-                  Join us on this journey
+                  Ready to try Xenboox?
                 </h2>
                 <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-paper/70">
-                  We&apos;re building the future of accounting. Whether
-                  you&apos;re a customer, partner, or future team member —
-                  we&apos;d love to connect.
+                  Start free with 1 AI agent. No credit card required. See how
+                  much time your accounting team can save.
                 </p>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                   <Button asChild size="lg" className="gap-2">
-                    <Link href="/onboarding">
+                    <Link href="/register">
                       Get Started Free
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
