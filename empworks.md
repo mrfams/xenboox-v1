@@ -16,7 +16,7 @@
 | #   | Finding                                                            | Severity | Fix                                             | Status |
 | --- | ------------------------------------------------------------------ | -------- | ----------------------------------------------- | ------ |
 | 1   | Blog posts still short (1,000-1,200 words)                         | HIGH     | Expand to 1,500-3,000 words for SEO             | ⬜     |
-| 2   | Pricing missing trust signals ("No credit card", "Cancel anytime") | HIGH     | Add trust badges and guarantee                  | ⬜     |
+| 2   | Pricing missing trust signals ("No credit card", "Cancel anytime") | HIGH     | Add trust badges and guarantee                  | ✅     |
 | 3   | About page is generic — no real people                             | HIGH     | Add founder story, team photos, Gambian context | ⬜     |
 | 4   | Blog post missing author card and related posts                    | MEDIUM   | Add author card + "You might also like" section | ⬜     |
 | 5   | No sticky CTA on marketing pages                                   | MEDIUM   | Add floating "Start free" on scroll             | ⬜     |
@@ -32,7 +32,7 @@
 | #   | Finding                                      | Severity | Fix                                               | Status |
 | --- | -------------------------------------------- | -------- | ------------------------------------------------- | ------ |
 | 1   | Sticky CTA missing on all marketing pages    | HIGH     | Add floating "Start free" button on scroll        | ⬜     |
-| 2   | Pricing page lacks trust signals             | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ⬜     |
+| 2   | Pricing page lacks trust signals             | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
 | 3   | About page shows generic content             | HIGH     | Real team photos, founder story, Gambian context  | ⬜     |
 | 4   | Blog posts need 1,500+ words                 | MEDIUM   | Expand remaining content                          | ⬜     |
 | 5   | Blog post missing author card, related posts | MEDIUM   | Add to template                                   | ⬜     |
@@ -78,7 +78,7 @@
 | 1   | 15+ icon buttons missing aria-label                 | HIGH     | Add `aria-label` to all icon-only buttons | ⬜     |
 | 2   | Settings page uses hardcoded `slate-*` colors       | MEDIUM   | Replace with design system tokens         | ⬜     |
 | 3   | Blog newsletter has dark mode styling on light page | MEDIUM   | Fix newsletter component styles           | ⬜     |
-| 4   | Pricing missing trust signals                       | MEDIUM   | Add guarantee badge                       | ⬜     |
+| 4   | Pricing missing trust signals                       | MEDIUM   | Add guarantee badge                       | ✅     |
 
 ---
 
@@ -111,7 +111,7 @@
 | #   | Finding                                | Severity | Fix                                               | Status |
 | --- | -------------------------------------- | -------- | ------------------------------------------------- | ------ |
 | 1   | No JSON-LD structured data on any page | HIGH     | Add Organization, Product, Article schemas        | ⬜     |
-| 2   | Pricing missing trust signals          | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ⬜     |
+| 2   | Pricing missing trust signals          | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
 | 3   | Blog posts below 1,500 words           | MEDIUM   | Expand content                                    | ⬜     |
 | 4   | No author bios on blog                 | MEDIUM   | Add author card                                   | ⬜     |
 | 5   | No social share buttons on blog        | MEDIUM   | Add share bar                                     | ⬜     |
@@ -125,7 +125,7 @@
 | #   | Finding                                | Severity | Fix                                    | Status |
 | --- | -------------------------------------- | -------- | -------------------------------------- | ------ |
 | 1   | No ROI calculator on pricing           | HIGH     | Add "Save X hours/month" calculator    | ⬜     |
-| 2   | No "Cancel anytime" / "No credit card" | HIGH     | Add trust signals                      | ⬜     |
+| 2   | No "Cancel anytime" / "No credit card" | HIGH     | Add trust signals                      | ✅     |
 | 3   | No demo video                          | HIGH     | Record 2-minute product walkthrough    | ⬜     |
 | 4   | No case studies                        | MEDIUM   | Write 2-3 detailed customer stories    | ⬜     |
 | 5   | No comparison sheet vs competitors     | MEDIUM   | Build QuickBooks/Xero comparison page  | ⬜     |
@@ -375,7 +375,7 @@
 
 | #   | Finding                                 | Employee                      |
 | --- | --------------------------------------- | ----------------------------- |
-| 1   | Pricing missing trust signals           | #1, #2, #4, #5, #8, #9        |
+| 1   | ~~Pricing missing trust signals~~ ✅    | #1, #2, #4, #5, #8, #9        |
 | 2   | About page is generic                   | #1, #2, #4, #14               |
 | 3   | Blog posts below 1,500 words            | #1, #2, #4, #7, #8            |
 | 4   | No JSON-LD structured data              | #8 Marketing Critic           |
