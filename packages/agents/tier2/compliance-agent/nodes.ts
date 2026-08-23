@@ -1,5 +1,7 @@
 import { langfuse } from "../../core/langfuse";
 import { createAuditEntry } from "../../core/state";
+import { getAgentGraph } from "../../core/orchestrator";
+import type { AgentState } from "../../core/orchestrator";
 import {
   reviewTaxPosition,
   checkFilingStatus,
@@ -425,6 +427,86 @@ export async function nodeReportRegulatoryStatus(state: ComplianceStateType) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     return { errors: [`Regulatory status error: ${msg}`], confidence: 0.0 };
+  }
+}
+
+// ─── Node: Run Compliance Audit (Phase 6) ────────────────────────────────
+// Calls Audit Agent for compliance sampling and drift analysis.
+
+export async function nodeRunComplianceAudit(state: ComplianceStateType) {
+  const trace = await langfuse.span({ name: "compliance-run-audit" });
+
+  try {
+    const auditGraph = await getAgentGraph("audit");
+    const auditState: AgentState = {
+      entityId: state.entityId,
+      entityName: state.entityName,
+      currency: state.currency,
+      currentOperation: {
+        type: "audit_sampling",
+        status: "processing",
+        input: {
+          period: (state.currentOperation?.input as Record<string, unknown>)
+            ?.period,
+          scope: "compliance",
+        },
+        output: null,
+        error: null,
+      },
+    };
+    const auditResult = await auditGraph.invoke(auditState);
+
+    langfuse.event({
+      name: "compliance-audit-agent-dispatched",
+      metadata: {
+        confidence: (auditResult as any).confidence ?? 0,
+        hasResult: !!(auditResult as any).result,
+      },
+    });
+
+    await trace.update({
+      output: {
+        auditCalled: true,
+        confidence: (auditResult as any).confidence ?? 0,
+      },
+    });
+
+    return {
+      result: {
+        type: "compliance_audit",
+        auditResult: (auditResult as any).result,
+      },
+      confidence: (auditResult as any).confidence ?? 0.8,
+      reasoning: "Audit Agent completed compliance sampling",
+      auditTrail: [
+        createAuditEntry({
+          agentId: "compliance-agent",
+          action: "audit_dispatched",
+          details: {
+            auditAgentCalled: true,
+            confidence: (auditResult as any).confidence ?? 0,
+          },
+          confidence: (auditResult as any).confidence ?? 0.8,
+        }),
+      ],
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    langfuse.event({
+      name: "compliance-audit-dispatch-failed",
+      metadata: { error: msg },
+    });
+
+    await trace.update({
+      output: { auditCalled: false, error: msg },
+    });
+
+    // Non-fatal: compliance review continues without audit sampling
+    return {
+      confidence: 0.7,
+      reasoning:
+        "Audit Agent unavailable — compliance review proceeded without sampling",
+    };
   }
 }
 

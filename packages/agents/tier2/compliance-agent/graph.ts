@@ -11,6 +11,7 @@ import {
   nodeRequestHumanReview,
   nodeApplyRuleUpdate,
   nodeReportRegulatoryStatus,
+  nodeRunComplianceAudit,
   nodeEscalate,
 } from "./nodes";
 
@@ -67,6 +68,7 @@ const graph = new StateGraph(ComplianceState)
   .addNode("detect_rule_change", nodeDetectRuleChange)
   .addNode("request_human_review", nodeRequestHumanReview)
   .addNode("apply_rule_update", nodeApplyRuleUpdate)
+  .addNode("run_compliance_audit", nodeRunComplianceAudit)
   .addNode("report_status", nodeReportRegulatoryStatus)
   .addNode("escalate", nodeEscalate)
   .addEdge(START, "parse_input")
@@ -100,7 +102,8 @@ const graph = new StateGraph(ComplianceState)
     escalate: "escalate",
     [END]: END,
   })
-  .addConditionalEdges("tax_review", routeAfterWork, {
+  .addEdge("tax_review", "run_compliance_audit")
+  .addConditionalEdges("run_compliance_audit", routeAfterWork, {
     escalate: "escalate",
     [END]: END,
   })

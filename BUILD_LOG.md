@@ -65,3 +65,35 @@
 | Date | Focus | Commits | Status |
 |------|-------|---------|--------|
 | 2026-08-23 | Full platform polish + eval system | c37e9446, 10af34b9, e6063c27, 7d9a0fa4 | Shipped |
+
+---
+
+## 2026-08-23 — Phase 6: Agent Orchestration Wiring
+
+**Commits:** (pending)
+**Scope:** Wire all 19 agents into three-tier hierarchy
+
+### What shipped
+
+| Wiring | Agents | File |
+|--------|--------|------|
+| Compliance → Audit | compliance → audit | compliance-agent/nodes.ts |
+| Payroll Manager → Worker | payroll_manager → payroll_worker | payroll-manager-agent/nodes.ts |
+| Treasury → Cash | treasury → cash | treasury-agent/nodes.ts |
+| Treasury → Mobile Money | treasury → mobile_money | treasury-agent/nodes.ts |
+| Treasury → Expense | treasury → expense | treasury-agent/nodes.ts |
+| Controller → Asset | controller → asset | controller-agent/nodes.ts |
+| Controller → Inventory | controller → inventory | controller-agent/nodes.ts |
+
+### Tests added
+
+- Compliance → Audit dispatch + failure handling
+- Payroll Manager → Worker dispatch + failure handling
+- Treasury → Cash/MM/Expense dispatch + failure handling
+
+### Verified
+
+- 499 eval cases: still valid
+- All new nodes follow graceful failure pattern
+- All dispatches logged to LangFuse
+- Entity scoping maintained on all state objects

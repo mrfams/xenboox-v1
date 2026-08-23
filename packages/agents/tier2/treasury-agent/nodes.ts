@@ -249,6 +249,166 @@ export async function nodeGenerateDailyReport(state: TreasuryStateType) {
   }
 }
 
+// ─── Node: Run Cash Check (Phase 6) ──────────────────────────────────────
+// Calls Cash Agent for imprest tracking and cash counts.
+
+export async function nodeRunCashCheck(state: TreasuryStateType) {
+  const trace = await langfuse.span({ name: "treasury-cash-check" });
+
+  try {
+    const cashGraph = await getAgentGraph("cash");
+    const cashState: AgentState = {
+      entityId: state.entityId,
+      entityName: state.entityName,
+      currency: state.currency,
+      currentOperation: {
+        type: "cash_count",
+        status: "processing",
+        input: {},
+        output: null,
+        error: null,
+      },
+    };
+    const cashResult = await cashGraph.invoke(cashState);
+
+    langfuse.event({
+      name: "treasury-cash-agent-dispatched",
+      metadata: {
+        confidence: (cashResult as any).confidence ?? 0,
+        hasResult: !!(cashResult as any).result,
+      },
+    });
+
+    return {
+      result: { type: "cash_check", cashResult: (cashResult as any).result },
+      confidence: (cashResult as any).confidence ?? 0.85,
+      reasoning: "Cash Agent completed imprest verification",
+      auditTrail: [
+        createAuditEntry({
+          agentId: "treasury-agent",
+          action: "cash_agent_dispatched",
+          details: { confidence: (cashResult as any).confidence ?? 0 },
+          confidence: (cashResult as any).confidence ?? 0.85,
+        }),
+      ],
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    langfuse.event({ name: "treasury-cash-dispatch-failed", metadata: { error: msg } });
+    return {
+      confidence: 0.7,
+      reasoning: "Cash Agent unavailable — treasury proceeded without cash verification",
+    };
+  }
+}
+
+// ─── Node: Run Mobile Money Reconciliation (Phase 6) ───────────────────────
+// Calls Mobile Money Agent for MM reconciliation.
+
+export async function nodeRunMobileMoneyReconciliation(state: TreasuryStateType) {
+  const trace = await langfuse.span({ name: "treasury-mm-reconciliation" });
+
+  try {
+    const mmGraph = await getAgentGraph("mobile_money");
+    const mmState: AgentState = {
+      entityId: state.entityId,
+      entityName: state.entityName,
+      currency: state.currency,
+      currentOperation: {
+        type: "mm_reconcile",
+        status: "processing",
+        input: {},
+        output: null,
+        error: null,
+      },
+    };
+    const mmResult = await mmGraph.invoke(mmState);
+
+    langfuse.event({
+      name: "treasury-mm-agent-dispatched",
+      metadata: {
+        confidence: (mmResult as any).confidence ?? 0,
+        hasResult: !!(mmResult as any).result,
+      },
+    });
+
+    return {
+      result: { type: "mm_reconciliation", mmResult: (mmResult as any).result },
+      confidence: (mmResult as any).confidence ?? 0.85,
+      reasoning: "Mobile Money Agent completed reconciliation",
+      auditTrail: [
+        createAuditEntry({
+          agentId: "treasury-agent",
+          action: "mm_agent_dispatched",
+          details: { confidence: (mmResult as any).confidence ?? 0 },
+          confidence: (mmResult as any).confidence ?? 0.85,
+        }),
+      ],
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    langfuse.event({ name: "treasury-mm-dispatch-failed", metadata: { error: msg } });
+    return {
+      confidence: 0.7,
+      reasoning: "Mobile Money Agent unavailable — treasury proceeded without MM reconciliation",
+    };
+  }
+}
+
+// ─── Node: Process Expenses (Phase 6) ──────────────────────────────────────
+// Calls Expense Agent for expense processing.
+
+export async function nodeProcessExpenses(state: TreasuryStateType) {
+  const trace = await langfuse.span({ name: "treasury-expense-processing" });
+
+  try {
+    const expenseGraph = await getAgentGraph("expense");
+    const expenseState: AgentState = {
+      entityId: state.entityId,
+      entityName: state.entityName,
+      currency: state.currency,
+      currentOperation: {
+        type: "submit_expense",
+        status: "processing",
+        input: (state.currentOperation?.input as Record<string, unknown>)?.expense ?? {},
+        output: null,
+        error: null,
+      },
+    };
+    const expenseResult = await expenseGraph.invoke(expenseState);
+
+    langfuse.event({
+      name: "treasury-expense-agent-dispatched",
+      metadata: {
+        confidence: (expenseResult as any).confidence ?? 0,
+        hasResult: !!(expenseResult as any).result,
+      },
+    });
+
+    return {
+      result: { type: "expense_processed", expenseResult: (expenseResult as any).result },
+      confidence: (expenseResult as any).confidence ?? 0.85,
+      reasoning: "Expense Agent processed expense claim",
+      auditTrail: [
+        createAuditEntry({
+          agentId: "treasury-agent",
+          action: "expense_agent_dispatched",
+          details: { confidence: (expenseResult as any).confidence ?? 0 },
+          confidence: (expenseResult as any).confidence ?? 0.85,
+        }),
+      ],
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    langfuse.event({ name: "treasury-expense-dispatch-failed", metadata: { error: msg } });
+    return {
+      errors: [`Expense Agent dispatch failed: ${msg}`],
+      confidence: 0,
+      reasoning: "Expense Agent unavailable",
+    };
+  }
+}
+
 // ─── Node: Escalate ────────────────────────────────────────────────────────
 
 export async function nodeEscalate(state: TreasuryStateType) {

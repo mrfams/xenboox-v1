@@ -1,5 +1,7 @@
 import { langfuse } from "../../core/langfuse";
 import { createAuditEntry } from "../../core/state";
+import { getAgentGraph } from "../../core/orchestrator";
+import type { AgentState } from "../../core/orchestrator";
 import {
   validatePayrollData,
   checkTaxCalculations,
@@ -129,6 +131,84 @@ export async function nodeCloseConfirmation(state: PayrollManagerStateType) {
     confidence: state.payrollSummary ? 0.9 : 0.7,
     reasoning: "Payroll domain confirmed for close",
   };
+}
+
+// ─── Node: Dispatch to Payroll Worker (Phase 6) ─────────────────────────
+// After validation, dispatches to Payroll Worker for PAYE, SSRC, payslips.
+
+export async function nodeDispatchToWorker(state: PayrollManagerStateType) {
+  const trace = await langfuse.span({ name: "payroll-manager-dispatch" });
+
+  const payrollData = state.currentOperation?.input?.payroll;
+  if (!payrollData) {
+    return { errors: ["No payroll data to dispatch"], confidence: 0 };
+  }
+
+  try {
+    const workerGraph = await getAgentGraph("payroll_worker");
+    const workerState: AgentState = {
+      entityId: state.entityId,
+      entityName: state.entityName,
+      currency: state.currency,
+      currentOperation: {
+        type: "process_payroll_batch",
+        status: "processing",
+        input: { payroll: payrollData },
+        output: null,
+        error: null,
+      },
+    };
+    const workerResult = await workerGraph.invoke(workerState);
+
+    langfuse.event({
+      name: "payroll-manager-worker-dispatched",
+      metadata: {
+        confidence: (workerResult as any).confidence ?? 0,
+        hasResult: !!(workerResult as any).result,
+      },
+    });
+
+    await trace.update({
+      output: {
+        workerCalled: true,
+        confidence: (workerResult as any).confidence ?? 0,
+      },
+    });
+
+    return {
+      result: {
+        type: "payroll_dispatched",
+        workerResult: (workerResult as any).result,
+      },
+      confidence: (workerResult as any).confidence ?? 0.85,
+      reasoning: "Payroll Worker completed PAYE, SSRC, and payslip generation",
+      auditTrail: [
+        createAuditEntry({
+          agentId: "payroll-manager-agent",
+          action: "payroll_dispatched_to_worker",
+          details: {
+            workerCalled: true,
+            confidence: (workerResult as any).confidence ?? 0,
+          },
+          confidence: (workerResult as any).confidence ?? 0.85,
+        }),
+      ],
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    langfuse.event({
+      name: "payroll-manager-worker-dispatch-failed",
+      metadata: { error: msg },
+    });
+
+    await trace.update({ output: { workerCalled: false, error: msg } });
+
+    return {
+      errors: [`Payroll Worker dispatch failed: ${msg}`],
+      confidence: 0,
+      reasoning: "Payroll Worker unavailable",
+    };
+  }
 }
 
 export async function nodeEscalate(state: PayrollManagerStateType) {

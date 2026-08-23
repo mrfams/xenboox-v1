@@ -562,3 +562,265 @@ describe("Phase 6: humanResponse propagation", () => {
     expect(result.humanResponse).toContain("Too many unresolved items");
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 6: New Wiring Tests (Compliance, Payroll, Treasury, Controller)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("Phase 6: Compliance Agent → Audit Agent wiring", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("nodeRunComplianceAudit dispatches to Audit Agent", async () => {
+    const mockAuditGraph = {
+      invoke: vi.fn().mockResolvedValue({
+        entityId: "test-entity",
+        result: { type: "audit_complete", samplesReviewed: 25, findings: [] },
+        confidence: 0.92,
+        reasoning: "Audit sampling completed",
+        errors: [],
+        auditTrail: [],
+      }),
+    };
+
+    const { getAgentGraph } = await import("../core/orchestrator");
+    (getAgentGraph as any).mockImplementation(async (id: string) => {
+      if (id === "audit") return mockAuditGraph;
+      return { invoke: vi.fn() };
+    });
+
+    const { nodeRunComplianceAudit } = await import("../tier2/compliance-agent/nodes");
+
+    const state = {
+      entityId: "test-entity",
+      entityName: "Test Entity",
+      currency: "GMD",
+      currentOperation: {
+        type: "tax_review",
+        status: "processing",
+        input: { period: "2026-07" },
+        output: null,
+        error: null,
+      },
+    };
+
+    const result = await nodeRunComplianceAudit(state as any);
+
+    expect(mockAuditGraph.invoke).toHaveBeenCalledTimes(1);
+    expect(mockAuditGraph.invoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: "test-entity",
+        currentOperation: expect.objectContaining({ type: "audit_sampling" }),
+      })
+    );
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+
+  it("nodeRunComplianceAudit handles Audit Agent failure gracefully", async () => {
+    const { getAgentGraph } = await import("../core/orchestrator");
+    (getAgentGraph as any).mockImplementation(async () => {
+      throw new Error("Audit Agent unavailable");
+    });
+
+    const { nodeRunComplianceAudit } = await import("../tier2/compliance-agent/nodes");
+
+    const state = {
+      entityId: "test-entity",
+      entityName: "Test Entity",
+      currency: "GMD",
+      currentOperation: {
+        type: "tax_review",
+        status: "processing",
+        input: {},
+        output: null,
+        error: null,
+      },
+    };
+
+    const result = await nodeRunComplianceAudit(state as any);
+    expect(result.confidence).toBe(0.7);
+    expect(result.reasoning).toContain("Audit Agent unavailable");
+  });
+});
+
+describe("Phase 6: Payroll Manager → Payroll Worker wiring", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("nodeDispatchToWorker dispatches to Payroll Worker", async () => {
+    const mockWorkerGraph = {
+      invoke: vi.fn().mockResolvedValue({
+        entityId: "test-entity",
+        result: { type: "payroll_processed", payslips: 5 },
+        confidence: 0.9,
+        reasoning: "Payroll batch processed",
+        errors: [],
+        auditTrail: [],
+      }),
+    };
+
+    const { getAgentGraph } = await import("../core/orchestrator");
+    (getAgentGraph as any).mockImplementation(async (id: string) => {
+      if (id === "payroll_worker") return mockWorkerGraph;
+      return { invoke: vi.fn() };
+    });
+
+    const { nodeDispatchToWorker } = await import("../tier2/payroll-manager-agent/nodes");
+
+    const state = {
+      entityId: "test-entity",
+      entityName: "Test Entity",
+      currency: "GMD",
+      currentOperation: {
+        type: "process_payroll",
+        status: "processing",
+        input: { payroll: { period: "2026-07", employees: [] } },
+        output: null,
+        error: null,
+      },
+    };
+
+    const result = await nodeDispatchToWorker(state as any);
+
+    expect(mockWorkerGraph.invoke).toHaveBeenCalledTimes(1);
+    expect(mockWorkerGraph.invoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: "test-entity",
+        currentOperation: expect.objectContaining({ type: "process_payroll_batch" }),
+      })
+    );
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+
+  it("nodeDispatchToWorker handles Payroll Worker failure", async () => {
+    const { getAgentGraph } = await import("../core/orchestrator");
+    (getAgentGraph as any).mockImplementation(async () => {
+      throw new Error("Payroll Worker unavailable");
+    });
+
+    const { nodeDispatchToWorker } = await import("../tier2/payroll-manager-agent/nodes");
+
+    const state = {
+      entityId: "test-entity",
+      entityName: "Test Entity",
+      currency: "GMD",
+      currentOperation: {
+        type: "process_payroll",
+        status: "processing",
+        input: { payroll: { period: "2026-07", employees: [] } },
+        output: null,
+        error: null,
+      },
+    };
+
+    const result = await nodeDispatchToWorker(state as any);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain("Payroll Worker dispatch failed");
+  });
+});
+
+describe("Phase 6: Treasury Agent → Cash/MobileMoney/Expense wiring", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("nodeRunCashCheck dispatches to Cash Agent", async () => {
+    const mockCashGraph = {
+      invoke: vi.fn().mockResolvedValue({
+        entityId: "test-entity",
+        result: { type: "cash_count", balance: 5000 },
+        confidence: 0.88,
+        reasoning: "Cash count completed",
+        errors: [],
+        auditTrail: [],
+      }),
+    };
+
+    const { getAgentGraph } = await import("../core/orchestrator");
+    (getAgentGraph as any).mockImplementation(async (id: string) => {
+      if (id === "cash") return mockCashGraph;
+      return { invoke: vi.fn() };
+    });
+
+    const { nodeRunCashCheck } = await import("../tier2/treasury-agent/nodes");
+
+    const state = {
+      entityId: "test-entity",
+      entityName: "Test Entity",
+      currency: "GMD",
+      currentOperation: {
+        type: "cash_count",
+        status: "processing",
+        input: {},
+        output: null,
+        error: null,
+      },
+    };
+
+    const result = await nodeRunCashCheck(state as any);
+    expect(mockCashGraph.invoke).toHaveBeenCalledTimes(1);
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+
+  it("nodeRunMobileMoneyReconciliation dispatches to Mobile Money Agent", async () => {
+    const mockMmGraph = {
+      invoke: vi.fn().mockResolvedValue({
+        entityId: "test-entity",
+        result: { type: "mm_reconciled", matchedCount: 30 },
+        confidence: 0.85,
+        reasoning: "MM reconciliation completed",
+        errors: [],
+        auditTrail: [],
+      }),
+    };
+
+    const { getAgentGraph } = await import("../core/orchestrator");
+    (getAgentGraph as any).mockImplementation(async (id: string) => {
+      if (id === "mobile_money") return mockMmGraph;
+      return { invoke: vi.fn() };
+    });
+
+    const { nodeRunMobileMoneyReconciliation } = await import("../tier2/treasury-agent/nodes");
+
+    const state = {
+      entityId: "test-entity",
+      entityName: "Test Entity",
+      currency: "GMD",
+      currentOperation: {
+        type: "mm_reconcile",
+        status: "processing",
+        input: {},
+        output: null,
+        error: null,
+      },
+    };
+
+    const result = await nodeRunMobileMoneyReconciliation(state as any);
+    expect(mockMmGraph.invoke).toHaveBeenCalledTimes(1);
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+
+  it("nodeProcessExpenses dispatches to Expense Agent", async () => {
+    const mockExpenseGraph = {
+      invoke: vi.fn().mockResolvedValue({
+        entityId: "test-entity",
+        result: { type: "expense_processed", expenseId: "EXP-001" },
+        confidence: 0.9,
+        reasoning: "Expense processed",
+        errors: [],
+        auditTrail: [],
+      }),
+    };
+
+    const { getAgentGraph } = await import("../core/orchestrator");
+    (getAgentGraph as any).mockImplementation(async (id: string) => {
+      if (id === "expense") return mockExpenseGraph;
+      return { invoke: vi.fn() };
+    });
+
+    const { nodeProcessExpenses } = await import("../tier2/treasury-agent/nodes");
+
+    const state = {
+      

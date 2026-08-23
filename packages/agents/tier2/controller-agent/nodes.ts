@@ -422,6 +422,73 @@ export async function nodeRunCloseChecklist(state: ControllerStateType) {
     }
   }
 
+  // ── Phase 6: Call Asset Agent for depreciation ──────────────────────────
+  let depreciationResult: any = null;
+  try {
+    const assetGraph = await getAgentGraph("asset");
+    const assetState: AgentState = {
+      entityId: state.entityId,
+      entityName: state.entityName,
+      currency: state.currency,
+      currentOperation: {
+        type: "depreciation",
+        status: "processing",
+        input: { period: checklist.period },
+        output: null,
+        error: null,
+      },
+    };
+    depreciationResult = await assetGraph.invoke(assetState);
+    langfuse.event({
+      name: "controller-asset-dispatched",
+      metadata: { confidence: (depreciationResult as any).confidence ?? 0 },
+    });
+  } catch (err) {
+    langfuse.event({
+      name: "controller-asset-dispatch-failed",
+      metadata: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+
+  const assetItem = checklist.items.find((i) => i.domain === "Assets");
+  if (assetItem) {
+    if (depreciationResult && !(depreciationResult as any).errors?.length) {
+      assetItem.status = "complete";
+      assetItem.completedAt = new Date().toISOString();
+    } else {
+      assetItem.status = "blocked";
+      assetItem.blockedReason = "Asset Agent unable to post depreciation";
+    }
+  }
+
+  // ── Phase 6: Call Inventory Agent for COGS ─────────────────────────────
+  let inventoryResult: any = null;
+  try {
+    const inventoryGraph = await getAgentGraph("inventory");
+    const inventoryState: AgentState = {
+      entityId: state.entityId,
+      entityName: state.entityName,
+      currency: state.currency,
+      currentOperation: {
+        type: "cogs",
+        status: "processing",
+        input: { period: checklist.period },
+        output: null,
+        error: null,
+      },
+    };
+    inventoryResult = await inventoryGraph.invoke(inventoryState);
+    langfuse.event({
+      name: "controller-inventory-dispatched",
+      metadata: { confidence: (inventoryResult as any).confidence ?? 0 },
+    });
+  } catch (err) {
+    langfuse.event({
+      name: "controller-inventory-dispatch-failed",
+      metadata: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+
   // Auto-check sub-ledger reconciliation
   const subLedger = await reconcileSubLedgers(state.entityId);
 

@@ -4,6 +4,7 @@ import {
   nodeParseInput,
   nodeProcessPayroll,
   nodeValidatePayroll,
+  nodeDispatchToWorker,
   nodeCloseConfirmation,
   nodeEscalate,
 } from "./nodes"
@@ -17,6 +18,11 @@ function routeAfterParse(state: typeof PayrollManagerState.State) {
 
 function routeAfterProcess(state: typeof PayrollManagerState.State) {
   if (state.errors.length > 0) return "escalate"
+  return "dispatch_to_worker"
+}
+
+function routeAfterDispatch(state: typeof PayrollManagerState.State) {
+  if (state.errors.length > 0) return "escalate"
   return END
 }
 
@@ -24,6 +30,7 @@ const graph = new StateGraph(PayrollManagerState)
   .addNode("parse_input", nodeParseInput)
   .addNode("process_payroll", nodeProcessPayroll)
   .addNode("validate_payroll", nodeValidatePayroll)
+  .addNode("dispatch_to_worker", nodeDispatchToWorker)
   .addNode("close_confirmation", nodeCloseConfirmation)
   .addNode("escalate", nodeEscalate)
   .addEdge(START, "parse_input")
@@ -33,6 +40,10 @@ const graph = new StateGraph(PayrollManagerState)
     close_confirmation: "close_confirmation",
   })
   .addConditionalEdges("process_payroll", routeAfterProcess, {
+    escalate: "escalate",
+    dispatch_to_worker: "dispatch_to_worker",
+  })
+  .addConditionalEdges("dispatch_to_worker", routeAfterDispatch, {
     escalate: "escalate",
     [END]: END,
   })
