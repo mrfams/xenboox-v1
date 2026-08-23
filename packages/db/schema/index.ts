@@ -44,6 +44,7 @@ export * from "./org-roles";
 export * from "./invitations";
 export * from "./entity-settings";
 export * from "./donor-grant";
+export * from "./donor-portal";
 export * from "./ops-console";
 export * from "./ops-agent-monitor";
 export * from "./content";
