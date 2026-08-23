@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { X, Star } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 const NPS_STORAGE_KEY = "xenboox-nps-last-shown";
 const NPS_DISMISSED_KEY = "xenboox-nps-dismissed";
@@ -98,131 +97,113 @@ export function NpsSurvey() {
   if (!open) return null;
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4"
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={dismiss}
+      />
+
+      {/* Dialog */}
+      <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Close survey"
+          className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors z-10"
         >
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={dismiss}
-          />
+          <X className="h-4 w-4" />
+        </button>
 
-          {/* Dialog */}
-          <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-2xl overflow-hidden"
-          >
-            {/* Close button */}
-            <button
-              type="button"
-              onClick={dismiss}
-              aria-label="Close survey"
-              className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors z-10"
-            >
-              <X className="h-4 w-4" />
-            </button>
+        {submitted ? (
+          /* Success state */
+          <div className="p-8 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 mx-auto mb-4">
+              <Star className="h-6 w-6 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">
+              Thank you!
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your feedback helps us build a better product.
+            </p>
+          </div>
+        ) : (
+          /* Survey form */
+          <div className="p-6 sm:p-8">
+            <h3 className="text-lg font-semibold text-foreground">
+              How likely are you to recommend Xenboox?
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your feedback helps us improve.
+            </p>
 
-            {submitted ? (
-              /* Success state */
-              <div className="p-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 mx-auto mb-4">
-                  <Star className="h-6 w-6 text-emerald-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground">
-                  Thank you!
-                </h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Your feedback helps us build a better product.
-                </p>
-              </div>
-            ) : (
-              /* Survey form */
-              <div className="p-6 sm:p-8">
-                <h3 className="text-lg font-semibold text-foreground">
-                  How likely are you to recommend Xenboox?
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Your feedback helps us improve.
-                </p>
-
-                {/* Score buttons */}
-                <div className="mt-6 grid grid-cols-11 gap-1.5">
-                  {Array.from({ length: 11 }, (_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setSelectedScore(i)}
-                      className={`h-10 rounded-lg text-sm font-medium transition-all duration-150 ${
-                        selectedScore === i
-                          ? `${getScoreColor(i)} text-white ring-2 scale-110 shadow-lg`
-                          : "bg-muted text-muted-foreground hover:bg-accent"
-                      }`}
-                    >
-                      {i}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Labels */}
-                <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                  <span>Not at all likely</span>
-                  <span>Very likely</span>
-                </div>
-
-                {/* Selected score label */}
-                {selectedScore !== null && (
-                  <p className="mt-3 text-sm font-medium text-foreground text-center">
-                    {labels[selectedScore]}
-                  </p>
-                )}
-
-                {/* Comment */}
-                {selectedScore !== null && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-foreground mb-1.5">
-                      Any comments? (optional)
-                    </label>
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder={
-                        selectedScore >= 9
-                          ? "What do you love most?"
-                          : selectedScore >= 7
-                            ? "What could we improve?"
-                            : "What's not working for you?"
-                      }
-                      rows={3}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none resize-none"
-                    />
-                  </div>
-                )}
-
-                {/* Submit */}
+            {/* Score buttons */}
+            <div className="mt-6 grid grid-cols-11 gap-1.5">
+              {Array.from({ length: 11 }, (_, i) => (
                 <button
+                  key={i}
                   type="button"
-                  onClick={submit}
-                  disabled={selectedScore === null || submitting}
-                  className="mt-4 w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setSelectedScore(i)}
+                  className={`h-10 rounded-lg text-sm font-medium transition-all duration-150 ${
+                    selectedScore === i
+                      ? `${getScoreColor(i)} text-white ring-2 scale-110 shadow-lg`
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  }`}
                 >
-                  {submitting ? "Submitting..." : "Submit feedback"}
+                  {i}
                 </button>
+              ))}
+            </div>
+
+            {/* Labels */}
+            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+              <span>Not at all likely</span>
+              <span>Very likely</span>
+            </div>
+
+            {/* Selected score label */}
+            {selectedScore !== null && (
+              <p className="mt-3 text-sm font-medium text-foreground text-center">
+                {labels[selectedScore]}
+              </p>
+            )}
+
+            {/* Comment */}
+            {selectedScore !== null && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Any comments? (optional)
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder={
+                    selectedScore >= 9
+                      ? "What do you love most?"
+                      : selectedScore >= 7
+                        ? "What could we improve?"
+                        : "What's not working for you?"
+                  }
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none resize-none"
+                />
               </div>
             )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+
+            {/* Submit */}
+            <button
+              type="button"
+              onClick={submit}
+              disabled={selectedScore === null || submitting}
+              className="mt-4 w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? "Submitting..." : "Submit feedback"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
