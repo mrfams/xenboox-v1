@@ -174,3 +174,17 @@
 - `apps/web/app/api/webhooks/mobile-money/route.ts` — new webhook endpoint
 - `apps/web/components/operations/mobile-money-cards.tsx` — new UI component
 - `apps/web/app/dashboard/operations/page.tsx` — added MobileMoneyCards
+
+### Vercel Build Status
+
+- ✅ Homepage: Live (correct title, SEO metadata)
+- ✅ Features: Live (19 agents, correct copy)
+- ✅ Pricing: Live
+- ✅ Login: Working auth flow
+- ✅ All pages: 200 OK
+
+### Commits pushed
+
+| Commit | What |
+|--------|------|
+| `b3e614b` | Security hardening + mobile money first-class rails |
