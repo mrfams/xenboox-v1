@@ -95,14 +95,14 @@
 
 ## Employee #7: Engineering Critic — Score: 7.5/10
 
-| #   | Finding                                          | Severity | Fix                                             | Status |
-| --- | ------------------------------------------------ | -------- | ----------------------------------------------- | ------ |
-| 1   | Missing idempotency key on payment creation      | HIGH     | Add client-generated idempotency key            | ⬜     |
-| 2   | N+1 query pattern in `banking.ts` autoCategorize | MEDIUM   | Batch `db.update()` calls                       | ⬜     |
-| 3   | Error swallowing on PDF download                 | MEDIUM   | Replace silent `catch {}` with `logger.error()` | ⬜     |
-| 4   | Blog posts below 1,500 words                     | LOW      | Expand content                                  | ⬜     |
-| 5   | No timeout on bank-feed-sync cron job            | MEDIUM   | Add 30s AbortController timeout                 | ⬜     |
-| 6   | Clipboard write missing error handling           | LOW      | Add try/catch fallback                          | ⬜     |
+| #   | Finding                                            | Severity | Fix                                                              | Status |
+| --- | -------------------------------------------------- | -------- | ---------------------------------------------------------------- | ------ |
+| 1   | ~~Missing idempotency key on payment creation~~ ✅ | HIGH     | Client-generated idempotency key (already in rlsMutateProcedure) | ✅     |
+| 2   | N+1 query pattern in `banking.ts` autoCategorize   | MEDIUM   | Batch `db.update()` calls                                        | ⬜     |
+| 3   | Error swallowing on PDF download                   | MEDIUM   | Replace silent `catch {}` with `logger.error()`                  | ⬜     |
+| 4   | Blog posts below 1,500 words                       | LOW      | Expand content                                                   | ⬜     |
+| 5   | No timeout on bank-feed-sync cron job              | MEDIUM   | Add 30s AbortController timeout                                  | ⬜     |
+| 6   | Clipboard write missing error handling             | LOW      | Add try/catch fallback                                           | ⬜     |
 
 ---
 
@@ -373,53 +373,53 @@
 
 ### ⚡ HIGH (Should fix before production) — 45 items
 
-| #   | Finding                                    | Employee                      |
-| --- | ------------------------------------------ | ----------------------------- |
-| 1   | ~~Pricing missing trust signals~~ ✅       | #1, #2, #4, #5, #8, #9        |
-| 2   | ~~About page is generic~~ ✅               | #1, #2, #4, #14               |
-| 3   | Blog posts below 1,500 words               | #1, #2, #4, #7, #8            |
-| 4   | No JSON-LD structured data                 | #8 Marketing Critic           |
-| 5   | No demo video                              | #9 Sales Rep                  |
-| 6   | ~~15+ icon buttons missing aria-label~~ ✅ | #5 Design Critic              |
-| 7   | Missing idempotency on payment creation    | #7 Engineering Critic         |
-| 8   | No sticky CTA                              | #2 Product Critic             |
-| 9   | No ROI calculator                          | #9 Sales Rep                  |
-| 10  | No NPS survey                              | #13 CSM                       |
-| 11  | No retention emails                        | #13 CSM                       |
-| 12  | No upsell prompts                          | #13 CSM                       |
-| 13  | No feedback widget                         | #13 CSM                       |
-| 14  | No proactive AI suggestions                | #15 Product Designer          |
-| 15  | No staging environment                     | #16 DevOps                    |
-| 16  | No uptime monitoring                       | #16 DevOps                    |
-| 17  | No cost monitoring                         | #16 DevOps                    |
-| 18  | No health check endpoints                  | #17 Enterprise                |
-| 19  | No APM / distributed tracing               | #17 Enterprise                |
-| 20  | No centralized logging                     | #17 Enterprise                |
-| 21  | No E2E tests                               | #17 Enterprise                |
-| 22  | No support system                          | #18 COO                       |
-| 23  | No SLA published                           | #18 COO                       |
-| 24  | No on-call rotation                        | #18 COO                       |
-| 25  | No product-market fit measurement          | #19 CEO                       |
-| 26  | No growth strategy                         | #19 CEO                       |
-| 27  | No "Why Us vs Them" page                   | #20 Competitor                |
-| 28  | No competitive comparison table            | #20 Competitor                |
-| 29  | No activation funnel                       | #21 Data Analyst              |
-| 30  | No retention tracking                      | #21 Data Analyst              |
-| 31  | No internal business dashboard             | #21 Data Analyst, #12 Finance |
-| 32  | No north star metric                       | #22 Product Analyst           |
-| 33  | No feature adoption tracking               | #22 Product Analyst           |
-| 34  | No user segmentation                       | #22 Product Analyst           |
-| 35  | No Gambian ICP                             | #23 Lead Researcher           |
-| 36  | No CRM                                     | #23 Lead Researcher           |
-| 37  | No lead generation channels                | #23 Lead Researcher           |
-| 38  | No receipt/invoice OCR                     | #24 Automation                |
-| 39  | No WhatsApp integration                    | #24 Automation                |
-| 40  | N+1 query in autoCategorize                | #7 Engineering                |
-| 41  | No distributed tracing                     | #11 Architect                 |
-| 42  | No post-onboarding emails                  | #13 CSM                       |
-| 43  | No welcome screen after signup             | #10 Onboarding                |
-| 44  | No "Aha Moment" trigger                    | #10 Onboarding                |
-| 45  | No QBR template                            | #13 CSM                       |
+| #   | Finding                                        | Employee                      |
+| --- | ---------------------------------------------- | ----------------------------- |
+| 1   | ~~Pricing missing trust signals~~ ✅           | #1, #2, #4, #5, #8, #9        |
+| 2   | ~~About page is generic~~ ✅                   | #1, #2, #4, #14               |
+| 3   | Blog posts below 1,500 words                   | #1, #2, #4, #7, #8            |
+| 4   | No JSON-LD structured data                     | #8 Marketing Critic           |
+| 5   | No demo video                                  | #9 Sales Rep                  |
+| 6   | ~~15+ icon buttons missing aria-label~~ ✅     | #5 Design Critic              |
+| 7   | ~~Missing idempotency on payment creation~~ ✅ | #7 Engineering Critic         |
+| 8   | No sticky CTA                                  | #2 Product Critic             |
+| 9   | No ROI calculator                              | #9 Sales Rep                  |
+| 10  | No NPS survey                                  | #13 CSM                       |
+| 11  | No retention emails                            | #13 CSM                       |
+| 12  | No upsell prompts                              | #13 CSM                       |
+| 13  | No feedback widget                             | #13 CSM                       |
+| 14  | No proactive AI suggestions                    | #15 Product Designer          |
+| 15  | No staging environment                         | #16 DevOps                    |
+| 16  | No uptime monitoring                           | #16 DevOps                    |
+| 17  | No cost monitoring                             | #16 DevOps                    |
+| 18  | No health check endpoints                      | #17 Enterprise                |
+| 19  | No APM / distributed tracing                   | #17 Enterprise                |
+| 20  | No centralized logging                         | #17 Enterprise                |
+| 21  | No E2E tests                                   | #17 Enterprise                |
+| 22  | No support system                              | #18 COO                       |
+| 23  | No SLA published                               | #18 COO                       |
+| 24  | No on-call rotation                            | #18 COO                       |
+| 25  | No product-market fit measurement              | #19 CEO                       |
+| 26  | No growth strategy                             | #19 CEO                       |
+| 27  | No "Why Us vs Them" page                       | #20 Competitor                |
+| 28  | No competitive comparison table                | #20 Competitor                |
+| 29  | No activation funnel                           | #21 Data Analyst              |
+| 30  | No retention tracking                          | #21 Data Analyst              |
+| 31  | No internal business dashboard                 | #21 Data Analyst, #12 Finance |
+| 32  | No north star metric                           | #22 Product Analyst           |
+| 33  | No feature adoption tracking                   | #22 Product Analyst           |
+| 34  | No user segmentation                           | #22 Product Analyst           |
+| 35  | No Gambian ICP                                 | #23 Lead Researcher           |
+| 36  | No CRM                                         | #23 Lead Researcher           |
+| 37  | No lead generation channels                    | #23 Lead Researcher           |
+| 38  | No receipt/invoice OCR                         | #24 Automation                |
+| 39  | No WhatsApp integration                        | #24 Automation                |
+| 40  | N+1 query in autoCategorize                    | #7 Engineering                |
+| 41  | No distributed tracing                         | #11 Architect                 |
+| 42  | No post-onboarding emails                      | #13 CSM                       |
+| 43  | No welcome screen after signup                 | #10 Onboarding                |
+| 44  | No "Aha Moment" trigger                        | #10 Onboarding                |
+| 45  | No QBR template                                | #13 CSM                       |
 
 ### 🟡 MEDIUM (Fix this sprint) — 65 items
 
