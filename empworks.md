@@ -149,16 +149,16 @@
 
 ## Employee #11: Software Architect — Score: 7.5/10
 
-| #   | Finding                                              | Severity | Fix                                          | Status |
-| --- | ---------------------------------------------------- | -------- | -------------------------------------------- | ------ |
-| 1   | In-memory cache (`fxCache`) won't work in serverless | HIGH     | Migrate to Redis/Upstash                     | ✅     |
-| 2   | No distributed tracing                               | MEDIUM   | Add OpenTelemetry for full request lifecycle | ⬜     |
-| 3   | No API versioning strategy                           | MEDIUM   | Define tRPC procedure versioning policy      | ⬜     |
-| 4   | No explicit connection pool config                   | MEDIUM   | Configure Neon pool: max, idleTimeout        | ⬜     |
-| 5   | `packages/jobs` imports DB directly                  | MEDIUM   | Route through tRPC or agent layer            | ⬜     |
-| 6   | Agent health monitoring missing                      | LOW      | Build agent status dashboard                 | ⬜     |
-| 7   | No R2 fallback for storage                           | LOW      | Add local filesystem fallback                | ⬜     |
-| 8   | No Resend retry queue                                | LOW      | Add retry logic for failed emails            | ⬜     |
+| #   | Finding                                              | Severity | Fix                                            | Status |
+| --- | ---------------------------------------------------- | -------- | ---------------------------------------------- | ------ |
+| 1   | In-memory cache (`fxCache`) won't work in serverless | HIGH     | Migrate to Redis/Upstash                       | ✅     |
+| 2   | ~~No distributed tracing~~ ✅                        | MEDIUM   | Sentry covers tracing + performance monitoring | ✅     |
+| 3   | No API versioning strategy                           | MEDIUM   | Define tRPC procedure versioning policy        | ⬜     |
+| 4   | No explicit connection pool config                   | MEDIUM   | Configure Neon pool: max, idleTimeout          | ⬜     |
+| 5   | `packages/jobs` imports DB directly                  | MEDIUM   | Route through tRPC or agent layer              | ⬜     |
+| 6   | Agent health monitoring missing                      | LOW      | Build agent status dashboard                   | ⬜     |
+| 7   | No R2 fallback for storage                           | LOW      | Add local filesystem fallback                  | ⬜     |
+| 8   | No Resend retry queue                                | LOW      | Add retry logic for failed emails              | ⬜     |
 
 ---
 
@@ -221,35 +221,35 @@
 
 ## Employee #16: DevOps Engineer — Score: 6/10
 
-| #   | Finding                       | Severity | Fix                                       | Status |
-| --- | ----------------------------- | -------- | ----------------------------------------- | ------ |
-| 1   | ~~No staging environment~~ ✅ | HIGH     | Vercel preview deploys on every push      | ✅     |
-| 2   | No uptime monitoring          | HIGH     | Add BetterUptime or Pingdom               | ⬜     |
-| 3   | No cost monitoring            | HIGH     | Add Vercel cost dashboard + budget alerts | ⬜     |
-| 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                   | ⬜     |
-| 5   | No on-call rotation           | MEDIUM   | Set up PagerDuty or Opsgenie              | ⬜     |
-| 6   | No post-mortem process        | MEDIUM   | Create post-mortem template               | ⬜     |
-| 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                        | ⬜     |
-| 8   | No automated rollback         | MEDIUM   | Add auto-rollback on error rate spike     | ⬜     |
-| 9   | No centralized logging        | LOW      | Add Logflare                              | ⬜     |
-| 10  | No capacity planning          | LOW      | Set up resource usage monitoring          | ⬜     |
+| #   | Finding                       | Severity | Fix                                          | Status |
+| --- | ----------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | ~~No staging environment~~ ✅ | HIGH     | Vercel preview deploys on every push         | ✅     |
+| 2   | No uptime monitoring          | HIGH     | Add BetterUptime or Pingdom                  | ⬜     |
+| 3   | No cost monitoring            | HIGH     | Add Vercel cost dashboard + budget alerts    | ⬜     |
+| 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                      | ⬜     |
+| 5   | No on-call rotation           | MEDIUM   | Set up PagerDuty or Opsgenie                 | ⬜     |
+| 6   | No post-mortem process        | MEDIUM   | Create post-mortem template                  | ⬜     |
+| 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |
+| 8   | No automated rollback         | MEDIUM   | Add auto-rollback on error rate spike        | ⬜     |
+| 9   | ~~No centralized logging~~ ✅ | LOW      | Sentry error tracking + pino structured logs | ✅     |
+| 10  | No capacity planning          | LOW      | Set up resource usage monitoring             | ⬜     |
 
 ---
 
 ## Employee #17: Enterprise Readiness — Score: 5.5/10
 
-| #   | Finding                          | Severity | Fix                               | Status |
-| --- | -------------------------------- | -------- | --------------------------------- | ------ |
-| 1   | ~~No health check endpoints~~ ✅ | HIGH     | /api/health, /ready, /live probes | ✅     |
-| 2   | No APM / distributed tracing     | HIGH     | Add OpenTelemetry                 | ⬜     |
-| 3   | No centralized logging           | HIGH     | Add Logflare                      | ⬜     |
-| 4   | No E2E tests                     | HIGH     | Add Playwright tests              | ⬜     |
-| 5   | No SOC 2 policy docs             | MEDIUM   | Create formal security policies   | ⬜     |
-| 6   | No GDPR consent management       | MEDIUM   | Add consent tracking              | ⬜     |
-| 7   | No bulk import/export            | MEDIUM   | Add CSV/Excel import              | ⬜     |
-| 8   | No dependency scanning in CI     | MEDIUM   | Add `pnpm audit` to CI            | ⬜     |
-| 9   | No business metrics dashboard    | MEDIUM   | Build internal admin dashboard    | ⬜     |
-| 10  | No plugin architecture           | LOW      | Design plugin system              | ⬜     |
+| #   | Finding                             | Severity | Fix                                            | Status |
+| --- | ----------------------------------- | -------- | ---------------------------------------------- | ------ |
+| 1   | ~~No health check endpoints~~ ✅    | HIGH     | /api/health, /ready, /live probes              | ✅     |
+| 2   | ~~No APM / distributed tracing~~ ✅ | HIGH     | Sentry server/client/edge + Prisma integration | ✅     |
+| 3   | ~~No centralized logging~~ ✅       | HIGH     | Sentry captures errors + pino structured logs  | ✅     |
+| 4   | No E2E tests                        | HIGH     | Add Playwright tests                           | ⬜     |
+| 5   | No SOC 2 policy docs                | MEDIUM   | Create formal security policies                | ⬜     |
+| 6   | No GDPR consent management          | MEDIUM   | Add consent tracking                           | ⬜     |
+| 7   | No bulk import/export               | MEDIUM   | Add CSV/Excel import                           | ⬜     |
+| 8   | No dependency scanning in CI        | MEDIUM   | Add `pnpm audit` to CI                         | ⬜     |
+| 9   | No business metrics dashboard       | MEDIUM   | Build internal admin dashboard                 | ⬜     |
+| 10  | No plugin architecture              | LOW      | Design plugin system                           | ⬜     |
 
 ---
 
@@ -393,8 +393,8 @@
 | 16  | No uptime monitoring                           | #16 DevOps                    |
 | 17  | No cost monitoring                             | #16 DevOps                    |
 | 18  | ~~No health check endpoints~~ ✅               | #17 Enterprise                |
-| 19  | No APM / distributed tracing                   | #17 Enterprise                |
-| 20  | No centralized logging                         | #17 Enterprise                |
+| 19  | ~~No APM / distributed tracing~~ ✅            | #17 Enterprise                |
+| 20  | ~~No centralized logging~~ ✅                  | #17 Enterprise                |
 | 21  | No E2E tests                                   | #17 Enterprise                |
 | 22  | No support system                              | #18 COO                       |
 | 23  | No SLA published                               | #18 COO                       |
@@ -415,7 +415,7 @@
 | 38  | No receipt/invoice OCR                         | #24 Automation                |
 | 39  | No WhatsApp integration                        | #24 Automation                |
 | 40  | N+1 query in autoCategorize                    | #7 Engineering                |
-| 41  | No distributed tracing                         | #11 Architect                 |
+| 41  | ~~No distributed tracing~~ ✅                  | #11 Architect                 |
 | 42  | No post-onboarding emails                      | #13 CSM                       |
 | 43  | No welcome screen after signup                 | #10 Onboarding                |
 | 44  | No "Aha Moment" trigger                        | #10 Onboarding                |
