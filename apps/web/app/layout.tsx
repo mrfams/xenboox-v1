@@ -6,6 +6,7 @@ import { Inter, IBM_Plex_Mono } from "next/font/google";
 
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { TRPCProvider } from "@/lib/trpc/provider";
+import { PostHogProvider } from "@/components/layout/posthog-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -127,7 +128,9 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://lh3.googleusercontent.com" />
         <link rel="preconnect" href="https://r2.dev" />
         <ThemeProvider nonce={nonce}>
-          <TRPCProvider>{children}</TRPCProvider>
+          <TRPCProvider>
+            <PostHogProvider>{children}</PostHogProvider>
+          </TRPCProvider>
         </ThemeProvider>
         <script
           type="application/ld+json"

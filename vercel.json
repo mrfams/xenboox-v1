@@ -4,6 +4,10 @@
   "framework": "nextjs",
   "installCommand": "pnpm install",
   "regions": ["iad1"],
+  "env": {
+    "NEXT_PUBLIC_POSTHOG_KEY": "@posthog-key",
+    "NEXT_PUBLIC_POSTHOG_HOST": "@posthog-host"
+  },
   "crons": [
     {
       "path": "/api/cron/daily-digest",

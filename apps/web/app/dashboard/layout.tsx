@@ -18,6 +18,7 @@ import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { ProductTour } from "@/components/onboarding/product-tour";
 import { useRouteFocus } from "@/lib/hooks/use-route-focus";
 import { useSurfaceShortcuts } from "@/lib/hooks/use-surface-shortcuts";
+import { usePostHogIdentify } from "@/components/layout/posthog-provider";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
@@ -45,7 +46,14 @@ function getPageTitle(pathname: string): string {
 }
 
 function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
-  const { entityRole } = useEntity();
+  const { entityRole, entityId } = useEntity();
+  // Identify user with PostHog for analytics
+  usePostHogIdentify(
+    typeof window !== "undefined"
+      ? (localStorage.getItem("userId") ?? undefined)
+      : undefined,
+    entityId ? { entityId, entityRole: entityRole ?? "" } : undefined,
+  );
   const { data: perms } = trpc.permissionsAdmin.myPermissions.useQuery(
     undefined,
     {

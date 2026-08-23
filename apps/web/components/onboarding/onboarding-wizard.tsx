@@ -960,11 +960,35 @@ export function OnboardingWizard() {
   if (!showWizard || !isFirstTime) return null;
 
   const handleComplete = () => {
+    // Analytics: track onboarding completion
+    try {
+      const { track } = require("@/lib/analytics/events");
+      track("onboarding_completed", {
+        entityId: localStorage.getItem("currentEntityId") ?? "",
+        duration_seconds: 0,
+      });
+      track("onboarding_skipped", {
+        entityId: localStorage.getItem("currentEntityId") ?? "",
+        lastStep: stepIndex,
+      });
+    } catch {
+      // Non-blocking
+    }
     completeOnboarding();
     setShowWizard(false);
   };
 
   const handleGoToDashboard = () => {
+    // Analytics: track onboarding completion
+    try {
+      const { track } = require("@/lib/analytics/events");
+      track("onboarding_completed", {
+        entityId: localStorage.getItem("currentEntityId") ?? "",
+        duration_seconds: 0,
+      });
+    } catch {
+      // Non-blocking
+    }
     completeOnboarding();
     setShowWizard(false);
   };

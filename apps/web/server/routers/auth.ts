@@ -198,6 +198,17 @@ export const authRouter = router({
           return { mfaRequired: true, mfaToken };
         }
 
+        // Analytics: track login
+        try {
+          const { track } = await import("@/lib/analytics/events");
+          track("session_started", {
+            entityId: (await getFirstEntityForUser(user.id)).entityId ?? "",
+            isFirstSession: false,
+          });
+        } catch {
+          // Non-blocking
+        }
+
         const token = await createMobileToken({
           sub: user.id,
           email: user.email!,
@@ -360,6 +371,14 @@ export const authRouter = router({
           });
         } catch {
           logger.error("Failed to send onboarding welcome email");
+        }
+
+        // Analytics: track signup
+        try {
+          const { track } = await import("@/lib/analytics/events");
+          track("signup_completed", { method: "email", userId: user.id });
+        } catch {
+          // Non-blocking
         }
 
         // Audit trail: registration

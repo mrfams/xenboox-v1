@@ -186,6 +186,12 @@ importers:
       otplib:
         specifier: ^13.4.1
         version: 13.4.1
+      posthog-js:
+        specifier: 1.418.10
+        version: 1.418.10(preact-render-to-string@6.5.11(preact@10.24.3))
+      posthog-node:
+        specifier: 5.50.0
+        version: 5.50.0
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -5279,6 +5285,24 @@ packages:
     resolution:
       {
         integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==,
+      }
+
+  "@posthog/browser-common@0.5.0":
+    resolution:
+      {
+        integrity: sha512-8DaxVZS1bQPbA514RePurLNbYjei3P4jhnC206DwVv5XThmZM3QdlsXenI2ujE3pLbgQ79hYn9o1Kda8I3WK/Q==,
+      }
+
+  "@posthog/core@1.48.8":
+    resolution:
+      {
+        integrity: sha512-LAOBOjMQrQmgcbZxnubl74l2GQd5OWqxCJJ8mzcWdZRWbfO6Y/A6E3fqWjDtm68hY4LxC/bbopG60cxZW8cfWw==,
+      }
+
+  "@posthog/types@1.405.1":
+    resolution:
+      {
+        integrity: sha512-JvaR4ChUKUk7qSTG58vKN2Br6es9riFF5mvlu7YGcwbB476vfyTO0o/TBh+zE88QhsfxnE5Tr/jKxI+e1v3Q5A==,
       }
 
   "@protobuf-ts/runtime@2.11.1":
@@ -10888,6 +10912,12 @@ packages:
         integrity: sha512-e6eB7zN6UBSwGVwrbWVH+gdLnkW9WwHhmq2YDK1Sh30pzx1onRVGBvogTlUeWxwTa+L86NYdo4hFkh7O8ZjSnA==,
       }
 
+  fflate@0.4.9:
+    resolution:
+      {
+        integrity: sha512-zdxgIEddhfsyCaWpJ2SdXEP8ZMrKJ6+5jl4OupODcywU0IhRk6gdXuVGcPICyfx2H97hVK7xmJtRLPjkxAX8Vw==,
+      }
+
   fflate@0.8.3:
     resolution:
       {
@@ -14425,6 +14455,24 @@ packages:
         integrity: sha512-i/hbxIE9803Alj/6ytL7UHQxRvZkI9O4Sy+J3HGc4F4oo/2eQAjTSNJ0bfxyse3bH0nuVesCk+3IRLaMtG3H6w==,
       }
 
+  posthog-js@1.418.10:
+    resolution:
+      {
+        integrity: sha512-XMvmmnuFoesSPjFo+wvzXkvuzYqIho8CVqxugG1Wt768offFARYNZDd1/xWfm9vk/pJTJ4RhUEHRzLpggmGx9Q==,
+      }
+
+  posthog-node@5.50.0:
+    resolution:
+      {
+        integrity: sha512-7trcTN4EcPBiYAI1nnD1rk+VB+OcjgN0Mdnp7kOK09PTCSW0LCAUVAYj3FD7u8Ne5zYCnW/ESv6k3VU7sOsL5w==,
+      }
+    engines: { node: ^20.20.0 || >=22.22.0 }
+    peerDependencies:
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      rxjs:
+        optional: true
+
   pouchdb-collections@1.0.1:
     resolution:
       {
@@ -14444,6 +14492,17 @@ packages:
       {
         integrity: sha512-Z2dPnBnMUfyQfSQ+GBdsGa16hz35YmLmtTLhM169uW944hYL6xzTYkJjC07j+Wosz733pMWx0fgON3JNw1jJQA==,
       }
+
+  preact@10.29.8:
+    resolution:
+      {
+        integrity: sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==,
+      }
+    peerDependencies:
+      preact-render-to-string: ">=5"
+    peerDependenciesMeta:
+      preact-render-to-string:
+        optional: true
 
   prelude-ls@1.2.1:
     resolution:
@@ -14601,6 +14660,12 @@ packages:
       }
     engines: { node: ">=10.13.0" }
     hasBin: true
+
+  query-selector-shadow-dom@1.0.1:
+    resolution:
+      {
+        integrity: sha512-lT5yCqEBgfoMYpf3F2xQRK7zEr1rhIIZuceDK6+xRkJQ4NMbHTwXqk4NkwDwQMNqXgG9r9fyHnzwNVs6zV5KRw==,
+      }
 
   queue-microtask@1.2.3:
     resolution:
@@ -16767,6 +16832,18 @@ packages:
         integrity: sha512-QW95TCTaHmsYfHDybGMwO5IJIM93I/6vTRk+daHTWFPhwh+C8Cg7j7XyKrwrj8Ib6vYXe0ocYNrmzY4xAAN6ug==,
       }
     engines: { node: ">= 14" }
+
+  web-vitals@5.3.0:
+    resolution:
+      {
+        integrity: sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==,
+      }
+
+  web-vitals@6.0.0:
+    resolution:
+      {
+        integrity: sha512-Guaibvy/+uNtL6Bsu4jmMJGzuSl91oeRH5iO9pPRbYftnFUr3yqT1TUNX/OE4o9HexuEMU3Kb/Wg7iKhlffZUA==,
+      }
 
   webdriver-bidi-protocol@0.4.2:
     resolution:
@@ -20838,6 +20915,17 @@ snapshots:
 
   "@polka/url@1.0.0-next.29": {}
 
+  "@posthog/browser-common@0.5.0":
+    dependencies:
+      "@posthog/core": 1.48.8
+      "@posthog/types": 1.405.1
+
+  "@posthog/core@1.48.8":
+    dependencies:
+      "@posthog/types": 1.405.1
+
+  "@posthog/types@1.405.1": {}
+
   "@protobuf-ts/runtime@2.11.1": {}
 
   "@protobufjs/aspromise@1.1.2": {}
@@ -23740,8 +23828,7 @@ snapshots:
       browserslist: 4.28.5
     optional: true
 
-  core-js@3.50.0:
-    optional: true
+  core-js@3.50.0: {}
 
   core-util-is@1.0.3: {}
 
@@ -24029,7 +24116,6 @@ snapshots:
   dompurify@3.4.14:
     optionalDependencies:
       "@types/trusted-types": 2.0.7
-    optional: true
 
   domutils@3.2.2:
     dependencies:
@@ -25041,6 +25127,8 @@ snapshots:
 
   fetch-retry@4.1.1:
     optional: true
+
+  fflate@0.4.9: {}
 
   fflate@0.8.3: {}
 
@@ -27282,6 +27370,25 @@ snapshots:
 
   postgres-range@1.1.4: {}
 
+  posthog-js@1.418.10(preact-render-to-string@6.5.11(preact@10.24.3)):
+    dependencies:
+      "@posthog/browser-common": 0.5.0
+      "@posthog/core": 1.48.8
+      "@posthog/types": 1.405.1
+      core-js: 3.50.0
+      dompurify: 3.4.14
+      fflate: 0.4.9
+      preact: 10.29.8(preact-render-to-string@6.5.11(preact@10.24.3))
+      query-selector-shadow-dom: 1.0.1
+      web-vitals: 5.3.0
+      web-vitals-soft-navs: web-vitals@6.0.0
+    transitivePeerDependencies:
+      - preact-render-to-string
+
+  posthog-node@5.50.0:
+    dependencies:
+      "@posthog/core": 1.48.8
+
   pouchdb-collections@1.0.1:
     optional: true
 
@@ -27290,6 +27397,10 @@ snapshots:
       preact: 10.24.3
 
   preact@10.24.3: {}
+
+  preact@10.29.8(preact-render-to-string@6.5.11(preact@10.24.3)):
+    optionalDependencies:
+      preact-render-to-string: 6.5.11(preact@10.24.3)
 
   prelude-ls@1.2.1: {}
 
@@ -27398,6 +27509,8 @@ snapshots:
       dijkstrajs: 1.0.3
       pngjs: 5.0.0
       yargs: 15.4.1
+
+  query-selector-shadow-dom@1.0.1: {}
 
   queue-microtask@1.2.3: {}
 
@@ -29099,6 +29212,10 @@ snapshots:
   web-streams-polyfill@3.3.3: {}
 
   web-streams-polyfill@4.0.0-beta.3: {}
+
+  web-vitals@5.3.0: {}
+
+  web-vitals@6.0.0: {}
 
   webdriver-bidi-protocol@0.4.2: {}
 

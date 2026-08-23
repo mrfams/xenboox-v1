@@ -281,16 +281,35 @@ export function ProductTour() {
   }, [currentStepIndex]);
 
   const handleComplete = useCallback(() => {
+    // Analytics: track tour completion
+    try {
+      const { track } = require("@/lib/analytics/events");
+      track("product_tour_completed", {
+        entityId: localStorage.getItem("currentEntityId") ?? "",
+      });
+    } catch {
+      // Non-blocking
+    }
     localStorage.setItem(TOUR_KEY, "true");
     localStorage.removeItem(TOUR_STEP_KEY);
     setIsActive(false);
   }, []);
 
   const handleSkip = useCallback(() => {
+    // Analytics: track tour skip
+    try {
+      const { track } = require("@/lib/analytics/events");
+      track("product_tour_skipped", {
+        entityId: localStorage.getItem("currentEntityId") ?? "",
+        step: currentStepIndex,
+      });
+    } catch {
+      // Non-blocking
+    }
     localStorage.setItem(TOUR_KEY, "true");
     localStorage.removeItem(TOUR_STEP_KEY);
     setIsActive(false);
-  }, []);
+  }, [currentStepIndex]);
 
   if (!isLoaded || !isActive) return null;
 
