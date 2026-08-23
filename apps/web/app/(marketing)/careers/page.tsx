@@ -38,11 +38,9 @@ const departments = [
 const locations = [
   "All",
   "Remote",
-  "Remote (US/EU)",
-  "Remote (EMEA)",
-  "Remote (APAC)",
-  "New York",
-  "London",
+  "San Francisco, CA",
+  "Dublin, Ireland",
+  "Banjul, Gambia",
 ];
 
 const jobTypes = ["All", "Full-time", "Part-time", "Contract", "Internship"];
