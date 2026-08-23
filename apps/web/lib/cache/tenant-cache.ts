@@ -1,5 +1,5 @@
 /**
- * Entity-scoped in-memory TTL cache.
+ * Entity-scoped TTL cache — Redis-backed with in-memory fallback.
  *
  * PURPOSE: cheap, safe caching for rarely-changing configuration reads
  * (fiscal periods, tax rules, branding). Financial STATEMENT data must
@@ -12,9 +12,12 @@
  * forgets to scope. This is the in-process complement to the DB RLS layer —
  * defense in depth, not a substitute.
  *
- * SAFETY: values are serialized-neutral (stored as-is) but keyed by a hash
- * of the canonical input; TTL defaults are short (60s); invalidation is
- * explicit per namespace/entity.
+ * REDIS: In production (Vercel serverless), in-memory Maps lose state across
+ * invocations. Upstash Redis provides shared state across all instances.
+ * Falls back to in-memory when Redis is unavailable (dev/test).
+ *
+ * SAFETY: values are serialized as JSON for Redis storage; TTL defaults are
+ * short (60s); invalidation is explicit per namespace/entity.
  */
 
 import { createHash } from "node:crypto";
@@ -29,27 +32,90 @@ export interface TenantCacheStats {
   misses: number;
   entries: number;
   maxEntries: number;
+  backend: "redis" | "memory";
 }
+
+// ─── Redis Helper ──────────────────────────────────────────────────────────
+
+let redisClient: import("@upstash/redis").Redis | null = null;
+let redisChecked = false;
+
+function hasRedis(): boolean {
+  return !!(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  );
+}
+
+function getRedis(): import("@upstash/redis").Redis | null {
+  if (redisChecked) return redisClient;
+  redisChecked = true;
+  if (!hasRedis()) return null;
+  try {
+    // Dynamic import to avoid build errors when Upstash is not configured
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Redis } = require("@upstash/redis");
+    redisClient = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+    return redisClient;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Cache Implementation ──────────────────────────────────────────────────
 
 export class TenantCache {
   private store = new Map<string, CacheEntry<unknown>>();
   private hits = 0;
   private misses = 0;
+  private backend: "redis" | "memory" = "memory";
 
   constructor(
     private readonly maxEntries = 500,
     private readonly defaultTtlMs = 60_000,
-  ) {}
+  ) {
+    this.backend = getRedis() ? "redis" : "memory";
+  }
 
   /** Structural key: entityId first, then namespace, then a hash of the
    *  query key so no cross-tenant collision is possible. */
   private buildKey(entityId: string, namespace: string, key: string): string {
     const keyHash = createHash("sha256").update(key).digest("hex").slice(0, 16);
-    return `${entityId}::${namespace}::${keyHash}`;
+    return `tc:${entityId}::${namespace}::${keyHash}`;
   }
 
-  get<T>(entityId: string, namespace: string, key: string): T | undefined {
+  async get<T>(
+    entityId: string,
+    namespace: string,
+    key: string,
+  ): Promise<T | undefined> {
     const storeKey = this.buildKey(entityId, namespace, key);
+
+    // Try Redis first
+    const redis = getRedis();
+    if (redis) {
+      try {
+        const raw = await redis.get<string>(storeKey);
+        if (raw) {
+          this.hits++;
+          const entry = JSON.parse(raw) as CacheEntry<T>;
+          if (entry.expiresAt <= Date.now()) {
+            await redis.del(storeKey).catch(() => {});
+            this.misses++;
+            return undefined;
+          }
+          return entry.value;
+        }
+        this.misses++;
+        return undefined;
+      } catch {
+        // Redis failed — fall through to memory
+      }
+    }
+
+    // In-memory fallback
     const entry = this.store.get(storeKey) as CacheEntry<T> | undefined;
     if (!entry) {
       this.misses++;
@@ -64,38 +130,85 @@ export class TenantCache {
     return entry.value;
   }
 
-  set<T>(
+  async set<T>(
     entityId: string,
     namespace: string,
     key: string,
     value: T,
     ttlMs = this.defaultTtlMs,
-  ): void {
-    // Evict expired entries opportunistically when near the cap.
+  ): Promise<void> {
+    const storeKey = this.buildKey(entityId, namespace, key);
+    const entry: CacheEntry<T> = {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    };
+
+    // Write to Redis
+    const redis = getRedis();
+    if (redis) {
+      try {
+        const ttlSeconds = Math.ceil(ttlMs / 1000);
+        await redis.set(storeKey, JSON.stringify(entry), { ex: ttlSeconds });
+        return;
+      } catch {
+        // Redis failed — fall through to memory
+      }
+    }
+
+    // In-memory fallback
     if (this.store.size >= this.maxEntries) {
       const now = Date.now();
       for (const [k, v] of this.store) {
         if (v.expiresAt <= now) this.store.delete(k);
       }
     }
-    // Still over the cap: evict the oldest entry (LRU-ish by insertion).
     if (this.store.size >= this.maxEntries) {
       const oldest = this.store.keys().next().value;
       if (oldest !== undefined) this.store.delete(oldest);
     }
-    const storeKey = this.buildKey(entityId, namespace, key);
-    this.store.set(storeKey, {
-      value,
-      expiresAt: Date.now() + ttlMs,
-    });
+    this.store.set(storeKey, entry);
   }
 
   /** Drop everything for one entity (called from mutations that touch the
    *  cached domain — e.g. fiscal.create invalidates fiscal.*). */
-  invalidateEntity(entityId: string, namespace?: string): void {
+  async invalidateEntity(entityId: string, namespace?: string): Promise<void> {
+    const prefix = `${entityId}::`;
+
+    // Invalidate in Redis
+    const redis = getRedis();
+    if (redis) {
+      try {
+        // Scan for keys matching the pattern
+        let cursor = 0;
+        do {
+          const result = await redis.scan(cursor, {
+            match: `tc:${prefix}*`,
+            count: 100,
+          });
+          cursor = result[0];
+          const keys = result[1];
+          if (keys.length > 0) {
+            if (namespace) {
+              const filtered = keys.filter((k: string) =>
+                k.includes(`::${namespace}::`),
+              );
+              if (filtered.length > 0) {
+                await redis.del(...filtered);
+              }
+            } else {
+              await redis.del(...keys);
+            }
+          }
+        } while (cursor !== 0);
+      } catch {
+        // Redis failed — continue with memory invalidation
+      }
+    }
+
+    // Invalidate in memory
     for (const k of this.store.keys()) {
-      if (k.startsWith(`${entityId}::`)) {
-        if (!namespace || k.startsWith(`${entityId}::${namespace}::`)) {
+      if (k.startsWith(`tc:${prefix}`)) {
+        if (!namespace || k.includes(`::${namespace}::`)) {
           this.store.delete(k);
         }
       }
@@ -108,6 +221,7 @@ export class TenantCache {
       misses: this.misses,
       entries: this.store.size,
       maxEntries: this.maxEntries,
+      backend: this.backend,
     };
   }
 
@@ -127,9 +241,9 @@ export function cachedDomain(
   namespace: string,
   ttlMs = 60_000,
 ): {
-  get: <T>(entityId: string, key: string) => T | undefined;
-  set: <T>(entityId: string, key: string, value: T) => void;
-  invalidate: (entityId: string) => void;
+  get: <T>(entityId: string, key: string) => Promise<T | undefined>;
+  set: <T>(entityId: string, key: string, value: T) => Promise<void>;
+  invalidate: (entityId: string) => Promise<void>;
 } {
   return {
     get: <T>(entityId: string, key: string) =>

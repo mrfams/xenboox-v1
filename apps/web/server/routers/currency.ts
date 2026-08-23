@@ -113,7 +113,7 @@ export const currencyRouter = router({
     .query(async ({ ctx }) => {
       const entityId = ctx.entityId!;
       const cacheKey = "settings";
-      const cached = fxCache.get<{
+      const cached = await fxCache.get<{
         baseCurrency: string;
         rateCount: number;
         recentRuns: {
@@ -155,7 +155,7 @@ export const currencyRouter = router({
         rateCount: rateCount[0]?.count ?? 0,
         recentRuns,
       };
-      fxCache.set(entityId, cacheKey, result);
+      await fxCache.set(entityId, cacheKey, result);
       return result;
     }),
 
@@ -175,7 +175,7 @@ export const currencyRouter = router({
     .query(async ({ ctx }) => {
       const entityId = ctx.entityId!;
       const cacheKey = "list";
-      const cached = fxCache.get<(typeof fxRates.$inferSelect)[]>(
+      const cached = await fxCache.get<(typeof fxRates.$inferSelect)[]>(
         entityId,
         cacheKey,
       );
@@ -184,7 +184,7 @@ export const currencyRouter = router({
         where: eq(fxRates.entityId, entityId),
         orderBy: [desc(fxRates.asOf), asc(fxRates.fromCurrency)],
       });
-      fxCache.set(entityId, cacheKey, rates);
+      await fxCache.set(entityId, cacheKey, rates);
       return rates;
     }),
 
@@ -207,7 +207,7 @@ export const currencyRouter = router({
     )
     .query(async ({ input }) => {
       const cacheKey = `global:${JSON.stringify(input?.pairs ?? [])}`;
-      const cached = fxCache.get<
+      const cached = await fxCache.get<
         Array<{
           fromCurrency: string;
           toCurrency: string;
@@ -235,7 +235,7 @@ export const currencyRouter = router({
         const filtered = results.filter(Boolean) as NonNullable<
           (typeof results)[number]
         >[];
-        fxCache.set("_global", cacheKey, filtered);
+        await fxCache.set("_global", cacheKey, filtered);
         return filtered;
       }
 
@@ -260,7 +260,7 @@ export const currencyRouter = router({
         return true;
       });
 
-      fxCache.set("_global", cacheKey, unique);
+      await fxCache.set("_global", cacheKey, unique);
       return unique;
     }),
 
@@ -314,7 +314,7 @@ export const currencyRouter = router({
           });
         }
 
-        fxCache.invalidate(entityId);
+        await fxCache.invalidate(entityId);
 
         await db.insert(auditLog).values({
           entityId,
@@ -386,7 +386,7 @@ export const currencyRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const cacheKey = `${input.fromCurrency}:${input.toCurrency}`;
-      const cached = fxCache.get<{ rate: number; source: string }>(
+      const cached = await fxCache.get<{ rate: number; source: string }>(
         entityId,
         cacheKey,
       );
@@ -403,7 +403,7 @@ export const currencyRouter = router({
         );
         rate = resolved.rate;
         source = resolved.source;
-        fxCache.set(entityId, cacheKey, resolved);
+        await fxCache.set(entityId, cacheKey, resolved);
       }
       return {
         fromCurrency: input.fromCurrency,

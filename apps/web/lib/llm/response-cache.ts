@@ -1,8 +1,10 @@
 /**
- * LLM Response Cache
+ * LLM Response Cache — Redis-backed with in-memory fallback.
  *
  * Caches LLM responses to avoid re-computation for repeated queries.
- * Uses an LRU cache with configurable TTL and size limits.
+ * In production (Vercel serverless), in-memory Maps lose state across
+ * invocations. Upstash Redis provides shared state across all instances.
+ * Falls back to in-memory when Redis is unavailable (dev/test).
  */
 
 import * as crypto from "crypto";
@@ -46,6 +48,8 @@ export interface CacheStats {
   size: number;
   /** Hit rate as a percentage */
   hitRate: number;
+  /** Which backend is active */
+  backend: "redis" | "memory";
 }
 
 // ─── Default Configuration ──────────────────────────────────────────────
@@ -56,7 +60,36 @@ const DEFAULT_CONFIG: CacheConfig = {
   enableStats: true,
 };
 
-// ─── LRU Cache Implementation ───────────────────────────────────────────
+// ─── Redis Helper ───────────────────────────────────────────────────────
+
+let redisClient: import("@upstash/redis").Redis | null = null;
+let redisChecked = false;
+
+function hasRedis(): boolean {
+  return !!(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  );
+}
+
+function getRedis(): import("@upstash/redis").Redis | null {
+  if (redisChecked) return redisClient;
+  redisChecked = true;
+  if (!hasRedis()) return null;
+  try {
+    // Dynamic import to avoid build errors when Upstash is not configured
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Redis } = require("@upstash/redis");
+    redisClient = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+    return redisClient;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Cache Implementation ───────────────────────────────────────────────
 
 class LLMResponseCache {
   private cache: Map<string, CacheEntry> = new Map();
@@ -67,10 +100,12 @@ class LLMResponseCache {
     evictions: 0,
     size: 0,
     hitRate: 0,
+    backend: "memory",
   };
 
   constructor(config: Partial<CacheConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.stats.backend = getRedis() ? "redis" : "memory";
   }
 
   /**
@@ -88,10 +123,37 @@ class LLMResponseCache {
   /**
    * Get an entry from the cache
    */
-  get<T>(input: string, entityId?: string): T | null {
+  async get<T>(input: string, entityId?: string): Promise<T | null> {
     const hash = this.hashInput(input, entityId);
-    const entry = this.cache.get(hash);
 
+    // Try Redis first
+    const redis = getRedis();
+    if (redis) {
+      try {
+        const raw = await redis.get<string>(`llm:${hash}`);
+        if (raw) {
+          const entry = JSON.parse(raw) as CacheEntry<T>;
+          if (Date.now() > entry.expiresAt) {
+            await redis.del(`llm:${hash}`).catch(() => {});
+            this.stats.misses++;
+            this.updateHitRate();
+            return null;
+          }
+          entry.hitCount++;
+          this.stats.hits++;
+          this.updateHitRate();
+          return entry.data;
+        }
+        this.stats.misses++;
+        this.updateHitRate();
+        return null;
+      } catch {
+        // Redis failed — fall through to memory
+      }
+    }
+
+    // In-memory fallback
+    const entry = this.cache.get(hash);
     if (!entry) {
       this.stats.misses++;
       this.updateHitRate();
@@ -121,7 +183,7 @@ class LLMResponseCache {
   /**
    * Set an entry in the cache
    */
-  set<T>(
+  async set<T>(
     input: string,
     data: T,
     options: {
@@ -129,15 +191,10 @@ class LLMResponseCache {
       model?: string;
       ttlMs?: number;
     } = {},
-  ): void {
+  ): Promise<void> {
     const hash = this.hashInput(input, options.entityId);
     const now = Date.now();
     const ttlMs = options.ttlMs || this.config.ttlMs;
-
-    // Check if we need to evict
-    if (this.cache.size >= this.config.maxSize && !this.cache.has(hash)) {
-      this.evictOldest();
-    }
 
     const entry: CacheEntry<T> = {
       data,
@@ -149,6 +206,25 @@ class LLMResponseCache {
       entityId: options.entityId,
     };
 
+    // Write to Redis
+    const redis = getRedis();
+    if (redis) {
+      try {
+        const ttlSeconds = Math.ceil(ttlMs / 1000);
+        await redis.set(`llm:${hash}`, JSON.stringify(entry), {
+          ex: ttlSeconds,
+        });
+        return;
+      } catch {
+        // Redis failed — fall through to memory
+      }
+    }
+
+    // In-memory fallback
+    if (this.cache.size >= this.config.maxSize && !this.cache.has(hash)) {
+      this.evictOldest();
+    }
+
     this.cache.set(hash, entry);
     this.stats.size = this.cache.size;
   }
@@ -156,24 +232,48 @@ class LLMResponseCache {
   /**
    * Check if an entry exists (without incrementing hit count)
    */
-  has(input: string, entityId?: string): boolean {
+  async has(input: string, entityId?: string): Promise<boolean> {
     const hash = this.hashInput(input, entityId);
-    const entry = this.cache.get(hash);
 
+    // Try Redis first
+    const redis = getRedis();
+    if (redis) {
+      try {
+        const raw = await redis.get<string>(`llm:${hash}`);
+        if (!raw) return false;
+        const entry = JSON.parse(raw) as CacheEntry;
+        return Date.now() <= entry.expiresAt;
+      } catch {
+        // Fall through to memory
+      }
+    }
+
+    const entry = this.cache.get(hash);
     if (!entry) return false;
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(hash);
       return false;
     }
-
     return true;
   }
 
   /**
    * Delete an entry from the cache
    */
-  delete(input: string, entityId?: string): boolean {
+  async delete(input: string, entityId?: string): Promise<boolean> {
     const hash = this.hashInput(input, entityId);
+
+    // Delete from Redis
+    const redis = getRedis();
+    if (redis) {
+      try {
+        await redis.del(`llm:${hash}`);
+      } catch {
+        // Continue with memory deletion
+      }
+    }
+
+    // Delete from memory
     const deleted = this.cache.delete(hash);
     if (deleted) {
       this.stats.size = this.cache.size;
@@ -184,8 +284,38 @@ class LLMResponseCache {
   /**
    * Clear all entries for a specific entity
    */
-  clearEntity(entityId: string): number {
+  async clearEntity(entityId: string): Promise<number> {
     let cleared = 0;
+
+    // Clear from Redis (scan for matching keys)
+    const redis = getRedis();
+    if (redis) {
+      try {
+        let cursor = 0;
+        do {
+          const result = await redis.scan(cursor, {
+            match: "llm:*",
+            count: 100,
+          });
+          cursor = result[0];
+          const keys = result[1];
+          for (const key of keys) {
+            const raw = await redis.get<string>(key);
+            if (raw) {
+              const entry = JSON.parse(raw) as CacheEntry;
+              if (entry.entityId === entityId) {
+                await redis.del(key);
+                cleared++;
+              }
+            }
+          }
+        } while (cursor !== 0);
+      } catch {
+        // Continue with memory clearing
+      }
+    }
+
+    // Clear from memory
     for (const [hash, entry] of this.cache) {
       if (entry.entityId === entityId) {
         this.cache.delete(hash);
@@ -199,7 +329,28 @@ class LLMResponseCache {
   /**
    * Clear the entire cache
    */
-  clear(): void {
+  async clear(): Promise<void> {
+    // Clear Redis (scan and delete all llm: keys)
+    const redis = getRedis();
+    if (redis) {
+      try {
+        let cursor = 0;
+        do {
+          const result = await redis.scan(cursor, {
+            match: "llm:*",
+            count: 100,
+          });
+          cursor = result[0];
+          const keys = result[1];
+          if (keys.length > 0) {
+            await redis.del(...keys);
+          }
+        } while (cursor !== 0);
+      } catch {
+        // Continue with memory clearing
+      }
+    }
+
     this.cache.clear();
     this.stats.size = 0;
   }
@@ -220,7 +371,7 @@ class LLMResponseCache {
   /**
    * Clean up expired entries
    */
-  cleanup(): number {
+  async cleanup(): Promise<number> {
     const now = Date.now();
     let cleaned = 0;
 
@@ -284,14 +435,14 @@ export async function withLLMCache<T>(
   const cache = options.cache || getLLMResponseCache();
 
   // Check cache first
-  const cached = cache.get<T>(input, options.entityId);
+  const cached = await cache.get<T>(input, options.entityId);
   if (cached !== null) {
     return cached;
   }
 
   // Compute and cache
   const result = await computeFn();
-  cache.set(input, result, {
+  await cache.set(input, result, {
     entityId: options.entityId,
     model: options.model,
     ttlMs: options.ttlMs,

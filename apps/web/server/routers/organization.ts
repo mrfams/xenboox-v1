@@ -117,7 +117,7 @@ export const organizationRouter = router({
     const entityId = ctx.entityId;
 
     const cacheKey = "summary";
-    const cached = summaryCache.get<{
+    const cached = await summaryCache.get<{
       cashBalance: number;
       apOutstanding: number;
       arOutstanding: number;
@@ -172,7 +172,7 @@ export const organizationRouter = router({
       : "No period";
 
     const result = { cashBalance, apOutstanding, arOutstanding, currentPeriod };
-    summaryCache.set(entityId, cacheKey, result);
+    await summaryCache.set(entityId, cacheKey, result);
     return result;
   }),
 

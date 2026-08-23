@@ -22,13 +22,13 @@ type Account = (typeof chartOfAccounts.$inferSelect)[];
 
 async function fetchAccounts(entityId: string): Promise<Account> {
   const cacheKey = "accounts";
-  const cached = coaCache.get<Account>(entityId, cacheKey);
+  const cached = await coaCache.get<Account>(entityId, cacheKey);
   if (cached) return cached;
   const accounts = await db.query.chartOfAccounts.findMany({
     where: eq(chartOfAccounts.entityId, entityId),
     orderBy: [asc(chartOfAccounts.code)],
   });
-  coaCache.set(entityId, cacheKey, accounts);
+  await coaCache.set(entityId, cacheKey, accounts);
   return accounts;
 }
 
@@ -140,7 +140,7 @@ export const coaRouter = router({
           })
           .returning();
 
-        coaCache.invalidate(ctx.entityId!);
+        await coaCache.invalidate(ctx.entityId!);
         return account;
       } catch (error) {
         handleMutationError(error, "Failed to create account");
@@ -188,7 +188,7 @@ export const coaRouter = router({
           ),
         )
         .returning();
-      coaCache.invalidate(ctx.entityId!);
+      await coaCache.invalidate(ctx.entityId!);
       return updated;
     }),
 
@@ -228,7 +228,7 @@ export const coaRouter = router({
               eq(chartOfAccounts.entityId, ctx.entityId!),
             ),
           );
-        coaCache.invalidate(ctx.entityId!);
+        await coaCache.invalidate(ctx.entityId!);
         return { success: true };
       } catch (error) {
         handleMutationError(error, "Failed to delete account");
@@ -309,7 +309,7 @@ export const coaRouter = router({
         inserted.push(created);
       }
 
-      coaCache.invalidate(ctx.entityId!);
+      await coaCache.invalidate(ctx.entityId!);
       return { imported: inserted.length };
     }),
 });

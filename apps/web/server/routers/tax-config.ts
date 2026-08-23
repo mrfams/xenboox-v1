@@ -226,7 +226,7 @@ export const taxConfigRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const cacheKey = JSON.stringify(input ?? {});
-      const cached = taxRulesCache.get<{
+      const cached = await taxRulesCache.get<{
         rules: (typeof jurisdictionTaxRules.$inferSelect)[];
         count: number;
       }>(entityId, cacheKey);
@@ -255,7 +255,7 @@ export const taxConfigRouter = router({
       });
 
       const result = { rules, count: rules.length };
-      taxRulesCache.set(entityId, cacheKey, result);
+      await taxRulesCache.set(entityId, cacheKey, result);
       return result;
     }),
 
@@ -316,7 +316,7 @@ export const taxConfigRouter = router({
 
       // Tax rules are cached — invalidate so the Settings list reflects
       // the new/updated rule immediately.
-      taxRulesCache.invalidate(ctx.entityId!);
+      await taxRulesCache.invalidate(ctx.entityId!);
       return rule;
     }),
 
@@ -376,7 +376,7 @@ export const taxConfigRouter = router({
 
       // Tax rules are cached — invalidate so the Settings list reflects
       // the new/updated rule immediately.
-      taxRulesCache.invalidate(ctx.entityId!);
+      await taxRulesCache.invalidate(ctx.entityId!);
       return rule;
     }),
 
@@ -410,7 +410,7 @@ export const taxConfigRouter = router({
             .join(" | ") as unknown as string,
         })
         .where(eq(jurisdictionTaxRules.id, input.ruleId));
-      taxRulesCache.invalidate(ctx.entityId!);
+      await taxRulesCache.invalidate(ctx.entityId!);
       return { success: true };
     }),
 
@@ -423,7 +423,7 @@ export const taxConfigRouter = router({
         .update(jurisdictionTaxRules)
         .set({ status: "active", effectiveTo: null })
         .where(eq(jurisdictionTaxRules.id, input.ruleId));
-      taxRulesCache.invalidate(ctx.entityId!);
+      await taxRulesCache.invalidate(ctx.entityId!);
       return { success: true };
     }),
 

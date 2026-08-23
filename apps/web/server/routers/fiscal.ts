@@ -36,10 +36,9 @@ export const fiscalRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const cacheKey = JSON.stringify(input ?? {});
-      const cached = fiscalCache.get<(typeof fiscalPeriods.$inferSelect)[]>(
-        entityId,
-        cacheKey,
-      );
+      const cached = await fiscalCache.get<
+        (typeof fiscalPeriods.$inferSelect)[]
+      >(entityId, cacheKey);
       if (cached) return cached;
 
       const periods = await db.query.fiscalPeriods.findMany({
@@ -51,7 +50,7 @@ export const fiscalRouter = router({
           : eq(fiscalPeriods.entityId, entityId),
         orderBy: [desc(fiscalPeriods.year), asc(fiscalPeriods.month)],
       });
-      fiscalCache.set(entityId, cacheKey, periods);
+      await fiscalCache.set(entityId, cacheKey, periods);
       return periods;
     }),
 
@@ -109,7 +108,7 @@ export const fiscalRouter = router({
 
         // Periods are cached for 60s — drop the entity's fiscal entries so
         // the calendar reflects the new period immediately.
-        fiscalCache.invalidate(ctx.entityId!);
+        await fiscalCache.invalidate(ctx.entityId!);
 
         return period;
       } catch (error) {
