@@ -90,6 +90,7 @@ import { knowledgeGraphRouter } from "./knowledge-graph";
 import { dailyCloseRouter } from "./daily-close";
 import { autoApproveRouter } from "./auto-approve";
 import { batchIngestionRouter } from "./batch-ingestion";
+import { donorGrantRouter } from "./donor-grant";
 
 import { router, publicProcedure } from "@/lib/trpc/server";
 
@@ -186,6 +187,7 @@ export const appRouter = router({
   knowledgeGraph: knowledgeGraphRouter,
   autoApprove: autoApproveRouter,
   batchIngestion: batchIngestionRouter,
+  donorGrant: donorGrantRouter,
 });
 
 export type AppRouter = typeof appRouter;

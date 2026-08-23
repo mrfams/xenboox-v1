@@ -13,6 +13,10 @@ import {
   Settings,
   HelpCircle,
   History,
+  Users,
+  FileText,
+  CreditCard,
+  HandCoins,
   type LucideIcon,
 } from "lucide-react";
 
@@ -94,6 +98,34 @@ const primaryNavItems: NavItem[] = [
     attentionKey: "operations",
     match: ["/dashboard/operations"],
     shortcut: "5",
+  },
+];
+
+// Sub-navigation items for Operations surface
+const operationsSubNavItems: NavItem[] = [
+  {
+    label: "Customers",
+    href: "/dashboard/operations/customers",
+    icon: Users,
+    match: ["/dashboard/operations/customers"],
+  },
+  {
+    label: "Invoices",
+    href: "/dashboard/operations/invoices",
+    icon: FileText,
+    match: ["/dashboard/operations/invoices"],
+  },
+  {
+    label: "Vendors",
+    href: "/dashboard/operations/vendors",
+    icon: CreditCard,
+    match: ["/dashboard/operations/vendors"],
+  },
+  {
+    label: "Donor Reporting",
+    href: "/dashboard/donor-reporting",
+    icon: HandCoins,
+    match: ["/dashboard/donor-reporting"],
   },
 ];
 
@@ -350,6 +382,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="space-y-0.5 px-2">
             {primaryNavItems.map((item) => renderNavItem(item))}
           </div>
+          
+          {/* Sub-navigation for Operations surface */}
+          {isActive(primaryNavItems[4]) && (
+            <div className="mt-2 px-2">
+              <div className="ml-4 border-l border-white/[0.06] pl-3 space-y-0.5">
+                {operationsSubNavItems.map((item) => renderNavItem(item))}
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Bottom Nav + Attention Strip */}
