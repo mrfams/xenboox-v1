@@ -107,7 +107,7 @@ type TBRow = {
   totalCredit: string;
 };
 
-async function generateProfitLoss(
+export async function generateProfitLoss(
   entityId: string,
   startDate: string,
   endDate: string,
@@ -184,7 +184,7 @@ async function generateProfitLoss(
   };
 }
 
-async function generateBalanceSheet(entityId: string, asOfDate: string) {
+export async function generateBalanceSheet(entityId: string, asOfDate: string) {
   const accounts = (await db
     .select({
       accountCode: chartOfAccounts.code,
@@ -239,7 +239,7 @@ async function generateBalanceSheet(entityId: string, asOfDate: string) {
   };
 }
 
-async function generateTrialBalance(
+export async function generateTrialBalance(
   entityId: string,
   startDate: string,
   endDate: string,
@@ -289,7 +289,7 @@ async function generateTrialBalance(
   };
 }
 
-async function generateCashFlow(
+export async function generateCashFlow(
   entityId: string,
   startDate: string,
   endDate: string,
