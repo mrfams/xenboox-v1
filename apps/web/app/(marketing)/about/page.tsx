@@ -24,9 +24,9 @@ import { FadeInUp } from "@/components/marketing/reveal";
 const values = [
   {
     icon: Target,
-    title: "Built for here, not imported",
+    title: "Built for how you actually work",
     description:
-      "We didn't adapt a Western product for Africa. We built for The Gambia first — mobile money, dalasi, PAYE, SSNIT — then expanded globally. If it doesn't work in Banjul, it doesn't ship.",
+      "Multi-currency, multi-entity, mobile money, bank feeds — not bolted on later. We built for businesses operating across borders from day one.",
   },
   {
     icon: Eye,
@@ -44,7 +44,7 @@ const values = [
     icon: Users,
     title: "Built with real businesses",
     description:
-      "We talk to Gambian businesses every week — trading companies, NGOs, importers. They tell us what's broken. We fix it. Their problems are our roadmap.",
+      "We talk to businesses every week — trading companies, NGOs, SaaS startups, professional services. They tell us what's broken. We fix it.",
   },
   {
     icon: Zap,
@@ -56,7 +56,7 @@ const values = [
     icon: Globe,
     title: "Global from day one",
     description:
-      "Multi-currency, multi-jurisdiction, multi-language. Not bolted on later. If you operate across borders — and most African businesses do — Xenboox was built for you.",
+      "Multi-currency, multi-jurisdiction, multi-language. Whether you're in New York, Nairobi, or Singapore — Xenboox was built for you.",
   },
 ];
 
@@ -95,7 +95,7 @@ const timeline = [
     year: "2024",
     title: "The problem hits home",
     description:
-      "Watching Gambian businesses struggle with QuickBooks and Xero — tools that don't understand mobile money, dalasi, or local tax rules. Month-end close takes days. Errors pile up. Nobody can afford a full accounting team.",
+      "Watching businesses struggle with accounting software that doesn't fit their needs — tools built for one market, not the world. Month-end close takes days. Errors pile up. Nobody can afford a full accounting team.",
   },
   {
     year: "2024",
@@ -131,7 +131,7 @@ const team = [
   },
   {
     name: "Customer Success",
-    description: "Ensuring every Gambian business succeeds with Xenboox",
+    description: "Ensuring every business succeeds with Xenboox",
     icon: Users,
   },
 ];
@@ -139,7 +139,7 @@ const team = [
 export default function AboutPage() {
   return (
     <>
-      {/* Hero Section — Founder Story */}
+      {/* Hero Section */}
       <section className="relative overflow-hidden bg-paper">
         <div
           className="pointer-events-none absolute inset-0"
@@ -173,29 +173,17 @@ export default function AboutPage() {
             </FadeInUp>
             <FadeInUp delay={0.05}>
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                We got tired of watching{" "}
-                <span className="text-primary">African businesses</span>{" "}
-                struggle with accounting
+                Accounting should work{" "}
+                <span className="text-primary">everywhere</span>
               </h1>
             </FadeInUp>
             <FadeInUp delay={0.1}>
               <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">
-                QuickBooks doesn&apos;t understand mobile money. Xero
-                doesn&apos;t know what dalasi is. Month-end close takes days
-                instead of hours. We built Xenboox because every business
-                deserves an accounting platform that actually works for them —
-                not an afterthought.
+                Most accounting software was built for one market and adapted
+                for the rest. We built Xenboox differently — multi-currency,
+                multi-entity, multi-jurisdiction from day one. Your books should
+                work wherever you do business.
               </p>
-            </FadeInUp>
-            <FadeInUp delay={0.15}>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-600 border border-emerald-500/20">
-                  Built in The Gambia
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-primary border border-primary/20">
-                  For businesses across Africa
-                </span>
-              </div>
             </FadeInUp>
           </div>
         </div>
@@ -212,7 +200,7 @@ export default function AboutPage() {
                   Our Mission
                 </span>
                 <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                  Give every African business a world-class finance team
+                  Give every business a world-class finance team
                 </h2>
                 <p className="mt-2 text-lg leading-relaxed text-muted-foreground">
                   Not everyone can afford a CFO, an accountant, and a payroll
@@ -249,13 +237,13 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Timeline Section — Our Story */}
+      {/* Timeline Section */}
       <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
             eyebrow="Our story"
             title="How Xenboox came to be"
-            lead="It started with a frustration every Gambian business owner knows."
+            lead="It started with a frustration every business owner knows."
           />
 
           <div className="mt-16 max-w-3xl mx-auto">
@@ -263,7 +251,6 @@ export default function AboutPage() {
               {timeline.map((item, index) => (
                 <FadeInUp key={item.year + item.title} delay={index * 0.1}>
                   <div className="relative flex gap-6">
-                    {/* Timeline line */}
                     <div className="flex flex-col items-center">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
                         {item.year.slice(-2)}
@@ -272,7 +259,6 @@ export default function AboutPage() {
                         <div className="mt-2 h-full w-0.5 bg-border" />
                       )}
                     </div>
-                    {/* Content */}
                     <div className="pb-8">
                       <h3 className="text-xl font-semibold text-foreground">
                         {item.title}
@@ -409,11 +395,11 @@ export default function AboutPage() {
                 </h3>
                 <ul className="space-y-4">
                   {[
-                    "QuickBooks that doesn't understand mobile money or dalasi",
+                    "Accounting software built for one market, adapted for everyone else",
                     "Month-end close that takes 3-5 days of manual work",
                     "Spreadsheets tracking what the software should handle",
                     "Hiring a full accounting team you can't afford",
-                    "Western tools bolted on as afterthoughts",
+                    "Multi-currency and mobile money as afterthoughts",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted">
@@ -436,7 +422,7 @@ export default function AboutPage() {
                     "19 AI agents that handle your books while you sleep",
                     "Month-end close in 10 minutes, not 5 days",
                     "Real-time dashboards that explain what the numbers mean",
-                    "Built for Gambian businesses — PAYE, SSNIT, mobile money",
+                    "Multi-currency, mobile money, and bank feeds built in",
                     "Free tier so you can try before you commit",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">

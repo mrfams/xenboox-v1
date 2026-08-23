@@ -318,23 +318,23 @@ const testimonials = [
   {
     quote:
       "We closed our first month in four days. Previously it took three weeks and two accountants. The close checklist alone is worth the subscription.",
-    author: "Fatoumata Ceesay",
-    role: "CFO, Seagull Logistics",
-    location: "Banjul",
+    author: "Sarah Chen",
+    role: "CFO, Meridian Logistics",
+    location: "Singapore",
   },
   {
     quote:
-      "The agents chased down GMD 1.8M in overdue invoices while we slept. I just reviewed and approved the follow-ups over breakfast.",
-    author: "Musa Jallow",
-    role: "Founder, SunuFresh Foods",
-    location: "Serekunda",
+      "The agents chased down $180K in overdue invoices while we slept. I just reviewed and approved the follow-ups over breakfast.",
+    author: "James Okafor",
+    role: "Founder, FreshFoods Inc.",
+    location: "Lagos",
   },
   {
     quote:
       "Payroll used to take two days of manual work. Now the payroll agent runs it in minutes and I just approve. Our staff get paid on time, every time.",
-    author: "Ousman Bah",
+    author: "Maria Santos",
     role: "Operations Manager, Gateway Trading",
-    location: "Banjul",
+    location: "São Paulo",
   },
 ];
 

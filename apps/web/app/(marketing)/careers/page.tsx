@@ -39,10 +39,10 @@ const locations = [
   "All",
   "Remote",
   "Remote (US/EU)",
-  "Remote (Africa)",
+  "Remote (EMEA)",
+  "Remote (APAC)",
   "New York",
   "London",
-  "Lagos",
 ];
 
 const jobTypes = ["All", "Full-time", "Part-time", "Contract", "Internship"];

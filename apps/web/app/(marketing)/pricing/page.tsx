@@ -97,7 +97,7 @@ const faqs = [
   },
   {
     q: "Do you support my country's tax regulations?",
-    a: "Gambia's PAYE and SSNIT built in. More countries coming. Enterprise supports custom tax configs.",
+    a: "Tax compliance built in for multiple jurisdictions. Enterprise supports custom tax configs for any country.",
   },
   {
     q: "Can I use Xenboox on my phone?",

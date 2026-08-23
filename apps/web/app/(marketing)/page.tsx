@@ -10,7 +10,7 @@ import { Testimonials } from "@/components/marketing/testimonials";
 export const metadata: Metadata = {
   title: "AI-Native Accounting Platform — 19 Agents, Zero Data Entry",
   description:
-    "Xenboox is an AI-native accounting platform with 19 specialized agents that handle invoicing, payroll, compliance, and month-end close. Built for businesses in The Gambia and beyond.",
+    "Xenboox is an AI-native accounting platform with 19 specialized agents that handle invoicing, payroll, compliance, and month-end close. Multi-currency, multi-entity, built for modern businesses.",
   openGraph: {
     title: "Xenboox — Your Entire Accounting Department, Running Autonomously",
     description:
