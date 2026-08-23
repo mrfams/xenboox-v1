@@ -218,3 +218,45 @@
 
 - Site live: ✅ (200 OK)
 - Vulnerability count: 24 (unchanged — not affected by this change)
+
+---
+
+## 2026-08-23 — Donor Report Auto-Generation (Reporting Agent Wiring)
+
+**Commit:** aeec3c3
+**Scope:** Wire Reporting Agent to auto-generate donor reports at each project's cadence
+
+### What shipped
+
+| Component | What |
+|-----------|------|
+| Reporting Agent Tool | generateDonorReport — budget vs actual per project, narrative summary, snapshot creation |
+| Reporting Agent Tool | findProjectsDueForReport — finds active projects with reports due based on cadence |
+| Reporting Agent Node | nodeGenerateDonorReport — processes all due projects for an entity |
+| Trigger.dev Job | processDonorReports — daily cron at 3 AM (after daily close at 2 AM) |
+
+### How it works
+
+```
+3:00 AM Trigger.dev cron fires
+  → For each active entity:
+    → findProjectsDueForReport(entityId)
+      → Checks each active donor project's reportingCadence
+      → monthly: generates report for YYYY-MM
+      → quarterly: generates report for YYYY-QN
+      → semi_annual: generates report for YYYY-HN
+      → annual: generates report for YYYY
+      → Skips if snapshot already exists for that period
+    → generateDonorReport(entityId, projectId, period)
+      → Calculates budget vs actual from project's budgetAllocation
+      → Generates narrative summary
+      → Creates report snapshot (status: draft)
+  → Human reviews draft → marks final → submits to donor
+```
+
+### Files modified
+
+- `packages/agents/platform/reporting-agent/tools.ts` — added donor report tools
+- `packages/agents/platform/reporting-agent/nodes.ts` — added donor report node
+- `packages/jobs/donor-reports.ts` — new Trigger.dev cron job
+- `packages/jobs/index.ts` — exported new job
