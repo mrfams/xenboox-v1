@@ -16,3 +16,4 @@ export { processDonorReports } from "./donor-reports";
 export { generateMonthlyFinancialReports } from "./monthly-financial-reports";
 export { processOnboardingDrip } from "./onboarding-drip";
 export { calculateCustomerHealth } from "./customer-health";
+export { checkChurnRisk } from "./churn-prevention";

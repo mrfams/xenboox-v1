@@ -180,7 +180,7 @@
 
 | # | Finding | Severity | Fix | Status |
 | --- | -------------------------- | -------- | ---------------------------------------- | ------ | --- | --- | ------------------- | ---- | ------------------------------------ | --- || 1 | No customer health scoring | CRITICAL | Build health score model | ✅ |
-| 2 | No churn prevention system | CRITICAL | Build churn prediction + intervention | ⬜ |
+| 2 | No churn prevention system | CRITICAL | Build churn prediction + intervention | ✅ |
 | 3 | No NPS survey | HIGH | Add quarterly NPS survey | ⬜ | | 4 | No retention emails | HIGH | Build post-onboarding email sequence | ✅ |
 | 5 | No upsell prompts | HIGH | Add "Upgrade to access" prompts | ⬜ |
 | 6 | No QBR template | HIGH | Build quarterly business review template | ⬜ |
