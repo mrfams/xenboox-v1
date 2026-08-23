@@ -722,13 +722,13 @@ function DailyCloseStatus() {
           : "In progress";
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-xl border bg-card p-4" role="region" aria-label="Daily Close Status">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-primary" />
+          <Bot className="h-4 w-4 text-primary" aria-hidden="true" />
           <span className="text-sm font-medium">Daily Close</span>
         </div>
-        <span className={`text-xs font-medium ${statusColor}`}>
+        <span className={`text-xs font-medium ${statusColor}`} aria-live="polite">
           {statusLabel}
         </span>
       </div>
