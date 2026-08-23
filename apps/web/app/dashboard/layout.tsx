@@ -16,6 +16,7 @@ import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { ProductTour } from "@/components/onboarding/product-tour";
+import { NpsSurvey } from "@/components/dashboard/nps-survey";
 import { useRouteFocus } from "@/lib/hooks/use-route-focus";
 import { useSurfaceShortcuts } from "@/lib/hooks/use-surface-shortcuts";
 import { usePostHogIdentify } from "@/components/layout/posthog-provider";
@@ -314,6 +315,7 @@ export default function DashboardLayout({
 
               {/* Product tour — shows after onboarding completes */}
               <ProductTour />
+              <NpsSurvey />
 
               <Toaster position="top-right" richColors closeButton />
             </SimulationProvider>

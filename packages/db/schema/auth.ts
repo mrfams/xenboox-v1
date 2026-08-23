@@ -35,6 +35,10 @@ export const users = pgTable("users", {
   backupCodes: text("backup_codes"),
   // Last used entity (for cross-device persistence)
   lastUsedEntityId: uuid("last_used_entity_id"),
+  // NPS survey
+  npsScore: integer("nps_score"),
+  npsComment: text("nps_comment"),
+  npsSubmittedAt: timestamp("nps_submitted_at", { withTimezone: true }),
   ...timestamps,
 });
 
