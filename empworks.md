@@ -19,7 +19,7 @@
 | 2   | Pricing missing trust signals ("No credit card", "Cancel anytime") | HIGH     | Add trust badges and guarantee                  | ✅     |
 | 3   | About page is generic — no real people                             | HIGH     | Add founder story, team photos, Gambian context | ✅     |
 | 4   | Blog post missing author card and related posts                    | MEDIUM   | Add author card + "You might also like" section | ⬜     |
-| 5   | No sticky CTA on marketing pages                                   | MEDIUM   | Add floating "Start free" on scroll             | ⬜     |
+| 5   | ~~No sticky CTA on marketing pages~~ ✅                            | MEDIUM   | Floating CTA in marketing layout                | ✅     |
 | 6   | Only 3 testimonials                                                | MEDIUM   | Add 3-5 more for social proof                   | ⬜     |
 | 7   | No "Most Popular" badge on pricing                                 | LOW      | Highlight recommended tier                      | ⬜     |
 | 8   | No FAQ section on pricing                                          | LOW      | Add common objections below pricing cards       | ⬜     |
@@ -29,17 +29,17 @@
 
 ## Employee #2: Product Critic — Score: 8/10
 
-| #   | Finding                                      | Severity | Fix                                               | Status |
-| --- | -------------------------------------------- | -------- | ------------------------------------------------- | ------ |
-| 1   | Sticky CTA missing on all marketing pages    | HIGH     | Add floating "Start free" button on scroll        | ⬜     |
-| 2   | Pricing page lacks trust signals             | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
-| 3   | About page shows generic content             | HIGH     | Real team photos, founder story, Gambian context  | ✅     |
-| 4   | Blog posts need 1,500+ words                 | MEDIUM   | Expand remaining content                          | ⬜     |
-| 5   | Blog post missing author card, related posts | MEDIUM   | Add to template                                   | ⬜     |
-| 6   | No JSON-LD on blog posts                     | MEDIUM   | Add Article schema                                | ⬜     |
-| 7   | No social share buttons on blog              | MEDIUM   | Add share bar                                     | ⬜     |
-| 8   | No reading time estimate                     | LOW      | Add to blog post header                           | ⬜     |
-| 9   | No "Related posts" section                   | LOW      | Add at bottom of blog posts                       | ⬜     |
+| #   | Finding                                          | Severity | Fix                                               | Status |
+| --- | ------------------------------------------------ | -------- | ------------------------------------------------- | ------ |
+| 1   | ~~Sticky CTA missing on all marketing pages~~ ✅ | HIGH     | Floating CTA in marketing layout                  | ✅     |
+| 2   | Pricing page lacks trust signals                 | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
+| 3   | About page shows generic content                 | HIGH     | Real team photos, founder story, Gambian context  | ✅     |
+| 4   | Blog posts need 1,500+ words                     | MEDIUM   | Expand remaining content                          | ⬜     |
+| 5   | Blog post missing author card, related posts     | MEDIUM   | Add to template                                   | ⬜     |
+| 6   | No JSON-LD on blog posts                         | MEDIUM   | Add Article schema                                | ⬜     |
+| 7   | No social share buttons on blog                  | MEDIUM   | Add share bar                                     | ⬜     |
+| 8   | No reading time estimate                         | LOW      | Add to blog post header                           | ⬜     |
+| 9   | No "Related posts" section                       | LOW      | Add at bottom of blog posts                       | ⬜     |
 
 ---
 
@@ -382,7 +382,7 @@
 | 5   | No demo video                                  | #9 Sales Rep                  |
 | 6   | ~~15+ icon buttons missing aria-label~~ ✅     | #5 Design Critic              |
 | 7   | ~~Missing idempotency on payment creation~~ ✅ | #7 Engineering Critic         |
-| 8   | No sticky CTA                                  | #2 Product Critic             |
+| 8   | ~~No sticky CTA~~ ✅                           | #2 Product Critic             |
 | 9   | No ROI calculator                              | #9 Sales Rep                  |
 | 10  | No NPS survey                                  | #13 CSM                       |
 | 11  | No retention emails                            | #13 CSM                       |

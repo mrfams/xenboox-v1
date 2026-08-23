@@ -6,6 +6,7 @@ import { X, Menu } from "lucide-react";
 
 import { Logo } from "@/components/ui/logo";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
+import { StickyCta } from "@/components/marketing/sticky-cta";
 
 const navLinks = [
   { label: "Features", href: "/features" },
@@ -427,6 +428,7 @@ export default function MarketingLayout({
         </div>
       </footer>
       <CookieConsentBanner />
+      <StickyCta />
     </div>
   );
 }
