@@ -15,6 +15,7 @@ import { ChatPanel } from "@/components/layout/chat-panel";
 import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { ProductTour } from "@/components/onboarding/product-tour";
 import { useRouteFocus } from "@/lib/hooks/use-route-focus";
 import { useSurfaceShortcuts } from "@/lib/hooks/use-surface-shortcuts";
 import { trpc } from "@/lib/trpc/client";
@@ -302,6 +303,9 @@ export default function DashboardLayout({
 
               {/* First-time onboarding wizard */}
               <OnboardingWizard />
+
+              {/* Product tour — shows after onboarding completes */}
+              <ProductTour />
 
               <Toaster position="top-right" richColors closeButton />
             </SimulationProvider>

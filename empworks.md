@@ -135,15 +135,13 @@
 
 ## Employee #10: Onboarding Specialist — Score: 5/10
 
-| #   | Finding                                       | Severity | Fix                          | Status |
-| --- | --------------------------------------------- | -------- | ---------------------------- | ------ |
-| 1   | No onboarding email sequence                  | CRITICAL | Build 6-email drip campaign  | ⬜     |
-| 2   | No product tour / walkthrough                 | CRITICAL | Add interactive walkthrough  | ⬜     |
-| 3   | No explicit welcome screen after signup       | HIGH     | Add welcome with next steps  | ⬜     |
-| 4   | No "Aha Moment" trigger after bank connection | HIGH     | Auto-generate first insight  | ⬜     |
-| 5   | No in-app help                                | MEDIUM   | Add help widget or live chat | ⬜     |
-| 6   | No team invite prompt during onboarding       | MEDIUM   | Add "Invite your team" step  | ⬜     |
-| 7   | Only 4 of 7 onboarding steps complete         | MEDIUM   | Complete remaining steps     | ⬜     |
+| # | Finding | Severity | Fix | Status |
+| --- | --------------------------------------------- | -------- | ---------------------------- | ------ || 1 | No onboarding email sequence | CRITICAL | Build 6-email drip campaign | ✅ || 2 | No product tour / walkthrough | CRITICAL | Add interactive walkthrough | ✅ |
+| 3 | No explicit welcome screen after signup | HIGH | Add welcome with next steps | ⬜ |
+| 4 | No "Aha Moment" trigger after bank connection | HIGH | Auto-generate first insight | ⬜ |
+| 5 | No in-app help | MEDIUM | Add help widget or live chat | ⬜ |
+| 6 | No team invite prompt during onboarding | MEDIUM | Add "Invite your team" step | ⬜ |
+| 7 | Only 4 of 7 onboarding steps complete | MEDIUM | Complete remaining steps | ⬜ |
 
 ---
 
@@ -181,11 +179,10 @@
 ## Employee #13: Customer Success Manager — Score: 2/10
 
 | #   | Finding                    | Severity | Fix                                      | Status |
-| --- | -------------------------- | -------- | ---------------------------------------- | ------ |
+| --- | -------------------------- | -------- | ---------------------------------------- | ------ | --- | --- | ------------------- | ---- | ------------------------------------ | --- |
 | 1   | No customer health scoring | CRITICAL | Build health score model                 | ⬜     |
 | 2   | No churn prevention system | CRITICAL | Build churn prediction + intervention    | ⬜     |
-| 3   | No NPS survey              | HIGH     | Add quarterly NPS survey                 | ⬜     |
-| 4   | No retention emails        | HIGH     | Build post-onboarding email sequence     | ⬜     |
+| 3   | No NPS survey              | HIGH     | Add quarterly NPS survey                 | ⬜     |     | 4   | No retention emails | HIGH | Build post-onboarding email sequence | ✅  |
 | 5   | No upsell prompts          | HIGH     | Add "Upgrade to access" prompts          | ⬜     |
 | 6   | No QBR template            | HIGH     | Build quarterly business review template | ⬜     |
 | 7   | No feedback widget         | HIGH     | Add in-app feedback button               | ⬜     |

@@ -51,6 +51,7 @@ type NavItem = {
   attentionKey?: NavKey;
   match?: string[];
   shortcut?: string;
+  tourId?: string;
 };
 
 // ─── AI-Native 5-Surface Navigation ───────────────────────────────────────
@@ -66,6 +67,7 @@ const primaryNavItems: NavItem[] = [
     icon: MessageSquare,
     attentionKey: "command-center",
     shortcut: "1",
+    tourId: "command-center",
   },
   {
     label: "Activity Hub",
@@ -74,6 +76,7 @@ const primaryNavItems: NavItem[] = [
     attentionKey: "activity-hub",
     match: ["/dashboard/activity-hub"],
     shortcut: "2",
+    tourId: "activity-hub",
   },
   {
     label: "Financial Pulse",
@@ -82,6 +85,7 @@ const primaryNavItems: NavItem[] = [
     attentionKey: "financial-pulse",
     match: ["/dashboard/financial-pulse"],
     shortcut: "3",
+    tourId: "financial-pulse",
   },
   {
     label: "Ledger",
@@ -90,6 +94,7 @@ const primaryNavItems: NavItem[] = [
     attentionKey: "ledger",
     match: ["/dashboard/ledger"],
     shortcut: "4",
+    tourId: "ledger",
   },
   {
     label: "Operations",
@@ -98,6 +103,7 @@ const primaryNavItems: NavItem[] = [
     attentionKey: "operations",
     match: ["/dashboard/operations"],
     shortcut: "5",
+    tourId: "operations",
   },
 ];
 
@@ -319,6 +325,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
         )}
         aria-current={isActive(item) ? "page" : undefined}
+        data-tour={item.tourId}
       >
         <span className="relative">
           <item.icon className="h-4 w-4 shrink-0" />
@@ -382,7 +389,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="space-y-0.5 px-2">
             {primaryNavItems.map((item) => renderNavItem(item))}
           </div>
-          
+
           {/* Sub-navigation for Operations surface */}
           {isActive(primaryNavItems[4]) && (
             <div className="mt-2 px-2">
