@@ -182,8 +182,7 @@
 | 2 | No churn prevention system | CRITICAL | Build churn prediction + intervention | ✅ |
 | 3 | ~~No NPS survey~~ ✅ | HIGH | Quarterly NPS survey with API + storage | ✅ || 4 | ~~No retention emails~~ ✅ | HIGH | Build post-onboarding email sequence | ✅ |
 | 5 | ~~No upsell prompts~~ ✅ | HIGH | Upsell banner + sidebar upgrade prompt | ✅ || 6 | ~~No QBR template~~ ✅ | HIGH | Build quarterly business review template | ✅ |
-| 7 | ~~No feedback widget~~ ✅ | HIGH | NPS survey includes feedback comments | ✅ || 8 | ~~No referral program~~ ✅ | MEDIUM | Build referral incentive system | ✅ |
-| 9 | No user interview process | MEDIUM | Schedule monthly user interviews | ⬜ |
+| 7 | ~~No feedback widget~~ ✅ | HIGH | NPS survey includes feedback comments | ✅ || 8 | ~~No referral program~~ ✅ | MEDIUM | Build referral incentive system | ✅ || 9 | ~~No user interview process~~ ✅ | MEDIUM | Schedule monthly user interviews | ✅ |
 | 10 | No support system | MEDIUM | Integrate Intercom or Crisp | ⬜ |
 
 ---
@@ -269,8 +268,7 @@
 | --- | ---------------------------------------- | -------- | ------------------------------------------------- | ------ |
 | 1   | ~~No product-market fit measurement~~ ✅ | HIGH     | Add user interviews, NPS, activation tracking     | ✅     |
 | 2   | ~~No growth strategy~~ ✅                | HIGH     | Define channels: content, partnerships, referrals | ✅     |
-| 3   | No fundraising materials                 | MEDIUM   | Build pitch deck, financial projections           | ⬜     |
-| 4   | Feature creep risk                       | MEDIUM   | Focus on core 5 surfaces                          | ⬜     |
+| 3   | No fundraising materials                 | MEDIUM   | Build pitch deck, financial projections           | ⬜     |     | 4   | ~~Feature creep risk~~ ✅ | MEDIUM | Focus on core 5 surfaces | ✅  |
 | 5   | ~~No content distribution~~ ✅           | MEDIUM   | SEO strategy, social media, email marketing       | ✅     |
 | 6   | ~~No partnership strategy~~ ✅           | MEDIUM   | Target accounting firms, banks                    | ✅     |
 | 7   | ~~No community~~ ✅                      | LOW      | Build Slack/Discord                               | ✅     |
@@ -284,9 +282,8 @@
 | 1   | No mobile app                          | N/A      | Web only — no mobile/desktop in scope         | N/A    |
 | 2   | ~~No "Why Us vs Them" page~~ ✅        | HIGH     | Create `/compare/quickbooks`, `/compare/xero` | ✅     |
 | 3   | ~~No competitive comparison table~~ ✅ | HIGH     | Add feature comparison on pricing page        | ✅     |
-| 4   | Growth tier priced above Xero          | MEDIUM   | Justify premium or adjust pricing             | ⬜     |     | 5   | ~~No case studies~~ ✅ | MEDIUM | Write 3 customer success stories | ✅  |
-| 6   | Limited integrations                   | MEDIUM   | Prioritize top 10 integrations                | ⬜     |
-| 7   | No win/loss tracking                   | LOW      | Add CRM tracking                              | ⬜     |
+| 4   | Growth tier priced above Xero          | MEDIUM   | Justify premium or adjust pricing             | ⬜     |     | 5   | ~~No case studies~~ ✅      | MEDIUM | Write 3 customer success stories | ✅  |
+| 6   | Limited integrations                   | MEDIUM   | Prioritize top 10 integrations                | ⬜     |     | 7   | ~~No win/loss tracking~~ ✅ | LOW    | Add CRM tracking                 | ✅  |
 
 ---
 
