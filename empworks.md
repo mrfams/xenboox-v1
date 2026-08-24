@@ -150,7 +150,7 @@
 | 2   | ~~No distributed tracing~~ ✅                        | MEDIUM   | Sentry covers tracing + performance monitoring | ✅     |
 | 3   | ~~No API versioning strategy~~ ✅                    | MEDIUM   | Define tRPC procedure versioning policy        | ✅     |
 | 4   | ~~No explicit connection pool config~~ ✅            | MEDIUM   | Configure Neon pool: max, idleTimeout          | ✅     |
-| 5   | `packages/jobs` imports DB directly                  | MEDIUM   | Route through tRPC or agent layer              | ⬜     |
+| 5   | ~~`packages/jobs` imports DB directly~~ ✅           | MEDIUM   | Route through tRPC or agent layer              | ✅     |
 | 6   | ~~Agent health monitoring missing~~ ✅               | LOW      | Build agent status dashboard                   | ✅     |
 | 7   | ~~No R2 fallback for storage~~ ✅                    | LOW      | Add local filesystem fallback                  | ✅     |
 | 8   | ~~No Resend retry queue~~ ✅                         | LOW      | Add retry logic for failed emails              | ✅     |
@@ -220,8 +220,7 @@
 | 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                      | ⬜     |
 | 5   | No on-call rotation           | MEDIUM   | Set up PagerDuty or Opsgenie                 | ⬜     |
 | 6   | ~~No post-mortem process~~ ✅ | MEDIUM   | Create post-mortem template                  | ✅     |
-| 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |
-| 8   | No automated rollback         | MEDIUM   | Add auto-rollback on error rate spike        | ⬜     |
+| 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |     | 8   | ~~No automated rollback~~ ✅ | MEDIUM | Add auto-rollback on error rate spike | ✅  |
 | 9   | ~~No centralized logging~~ ✅ | LOW      | Sentry error tracking + pino structured logs | ✅     |
 | 10  | ~~No capacity planning~~ ✅   | LOW      | Set up resource usage monitoring             | ✅     |
 
