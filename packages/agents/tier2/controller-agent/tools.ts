@@ -347,3 +347,32 @@ export async function queryTrialBalanceFromDB(
       : "Unknown",
   };
 }
+
+// ─── Creation Tools ───────────────────────────────────────────────────────
+
+import {
+  parseCreationIntent,
+  formatConfirmationText,
+  type CreationParseResult,
+  type CreationType,
+} from "../../core/creation-tools";
+
+/**
+ * Parse and validate an invoice creation request from natural language.
+ */
+export async function parseInvoiceCreation(
+  userInput: string,
+  entityContext: { currency: string; entityName: string },
+): Promise<CreationParseResult> {
+  return parseCreationIntent(userInput, "create_invoice", entityContext);
+}
+
+/**
+ * Parse and validate an expense creation request from natural language.
+ */
+export async function parseExpenseCreation(
+  userInput: string,
+  entityContext: { currency: string; entityName: string },
+): Promise<CreationParseResult> {
+  return parseCreationIntent(userInput, "create_expense", entityContext);
+}

@@ -289,3 +289,30 @@ export async function reportRegulatoryStatus(entityId: string): Promise<{
     pendingItems: overdue.length + pending.length + riskDetected.length,
   };
 }
+
+// ─── Creation Tools ───────────────────────────────────────────────────────
+
+import {
+  parseCreationIntent,
+  type CreationParseResult,
+} from "../../core/creation-tools";
+
+/**
+ * Parse and validate a vendor creation request from natural language.
+ */
+export async function parseVendorCreation(
+  userInput: string,
+  entityContext: { currency: string; entityName: string },
+): Promise<CreationParseResult> {
+  return parseCreationIntent(userInput, "create_vendor", entityContext);
+}
+
+/**
+ * Parse and validate a customer creation request from natural language.
+ */
+export async function parseCustomerCreation(
+  userInput: string,
+  entityContext: { currency: string; entityName: string },
+): Promise<CreationParseResult> {
+  return parseCreationIntent(userInput, "create_customer", entityContext);
+}

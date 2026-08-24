@@ -382,3 +382,20 @@ export async function generateTrialBalance(entityId: string, periodId: string) {
     balanced: Math.abs(totalDebits - totalCredits) < 0.01,
   };
 }
+
+// ─── Creation Tools ───────────────────────────────────────────────────────
+
+import {
+  parseCreationIntent,
+  type CreationParseResult,
+} from "../../core/creation-tools";
+
+/**
+ * Parse and validate a journal entry creation request from natural language.
+ */
+export async function parseJournalEntryCreation(
+  userInput: string,
+  entityContext: { currency: string; entityName: string },
+): Promise<CreationParseResult> {
+  return parseCreationIntent(userInput, "create_journal_entry", entityContext);
+}
