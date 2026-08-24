@@ -180,8 +180,7 @@
 | 2 | No churn prevention system | CRITICAL | Build churn prediction + intervention | ✅ |
 | 3 | ~~No NPS survey~~ ✅ | HIGH | Quarterly NPS survey with API + storage | ✅ || 4 | ~~No retention emails~~ ✅ | HIGH | Build post-onboarding email sequence | ✅ |
 | 5 | ~~No upsell prompts~~ ✅ | HIGH | Upsell banner + sidebar upgrade prompt | ✅ || 6 | ~~No QBR template~~ ✅ | HIGH | Build quarterly business review template | ✅ |
-| 7 | ~~No feedback widget~~ ✅ | HIGH | NPS survey includes feedback comments | ✅ || 8 | ~~No referral program~~ ✅ | MEDIUM | Build referral incentive system | ✅ || 9 | ~~No user interview process~~ ✅ | MEDIUM | Schedule monthly user interviews | ✅ |
-| 10 | No support system | MEDIUM | Integrate Intercom or Crisp | ⬜ |
+| 7 | ~~No feedback widget~~ ✅ | HIGH | NPS survey includes feedback comments | ✅ || 8 | ~~No referral program~~ ✅ | MEDIUM | Build referral incentive system | ✅ || 9 | ~~No user interview process~~ ✅ | MEDIUM | Schedule monthly user interviews | ✅ || 10 | ~~No support system~~ ✅ | MEDIUM | Integrate Intercom or Crisp | ✅ |
 
 ---
 
@@ -243,16 +242,15 @@
 
 ## Employee #18: COO — Score: 4.5/10
 
-| #   | Finding                                 | Severity | Fix                                    | Status |
-| --- | --------------------------------------- | -------- | -------------------------------------- | ------ |
-| 1   | No support system                       | HIGH     | Add Intercom or Crisp                  | ⬜     |
-| 2   | ~~No SLA published~~ ✅                 | HIGH     | Define and publish 99.9% uptime SLA    | ✅     |     | 3   | ~~No on-call rotation~~ ✅         | HIGH | Set up PagerDuty           | ✅  |
-| 4   | ~~No PR required for main~~ ✅          | MEDIUM   | Enable branch protection               | ✅     |
-| 5   | ~~No code review standards~~ ✅         | MEDIUM   | Document review checklist              | ✅     |
-| 6   | ~~No test coverage targets~~ ✅         | MEDIUM   | Set 80% target, enforce in CI          | ✅     |
-| 7   | ~~No NPS / feedback loop~~ ✅           | MEDIUM   | NPS survey + feedback widget           | ✅     |
-| 8   | ~~No SOPs~~ ✅                          | MEDIUM   | Document standard operating procedures | ✅     |     | 9   | ~~No internal budget tracking~~ ✅ | LOW  | Track burn rate and runway | ✅  |
-| 10  | ~~No scaling plan beyond 100 users~~ ✅ | LOW      | Document scaling roadmap               | ✅     |
+| # | Finding | Severity | Fix | Status |
+| --- | --------------------------------------- | -------- | -------------------------------------- | ------ || 1 | ~~No support system~~ ✅ | HIGH | Add Intercom or Crisp | ✅ |
+| 2 | ~~No SLA published~~ ✅ | HIGH | Define and publish 99.9% uptime SLA | ✅ | | 3 | ~~No on-call rotation~~ ✅ | HIGH | Set up PagerDuty | ✅ |
+| 4 | ~~No PR required for main~~ ✅ | MEDIUM | Enable branch protection | ✅ |
+| 5 | ~~No code review standards~~ ✅ | MEDIUM | Document review checklist | ✅ |
+| 6 | ~~No test coverage targets~~ ✅ | MEDIUM | Set 80% target, enforce in CI | ✅ |
+| 7 | ~~No NPS / feedback loop~~ ✅ | MEDIUM | NPS survey + feedback widget | ✅ |
+| 8 | ~~No SOPs~~ ✅ | MEDIUM | Document standard operating procedures | ✅ | | 9 | ~~No internal budget tracking~~ ✅ | LOW | Track burn rate and runway | ✅ |
+| 10 | ~~No scaling plan beyond 100 users~~ ✅ | LOW | Document scaling roadmap | ✅ |
 
 ---
 
