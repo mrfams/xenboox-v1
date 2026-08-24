@@ -95,14 +95,14 @@
 
 ## Employee #7: Engineering Critic — Score: 7.5/10
 
-| #   | Finding                                            | Severity | Fix                                                              | Status |
-| --- | -------------------------------------------------- | -------- | ---------------------------------------------------------------- | ------ |
-| 1   | ~~Missing idempotency key on payment creation~~ ✅ | HIGH     | Client-generated idempotency key (already in rlsMutateProcedure) | ✅     |
-| 2   | N+1 query pattern in `banking.ts` autoCategorize   | MEDIUM   | Batch `db.update()` calls                                        | ⬜     |
-| 3   | Error swallowing on PDF download                   | MEDIUM   | Replace silent `catch {}` with `logger.error()`                  | ⬜     |
-| 4   | ~~Blog posts below 1,500 words~~ ✅                | LOW      | All posts already 1,500+ words                                   | ✅     |
-| 5   | No timeout on bank-feed-sync cron job              | MEDIUM   | Add 30s AbortController timeout                                  | ⬜     |
-| 6   | ~~Clipboard write missing error handling~~ ✅      | LOW      | Add try/catch fallback                                           | ✅     |
+| #   | Finding                                                 | Severity | Fix                                                              | Status |
+| --- | ------------------------------------------------------- | -------- | ---------------------------------------------------------------- | ------ |
+| 1   | ~~Missing idempotency key on payment creation~~ ✅      | HIGH     | Client-generated idempotency key (already in rlsMutateProcedure) | ✅     |
+| 2   | ~~N+1 query pattern in `banking.ts` autoCategorize~~ ✅ | MEDIUM   | Batch `db.update()` calls                                        | ✅     |
+| 3   | ~~Error swallowing on PDF download~~ ✅                 | MEDIUM   | Replace silent `catch {}` with `logger.error()`                  | ✅     |
+| 4   | ~~Blog posts below 1,500 words~~ ✅                     | LOW      | All posts already 1,500+ words                                   | ✅     |
+| 5   | ~~No timeout on bank-feed-sync cron job~~ ✅            | MEDIUM   | Add 30s AbortController timeout                                  | ✅     |
+| 6   | ~~Clipboard write missing error handling~~ ✅           | LOW      | Add try/catch fallback                                           | ✅     |
 
 ---
 

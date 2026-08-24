@@ -250,8 +250,8 @@ function ProjectCard({
                                 generatedAt: snapshot.generatedAt,
                               });
                               await downloadDocument(pdfData, "pdf");
-                            } catch {
-                              // Silently fail — PDF generation is best-effort
+                            } catch (err) {
+                              console.error("PDF download failed:", err);
                             } finally {
                               setDownloadingReportId(null);
                             }

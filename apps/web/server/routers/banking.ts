@@ -905,6 +905,13 @@ export const bankingRouter = router({
         });
 
         let categorizedCount = 0;
+        const updates: Array<{
+          id: string;
+          category: string;
+          glAccountId: string | null;
+          categorizedBy: string;
+          confidence: string;
+        }> = [];
 
         for (const tx of uncategorized) {
           let matchedCategory: string | null = null;
@@ -1012,17 +1019,32 @@ export const bankingRouter = router({
           }
 
           if (matchedCategory) {
-            await db
-              .update(bankTransactions)
-              .set({
-                category: matchedCategory,
-                glAccountId: matchedGlAccountId ?? undefined,
-                categorizedBy: matchedBy,
-                categorizationConfidence: confidence.toString(),
-              })
-              .where(eq(bankTransactions.id, tx.id));
-            categorizedCount++;
+            updates.push({
+              id: tx.id,
+              category: matchedCategory,
+              glAccountId: matchedGlAccountId,
+              categorizedBy: matchedBy,
+              confidence: confidence.toString(),
+            });
           }
+        }
+
+        // Batch update to avoid N+1 queries
+        if (updates.length > 0) {
+          await Promise.all(
+            updates.map((u) =>
+              db
+                .update(bankTransactions)
+                .set({
+                  category: u.category,
+                  glAccountId: u.glAccountId ?? undefined,
+                  categorizedBy: u.categorizedBy,
+                  categorizationConfidence: u.confidence,
+                })
+                .where(eq(bankTransactions.id, u.id)),
+            ),
+          );
+          categorizedCount = updates.length;
         }
 
         return { categorizedCount, totalProcessed: uncategorized.length };
