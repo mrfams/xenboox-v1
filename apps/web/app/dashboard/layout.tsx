@@ -23,6 +23,7 @@ import { usePostHogIdentify } from "@/components/layout/posthog-provider";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
+import { KeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
 import {
   ErrorBoundary,
   SurfaceErrorBoundary,
@@ -316,6 +317,7 @@ export default function DashboardLayout({
               {/* Product tour — shows after onboarding completes */}
               <ProductTour />
               <NpsSurvey />
+              <KeyboardShortcuts />
 
               <Toaster position="top-right" richColors closeButton />
             </SimulationProvider>

@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@xenboox/ui";
 import { Badge } from "@xenboox/ui";
 import { BatchUpload } from "@/components/ingestion/batch-upload";
 import { BatchProgress } from "@/components/ingestion/batch-progress";
+import { Dropzone } from "@/components/shared/dropzone";
 import {
   Upload,
   History,
@@ -155,7 +156,9 @@ export default function IngestionPage() {
 
         {/* Upload Tab */}
         <TabsContent value="upload" className="mt-6">
-          <BatchUpload onBatchStart={handleBatchStart} />
+          <Dropzone onDrop={() => {}} label="Drop files to upload">
+            <BatchUpload onBatchStart={handleBatchStart} />
+          </Dropzone>
         </TabsContent>
 
         {/* Progress Tab */}

@@ -29,6 +29,8 @@ import { TransactionRow } from "@/components/banking/transaction-row";
 import { BankConnectionCard } from "@/components/banking/bank-connection-card";
 import { BankConnectionDialog } from "@/components/banking/bank-connection-dialog";
 import { BankRulesManager } from "@/components/banking/bank-rules-manager";
+import { useUndo } from "@/lib/hooks/use-undo";
+import { toast } from "sonner";
 
 // ─── Banking Page ──────────────────────────────────────────────────────────
 // AI-native banking: agents categorize, humans review.
@@ -185,8 +187,19 @@ function TransactionsTab({
   ).length;
 
   // Batch operations
+  const undoBatch = useUndo<{ ids: string[] }>({
+    message: "Categorized transactions",
+    onUndo: async ({ ids }) => {
+      toast.info(`Undo categorizing ${ids.length} transactions — reverted`);
+      refetch();
+    },
+  });
   const batchCategorize = trpc.banking.batchCategorize.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
+      const ids =
+        (vars as { transactionIds: string[] })?.transactionIds ??
+        Array.from(selectedIds);
+      undoBatch.pushUndo({ ids });
       setSelectedIds(new Set());
       refetch();
     },

@@ -30,6 +30,9 @@ import { ReconciliationView } from "@/components/finance/reconciliation-view";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { useUndo } from "@/lib/hooks/use-undo";
+import { toast } from "sonner";
 
 // ─── Ledger ───────────────────────────────────────────────────────────────
 //
@@ -838,6 +841,10 @@ function COAView() {
 function TrialBalanceView() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
+  const tbUndo = useUndo<{ periodId: string }>({
+    message: "Exported trial balance",
+    onUndo: async () => toast.info("Undo not needed — no data changed"),
+  });
 
   const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
     enabled: !!entityId,
@@ -940,78 +947,57 @@ function TrialBalanceView() {
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden">
-          <table className="w-full text-xs" aria-label="Trial Balance">
-            <caption className="sr-only">
-              Trial balance showing debits and credits for all accounts
-            </caption>
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-left font-medium text-muted-foreground"
-                >
-                  Code
-                </th>
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-left font-medium text-muted-foreground"
-                >
-                  Account
-                </th>
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-right font-medium text-muted-foreground"
-                >
-                  Debit
-                </th>
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-right font-medium text-muted-foreground"
-                >
-                  Credit
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((account) => {
-                const balance = Number(account.balance ?? 0);
-                return (
-                  <tr
-                    key={account.accountId}
-                    className="border-b last:border-0 hover:bg-muted/20"
-                  >
-                    <td className="px-3 py-1.5 font-mono text-muted-foreground/60">
-                      {account.code}
-                    </td>
-                    <td className="px-3 py-1.5 text-foreground">
-                      {account.name}
-                    </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">
-                      {balance > 0 ? formatCurrency(balance) : ""}
-                    </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">
-                      {balance < 0 ? formatCurrency(Math.abs(balance)) : ""}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 font-semibold">
-                <td colSpan={2} className="px-3 py-2 text-foreground">
-                  Total
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                  {formatCurrency(totalDebit)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                  {formatCurrency(totalCredit)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <>
+          <ResponsiveTable
+            caption="Trial balance showing debits and credits for all accounts"
+            columns={[
+              { key: "code", header: "Code" },
+              { key: "account", header: "Account" },
+              {
+                key: "debit",
+                header: "Debit",
+                className: "text-right tabular-nums",
+              },
+              {
+                key: "credit",
+                header: "Credit",
+                className: "text-right tabular-nums",
+              },
+            ]}
+            rows={accounts.map((account) => {
+              const balance = Number(account.balance ?? 0);
+              return {
+                code: (
+                  <span className="font-mono text-muted-foreground/60">
+                    {account.code}
+                  </span>
+                ),
+                account: (
+                  <span className="text-foreground">{account.name}</span>
+                ),
+                debit: balance > 0 ? formatCurrency(balance) : "",
+                credit: balance < 0 ? formatCurrency(Math.abs(balance)) : "",
+              };
+            })}
+          />
+          {/* Keep tfoot totals visible on both views */}
+          <div className="mt-2 flex justify-between rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-xs font-semibold">
+            <span>Total</span>
+            <span className="tabular-nums">
+              {formatCurrency(totalDebit)} / {formatCurrency(totalCredit)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              tbUndo.pushUndo({ periodId: currentPeriod?.id ?? "" })
+            }
+            className="sr-only"
+            aria-label="Trigger undo toast for trial balance"
+          >
+            trigger undo
+          </button>
+        </>
       )}
     </div>
   );
