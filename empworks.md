@@ -250,18 +250,18 @@
 
 ## Employee #18: COO — Score: 4.5/10
 
-| #   | Finding                          | Severity | Fix                                    | Status |
-| --- | -------------------------------- | -------- | -------------------------------------- | ------ |
-| 1   | No support system                | HIGH     | Add Intercom or Crisp                  | ⬜     |
-| 2   | ~~No SLA published~~ ✅          | HIGH     | Define and publish 99.9% uptime SLA    | ✅     |
-| 3   | No on-call rotation              | HIGH     | Set up PagerDuty                       | ⬜     |
-| 4   | No PR required for main          | MEDIUM   | Enable branch protection               | ⬜     |
-| 5   | ~~No code review standards~~ ✅  | MEDIUM   | Document review checklist              | ✅     |
-| 6   | ~~No test coverage targets~~ ✅  | MEDIUM   | Set 80% target, enforce in CI          | ✅     |
-| 7   | ~~No NPS / feedback loop~~ ✅    | MEDIUM   | NPS survey + feedback widget           | ✅     |
-| 8   | ~~No SOPs~~ ✅                   | MEDIUM   | Document standard operating procedures | ✅     |
-| 9   | No internal budget tracking      | LOW      | Track burn rate and runway             | ⬜     |
-| 10  | No scaling plan beyond 100 users | LOW      | Document scaling roadmap               | ⬜     |
+| #   | Finding                                 | Severity | Fix                                    | Status |
+| --- | --------------------------------------- | -------- | -------------------------------------- | ------ |
+| 1   | No support system                       | HIGH     | Add Intercom or Crisp                  | ⬜     |
+| 2   | ~~No SLA published~~ ✅                 | HIGH     | Define and publish 99.9% uptime SLA    | ✅     |
+| 3   | No on-call rotation                     | HIGH     | Set up PagerDuty                       | ⬜     |
+| 4   | ~~No PR required for main~~ ✅          | MEDIUM   | Enable branch protection               | ✅     |
+| 5   | ~~No code review standards~~ ✅         | MEDIUM   | Document review checklist              | ✅     |
+| 6   | ~~No test coverage targets~~ ✅         | MEDIUM   | Set 80% target, enforce in CI          | ✅     |
+| 7   | ~~No NPS / feedback loop~~ ✅           | MEDIUM   | NPS survey + feedback widget           | ✅     |
+| 8   | ~~No SOPs~~ ✅                          | MEDIUM   | Document standard operating procedures | ✅     |
+| 9   | No internal budget tracking             | LOW      | Track burn rate and runway             | ⬜     |
+| 10  | ~~No scaling plan beyond 100 users~~ ✅ | LOW      | Document scaling roadmap               | ✅     |
 
 ---
 
@@ -313,8 +313,7 @@
 | #   | Finding                             | Severity | Fix                                       | Status |
 | --- | ----------------------------------- | -------- | ----------------------------------------- | ------ |
 | 1   | No AARRR metrics tracked            | CRITICAL | Add PostHog for full funnel               | ✅     |
-| 2   | ~~No north star metric defined~~ ✅ | HIGH     | Define "Weekly Active AI Interactions"    | ✅     |
-| 3   | No feature adoption tracking        | HIGH     | Track events for every major feature      | ⬜     |
+| 2   | ~~No north star metric defined~~ ✅ | HIGH     | Define "Weekly Active AI Interactions"    | ✅     |     | 3   | ~~No feature adoption tracking~~ ✅ | HIGH | Track events for every major feature | ✅  |
 | 4   | No user segmentation                | HIGH     | Segment by size, industry, usage, channel | ⬜     |
 | 5   | No funnel analysis                  | MEDIUM   | Build signup → activation → paid funnel   | ⬜     |
 | 6   | No cohort analysis                  | MEDIUM   | Track retention by signup month           | ⬜     |
