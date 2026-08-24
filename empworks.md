@@ -307,12 +307,11 @@
 
 | #   | Finding                            | Severity | Fix                                      | Status |
 | --- | ---------------------------------- | -------- | ---------------------------------------- | ------ |
-| 1   | ~~No Gambian ICP defined~~ ✅      | HIGH     | Define ICP for Gambian market            | ✅     |
-| 2   | No CRM                             | HIGH     | Add HubSpot free tier                    | ⬜     |
+| 1   | ~~No Gambian ICP defined~~ ✅      | HIGH     | Define ICP for Gambian market            | ✅     |     | 2   | ~~No CRM~~ ✅              | HIGH | Add HubSpot free tier     | ✅  |
 | 3   | ~~No lead generation channels~~ ✅ | HIGH     | Build content + LinkedIn + partnerships  | ✅     |
 | 4   | No sales collateral                | MEDIUM   | Create one-pager, pitch deck, demo video | ⬜     |
 | 5   | No lead scoring                    | MEDIUM   | Implement BANT framework                 | ⬜     |
-| 6   | ~~No buyer personas~~ ✅           | MEDIUM   | Define CFO, Owner, Accountant personas   | ✅     |     | 7   | ~~No referral program~~ ✅ | LOW | Build referral incentives | ✅  |
+| 6   | ~~No buyer personas~~ ✅           | MEDIUM   | Define CFO, Owner, Accountant personas   | ✅     |     | 7   | ~~No referral program~~ ✅ | LOW  | Build referral incentives | ✅  |
 
 ---
 
