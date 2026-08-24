@@ -159,11 +159,10 @@
 
 ## Employee #12: Finance Analyst — Score: 8/10
 
-| #   | Finding                                                    | Severity | Fix                                | Status |
-| --- | ---------------------------------------------------------- | -------- | ---------------------------------- | ------ |
-| 1   | ~~No internal business metrics (MRR, churn, CAC, LTV)~~ ✅ | HIGH     | Build internal admin dashboard     | ✅     |
-| 2   | No COA import from QuickBooks/Xero                         | MEDIUM   | Add import wizard                  | ⬜     |     | 3   | ~~No comparative financial reporting~~ ✅ | MEDIUM | Add "vs last month" and "vs budget" columns | ✅  |     | 4   | ~~No proactive budget alerts~~ ✅ | MEDIUM | Add threshold alerts         | ✅  |     | 5   | ~~No what-if scenario builder~~ ✅       | MEDIUM | Add interactive cash flow modeling   | ✅  |
-| 6   | Floating-point on monetary values                          | MEDIUM   | Verify integer cents or decimal.js | ⬜     |     | 7   | ~~No customizable aging buckets~~ ✅      | LOW    | Allow custom aging periods                  | ✅  |     | 8   | ~~No tax calendar view~~ ✅       | LOW    | Add visual deadline calendar | ✅  |     | 9   | ~~No direct method cash flow option~~ ✅ | LOW    | Add direct method alongside indirect | ✅  |
+| #   | Finding                                                    | Severity | Fix                            | Status |
+| --- | ---------------------------------------------------------- | -------- | ------------------------------ | ------ |
+| 1   | ~~No internal business metrics (MRR, churn, CAC, LTV)~~ ✅ | HIGH     | Build internal admin dashboard | ✅     |
+| 2   | No COA import from QuickBooks/Xero                         | MEDIUM   | Add import wizard              | ⬜     |     | 3   | ~~No comparative financial reporting~~ ✅ | MEDIUM | Add "vs last month" and "vs budget" columns | ✅  |     | 4   | ~~No proactive budget alerts~~ ✅ | MEDIUM | Add threshold alerts | ✅  |     | 5   | ~~No what-if scenario builder~~ ✅ | MEDIUM | Add interactive cash flow modeling | ✅  |     | 6   | ~~Floating-point on monetary values~~ ✅ | MEDIUM | Verify integer cents or decimal.js | ✅  |     | 7   | ~~No customizable aging buckets~~ ✅ | LOW | Allow custom aging periods | ✅  |     | 8   | ~~No tax calendar view~~ ✅ | LOW | Add visual deadline calendar | ✅  |     | 9   | ~~No direct method cash flow option~~ ✅ | LOW | Add direct method alongside indirect | ✅  |
 
 ---
 
