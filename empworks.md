@@ -131,7 +131,7 @@
 | 5   | No comparison sheet vs competitors     | MEDIUM   | Build QuickBooks/Xero comparison page  | ⬜     |
 | 6   | No "Most Popular" badge                | MEDIUM   | Highlight recommended tier             | ⬜     |
 | 7   | No one-pager                           | LOW      | Create downloadable PDF summary        | ⬜     |
-| 8   | No "For Accountants" page              | LOW      | Create `/for-accountants` landing page | ⬜     |
+| 8   | ~~No "For Accountants" page~~ ✅       | LOW      | Create `/for-accountants` landing page | ✅     |
 
 ---
 
@@ -343,16 +343,16 @@
 
 ## Employee #24: Automation Specialist — Score: 6.5/10
 
-| #   | Finding                 | Severity | Fix                                | Status |
-| --- | ----------------------- | -------- | ---------------------------------- | ------ |
-| 1   | No receipt/invoice OCR  | HIGH     | Add OCR for data extraction        | ⬜     |
-| 2   | No WhatsApp integration | HIGH     | Add WhatsApp notifications         | ⬜     |
-| 3   | No batch operations     | MEDIUM   | Add bulk categorize, approve, send | ⬜     |
-| 4   | No migration tools      | MEDIUM   | Build QuickBooks/Xero import       | ⬜     |
-| 5   | No Excel/CSV export     | MEDIUM   | Add export for all reports         | ⬜     |
-| 6   | No Slack integration    | MEDIUM   | Add Slack notifications            | ⬜     |
-| 7   | No in-app notifications | MEDIUM   | Add notification bell              | ⬜     |
-| 8   | No calendar sync        | LOW      | Add Google Calendar sync           | ⬜     |
+| #   | Finding                    | Severity | Fix                                | Status |
+| --- | -------------------------- | -------- | ---------------------------------- | ------ |
+| 1   | No receipt/invoice OCR     | HIGH     | Add OCR for data extraction        | ⬜     |
+| 2   | No WhatsApp integration    | HIGH     | Add WhatsApp notifications         | ⬜     |
+| 3   | No batch operations        | MEDIUM   | Add bulk categorize, approve, send | ⬜     |
+| 4   | No migration tools         | MEDIUM   | Build QuickBooks/Xero import       | ⬜     |
+| 5   | ~~No Excel/CSV export~~ ✅ | MEDIUM   | Add export for all reports         | ✅     |
+| 6   | No Slack integration       | MEDIUM   | Add Slack notifications            | ⬜     |
+| 7   | No in-app notifications    | MEDIUM   | Add notification bell              | ⬜     |
+| 8   | No calendar sync           | LOW      | Add Google Calendar sync           | ⬜     |
 
 ---
 

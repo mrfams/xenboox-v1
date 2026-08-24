@@ -30,6 +30,7 @@ import {
   FileText,
   Plus,
   Link2,
+  Download,
 } from "lucide-react";
 import { cn } from "@xenboox/ui";
 import { formatCurrency } from "@/lib/utils";
@@ -54,6 +55,39 @@ interface Invoice {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────
+
+function exportCsv(invoices: Invoice[]) {
+  const headers = [
+    "Invoice #",
+    "Date",
+    "Due Date",
+    "Customer",
+    "Amount",
+    "Balance",
+    "Status",
+  ];
+  const rows = invoices.map((inv) => [
+    inv.invoiceNumber,
+    inv.invoiceDate,
+    inv.dueDate ?? "",
+    inv.customerName ?? "",
+    inv.totalAmount.toFixed(2),
+    inv.balance.toFixed(2),
+    inv.status,
+  ]);
+  const csv = [headers, ...rows]
+    .map((r) => r.map((c) => `"${c}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `invoices-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 export function InvoicesView() {
   const { entityId } = useEntity();
@@ -183,6 +217,10 @@ export function InvoicesView() {
             <TabsTrigger value="paid">Paid</TabsTrigger>
           </TabsList>
         </Tabs>
+        <Button size="sm" onClick={() => exportCsv(invoices)}>
+          <Download className="h-4 w-4 mr-1" />
+          Export CSV
+        </Button>
         <Button size="sm">
           <Plus className="h-4 w-4 mr-1" />
           Create Invoice
