@@ -130,7 +130,7 @@
 | 4   | No case studies                        | MEDIUM   | Write 2-3 detailed customer stories    | ⬜     |
 | 5   | No comparison sheet vs competitors     | MEDIUM   | Build QuickBooks/Xero comparison page  | ⬜     |
 | 6   | No "Most Popular" badge                | MEDIUM   | Highlight recommended tier             | ⬜     |
-| 7   | No one-pager                           | LOW      | Create downloadable PDF summary        | ⬜     |
+| 7   | ~~No one-pager~~ ✅                    | LOW      | Create downloadable PDF summary        | ✅     |
 | 8   | ~~No "For Accountants" page~~ ✅       | LOW      | Create `/for-accountants` landing page | ✅     |
 
 ---
@@ -224,7 +224,7 @@
 | 3   | No cost monitoring            | HIGH     | Add Vercel cost dashboard + budget alerts    | ⬜     |
 | 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                      | ⬜     |
 | 5   | No on-call rotation           | MEDIUM   | Set up PagerDuty or Opsgenie                 | ⬜     |
-| 6   | No post-mortem process        | MEDIUM   | Create post-mortem template                  | ⬜     |
+| 6   | ~~No post-mortem process~~ ✅ | MEDIUM   | Create post-mortem template                  | ✅     |
 | 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |
 | 8   | No automated rollback         | MEDIUM   | Add auto-rollback on error rate spike        | ⬜     |
 | 9   | ~~No centralized logging~~ ✅ | LOW      | Sentry error tracking + pino structured logs | ✅     |
@@ -254,7 +254,7 @@
 | #   | Finding                          | Severity | Fix                                    | Status |
 | --- | -------------------------------- | -------- | -------------------------------------- | ------ |
 | 1   | No support system                | HIGH     | Add Intercom or Crisp                  | ⬜     |
-| 2   | No SLA published                 | HIGH     | Define and publish 99.9% uptime SLA    | ⬜     |
+| 2   | ~~No SLA published~~ ✅          | HIGH     | Define and publish 99.9% uptime SLA    | ✅     |
 | 3   | No on-call rotation              | HIGH     | Set up PagerDuty                       | ⬜     |
 | 4   | No PR required for main          | MEDIUM   | Enable branch protection               | ⬜     |
 | 5   | No code review standards         | MEDIUM   | Document review checklist              | ⬜     |
