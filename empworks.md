@@ -282,7 +282,7 @@
 | --- | ------------------------------------- | -------- | --------------------------------- | ------ |
 | 1   | No analytics event tracking           | CRITICAL | Add PostHog or Mixpanel           | ✅     |     | 2   | ~~No activation funnel~~ ✅ | HIGH | Track signup → setup → connect → first-value | ✅  |     | 3   | ~~No retention tracking~~ ✅ | HIGH | Build D1/D7/D30 retention curves | ✅  |
 | 4   | ~~No internal business dashboard~~ ✅ | HIGH     | Build admin dashboard             | ✅     |
-| 5   | No A/B testing                        | MEDIUM   | Add PostHog experiments           | ⬜     |
+| 5   | ~~No A/B testing~~ ✅                 | MEDIUM   | Add PostHog experiments           | ✅     |
 | 6   | No session recording                  | MEDIUM   | Add Hotjar or FullStory           | ⬜     |
 | 7   | ~~No cohort analysis~~ ✅             | MEDIUM   | Track user cohorts by signup date | ✅     |
 | 8   | No feature adoption tracking          | MEDIUM   | Track feature usage events        | ⬜     |
@@ -297,7 +297,7 @@
 | 2   | ~~No north star metric defined~~ ✅ | HIGH     | Define "Weekly Active AI Interactions"  | ✅     |     | 3   | ~~No feature adoption tracking~~ ✅ | HIGH | Track events for every major feature | ✅  |     | 4   | ~~No user segmentation~~ ✅ | HIGH | Segment by size, industry, usage, channel | ✅  |
 | 5   | No funnel analysis                  | MEDIUM   | Build signup → activation → paid funnel | ⬜     |
 | 6   | ~~No cohort analysis~~ ✅           | MEDIUM   | Track retention by signup month         | ✅     |
-| 7   | No A/B testing                      | MEDIUM   | Add experimentation framework           | ⬜     |
+| 7   | ~~No A/B testing~~ ✅               | MEDIUM   | Add experimentation framework           | ✅     |
 
 ---
 
