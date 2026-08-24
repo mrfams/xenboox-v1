@@ -91,6 +91,7 @@ import { dailyCloseRouter } from "./daily-close";
 import { autoApproveRouter } from "./auto-approve";
 import { batchIngestionRouter } from "./batch-ingestion";
 import { donorGrantRouter } from "./donor-grant";
+import { referralsRouter } from "./referrals";
 
 import { router, publicProcedure } from "@/lib/trpc/server";
 
@@ -188,6 +189,7 @@ export const appRouter = router({
   autoApprove: autoApproveRouter,
   batchIngestion: batchIngestionRouter,
   donorGrant: donorGrantRouter,
+  referrals: referralsRouter,
 });
 
 export type AppRouter = typeof appRouter;

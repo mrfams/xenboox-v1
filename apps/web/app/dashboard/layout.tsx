@@ -17,6 +17,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { ProductTour } from "@/components/onboarding/product-tour";
 import { NpsSurvey } from "@/components/dashboard/nps-survey";
+import { LiveChatWidget } from "@/components/dashboard/live-chat-widget";
 import { useRouteFocus } from "@/lib/hooks/use-route-focus";
 import { useSurfaceShortcuts } from "@/lib/hooks/use-surface-shortcuts";
 import { usePostHogIdentify } from "@/components/layout/posthog-provider";
@@ -330,6 +331,7 @@ export default function DashboardLayout({
               {/* Product tour — shows after onboarding completes */}
               <ProductTour />
               <NpsSurvey />
+              <LiveChatWidget />
               <KeyboardShortcuts />
 
               <Toaster position="top-right" richColors closeButton />
