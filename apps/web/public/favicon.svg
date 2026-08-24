@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="XBX">
   <defs>
     <linearGradient id="lg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
       <stop stop-color="#2563eb"/>
@@ -6,12 +6,13 @@
     </linearGradient>
   </defs>
   <rect width="32" height="32" rx="8" fill="url(#lg)"/>
-  <g stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M6.1 9L10.4 16L6.1 23"/>
-    <path d="M10.4 9L6.1 16L10.4 23"/>
-    <path d="M13.1 8.5L13.1 23.5"/>
-    <path d="M13.1 12C17 12 19.5 14.2 19.5 17.5C19.5 20.8 17 23.5 13.1 23.5"/>
-    <path d="M21.6 9L25.9 16L21.6 23"/>
-    <path d="M25.9 9L21.6 16L25.9 23"/>
+  <g stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 7.5 L12.2 24.5"/>
+    <path d="M12.2 7.5 L7 24.5"/>
+    <path d="M14 7.2 L14 24.8"/>
+    <path d="M14 7.2 H18.1 C20.2 7.2 21.7 8.9 21.7 11.4 C21.7 13.9 20.2 15.8 18.1 15.8 H14"/>
+    <path d="M14 15.8 H18.2 C20.4 15.8 21.9 17.7 21.9 20.3 C21.9 22.9 20.4 24.8 18.2 24.8 H14"/>
+    <path d="M20 7.5 L25.2 24.5"/>
+    <path d="M25.2 7.5 L20 24.5"/>
   </g>
 </svg>

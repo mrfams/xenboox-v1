@@ -21,52 +21,60 @@ export function Logo({
         viewBox="0 0 32 32"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        aria-label="Xenboox logo"
+        aria-label="XBX"
+        role="img"
       >
         <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
-        {/* Lowercase "xbx" letterforms */}
-        {/* x — left */}
+        {/* XBX — uppercase premium monogram */}
+        {/* X — left */}
         <path
-          d="M6.1 9L10.4 16L6.1 23"
+          d="M7 7.5 L12.2 24.5"
           stroke="white"
-          strokeWidth="2.6"
+          strokeWidth="2.8"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <path
-          d="M10.4 9L6.1 16L10.4 23"
+          d="M12.2 7.5 L7 24.5"
           stroke="white"
-          strokeWidth="2.6"
+          strokeWidth="2.8"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* b — vertical stem with a rounded bowl */}
+        {/* B — stem + two bowls */}
         <path
-          d="M13.1 8.5L13.1 23.5"
+          d="M14 7.2 L14 24.8"
           stroke="white"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M13.1 12C17 12 19.5 14.2 19.5 17.5C19.5 20.8 17 23.5 13.1 23.5"
-          stroke="white"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {/* x — right */}
-        <path
-          d="M21.6 9L25.9 16L21.6 23"
-          stroke="white"
-          strokeWidth="2.6"
+          strokeWidth="2.8"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <path
-          d="M25.9 9L21.6 16L25.9 23"
+          d="M14 7.2 H18.1 C20.2 7.2 21.7 8.9 21.7 11.4 C21.7 13.9 20.2 15.8 18.1 15.8 H14"
           stroke="white"
-          strokeWidth="2.6"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M14 15.8 H18.2 C20.4 15.8 21.9 17.7 21.9 20.3 C21.9 22.9 20.4 24.8 18.2 24.8 H14"
+          stroke="white"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* X — right */}
+        <path
+          d="M20 7.5 L25.2 24.5"
+          stroke="white"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M25.2 7.5 L20 24.5"
+          stroke="white"
+          strokeWidth="2.8"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
