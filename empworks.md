@@ -314,13 +314,9 @@
 
 ## Employee #24: Automation Specialist — Score: 6.5/10
 
-| #   | Finding                    | Severity | Fix                         | Status |
-| --- | -------------------------- | -------- | --------------------------- | ------ |
-| 1   | No receipt/invoice OCR     | HIGH     | Add OCR for data extraction | ⬜     |
-| 2   | No WhatsApp integration    | HIGH     | Add WhatsApp notifications  | ⬜     |     | 3   | ~~No batch operations~~ ✅     | MEDIUM | Add bulk categorize, approve, send | ✅  |     | 4   | ~~No migration tools~~ ✅ | MEDIUM | Build QuickBooks/Xero import | ✅  |
-| 5   | ~~No Excel/CSV export~~ ✅ | MEDIUM   | Add export for all reports  | ✅     |
-| 6   | No Slack integration       | MEDIUM   | Add Slack notifications     | ⬜     |     | 7   | ~~No in-app notifications~~ ✅ | MEDIUM | Add notification bell              | ✅  |
-| 8   | No calendar sync           | LOW      | Add Google Calendar sync    | ⬜     |
+| # | Finding | Severity | Fix | Status |
+| --- | -------------------------- | -------- | --------------------------- | ------ || 1 | ~~No receipt/invoice OCR~~ ✅ | HIGH | Add OCR for data extraction | ✅ || 2 | ~~No WhatsApp integration~~ ✅ | HIGH | Add WhatsApp notifications | ✅ | | 3 | ~~No batch operations~~ ✅ | MEDIUM | Add bulk categorize, approve, send | ✅ | | 4 | ~~No migration tools~~ ✅ | MEDIUM | Build QuickBooks/Xero import | ✅ |
+| 5 | ~~No Excel/CSV export~~ ✅ | MEDIUM | Add export for all reports | ✅ || 6 | ~~No Slack integration~~ ✅ | MEDIUM | Add Slack notifications | ✅ | | 7 | ~~No in-app notifications~~ ✅ | MEDIUM | Add notification bell | ✅ || 8 | ~~No calendar sync~~ ✅ | LOW | Add Google Calendar sync | ✅ |
 
 ---
 
