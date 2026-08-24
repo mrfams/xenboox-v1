@@ -293,29 +293,27 @@
 
 ## Employee #21: Data Analyst — Score: 4/10
 
-| #   | Finding                               | Severity | Fix                                          | Status |
-| --- | ------------------------------------- | -------- | -------------------------------------------- | ------ |
-| 1   | No analytics event tracking           | CRITICAL | Add PostHog or Mixpanel                      | ✅     |
-| 2   | No activation funnel                  | HIGH     | Track signup → setup → connect → first-value | ⬜     |
-| 3   | No retention tracking                 | HIGH     | Build D1/D7/D30 retention curves             | ⬜     |
-| 4   | ~~No internal business dashboard~~ ✅ | HIGH     | Build admin dashboard                        | ✅     |
-| 5   | No A/B testing                        | MEDIUM   | Add PostHog experiments                      | ⬜     |
-| 6   | No session recording                  | MEDIUM   | Add Hotjar or FullStory                      | ⬜     |
-| 7   | No cohort analysis                    | MEDIUM   | Track user cohorts by signup date            | ⬜     |
-| 8   | No feature adoption tracking          | MEDIUM   | Track feature usage events                   | ⬜     |
+| #   | Finding                               | Severity | Fix                               | Status |
+| --- | ------------------------------------- | -------- | --------------------------------- | ------ |
+| 1   | No analytics event tracking           | CRITICAL | Add PostHog or Mixpanel           | ✅     |     | 2   | ~~No activation funnel~~ ✅ | HIGH | Track signup → setup → connect → first-value | ✅  |
+| 3   | No retention tracking                 | HIGH     | Build D1/D7/D30 retention curves  | ⬜     |
+| 4   | ~~No internal business dashboard~~ ✅ | HIGH     | Build admin dashboard             | ✅     |
+| 5   | No A/B testing                        | MEDIUM   | Add PostHog experiments           | ⬜     |
+| 6   | No session recording                  | MEDIUM   | Add Hotjar or FullStory           | ⬜     |
+| 7   | No cohort analysis                    | MEDIUM   | Track user cohorts by signup date | ⬜     |
+| 8   | No feature adoption tracking          | MEDIUM   | Track feature usage events        | ⬜     |
 
 ---
 
 ## Employee #22: Product Analyst — Score: 2/10
 
-| #   | Finding                             | Severity | Fix                                       | Status |
-| --- | ----------------------------------- | -------- | ----------------------------------------- | ------ |
-| 1   | No AARRR metrics tracked            | CRITICAL | Add PostHog for full funnel               | ✅     |
-| 2   | ~~No north star metric defined~~ ✅ | HIGH     | Define "Weekly Active AI Interactions"    | ✅     |     | 3   | ~~No feature adoption tracking~~ ✅ | HIGH | Track events for every major feature | ✅  |
-| 4   | No user segmentation                | HIGH     | Segment by size, industry, usage, channel | ⬜     |
-| 5   | No funnel analysis                  | MEDIUM   | Build signup → activation → paid funnel   | ⬜     |
-| 6   | No cohort analysis                  | MEDIUM   | Track retention by signup month           | ⬜     |
-| 7   | No A/B testing                      | MEDIUM   | Add experimentation framework             | ⬜     |
+| #   | Finding                             | Severity | Fix                                     | Status |
+| --- | ----------------------------------- | -------- | --------------------------------------- | ------ |
+| 1   | No AARRR metrics tracked            | CRITICAL | Add PostHog for full funnel             | ✅     |
+| 2   | ~~No north star metric defined~~ ✅ | HIGH     | Define "Weekly Active AI Interactions"  | ✅     |     | 3   | ~~No feature adoption tracking~~ ✅ | HIGH | Track events for every major feature | ✅  |     | 4   | ~~No user segmentation~~ ✅ | HIGH | Segment by size, industry, usage, channel | ✅  |
+| 5   | No funnel analysis                  | MEDIUM   | Build signup → activation → paid funnel | ⬜     |
+| 6   | No cohort analysis                  | MEDIUM   | Track retention by signup month         | ⬜     |
+| 7   | No A/B testing                      | MEDIUM   | Add experimentation framework           | ⬜     |
 
 ---
 
@@ -335,14 +333,13 @@
 
 ## Employee #24: Automation Specialist — Score: 6.5/10
 
-| #   | Finding                    | Severity | Fix                          | Status |
-| --- | -------------------------- | -------- | ---------------------------- | ------ |
-| 1   | No receipt/invoice OCR     | HIGH     | Add OCR for data extraction  | ⬜     |
-| 2   | No WhatsApp integration    | HIGH     | Add WhatsApp notifications   | ⬜     |     | 3   | ~~No batch operations~~ ✅     | MEDIUM | Add bulk categorize, approve, send | ✅  |
-| 4   | No migration tools         | MEDIUM   | Build QuickBooks/Xero import | ⬜     |
-| 5   | ~~No Excel/CSV export~~ ✅ | MEDIUM   | Add export for all reports   | ✅     |
-| 6   | No Slack integration       | MEDIUM   | Add Slack notifications      | ⬜     |     | 7   | ~~No in-app notifications~~ ✅ | MEDIUM | Add notification bell              | ✅  |
-| 8   | No calendar sync           | LOW      | Add Google Calendar sync     | ⬜     |
+| #   | Finding                    | Severity | Fix                         | Status |
+| --- | -------------------------- | -------- | --------------------------- | ------ |
+| 1   | No receipt/invoice OCR     | HIGH     | Add OCR for data extraction | ⬜     |
+| 2   | No WhatsApp integration    | HIGH     | Add WhatsApp notifications  | ⬜     |     | 3   | ~~No batch operations~~ ✅     | MEDIUM | Add bulk categorize, approve, send | ✅  |     | 4   | ~~No migration tools~~ ✅ | MEDIUM | Build QuickBooks/Xero import | ✅  |
+| 5   | ~~No Excel/CSV export~~ ✅ | MEDIUM   | Add export for all reports  | ✅     |
+| 6   | No Slack integration       | MEDIUM   | Add Slack notifications     | ⬜     |     | 7   | ~~No in-app notifications~~ ✅ | MEDIUM | Add notification bell              | ✅  |
+| 8   | No calendar sync           | LOW      | Add Google Calendar sync    | ⬜     |
 
 ---
 
