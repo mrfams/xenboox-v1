@@ -168,8 +168,7 @@
 
 | #   | Finding                                                    | Severity | Fix                                         | Status |
 | --- | ---------------------------------------------------------- | -------- | ------------------------------------------- | ------ |
-| 1   | ~~No internal business metrics (MRR, churn, CAC, LTV)~~ ✅ | HIGH     | Build internal admin dashboard              | ✅     |
-| 2   | No COA import from QuickBooks/Xero                         | MEDIUM   | Add import wizard                           | ⬜     |
+| 1   | ~~No internal business metrics (MRR, churn, CAC, LTV)~~ ✅ | HIGH     | Build internal admin dashboard              | ✅     |     | 2   | ~~No COA import from QuickBooks/Xero~~ ✅ | MEDIUM | Add import wizard | ✅  |
 | 3   | ~~No comparative financial reporting~~ ✅                  | MEDIUM   | Add "vs last month" and "vs budget" columns | ✅     |
 | 4   | ~~No proactive budget alerts~~ ✅                          | MEDIUM   | Add threshold alerts                        | ✅     |
 | 5   | ~~No what-if scenario builder~~ ✅                         | MEDIUM   | Add interactive cash flow modeling          | ✅     |
