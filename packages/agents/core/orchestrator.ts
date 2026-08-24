@@ -109,7 +109,11 @@ export type AgentTaskType =
   | "submit_expense"
   | "approve_expense"
   | "reimburse_expense"
-  | "expense_report";
+  | "expense_report"
+  | "create_invoice"
+  | "create_vendor"
+  | "create_customer"
+  | "create_journal_entry";
 
 export type AgentTier = "tier1" | "tier2" | "tier3" | "platform";
 
