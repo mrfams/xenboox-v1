@@ -1554,4 +1554,241 @@ export const chatRouter = router({
         (r) => r.conversation.id !== input.excludeConversationId,
       );
     }),
+
+  // ─── Creation Confirmation ──────────────────────────────────────────────
+
+  /**
+   * Confirm and execute an AI-parsed creation. The frontend sends the
+n   * parsed data back; this mutation validates and executes the tRPC
+n   * mutation, logging to the audit trail.
+   */
+  confirmCreation: rlsProtectedProcedure
+    .input(
+      z.object({
+        creationType: z.enum([
+          "create_invoice",
+          "create_vendor",
+          "create_customer",
+          "create_expense",
+          "create_journal_entry",
+        ]),
+        parsedData: z.record(z.unknown()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+      const userId = ctx.session!.user!.id!;
+
+      switch (input.creationType) {
+        case "create_invoice": {
+          const { salesInvoices, salesInvoiceLines, customers } =
+            await import("@xenboox/db/schema");
+          const { eq: eqOp } = await import("drizzle-orm");
+
+          const data = input.parsedData as {
+            customerName: string;
+            customerEmail?: string;
+            lines: Array<{
+              description: string;
+              quantity: number;
+              unitPrice: number;
+            }>;
+            currency: string;
+            dueInDays: number;
+            notes?: string;
+          };
+
+          // Find or create customer
+          let customer = await db.query.customers.findFirst({
+            where: eqOp(customers.name, data.customerName),
+          });
+
+          if (!customer) {
+            const [newCustomer] = await db
+              .insert(customers)
+              .values({
+                entityId,
+                name: data.customerName,
+                email: data.customerEmail ?? null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .returning();
+            customer = newCustomer;
+          }
+
+          const totalAmount = data.lines.reduce(
+            (sum, l) => sum + l.quantity * l.unitPrice,
+            0,
+          );
+
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + data.dueInDays);
+
+          const [invoice] = await db
+            .insert(salesInvoices)
+            .values({
+              entityId,
+              customerId: customer!.id,
+              invoiceNumber: `INV-${Date.now()}`,
+              status: "draft",
+              currency: data.currency,
+              totalAmount: String(totalAmount),
+              taxAmount: "0",
+              discountAmount: "0",
+              amountPaid: "0",
+              balance: String(totalAmount),
+              issueDate: new Date(),
+              dueDate,
+              notes: data.notes ?? null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+
+          for (const line of data.lines) {
+            await db.insert(salesInvoiceLines).values({
+              entityId,
+              invoiceId: invoice.id,
+              description: line.description,
+              quantity: String(line.quantity),
+              unitPrice: String(line.unitPrice),
+              amount: String(line.quantity * line.unitPrice),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+
+          return { success: true, id: invoice.id, type: "invoice" as const };
+        }
+
+        case "create_vendor": {
+          const { suppliers } = await import("@xenboox/db/schema");
+          const data = input.parsedData as {
+            name: string;
+            email?: string;
+            phone?: string;
+            taxId?: string;
+          };
+
+          const [vendor] = await db
+            .insert(suppliers)
+            .values({
+              entityId,
+              name: data.name,
+              email: data.email ?? null,
+              phone: data.phone ?? null,
+              taxId: data.taxId ?? null,
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+
+          return { success: true, id: vendor.id, type: "vendor" as const };
+        }
+
+        case "create_customer": {
+          const { customers } = await import("@xenboox/db/schema");
+          const data = input.parsedData as {
+            name: string;
+            email?: string;
+            phone?: string;
+            taxId?: string;
+          };
+
+          const [customer] = await db
+            .insert(customers)
+            .values({
+              entityId,
+              name: data.name,
+              email: data.email ?? null,
+              phone: data.phone ?? null,
+              taxId: data.taxId ?? null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+
+          return { success: true, id: customer.id, type: "customer" as const };
+        }
+
+        case "create_expense": {
+          // Reuse existing expense creation logic
+          const { expenses } = await import("@xenboox/db/schema");
+          const data = input.parsedData as {
+            description: string;
+            amount: number;
+            currency: string;
+            vendorName?: string;
+            category?: string;
+          };
+
+          const [expense] = await db
+            .insert(expenses)
+            .values({
+              entityId,
+              description: data.description,
+              amount: String(data.amount),
+              currency: data.currency,
+              status: "draft",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+
+          return { success: true, id: expense.id, type: "expense" as const };
+        }
+
+        case "create_journal_entry": {
+          const { journalEntries: jeTable, journalEntryLines: jeLines } =
+            await import("@xenboox/db/schema/accounting");
+          const data = input.parsedData as {
+            description: string;
+            lines: Array<{
+              accountCode: string;
+              debit: number;
+              credit: number;
+            }>;
+          };
+
+          const [entry] = await db
+            .insert(jeTable)
+            .values({
+              entityId,
+              description: data.description,
+              entryDate: new Date(),
+              status: "draft",
+              createdBy: userId,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+
+          for (const line of data.lines) {
+            await db.insert(jeLines).values({
+              entityId,
+              journalEntryId: entry.id,
+              accountId: line.accountCode,
+              debit: String(line.debit),
+              credit: String(line.credit),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+
+          return {
+            success: true,
+            id: entry.id,
+            type: "journal_entry" as const,
+          };
+        }
+
+        default:
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Unknown creation type: ${input.creationType}`,
+          });
+      }
+    }),
 });

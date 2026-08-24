@@ -7,8 +7,24 @@ import { AgentActivityBlock } from "./agent-activity-block";
 import { ThinkingReveal } from "./thinking-reveal";
 import { DocumentCard, type ArtifactCardItem } from "./document-card";
 import { ApprovalPrompt } from "./approval-prompt";
+import { CreationConfirmCard } from "./creation-confirm-card";
 
 import type { ThinkingEvent, ToolTrace } from "@/lib/hooks/use-streaming-chat";
+
+type CreationCardType =
+  | "create_invoice"
+  | "create_vendor"
+  | "create_customer"
+  | "create_expense"
+  | "create_journal_entry";
+
+interface CreationCard {
+  id: string;
+  type: CreationCardType;
+  title: string;
+  description: string;
+  confidence: number;
+}
 
 interface StreamingMessageProps {
   content: string;
@@ -33,6 +49,7 @@ interface StreamingMessageProps {
     url?: string;
   }>;
   approvals?: Array<{ title: string; description: string; amount?: string }>;
+  creationCards?: CreationCard[];
   toolCalls?: ToolTrace[];
   confidence?: number;
   durationMs?: number;
@@ -40,6 +57,9 @@ interface StreamingMessageProps {
   onOpenDocument?: (doc: ArtifactCardItem) => void;
   onApprove?: (index: number) => void;
   onReject?: (index: number) => void;
+  onConfirmCreation?: (id: string) => void;
+  onCancelCreation?: (id: string) => void;
+  executingCreationId?: string | null;
 }
 
 export function StreamingMessage({
@@ -50,12 +70,16 @@ export function StreamingMessage({
   delegations = [],
   documents = [],
   approvals = [],
+  creationCards = [],
   toolCalls = [],
   confidence,
   durationMs,
   onOpenDocument,
   onApprove,
   onReject,
+  onConfirmCreation,
+  onCancelCreation,
+  executingCreationId,
 }: StreamingMessageProps) {
   return (
     <div className="flex flex-col gap-2 items-start">
@@ -165,6 +189,24 @@ export function StreamingMessage({
               amount={approval.amount}
               onApprove={() => onApprove?.(i)}
               onReject={() => onReject?.(i)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Creation confirmation cards */}
+      {creationCards.length > 0 && (
+        <div className="space-y-2 w-full max-w-[80%]">
+          {creationCards.map((card) => (
+            <CreationConfirmCard
+              key={card.id}
+              type={card.type}
+              title={card.title}
+              description={card.description}
+              confidence={card.confidence}
+              onConfirm={() => onConfirmCreation?.(card.id)}
+              onCancel={() => onCancelCreation?.(card.id)}
+              isExecuting={executingCreationId === card.id}
             />
           ))}
         </div>
