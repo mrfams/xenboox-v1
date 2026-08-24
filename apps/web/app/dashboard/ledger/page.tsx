@@ -33,6 +33,8 @@ import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { useUndo } from "@/lib/hooks/use-undo";
 import { toast } from "sonner";
+import { CoaImportDialog } from "@/components/ledger/coa-import-dialog";
+import { BulkExportButton } from "@/components/shared/bulk-csv";
 
 // ─── Ledger ───────────────────────────────────────────────────────────────
 //
@@ -481,14 +483,27 @@ function JournalView() {
         <p className="text-xs text-muted-foreground">
           {journalData?.totalCount ?? 0} entries total
         </p>
-        <button
-          type="button"
-          onClick={() => setShowCreateForm(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Create Entry
-        </button>
+        <div className="flex items-center gap-2">
+          <BulkExportButton
+            rows={journalEntries.map((e) => ({
+              entryNumber: e.entryNumber,
+              description: e.description,
+              status: e.status,
+              debit: e.debit,
+              credit: e.credit,
+            }))}
+            filename={`journal-${new Date().toISOString().slice(0, 10)}.csv`}
+            label="Export"
+          />
+          <button
+            type="button"
+            onClick={() => setShowCreateForm(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Create Entry
+          </button>
+        </div>
       </div>
 
       {/* AI-enhanced search */}
@@ -744,6 +759,25 @@ function COAView() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {accounts.length} accounts
+          {accounts.length > 0 && ` · ${Object.keys(grouped).length} groups`}
+        </p>
+        <div className="flex items-center gap-2">
+          <CoaImportDialog />
+          <BulkExportButton
+            rows={(accounts ?? []).map((a) => ({
+              code: a.code,
+              name: a.name,
+              type: a.type,
+              subtype: a.subtype,
+            }))}
+            filename={`coa-${new Date().toISOString().slice(0, 10)}.csv`}
+            label="Export"
+          />
+        </div>
+      </div>
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => (

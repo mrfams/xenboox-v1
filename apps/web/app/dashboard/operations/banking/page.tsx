@@ -243,7 +243,41 @@ function TransactionsTab({
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </button>
-          <button className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            onClick={() => {
+              const rows = transactions.map((t) => ({
+                date: t.date ?? t.transactionDate,
+                description: t.description,
+                amount: t.amount,
+                status: t.status,
+              }));
+              const headers = Object.keys(
+                rows[0] ?? {
+                  date: "",
+                  description: "",
+                  amount: "",
+                  status: "",
+                },
+              );
+              const csv = [
+                headers.join(","),
+                ...rows.map((r) =>
+                  Object.values(r)
+                    .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+                    .join(","),
+                ),
+              ].join("\n");
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `banking-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success(`Exported ${rows.length} transactions`);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
             <Download className="h-3.5 w-3.5" />
             Export
           </button>

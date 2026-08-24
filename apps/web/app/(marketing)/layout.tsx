@@ -20,6 +20,8 @@ const footerLinks = {
   product: [
     { label: "Features", href: "/features" },
     { label: "Pricing", href: "/pricing" },
+    { label: "One-Pager", href: "/one-pager" },
+    { label: "Compare", href: "/compare" },
     { label: "Blog", href: "/blog" },
     { label: "Documentation", href: "/docs" },
     { label: "Changelog", href: "/docs/changelog" },

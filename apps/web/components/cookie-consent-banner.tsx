@@ -21,6 +21,18 @@ export function CookieConsentBanner() {
 
   const handleAccept = (value: ConsentValue) => {
     localStorage.setItem(CONSENT_KEY, value);
+    try {
+      const posthog = (
+        window as unknown as {
+          posthog?: {
+            opt_out_capturing: () => void;
+            opt_in_capturing: () => void;
+          };
+        }
+      ).posthog;
+      if (value === "analytics") posthog?.opt_in_capturing();
+      else posthog?.opt_out_capturing();
+    } catch {}
     setVisible(false);
   };
 
@@ -39,6 +51,13 @@ export function CookieConsentBanner() {
           <a href="/cookies" className="underline hover:text-foreground">
             Learn more
           </a>
+          <button
+            type="button"
+            onClick={() => setVisible(true)}
+            className="underline hover:text-foreground"
+          >
+            Manage
+          </button>
         </p>
         <div className="flex shrink-0 gap-2">
           <Button
