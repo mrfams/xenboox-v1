@@ -357,7 +357,7 @@ export default function SettingsPage() {
         </div>
         <AiSimulationTrigger
           traceId="workspace-setup"
-          label="AI Set Up Workspace"
+          label="Set Up with AI"
           variant="outline"
           className="shrink-0"
         />

@@ -257,7 +257,7 @@ export function InvoiceDetailPanel({
                   onClick={() => setShowPaymentLink(true)}
                 >
                   <Link2 className="mr-1.5 h-3.5 w-3.5" />
-                  Payment Link
+                  Share Payment Link
                 </Button>
                 <Button size="sm" onClick={() => setShowRecordPayment(true)}>
                   <DollarSign className="mr-1.5 h-3.5 w-3.5" />

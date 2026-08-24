@@ -18,43 +18,43 @@
 | 1   | ~~Blog posts still short~~ ✅                                      | HIGH     | All 6 posts are 10-14 min reads (1,500-2,800w)  | ✅     |
 | 2   | Pricing missing trust signals ("No credit card", "Cancel anytime") | HIGH     | Add trust badges and guarantee                  | ✅     |
 | 3   | About page is generic — no real people                             | HIGH     | Add founder story, team photos, Gambian context | ✅     |
-| 4   | Blog post missing author card and related posts                    | MEDIUM   | Add author card + "You might also like" section | ⬜     |
+| 4   | ~~Blog post missing author card and related posts~~ ✅             | MEDIUM   | Add author card + "You might also like" section | ✅     |
 | 5   | ~~No sticky CTA on marketing pages~~ ✅                            | MEDIUM   | Floating CTA in marketing layout                | ✅     |
 | 6   | Only 3 testimonials                                                | MEDIUM   | Add 3-5 more for social proof                   | ⬜     |
-| 7   | No "Most Popular" badge on pricing                                 | LOW      | Highlight recommended tier                      | ⬜     |
-| 8   | No FAQ section on pricing                                          | LOW      | Add common objections below pricing cards       | ⬜     |
-| 9   | No competitor comparison on pricing                                | LOW      | Add QuickBooks/Xero comparison table            | ⬜     |
+| 7   | ~~No "Most Popular" badge on pricing~~ ✅                          | LOW      | Highlight recommended tier                      | ✅     |
+| 8   | ~~No FAQ section on pricing~~ ✅                                   | LOW      | Add common objections below pricing cards       | ✅     |
+| 9   | ~~No competitor comparison on pricing~~ ✅                         | LOW      | Add QuickBooks/Xero comparison table            | ✅     |
 
 ---
 
 ## Employee #2: Product Critic — Score: 8/10
 
-| #   | Finding                                          | Severity | Fix                                               | Status |
-| --- | ------------------------------------------------ | -------- | ------------------------------------------------- | ------ |
-| 1   | ~~Sticky CTA missing on all marketing pages~~ ✅ | HIGH     | Floating CTA in marketing layout                  | ✅     |
-| 2   | Pricing page lacks trust signals                 | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
-| 3   | About page shows generic content                 | HIGH     | Real team photos, founder story, Gambian context  | ✅     |
-| 4   | Blog posts need 1,500+ words                     | MEDIUM   | Expand remaining content                          | ⬜     |
-| 5   | Blog post missing author card, related posts     | MEDIUM   | Add to template                                   | ⬜     |
-| 6   | ~~No JSON-LD on blog posts~~ ✅                  | MEDIUM   | Article + Breadcrumb schemas added                | ✅     |
-| 7   | No social share buttons on blog                  | MEDIUM   | Add share bar                                     | ⬜     |
-| 8   | No reading time estimate                         | LOW      | Add to blog post header                           | ⬜     |
-| 9   | No "Related posts" section                       | LOW      | Add at bottom of blog posts                       | ⬜     |
+| #   | Finding                                             | Severity | Fix                                               | Status |
+| --- | --------------------------------------------------- | -------- | ------------------------------------------------- | ------ |
+| 1   | ~~Sticky CTA missing on all marketing pages~~ ✅    | HIGH     | Floating CTA in marketing layout                  | ✅     |
+| 2   | Pricing page lacks trust signals                    | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
+| 3   | About page shows generic content                    | HIGH     | Real team photos, founder story, Gambian context  | ✅     |
+| 4   | ~~Blog posts need 1,500+ words~~ ✅                 | MEDIUM   | Expand remaining content                          | ✅     |
+| 5   | ~~Blog post missing author card, related posts~~ ✅ | MEDIUM   | Add to template                                   | ✅     |
+| 6   | ~~No JSON-LD on blog posts~~ ✅                     | MEDIUM   | Article + Breadcrumb schemas added                | ✅     |
+| 7   | ~~No social share buttons on blog~~ ✅              | MEDIUM   | Add share bar                                     | ✅     |
+| 8   | ~~No reading time estimate~~ ✅                     | LOW      | Add to blog post header                           | ✅     |
+| 9   | ~~No "Related posts" section~~ ✅                   | LOW      | Add at bottom of blog posts                       | ✅     |
 
 ---
 
 ## Employee #3: UX Writer — Score: 8/10
 
-| #   | Finding                                             | Severity | Fix                                              | Status |
-| --- | --------------------------------------------------- | -------- | ------------------------------------------------ | ------ |
-| 1   | "Payment Link" is noun, not verb                    | MEDIUM   | Change to "Share Payment Link"                   | ⬜     |
-| 2   | "AI Set Up Workspace" is awkward                    | MEDIUM   | Change to "Set Up with AI"                       | ⬜     |
-| 3   | "PDF" button unclear in Donor Portal                | MEDIUM   | Change to "Download PDF"                         | ⬜     |
-| 4   | "Failed to load projects" is vague                  | MEDIUM   | Add "Check your connection and try again"        | ⬜     |
-| 5   | "No accounts in your chart of accounts yet" verbose | LOW      | Shorten to "No accounts yet"                     | ⬜     |
-| 6   | No AI confidence score in UI                        | LOW      | Add confidence badge on categorized transactions | ⬜     |
-| 7   | "No donor projects found for your account" cold     | LOW      | Rephrase to be warmer                            | ⬜     |
-| 8   | Zod error messages are developer-facing             | LOW      | Wrap in user-friendly messages                   | ⬜     |
+| #   | Finding                                                    | Severity | Fix                                              | Status |
+| --- | ---------------------------------------------------------- | -------- | ------------------------------------------------ | ------ |
+| 1   | ~~"Payment Link" is noun, not verb~~ ✅                    | MEDIUM   | Change to "Share Payment Link"                   | ✅     |
+| 2   | ~~"AI Set Up Workspace" is awkward~~ ✅                    | MEDIUM   | Change to "Set Up with AI"                       | ✅     |
+| 3   | ~~"PDF" button unclear in Donor Portal~~ ✅                | MEDIUM   | Change to "Download PDF"                         | ✅     |
+| 4   | ~~"Failed to load projects" is vague~~ ✅                  | MEDIUM   | Add "Check your connection and try again"        | ✅     |
+| 5   | ~~"No accounts in your chart of accounts yet" verbose~~ ✅ | LOW      | Shorten to "No accounts yet"                     | ✅     |
+| 6   | No AI confidence score in UI                               | LOW      | Add confidence badge on categorized transactions | ⬜     |
+| 7   | ~~"No donor projects found for your account" cold~~ ✅     | LOW      | Rephrase to be warmer                            | ✅     |
+| 8   | Zod error messages are developer-facing                    | LOW      | Wrap in user-friendly messages                   | ⬜     |
 
 ---
 
@@ -64,10 +64,10 @@
 | --- | ----------------------------------------------- | -------- | ---------------------------------------------------- | ------ |
 | 1   | Pricing is feature-focused, not outcome-focused | HIGH     | Lead each tier with outcome ("Save 10+ hours/month") | ⬜     |
 | 2   | About page has no personality                   | HIGH     | Add founder story, "Why we built this"               | ✅     |
-| 3   | Blog posts still below 1,500 words              | MEDIUM   | Expand content                                       | ⬜     |
+| 3   | ~~Blog posts still below 1,500 words~~ ✅       | MEDIUM   | Expand content                                       | ✅     |
 | 4   | Only 3 testimonials                             | MEDIUM   | Add more for social proof                            | ⬜     |
-| 5   | Blog post missing author card                   | MEDIUM   | Add author bio                                       | ⬜     |
-| 6   | Blog post missing social share                  | MEDIUM   | Add share bar                                        | ⬜     |
+| 5   | ~~Blog post missing author card~~ ✅            | MEDIUM   | Add author bio                                       | ✅     |
+| 6   | ~~Blog post missing social share~~ ✅           | MEDIUM   | Add share bar                                        | ✅     |
 
 ---
 
@@ -113,10 +113,10 @@
 | 1   | ~~No JSON-LD structured data on any page~~ ✅ | HIGH     | Organization, Product, Article, FAQ, Breadcrumb   | ✅     |
 | 2   | Pricing missing trust signals                 | HIGH     | Add "No credit card", "Cancel anytime", guarantee | ✅     |
 | 3   | ~~Blog posts below 1,500 words~~ ✅           | MEDIUM   | All posts already 1,500+ words                    | ✅     |
-| 4   | No author bios on blog                        | MEDIUM   | Add author card                                   | ⬜     |
-| 5   | No social share buttons on blog               | MEDIUM   | Add share bar                                     | ⬜     |
-| 6   | No "Most Popular" badge on pricing            | MEDIUM   | Highlight recommended tier                        | ⬜     |
-| 7   | Robots.txt needs verification                 | LOW      | Verify configuration                              | ⬜     |
+| 4   | ~~No author bios on blog~~ ✅                 | MEDIUM   | Add author card                                   | ✅     |
+| 5   | ~~No social share buttons on blog~~ ✅        | MEDIUM   | Add share bar                                     | ✅     |
+| 6   | ~~No "Most Popular" badge on pricing~~ ✅     | MEDIUM   | Highlight recommended tier                        | ✅     |
+| 7   | ~~Robots.txt needs verification~~ ✅          | LOW      | Verify configuration                              | ✅     |
 
 ---
 
@@ -195,14 +195,14 @@
 
 ## Employee #14: Brand Voice — Score: 8/10
 
-| #   | Finding                                         | Severity | Fix                                                           | Status |
-| --- | ----------------------------------------------- | -------- | ------------------------------------------------------------- | ------ |
-| 1   | "deterministically reconciled" is jargon-y      | MEDIUM   | Change to "Every number is checked before it hits the ledger" | ⬜     |
-| 2   | "Verified operators" is corporate               | MEDIUM   | Change to "Real teams, real books"                            | ⬜     |
-| 3   | Pricing is feature-focused, not outcome-focused | MEDIUM   | Lead with outcomes not features                               | ⬜     |
-| 4   | About page has no personality                   | HIGH     | Add founder story, team photos                                | ✅     |
-| 5   | Onboarding wizard is silent                     | MEDIUM   | Add welcome message                                           | ⬜     |
-| 6   | Settings header "AI Set Up Workspace"           | LOW      | Change to "Set Up with AI"                                    | ⬜     |
+| #   | Finding                                           | Severity | Fix                                                           | Status |
+| --- | ------------------------------------------------- | -------- | ------------------------------------------------------------- | ------ |
+| 1   | ~~"deterministically reconciled" is jargon-y~~ ✅ | MEDIUM   | Change to "Every number is checked before it hits the ledger" | ✅     |
+| 2   | ~~"Verified operators" is corporate~~ ✅          | MEDIUM   | Change to "Real teams, real books"                            | ✅     |
+| 3   | Pricing is feature-focused, not outcome-focused   | MEDIUM   | Lead with outcomes not features                               | ⬜     |
+| 4   | About page has no personality                     | HIGH     | Add founder story, team photos                                | ✅     |
+| 5   | Onboarding wizard is silent                       | MEDIUM   | Add welcome message                                           | ⬜     |
+| 6   | Settings header "AI Set Up Workspace"             | LOW      | Change to "Set Up with AI"                                    | ⬜     |
 
 ---
 
@@ -286,15 +286,15 @@
 
 ## Employee #20: Competitor Analyst — Score: 6.5/10
 
-| #   | Finding                         | Severity | Fix                                           | Status |
-| --- | ------------------------------- | -------- | --------------------------------------------- | ------ |
-| 1   | No mobile app                   | N/A      | Web only — no mobile/desktop in scope         | N/A    |
-| 2   | No "Why Us vs Them" page        | HIGH     | Create `/compare/quickbooks`, `/compare/xero` | ⬜     |
-| 3   | No competitive comparison table | HIGH     | Add feature comparison on pricing page        | ⬜     |
-| 4   | Growth tier priced above Xero   | MEDIUM   | Justify premium or adjust pricing             | ⬜     |
-| 5   | No case studies                 | MEDIUM   | Write 3 customer success stories              | ⬜     |
-| 6   | Limited integrations            | MEDIUM   | Prioritize top 10 integrations                | ⬜     |
-| 7   | No win/loss tracking            | LOW      | Add CRM tracking                              | ⬜     |
+| #   | Finding                                | Severity | Fix                                           | Status |
+| --- | -------------------------------------- | -------- | --------------------------------------------- | ------ |
+| 1   | No mobile app                          | N/A      | Web only — no mobile/desktop in scope         | N/A    |
+| 2   | ~~No "Why Us vs Them" page~~ ✅        | HIGH     | Create `/compare/quickbooks`, `/compare/xero` | ✅     |
+| 3   | ~~No competitive comparison table~~ ✅ | HIGH     | Add feature comparison on pricing page        | ✅     |
+| 4   | Growth tier priced above Xero          | MEDIUM   | Justify premium or adjust pricing             | ⬜     |
+| 5   | No case studies                        | MEDIUM   | Write 3 customer success stories              | ⬜     |
+| 6   | Limited integrations                   | MEDIUM   | Prioritize top 10 integrations                | ⬜     |
+| 7   | No win/loss tracking                   | LOW      | Add CRM tracking                              | ⬜     |
 
 ---
 

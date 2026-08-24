@@ -58,7 +58,7 @@ export function Testimonials() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
           <SectionHeading
-            eyebrow="Verified operators • entity-scoped by default"
+            eyebrow="Real teams, real books • entity-scoped by default"
             title="Trusted by teams who closed faster than ever."
             lead="Real teams, real books — every workflow is audit-trailed and confidence-scored before it posts."
           />

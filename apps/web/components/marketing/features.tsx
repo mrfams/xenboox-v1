@@ -181,9 +181,8 @@ export function Features() {
 
         <FadeInUp delay={0.2}>
           <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-relaxed text-muted-foreground/70">
-            Every number is deterministically reconciled before it hits the
-            ledger — agents are extractors and classifiers, never the final
-            authority on a figure.
+            Every number is checked before it hits the ledger — agents are
+            extractors and classifiers, never the final authority on a figure.
           </p>
         </FadeInUp>
       </div>

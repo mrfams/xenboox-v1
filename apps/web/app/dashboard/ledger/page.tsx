@@ -934,8 +934,10 @@ function TrialBalanceView() {
             className="h-12 w-12 text-muted-foreground/30 mb-3"
             aria-hidden="true"
           />
-          <p className="text-sm font-medium text-foreground">No accounts in your chart of accounts yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Add accounts to start tracking transactions.</p>
+          <p className="text-sm font-medium text-foreground">No accounts yet</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Add accounts to start tracking transactions.
+          </p>
         </div>
       ) : (
         <div className="rounded-xl border border-border/50 overflow-hidden">

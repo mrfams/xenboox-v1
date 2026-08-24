@@ -260,7 +260,7 @@ function ProjectCard({
                           title="Download PDF"
                         >
                           <FileText className="h-3 w-3" />
-                          PDF
+                          Download PDF
                         </button>
                       </div>
                     </div>
@@ -351,7 +351,10 @@ export default function DonorDashboardPage() {
         }
       } catch {
         // Only show error on initial load — polling failures are silent
-        if (isInitial) setError("Failed to load projects.");
+        if (isInitial)
+          setError(
+            "Could not load projects. Check your connection and try again.",
+          );
       } finally {
         if (isInitial) setLoading(false);
         setIsRefreshing(false);
@@ -557,7 +560,8 @@ export default function DonorDashboardPage() {
             <div className="rounded-xl border border-dashed border-border/40 py-12 text-center">
               <HandCoins className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">
-                No donor projects found for your account.
+                No projects here yet. They'll appear once your organization adds
+                them.
               </p>
             </div>
           ) : (
