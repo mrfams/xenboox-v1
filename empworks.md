@@ -240,10 +240,10 @@
 | 2   | ~~No APM / distributed tracing~~ ✅ | HIGH     | Sentry server/client/edge + Prisma integration | ✅     |
 | 3   | ~~No centralized logging~~ ✅       | HIGH     | Sentry captures errors + pino structured logs  | ✅     |
 | 4   | No E2E tests                        | HIGH     | Add Playwright tests                           | ⬜     |
-| 5   | No SOC 2 policy docs                | MEDIUM   | Create formal security policies                | ⬜     |
+| 5   | ~~No SOC 2 policy docs~~ ✅         | MEDIUM   | Create formal security policies                | ✅     |
 | 6   | No GDPR consent management          | MEDIUM   | Add consent tracking                           | ⬜     |
 | 7   | No bulk import/export               | MEDIUM   | Add CSV/Excel import                           | ⬜     |
-| 8   | No dependency scanning in CI        | MEDIUM   | Add `pnpm audit` to CI                         | ⬜     |
+| 8   | ~~No dependency scanning in CI~~ ✅ | MEDIUM   | Add `pnpm audit` to CI                         | ✅     |
 | 9   | No business metrics dashboard       | MEDIUM   | Build internal admin dashboard                 | ⬜     |
 | 10  | No plugin architecture              | LOW      | Design plugin system                           | ⬜     |
 
@@ -346,8 +346,7 @@
 | 3   | No batch operations        | MEDIUM   | Add bulk categorize, approve, send | ⬜     |
 | 4   | No migration tools         | MEDIUM   | Build QuickBooks/Xero import       | ⬜     |
 | 5   | ~~No Excel/CSV export~~ ✅ | MEDIUM   | Add export for all reports         | ✅     |
-| 6   | No Slack integration       | MEDIUM   | Add Slack notifications            | ⬜     |
-| 7   | No in-app notifications    | MEDIUM   | Add notification bell              | ⬜     |
+| 6   | No Slack integration       | MEDIUM   | Add Slack notifications            | ⬜     |     | 7   | ~~No in-app notifications~~ ✅ | MEDIUM | Add notification bell | ✅  |
 | 8   | No calendar sync           | LOW      | Add Google Calendar sync           | ⬜     |
 
 ---
