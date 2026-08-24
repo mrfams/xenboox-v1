@@ -257,10 +257,10 @@
 | 2   | ~~No SLA published~~ ✅          | HIGH     | Define and publish 99.9% uptime SLA    | ✅     |
 | 3   | No on-call rotation              | HIGH     | Set up PagerDuty                       | ⬜     |
 | 4   | No PR required for main          | MEDIUM   | Enable branch protection               | ⬜     |
-| 5   | No code review standards         | MEDIUM   | Document review checklist              | ⬜     |
-| 6   | No test coverage targets         | MEDIUM   | Set 80% target, enforce in CI          | ⬜     |
+| 5   | ~~No code review standards~~ ✅  | MEDIUM   | Document review checklist              | ✅     |
+| 6   | ~~No test coverage targets~~ ✅  | MEDIUM   | Set 80% target, enforce in CI          | ✅     |
 | 7   | ~~No NPS / feedback loop~~ ✅    | MEDIUM   | NPS survey + feedback widget           | ✅     |
-| 8   | No SOPs                          | MEDIUM   | Document standard operating procedures | ⬜     |
+| 8   | ~~No SOPs~~ ✅                   | MEDIUM   | Document standard operating procedures | ✅     |
 | 9   | No internal budget tracking      | LOW      | Track burn rate and runway             | ⬜     |
 | 10  | No scaling plan beyond 100 users | LOW      | Document scaling roadmap               | ⬜     |
 
