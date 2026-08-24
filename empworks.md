@@ -218,7 +218,7 @@
 | 3   | ~~No drag-and-drop~~ ✅                      | MEDIUM   | Add for line items, file uploads, reordering | ✅     |
 | 4   | ~~No universal undo~~ ✅                     | MEDIUM   | Add undo toast after mutations               | ✅     |
 | 5   | ~~Tables don't have card view on mobile~~ ✅ | MEDIUM   | Add responsive card view (mobile web)        | ✅     |
-| 6   | Many actions still form-based                | LOW      | Move toward conversational AI                | ⬜     |
+| 6   | ~~Many actions still form-based~~ ✅         | LOW      | AI-first creation for top 5 actions via chat | ✅     |
 
 ---
 
