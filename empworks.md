@@ -259,8 +259,7 @@
 | 5   | ~~No code review standards~~ ✅         | MEDIUM   | Document review checklist              | ✅     |
 | 6   | ~~No test coverage targets~~ ✅         | MEDIUM   | Set 80% target, enforce in CI          | ✅     |
 | 7   | ~~No NPS / feedback loop~~ ✅           | MEDIUM   | NPS survey + feedback widget           | ✅     |
-| 8   | ~~No SOPs~~ ✅                          | MEDIUM   | Document standard operating procedures | ✅     |
-| 9   | No internal budget tracking             | LOW      | Track burn rate and runway             | ⬜     |
+| 8   | ~~No SOPs~~ ✅                          | MEDIUM   | Document standard operating procedures | ✅     |     | 9   | ~~No internal budget tracking~~ ✅ | LOW | Track burn rate and runway | ✅  |
 | 10  | ~~No scaling plan beyond 100 users~~ ✅ | LOW      | Document scaling roadmap               | ✅     |
 
 ---
@@ -323,15 +322,15 @@
 
 ## Employee #23: Lead Researcher — Score: 2/10
 
-| #   | Finding                     | Severity | Fix                                      | Status |
-| --- | --------------------------- | -------- | ---------------------------------------- | ------ |
-| 1   | No Gambian ICP defined      | HIGH     | Define ICP for Gambian market            | ⬜     |
-| 2   | No CRM                      | HIGH     | Add HubSpot free tier                    | ⬜     |
-| 3   | No lead generation channels | HIGH     | Build content + LinkedIn + partnerships  | ⬜     |
-| 4   | No sales collateral         | MEDIUM   | Create one-pager, pitch deck, demo video | ⬜     |
-| 5   | No lead scoring             | MEDIUM   | Implement BANT framework                 | ⬜     |
-| 6   | ~~No buyer personas~~ ✅    | MEDIUM   | Define CFO, Owner, Accountant personas   | ✅     |
-| 7   | No referral program         | LOW      | Build referral incentives                | ⬜     |
+| #   | Finding                            | Severity | Fix                                      | Status |
+| --- | ---------------------------------- | -------- | ---------------------------------------- | ------ |
+| 1   | ~~No Gambian ICP defined~~ ✅      | HIGH     | Define ICP for Gambian market            | ✅     |
+| 2   | No CRM                             | HIGH     | Add HubSpot free tier                    | ⬜     |
+| 3   | ~~No lead generation channels~~ ✅ | HIGH     | Build content + LinkedIn + partnerships  | ✅     |
+| 4   | No sales collateral                | MEDIUM   | Create one-pager, pitch deck, demo video | ⬜     |
+| 5   | No lead scoring                    | MEDIUM   | Implement BANT framework                 | ⬜     |
+| 6   | ~~No buyer personas~~ ✅           | MEDIUM   | Define CFO, Owner, Accountant personas   | ✅     |
+| 7   | No referral program                | LOW      | Build referral incentives                | ⬜     |
 
 ---
 
