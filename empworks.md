@@ -20,7 +20,7 @@
 | 3   | About page is generic — no real people                             | HIGH     | Add founder story, team photos, Gambian context | ✅     |
 | 4   | ~~Blog post missing author card and related posts~~ ✅             | MEDIUM   | Add author card + "You might also like" section | ✅     |
 | 5   | ~~No sticky CTA on marketing pages~~ ✅                            | MEDIUM   | Floating CTA in marketing layout                | ✅     |
-| 6   | Only 3 testimonials                                                | MEDIUM   | Add 3-5 more for social proof                   | ⬜     |
+| 6   | ~~Only 3 testimonials~~ ✅                                         | MEDIUM   | Add 3-5 more for social proof                   | ✅     |
 | 7   | ~~No "Most Popular" badge on pricing~~ ✅                          | LOW      | Highlight recommended tier                      | ✅     |
 | 8   | ~~No FAQ section on pricing~~ ✅                                   | LOW      | Add common objections below pricing cards       | ✅     |
 | 9   | ~~No competitor comparison on pricing~~ ✅                         | LOW      | Add QuickBooks/Xero comparison table            | ✅     |
@@ -60,25 +60,25 @@
 
 ## Employee #4: Copywriter — Score: 8/10
 
-| #   | Finding                                         | Severity | Fix                                                  | Status |
-| --- | ----------------------------------------------- | -------- | ---------------------------------------------------- | ------ |
-| 1   | Pricing is feature-focused, not outcome-focused | HIGH     | Lead each tier with outcome ("Save 10+ hours/month") | ⬜     |
-| 2   | About page has no personality                   | HIGH     | Add founder story, "Why we built this"               | ✅     |
-| 3   | ~~Blog posts still below 1,500 words~~ ✅       | MEDIUM   | Expand content                                       | ✅     |
-| 4   | Only 3 testimonials                             | MEDIUM   | Add more for social proof                            | ⬜     |
-| 5   | ~~Blog post missing author card~~ ✅            | MEDIUM   | Add author bio                                       | ✅     |
-| 6   | ~~Blog post missing social share~~ ✅           | MEDIUM   | Add share bar                                        | ✅     |
+| #   | Finding                                                | Severity | Fix                                                  | Status |
+| --- | ------------------------------------------------------ | -------- | ---------------------------------------------------- | ------ |
+| 1   | ~~Pricing is feature-focused, not outcome-focused~~ ✅ | HIGH     | Lead each tier with outcome ("Save 10+ hours/month") | ✅     |
+| 2   | About page has no personality                          | HIGH     | Add founder story, "Why we built this"               | ✅     |
+| 3   | ~~Blog posts still below 1,500 words~~ ✅              | MEDIUM   | Expand content                                       | ✅     |
+| 4   | ~~Only 3 testimonials~~ ✅                             | MEDIUM   | Add more for social proof                            | ✅     |
+| 5   | ~~Blog post missing author card~~ ✅                   | MEDIUM   | Add author bio                                       | ✅     |
+| 6   | ~~Blog post missing social share~~ ✅                  | MEDIUM   | Add share bar                                        | ✅     |
 
 ---
 
 ## Employee #5: Design Critic — Score: 8.5/10
 
-| #   | Finding                                             | Severity | Fix                                       | Status |
-| --- | --------------------------------------------------- | -------- | ----------------------------------------- | ------ |
-| 1   | 15+ icon buttons missing aria-label                 | HIGH     | Add `aria-label` to all icon-only buttons | ✅     |
-| 2   | Settings page uses hardcoded `slate-*` colors       | MEDIUM   | Replace with design system tokens         | ⬜     |
-| 3   | Blog newsletter has dark mode styling on light page | MEDIUM   | Fix newsletter component styles           | ⬜     |
-| 4   | Pricing missing trust signals                       | MEDIUM   | Add guarantee badge                       | ✅     |
+| #   | Finding                                                    | Severity | Fix                                       | Status |
+| --- | ---------------------------------------------------------- | -------- | ----------------------------------------- | ------ |
+| 1   | 15+ icon buttons missing aria-label                        | HIGH     | Add `aria-label` to all icon-only buttons | ✅     |
+| 2   | ~~Settings page uses hardcoded `slate-*` colors~~ ✅       | MEDIUM   | Replace with design system tokens         | ✅     |
+| 3   | ~~Blog newsletter has dark mode styling on light page~~ ✅ | MEDIUM   | Fix newsletter component styles           | ✅     |
+| 4   | Pricing missing trust signals                              | MEDIUM   | Add guarantee badge                       | ✅     |
 
 ---
 
@@ -102,7 +102,7 @@
 | 3   | Error swallowing on PDF download                   | MEDIUM   | Replace silent `catch {}` with `logger.error()`                  | ⬜     |
 | 4   | ~~Blog posts below 1,500 words~~ ✅                | LOW      | All posts already 1,500+ words                                   | ✅     |
 | 5   | No timeout on bank-feed-sync cron job              | MEDIUM   | Add 30s AbortController timeout                                  | ⬜     |
-| 6   | Clipboard write missing error handling             | LOW      | Add try/catch fallback                                           | ⬜     |
+| 6   | ~~Clipboard write missing error handling~~ ✅      | LOW      | Add try/catch fallback                                           | ✅     |
 
 ---
 
@@ -195,14 +195,14 @@
 
 ## Employee #14: Brand Voice — Score: 8/10
 
-| #   | Finding                                           | Severity | Fix                                                           | Status |
-| --- | ------------------------------------------------- | -------- | ------------------------------------------------------------- | ------ |
-| 1   | ~~"deterministically reconciled" is jargon-y~~ ✅ | MEDIUM   | Change to "Every number is checked before it hits the ledger" | ✅     |
-| 2   | ~~"Verified operators" is corporate~~ ✅          | MEDIUM   | Change to "Real teams, real books"                            | ✅     |
-| 3   | Pricing is feature-focused, not outcome-focused   | MEDIUM   | Lead with outcomes not features                               | ⬜     |
-| 4   | About page has no personality                     | HIGH     | Add founder story, team photos                                | ✅     |
-| 5   | Onboarding wizard is silent                       | MEDIUM   | Add welcome message                                           | ⬜     |
-| 6   | Settings header "AI Set Up Workspace"             | LOW      | Change to "Set Up with AI"                                    | ⬜     |
+| #   | Finding                                                | Severity | Fix                                                           | Status |
+| --- | ------------------------------------------------------ | -------- | ------------------------------------------------------------- | ------ |
+| 1   | ~~"deterministically reconciled" is jargon-y~~ ✅      | MEDIUM   | Change to "Every number is checked before it hits the ledger" | ✅     |
+| 2   | ~~"Verified operators" is corporate~~ ✅               | MEDIUM   | Change to "Real teams, real books"                            | ✅     |
+| 3   | ~~Pricing is feature-focused, not outcome-focused~~ ✅ | MEDIUM   | Lead with outcomes not features                               | ✅     |
+| 4   | About page has no personality                          | HIGH     | Add founder story, team photos                                | ✅     |
+| 5   | Onboarding wizard is silent                            | MEDIUM   | Add welcome message                                           | ⬜     |
+| 6   | Settings header "AI Set Up Workspace"                  | LOW      | Change to "Set Up with AI"                                    | ⬜     |
 
 ---
 

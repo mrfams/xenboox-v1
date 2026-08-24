@@ -107,9 +107,13 @@ export function WebhooksSection() {
       toast.error(error.message || "Failed to delete webhook"),
   });
 
-  const copySecret = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
+  const copySecret = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Failed to copy — try selecting manually");
+    }
   };
 
   const handleCreate = () => {

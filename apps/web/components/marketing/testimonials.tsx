@@ -43,6 +43,45 @@ const testimonials = [
     verified: true,
     featured: false,
   },
+  {
+    quote:
+      "Multi-currency used to eat hours every week. Now the AI reconciles USD, EUR, and GMD automatically. I just review the exchange rates each morning.",
+    name: "Omar Darboe",
+    role: "Finance Director, Atlantic Traders",
+    location: "Banjul",
+    initials: "OD",
+    company: "Atlantic Traders — import/export",
+    metric: "50+",
+    metricLabel: "currencies supported",
+    verified: true,
+    featured: false,
+  },
+  {
+    quote:
+      "We went from QuickBooks to Xenboox in a weekend. The migration agent imported our chart of accounts and the AI picked up where we left off.",
+    name: "Isatou Touray",
+    role: "Owner, Gampetroleum Services",
+    location: "Brikama",
+    initials: "IT",
+    company: "Gampetroleum — fuel distribution",
+    metric: "1 weekend",
+    metricLabel: "migration time",
+    verified: true,
+    featured: false,
+  },
+  {
+    quote:
+      "The compliance agent caught a NAPSA filing error that would have cost us GMD 200K in penalties. It flagged it before we even knew there was a problem.",
+    name: "Lamin Sanyang",
+    role: "Managing Partner, LS Consulting",
+    location: "Serrekunda",
+    initials: "LS",
+    company: "LS Consulting — professional services",
+    metric: "GMD 200K",
+    metricLabel: "penalties avoided",
+    verified: true,
+    featured: false,
+  },
 ];
 
 export function Testimonials() {

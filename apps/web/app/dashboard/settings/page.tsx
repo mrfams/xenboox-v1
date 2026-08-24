@@ -346,12 +346,10 @@ export default function SettingsPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex items-center justify-between gap-4 border-b border-border bg-background px-6 py-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            Settings
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+          <p className="text-sm text-muted-foreground">
             {activeTabInfo?.description}
           </p>
         </div>
@@ -366,11 +364,11 @@ export default function SettingsPage() {
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar Navigation */}
-        <nav className="w-64 shrink-0 border-r border-slate-200 bg-slate-50/50 overflow-y-auto dark:border-slate-800 dark:bg-slate-900/50">
+        <nav className="w-64 shrink-0 border-r border-border bg-muted/30 overflow-y-auto">
           <div className="space-y-6 p-3">
             {TAB_GROUPS.map((group) => (
               <div key={group.label}>
-                <p className="px-3 mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <p className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {group.label}
                 </p>
                 <div className="space-y-1">
@@ -386,15 +384,13 @@ export default function SettingsPage() {
                           "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all",
                           isActive
                             ? "bg-primary/10 text-primary font-medium"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100",
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
                         )}
                       >
                         <Icon
                           className={cn(
                             "h-4 w-4 shrink-0",
-                            isActive
-                              ? "text-primary"
-                              : "text-slate-400 dark:text-slate-500",
+                            isActive ? "text-primary" : "text-muted-foreground",
                           )}
                         />
                         <span className="flex-1 truncate">{tab.label}</span>

@@ -24,7 +24,7 @@ const monthlyTiers = [
     name: "Free",
     price: "$0",
     period: "forever",
-    description: "For solo founders getting started with AI accounting.",
+    description: "Start closing your books with AI — no credit card needed.",
     features: [
       "1 entity",
       "1 AI agent (CFO)",
@@ -42,7 +42,7 @@ const monthlyTiers = [
     name: "Starter",
     price: "$29",
     period: "/month",
-    description: "For growing businesses that need the full agent workforce.",
+    description: "Save 10+ hours/month with 19 AI agents handling your books.",
     features: [
       "Up to 3 entities",
       "All 19 AI agents",
@@ -62,7 +62,7 @@ const monthlyTiers = [
     price: "$79",
     period: "/month",
     description:
-      "For established businesses with multi-entity, multi-currency needs.",
+      "Run multiple entities and currencies — the AI handles the complexity.",
     features: [
       "Up to 10 entities",
       "All 19 AI agents",

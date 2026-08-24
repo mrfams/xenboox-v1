@@ -48,12 +48,12 @@ export function NewsletterForm({ compact = false }: { compact?: boolean }) {
         placeholder="you@company.com"
         required
         aria-label="Email address"
-        className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-blue-400 focus:bg-white"
+        className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors focus:border-primary focus:bg-card"
       />
       <button
         type="submit"
         disabled={submitting}
-        className="shrink-0 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="shrink-0 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-200 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? "Subscribing..." : "Subscribe"}
       </button>

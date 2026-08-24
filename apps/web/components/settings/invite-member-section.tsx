@@ -127,10 +127,14 @@ export function InviteMemberSection() {
     onError: (error) => toast.error(error.message),
   });
 
-  const copyInviteLink = () => {
+  const copyInviteLink = async () => {
     if (inviteLink) {
-      navigator.clipboard.writeText(inviteLink);
-      toast.success("Invite link copied to clipboard");
+      try {
+        await navigator.clipboard.writeText(inviteLink);
+        toast.success("Invite link copied to clipboard");
+      } catch {
+        toast.error("Failed to copy — try selecting manually");
+      }
     }
   };
 
