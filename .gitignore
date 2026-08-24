@@ -84,3 +84,7 @@ apps/web/scripts/investigate-drift.mjs
 
 # Agent scratch/planning directories
 .kilo/
+
+# Scripts with hardcoded credentials - use env vars instead
+scripts/push-blogs.mjs
+scripts/sync-blogs.ts
