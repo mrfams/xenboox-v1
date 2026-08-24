@@ -60,9 +60,10 @@ export default function CompareIndexPage() {
               <FadeInUp key={comp.slug} delay={i * 0.1}>
                 <Link
                   href={`/compare/${comp.slug}`}
+                  aria-label={`Compare Xenboox vs ${comp.slug}`}
                   className="group block rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                 >
-                  <h2 className="text-xl font-bold text-foreground group-hover:text-blue-600 transition-colors">
+                  <h2 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
                     {comp.name}
                   </h2>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -74,19 +75,40 @@ export default function CompareIndexPage() {
                         key={h}
                         className="flex items-center gap-2 text-sm text-foreground"
                       >
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <Check
+                          className="h-4 w-4 text-emerald-500 shrink-0"
+                          aria-hidden="true"
+                        />
                         {h}
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-4 flex items-center gap-1 text-sm font-medium text-blue-600 group-hover:gap-2 transition-all">
+                  <div className="mt-4 flex items-center gap-1 text-sm font-medium text-primary group-hover:gap-2 transition-all">
                     See comparison
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </div>
                 </Link>
               </FadeInUp>
             ))}
           </div>
+
+          <FadeInUp delay={0.25}>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-sm">
+              <Link
+                href="/pricing"
+                className="inline-flex h-10 items-center rounded-xl border border-border bg-card px-5 font-medium text-foreground hover:bg-accent/50 transition-colors"
+              >
+                View pricing
+                <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+              </Link>
+              <Link
+                href="/pricing#compare"
+                className="inline-flex h-10 items-center rounded-xl bg-primary px-5 font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Quick comparison table
+              </Link>
+            </div>
+          </FadeInUp>
         </div>
       </section>
     </>

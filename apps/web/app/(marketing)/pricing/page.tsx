@@ -17,6 +17,7 @@ import {
   BreadcrumbJsonLd,
   ProductJsonLd,
 } from "@/components/marketing/json-ld";
+import { ComparisonTeaser } from "@/components/marketing/comparison-teaser";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
 
 const monthlyTiers = [
@@ -226,7 +227,14 @@ export default function PricingPage() {
                   }`}
                 >
                   {tier.highlighted && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-primary-foreground shadow-sm">
+                    <div
+                      aria-label="Most popular plan"
+                      className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-md ring-1 ring-primary/20"
+                    >
+                      <span
+                        className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-foreground/90"
+                        aria-hidden="true"
+                      />
                       Most Popular
                     </div>
                   )}
@@ -334,6 +342,9 @@ export default function PricingPage() {
           </FadeInUp>
         </div>
       </section>
+
+      {/* Comparison Teaser */}
+      <ComparisonTeaser />
 
       {/* FAQ */}
       <section className="border-t border-border bg-paper-2/60 py-12 sm:py-16">

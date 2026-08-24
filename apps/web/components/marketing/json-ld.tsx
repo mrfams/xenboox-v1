@@ -194,6 +194,45 @@ export function FaqJsonLd({ items }: FaqJsonLdProps) {
   );
 }
 
+// ─── VideoObject ─────────────────────────────────────────────────────────────
+
+type VideoObjectJsonLdProps = {
+  name: string;
+  description: string;
+  thumbnailUrl?: string;
+  uploadDate?: string;
+  duration?: string; // ISO 8601 e.g. PT2M
+  embedUrl?: string;
+  contentUrl?: string;
+};
+
+export function VideoObjectJsonLd({
+  name,
+  description,
+  thumbnailUrl,
+  uploadDate = new Date().toISOString().split("T")[0],
+  duration = "PT2M",
+  embedUrl,
+  contentUrl,
+}: VideoObjectJsonLdProps) {
+  return (
+    <JsonLdScript
+      data={{
+        "@type": "VideoObject",
+        name,
+        description,
+        thumbnailUrl: thumbnailUrl
+          ? [thumbnailUrl]
+          : [`${SITE_URL}/opengraph-image`],
+        uploadDate,
+        duration,
+        ...(embedUrl ? { embedUrl } : {}),
+        ...(contentUrl ? { contentUrl } : {}),
+      }}
+    />
+  );
+}
+
 // ─── BreadcrumbList ──────────────────────────────────────────────────────────
 
 type BreadcrumbItem = {

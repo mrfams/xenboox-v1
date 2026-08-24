@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Cta } from "@/components/marketing/cta";
+import { DemoVideo } from "@/components/marketing/demo-video";
 import { Features } from "@/components/marketing/features";
 import { Hero } from "@/components/marketing/hero-home";
 import { HowItWorks } from "@/components/marketing/how-it-works";
@@ -23,6 +24,7 @@ export default function HomePage() {
     <>
       <Hero />
       <HowItWorks />
+      <DemoVideo />
       <Features />
       <Security />
       <Testimonials />
