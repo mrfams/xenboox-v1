@@ -450,7 +450,7 @@ describe("writeOffBadDebt", () => {
   });
 
   it("returns error when invoice not found", async () => {
-    vi.mocked(db.query.salesInvoices.findFirst).mockResolvedValue(null);
+    vi.mocked(db.query.salesInvoices.findFirst).mockResolvedValue(undefined);
 
     const result = await writeOffBadDebt("entity-1", "nonexistent", "user-1");
 
@@ -481,7 +481,7 @@ describe("writeOffBadDebt", () => {
       invoice as never,
     );
     vi.mocked(db.query.chartOfAccounts.findFirst)
-      .mockResolvedValueOnce(null) // no existing bad debt account
+      .mockResolvedValueOnce(undefined) // no existing bad debt account
       .mockResolvedValueOnce(arAccount as never); // AR account exists
     dbInsertReturning = [createdAccount, journalEntry];
 
@@ -500,7 +500,7 @@ describe("writeOffBadDebt", () => {
     );
     vi.mocked(db.query.chartOfAccounts.findFirst)
       .mockResolvedValueOnce({ id: "acct-bad", code: "6600" } as never) // bad debt exists
-      .mockResolvedValueOnce(null); // no AR account
+      .mockResolvedValueOnce(undefined); // no AR account
 
     const result = await writeOffBadDebt("entity-1", "inv-1", "user-1");
 

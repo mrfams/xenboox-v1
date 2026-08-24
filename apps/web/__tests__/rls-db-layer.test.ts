@@ -30,7 +30,7 @@
 // at least two entities, and the ability to create a throwaway role
 // (neondb_owner / Neon project owner). Skipped automatically otherwise.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { neon } from "@neondatabase/serverless";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -73,6 +73,7 @@ const COA_B = "RLS Test Cash - Entity B";
 
 describeIfDb("§20.2 RLS DB-Layer Enforcement", () => {
   beforeAll(async () => {
+    if (!sql) return;
     // Insert fixture rows as the owner (bypasses RLS so rows exist
     // regardless of session context).
     await sql`DELETE FROM suppliers WHERE name IN (${SUP_A}, ${SUP_B})`;
@@ -115,6 +116,7 @@ describeIfDb("§20.2 RLS DB-Layer Enforcement", () => {
   // ── Static: policies exist and are correctly formed ────────────────────
 
   it("every entity-scoped table has RLS enabled with a SELECT policy", async () => {
+    if (!sql) return;
     const rows = (await sql`
       SELECT c.relname AS table_name,
              count(p.polname) FILTER (WHERE p.polcmd = 'r') AS select_policies
@@ -131,6 +133,7 @@ describeIfDb("§20.2 RLS DB-Layer Enforcement", () => {
   });
 
   it("RLS policies are fail-closed: every qual references the session context", async () => {
+    if (!sql) return;
     // Entity-scoped tables filter on app.current_entity_id; user-scoped
     // tables (users, notifications, model_*, etc.) filter on
     // app.current_user_id. Either is acceptable — the point is NO policy
@@ -154,6 +157,7 @@ describeIfDb("§20.2 RLS DB-Layer Enforcement", () => {
   // ── Dynamic: real enforcement under a non-owner role ───────────────────
 
   async function ensureTestRole(grants: string): Promise<void> {
+    if (!sql) return;
     // Identifiers cannot be bound as query parameters in DDL. TEST_ROLE is a
     // fixed test constant (never user input), so it is safe to inline via
     // the driver's raw string form. Drop any leftover role from a prior
@@ -170,6 +174,7 @@ describeIfDb("§20.2 RLS DB-Layer Enforcement", () => {
   }
 
   it("RLS filters cross-entity rows for a non-owner role", async () => {
+    if (!sql) return;
     await ensureTestRole("SELECT ON suppliers, chart_of_accounts");
 
     const results = await sql.transaction((txn) => [
@@ -184,6 +189,7 @@ describeIfDb("§20.2 RLS DB-Layer Enforcement", () => {
   });
 
   it("RLS blocks INSERT for a foreign entity (WITH CHECK)", async () => {
+    if (!sql) return;
     await ensureTestRole("SELECT, INSERT ON suppliers");
 
     await expect(
@@ -200,6 +206,7 @@ describeIfDb("§20.2 RLS DB-Layer Enforcement", () => {
   });
 
   it("RLS fails closed when the entity context is not set", async () => {
+    if (!sql) return;
     await ensureTestRole("SELECT ON suppliers");
 
     // No set_config call: current_setting('app.current_entity_id') throws,
@@ -216,6 +223,7 @@ describeIfDb("§20.2 RLS DB-Layer Enforcement", () => {
   // ── Session-variable behavior at the app layer ─────────────────────────
 
   it("setRlsContext is transaction-scoped (SET LOCAL semantics)", async () => {
+    if (!sql) return;
     // The app middleware uses set_config(..., true) = SET LOCAL. With the
     // neon HTTP driver each db.execute call is its own transaction, so the
     // context does NOT persist across separate calls — the app relies on

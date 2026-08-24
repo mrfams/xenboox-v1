@@ -252,7 +252,7 @@ describe("paymentLinks.get", () => {
   it("returns null for non-existent link", async () => {
     const caller = createCaller();
 
-    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(null);
+    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(undefined);
 
     const result = await caller.paymentLinks.get({ linkId: LINK_ID });
 
@@ -268,7 +268,7 @@ describe("paymentLinks.create", () => {
       MOCK_INVOICE as never,
     ); // invoice lookup
 
-    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(null); // no existing active link
+    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(undefined); // no existing active link
 
     insertReturning = [{ ...MOCK_LINK, token: "new-token-123" }];
 
@@ -331,7 +331,7 @@ describe("paymentLinks.create", () => {
   it("rejects creation when invoice not found", async () => {
     const caller = createCaller();
 
-    vi.mocked(db.query.salesInvoices.findFirst).mockResolvedValue(null);
+    vi.mocked(db.query.salesInvoices.findFirst).mockResolvedValue(undefined);
 
     await expect(
       caller.paymentLinks.create({ invoiceId: INV_ID }),
@@ -399,7 +399,7 @@ describe("paymentLinks.reactivate", () => {
   it("throws when link not found", async () => {
     const caller = createCaller();
 
-    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(null);
+    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(undefined);
 
     await expect(
       caller.paymentLinks.reactivate({ linkId: LINK_ID }),
@@ -486,7 +486,7 @@ describe("paymentLinks.resolveByToken", () => {
   it("returns found: false for non-existent token", async () => {
     const caller = createCaller();
 
-    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(null);
+    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(undefined);
 
     const result = await caller.paymentLinks.resolveByToken({
       token: "nonexistent",
@@ -517,7 +517,7 @@ describe("paymentLinks.recordPayment", () => {
   it("rejects payment on invalid/inactive link", async () => {
     const caller = createCaller();
 
-    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(null);
+    vi.mocked(db.query.paymentLinks.findFirst).mockResolvedValue(undefined);
 
     await expect(
       caller.paymentLinks.recordPayment({

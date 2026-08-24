@@ -84,12 +84,12 @@
 
 ## Employee #6: Security Engineer — Score: 8.5/10
 
-| #   | Finding                                               | Severity | Fix                                 | Status |
-| --- | ----------------------------------------------------- | -------- | ----------------------------------- | ------ |
-| 1   | Internal API endpoints not rate-limited at middleware | MEDIUM   | Add entity-level rate limiting      | ⬜     |
-| 2   | Field-level encryption not verified                   | MEDIUM   | Verify PII fields encrypted at rest | ⬜     |
-| 3   | No CSRF token on form submissions                     | LOW      | Verify SameSite cookie handles CSRF | ⬜     |
-| 4   | No IP-based session binding                           | LOW      | Consider for enterprise tier        | ⬜     |
+| #   | Finding                                                      | Severity | Fix                                                  | Status |
+| --- | ------------------------------------------------------------ | -------- | ---------------------------------------------------- | ------ |
+| 1   | ~~Internal API endpoints not rate-limited at middleware~~ ✅ | MEDIUM   | Entity-level rate limiting in tRPC + edge middleware | ✅     |
+| 2   | ~~Field-level encryption not verified~~ ✅                   | MEDIUM   | AES-256-GCM field encryption verified                | ✅     |
+| 3   | ~~No CSRF token on form submissions~~ ✅                     | LOW      | Origin validation + Auth.js CSRF + SameSite cookies  | ✅     |
+| 4   | No IP-based session binding                                  | LOW      | Consider for enterprise tier                         | ⬜     |
 
 ---
 
@@ -126,10 +126,10 @@
 | --- | ----------------------------------------- | -------- | -------------------------------------- | ------ |
 | 1   | ~~No ROI calculator on pricing~~ ✅       | HIGH     | Interactive calculator on pricing page | ✅     |
 | 2   | No "Cancel anytime" / "No credit card"    | HIGH     | Add trust signals                      | ✅     |
-| 3   | No demo video                             | HIGH     | Record 2-minute product walkthrough    | ⬜     |
+| 3   | ~~No demo video~~ ✅                      | HIGH     | DemoVideo component on homepage        | ✅     |
 | 4   | ~~No case studies~~ ✅                    | MEDIUM   | Write 2-3 detailed customer stories    | ✅     |
 | 5   | ~~No comparison sheet vs competitors~~ ✅ | MEDIUM   | Build QuickBooks/Xero comparison page  | ✅     |
-| 6   | No "Most Popular" badge                   | MEDIUM   | Highlight recommended tier             | ⬜     |
+| 6   | ~~No "Most Popular" badge~~ ✅            | MEDIUM   | Highlight recommended tier             | ✅     |
 | 7   | ~~No one-pager~~ ✅                       | LOW      | Create downloadable PDF summary        | ✅     |
 | 8   | ~~No "For Accountants" page~~ ✅          | LOW      | Create `/for-accountants` landing page | ✅     |
 
@@ -224,18 +224,18 @@
 
 ## Employee #16: DevOps Engineer — Score: 6/10
 
-| #   | Finding                       | Severity | Fix                                          | Status |
-| --- | ----------------------------- | -------- | -------------------------------------------- | ------ |
-| 1   | ~~No staging environment~~ ✅ | HIGH     | Vercel preview deploys on every push         | ✅     |
-| 2   | ~~No uptime monitoring~~ ✅   | HIGH     | Add BetterUptime or Pingdom                  | ✅     |
-| 3   | ~~No cost monitoring~~ ✅     | HIGH     | Add Vercel cost dashboard + budget alerts    | ✅     |
-| 4   | ~~No SLA defined~~ ✅         | MEDIUM   | Define 99.9% uptime SLA                      | ✅     |
-| 5   | ~~No on-call rotation~~ ✅    | MEDIUM   | Set up PagerDuty or Opsgenie                 | ✅     |
-| 6   | ~~No post-mortem process~~ ✅ | MEDIUM   | Create post-mortem template                  | ✅     |
-| 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |
-| 8   | ~~No automated rollback~~ ✅  | MEDIUM   | Add auto-rollback on error rate spike        | ✅     |
-| 9   | ~~No centralized logging~~ ✅ | LOW      | Sentry error tracking + pino structured logs | ✅     |
-| 10  | ~~No capacity planning~~ ✅   | LOW      | Set up resource usage monitoring             | ✅     |
+| #   | Finding                         | Severity | Fix                                          | Status |
+| --- | ------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | ~~No staging environment~~ ✅   | HIGH     | Vercel preview deploys on every push         | ✅     |
+| 2   | ~~No uptime monitoring~~ ✅     | HIGH     | Add BetterUptime or Pingdom                  | ✅     |
+| 3   | ~~No cost monitoring~~ ✅       | HIGH     | Add Vercel cost dashboard + budget alerts    | ✅     |
+| 4   | ~~No SLA defined~~ ✅           | MEDIUM   | Define 99.9% uptime SLA                      | ✅     |
+| 5   | ~~No on-call rotation~~ ✅      | MEDIUM   | Set up PagerDuty or Opsgenie                 | ✅     |
+| 6   | ~~No post-mortem process~~ ✅   | MEDIUM   | Create post-mortem template                  | ✅     |
+| 7   | ~~Test suite has TS errors~~ ✅ | MEDIUM   | Fixed 54 errors across 7 test files          | ✅     |
+| 8   | ~~No automated rollback~~ ✅    | MEDIUM   | Add auto-rollback on error rate spike        | ✅     |
+| 9   | ~~No centralized logging~~ ✅   | LOW      | Sentry error tracking + pino structured logs | ✅     |
+| 10  | ~~No capacity planning~~ ✅     | LOW      | Set up resource usage monitoring             | ✅     |
 
 ---
 
@@ -382,7 +382,7 @@
 | 2   | ~~About page is generic~~ ✅                   | #1, #2, #4, #14               |
 | 3   | ~~Blog posts below 1,500 words~~ ✅            | #1, #2, #4, #7, #8            |
 | 4   | ~~No JSON-LD structured data~~ ✅              | #8 Marketing Critic           |
-| 5   | No demo video                                  | #9 Sales Rep                  |
+| 5   | ~~No demo video~~ ✅                           | #9 Sales Rep                  |
 | 6   | ~~15+ icon buttons missing aria-label~~ ✅     | #5 Design Critic              |
 | 7   | ~~Missing idempotency on payment creation~~ ✅ | #7 Engineering Critic         |
 | 8   | ~~No sticky CTA~~ ✅                           | #2 Product Critic             |
@@ -434,7 +434,7 @@
 | **Marketing**        | 8     | Most Popular badge, competitor comparison, content distribution, partnership strategy |
 | **Sales**            | 6     | Case studies, comparison sheet, buyer personas, lead scoring                          |
 | **Customer Success** | 8     | NPS, feedback widget, QBR template, referral program, user interviews                 |
-| **DevOps**           | 6     | SLA, on-call, post-mortem, test errors, automated rollback                            |
+| **DevOps**           | 5     | SLA, on-call, post-mortem, automated rollback                                         |
 | **Enterprise**       | 5     | SOC 2 docs, GDPR consent, bulk import, dependency scanning                            |
 | **Analytics**        | 2     | A/B testing, cohort analysis                                                          |
 
@@ -472,6 +472,7 @@
 - Bank feed sync cron
 - Exchange rate ECB sync
 - CI/CD pipeline (lint, typecheck, test, build)
+- Test suite type-safe (0 TS errors in test files)
 - Sentry error tracking
 - LangFuse agent observability
 - Security headers

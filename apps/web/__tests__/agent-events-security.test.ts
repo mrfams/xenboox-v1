@@ -22,12 +22,23 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
-  authResult: { user: { id: "user-1", name: "Test User" } },
-  accessResult: null,
-  adminAuthResult: null,
-  adminUserRow: { id: "admin-1", isActive: true },
-  adminSessionRow: { id: "sess-1", lastActiveAt: new Date() },
-  publishCalls: [],
+  authResult: { user: { id: "user-1", name: "Test User" } } as {
+    user: { id: string; name: string };
+  } | null,
+  accessResult: null as { entityId: string; role: string } | null,
+  adminAuthResult: null as {
+    admin: { id: string; role?: string };
+    adminSid?: string;
+  } | null,
+  adminUserRow: { id: "admin-1", isActive: true } as {
+    id: string;
+    isActive: boolean;
+  },
+  adminSessionRow: { id: "sess-1", lastActiveAt: new Date() } as {
+    id: string;
+    lastActiveAt: Date;
+  } | null,
+  publishCalls: [] as { entityId: string; event: unknown }[],
 }));
 
 vi.mock("@/lib/auth", () => ({

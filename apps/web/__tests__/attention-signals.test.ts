@@ -45,7 +45,7 @@ describe("computeAttentionSignals", () => {
       ...EMPTY,
       pendingReview: 3,
     });
-    expect(byKey.inbox).toEqual({ tone: "action", count: 3 });
+    expect(byKey["activity-hub"]).toEqual({ tone: "action", count: 3 });
     expect(totals).toEqual({ action: 3, new: 0 });
   });
 
@@ -56,7 +56,7 @@ describe("computeAttentionSignals", () => {
       agentApprovals: 2,
       failed: 4,
     });
-    expect(byKey.inbox).toEqual({ tone: "action", count: 7 });
+    expect(byKey["activity-hub"]).toEqual({ tone: "action", count: 7 });
     expect(totals.action).toBe(7);
   });
 
@@ -68,7 +68,7 @@ describe("computeAttentionSignals", () => {
       pendingReview: 5,
       unreadNotifications: [],
     });
-    expect(byKey.inbox).toEqual({ tone: "action", count: 5 });
+    expect(byKey["activity-hub"]).toEqual({ tone: "action", count: 5 });
   });
 
   it("maps report_ready to Reports as a new-result signal", () => {
@@ -76,7 +76,7 @@ describe("computeAttentionSignals", () => {
       ...EMPTY,
       unreadNotifications: [{ type: "report_ready" }],
     });
-    expect(byKey.reports).toEqual({ tone: "new", count: 1 });
+    expect(byKey["financial-pulse"]).toEqual({ tone: "new", count: 1 });
     expect(totals).toEqual({ action: 0, new: 1 });
   });
 
@@ -85,7 +85,7 @@ describe("computeAttentionSignals", () => {
       ...EMPTY,
       unreadNotifications: [{ type: "close_failed" }],
     });
-    expect(byKey.close).toEqual({ tone: "action", count: 1 });
+    expect(byKey.operations).toEqual({ tone: "action", count: 1 });
   });
 
   it("maps overdue_invoice to Invoicing as an action signal", () => {
@@ -93,7 +93,7 @@ describe("computeAttentionSignals", () => {
       ...EMPTY,
       unreadNotifications: [{ type: "overdue_invoice" }],
     });
-    expect(byKey.invoicing).toEqual({ tone: "action", count: 1 });
+    expect(byKey.operations).toEqual({ tone: "action", count: 1 });
   });
 
   it("maps every schema notification type to a destination", () => {
@@ -107,7 +107,7 @@ describe("computeAttentionSignals", () => {
       ...EMPTY,
       unreadNotifications: [{ type: "some_future_type" }],
     });
-    expect(byKey.inbox).toEqual({ tone: "new", count: 1 });
+    expect(byKey["activity-hub"]).toEqual({ tone: "new", count: 1 });
   });
 
   it("action beats new when a destination receives both", () => {
@@ -118,8 +118,8 @@ describe("computeAttentionSignals", () => {
         { type: "ingestion_review" }, // inbox, action
       ],
     });
-    expect(byKey.inbox.tone).toBe("action");
-    expect(byKey.inbox.count).toBe(2);
+    expect(byKey["activity-hub"].tone).toBe("action");
+    expect(byKey["activity-hub"].count).toBe(2);
   });
 
   it("counts unread notifications on top of the Inbox workload", () => {
@@ -132,7 +132,7 @@ describe("computeAttentionSignals", () => {
         { type: "ingestion_posted" }, // +1 inbox new (masked by action)
       ],
     });
-    expect(byKey.inbox).toEqual({ tone: "action", count: 4 });
+    expect(byKey["activity-hub"]).toEqual({ tone: "action", count: 4 });
   });
 
   it("aggregates action and new totals across destinations", () => {

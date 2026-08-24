@@ -17,6 +17,10 @@ function makeMessage(
     delegations: [],
     documents: [],
     approvals: [],
+    citations: [],
+    batchResults: [],
+    dataTables: [],
+    charts: [],
     createdAt: Date.now(),
     ...overrides,
   };
