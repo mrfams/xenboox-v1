@@ -161,17 +161,17 @@
 
 ## Employee #12: Finance Analyst — Score: 8/10
 
-| #   | Finding                                             | Severity | Fix                                         | Status |
-| --- | --------------------------------------------------- | -------- | ------------------------------------------- | ------ |
-| 1   | No internal business metrics (MRR, churn, CAC, LTV) | HIGH     | Build internal admin dashboard              | ⬜     |
-| 2   | No COA import from QuickBooks/Xero                  | MEDIUM   | Add import wizard                           | ⬜     |
-| 3   | No comparative financial reporting                  | MEDIUM   | Add "vs last month" and "vs budget" columns | ⬜     |
-| 4   | No proactive budget alerts                          | MEDIUM   | Add threshold alerts                        | ⬜     |
-| 5   | No what-if scenario builder                         | MEDIUM   | Add interactive cash flow modeling          | ⬜     |
-| 6   | Floating-point on monetary values                   | MEDIUM   | Verify integer cents or decimal.js          | ⬜     |
-| 7   | No customizable aging buckets                       | LOW      | Allow custom aging periods                  | ⬜     |
-| 8   | No tax calendar view                                | LOW      | Add visual deadline calendar                | ⬜     |
-| 9   | No direct method cash flow option                   | LOW      | Add direct method alongside indirect        | ⬜     |
+| #   | Finding                                                    | Severity | Fix                                         | Status |
+| --- | ---------------------------------------------------------- | -------- | ------------------------------------------- | ------ |
+| 1   | ~~No internal business metrics (MRR, churn, CAC, LTV)~~ ✅ | HIGH     | Build internal admin dashboard              | ✅     |
+| 2   | No COA import from QuickBooks/Xero                         | MEDIUM   | Add import wizard                           | ⬜     |
+| 3   | No comparative financial reporting                         | MEDIUM   | Add "vs last month" and "vs budget" columns | ⬜     |
+| 4   | No proactive budget alerts                                 | MEDIUM   | Add threshold alerts                        | ⬜     |
+| 5   | No what-if scenario builder                                | MEDIUM   | Add interactive cash flow modeling          | ⬜     |
+| 6   | Floating-point on monetary values                          | MEDIUM   | Verify integer cents or decimal.js          | ⬜     |
+| 7   | No customizable aging buckets                              | LOW      | Allow custom aging periods                  | ⬜     |
+| 8   | No tax calendar view                                       | LOW      | Add visual deadline calendar                | ⬜     |
+| 9   | No direct method cash flow option                          | LOW      | Add direct method alongside indirect        | ⬜     |
 
 ---
 
@@ -233,18 +233,18 @@
 
 ## Employee #17: Enterprise Readiness — Score: 5.5/10
 
-| #   | Finding                             | Severity | Fix                                            | Status |
-| --- | ----------------------------------- | -------- | ---------------------------------------------- | ------ |
-| 1   | ~~No health check endpoints~~ ✅    | HIGH     | /api/health, /ready, /live probes              | ✅     |
-| 2   | ~~No APM / distributed tracing~~ ✅ | HIGH     | Sentry server/client/edge + Prisma integration | ✅     |
-| 3   | ~~No centralized logging~~ ✅       | HIGH     | Sentry captures errors + pino structured logs  | ✅     |
-| 4   | No E2E tests                        | HIGH     | Add Playwright tests                           | ⬜     |
-| 5   | ~~No SOC 2 policy docs~~ ✅         | MEDIUM   | Create formal security policies                | ✅     |
-| 6   | No GDPR consent management          | MEDIUM   | Add consent tracking                           | ⬜     |
-| 7   | No bulk import/export               | MEDIUM   | Add CSV/Excel import                           | ⬜     |
-| 8   | ~~No dependency scanning in CI~~ ✅ | MEDIUM   | Add `pnpm audit` to CI                         | ✅     |
-| 9   | No business metrics dashboard       | MEDIUM   | Build internal admin dashboard                 | ⬜     |
-| 10  | No plugin architecture              | LOW      | Design plugin system                           | ⬜     |
+| #   | Finding                              | Severity | Fix                                            | Status |
+| --- | ------------------------------------ | -------- | ---------------------------------------------- | ------ |
+| 1   | ~~No health check endpoints~~ ✅     | HIGH     | /api/health, /ready, /live probes              | ✅     |
+| 2   | ~~No APM / distributed tracing~~ ✅  | HIGH     | Sentry server/client/edge + Prisma integration | ✅     |
+| 3   | ~~No centralized logging~~ ✅        | HIGH     | Sentry captures errors + pino structured logs  | ✅     |
+| 4   | No E2E tests                         | HIGH     | Add Playwright tests                           | ⬜     |
+| 5   | ~~No SOC 2 policy docs~~ ✅          | MEDIUM   | Create formal security policies                | ✅     |
+| 6   | No GDPR consent management           | MEDIUM   | Add consent tracking                           | ⬜     |
+| 7   | No bulk import/export                | MEDIUM   | Add CSV/Excel import                           | ⬜     |
+| 8   | ~~No dependency scanning in CI~~ ✅  | MEDIUM   | Add `pnpm audit` to CI                         | ✅     |
+| 9   | ~~No business metrics dashboard~~ ✅ | MEDIUM   | Build internal admin dashboard                 | ✅     |
+| 10  | No plugin architecture               | LOW      | Design plugin system                           | ⬜     |
 
 ---
 
@@ -295,16 +295,16 @@
 
 ## Employee #21: Data Analyst — Score: 4/10
 
-| #   | Finding                        | Severity | Fix                                          | Status |
-| --- | ------------------------------ | -------- | -------------------------------------------- | ------ |
-| 1   | No analytics event tracking    | CRITICAL | Add PostHog or Mixpanel                      | ✅     |
-| 2   | No activation funnel           | HIGH     | Track signup → setup → connect → first-value | ⬜     |
-| 3   | No retention tracking          | HIGH     | Build D1/D7/D30 retention curves             | ⬜     |
-| 4   | No internal business dashboard | HIGH     | Build admin dashboard                        | ⬜     |
-| 5   | No A/B testing                 | MEDIUM   | Add PostHog experiments                      | ⬜     |
-| 6   | No session recording           | MEDIUM   | Add Hotjar or FullStory                      | ⬜     |
-| 7   | No cohort analysis             | MEDIUM   | Track user cohorts by signup date            | ⬜     |
-| 8   | No feature adoption tracking   | MEDIUM   | Track feature usage events                   | ⬜     |
+| #   | Finding                               | Severity | Fix                                          | Status |
+| --- | ------------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | No analytics event tracking           | CRITICAL | Add PostHog or Mixpanel                      | ✅     |
+| 2   | No activation funnel                  | HIGH     | Track signup → setup → connect → first-value | ⬜     |
+| 3   | No retention tracking                 | HIGH     | Build D1/D7/D30 retention curves             | ⬜     |
+| 4   | ~~No internal business dashboard~~ ✅ | HIGH     | Build admin dashboard                        | ✅     |
+| 5   | No A/B testing                        | MEDIUM   | Add PostHog experiments                      | ⬜     |
+| 6   | No session recording                  | MEDIUM   | Add Hotjar or FullStory                      | ⬜     |
+| 7   | No cohort analysis                    | MEDIUM   | Track user cohorts by signup date            | ⬜     |
+| 8   | No feature adoption tracking          | MEDIUM   | Track feature usage events                   | ⬜     |
 
 ---
 
