@@ -52,7 +52,7 @@ export default defineConfig({
     {
       name: "anon-chromium",
       testMatch:
-        /(auth-flows|marketing-pages|edge-cases|enterprise-security|visual-ux)\.spec\.ts/,
+        /(auth-flows|marketing-pages|marketing-polish|edge-cases|enterprise-security|visual-ux)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
       dependencies: [],
     },
@@ -60,7 +60,7 @@ export default defineConfig({
     {
       name: "chromium",
       testMatch:
-        /(enterprise-production|production-infra|production-readiness|comprehensive-suite|chat-flow|stress|tax-estimates|mobile-navigation|a11y-axe)\.spec\.ts/,
+        /(enterprise-production|production-infra|production-readiness|comprehensive-suite|chat-flow|stress|tax-estimates|mobile-navigation|a11y-axe|onboarding-aha)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         storageState: "e2e/.auth/user.json",
