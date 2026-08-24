@@ -273,8 +273,7 @@
 | 1   | No mobile app                          | N/A      | Web only — no mobile/desktop in scope         | N/A    |
 | 2   | ~~No "Why Us vs Them" page~~ ✅        | HIGH     | Create `/compare/quickbooks`, `/compare/xero` | ✅     |
 | 3   | ~~No competitive comparison table~~ ✅ | HIGH     | Add feature comparison on pricing page        | ✅     |
-| 4   | Growth tier priced above Xero          | MEDIUM   | Justify premium or adjust pricing             | ⬜     |     | 5   | ~~No case studies~~ ✅      | MEDIUM | Write 3 customer success stories | ✅  |
-| 6   | Limited integrations                   | MEDIUM   | Prioritize top 10 integrations                | ⬜     |     | 7   | ~~No win/loss tracking~~ ✅ | LOW    | Add CRM tracking                 | ✅  |
+| 4   | Growth tier priced above Xero          | MEDIUM   | Justify premium or adjust pricing             | ⬜     |     | 5   | ~~No case studies~~ ✅ | MEDIUM | Write 3 customer success stories | ✅  |     | 6   | ~~Limited integrations~~ ✅ | MEDIUM | Prioritize top 10 integrations | ✅  |     | 7   | ~~No win/loss tracking~~ ✅ | LOW | Add CRM tracking | ✅  |
 
 ---
 
