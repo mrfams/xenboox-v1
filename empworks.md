@@ -215,8 +215,8 @@
 | #   | Finding                       | Severity | Fix                                          | Status |
 | --- | ----------------------------- | -------- | -------------------------------------------- | ------ |
 | 1   | ~~No staging environment~~ ✅ | HIGH     | Vercel preview deploys on every push         | ✅     |
-| 2   | No uptime monitoring          | HIGH     | Add BetterUptime or Pingdom                  | ⬜     |
-| 3   | No cost monitoring            | HIGH     | Add Vercel cost dashboard + budget alerts    | ⬜     |
+| 2   | ~~No uptime monitoring~~ ✅   | HIGH     | Add BetterUptime or Pingdom                  | ✅     |
+| 3   | ~~No cost monitoring~~ ✅     | HIGH     | Add Vercel cost dashboard + budget alerts    | ✅     |
 | 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                      | ⬜     |
 | 5   | No on-call rotation           | MEDIUM   | Set up PagerDuty or Opsgenie                 | ⬜     |
 | 6   | ~~No post-mortem process~~ ✅ | MEDIUM   | Create post-mortem template                  | ✅     |
