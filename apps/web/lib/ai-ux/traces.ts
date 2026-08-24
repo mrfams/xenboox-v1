@@ -2088,7 +2088,7 @@ export const AI_UX_TRACES: AiUxTrace[] = [
 
   t(
     "workspace-setup",
-    "AI Set Up Workspace",
+    "Set Up with AI",
     "The CFO agent configures a brand-new workspace end to end — entity settings, tax pack, roles, and banking.",
     "Settings",
     "~32s run",

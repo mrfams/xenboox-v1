@@ -49,13 +49,26 @@ function getPageTitle(pathname: string): string {
 
 function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
   const { entityRole, entityId } = useEntity();
-  // Identify user with PostHog for analytics
+  const pathname = usePathname();
+  // Identify user with PostHog for analytics + feature adoption funnel
   usePostHogIdentify(
     typeof window !== "undefined"
       ? (localStorage.getItem("userId") ?? undefined)
       : undefined,
     entityId ? { entityId, entityRole: entityRole ?? "" } : undefined,
   );
+  useEffect(() => {
+    try {
+      const {
+        trackFeatureAdoption,
+        trackFunnel,
+      } = require("@/lib/analytics/feature-tracking");
+      if (pathname) {
+        trackFeatureAdoption("dashboard_view", { surface: pathname, entityId });
+        trackFunnel("dashboard_active", { surface: pathname, entityId });
+      }
+    } catch {}
+  }, [pathname, entityId]);
   const { data: perms } = trpc.permissionsAdmin.myPermissions.useQuery(
     undefined,
     {

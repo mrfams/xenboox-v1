@@ -961,17 +961,15 @@ export function OnboardingWizard() {
   if (!showWizard || !isFirstTime) return null;
 
   const handleComplete = () => {
-    // Analytics: track onboarding completion
+    // Analytics: track onboarding completion + funnel
     try {
       const { track } = require("@/lib/analytics/events");
-      track("onboarding_completed", {
-        entityId: localStorage.getItem("currentEntityId") ?? "",
-        duration_seconds: 0,
-      });
-      track("onboarding_skipped", {
-        entityId: localStorage.getItem("currentEntityId") ?? "",
-        lastStep: stepIndex,
-      });
+      const { trackFunnel } = require("@/lib/analytics/feature-tracking");
+      const entityId = localStorage.getItem("currentEntityId") ?? "";
+      track("onboarding_completed", { entityId, duration_seconds: 0 });
+      track("onboarding_skipped", { entityId, lastStep: stepIndex });
+      trackFunnel("onboarding_completed", { entityId });
+      trackFunnel("signup_to_paid", { entityId, step: "onboarding_skip" });
     } catch {
       // Non-blocking
     }
@@ -980,13 +978,18 @@ export function OnboardingWizard() {
   };
 
   const handleGoToDashboard = () => {
-    // Analytics: track onboarding completion
+    // Analytics: track onboarding completion + funnel activation
     try {
       const { track } = require("@/lib/analytics/events");
-      track("onboarding_completed", {
-        entityId: localStorage.getItem("currentEntityId") ?? "",
-        duration_seconds: 0,
-      });
+      const {
+        trackFunnel,
+        trackFeatureAdoption,
+      } = require("@/lib/analytics/feature-tracking");
+      const entityId = localStorage.getItem("currentEntityId") ?? "";
+      track("onboarding_completed", { entityId, duration_seconds: 0 });
+      trackFunnel("onboarding_completed", { entityId });
+      trackFunnel("activation", { entityId });
+      trackFeatureAdoption("onboarding_complete", { entityId });
     } catch {
       // Non-blocking
     }

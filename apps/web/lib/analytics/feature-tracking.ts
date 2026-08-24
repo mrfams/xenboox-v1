@@ -24,5 +24,15 @@ export function trackFunnel(step: string, props: Record<string, unknown> = {}) {
       }
     ).posthog;
     posthog?.capture("funnel_step", { step, ...props });
+    const { track } = require("@/lib/analytics/events");
+    track("funnel_step", { step, ...props });
   } catch {}
+}
+
+export function trackActivation(
+  entityId: string,
+  props: Record<string, unknown> = {},
+) {
+  trackFunnel("activation", { entityId, ...props });
+  trackFeatureAdoption("activation", { entityId, ...props });
 }

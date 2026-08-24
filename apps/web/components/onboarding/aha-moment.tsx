@@ -29,9 +29,15 @@ export function AhaMomentStep({ onNext, onPrev }: Props) {
   useEffect(() => {
     try {
       const { track } = require("@/lib/analytics/events");
-      track("aha_moment_viewed", {
-        entityId: localStorage.getItem("currentEntityId") ?? "",
-      });
+      const {
+        trackFunnel,
+        trackFeatureAdoption,
+      } = require("@/lib/analytics/feature-tracking");
+      const entityId = localStorage.getItem("currentEntityId") ?? "";
+      track("aha_moment_viewed", { entityId });
+      trackFunnel("aha_moment_viewed", { entityId });
+      trackFunnel("activation", { entityId });
+      trackFeatureAdoption("onboarding_aha", { entityId });
     } catch {
       // non-blocking
     }

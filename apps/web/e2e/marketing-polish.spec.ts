@@ -149,5 +149,8 @@ test.describe("Marketing Polish — Demo Video + Comparison + Badge", () => {
     await expect(
       page.locator("h1", { hasText: /xenboox/i }).first(),
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /download.*one-pager/i }),
+    ).toBeVisible();
   });
 });
