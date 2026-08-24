@@ -45,14 +45,16 @@
 
 ## Employee #3: UX Writer — Score: 8/10
 
-| #   | Finding                                                    | Severity | Fix                                       | Status |
-| --- | ---------------------------------------------------------- | -------- | ----------------------------------------- | ------ |
-| 1   | ~~"Payment Link" is noun, not verb~~ ✅                    | MEDIUM   | Change to "Share Payment Link"            | ✅     |
-| 2   | ~~"AI Set Up Workspace" is awkward~~ ✅                    | MEDIUM   | Change to "Set Up with AI"                | ✅     |
-| 3   | ~~"PDF" button unclear in Donor Portal~~ ✅                | MEDIUM   | Change to "Download PDF"                  | ✅     |
-| 4   | ~~"Failed to load projects" is vague~~ ✅                  | MEDIUM   | Add "Check your connection and try again" | ✅     |
-| 5   | ~~"No accounts in your chart of accounts yet" verbose~~ ✅ | LOW      | Shorten to "No accounts yet"              | ✅     |     | 6   | ~~No AI confidence score in UI~~ ✅            | LOW | Add confidence badge on categorized transactions | ✅  |
-| 7   | ~~"No donor projects found for your account" cold~~ ✅     | LOW      | Rephrase to be warmer                     | ✅     |     | 8   | ~~Zod error messages are developer-facing~~ ✅ | LOW | Wrap in user-friendly messages                   | ✅  |
+| #   | Finding                                                    | Severity | Fix                                              | Status |
+| --- | ---------------------------------------------------------- | -------- | ------------------------------------------------ | ------ |
+| 1   | ~~"Payment Link" is noun, not verb~~ ✅                    | MEDIUM   | Change to "Share Payment Link"                   | ✅     |
+| 2   | ~~"AI Set Up Workspace" is awkward~~ ✅                    | MEDIUM   | Change to "Set Up with AI"                       | ✅     |
+| 3   | ~~"PDF" button unclear in Donor Portal~~ ✅                | MEDIUM   | Change to "Download PDF"                         | ✅     |
+| 4   | ~~"Failed to load projects" is vague~~ ✅                  | MEDIUM   | Add "Check your connection and try again"        | ✅     |
+| 5   | ~~"No accounts in your chart of accounts yet" verbose~~ ✅ | LOW      | Shorten to "No accounts yet"                     | ✅     |
+| 6   | ~~No AI confidence score in UI~~ ✅                        | LOW      | Add confidence badge on categorized transactions | ✅     |
+| 7   | ~~"No donor projects found for your account" cold~~ ✅     | LOW      | Rephrase to be warmer                            | ✅     |
+| 8   | ~~Zod error messages are developer-facing~~ ✅             | LOW      | Wrap in user-friendly messages                   | ✅     |
 
 ---
 
@@ -120,25 +122,30 @@
 
 ## Employee #9: Sales Representative — Score: 5.5/10
 
-| #   | Finding                                | Severity | Fix                                    | Status |
-| --- | -------------------------------------- | -------- | -------------------------------------- | ------ |
-| 1   | ~~No ROI calculator on pricing~~ ✅    | HIGH     | Interactive calculator on pricing page | ✅     |
-| 2   | No "Cancel anytime" / "No credit card" | HIGH     | Add trust signals                      | ✅     |
-| 3   | No demo video                          | HIGH     | Record 2-minute product walkthrough    | ⬜     |
-| 4   | ~~No case studies~~ ✅                 | MEDIUM   | Write 2-3 detailed customer stories    | ✅     |
-| 5   | No comparison sheet vs competitors     | MEDIUM   | Build QuickBooks/Xero comparison page  | ⬜     |
-| 6   | No "Most Popular" badge                | MEDIUM   | Highlight recommended tier             | ⬜     |
-| 7   | ~~No one-pager~~ ✅                    | LOW      | Create downloadable PDF summary        | ✅     |
-| 8   | ~~No "For Accountants" page~~ ✅       | LOW      | Create `/for-accountants` landing page | ✅     |
+| #   | Finding                                   | Severity | Fix                                    | Status |
+| --- | ----------------------------------------- | -------- | -------------------------------------- | ------ |
+| 1   | ~~No ROI calculator on pricing~~ ✅       | HIGH     | Interactive calculator on pricing page | ✅     |
+| 2   | No "Cancel anytime" / "No credit card"    | HIGH     | Add trust signals                      | ✅     |
+| 3   | No demo video                             | HIGH     | Record 2-minute product walkthrough    | ⬜     |
+| 4   | ~~No case studies~~ ✅                    | MEDIUM   | Write 2-3 detailed customer stories    | ✅     |
+| 5   | ~~No comparison sheet vs competitors~~ ✅ | MEDIUM   | Build QuickBooks/Xero comparison page  | ✅     |
+| 6   | No "Most Popular" badge                   | MEDIUM   | Highlight recommended tier             | ⬜     |
+| 7   | ~~No one-pager~~ ✅                       | LOW      | Create downloadable PDF summary        | ✅     |
+| 8   | ~~No "For Accountants" page~~ ✅          | LOW      | Create `/for-accountants` landing page | ✅     |
 
 ---
 
 ## Employee #10: Onboarding Specialist — Score: 5/10
 
-| # | Finding | Severity | Fix | Status |
-| --- | --------------------------------------------- | -------- | ---------------------------- | ------ || 1 | No onboarding email sequence | CRITICAL | Build 6-email drip campaign | ✅ || 2 | No product tour / walkthrough | CRITICAL | Add interactive walkthrough | ✅ || 3 | ~~No explicit welcome screen after signup~~ ✅ | HIGH | Add welcome with next steps | ✅ |
-| 4 | No "Aha Moment" trigger after bank connection | HIGH | Auto-generate first insight | ⬜ || 5 | ~~No in-app help~~ ✅ | MEDIUM | Add help widget or live chat | ✅ || 6 | ~~No team invite prompt during onboarding~~ ✅ | MEDIUM | Add "Invite your team" step | ✅ |
-| 7 | Only 4 of 7 onboarding steps complete | MEDIUM | Complete remaining steps | ⬜ |
+| #   | Finding                                              | Severity | Fix                          | Status |
+| --- | ---------------------------------------------------- | -------- | ---------------------------- | ------ |
+| 1   | No onboarding email sequence                         | CRITICAL | Build 6-email drip campaign  | ✅     |
+| 2   | No product tour / walkthrough                        | CRITICAL | Add interactive walkthrough  | ✅     |
+| 3   | ~~No explicit welcome screen after signup~~ ✅       | HIGH     | Add welcome with next steps  | ✅     |
+| 4   | ~~No "Aha Moment" trigger after bank connection~~ ✅ | HIGH     | Auto-generate first insight  | ✅     |
+| 5   | ~~No in-app help~~ ✅                                | MEDIUM   | Add help widget or live chat | ✅     |
+| 6   | ~~No team invite prompt during onboarding~~ ✅       | MEDIUM   | Add "Invite your team" step  | ✅     |
+| 7   | ~~Only 4 of 7 onboarding steps complete~~ ✅         | MEDIUM   | Complete remaining steps     | ✅     |
 
 ---
 
@@ -159,21 +166,34 @@
 
 ## Employee #12: Finance Analyst — Score: 8/10
 
-| #   | Finding                                                    | Severity | Fix                            | Status |
-| --- | ---------------------------------------------------------- | -------- | ------------------------------ | ------ |
-| 1   | ~~No internal business metrics (MRR, churn, CAC, LTV)~~ ✅ | HIGH     | Build internal admin dashboard | ✅     |
-| 2   | No COA import from QuickBooks/Xero                         | MEDIUM   | Add import wizard              | ⬜     |     | 3   | ~~No comparative financial reporting~~ ✅ | MEDIUM | Add "vs last month" and "vs budget" columns | ✅  |     | 4   | ~~No proactive budget alerts~~ ✅ | MEDIUM | Add threshold alerts | ✅  |     | 5   | ~~No what-if scenario builder~~ ✅ | MEDIUM | Add interactive cash flow modeling | ✅  |     | 6   | ~~Floating-point on monetary values~~ ✅ | MEDIUM | Verify integer cents or decimal.js | ✅  |     | 7   | ~~No customizable aging buckets~~ ✅ | LOW | Allow custom aging periods | ✅  |     | 8   | ~~No tax calendar view~~ ✅ | LOW | Add visual deadline calendar | ✅  |     | 9   | ~~No direct method cash flow option~~ ✅ | LOW | Add direct method alongside indirect | ✅  |
+| #   | Finding                                                    | Severity | Fix                                         | Status |
+| --- | ---------------------------------------------------------- | -------- | ------------------------------------------- | ------ |
+| 1   | ~~No internal business metrics (MRR, churn, CAC, LTV)~~ ✅ | HIGH     | Build internal admin dashboard              | ✅     |
+| 2   | No COA import from QuickBooks/Xero                         | MEDIUM   | Add import wizard                           | ⬜     |
+| 3   | ~~No comparative financial reporting~~ ✅                  | MEDIUM   | Add "vs last month" and "vs budget" columns | ✅     |
+| 4   | ~~No proactive budget alerts~~ ✅                          | MEDIUM   | Add threshold alerts                        | ✅     |
+| 5   | ~~No what-if scenario builder~~ ✅                         | MEDIUM   | Add interactive cash flow modeling          | ✅     |
+| 6   | ~~Floating-point on monetary values~~ ✅                   | MEDIUM   | Verify integer cents or decimal.js          | ✅     |
+| 7   | ~~No customizable aging buckets~~ ✅                       | LOW      | Allow custom aging periods                  | ✅     |
+| 8   | ~~No tax calendar view~~ ✅                                | LOW      | Add visual deadline calendar                | ✅     |
+| 9   | ~~No direct method cash flow option~~ ✅                   | LOW      | Add direct method alongside indirect        | ✅     |
 
 ---
 
 ## Employee #13: Customer Success Manager — Score: 2/10
 
-| # | Finding | Severity | Fix | Status |
-| --- | -------------------------- | -------- | ---------------------------------------- | ------ | --- | --- | ------------------- | ---- | ------------------------------------ | --- || 1 | No customer health scoring | CRITICAL | Build health score model | ✅ |
-| 2 | No churn prevention system | CRITICAL | Build churn prediction + intervention | ✅ |
-| 3 | ~~No NPS survey~~ ✅ | HIGH | Quarterly NPS survey with API + storage | ✅ || 4 | ~~No retention emails~~ ✅ | HIGH | Build post-onboarding email sequence | ✅ |
-| 5 | ~~No upsell prompts~~ ✅ | HIGH | Upsell banner + sidebar upgrade prompt | ✅ || 6 | ~~No QBR template~~ ✅ | HIGH | Build quarterly business review template | ✅ |
-| 7 | ~~No feedback widget~~ ✅ | HIGH | NPS survey includes feedback comments | ✅ || 8 | ~~No referral program~~ ✅ | MEDIUM | Build referral incentive system | ✅ || 9 | ~~No user interview process~~ ✅ | MEDIUM | Schedule monthly user interviews | ✅ || 10 | ~~No support system~~ ✅ | MEDIUM | Integrate Intercom or Crisp | ✅ |
+| #   | Finding                          | Severity | Fix                                      | Status |
+| --- | -------------------------------- | -------- | ---------------------------------------- | ------ |
+| 1   | No customer health scoring       | CRITICAL | Build health score model                 | ✅     |
+| 2   | No churn prevention system       | CRITICAL | Build churn prediction + intervention    | ✅     |
+| 3   | ~~No NPS survey~~ ✅             | HIGH     | Quarterly NPS survey with API + storage  | ✅     |
+| 4   | ~~No retention emails~~ ✅       | HIGH     | Build post-onboarding email sequence     | ✅     |
+| 5   | ~~No upsell prompts~~ ✅         | HIGH     | Upsell banner + sidebar upgrade prompt   | ✅     |
+| 6   | ~~No QBR template~~ ✅           | HIGH     | Build quarterly business review template | ✅     |
+| 7   | ~~No feedback widget~~ ✅        | HIGH     | NPS survey includes feedback comments    | ✅     |
+| 8   | ~~No referral program~~ ✅       | MEDIUM   | Build referral incentive system          | ✅     |
+| 9   | ~~No user interview process~~ ✅ | MEDIUM   | Schedule monthly user interviews         | ✅     |
+| 10  | ~~No support system~~ ✅         | MEDIUM   | Integrate Intercom or Crisp              | ✅     |
 
 ---
 
@@ -184,21 +204,22 @@
 | 1   | ~~"deterministically reconciled" is jargon-y~~ ✅      | MEDIUM   | Change to "Every number is checked before it hits the ledger" | ✅     |
 | 2   | ~~"Verified operators" is corporate~~ ✅               | MEDIUM   | Change to "Real teams, real books"                            | ✅     |
 | 3   | ~~Pricing is feature-focused, not outcome-focused~~ ✅ | MEDIUM   | Lead with outcomes not features                               | ✅     |
-| 4   | About page has no personality                          | HIGH     | Add founder story, team photos                                | ✅     |     | 5   | ~~Onboarding wizard is silent~~ ✅ | MEDIUM | Add welcome message | ✅  |
-| 6   | Settings header "AI Set Up Workspace"                  | LOW      | Change to "Set Up with AI"                                    | ⬜     |
+| 4   | About page has no personality                          | HIGH     | Add founder story, team photos                                | ✅     |
+| 5   | ~~Onboarding wizard is silent~~ ✅                     | MEDIUM   | Add welcome message                                           | ✅     |
+| 6   | ~~Settings header "AI Set Up Workspace"~~ ✅           | LOW      | Change to "Set Up with AI"                                    | ✅     |
 
 ---
 
 ## Employee #15: Product Designer — Score: 8/10
 
-| #   | Finding                               | Severity | Fix                                          | Status |
-| --- | ------------------------------------- | -------- | -------------------------------------------- | ------ |
-| 1   | ~~No proactive AI suggestions~~ ✅    | HIGH     | ProactiveBriefing with AI alerts + actions   | ✅     |
-| 2   | No keyboard shortcuts                 | MEDIUM   | Add Cmd+K search, Cmd+N new invoice, etc.    | ⬜     |
-| 3   | No drag-and-drop                      | MEDIUM   | Add for line items, file uploads, reordering | ⬜     |
-| 4   | No universal undo                     | MEDIUM   | Add undo toast after mutations               | ⬜     |
-| 5   | Tables don't have card view on mobile | MEDIUM   | Add responsive card view (mobile web)        | ⬜     |
-| 6   | Many actions still form-based         | LOW      | Move toward conversational AI                | ⬜     |
+| #   | Finding                                      | Severity | Fix                                          | Status |
+| --- | -------------------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | ~~No proactive AI suggestions~~ ✅           | HIGH     | ProactiveBriefing with AI alerts + actions   | ✅     |
+| 2   | ~~No keyboard shortcuts~~ ✅                 | MEDIUM   | Add Cmd+K search, Cmd+N new invoice, etc.    | ✅     |
+| 3   | ~~No drag-and-drop~~ ✅                      | MEDIUM   | Add for line items, file uploads, reordering | ✅     |
+| 4   | ~~No universal undo~~ ✅                     | MEDIUM   | Add undo toast after mutations               | ✅     |
+| 5   | ~~Tables don't have card view on mobile~~ ✅ | MEDIUM   | Add responsive card view (mobile web)        | ✅     |
+| 6   | Many actions still form-based                | LOW      | Move toward conversational AI                | ⬜     |
 
 ---
 
@@ -209,9 +230,11 @@
 | 1   | ~~No staging environment~~ ✅ | HIGH     | Vercel preview deploys on every push         | ✅     |
 | 2   | ~~No uptime monitoring~~ ✅   | HIGH     | Add BetterUptime or Pingdom                  | ✅     |
 | 3   | ~~No cost monitoring~~ ✅     | HIGH     | Add Vercel cost dashboard + budget alerts    | ✅     |
-| 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                      | ⬜     |     | 5   | ~~No on-call rotation~~ ✅   | MEDIUM | Set up PagerDuty or Opsgenie          | ✅  |
+| 4   | ~~No SLA defined~~ ✅         | MEDIUM   | Define 99.9% uptime SLA                      | ✅     |
+| 5   | ~~No on-call rotation~~ ✅    | MEDIUM   | Set up PagerDuty or Opsgenie                 | ✅     |
 | 6   | ~~No post-mortem process~~ ✅ | MEDIUM   | Create post-mortem template                  | ✅     |
-| 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |     | 8   | ~~No automated rollback~~ ✅ | MEDIUM | Add auto-rollback on error rate spike | ✅  |
+| 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |
+| 8   | ~~No automated rollback~~ ✅  | MEDIUM   | Add auto-rollback on error rate spike        | ✅     |
 | 9   | ~~No centralized logging~~ ✅ | LOW      | Sentry error tracking + pino structured logs | ✅     |
 | 10  | ~~No capacity planning~~ ✅   | LOW      | Set up resource usage monitoring             | ✅     |
 
@@ -224,26 +247,30 @@
 | 1   | ~~No health check endpoints~~ ✅     | HIGH     | /api/health, /ready, /live probes              | ✅     |
 | 2   | ~~No APM / distributed tracing~~ ✅  | HIGH     | Sentry server/client/edge + Prisma integration | ✅     |
 | 3   | ~~No centralized logging~~ ✅        | HIGH     | Sentry captures errors + pino structured logs  | ✅     |
-| 4   | No E2E tests                         | HIGH     | Add Playwright tests                           | ⬜     |
+| 4   | ~~No E2E tests~~ ✅                  | HIGH     | Add Playwright tests                           | ✅     |
 | 5   | ~~No SOC 2 policy docs~~ ✅          | MEDIUM   | Create formal security policies                | ✅     |
-| 6   | No GDPR consent management           | MEDIUM   | Add consent tracking                           | ⬜     |
-| 7   | No bulk import/export                | MEDIUM   | Add CSV/Excel import                           | ⬜     |
+| 6   | ~~No GDPR consent management~~ ✅    | MEDIUM   | Add consent tracking                           | ✅     |
+| 7   | ~~No bulk import/export~~ ✅         | MEDIUM   | Add CSV/Excel import                           | ✅     |
 | 8   | ~~No dependency scanning in CI~~ ✅  | MEDIUM   | Add `pnpm audit` to CI                         | ✅     |
-| 9   | ~~No business metrics dashboard~~ ✅ | MEDIUM   | Build internal admin dashboard                 | ✅     |     | 10  | ~~No plugin architecture~~ ✅ | LOW | Design plugin system | ✅  |
+| 9   | ~~No business metrics dashboard~~ ✅ | MEDIUM   | Build internal admin dashboard                 | ✅     |
+| 10  | ~~No plugin architecture~~ ✅        | LOW      | Design plugin system                           | ✅     |
 
 ---
 
 ## Employee #18: COO — Score: 4.5/10
 
-| # | Finding | Severity | Fix | Status |
-| --- | --------------------------------------- | -------- | -------------------------------------- | ------ || 1 | ~~No support system~~ ✅ | HIGH | Add Intercom or Crisp | ✅ |
-| 2 | ~~No SLA published~~ ✅ | HIGH | Define and publish 99.9% uptime SLA | ✅ | | 3 | ~~No on-call rotation~~ ✅ | HIGH | Set up PagerDuty | ✅ |
-| 4 | ~~No PR required for main~~ ✅ | MEDIUM | Enable branch protection | ✅ |
-| 5 | ~~No code review standards~~ ✅ | MEDIUM | Document review checklist | ✅ |
-| 6 | ~~No test coverage targets~~ ✅ | MEDIUM | Set 80% target, enforce in CI | ✅ |
-| 7 | ~~No NPS / feedback loop~~ ✅ | MEDIUM | NPS survey + feedback widget | ✅ |
-| 8 | ~~No SOPs~~ ✅ | MEDIUM | Document standard operating procedures | ✅ | | 9 | ~~No internal budget tracking~~ ✅ | LOW | Track burn rate and runway | ✅ |
-| 10 | ~~No scaling plan beyond 100 users~~ ✅ | LOW | Document scaling roadmap | ✅ |
+| #   | Finding                                 | Severity | Fix                                    | Status |
+| --- | --------------------------------------- | -------- | -------------------------------------- | ------ |
+| 1   | ~~No support system~~ ✅                | HIGH     | Add Intercom or Crisp                  | ✅     |
+| 2   | ~~No SLA published~~ ✅                 | HIGH     | Define and publish 99.9% uptime SLA    | ✅     |
+| 3   | ~~No on-call rotation~~ ✅              | HIGH     | Set up PagerDuty                       | ✅     |
+| 4   | ~~No PR required for main~~ ✅          | MEDIUM   | Enable branch protection               | ✅     |
+| 5   | ~~No code review standards~~ ✅         | MEDIUM   | Document review checklist              | ✅     |
+| 6   | ~~No test coverage targets~~ ✅         | MEDIUM   | Set 80% target, enforce in CI          | ✅     |
+| 7   | ~~No NPS / feedback loop~~ ✅           | MEDIUM   | NPS survey + feedback widget           | ✅     |
+| 8   | ~~No SOPs~~ ✅                          | MEDIUM   | Document standard operating procedures | ✅     |
+| 9   | ~~No internal budget tracking~~ ✅      | LOW      | Track burn rate and runway             | ✅     |
+| 10  | ~~No scaling plan beyond 100 users~~ ✅ | LOW      | Document scaling roadmap               | ✅     |
 
 ---
 
@@ -252,7 +279,9 @@
 | #   | Finding                                  | Severity | Fix                                               | Status |
 | --- | ---------------------------------------- | -------- | ------------------------------------------------- | ------ |
 | 1   | ~~No product-market fit measurement~~ ✅ | HIGH     | Add user interviews, NPS, activation tracking     | ✅     |
-| 2   | ~~No growth strategy~~ ✅                | HIGH     | Define channels: content, partnerships, referrals | ✅     |     | 3   | ~~No fundraising materials~~ ✅ | MEDIUM | Build pitch deck, financial projections | ✅  |     | 4   | ~~Feature creep risk~~ ✅ | MEDIUM | Focus on core 5 surfaces | ✅  |
+| 2   | ~~No growth strategy~~ ✅                | HIGH     | Define channels: content, partnerships, referrals | ✅     |
+| 3   | ~~No fundraising materials~~ ✅          | MEDIUM   | Build pitch deck, financial projections           | ✅     |
+| 4   | ~~Feature creep risk~~ ✅                | MEDIUM   | Focus on core 5 surfaces                          | ✅     |
 | 5   | ~~No content distribution~~ ✅           | MEDIUM   | SEO strategy, social media, email marketing       | ✅     |
 | 6   | ~~No partnership strategy~~ ✅           | MEDIUM   | Target accounting firms, banks                    | ✅     |
 | 7   | ~~No community~~ ✅                      | LOW      | Build Slack/Discord                               | ✅     |
@@ -265,32 +294,40 @@
 | --- | -------------------------------------- | -------- | --------------------------------------------- | ------ |
 | 1   | No mobile app                          | N/A      | Web only — no mobile/desktop in scope         | N/A    |
 | 2   | ~~No "Why Us vs Them" page~~ ✅        | HIGH     | Create `/compare/quickbooks`, `/compare/xero` | ✅     |
-| 3   | ~~No competitive comparison table~~ ✅ | HIGH     | Add feature comparison on pricing page        | ✅     |     | 4   | ~~Growth tier priced above Xero~~ ✅ | MEDIUM | Justify premium or adjust pricing | ✅  |     | 5   | ~~No case studies~~ ✅ | MEDIUM | Write 3 customer success stories | ✅  |     | 6   | ~~Limited integrations~~ ✅ | MEDIUM | Prioritize top 10 integrations | ✅  |     | 7   | ~~No win/loss tracking~~ ✅ | LOW | Add CRM tracking | ✅  |
+| 3   | ~~No competitive comparison table~~ ✅ | HIGH     | Add feature comparison on pricing page        | ✅     |
+| 4   | ~~Growth tier priced above Xero~~ ✅   | MEDIUM   | Justify premium or adjust pricing             | ✅     |
+| 5   | ~~No case studies~~ ✅                 | MEDIUM   | Write 3 customer success stories              | ✅     |
+| 6   | ~~Limited integrations~~ ✅            | MEDIUM   | Prioritize top 10 integrations                | ✅     |
+| 7   | ~~No win/loss tracking~~ ✅            | LOW      | Add CRM tracking                              | ✅     |
 
 ---
 
 ## Employee #21: Data Analyst — Score: 4/10
 
-| #   | Finding                               | Severity | Fix                               | Status |
-| --- | ------------------------------------- | -------- | --------------------------------- | ------ |
-| 1   | No analytics event tracking           | CRITICAL | Add PostHog or Mixpanel           | ✅     |     | 2   | ~~No activation funnel~~ ✅ | HIGH | Track signup → setup → connect → first-value | ✅  |     | 3   | ~~No retention tracking~~ ✅ | HIGH | Build D1/D7/D30 retention curves | ✅  |
-| 4   | ~~No internal business dashboard~~ ✅ | HIGH     | Build admin dashboard             | ✅     |
-| 5   | ~~No A/B testing~~ ✅                 | MEDIUM   | Add PostHog experiments           | ✅     |
-| 6   | ~~No session recording~~ ✅           | MEDIUM   | Add Hotjar or FullStory           | ✅     |
-| 7   | ~~No cohort analysis~~ ✅             | MEDIUM   | Track user cohorts by signup date | ✅     |
-| 8   | No feature adoption tracking          | MEDIUM   | Track feature usage events        | ⬜     |
+| #   | Finding                               | Severity | Fix                                          | Status |
+| --- | ------------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | No analytics event tracking           | CRITICAL | Add PostHog or Mixpanel                      | ✅     |
+| 2   | ~~No activation funnel~~ ✅           | HIGH     | Track signup → setup → connect → first-value | ✅     |
+| 3   | ~~No retention tracking~~ ✅          | HIGH     | Build D1/D7/D30 retention curves             | ✅     |
+| 4   | ~~No internal business dashboard~~ ✅ | HIGH     | Build admin dashboard                        | ✅     |
+| 5   | ~~No A/B testing~~ ✅                 | MEDIUM   | Add PostHog experiments                      | ✅     |
+| 6   | ~~No session recording~~ ✅           | MEDIUM   | Add Hotjar or FullStory                      | ✅     |
+| 7   | ~~No cohort analysis~~ ✅             | MEDIUM   | Track user cohorts by signup date            | ✅     |
+| 8   | ~~No feature adoption tracking~~ ✅   | MEDIUM   | Track feature usage events                   | ✅     |
 
 ---
 
 ## Employee #22: Product Analyst — Score: 2/10
 
-| #   | Finding                             | Severity | Fix                                     | Status |
-| --- | ----------------------------------- | -------- | --------------------------------------- | ------ |
-| 1   | No AARRR metrics tracked            | CRITICAL | Add PostHog for full funnel             | ✅     |
-| 2   | ~~No north star metric defined~~ ✅ | HIGH     | Define "Weekly Active AI Interactions"  | ✅     |     | 3   | ~~No feature adoption tracking~~ ✅ | HIGH | Track events for every major feature | ✅  |     | 4   | ~~No user segmentation~~ ✅ | HIGH | Segment by size, industry, usage, channel | ✅  |
-| 5   | No funnel analysis                  | MEDIUM   | Build signup → activation → paid funnel | ⬜     |
-| 6   | ~~No cohort analysis~~ ✅           | MEDIUM   | Track retention by signup month         | ✅     |
-| 7   | ~~No A/B testing~~ ✅               | MEDIUM   | Add experimentation framework           | ✅     |
+| #   | Finding                             | Severity | Fix                                       | Status |
+| --- | ----------------------------------- | -------- | ----------------------------------------- | ------ |
+| 1   | No AARRR metrics tracked            | CRITICAL | Add PostHog for full funnel               | ✅     |
+| 2   | ~~No north star metric defined~~ ✅ | HIGH     | Define "Weekly Active AI Interactions"    | ✅     |
+| 3   | ~~No feature adoption tracking~~ ✅ | HIGH     | Track events for every major feature      | ✅     |
+| 4   | ~~No user segmentation~~ ✅         | HIGH     | Segment by size, industry, usage, channel | ✅     |
+| 5   | ~~No funnel analysis~~ ✅           | MEDIUM   | Build signup → activation → paid funnel   | ✅     |
+| 6   | ~~No cohort analysis~~ ✅           | MEDIUM   | Track retention by signup month           | ✅     |
+| 7   | ~~No A/B testing~~ ✅               | MEDIUM   | Add experimentation framework             | ✅     |
 
 ---
 
@@ -298,18 +335,28 @@
 
 | #   | Finding                            | Severity | Fix                                      | Status |
 | --- | ---------------------------------- | -------- | ---------------------------------------- | ------ |
-| 1   | ~~No Gambian ICP defined~~ ✅      | HIGH     | Define ICP for Gambian market            | ✅     |     | 2   | ~~No CRM~~ ✅              | HIGH   | Add HubSpot free tier     | ✅  |
+| 1   | ~~No Gambian ICP defined~~ ✅      | HIGH     | Define ICP for Gambian market            | ✅     |
+| 2   | ~~No CRM~~ ✅                      | HIGH     | Add HubSpot free tier                    | ✅     |
 | 3   | ~~No lead generation channels~~ ✅ | HIGH     | Build content + LinkedIn + partnerships  | ✅     |
-| 4   | No sales collateral                | MEDIUM   | Create one-pager, pitch deck, demo video | ⬜     |     | 5   | ~~No lead scoring~~ ✅     | MEDIUM | Implement BANT framework  | ✅  |
-| 6   | ~~No buyer personas~~ ✅           | MEDIUM   | Define CFO, Owner, Accountant personas   | ✅     |     | 7   | ~~No referral program~~ ✅ | LOW    | Build referral incentives | ✅  |
+| 4   | No sales collateral                | MEDIUM   | Create one-pager, pitch deck, demo video | ⬜     |
+| 5   | ~~No lead scoring~~ ✅             | MEDIUM   | Implement BANT framework                 | ✅     |
+| 6   | ~~No buyer personas~~ ✅           | MEDIUM   | Define CFO, Owner, Accountant personas   | ✅     |
+| 7   | ~~No referral program~~ ✅         | LOW      | Build referral incentives                | ✅     |
 
 ---
 
 ## Employee #24: Automation Specialist — Score: 6.5/10
 
-| # | Finding | Severity | Fix | Status |
-| --- | -------------------------- | -------- | --------------------------- | ------ || 1 | ~~No receipt/invoice OCR~~ ✅ | HIGH | Add OCR for data extraction | ✅ || 2 | ~~No WhatsApp integration~~ ✅ | HIGH | Add WhatsApp notifications | ✅ | | 3 | ~~No batch operations~~ ✅ | MEDIUM | Add bulk categorize, approve, send | ✅ | | 4 | ~~No migration tools~~ ✅ | MEDIUM | Build QuickBooks/Xero import | ✅ |
-| 5 | ~~No Excel/CSV export~~ ✅ | MEDIUM | Add export for all reports | ✅ || 6 | ~~No Slack integration~~ ✅ | MEDIUM | Add Slack notifications | ✅ | | 7 | ~~No in-app notifications~~ ✅ | MEDIUM | Add notification bell | ✅ || 8 | ~~No calendar sync~~ ✅ | LOW | Add Google Calendar sync | ✅ |
+| #   | Finding                        | Severity | Fix                                | Status |
+| --- | ------------------------------ | -------- | ---------------------------------- | ------ |
+| 1   | ~~No receipt/invoice OCR~~ ✅  | HIGH     | Add OCR for data extraction        | ✅     |
+| 2   | ~~No WhatsApp integration~~ ✅ | HIGH     | Add WhatsApp notifications         | ✅     |
+| 3   | ~~No batch operations~~ ✅     | MEDIUM   | Add bulk categorize, approve, send | ✅     |
+| 4   | ~~No migration tools~~ ✅      | MEDIUM   | Build QuickBooks/Xero import       | ✅     |
+| 5   | ~~No Excel/CSV export~~ ✅     | MEDIUM   | Add export for all reports         | ✅     |
+| 6   | ~~No Slack integration~~ ✅    | MEDIUM   | Add Slack notifications            | ✅     |
+| 7   | ~~No in-app notifications~~ ✅ | MEDIUM   | Add notification bell              | ✅     |
+| 8   | ~~No calendar sync~~ ✅        | LOW      | Add Google Calendar sync           | ✅     |
 
 ---
 
@@ -352,31 +399,31 @@
 | 18  | ~~No health check endpoints~~ ✅               | #17 Enterprise                |
 | 19  | ~~No APM / distributed tracing~~ ✅            | #17 Enterprise                |
 | 20  | ~~No centralized logging~~ ✅                  | #17 Enterprise                |
-| 21  | No E2E tests                                   | #17 Enterprise                |
+| 21  | ~~No E2E tests~~ ✅                            | #17 Enterprise                |
 | 22  | No support system                              | #18 COO                       |
 | 23  | No SLA published                               | #18 COO                       |
 | 24  | No on-call rotation                            | #18 COO                       |
 | 25  | No product-market fit measurement              | #19 CEO                       |
 | 26  | No growth strategy                             | #19 CEO                       |
-| 27  | No "Why Us vs Them" page                       | #20 Competitor                |
-| 28  | No competitive comparison table                | #20 Competitor                |
-| 29  | No activation funnel                           | #21 Data Analyst              |
-| 30  | No retention tracking                          | #21 Data Analyst              |
-| 31  | No internal business dashboard                 | #21 Data Analyst, #12 Finance |
-| 32  | No north star metric                           | #22 Product Analyst           |
-| 33  | No feature adoption tracking                   | #22 Product Analyst           |
-| 34  | No user segmentation                           | #22 Product Analyst           |
-| 35  | No Gambian ICP                                 | #23 Lead Researcher           |
-| 36  | No CRM                                         | #23 Lead Researcher           |
-| 37  | No lead generation channels                    | #23 Lead Researcher           |
-| 38  | No receipt/invoice OCR                         | #24 Automation                |
-| 39  | No WhatsApp integration                        | #24 Automation                |
-| 40  | N+1 query in autoCategorize                    | #7 Engineering                |
+| 27  | ~~No "Why Us vs Them" page~~ ✅                | #20 Competitor                |
+| 28  | ~~No competitive comparison table~~ ✅         | #20 Competitor                |
+| 29  | ~~No activation funnel~~ ✅                    | #21 Data Analyst              |
+| 30  | ~~No retention tracking~~ ✅                   | #21 Data Analyst              |
+| 31  | ~~No internal business dashboard~~ ✅          | #21 Data Analyst, #12 Finance |
+| 32  | ~~No north star metric~~ ✅                    | #22 Product Analyst           |
+| 33  | ~~No feature adoption tracking~~ ✅            | #22 Product Analyst           |
+| 34  | ~~No user segmentation~~ ✅                    | #22 Product Analyst           |
+| 35  | ~~No Gambian ICP~~ ✅                          | #23 Lead Researcher           |
+| 36  | ~~No CRM~~ ✅                                  | #23 Lead Researcher           |
+| 37  | ~~No lead generation channels~~ ✅             | #23 Lead Researcher           |
+| 38  | ~~No receipt/invoice OCR~~ ✅                  | #24 Automation                |
+| 39  | ~~No WhatsApp integration~~ ✅                 | #24 Automation                |
+| 40  | ~~N+1 query in autoCategorize~~ ✅             | #7 Engineering                |
 | 41  | ~~No distributed tracing~~ ✅                  | #11 Architect                 |
-| 42  | No post-onboarding emails                      | #13 CSM                       |
-| 43  | No welcome screen after signup                 | #10 Onboarding                |
-| 44  | No "Aha Moment" trigger                        | #10 Onboarding                |
-| 45  | No QBR template                                | #13 CSM                       |
+| 42  | ~~No post-onboarding emails~~ ✅               | #13 CSM                       |
+| 43  | ~~No welcome screen after signup~~ ✅          | #10 Onboarding                |
+| 44  | ~~No "Aha Moment" trigger~~ ✅                 | #10 Onboarding                |
+| 45  | ~~No QBR template~~ ✅                         | #13 CSM                       |
 
 ### 🟡 MEDIUM (Fix this sprint) — 65 items
 
