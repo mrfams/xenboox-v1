@@ -51,9 +51,8 @@
 | 2   | ~~"AI Set Up Workspace" is awkward~~ ✅                    | MEDIUM   | Change to "Set Up with AI"                | ✅     |
 | 3   | ~~"PDF" button unclear in Donor Portal~~ ✅                | MEDIUM   | Change to "Download PDF"                  | ✅     |
 | 4   | ~~"Failed to load projects" is vague~~ ✅                  | MEDIUM   | Add "Check your connection and try again" | ✅     |
-| 5   | ~~"No accounts in your chart of accounts yet" verbose~~ ✅ | LOW      | Shorten to "No accounts yet"              | ✅     |     | 6   | ~~No AI confidence score in UI~~ ✅ | LOW | Add confidence badge on categorized transactions | ✅  |
-| 7   | ~~"No donor projects found for your account" cold~~ ✅     | LOW      | Rephrase to be warmer                     | ✅     |
-| 8   | Zod error messages are developer-facing                    | LOW      | Wrap in user-friendly messages            | ⬜     |
+| 5   | ~~"No accounts in your chart of accounts yet" verbose~~ ✅ | LOW      | Shorten to "No accounts yet"              | ✅     |     | 6   | ~~No AI confidence score in UI~~ ✅            | LOW | Add confidence badge on categorized transactions | ✅  |
+| 7   | ~~"No donor projects found for your account" cold~~ ✅     | LOW      | Rephrase to be warmer                     | ✅     |     | 8   | ~~Zod error messages are developer-facing~~ ✅ | LOW | Wrap in user-friendly messages                   | ✅  |
 
 ---
 
@@ -224,7 +223,7 @@
 | 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |
 | 8   | No automated rollback         | MEDIUM   | Add auto-rollback on error rate spike        | ⬜     |
 | 9   | ~~No centralized logging~~ ✅ | LOW      | Sentry error tracking + pino structured logs | ✅     |
-| 10  | No capacity planning          | LOW      | Set up resource usage monitoring             | ⬜     |
+| 10  | ~~No capacity planning~~ ✅   | LOW      | Set up resource usage monitoring             | ✅     |
 
 ---
 
