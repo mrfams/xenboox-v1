@@ -174,6 +174,21 @@ export function TransactionRow({
             <Zap className="h-2.5 w-2.5" aria-label="Rule matched" />
           )}
           {tx.category || "Uncategorized"}
+          {confidence != null && confidence > 0 && (
+            <span
+              className={cn(
+                "ml-1 inline-flex items-center rounded px-1 py-0 text-[8px] font-bold",
+                confidence >= 0.9
+                  ? "bg-emerald-500/10 text-emerald-600"
+                  : confidence >= 0.7
+                    ? "bg-amber-500/10 text-amber-600"
+                    : "bg-red-500/10 text-red-600",
+              )}
+              title={`Confidence: ${Math.round(confidence * 100)}%`}
+            >
+              {Math.round(confidence * 100)}%
+            </span>
+          )}
           <ChevronDown className="h-2.5 w-2.5" />
         </button>
 

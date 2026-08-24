@@ -45,16 +45,15 @@
 
 ## Employee #3: UX Writer — Score: 8/10
 
-| #   | Finding                                                    | Severity | Fix                                              | Status |
-| --- | ---------------------------------------------------------- | -------- | ------------------------------------------------ | ------ |
-| 1   | ~~"Payment Link" is noun, not verb~~ ✅                    | MEDIUM   | Change to "Share Payment Link"                   | ✅     |
-| 2   | ~~"AI Set Up Workspace" is awkward~~ ✅                    | MEDIUM   | Change to "Set Up with AI"                       | ✅     |
-| 3   | ~~"PDF" button unclear in Donor Portal~~ ✅                | MEDIUM   | Change to "Download PDF"                         | ✅     |
-| 4   | ~~"Failed to load projects" is vague~~ ✅                  | MEDIUM   | Add "Check your connection and try again"        | ✅     |
-| 5   | ~~"No accounts in your chart of accounts yet" verbose~~ ✅ | LOW      | Shorten to "No accounts yet"                     | ✅     |
-| 6   | No AI confidence score in UI                               | LOW      | Add confidence badge on categorized transactions | ⬜     |
-| 7   | ~~"No donor projects found for your account" cold~~ ✅     | LOW      | Rephrase to be warmer                            | ✅     |
-| 8   | Zod error messages are developer-facing                    | LOW      | Wrap in user-friendly messages                   | ⬜     |
+| #   | Finding                                                    | Severity | Fix                                       | Status |
+| --- | ---------------------------------------------------------- | -------- | ----------------------------------------- | ------ |
+| 1   | ~~"Payment Link" is noun, not verb~~ ✅                    | MEDIUM   | Change to "Share Payment Link"            | ✅     |
+| 2   | ~~"AI Set Up Workspace" is awkward~~ ✅                    | MEDIUM   | Change to "Set Up with AI"                | ✅     |
+| 3   | ~~"PDF" button unclear in Donor Portal~~ ✅                | MEDIUM   | Change to "Download PDF"                  | ✅     |
+| 4   | ~~"Failed to load projects" is vague~~ ✅                  | MEDIUM   | Add "Check your connection and try again" | ✅     |
+| 5   | ~~"No accounts in your chart of accounts yet" verbose~~ ✅ | LOW      | Shorten to "No accounts yet"              | ✅     |     | 6   | ~~No AI confidence score in UI~~ ✅ | LOW | Add confidence badge on categorized transactions | ✅  |
+| 7   | ~~"No donor projects found for your account" cold~~ ✅     | LOW      | Rephrase to be warmer                     | ✅     |
+| 8   | Zod error messages are developer-facing                    | LOW      | Wrap in user-friendly messages            | ⬜     |
 
 ---
 
@@ -150,7 +149,7 @@
 | --- | ---------------------------------------------------- | -------- | ---------------------------------------------- | ------ |
 | 1   | In-memory cache (`fxCache`) won't work in serverless | HIGH     | Migrate to Redis/Upstash                       | ✅     |
 | 2   | ~~No distributed tracing~~ ✅                        | MEDIUM   | Sentry covers tracing + performance monitoring | ✅     |
-| 3   | No API versioning strategy                           | MEDIUM   | Define tRPC procedure versioning policy        | ⬜     |
+| 3   | ~~No API versioning strategy~~ ✅                    | MEDIUM   | Define tRPC procedure versioning policy        | ✅     |
 | 4   | No explicit connection pool config                   | MEDIUM   | Configure Neon pool: max, idleTimeout          | ⬜     |
 | 5   | `packages/jobs` imports DB directly                  | MEDIUM   | Route through tRPC or agent layer              | ⬜     |
 | 6   | Agent health monitoring missing                      | LOW      | Build agent status dashboard                   | ⬜     |
