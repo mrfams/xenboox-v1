@@ -1,64 +1,112 @@
 # On-Call Rotation
 
-> Who's responsible when things break at 3 AM.
+> Last updated: August 25, 2026
 
----
+## Overview
 
-## Current State
+Xenboox uses a pager-based on-call rotation for production incidents. The on-call engineer is responsible for responding to alerts, triaging issues, and escalating when needed.
 
-Xenboox is a small team. On-call is shared responsibility, not a formal rotation.
+## Rotation Schedule
 
-### Quick Contact
+| Week   | Primary On-Call | Secondary On-Call |
+| ------ | --------------- | ----------------- |
+| Week 1 | TBD             | TBD               |
+| Week 2 | TBD             | TBD               |
+| Week 3 | TBD             | TBD               |
+| Week 4 | TBD             | TBD               |
 
-- **Primary:** Founder (available 24/7 during early stage)
-- **Backup:** TBD (when team grows)
+**Rotation:** Weekly, Monday 9:00 AM → Monday 9:00 AM (local time)
 
----
+## Escalation Levels
 
-## When to Page
+| Level             | Response Time | Action                                                          |
+| ----------------- | ------------- | --------------------------------------------------------------- |
+| **P1 — Critical** | 15 minutes    | Page primary on-call. If no response in 15 min, page secondary. |
+| **P2 — High**     | 1 hour        | Notify primary on-call via Slack. Investigate within 1 hour.    |
+| **P3 — Medium**   | 4 hours       | Log ticket. Address during business hours.                      |
+| **P4 — Low**      | 24 hours      | Log ticket. Address in next sprint.                             |
 
-| Severity | Condition                     | Response          |
-| -------- | ----------------------------- | ----------------- |
-| P1       | Platform down (auth, DB, API) | Immediate         |
-| P1       | Data loss or breach           | Immediate         |
-| P2       | Major feature broken          | Within 1 hour     |
-| P3       | Minor feature broken          | Next business day |
-| P4       | Cosmetic issue                | Next sprint       |
+## Alert Routing
 
----
+| Alert Source                         | Channel                  | Escalation |
+| ------------------------------------ | ------------------------ | ---------- |
+| Sentry (error rate > 5%)             | Slack #incidents + Email | P1         |
+| Sentry (new critical issue)          | Slack #incidents         | P2         |
+| Uptime monitoring (down)             | SMS + Slack #incidents   | P1         |
+| Vercel (build failure)               | Slack #deployments       | P3         |
+| Database (connection pool exhausted) | SMS + Slack #incidents   | P1         |
 
-## On-Call Tools
+## Incident Response Process
 
-| Tool         | Purpose                    | Status    |
-| ------------ | -------------------------- | --------- |
-| BetterUptime | Uptime monitoring + alerts | Planned   |
-| Sentry       | Error tracking + alerts    | ✅ Active |
-| Vercel       | Deployment status          | ✅ Active |
-| Slack        | Communication              | Planned   |
+```
+1. DETECT — Alert fires (Sentry, uptime monitor, or manual report)
+2. TRIAGE — On-call engineer assesses severity (P1-P4)
+3. ACKNOWLEDGE — Acknowledge in Slack #incidents within response time
+4. INVESTIGATE — Check Sentry, Vercel, Neon dashboards
+5. MITIGATE — Fix forward or rollback if needed
+6. RESOLVE — Confirm fix, update status page
+7. POST-MORTEM — For P1/P2 incidents, write post-mortem within 48 hours
+```
 
----
+## Contact Information
 
-## Incident Response
+| Role              | Contact | Backup |
+| ----------------- | ------- | ------ |
+| Primary On-Call   | TBD     | TBD    |
+| Secondary On-Call | TBD     | TBD    |
+| Engineering Lead  | TBD     | TBD    |
+| CEO/Founder       | TBD     | TBD    |
 
-1. **Alert fires** → Check Sentry/BetterUptime
-2. **Assess severity** → P1/P2/P3/P4
-3. **Communicate** → Post in #incidents channel
-4. **Investigate** → Check logs, dashboards, recent deploys
-5. **Fix or rollback** → If fix > 30min, rollback first
-6. **Verify** → Confirm resolution in monitoring
-7. **Post-mortem** → Complete within 48 hours (use template)
+## Tools
 
----
+| Tool         | Purpose                 | URL                      |
+| ------------ | ----------------------- | ------------------------ |
+| Sentry       | Error tracking & alerts | https://sentry.io        |
+| Vercel       | Deployment & hosting    | https://vercel.com       |
+| Neon         | Database                | https://neon.tech        |
+| BetterUptime | Uptime monitoring       | https://betteruptime.com |
+| Slack        | Communication           | #incidents channel       |
 
-## Scaling Plan
+## Post-Mortem Template
 
-| Team Size | On-Call Model                         |
-| --------- | ------------------------------------- |
-| 1-2       | Founder always on-call                |
-| 3-5       | Weekly rotation, 1 primary + 1 backup |
-| 5-10      | PagerDuty with escalation             |
-| 10+       | Follow-the-sun model                  |
+```markdown
+# Post-Mortem: [Incident Title]
 
----
+**Date:** YYYY-MM-DD
+**Severity:** P1/P2
+**Duration:** X hours Y minutes
+**Author:** [Name]
 
-_Last updated: August 2026_
+## Summary
+
+[1-2 sentence summary of what happened]
+
+## Timeline
+
+- HH:MM — [Event]
+- HH:MM — [Event]
+
+## Root Cause
+
+[What caused the incident]
+
+## Impact
+
+[What was affected, how many users, revenue impact]
+
+## What Went Well
+
+[Things that worked during the response]
+
+## What Went Wrong
+
+[Things that didn't work]
+
+## Action Items
+
+- [ ] [Action item] — Owner: [Name], Due: [Date]
+
+## Lessons Learned
+
+[Key takeaways]
+```
