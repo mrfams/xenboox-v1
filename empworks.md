@@ -217,8 +217,7 @@
 | 1   | ~~No staging environment~~ ✅ | HIGH     | Vercel preview deploys on every push         | ✅     |
 | 2   | ~~No uptime monitoring~~ ✅   | HIGH     | Add BetterUptime or Pingdom                  | ✅     |
 | 3   | ~~No cost monitoring~~ ✅     | HIGH     | Add Vercel cost dashboard + budget alerts    | ✅     |
-| 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                      | ⬜     |
-| 5   | No on-call rotation           | MEDIUM   | Set up PagerDuty or Opsgenie                 | ⬜     |
+| 4   | No SLA defined                | MEDIUM   | Define 99.9% uptime SLA                      | ⬜     |     | 5   | ~~No on-call rotation~~ ✅   | MEDIUM | Set up PagerDuty or Opsgenie          | ✅  |
 | 6   | ~~No post-mortem process~~ ✅ | MEDIUM   | Create post-mortem template                  | ✅     |
 | 7   | Test suite has TS errors      | MEDIUM   | Fix 149 test files                           | ⬜     |     | 8   | ~~No automated rollback~~ ✅ | MEDIUM | Add auto-rollback on error rate spike | ✅  |
 | 9   | ~~No centralized logging~~ ✅ | LOW      | Sentry error tracking + pino structured logs | ✅     |
@@ -247,13 +246,12 @@
 | #   | Finding                                 | Severity | Fix                                    | Status |
 | --- | --------------------------------------- | -------- | -------------------------------------- | ------ |
 | 1   | No support system                       | HIGH     | Add Intercom or Crisp                  | ⬜     |
-| 2   | ~~No SLA published~~ ✅                 | HIGH     | Define and publish 99.9% uptime SLA    | ✅     |
-| 3   | No on-call rotation                     | HIGH     | Set up PagerDuty                       | ⬜     |
+| 2   | ~~No SLA published~~ ✅                 | HIGH     | Define and publish 99.9% uptime SLA    | ✅     |     | 3   | ~~No on-call rotation~~ ✅         | HIGH | Set up PagerDuty           | ✅  |
 | 4   | ~~No PR required for main~~ ✅          | MEDIUM   | Enable branch protection               | ✅     |
 | 5   | ~~No code review standards~~ ✅         | MEDIUM   | Document review checklist              | ✅     |
 | 6   | ~~No test coverage targets~~ ✅         | MEDIUM   | Set 80% target, enforce in CI          | ✅     |
 | 7   | ~~No NPS / feedback loop~~ ✅           | MEDIUM   | NPS survey + feedback widget           | ✅     |
-| 8   | ~~No SOPs~~ ✅                          | MEDIUM   | Document standard operating procedures | ✅     |     | 9   | ~~No internal budget tracking~~ ✅ | LOW | Track burn rate and runway | ✅  |
+| 8   | ~~No SOPs~~ ✅                          | MEDIUM   | Document standard operating procedures | ✅     |     | 9   | ~~No internal budget tracking~~ ✅ | LOW  | Track burn rate and runway | ✅  |
 | 10  | ~~No scaling plan beyond 100 users~~ ✅ | LOW      | Document scaling roadmap               | ✅     |
 
 ---
