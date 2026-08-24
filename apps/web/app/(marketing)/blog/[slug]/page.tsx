@@ -1,15 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Calendar,
-  Clock,
-  Tag,
-  Twitter,
-  Linkedin,
-  LinkIcon,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, Clock, Tag } from "lucide-react";
+
+import { BlogShareBar } from "@/components/marketing/blog-share-bar";
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { NewsletterForm } from "@/components/marketing/newsletter-form";
@@ -195,6 +188,7 @@ export default async function BlogPostPage({
                   <p className="font-medium text-slate-900">
                     {post.author.name}
                   </p>
+                  <p className="text-sm text-slate-500">{post.author.role}</p>
                   <p className="text-sm text-slate-500 flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
                     {post.date}
@@ -202,26 +196,10 @@ export default async function BlogPostPage({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  aria-label="Share on Twitter"
-                  className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                >
-                  <Twitter className="h-5 w-5" />
-                </button>
-                <button
-                  aria-label="Share on LinkedIn"
-                  className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                >
-                  <Linkedin className="h-5 w-5" />
-                </button>
-                <button
-                  aria-label="Copy link"
-                  className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                >
-                  <LinkIcon className="h-5 w-5" />
-                </button>
-              </div>
+              <BlogShareBar
+                title={post.title}
+                url={`https://xenboox.com/blog/${post.slug}`}
+              />
             </div>
           </FadeInUp>
 
