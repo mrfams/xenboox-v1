@@ -182,8 +182,7 @@
 | 2 | No churn prevention system | CRITICAL | Build churn prediction + intervention | ✅ |
 | 3 | ~~No NPS survey~~ ✅ | HIGH | Quarterly NPS survey with API + storage | ✅ || 4 | ~~No retention emails~~ ✅ | HIGH | Build post-onboarding email sequence | ✅ |
 | 5 | ~~No upsell prompts~~ ✅ | HIGH | Upsell banner + sidebar upgrade prompt | ✅ || 6 | ~~No QBR template~~ ✅ | HIGH | Build quarterly business review template | ✅ |
-| 7 | ~~No feedback widget~~ ✅ | HIGH | NPS survey includes feedback comments | ✅ |
-| 8 | No referral program | MEDIUM | Build referral incentive system | ⬜ |
+| 7 | ~~No feedback widget~~ ✅ | HIGH | NPS survey includes feedback comments | ✅ || 8 | ~~No referral program~~ ✅ | MEDIUM | Build referral incentive system | ✅ |
 | 9 | No user interview process | MEDIUM | Schedule monthly user interviews | ⬜ |
 | 10 | No support system | MEDIUM | Integrate Intercom or Crisp | ⬜ |
 
@@ -295,12 +294,11 @@
 
 | #   | Finding                               | Severity | Fix                               | Status |
 | --- | ------------------------------------- | -------- | --------------------------------- | ------ |
-| 1   | No analytics event tracking           | CRITICAL | Add PostHog or Mixpanel           | ✅     |     | 2   | ~~No activation funnel~~ ✅ | HIGH | Track signup → setup → connect → first-value | ✅  |
-| 3   | No retention tracking                 | HIGH     | Build D1/D7/D30 retention curves  | ⬜     |
+| 1   | No analytics event tracking           | CRITICAL | Add PostHog or Mixpanel           | ✅     |     | 2   | ~~No activation funnel~~ ✅ | HIGH | Track signup → setup → connect → first-value | ✅  |     | 3   | ~~No retention tracking~~ ✅ | HIGH | Build D1/D7/D30 retention curves | ✅  |
 | 4   | ~~No internal business dashboard~~ ✅ | HIGH     | Build admin dashboard             | ✅     |
 | 5   | No A/B testing                        | MEDIUM   | Add PostHog experiments           | ⬜     |
 | 6   | No session recording                  | MEDIUM   | Add Hotjar or FullStory           | ⬜     |
-| 7   | No cohort analysis                    | MEDIUM   | Track user cohorts by signup date | ⬜     |
+| 7   | ~~No cohort analysis~~ ✅             | MEDIUM   | Track user cohorts by signup date | ✅     |
 | 8   | No feature adoption tracking          | MEDIUM   | Track feature usage events        | ⬜     |
 
 ---
@@ -312,7 +310,7 @@
 | 1   | No AARRR metrics tracked            | CRITICAL | Add PostHog for full funnel             | ✅     |
 | 2   | ~~No north star metric defined~~ ✅ | HIGH     | Define "Weekly Active AI Interactions"  | ✅     |     | 3   | ~~No feature adoption tracking~~ ✅ | HIGH | Track events for every major feature | ✅  |     | 4   | ~~No user segmentation~~ ✅ | HIGH | Segment by size, industry, usage, channel | ✅  |
 | 5   | No funnel analysis                  | MEDIUM   | Build signup → activation → paid funnel | ⬜     |
-| 6   | No cohort analysis                  | MEDIUM   | Track retention by signup month         | ⬜     |
+| 6   | ~~No cohort analysis~~ ✅           | MEDIUM   | Track retention by signup month         | ✅     |
 | 7   | No A/B testing                      | MEDIUM   | Add experimentation framework           | ⬜     |
 
 ---
@@ -326,8 +324,7 @@
 | 3   | ~~No lead generation channels~~ ✅ | HIGH     | Build content + LinkedIn + partnerships  | ✅     |
 | 4   | No sales collateral                | MEDIUM   | Create one-pager, pitch deck, demo video | ⬜     |
 | 5   | No lead scoring                    | MEDIUM   | Implement BANT framework                 | ⬜     |
-| 6   | ~~No buyer personas~~ ✅           | MEDIUM   | Define CFO, Owner, Accountant personas   | ✅     |
-| 7   | No referral program                | LOW      | Build referral incentives                | ⬜     |
+| 6   | ~~No buyer personas~~ ✅           | MEDIUM   | Define CFO, Owner, Accountant personas   | ✅     |     | 7   | ~~No referral program~~ ✅ | LOW | Build referral incentives | ✅  |
 
 ---
 
