@@ -154,7 +154,7 @@
 | 5   | `packages/jobs` imports DB directly                  | MEDIUM   | Route through tRPC or agent layer              | ⬜     |
 | 6   | Agent health monitoring missing                      | LOW      | Build agent status dashboard                   | ⬜     |
 | 7   | ~~No R2 fallback for storage~~ ✅                    | LOW      | Add local filesystem fallback                  | ✅     |
-| 8   | No Resend retry queue                                | LOW      | Add retry logic for failed emails              | ⬜     |
+| 8   | ~~No Resend retry queue~~ ✅                         | LOW      | Add retry logic for failed emails              | ✅     |
 
 ---
 
