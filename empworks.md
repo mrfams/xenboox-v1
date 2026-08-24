@@ -240,8 +240,7 @@
 | 6   | No GDPR consent management           | MEDIUM   | Add consent tracking                           | ⬜     |
 | 7   | No bulk import/export                | MEDIUM   | Add CSV/Excel import                           | ⬜     |
 | 8   | ~~No dependency scanning in CI~~ ✅  | MEDIUM   | Add `pnpm audit` to CI                         | ✅     |
-| 9   | ~~No business metrics dashboard~~ ✅ | MEDIUM   | Build internal admin dashboard                 | ✅     |
-| 10  | No plugin architecture               | LOW      | Design plugin system                           | ⬜     |
+| 9   | ~~No business metrics dashboard~~ ✅ | MEDIUM   | Build internal admin dashboard                 | ✅     |     | 10  | ~~No plugin architecture~~ ✅ | LOW | Design plugin system | ✅  |
 
 ---
 
