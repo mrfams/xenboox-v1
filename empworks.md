@@ -150,7 +150,7 @@
 | 1   | In-memory cache (`fxCache`) won't work in serverless | HIGH     | Migrate to Redis/Upstash                       | ✅     |
 | 2   | ~~No distributed tracing~~ ✅                        | MEDIUM   | Sentry covers tracing + performance monitoring | ✅     |
 | 3   | ~~No API versioning strategy~~ ✅                    | MEDIUM   | Define tRPC procedure versioning policy        | ✅     |
-| 4   | No explicit connection pool config                   | MEDIUM   | Configure Neon pool: max, idleTimeout          | ⬜     |
+| 4   | ~~No explicit connection pool config~~ ✅            | MEDIUM   | Configure Neon pool: max, idleTimeout          | ✅     |
 | 5   | `packages/jobs` imports DB directly                  | MEDIUM   | Route through tRPC or agent layer              | ⬜     |
 | 6   | Agent health monitoring missing                      | LOW      | Build agent status dashboard                   | ⬜     |
 | 7   | No R2 fallback for storage                           | LOW      | Add local filesystem fallback                  | ⬜     |
