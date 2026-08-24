@@ -34,6 +34,7 @@ import {
   Shield,
   Zap,
 } from "lucide-react";
+import { AhaMomentStep } from "@/components/onboarding/aha-moment";
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
 
@@ -1025,6 +1026,9 @@ export function OnboardingWizard() {
             )}
             {currentStep === "bank-connection" && (
               <BankStep onNext={nextStep} onPrev={prevStep} />
+            )}
+            {currentStep === "aha-moment" && (
+              <AhaMomentStep onNext={nextStep} onPrev={prevStep} />
             )}
             {currentStep === "team" && (
               <TeamStep onNext={nextStep} onPrev={prevStep} />

@@ -9,6 +9,7 @@ export type OnboardingStep =
   | "welcome"
   | "chart-of-accounts"
   | "bank-connection"
+  | "aha-moment"
   | "team"
   | "ai-preferences"
   | "complete";
@@ -17,6 +18,7 @@ const STEPS: OnboardingStep[] = [
   "welcome",
   "chart-of-accounts",
   "bank-connection",
+  "aha-moment",
   "team",
   "ai-preferences",
   "complete",
