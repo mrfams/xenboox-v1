@@ -33,7 +33,7 @@ import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { useUndo } from "@/lib/hooks/use-undo";
 import { toast } from "sonner";
-import { CoaImportDialog } from "@/components/ledger/coa-import-dialog";
+import { CoaImportWizard } from "@/components/ledger/coa-import-wizard";
 import { BulkExportButton } from "@/components/shared/bulk-csv";
 
 // ─── Ledger ───────────────────────────────────────────────────────────────
@@ -765,7 +765,7 @@ function COAView() {
           {accounts.length > 0 && ` · ${Object.keys(grouped).length} groups`}
         </p>
         <div className="flex items-center gap-2">
-          <CoaImportDialog />
+          <CoaImportWizard />
           <BulkExportButton
             rows={(accounts ?? []).map((a) => ({
               code: a.code,

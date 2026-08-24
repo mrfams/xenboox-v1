@@ -235,6 +235,97 @@ export const coaRouter = router({
       }
     }),
 
+  importCsv: rlsMutateProcedure
+    .use(requireRole("owner", "admin", "finance_director"))
+    .input(
+      z.object({
+        rows: z.array(
+          z.object({
+            code: z.string().min(1).max(20),
+            name: z.string().min(1).max(200),
+            type: z.enum([
+              "asset",
+              "liability",
+              "equity",
+              "revenue",
+              "expense",
+            ]),
+            subtype: z.string().min(1),
+            description: z.string().optional(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existingCodes = await db.query.chartOfAccounts.findMany({
+        where: eq(chartOfAccounts.entityId, ctx.entityId!),
+        columns: { code: true },
+      });
+      const existingCodeSet = new Set(existingCodes.map((a) => a.code));
+
+      const validSubtypes = [
+        "current_asset",
+        "fixed_asset",
+        "bank_account",
+        "cash",
+        "accounts_receivable",
+        "inventory",
+        "prepaid",
+        "current_liability",
+        "long_term_liability",
+        "accounts_payable",
+        "tax_liability",
+        "accrued_liability",
+        "owner_equity",
+        "retained_earnings",
+        "current_year_earnings",
+        "sales_revenue",
+        "service_revenue",
+        "other_income",
+        "interest_income",
+        "cost_of_goods_sold",
+        "operating_expense",
+        "payroll_expense",
+        "tax_expense",
+        "depreciation",
+        "interest_expense",
+        "other_expense",
+      ] as const;
+
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (const row of input.rows) {
+        if (existingCodeSet.has(row.code)) {
+          skipped++;
+          continue;
+        }
+        const subtype = validSubtypes.includes(row.subtype as any)
+          ? (row.subtype as (typeof validSubtypes)[number])
+          : "other_expense";
+        try {
+          await db.insert(chartOfAccounts).values({
+            entityId: ctx.entityId!,
+            code: row.code,
+            name: row.name,
+            type: row.type,
+            subtype,
+            description: row.description,
+          });
+          existingCodeSet.add(row.code);
+          imported++;
+        } catch (e) {
+          errors.push(
+            `Failed to import ${row.code}: ${e instanceof Error ? e.message : "unknown error"}`,
+          );
+        }
+      }
+
+      await coaCache.invalidate(ctx.entityId!);
+      return { imported, skipped, errors };
+    }),
+
   importTemplate: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director"))
     .input(
