@@ -72,9 +72,13 @@ const COMMON_CATEGORIES = [
 export function TransactionRow({
   transaction,
   onUpdate,
+  selected,
+  onSelect,
 }: {
   transaction: Transaction;
   onUpdate: () => void;
+  selected?: boolean;
+  onSelect?: () => void;
 }) {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const utils = trpc.useUtils();
@@ -98,6 +102,14 @@ export function TransactionRow({
 
   return (
     <div className="group flex items-center gap-3 px-3 py-2.5 hover:bg-accent/30 transition-colors">
+      {/* Selection Checkbox */}
+      <input
+        type="checkbox"
+        checked={selected ?? false}
+        onChange={() => onSelect?.()}
+        className="h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary/30"
+      />
+
       {/* Direction Icon */}
       <div
         className={cn(

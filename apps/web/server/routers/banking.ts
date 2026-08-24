@@ -1052,6 +1052,182 @@ export const bankingRouter = router({
         handleMutationError(error, "Failed to auto-categorize");
       }
     }),
+
+  /**
+   * Batch categorize selected transactions using rules + AI heuristics.
+   */
+  batchCategorize: rlsMutateProcedure
+    .input(z.object({ transactionIds: z.array(z.string().uuid()) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId!;
+
+        // Get active rules
+        const rules = await db.query.bankRules.findMany({
+          where: and(
+            eq(bankRules.entityId, entityId),
+            eq(bankRules.isActive, true),
+          ),
+          orderBy: [asc(bankRules.priority)],
+        });
+
+        // Get selected transactions
+        const transactions = await db.query.bankTransactions.findMany({
+          where: and(
+            eq(bankTransactions.entityId, entityId),
+            sql`${bankTransactions.id} IN ${input.transactionIds}`,
+          ),
+        });
+
+        const updates: Array<{
+          id: string;
+          category: string;
+          glAccountId: string | null;
+          categorizedBy: string;
+          confidence: string;
+        }> = [];
+
+        for (const tx of transactions) {
+          let matchedCategory: string | null = null;
+          let matchedGlAccountId: string | null = null;
+          let matchedBy: string = "ai";
+          let confidence: number = 0.7;
+
+          // Try rules first
+          for (const rule of rules) {
+            const desc = tx.description.toLowerCase();
+            const matchVal = rule.matchValue.toLowerCase();
+            let matches = false;
+
+            switch (rule.matchType) {
+              case "contains":
+                matches = desc.includes(matchVal);
+                break;
+              case "starts_with":
+                matches = desc.startsWith(matchVal);
+                break;
+              case "exact":
+                matches = desc === matchVal;
+                break;
+              case "regex":
+                try {
+                  matches = new RegExp(rule.matchValue, "i").test(desc);
+                } catch {
+                  matches = false;
+                }
+                break;
+            }
+
+            if (matches) {
+              matchedCategory = rule.category;
+              matchedGlAccountId = rule.glAccountId;
+              matchedBy = "rule";
+              confidence = 0.95;
+              break;
+            }
+          }
+
+          // AI keyword heuristics fallback
+          if (!matchedCategory) {
+            const desc = tx.description.toLowerCase();
+            if (
+              desc.includes("stripe") ||
+              desc.includes("fee") ||
+              desc.includes("charge")
+            ) {
+              matchedCategory = "Bank Fees";
+              confidence = 0.8;
+            } else if (
+              desc.includes("salary") ||
+              desc.includes("payroll") ||
+              desc.includes("wage")
+            ) {
+              matchedCategory = "Payroll";
+              confidence = 0.85;
+            } else if (desc.includes("rent") || desc.includes("lease")) {
+              matchedCategory = "Rent & Lease";
+              confidence = 0.8;
+            } else if (
+              desc.includes("electric") ||
+              desc.includes("water") ||
+              desc.includes("internet") ||
+              desc.includes("utility")
+            ) {
+              matchedCategory = "Utilities";
+              confidence = 0.8;
+            } else if (
+              desc.includes("uber") ||
+              desc.includes("lyft") ||
+              desc.includes("taxi") ||
+              desc.includes("fuel")
+            ) {
+              matchedCategory = "Travel & Transport";
+              confidence = 0.75;
+            } else if (
+              desc.includes("restaurant") ||
+              desc.includes("food") ||
+              desc.includes("meal") ||
+              desc.includes("coffee")
+            ) {
+              matchedCategory = "Meals & Entertainment";
+              confidence = 0.75;
+            } else if (
+              desc.includes("software") ||
+              desc.includes("saas") ||
+              desc.includes("subscription")
+            ) {
+              matchedCategory = "Software & Subscriptions";
+              confidence = 0.75;
+            } else if (
+              desc.includes("marketing") ||
+              desc.includes("ad ") ||
+              desc.includes("facebook ads") ||
+              desc.includes("google ads")
+            ) {
+              matchedCategory = "Marketing";
+              confidence = 0.7;
+            } else if (tx.amount > 0) {
+              matchedCategory = "Revenue";
+              confidence = 0.6;
+            }
+          }
+
+          if (matchedCategory) {
+            updates.push({
+              id: tx.id,
+              category: matchedCategory,
+              glAccountId: matchedGlAccountId,
+              categorizedBy: matchedBy,
+              confidence: confidence.toString(),
+            });
+          }
+        }
+
+        // Batch update
+        if (updates.length > 0) {
+          await Promise.all(
+            updates.map((u) =>
+              db
+                .update(bankTransactions)
+                .set({
+                  category: u.category,
+                  glAccountId: u.glAccountId ?? undefined,
+                  categorizedBy: u.categorizedBy,
+                  categorizationConfidence: u.confidence,
+                })
+                .where(eq(bankTransactions.id, u.id)),
+            ),
+          );
+        }
+
+        return {
+          categorizedCount: updates.length,
+          totalProcessed: transactions.length,
+        };
+      } catch (error) {
+        handleMutationError(error, "Failed to batch categorize");
+      }
+    }),
 });
 
 // ─── Rule match helpers ────────────────────────────────────────────────────

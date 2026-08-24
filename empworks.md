@@ -127,7 +127,7 @@
 | 1   | ~~No ROI calculator on pricing~~ ✅    | HIGH     | Interactive calculator on pricing page | ✅     |
 | 2   | No "Cancel anytime" / "No credit card" | HIGH     | Add trust signals                      | ✅     |
 | 3   | No demo video                          | HIGH     | Record 2-minute product walkthrough    | ⬜     |
-| 4   | No case studies                        | MEDIUM   | Write 2-3 detailed customer stories    | ⬜     |
+| 4   | ~~No case studies~~ ✅                 | MEDIUM   | Write 2-3 detailed customer stories    | ✅     |
 | 5   | No comparison sheet vs competitors     | MEDIUM   | Build QuickBooks/Xero comparison page  | ⬜     |
 | 6   | No "Most Popular" badge                | MEDIUM   | Highlight recommended tier             | ⬜     |
 | 7   | ~~No one-pager~~ ✅                    | LOW      | Create downloadable PDF summary        | ✅     |
@@ -285,8 +285,7 @@
 | 1   | No mobile app                          | N/A      | Web only — no mobile/desktop in scope         | N/A    |
 | 2   | ~~No "Why Us vs Them" page~~ ✅        | HIGH     | Create `/compare/quickbooks`, `/compare/xero` | ✅     |
 | 3   | ~~No competitive comparison table~~ ✅ | HIGH     | Add feature comparison on pricing page        | ✅     |
-| 4   | Growth tier priced above Xero          | MEDIUM   | Justify premium or adjust pricing             | ⬜     |
-| 5   | No case studies                        | MEDIUM   | Write 3 customer success stories              | ⬜     |
+| 4   | Growth tier priced above Xero          | MEDIUM   | Justify premium or adjust pricing             | ⬜     |     | 5   | ~~No case studies~~ ✅ | MEDIUM | Write 3 customer success stories | ✅  |
 | 6   | Limited integrations                   | MEDIUM   | Prioritize top 10 integrations                | ⬜     |
 | 7   | No win/loss tracking                   | LOW      | Add CRM tracking                              | ⬜     |
 
@@ -336,15 +335,14 @@
 
 ## Employee #24: Automation Specialist — Score: 6.5/10
 
-| #   | Finding                    | Severity | Fix                                | Status |
-| --- | -------------------------- | -------- | ---------------------------------- | ------ |
-| 1   | No receipt/invoice OCR     | HIGH     | Add OCR for data extraction        | ⬜     |
-| 2   | No WhatsApp integration    | HIGH     | Add WhatsApp notifications         | ⬜     |
-| 3   | No batch operations        | MEDIUM   | Add bulk categorize, approve, send | ⬜     |
-| 4   | No migration tools         | MEDIUM   | Build QuickBooks/Xero import       | ⬜     |
-| 5   | ~~No Excel/CSV export~~ ✅ | MEDIUM   | Add export for all reports         | ✅     |
-| 6   | No Slack integration       | MEDIUM   | Add Slack notifications            | ⬜     |     | 7   | ~~No in-app notifications~~ ✅ | MEDIUM | Add notification bell | ✅  |
-| 8   | No calendar sync           | LOW      | Add Google Calendar sync           | ⬜     |
+| #   | Finding                    | Severity | Fix                          | Status |
+| --- | -------------------------- | -------- | ---------------------------- | ------ |
+| 1   | No receipt/invoice OCR     | HIGH     | Add OCR for data extraction  | ⬜     |
+| 2   | No WhatsApp integration    | HIGH     | Add WhatsApp notifications   | ⬜     |     | 3   | ~~No batch operations~~ ✅     | MEDIUM | Add bulk categorize, approve, send | ✅  |
+| 4   | No migration tools         | MEDIUM   | Build QuickBooks/Xero import | ⬜     |
+| 5   | ~~No Excel/CSV export~~ ✅ | MEDIUM   | Add export for all reports   | ✅     |
+| 6   | No Slack integration       | MEDIUM   | Add Slack notifications      | ⬜     |     | 7   | ~~No in-app notifications~~ ✅ | MEDIUM | Add notification bell              | ✅  |
+| 8   | No calendar sync           | LOW      | Add Google Calendar sync     | ⬜     |
 
 ---
 
