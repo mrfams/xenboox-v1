@@ -84,3 +84,7 @@ export function getClientIp(source: HeaderSource): string {
 
   return "unknown";
 }
+
+// Enterprise IP binding (opt-in): at login store getClientIp(req.headers) in
+// session metadata; on each request compare current IP vs stored IP and revoke
+// if mismatch when ENTERPRISE_IP_BINDING=1. Keep lax for consumer tier.
