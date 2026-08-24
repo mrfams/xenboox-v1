@@ -138,11 +138,8 @@
 ## Employee #10: Onboarding Specialist — Score: 5/10
 
 | # | Finding | Severity | Fix | Status |
-| --- | --------------------------------------------- | -------- | ---------------------------- | ------ || 1 | No onboarding email sequence | CRITICAL | Build 6-email drip campaign | ✅ || 2 | No product tour / walkthrough | CRITICAL | Add interactive walkthrough | ✅ |
-| 3 | No explicit welcome screen after signup | HIGH | Add welcome with next steps | ⬜ |
-| 4 | No "Aha Moment" trigger after bank connection | HIGH | Auto-generate first insight | ⬜ |
-| 5 | No in-app help | MEDIUM | Add help widget or live chat | ⬜ |
-| 6 | No team invite prompt during onboarding | MEDIUM | Add "Invite your team" step | ⬜ |
+| --- | --------------------------------------------- | -------- | ---------------------------- | ------ || 1 | No onboarding email sequence | CRITICAL | Build 6-email drip campaign | ✅ || 2 | No product tour / walkthrough | CRITICAL | Add interactive walkthrough | ✅ || 3 | ~~No explicit welcome screen after signup~~ ✅ | HIGH | Add welcome with next steps | ✅ |
+| 4 | No "Aha Moment" trigger after bank connection | HIGH | Auto-generate first insight | ⬜ || 5 | ~~No in-app help~~ ✅ | MEDIUM | Add help widget or live chat | ✅ || 6 | ~~No team invite prompt during onboarding~~ ✅ | MEDIUM | Add "Invite your team" step | ✅ |
 | 7 | Only 4 of 7 onboarding steps complete | MEDIUM | Complete remaining steps | ⬜ |
 
 ---
@@ -200,8 +197,7 @@
 | 1   | ~~"deterministically reconciled" is jargon-y~~ ✅      | MEDIUM   | Change to "Every number is checked before it hits the ledger" | ✅     |
 | 2   | ~~"Verified operators" is corporate~~ ✅               | MEDIUM   | Change to "Real teams, real books"                            | ✅     |
 | 3   | ~~Pricing is feature-focused, not outcome-focused~~ ✅ | MEDIUM   | Lead with outcomes not features                               | ✅     |
-| 4   | About page has no personality                          | HIGH     | Add founder story, team photos                                | ✅     |
-| 5   | Onboarding wizard is silent                            | MEDIUM   | Add welcome message                                           | ⬜     |
+| 4   | About page has no personality                          | HIGH     | Add founder story, team photos                                | ✅     |     | 5   | ~~Onboarding wizard is silent~~ ✅ | MEDIUM | Add welcome message | ✅  |
 | 6   | Settings header "AI Set Up Workspace"                  | LOW      | Change to "Set Up with AI"                                    | ⬜     |
 
 ---
