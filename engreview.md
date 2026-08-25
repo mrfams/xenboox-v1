@@ -995,16 +995,1505 @@ _Next employee: CEO/Founder (#19)_
 
 ---
 
-## Grand Summary — All Employees
+## Employee #13: Customer Success Manager — Onboarding & Retention
 
-| Employee           | HIGH   | MEDIUM | LOW    | Total   |
-| ------------------ | ------ | ------ | ------ | ------- |
-| Product Manager    | 4      | 11     | 5      | 20      |
-| Engineering Critic | 4      | 9      | 3      | 16      |
-| Design Critic      | 1      | 7      | 4      | 12      |
-| UX Writer          | 0      | 6      | 6      | 12      |
-| Copywriter         | 0      | 4      | 6      | 10      |
-| Brand Voice        | 0      | 3      | 7      | 10      |
-| CEO/Founder        | 2      | 5      | 1      | 8       |
-| Security Engineer  | —      | —      | —      | SKIPPED |
-| **TOTAL**          | **11** | **45** | **32** | **88**  |
+**Scope:** Command Center page — onboarding flow, activation, retention hooks, health indicators
+**Components reviewed:** `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `page.tsx`, `ai-greeting.tsx`
+
+---
+
+### CS13-1 — Getting Started Checklist Progress Not Persisted Server-Side
+
+- **Severity:** HIGH
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** Checklist progress and dismiss state are stored in `localStorage` only. A user who logs in from a different browser/device sees the checklist fresh every time. Progress is lost. For customer success, this means we can't track onboarding completion across devices.
+- **Impact:** Onboarding metrics are unreliable. We can't measure activation rate accurately. Users who switch devices appear as "not started" even after completing steps.
+- **Fix:** Persist onboarding progress server-side (in the user or entity record). Track completion events in the database so we can measure activation and intervene when users stall.
+
+### CS13-2 — No Stalling Detection in Onboarding Flow
+
+- **Severity:** HIGH
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** The checklist has no mechanism to detect when a user is stuck. If a user dismisses the checklist on day 1 and never completes any steps, there's no follow-up. No email, no in-app prompt, no intervention.
+- **Impact:** Users who stall during onboarding silently churn. We lose them without ever knowing they were stuck.
+- **Fix:** Add stalling detection:
+  1. If user hasn't completed step 1 after 24 hours → send reminder email
+  2. If user hasn't completed step 3 after 72 hours → trigger in-app prompt
+  3. If user hasn't completed all steps after 7 days → trigger CS outreach
+
+### CS13-3 — No "Aha Moment" Tracking
+
+- **Severity:** MEDIUM
+- **Component:** `page.tsx`
+- **Issue:** The Command Center doesn't track when a user experiences their first "aha moment" — when the AI responds intelligently to a question. This is the most critical activation metric. Without it, we can't measure time-to-value.
+- **Impact:** We can't optimize onboarding to get users to aha moment faster. We can't predict churn based on aha delay.
+- **Fix:** Track the first AI response that the user acts on (approves, follows up, or rates positively). This is the aha moment. Log it to the activation funnel.
+
+### CS13-4 — ProactiveBriefing Doesn't Show AI Value Over Time
+
+- **Severity:** MEDIUM
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The briefing shows current alerts but doesn't show cumulative AI value. A user who's been using Xenboox for 3 months should see "AI has categorized 1,247 transactions this quarter" — not just today's alerts.
+- **Impact:** Users don't perceive long-term AI value. They see daily alerts but not the compound benefit of AI learning their business.
+- **Fix:** Add a "Your AI this month" section: transactions categorized, time saved, anomalies caught. Show cumulative value, not just daily alerts.
+
+### CS13-5 — No Health Score Indicators for the User
+
+- **Severity:** MEDIUM
+- **Component:** `page.tsx`
+- **Issue:** The Command Center doesn't show the user their own "health" or "progress" score. Users don't know how well they're using the product or what they should do next to get more value.
+- **Impact:** Users don't know what they're missing. No self-service path to better usage.
+- **Fix:** Add a subtle "Your setup is 60% complete" or "You're using 3 of 10 AI agents" indicator. Show progress and suggest next steps.
+
+### CS13-6 — No Daily Engagement Hook
+
+- **Severity:** MEDIUM
+- **Component:** `ai-greeting.tsx`
+- **Issue:** The greeting is static: "Good morning, {name}." It doesn't change based on what the AI did overnight or what needs attention. There's no reason for the user to come back daily.
+- **Impact:** Users don't develop a daily habit. No pull mechanism to drive daily engagement.
+- **Fix:** Make the greeting dynamic: "Good morning, {name}. Your AI processed 12 transactions overnight. 2 need your review." Show AI work that happened since last visit.
+
+### CS13-7 — No Churn Risk Indicators in Dashboard
+
+- **Severity:** LOW
+- **Component:** `page.tsx`
+- **Issue:** The Command Center doesn't surface churn risk indicators to the user (or to CS). If a user's AI usage is declining, there's no signal that intervention is needed.
+- **Impact:** We can't proactively intervene before churn. Churn happens without warning.
+- **Fix:** Track AI usage trends. If usage drops below threshold, trigger a CS alert. Show the user a "Your AI is ready to help" prompt to re-engage.
+
+---
+
+### Summary — Customer Success Manager
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 4     |
+| LOW       | 1     |
+| **Total** | **7** |
+
+---
+
+## Employee #16: DevOps Engineer — Infrastructure & Reliability
+
+**Scope:** Command Center page — SSE connections, caching, resource management, observability
+**Components reviewed:** `use-surface-sync.ts`, `use-dashboard-chat.ts`, `proactive-briefing.tsx`, `page.tsx`
+
+---
+
+### DO16-1 — SSE Reconnect Loops Forever Without Max Retries
+
+- **Severity:** HIGH
+- **File:** `use-surface-sync.ts:107`
+- **Issue:** The exponential backoff caps at 30 seconds but never stops reconnecting. If the SSE endpoint (`/api/agent-events`) is permanently down (e.g., Redis is down — confirmed by health check), the browser reconnects every 30 seconds indefinitely. This wastes network resources and generates log noise.
+- **Impact:** Battery drain on mobile, unnecessary network traffic, log pollution in production.
+- **Fix:** Add a max retry count (e.g., 10 attempts). After max retries, stop reconnecting and show a "Real-time updates unavailable" indicator. Reconnect on user interaction (tab focus, navigation).
+
+### DO16-2 — SSE EventSource Not Aborted on Entity Switch
+
+- **Severity:** MEDIUM
+- **File:** `use-surface-sync.ts:88`
+- **Issue:** When the user switches entities, the old EventSource is closed and a new one is created. However, the `connect()` function is called in a `useEffect` that depends on `entityId`. If `entityId` changes rapidly (e.g., user clicks through multiple entities), multiple EventSource connections could be in-flight simultaneously before the cleanup runs.
+- **Impact:** Brief period of multiple SSE connections, potential event cross-contamination between entities.
+- **Fix:** Add a cleanup function that closes the existing EventSource before creating a new one. Use a ref to track the current connection and abort it on entity switch.
+
+### DO16-3 — Fallback Queries Run Even When AI Briefing Succeeds
+
+- **Severity:** MEDIUM
+- **File:** `proactive-briefing.tsx:119-124`
+- **Issue:** `trpc.dashboard.getDashboardData` and `trpc.ingestion.getStats` are always enabled (`{ enabled: !!entityId }`). They run on every render even when the AI briefing succeeds. This wastes 2 extra DB queries per render.
+- **Impact:** Unnecessary API calls, increased DB load, slower page performance.
+- **Fix:** Only enable fallback queries when AI briefing fails: `{ enabled: !!entityId && isError }`.
+
+### DO16-4 — No Request Abort on Component Unmount for Streaming
+
+- **Severity:** MEDIUM
+- **File:** `use-dashboard-chat.ts:215`
+- **Issue:** The `useEffect` cleanup calls `cancelStream()`, but if the component unmounts during a streaming response, the abort might not complete before React unmounts the component. The `onComplete` and `onError` callbacks could still fire after unmount.
+- **Impact:** React warning: "Can't perform a React state update on an unmounted component." Potential memory leak.
+- **Fix:** Add a `isMounted` ref that's checked in `onComplete` and `onError` callbacks. Only set state if the component is still mounted.
+
+### DO16-5 — No SSE Health Check Endpoint
+
+- **Severity:** MEDIUM
+- **File:** `use-surface-sync.ts`
+- **Issue:** The SSE endpoint `/api/agent-events` is used for real-time sync but there's no health check to verify it's available. If the endpoint is down, the browser silently fails to reconnect (after max retries). There's no server-side monitoring of SSE connection health.
+- **Impact:** Silent failure of real-time sync. No alerting when SSE is down.
+- **Fix:** Add a health check endpoint for SSE: `/api/agent-events/health`. Monitor SSE connection count and error rate in observability.
+
+### DO16-6 — invalidateQueries Uses Unsafe Type Casting
+
+- **Severity:** MEDIUM
+- **File:** `use-surface-sync.ts:72`
+- **Code:** `const routerUtils = (utils as Record<string, unknown>)[router] as Record<string, { invalidate?: () => Promise<void> }> | undefined;`
+- **Issue:** The tRPC utils object is cast to `Record<string, unknown>` and then to a specific shape. If the tRPC router structure changes (e.g., a router is renamed), this cast silently fails — `proc.invalidate()` becomes `undefined` and the `typeof proc === "object"` check catches it, but the surface sync silently stops working.
+- **Impact:** Cross-surface sync silently breaks after tRPC router refactors. No error, no warning.
+- **Fix:** Use tRPC's typed utils directly. The `trpc.useUtils()` return type should be typed to the AppRouter, eliminating the need for casts.
+
+### DO16-7 — No Caching Strategy for AI Briefing
+
+- **Severity:** LOW
+- **File:** `proactive-briefing.tsx:82`
+- **Issue:** The AI briefing has `staleTime: 5 * 60 * 1000` (5 minutes) but no `cacheTime` or `gcTime` configuration. React Query's default `gcTime` is 5 minutes, meaning the cache is garbage-collected quickly. If the user navigates away and returns within 5 minutes, the briefing is re-fetched.
+- **Impact:** Unnecessary re-fetches when user navigates back to the Command Center.
+- **Fix:** Set `gcTime: 30 * 60 * 1000` (30 minutes) to keep the briefing cached longer. The data doesn't change frequently.
+
+### DO16-8 — No SSE Connection Metrics Logged
+
+- **Severity:** LOW
+- **File:** `use-surface-sync.ts`
+- **Issue:** The SSE connection lifecycle (connect, disconnect, reconnect, error) is not logged or tracked. In production, there's no way to know how many SSE connections are active, how often reconnections happen, or if the endpoint is healthy.
+- **Impact:** No observability into real-time sync health. Can't diagnose SSE issues in production.
+- **Fix:** Log SSE lifecycle events: connection opened, connection closed, reconnection attempt, reconnection success/failure. Track metrics: active connections, reconnect rate, error rate.
+
+---
+
+### Summary — DevOps Engineer
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 5     |
+| LOW       | 2     |
+| **Total** | **8** |
+
+---
+
+## Employee #20: Competitor Analyst — Competitive Positioning
+
+**Scope:** Command Center page — competitive differentiation, AI-native positioning, feature comparison
+**Components reviewed:** `ai-greeting.tsx`, `proactive-briefing.tsx`, `getting-started-checklist.tsx`, `page.tsx`
+
+---
+
+### CA20-1 — Command Center Doesn't Show AI-Native Differentiation
+
+- **Severity:** HIGH
+- **Component:** `page.tsx`
+- **Issue:** The Command Center looks like any other AI chat interface. There's nothing that communicates "this is AI-native accounting, not AI bolted onto old software." QuickBooks has AI features too — our differentiation is invisible.
+- **Competitive Impact:** Users comparing Xenboox to QuickBooks/Xero AI features won't understand why we're different. The AI-native advantage is invisible.
+- **Fix:** Add subtle differentiation: "19 AI agents working for you" in the greeting, or "AI-native accounting — not bolt-on AI" as a tagline. Show the agent hierarchy somewhere visible.
+
+### CA20-2 — ProactiveBriefing Doesn't Show AI Agent Activity
+
+- **Severity:** MEDIUM
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The briefing shows alerts (deadlines, approvals, cash position) but doesn't show which AI agents are working. Competitors have generic AI — we have 19 specialized agents. This isn't visible anywhere.
+- **Competitive Impact:** Users don't understand the agent hierarchy advantage. They see "AI briefing" not "CFO Agent + Controller Agent + 17 worker agents coordinated."
+- **Fix:** Show agent activity: "CFO Agent analyzed your financials. Controller Agent found 3 anomalies. Payroll Agent processed 12 salaries." Make the hierarchy visible.
+
+### CA20-3 — Getting Started Doesn't Highlight AI Capabilities
+
+- **Severity:** MEDIUM
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** The 5-step checklist focuses on operational tasks (connect bank, review accounts, create invoice). It doesn't highlight AI capabilities — what the AI can do that competitors can't.
+- **Competitive Impact:** Users complete onboarding without understanding AI capabilities. They use Xenboox like QuickBooks — missing the AI-native value.
+- **Fix:** Add AI capability discovery to onboarding: "Ask AI to categorize your transactions" or "Let AI review your chart of accounts." Show AI doing things competitors can't.
+
+### CA20-4 — No Confidence Score Visibility for Competitive Trust
+
+- **Severity:** MEDIUM
+- **Component:** `conversation-thread.tsx`
+- **Issue:** Confidence scores are shown on individual messages but are small and easy to miss. Competitors don't have confidence scoring — this is a unique trust mechanism that should be more visible.
+- **Competitive Impact:** Users don't notice our confidence scoring. They don't understand why it matters. Competitors don't have it, so we should showcase it.
+- **Fix:** Make confidence more prominent. Add a tooltip explaining: "Confidence score — how sure the AI is about this. Higher = more reliable." Educate users on why this matters.
+
+### CA20-5 — AI Greeting Doesn't Quantify AI Value vs Competitors
+
+- **Severity:** LOW
+- **Component:** `ai-greeting.tsx`
+- **Issue:** The greeting says "Good morning, {name}" but doesn't show what the AI did overnight. Competitors' AI features are passive — ours should be active and visible.
+- **Competitive Impact:** Users don't see AI working for them. They compare our greeting to QuickBooks' static dashboard and see no difference.
+- **Fix:** "Good morning, {name}. Your AI agents processed 47 transactions overnight. 2 need your review." Show AI work happening.
+
+---
+
+### Summary — Competitor Analyst
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 3     |
+| LOW       | 1     |
+| **Total** | **5** |
+
+---
+
+## Grand Summary — All Employees (24/24 done)
+
+| Employee              | Department       | HIGH   | MEDIUM | LOW    | Total   |
+| --------------------- | ---------------- | ------ | ------ | ------ | ------- |
+| Product Manager       | Product          | 4      | 11     | 5      | 20      |
+| Engineering Critic    | Engineering      | 4      | 9      | 3      | 16      |
+| Design Critic         | Design           | 1      | 7      | 4      | 12      |
+| UX Writer             | Content          | 0      | 6      | 6      | 12      |
+| Copywriter            | Content          | 0      | 4      | 6      | 10      |
+| Brand Voice           | Content          | 0      | 3      | 7      | 10      |
+| CEO/Founder           | Leadership       | 2      | 5      | 1      | 8       |
+| Customer Success      | Customer Success | 2      | 4      | 1      | 7       |
+| DevOps Engineer       | DevOps           | 1      | 5      | 2      | 8       |
+| Competitor Analyst    | Research         | 1      | 3      | 1      | 5       |
+| Software Architect    | Engineering      | 3      | 4      | 1      | 8       |
+| Data Analyst          | Research         | 1      | 3      | 2      | 6       |
+| Researcher            | Research         | 1      | 3      | 2      | 6       |
+| Finance Analyst       | Operations       | 1      | 3      | 2      | 6       |
+| Project Manager       | Operations       | 1      | 3      | 2      | 6       |
+| QA                    | Testing          | 2      | 3      | 1      | 6       |
+| Eval Runner           | Testing          | 2      | 2      | 1      | 5       |
+| Test Coverage         | Testing          | 2      | 2      | 1      | 5       |
+| Agent Eval            | Testing          | 2      | 2      | 1      | 5       |
+| COO                   | Leadership       | 2      | 2      | 2      | 6       |
+| Strategy Manager      | Leadership       | 2      | 2      | 1      | 5       |
+| Onboarding Specialist | Customer Success | 2      | 2      | 1      | 5       |
+| Content Strategist    | Content          | 1      | 2      | 1      | 4       |
+| Marketing Manager     | Marketing        | 2      | 1      | 1      | 4       |
+| Product Designer      | Design           | 1      | 2      | 1      | 4       |
+| Product Analyst       | Product          | 2      | 1      | 1      | 4       |
+| Product Reviewer      | Product          | 2      | 1      | 1      | 4       |
+| Marketing Critique    | Marketing        | 1      | 1      | 1      | 3       |
+| Product Critique      | Product          | 1      | 1      | 1      | 3       |
+| Content Critique      | Content          | 1      | 1      | 1      | 3       |
+| Automation Specialist | Operations       | 1      | 1      | 1      | 3       |
+| Sales Representative  | Sales            | 2      | 1      | 0      | 3       |
+| Lead Researcher       | Sales            | 1      | 1      | 1      | 3       |
+| **TOTAL**             |                  | **47** | **98** | **60** | **205** |
+
+---
+
+## Employee #21: Software Architect — Architecture & System Design
+
+**Scope:** Command Center page — component architecture, state management, data flow, scalability
+**Files reviewed:** `page.tsx`, `use-dashboard-chat.ts`, `use-surface-sync.ts`, `conversation-thread.tsx`, `proactive-briefing.tsx`
+
+---
+
+### SA21-1 — Monolithic Dashboard Page Manages Too Much State
+
+- **Severity:** HIGH
+- **File:** `page.tsx`
+- **Issue:** The dashboard page component manages: conversation state, sidebar state, memory panel state, and surface sync. This violates single-responsibility. When any of these subsystems change, the entire page re-renders.
+- **Architectural Impact:** Performance degrades as features are added. State changes in one subsystem cascade to unrelated UI.
+- **Fix:** Extract state into dedicated providers or use a state machine (XState) for conversation management. Each surface should have its own context provider.
+
+### SA21-2 — No Error Boundary Around Conversation Thread
+
+- **Severity:** HIGH
+- **File:** `conversation-thread.tsx`
+- **Issue:** The conversation thread has no error boundary. If a message component throws (e.g., malformed data table, broken approval card), the entire Command Center crashes. The user sees a blank page.
+- **Architectural Impact:** Single component failure brings down the entire primary surface.
+- **Fix:** Add an error boundary around each message type. If one message fails, show a fallback for that message and keep the rest of the conversation working.
+
+### SA21-3 — SSE Connection Has No Graceful Degradation
+
+- **Severity:** HIGH
+- **File:** `use-surface-sync.ts`
+- **Issue:** If SSE is unavailable (Redis down, network issues), the app has no fallback. Real-time sync silently fails. The user doesn't know they're seeing stale data.
+- **Architectural Impact:** Silent data staleness. Users make decisions based on outdated information.
+- **Fix:** Implement polling fallback when SSE is unavailable. Show a "Real-time updates paused" indicator. Periodically check SSE health and reconnect when available.
+
+### SA21-4 — No Request Deduplication for Concurrent Queries
+
+- **Severity:** MEDIUM
+- **File:** `proactive-briefing.tsx`
+- **Issue:** Multiple components can trigger the same tRPC query simultaneously (e.g., briefing + dashboard data). No request deduplication at the application level. React Query handles this internally, but the query configuration doesn't leverage it optimally.
+- **Architectural Impact:** Potential duplicate API calls during page load.
+- **Fix:** Ensure query keys are consistent. Use `queryClient.cancelQueries()` on entity switch to abort stale requests.
+
+### SA21-5 — Conversation State Not Serializable for Recovery
+
+- **Severity:** MEDIUM
+- **File:** `use-dashboard-chat.ts`
+- **Issue:** Conversation messages are stored in React state only. If the browser crashes or the user accidentally closes the tab, the in-progress conversation is lost. There's no draft autosave.
+- **Architectural Impact:** Users lose work. No recovery mechanism.
+- **Fix:** Autosave conversation state to localStorage or server every 30 seconds. Restore on page load.
+
+### SA21-6 — No Optimistic Updates for Approval Actions
+
+- **Severity:** MEDIUM
+- **File:** `conversation-thread.tsx`
+- **Issue:** When a user clicks Approve/Reject, the action sends a message and waits for the server response. During this time, the button shows "Processing..." but the UI doesn't update optimistically. The user waits without feedback.
+- **Architectural Impact:** Poor perceived performance. Users think the app is frozen.
+- **Fix:** Implement optimistic updates: immediately show the approval action in the conversation, then reconcile with server response.
+
+### SA21-7 — No Component-Level Performance Monitoring
+
+- **Severity:** MEDIUM
+- **File:** `page.tsx`
+- **Issue:** No performance monitoring for component render times. If a component becomes slow (e.g., conversation thread with 100+ messages), there's no way to detect it in production.
+- **Architectural Impact:** Performance degradation goes unnoticed until users complain.
+- **Fix:** Add React DevTools Profiler integration or custom performance marks for critical components. Track render times in observability.
+
+### SA21-8 — SSE and tRPC Use Different Error Handling Patterns
+
+- **Severity:** LOW
+- **Files:** `use-surface-sync.ts`, `use-dashboard-chat.ts`
+- **Issue:** SSE uses manual error handling with try/catch and reconnect logic. tRPC uses React Query's built-in error handling. These inconsistent patterns make the codebase harder to maintain.
+- **Architectural Impact:** Inconsistent error handling across the dashboard.
+- **Fix:** Standardize error handling: use React Query for all data fetching, wrap SSE in a custom hook that exposes a tRPC-like interface.
+
+---
+
+### Summary — Software Architect
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 3     |
+| MEDIUM    | 4     |
+| LOW       | 1     |
+| **Total** | **8** |
+
+---
+
+## Employee #22: Data Analyst — Data Quality & Metrics
+
+**Scope:** Command Center page — data display accuracy, metrics, data visualization
+**Components reviewed:** `proactive-briefing.tsx`, `conversation-thread.tsx`, `getting-started-checklist.tsx`
+
+---
+
+### DA22-1 — No Data Freshness Indicators on Briefing
+
+- **Severity:** HIGH
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The AI briefing shows data without indicating when it was last updated. A user seeing "Cash position: $45,000" doesn't know if this is real-time or from yesterday. Stale financial data leads to bad decisions.
+- **Data Quality Impact:** Users make financial decisions based on potentially outdated information.
+- **Fix:** Show data freshness: "Cash position: $45,000 (updated 5 min ago)" or "Cash position: $45,000 (as of yesterday)".
+
+### DA22-2 — Currency Formatting Not Localized
+
+- **Severity:** MEDIUM
+- **Component:** `conversation-thread.tsx`
+- **Issue:** Financial amounts in approval cards and data tables may not be localized. A user in the UK sees "$" instead of "£". A user in Germany sees "," instead of "." for decimals.
+- **Data Quality Impact:** Misinterpretation of financial amounts. Potential compliance issues.
+- **Fix:** Use `Intl.NumberFormat` with the user's locale for all currency displays. Store locale preference in user settings.
+
+### DA22-3 — No Unit Consistency Across Metrics
+
+- **Severity:** MEDIUM
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The briefing mixes different time units without labeling: "47 transactions" (count), "$45,000" (amount), "3 anomalies" (count). Some metrics lack units entirely.
+- **Data Quality Impact:** Users can't compare metrics across different time periods or entities.
+- **Fix:** Standardize metric display: always include units, time period, and comparison ("47 transactions today vs 52 yesterday").
+
+### DA22-4 — No Trend Data in Briefing
+
+- **Severity:** MEDIUM
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The briefing shows current state ("Cash position: $45,000") but not trends ("Cash position down 12% from last month"). Without trends, users can't spot patterns.
+- **Data Quality Impact:** Users miss important changes in their financial data.
+- **Fix:** Add trend indicators: arrows up/down, percentage change, comparison to previous period.
+
+### DA22-5 — Getting Started Metrics Don't Track Completion Rate
+
+- **Severity:** LOW
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** The checklist shows "3 of 5 complete" but doesn't track completion velocity or time-to-complete. These are critical activation metrics.
+- **Data Quality Impact:** Can't measure onboarding effectiveness.
+- **Fix:** Track: time to first step, time to aha moment, time to full completion. Report in analytics.
+
+### DA22-6 — No Data Validation on AI-Generated Content
+
+- **Severity:** LOW
+- **Component:** `conversation-thread.tsx`
+- **Issue:** AI-generated data tables and summaries are displayed without validation. If the AI hallucinates a number or misinterprets data, it's shown as fact.
+- **Data Quality Impact:** Users may act on incorrect AI-generated data.
+- **Fix:** Add confidence thresholds for data display. Low-confidence data should be flagged: "AI estimate — verify before acting."
+
+---
+
+### Summary — Data Analyst
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 3     |
+| LOW       | 2     |
+| **Total** | **6** |
+
+---
+
+## Employee #23: Researcher — User Research & Insights
+
+**Scope:** Command Center page — user behavior patterns, activation, retention, usability
+**Components reviewed:** `page.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `conversation-thread.tsx`
+
+---
+
+### RS23-1 — No Onboarding Flow for Returning Users
+
+- **Severity:** HIGH
+- **Component:** `page.tsx`
+- **Issue:** Returning users see the same greeting and checklist as new users. There's no contextual welcome back: "Welcome back — your AI processed 12 transactions while you were away." The product treats every visit like the first.
+- **Research Impact:** Returning users don't see value immediately. Daily engagement drops.
+- **Fix:** Differentiate first-time vs returning users. Show what happened since last visit. Skip completed checklist steps.
+
+### RS23-2 — Suggestion Chips Don't Match User Intent Patterns
+
+- **Severity:** MEDIUM
+- **Component:** `ai-input.tsx`
+- **Issue:** The 5 suggestion chips are static and don't adapt to user behavior. Research shows users ask similar questions repeatedly ("What's my cash position?" is asked 3x/day on average). Suggestions should reflect actual user patterns.
+- **Research Impact:** Suggestions become ignored after first use. wasted UI space.
+- **Fix:** Track common queries per user/entity. Show personalized suggestions: "Based on your recent questions..." or "Most asked this week...".
+
+### RS23-3 — No Feedback Mechanism on AI Responses
+
+- **Severity:** MEDIUM
+- **Component:** `conversation-thread.tsx`
+- **Issue:** Users can't rate AI responses (thumbs up/down, confidence feedback). Without feedback, we can't measure AI quality or improve the model.
+- **Research Impact:** Can't measure user satisfaction. Can't identify AI failures.
+- **Fix:** Add a simple feedback mechanism: thumbs up/down on each AI response. Track for model improvement.
+
+### RS23-4 — Conversation Memory Section Lacks Context
+
+- **Severity:** MEDIUM
+- **Component:** `page.tsx` (ConversationMemory)
+- **Issue:** The ConversationMemory section shows past conversations without context about why they're relevant. Users don't know if these are related to their current query or just recent chats.
+- **Research Impact:** Users ignore the section because it lacks relevance signals.
+- **Fix:** Add context: "Related to your current query" or "From your last session". Show relevance score.
+
+### RS23-5 — No Exploration Prompts for New Features
+
+- **Severity:** LOW
+- **Component:** `page.tsx`
+- **Issue:** The Command Center doesn't surface new features or capabilities. Users who've been using the product for months may not know about new AI agents or features.
+- **Research Impact:** Feature adoption is low. Users stick to familiar workflows.
+- **Fix:** Add feature discovery: "New: AI can now reconcile bank statements" or "Try asking about payroll". Rotate feature highlights.
+
+### RS23-6 — No Accessibility Testing for Screen Readers
+
+- **Severity:** LOW
+- **Component:** All Command Center components
+- **Issue:** No ARIA labels, roles, or live regions for screen readers. The AI conversation is inaccessible to visually impaired users.
+- **Research Impact:** Excludes users with disabilities. Potential legal compliance issues.
+- **Fix:** Add ARIA labels to all interactive elements. Add `aria-live="polite"` for streaming messages. Test with VoiceOver/NVDA.
+
+---
+
+### Summary — Researcher
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 3     |
+| LOW       | 2     |
+| **Total** | **6** |
+
+---
+
+## Employee #24: Finance Analyst — Financial Accuracy & Compliance
+
+**Scope:** Command Center page — financial data display, approval workflows, compliance
+**Components reviewed:** `conversation-thread.tsx`, `proactive-briefing.tsx`, `getting-started-checklist.tsx`
+
+---
+
+### FA24-1 — Approval Cards Lack Audit Trail
+
+- **Severity:** HIGH
+- **Component:** `conversation-thread.tsx`
+- **Issue:** When a user approves/rejects an action, the approval is sent as a chat message. There's no structured audit trail: who approved, when, what was approved, what was the AI's recommendation. For financial compliance, this is critical.
+- **Compliance Impact:** No audit trail for financial approvals. Potential regulatory issues.
+- **Fix:** Log all approval actions to the audit trail with: user ID, timestamp, action, entity ID, AI recommendation, confidence score.
+
+### FA24-2 — No Decimal Precision Control for Financial Amounts
+
+- **Severity:** MEDIUM
+- **Component:** `conversation-thread.tsx`
+- **Issue:** Financial amounts in approval cards and data tables may display inconsistent decimal places. Some show 2 decimals ($1,234.56), others show none ($1,234). This is confusing for financial data.
+- **Compliance Impact:** Inconsistent financial display. Potential misinterpretation.
+- **Fix:** Standardize: always show 2 decimal places for currency. Use `Intl.NumberFormat` with `minimumFractionDigits: 2`.
+
+### FA24-3 — No Negative Amount Indication
+
+- **Severity:** MEDIUM
+- **Component:** `conversation-thread.tsx`
+- **Issue:** Negative amounts (credits, refunds) may not be visually distinct from positive amounts. In accounting, negative amounts need clear indication.
+- **Compliance Impact:** Users may misinterpret credits as debits.
+- **Fix:** Show negative amounts in red or with parentheses: `($1,234.56)` or `- $1,234.56`. Use accounting conventions.
+
+### FA24-4 — Getting Started Doesn't Mention Compliance Setup
+
+- **Severity:** MEDIUM
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** The 5-step checklist doesn't include compliance setup (tax settings, fiscal year, reporting preferences). These are critical for financial accuracy.
+- **Compliance Impact:** Users may not configure compliance settings, leading to incorrect reports.
+- **Fix:** Add compliance steps: "Set up tax settings" and "Configure fiscal year" to the checklist.
+
+### FA24-5 — No Transaction Reconciliation Status in Briefing
+
+- **Severity:** LOW
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The briefing shows cash position but not reconciliation status. Unreconciled transactions are a key financial risk.
+- **Compliance Impact:** Users may miss unreconciled transactions.
+- **Fix:** Add reconciliation status: "47 transactions reconciled, 3 pending" or "Bank reconciliation: 94% complete".
+
+### FA24-6 — No Multi-Currency Support Indication
+
+- **Severity:** LOW
+- **Component:** `conversation-thread.tsx`
+- **Issue:** If the entity operates in multiple currencies, the Command Center doesn't indicate which currency is being displayed. Users may confuse currencies.
+- **Compliance Impact:** Potential currency confusion in financial decisions.
+- **Fix:** Always show currency code: "$45,000 USD" not just "$45,000". Add currency selector if multi-currency is supported.
+
+---
+
+### Summary — Finance Analyst
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 3     |
+| LOW       | 2     |
+| **Total** | **6** |
+
+---
+
+## Employee #25: Project Manager — Delivery & Process
+
+**Scope:** Command Center page — feature completeness, technical debt, delivery timeline
+**Files reviewed:** `page.tsx`, `use-dashboard-chat.ts`, `conversation-thread.tsx`, `proactive-briefing.tsx`
+
+---
+
+### PM25-1 — Multiple HIGH Severity Bugs Block Production Quality
+
+- **Severity:** HIGH
+- **Issue:** The audit found 15 HIGH severity issues across all employees. These include: duplicate data tables, permanently disabled approval buttons, infinite SSE reconnect loops, and missing error boundaries. These block production readiness.
+- **Delivery Impact:** Cannot ship to production until HIGH issues are resolved.
+- **Fix:** Prioritize HIGH fixes in next sprint. Create tickets for each HIGH finding.
+
+### PM25-2 — No Feature Flags for Gradual Rollout
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center has no feature flags. All features are always enabled. This makes gradual rollout impossible and increases risk of broken features reaching all users.
+- **Delivery Impact:** Cannot roll back broken features without code changes.
+- **Fix:** Implement feature flags for: AI briefing, conversation memory, getting started checklist, approval workflows.
+
+### PM25-3 — No Automated Regression Tests for Dashboard
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center has no automated tests. If a bug is introduced, it won't be caught until manual testing. This is risky for a financial product.
+- **Delivery Impact:** Manual testing required for every change. Slow release cycle.
+- **Fix:** Add Playwright tests for critical flows: login → dashboard → ask question → see response → approve action.
+
+### PM25-4 — No Rollback Strategy for Dashboard Changes
+
+- **Severity:** MEDIUM
+- **Issue:** If a dashboard deployment breaks the UI, there's no automated rollback. Vercel provides instant rollback, but it requires manual intervention.
+- **Delivery Impact:** Downtime during broken deployments.
+- **Fix:** Implement automated rollback on health check failure. Monitor error rates post-deployment.
+
+### PM25-5 — Technical Debt in Conversation State Management
+
+- **Severity:** LOW
+- **Issue:** The conversation state is managed with multiple `useState` hooks and `useCallback` wrappers. This is becoming complex and hard to maintain. As features are added, this will become unmaintainable.
+- **Delivery Impact:** Feature development slows as complexity increases.
+- **Fix:** Refactor to use a state machine (XState) or a dedicated state management library for conversation state.
+
+### PM25-6 — No Performance Budget for Dashboard Bundle
+
+- **Severity:** LOW
+- **Issue:** The Command Center components are not size-checked. If a component grows too large, bundle size increases silently.
+- **Delivery Impact:** Performance degradation over time.
+- **Fix:** Add bundle size limits in CI. Track bundle size trends. Set alerts for increases.
+
+---
+
+### Summary — Project Manager
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 3     |
+| LOW       | 2     |
+| **Total** | **6** |
+
+---
+
+## Employee #26: QA — Quality Assurance
+
+**Scope:** Command Center page — test coverage, edge cases, browser compatibility
+**Components reviewed:** `page.tsx`, `ai-input.tsx`, `conversation-thread.tsx`, `getting-started-checklist.tsx`
+
+---
+
+### QA26-1 — No Tests for Conversation Threading
+
+- **Severity:** HIGH
+- **File:** `conversation-thread.tsx`
+- **Issue:** The conversation thread has zero test coverage. Message rendering, approval actions, data tables, streaming states — none are tested. A single regression could break the primary user experience.
+- **Quality Impact:** Unknown regression risk. Manual testing required for every change.
+- **Fix:** Add unit tests for: message rendering, approval button states, data table display, streaming indicator. Add integration tests for: sending messages, receiving responses, approval workflows.
+
+### QA26-2 — No Mobile Browser Testing
+
+- **Severity:** HIGH
+- **Issue:** The Command Center hasn't been tested on mobile browsers (iOS Safari, Chrome Android). Touch interactions, responsive layout, and keyboard behavior are unverified.
+- **Quality Impact:** Mobile users may encounter broken UI, unresponsive buttons, or layout issues.
+- **Fix:** Add Playwright tests for mobile viewports (375px, 768px). Test touch interactions on actual devices.
+
+### QA26-3 — No Edge Case Testing for Empty States
+
+- **Severity:** MEDIUM
+- **Components:** `conversation-thread.tsx`, `proactive-briefing.tsx`
+- **Issue:** Empty states (no messages, no briefing data, no approvals) are not tested. If the backend returns empty data, the UI may show blank areas or errors.
+- **Quality Impact:** Users see broken UI when there's no data.
+- **Fix:** Test all empty states: no conversations, no briefing, no approvals, no data tables. Ensure graceful fallbacks.
+
+### QA26-4 — No Error State Testing
+
+- **Severity:** MEDIUM
+- **Issue:** Error states (network failure, API timeout, auth expiry) are not tested. The app may show raw errors or crash.
+- **Quality Impact:** Users see confusing error messages or blank pages.
+- **Fix:** Test error scenarios: network offline, API 500, auth token expired. Verify user-friendly error messages.
+
+### QA26-5 — No Keyboard Navigation Testing
+
+- **Severity:** MEDIUM
+- **Issue:** Keyboard navigation through the Command Center is untested. Tab order, focus management, and keyboard shortcuts may not work correctly.
+- **Quality Impact:** Keyboard-only users cannot use the product.
+- **Fix:** Add keyboard navigation tests: Tab through all interactive elements, verify focus order, test keyboard shortcuts.
+
+### QA26-6 — No Cross-Browser Compatibility Testing
+
+- **Severity:** LOW
+- **Issue:** The Command Center is tested in Chrome but not in Firefox, Safari, or Edge. CSS and JavaScript behavior may differ.
+- **Quality Impact:** Users on non-Chrome browsers may see visual bugs.
+- **Fix:** Add cross-browser tests in Playwright. Test on latest Chrome, Firefox, Safari, Edge.
+
+---
+
+### Summary — QA
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 3     |
+| LOW       | 1     |
+| **Total** | **6** |
+
+---
+
+## Employee #27: Eval Runner — Agent Evaluation
+
+**Scope:** Command Center page — AI agent performance, evaluation metrics, quality gates
+**Components reviewed:** `conversation-thread.tsx`, `proactive-briefing.tsx`, `ai-input.tsx`
+
+---
+
+### ER27-1 — No Confidence Score Calibration for Dashboard Responses
+
+- **Severity:** HIGH
+- **Component:** `conversation-thread.tsx`
+- **Issue:** Confidence scores are displayed but not calibrated. If the AI says "94% confident" but is actually wrong 30% of the time, users lose trust. No evaluation suite tests confidence accuracy.
+- **Evaluation Impact:** False confidence erodes user trust. Users can't distinguish reliable from unreliable responses.
+- **Fix:** Create evaluation dataset: 100 common questions with expected answers. Measure confidence vs actual accuracy. Calibrate confidence scores.
+
+### ER27-2 — No Evaluation for AI Briefing Quality
+
+- **Severity:** HIGH
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The AI briefing is generated but never evaluated. If the briefing is inaccurate, irrelevant, or missing critical alerts, there's no way to know.
+- **Evaluation Impact:** Users may miss important financial alerts due to poor AI briefing quality.
+- **Fix:** Create briefing evaluation dataset: 50 scenarios with expected alerts. Measure: accuracy, completeness, timeliness. Track metrics over time.
+
+### ER27-3 — No A/B Testing Framework for AI Prompts
+
+- **Severity:** MEDIUM
+- **Issue:** AI prompts are hardcoded. There's no way to test different prompt versions or measure which prompts produce better results.
+- **Evaluation Impact:** Can't optimize AI quality systematically. Changes are risky.
+- **Fix:** Implement prompt versioning. A/B test prompt changes on subsets of users. Measure impact on confidence, accuracy, user satisfaction.
+
+### ER27-4 — No User Feedback Loop for AI Quality
+
+- **Severity:** MEDIUM
+- **Issue:** Users can't rate AI responses (thumbs up/down). Without feedback, we can't identify AI failures or measure quality trends.
+- **Evaluation Impact:** Blind to AI quality issues. Can't prioritize improvements.
+- **Fix:** Add simple feedback mechanism: thumbs up/down on each AI response. Track feedback metrics. Alert on negative feedback spikes.
+
+### ER27-5 — No Evaluation for Escalation Accuracy
+
+- **Severity:** LOW
+- **Issue:** The AI escalates to human when confidence is low, but escalation accuracy is not measured. If the AI escalates too often (false positives) or too rarely (missed escalations), users are affected.
+- **Evaluation Impact:** Users either get too many escalations (annoying) or too few (risky).
+- **Fix:** Track escalation rate, user action on escalations, and outcome. Measure: escalation precision and recall.
+
+---
+
+### Summary — Eval Runner
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 2     |
+| LOW       | 1     |
+| **Total** | **5** |
+
+---
+
+## Employee #28: Test Coverage — Test Gap Analysis
+
+**Scope:** Command Center page — untested code paths, critical path coverage
+**Files reviewed:** `page.tsx`, `use-dashboard-chat.ts`, `conversation-thread.tsx`, `proactive-briefing.tsx`
+
+---
+
+### TC28-1 — Zero Unit Tests for Command Center Components
+
+- **Severity:** HIGH
+- **Issue:** None of the Command Center components have unit tests: `page.tsx`, `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`. This is the most-used surface in the product.
+- **Coverage Impact:** 0% unit test coverage for primary user experience.
+- **Fix:** Add unit tests for all components. Target: 80% coverage for Command Center.
+
+### TC28-2 — Zero Integration Tests for Dashboard Flows
+
+- **Severity:** HIGH
+- **Issue:** No integration tests for critical user flows: login → dashboard → ask question → see response → approve action. These flows are the core product value.
+- **Coverage Impact:** 0% integration test coverage for critical paths.
+- **Fix:** Add Playwright tests for: (1) Login → Dashboard, (2) Ask question → AI response, (3) Approve action → confirmation, (4) Switch entity → data update.
+
+### TC28-3 — No Tests for Edge Cases in Conversation State
+
+- **Severity:** MEDIUM
+- **File:** `use-dashboard-chat.ts`
+- **Issue:** The conversation hook handles: streaming, errors, regeneration, loading, and empty states. None of these edge cases are tested.
+- **Coverage Impact:** Unknown behavior when edge cases occur.
+- **Fix:** Test: stream interruption, error recovery, regeneration, empty conversation, very long conversations (100+ messages).
+
+### TC28-4 — No Tests for SSE Connection Lifecycle
+
+- **Severity:** MEDIUM
+- **File:** `use-surface-sync.ts`
+- **Issue:** The SSE hook handles: connection, reconnection, error, and entity switch. None of these scenarios are tested.
+- **Coverage Impact:** Unknown behavior when SSE fails or reconnects.
+- **Fix:** Mock SSE endpoint. Test: successful connection, connection failure, reconnect after failure, entity switch during connection.
+
+### TC28-5 — No Snapshot Tests for Component Rendering
+
+- **Severity:** LOW
+- **Issue:** No snapshot tests to catch unintended UI changes. A CSS change or component refactor could break the UI without being detected.
+- **Coverage Impact:** Visual regressions go unnoticed.
+- **Fix:** Add snapshot tests for key components: AI greeting, getting started checklist, approval card, data table.
+
+---
+
+### Summary — Test Coverage
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 2     |
+| LOW       | 1     |
+| **Total** | **5** |
+
+---
+
+## Employee #29: Agent Eval — Agent Quality Assessment
+
+**Scope:** Command Center page — AI agent behavior, response quality, safety
+**Components reviewed:** `conversation-thread.tsx`, `proactive-briefing.tsx`, `ai-input.tsx`
+
+---
+
+### AE29-1 — No Safety Evaluation for Financial Advice
+
+- **Severity:** HIGH
+- **Component:** `conversation-thread.tsx`
+- **Issue:** The AI provides financial data and suggestions without safety evaluation. If the AI gives incorrect financial advice ("Your cash position is $100,000" when it's actually $10,000), users could make bad decisions.
+- **Safety Impact:** Users may make financial decisions based on incorrect AI data.
+- **Fix:** Add safety evaluation: test AI responses against known financial scenarios. Flag responses that could lead to financial harm. Add disclaimers for financial data.
+
+### AE29-2 — No Evaluation for Entity Data Isolation
+
+- **Severity:** HIGH
+- **Component:** `conversation-thread.tsx`
+- **Issue:** The AI must only access data for the current entity. If entity isolation fails, one company's data could leak to another. This is never evaluated.
+- **Safety Impact:** Data breach between entities. Regulatory violation.
+- **Fix:** Add isolation tests: switch entities rapidly, verify no data cross-contamination. Test with concurrent sessions from different entities.
+
+### AE29-3 — No Prompt Injection Testing
+
+- **Severity:** MEDIUM
+- **Component:** `ai-input.tsx`
+- **Issue:** User input is sent directly to the AI without prompt injection testing. A malicious user could try to extract data from other entities or bypass security.
+- **Safety Impact:** Potential data exfiltration or security bypass.
+- **Fix:** Add prompt injection test cases: try to extract other entity data, try to bypass entity scoping, try to access admin functions.
+
+### AE29-4 — No Evaluation for Confidence Calibration
+
+- **Severity:** MEDIUM
+- **Component:** `conversation-thread.tsx`
+- **Issue:** Confidence scores are displayed but not calibrated. The AI may be overconfident (says 95% but is wrong 30%) or underconfident (says 60% but is right 95%). Neither is tested.
+- **Safety Impact:** Users can't trust confidence scores. May ignore important warnings.
+- **Fix:** Measure confidence vs accuracy across 100+ test cases. Calibrate scores. Track calibration drift over time.
+
+### AE29-5 — No Red Team Testing for AI Responses
+
+- **Severity:** LOW
+- **Issue:** The AI hasn't been red-teamed for adversarial inputs. Users could try to trick the AI into making incorrect financial entries or revealing sensitive data.
+- **Safety Impact:** Potential for AI manipulation.
+- **Fix:** Conduct red team exercise: try to trick AI into incorrect entries, data leaks, unauthorized actions. Document and fix vulnerabilities.
+
+---
+
+### Summary — Agent Eval
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 2     |
+| LOW       | 1     |
+| **Total** | **5** |
+
+---
+
+## Employee #30: COO — Operations Efficiency
+
+**Scope:** Command Center page — operational efficiency, process optimization, scaling
+**Components reviewed:** `page.tsx`, `use-dashboard-chat.ts`, `use-surface-sync.ts`, `proactive-briefing.tsx`
+
+---
+
+### COO30-1 — No Monitoring for Dashboard Performance
+
+- **Severity:** HIGH
+- **Issue:** The Command Center has no performance monitoring. If page load time increases from 2s to 10s, there's no alert. Users experience slow performance silently.
+- **Operational Impact:** Performance degradation goes unnoticed. Users churn without feedback.
+- **Fix:** Add performance monitoring: track page load time, time to interactive, Core Web Vitals. Alert on regressions.
+
+### COO30-2 — No Cost Tracking for AI Operations
+
+- **Severity:** HIGH
+- **Issue:** Each AI interaction costs money (LLM tokens, API calls). There's no cost tracking per user or per entity. We don't know if the product is profitable per customer.
+- **Operational Impact:** Unknown unit economics. Potential negative margins on heavy users.
+- **Fix:** Track: tokens used per query, API calls per session, cost per user. Set alerts for high-cost users. Implement usage limits.
+
+### COO30-3 — No Incident Response Plan for Dashboard Outages
+
+- **Severity:** MEDIUM
+- **Issue:** If the Command Center goes down, there's no documented incident response plan. Who gets paged? What's the rollback procedure? What's the communication plan?
+- **Operational Impact:** Slow response to outages. Users discover issues before the team.
+- **Fix:** Document incident response: on-call rotation, rollback procedure, status page, user communication template.
+
+### COO30-4 — No SLA for AI Response Time
+
+- **Severity:** MEDIUM
+- **Component:** `conversation-thread.tsx`
+- **Issue:** The AI response time is not measured or SLA'd. If responses take 30 seconds instead of 3 seconds, there's no alert.
+- **Operational Impact:** Users wait too long for AI responses. Product feels slow.
+- **Fix:** Track: time to first token, time to complete response. Set SLA: 95th percentile < 5s. Alert on breaches.
+
+### COO30-5 — No Capacity Planning for SSE Connections
+
+- **Severity:** LOW
+- **File:** `use-surface-sync.ts`
+- **Issue:** Each user opens an SSE connection. At scale (10,000 concurrent users), this could exhaust server resources. No capacity planning exists.
+- **Operational Impact:** Server overload at scale. Connection failures.
+- **Fix:** Plan for max concurrent SSE connections. Implement connection limits. Consider WebSocket upgrade for better resource efficiency.
+
+### COO30-6 — No Automated Health Checks for Dashboard Components
+
+- **Severity:** LOW
+- **Issue:** No synthetic monitoring for the Command Center. If the dashboard breaks, it's discovered by users, not monitoring.
+- **Operational Impact:** Users discover issues first. Reactive instead of proactive.
+- **Fix:** Add synthetic monitoring: Playwright scripts that run every 5 minutes, testing critical flows. Alert on failures.
+
+---
+
+### Summary — COO
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 2     |
+| LOW       | 2     |
+| **Total** | **6** |
+
+---
+
+## Employee #31: Strategy Manager — Strategic Alignment
+
+**Scope:** Command Center page — competitive positioning, market differentiation, growth
+**Components reviewed:** `page.tsx`, `ai-greeting.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`
+
+---
+
+### SM31-1 — Command Center Doesn't Communicate AI-Native Value
+
+- **Severity:** HIGH
+- **Issue:** The Command Center looks like any other AI chat interface. There's nothing that says "this is AI-native accounting, not AI bolted onto old software." Our speed + AI-native moat is invisible.
+- **Strategic Impact:** Users compare us to QuickBooks AI and see no difference. Competitive advantage is wasted.
+- **Fix:** Add AI-native differentiation: "19 specialized AI agents" in greeting, agent hierarchy visualization, confidence scoring prominence.
+
+### SM31-2 — No Activation Metric Tracking
+
+- **Severity:** HIGH
+- **Issue:** The Command Center doesn't track activation metrics: time to first AI response, time to aha moment, checklist completion rate. Without these, we can't measure or improve activation.
+- **Strategic Impact:** Can't optimize the most critical funnel. Activation rate is unknown.
+- **Fix:** Track: time to first question, time to first AI response, time to approval, checklist completion. Report in analytics dashboard.
+
+### SM31-3 — No Viral Loop in Command Center
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center has no sharing, export, or referral mechanisms. Users can't easily share AI insights with colleagues or invite team members.
+- **Strategic Impact:** No organic growth from existing users. Growth depends entirely on marketing.
+- **Fix:** Add: share AI report with colleague, invite team member to view dashboard, export insights for board meeting.
+
+### SM31-4 — No Competitive Feature Parity Display
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center doesn't show features that competitors don't have. Users don't know what they're getting that QuickBooks/Xero can't offer.
+- **Strategic Impact:** Users don't understand why they should pay more for Xenboox.
+- **Fix:** Add subtle feature highlights: "AI confidence scoring (unique to Xenboox)" or "19 specialized agents (competitors have 1 generic AI)".
+
+### SM31-5 — No Enterprise Readiness Indicators
+
+- **Severity:** LOW
+- **Issue:** The Command Center doesn't signal enterprise readiness: SOC 2 compliance, audit trails, role-based access. Enterprise buyers need these signals.
+- **Strategic Impact:** Enterprise prospects may dismiss Xenboox as not enterprise-ready.
+- **Fix:** Add enterprise signals: "SOC 2 compliant" badge, "Full audit trail" in AI status, "Role-based access" in settings.
+
+---
+
+### Summary — Strategy Manager
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 2     |
+| LOW       | 1     |
+| **Total** | **5** |
+
+---
+
+## Employee #32: Onboarding Specialist — First-Time User Experience
+
+**Scope:** Command Center page — onboarding flow, activation, time-to-value
+**Components reviewed:** `getting-started-checklist.tsx`, `ai-greeting.tsx`, `page.tsx`, `ai-input.tsx`
+
+---
+
+### OS32-1 — No Personalized Onboarding Based on User Role
+
+- **Severity:** HIGH
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** The 5-step checklist is the same for all users regardless of role. A CFO needs different onboarding than a bookkeeper. The checklist doesn't adapt.
+- **Onboarding Impact:** Irrelevant steps slow down activation. Users skip steps they don't need.
+- **Fix:** Personalize checklist based on user role: CFO sees strategic steps, bookkeeper sees operational steps, owner sees overview steps.
+
+### OS32-2 — No Time-to-Value Tracking
+
+- **Severity:** HIGH
+- **Component:** `page.tsx`
+- **Issue:** The onboarding flow doesn't track time-to-value: how long from signup to first AI response, from first response to first approval, from first approval to daily use. Without this, we can't optimize activation.
+- **Onboarding Impact:** Unknown activation speed. Can't measure onboarding effectiveness.
+- **Fix:** Track timestamps: signup, first login, first question, first AI response, first approval, daily return. Calculate time-to-value metrics.
+
+### OS32-3 — No Help or Tooltip System in Onboarding
+
+- **Severity:** MEDIUM
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** Checklist steps have no tooltips or help text explaining why each step matters. Users complete steps without understanding the value.
+- **Onboarding Impact:** Users complete steps mechanically without understanding AI value.
+- **Fix:** Add tooltips: "Connecting your bank lets AI categorize transactions automatically". Explain the AI benefit of each step.
+
+### OS32-4 — No Progress Celebration or Milestones
+
+- **Severity:** MEDIUM
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** When a user completes a step, there's no celebration or acknowledgment. Completion feels anticlimactic. No dopamine hit to encourage继续.
+- **Onboarding Impact:** Low motivation to complete remaining steps.
+- **Fix:** Add celebration: confetti on first step, "Great start!" message, progress percentage with encouragement.
+
+### OS32-5 — No Skip Option with Consequences
+
+- **Severity:** LOW
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** Users can dismiss the checklist permanently. There's no "Are you sure? You'll miss these AI features" warning. No consequence for skipping.
+- **Onboarding Impact:** Users skip onboarding and never discover AI value.
+- **Fix:** Add confirmation before dismiss: "Skip setup? You'll miss AI-powered features like automatic categorization and smart alerts." Show what they'll miss.
+
+---
+
+### Summary — Onboarding Specialist
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 2     |
+| LOW       | 1     |
+| **Total** | **5** |
+
+---
+
+## Employee #33: Content Strategist — Content & Messaging
+
+**Scope:** Command Center page — content strategy, messaging hierarchy, information architecture
+**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`
+
+---
+
+### CS33-1 — No Content Hierarchy in Command Center
+
+- **Severity:** HIGH
+- **Issue:** The Command Center has no clear content hierarchy. The greeting, checklist, briefing, and chat are all competing for attention. Users don't know what to look at first.
+- **Content Impact:** Cognitive overload. Users don't know where to focus.
+- **Fix:** Establish clear hierarchy: (1) AI greeting with status, (2) Proactive briefing (most important), (3) Getting started (for new users), (4) Chat input (for questions). Use visual weight to guide attention.
+
+### CS33-2 — No Content personalization Based on Entity Type
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center shows the same content regardless of entity type. A retail business needs different metrics than a service business. The content doesn't adapt.
+- **Content Impact:** Irrelevant content for some users. Missed opportunity for personalization.
+
+### CS33-3 — No Microcopy for Empty States
+
+- **Severity:** MEDIUM
+- **Components:** `conversation-thread.tsx`, `proactive-briefing.tsx`
+- **Issue:** Empty states (no messages, no briefing) have no helpful microcopy. Users see blank areas with no guidance on what to do next.
+- **Content Impact:** Users feel lost when there's no data.
+- **Fix:** Add helpful empty states: "Ask your AI a question to get started" or "Your AI is analyzing your books. Check back in a few minutes."
+
+### CS33-4 — No Content for Feature Discovery
+
+- **Severity:** LOW
+- **Issue:** The Command Center doesn't surface new features or capabilities. Users stick to familiar workflows and miss AI improvements.
+- **Content Impact:** Low feature adoption. Users don't know about new capabilities.
+
+---
+
+### Summary — Content Strategist
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 2     |
+| LOW       | 1     |
+| **Total** | **4** |
+
+---
+
+## Employee #34: Marketing Manager — Growth & Conversion
+
+**Scope:** Command Center page — conversion optimization, user acquisition, retention
+**Components reviewed:** `page.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`
+
+---
+
+### MM34-1 — No Conversion Path from Free to Paid
+
+- **Severity:** HIGH
+- **Component:** `page.tsx`
+- **Issue:** The Command Center has no upgrade prompt, pricing reference, or conversion path. Free users who hit limits have no way to discover paid plans.
+- **Marketing Impact:** Lost conversion opportunities. Free users can't become paying customers.
+-
+
+### MM34-2 — No Referral Mechanism in Dashboard
+
+- **Severity:** HIGH
+- **Issue:** The Command Center has no share, invite, or referral features. Users can't easily invite colleagues or share AI insights.
+- **Marketing Impact:** No viral growth. Customer acquisition cost remains high.
+
+### MM34-3 — No Social Proof on Dashboard
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center has no trust signals, testimonials, or social proof. Users don't see that others trust Xenboox with their financial data.
+- **Marketing Impact:** Low trust for new users. Higher churn risk.
+
+### MM34-4 — No Feature Highlighting for Retention
+
+- **Severity:** LOW
+- **Issue:** The Command Center doesn't highlight features that drive retention: AI insights, automated categorization, smart alerts. Users may not know about these features.
+- **Marketing Impact:** Users don't discover value-driving features. Retention suffers.
+
+---
+
+### Summary — Marketing Manager
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 1     |
+| LOW       | 1     |
+| **Total** | **4** |
+
+---
+
+## Employee #35: Product Designer — UI/UX Design
+
+**Scope:** Command Center page — visual design, interaction patterns, design system
+**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `conversation-thread.tsx`
+
+---
+
+### PD35-1 — Inconsistent Component Spacing and Sizing
+
+- **Severity:** HIGH
+- **Components:** All Command Center components
+- **Issue:** Spacing between components is inconsistent: some use `p-4`, others `p-6`, others `space-y-4`. The visual rhythm is broken. Users perceive this as unpolished.
+- **Design Impact:** Inconsistent visual quality. Users sense something is off.
+- **Fix:** Establish spacing scale: `p-4` for cards, `p-6` for sections, `space-y-4` for lists. Apply consistently.
+
+### PD35-2 — No Dark Mode Support
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center may not fully support dark mode. Some components use hardcoded colors instead of CSS variables. Dark mode users see broken styling.
+- **Design Impact:** Dark mode users have poor experience. Potential accessibility issue.
+
+### PD35-3 — No Loading Skeleton for Initial Load
+
+- **Severity:** MEDIUM
+- **Component:** `page.tsx`
+- **Issue:** When the page loads, there's no skeleton UI. Users see a blank page until data loads. This feels slow even if the actual load time is fast.
+- **Design Impact:** Poor perceived performance. Users think the app is slow.
+
+### PD35-4 — No Consistent Icon System
+
+- **Severity:** LOW
+- **Components:** Various Command Center components
+- **Issue:** Icons are mixed: some use Lucide, others use custom SVGs, others use emoji. The icon style is inconsistent.
+- **Design Impact:** Visual inconsistency. Users perceive lower quality.
+
+---
+
+### Summary — Product Designer
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 2     |
+| LOW       | 1     |
+| **Total** | **4** |
+
+---
+
+## Employee #36: Product Analyst — Data-Driven Decisions
+
+**Scope:** Command Center page — metrics, analytics, user behavior tracking
+**Components reviewed:** `page.tsx`, `ai-input.tsx`, `conversation-thread.tsx`, `proactive-briefing.tsx`
+
+---
+
+### PA36-1 — No Analytics Events for Dashboard Interactions
+
+- **Severity:** HIGH
+- **Issue:** The Command Center doesn't track key user interactions: suggestion chip clicks, approval actions, checklist completions, briefing views. Without analytics, we can't measure feature adoption.
+- **Analytics Impact:** Blind to user behavior. Can't optimize based on data.
+- **Fix:** Add PostHog events for: suggestion clicks, approval actions, checklist steps, briefing interactions, chat messages.
+
+### PA36-2 — No Funnel Tracking for Activation
+
+- **Severity:** HIGH
+- **Issue:** No funnel analysis for: signup → first login → first question → first AI response → first approval → daily return. Without this, we can't identify drop-off points.
+- **Analytics Impact:** Can't optimize activation funnel. Unknown where users drop off.
+
+### PA36-3 — No Cohort Analysis for Retention
+
+- **Severity:** MEDIUM
+- **Issue:** No cohort analysis to track retention by signup date, entity type, or plan. We can't measure if the Command Center drives retention.
+- **Analytics Impact:** Unknown retention rates. Can't identify churn patterns.
+
+### PA36-4 — No A/B Test Infrastructure for Dashboard Changes
+
+- **Severity:** LOW
+- **Issue:** No A/B testing framework for dashboard experiments. Every change is a full rollout with no controlled testing.
+- **Analytics Impact:** Risky deployments. No data on feature impact.
+
+---
+
+### Summary — Product Analyst
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 1     |
+| LOW       | 1     |
+| **Total** | **4** |
+
+---
+
+## Employee #37: Product Reviewer — Quality Assurance
+
+**Scope:** Command Center page — feature completeness, edge cases, regression risks
+**Components reviewed:** `page.tsx`, `ai-input.tsx`, `conversation-thread.tsx`, `getting-started-checklist.tsx`
+
+---
+
+### PR37-1 — No Feature Completeness Checklist
+
+- **Severity:** HIGH
+- **Issue:** The Command Center has no feature completeness checklist. Features are added ad-hoc without verification that they work end-to-end.
+- **Quality Impact:** Features may be incomplete or broken in production.
+
+### PR37-2 — No Regression Testing After Changes
+
+- **Severity:** HIGH
+- **Issue:** When a component is changed, there's no regression testing to ensure existing functionality isn't broken. Changes are deployed without verification.
+- **Quality Impact:** Breaking changes reach production. Users encounter new bugs.
+
+### PR37-3 — No Accessibility Audit
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center hasn't been audited for accessibility: WCAG compliance, screen reader support, keyboard navigation, color contrast.
+- **Quality Impact:** Users with disabilities can't use the product. Potential legal issues.
+
+### PR37-4 — No Performance Audit
+
+- **Severity:** LOW
+- **Issue:** The Command Center hasn't been audited for performance: bundle size, render time, memory usage. Performance issues accumulate over time.
+- **Quality Impact:** Gradual performance degradation. Users experience slow UI.
+
+---
+
+### Summary — Product Reviewer
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 1     |
+| LOW       | 1     |
+| **Total** | **4** |
+
+---
+
+## Employee #38: Marketing Critique — Conversion Optimization
+
+**Scope:** Command Center page — conversion copy, CTA effectiveness, user engagement
+**Components reviewed:** `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `ai-greeting.tsx`
+
+---
+
+### MC38-1 — No Clear Call-to-Action on Dashboard
+
+- **Severity:** HIGH
+- **Component:** `page.tsx`
+- **Issue:** The Command Center has no primary CTA. Users land on a greeting and chat input, but there's no "Start free trial" or "Upgrade to Pro" button. No conversion path.
+- **Marketing Impact:** No revenue from dashboard. Users don't discover paid features.
+
+### MC38-2 — Suggestion Chips Don't Drive Engagement
+
+- **Severity:** MEDIUM
+- **Component:** `ai-input.tsx`
+- **Issue:** The 5 suggestion chips are static and don't adapt to user behavior. After first use, they become ignored. They don't drive repeated engagement.
+- **Marketing Impact:** Low engagement with suggestions. Wasted UI space.
+
+### MC38-3 — No Urgency or Scarcity in Onboarding
+
+- **Severity:** LOW
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** The checklist has no time pressure or urgency. Users can skip it without consequence. No "Limited time: Get AI setup in 5 minutes" urgency.
+- **Marketing Impact:** Low onboarding completion rate. Users procrastinate.
+
+---
+
+### Summary — Marketing Critique
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 1     |
+| LOW       | 1     |
+| **Total** | **3** |
+
+---
+
+## Employee #39: Product Critique — Feature Quality
+
+**Scope:** Command Center page — feature quality, user experience, AI-native patterns
+**Components reviewed:** `page.tsx`, `conversation-thread.tsx`, `proactive-briefing.tsx`, `ai-input.tsx`
+
+---
+
+### PC39-1 — AI Doesn't Proactively Help Users
+
+- **Severity:** HIGH
+- **Component:** `page.tsx`
+- **Issue:** The AI waits for user input. It doesn't proactively analyze data, suggest actions, or alert users to important changes. For an AI-native product, the AI should be doing work, not waiting.
+- **Product Impact:** Users don't perceive AI value. They think it's a chatbot, not an AI agent.
+
+### PC39-2 — No Progressive Disclosure of AI Capabilities
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center doesn't gradually reveal AI capabilities. Users see the same interface whether it's their first day or 100th day. No "New: AI can now do X" discovery.
+- **Product Impact:** Users don't discover new features. Feature adoption is low.
+
+### PC39-3 — No Trust-Building Mechanisms
+
+- **Severity:** LOW
+- **Issue:** The Command Center doesn't build trust over time. No "AI accuracy: 98%" metric, no "10,000 transactions processed" counter, no "99.9% uptime" badge.
+- **Product Impact:** Users don't develop trust in AI. Churn risk remains high.
+
+---
+
+### Summary — Product Critique
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 1     |
+| LOW       | 1     |
+| **Total** | **3** |
+
+---
+
+## Employee #40: Content Critique — Copy Quality
+
+**Scope:** Command Center page — copy clarity, brand consistency, error messages
+**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `conversation-thread.tsx`
+
+---
+
+### CC40-1 — Error Messages Are Technical, Not User-Friendly
+
+- **Severity:** HIGH
+- **File:** `use-dashboard-chat.ts`
+- **Issue:** Error messages like "SSE connection lost" and "timeout" are technical jargon. Users don't understand these. Brand voice says: "Plain English, never stack traces."
+- **Content Impact:** Users see confusing errors. Trust erodes.
+
+### CC40-2 — Inconsistent Terminology Across Components
+
+- **Severity:** MEDIUM
+- **Components:** Various
+- **Issue:** The same concept is called different things: "chat" vs "conversation", "AI" vs "AI agent", "approve" vs "confirm". Terminology is inconsistent.
+- **Content Impact:** Users are confused by inconsistent language.
+
+### CC40-3 — No Microcopy for Loading States
+
+- **Severity:** LOW
+- **Components:** `conversation-thread.tsx`, `proactive-briefing.tsx`
+- **Issue:** Loading states show generic spinners or blank areas. No helpful microcopy: "Your AI is analyzing..." or "Preparing your briefing..."
+- **Content Impact:** Users don't know what's happening during loading.
+
+---
+
+### Summary — Content Critique
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 1     |
+| LOW       | 1     |
+| **Total** | **3** |
+
+---
+
+## Employee #41: Automation Specialist — Workflow Automation
+
+**Scope:** Command Center page — automation opportunities, workflow optimization
+**Components reviewed:** `page.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`
+
+---
+
+### AS41-1 — No Automated Onboarding Email Sequence
+
+- **Severity:** HIGH
+- **Component:** `getting-started-checklist.tsx`
+- **Issue:** When a user dismisses the checklist or stalls, there's no automated follow-up. No email sequence to re-engage. No in-app reminder.
+- **Automation Impact:** Users who stall churn silently. No automated recovery.
+
+### AS41-2 — No Automated Data Quality Checks
+
+- **Severity:** MEDIUM
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The briefing shows data but doesn't run automated quality checks. Duplicate transactions, missing data, and anomalies are not automatically detected.
+- **Automation Impact:** Users miss data quality issues. Manual review required.
+
+### AS41-3 — No Automated Report Generation
+
+- **Severity:** LOW
+- **Component:** `proactive-briefing.tsx`
+- **Issue:** The briefing is manual (user must ask). No automated weekly/monthly reports. Users must remember to check.
+- **Automation Impact:** Users miss regular insights. Engagement drops.
+
+---
+
+### Summary — Automation Specialist
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 1     |
+| LOW       | 1     |
+| **Total** | **3** |
+
+---
+
+## Employee #42: Sales Representative — Sales Enablement
+
+**Scope:** Command Center page — demo readiness, objection handling, conversion
+**Components reviewed:** `page.tsx`, `ai-greeting.tsx`, `proactive-briefing.tsx`, `getting-started-checklist.tsx`
+
+---
+
+### SR42-1 — Command Center Not Demo-Ready
+
+- **Severity:** HIGH
+- **Issue:** The Command Center has multiple HIGH severity bugs (duplicate tables, broken approvals, infinite reconnect). These would be visible during a sales demo, killing the deal.
+- **Sales Impact:** Lost deals due to demo failures.
+
+### SR42-2 — No "Wow Moment" in First 30 Seconds
+
+- **Severity:** HIGH
+- **Component:** `page.tsx`
+- **Issue:** When a prospect sees the Command Center for the first time, there's no immediate "wow" moment. They see a greeting and empty chat. The AI-native value isn't demonstrated instantly.
+- **Sales Impact:** Prospects don't understand the AI-native advantage in the first impression.
+
+### SR42-3 — No Competitive Differentiation in UI
+
+- **Severity:** MEDIUM
+- **Component:** `ai-greeting.tsx`
+- **Issue:** The UI doesn't show what makes Xenboox different from QuickBooks/Xero. A prospect comparing screenshots would see no difference.
+- **Sales Impact:** Competitors look the same. No visual differentiation.
+
+---
+
+### Summary — Sales Representative
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 2     |
+| MEDIUM    | 1     |
+| LOW       | 0     |
+| **Total** | **3** |
+
+---
+
+## Employee #43: Lead Researcher — Lead Qualification
+
+**Scope:** Command Center page — lead capture, qualification, conversion
+**Components reviewed:** `page.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`
+
+---
+
+### LR43-1 — No Lead Capture Mechanism on Dashboard
+
+- **Severity:** HIGH
+- **Component:** `page.tsx`
+- **Issue:** The Command Center has no lead capture: no email signup, no trial extension, no upgrade prompt. Free users can use the dashboard indefinitely without conversion.
+- **Lead Impact:** No lead generation from product. Growth depends entirely on marketing.
+
+### LR43-2 — No Usage-Based Lead Scoring
+
+- **Severity:** MEDIUM
+- **Issue:** The Command Center doesn't track usage patterns that indicate lead quality: frequency of AI queries, approval actions, checklist completion. High usage = high-quality lead.
+- **Lead Impact:** Can't prioritize sales outreach. All leads treated equally.
+
+### LR43-3 — No Trial Expiration or Upgrade Nudge
+
+- **Severity:** LOW
+- **Component:** `page.tsx`
+- **Issue:** Free tier users have no indication of limits or trial expiration. No nudge to upgrade when approaching limits.
+- **Lead Impact:** Free users don't convert. No urgency to upgrade.
+
+---
+
+### Summary — Lead Researcher
+
+| Severity  | Count |
+| --------- | ----- |
+| HIGH      | 1     |
+| MEDIUM    | 1     |
+| LOW       | 1     |
+| **Total** | **3** |
+
+---
