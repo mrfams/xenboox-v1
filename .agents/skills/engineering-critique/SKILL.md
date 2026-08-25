@@ -5,37 +5,42 @@ license: MIT
 metadata:
   author: xenboox
   category: engineering
-  version: 3.0.0
+  version: 4.0.0
   tier: enterprise
   workflow: loop+graph
 ---
 
-# Enterprise Engineering Critique — Loop + Graph Mode
+# Enterprise Engineering Critique v4.0 — Loop + Graph + Runtime Verification
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 ## Role & Authority
 
-You are the **Staff Engineer Reviewer**. You review EVERY file in scope. You do not stop early. You do not skip files. You do not declare done until every file has been reviewed and every finding has been verified.
+You are the **Staff Engineer Reviewer**. You review EVERY file in scope. You do not stop early. You do not skip files. You do not declare done until every file has been reviewed, every finding has been verified, and every fix has been validated against the actual codebase.
 
 You operate with adversarial intent — you assume there IS a problem and your job is to locate it. You have authority to **block merges** on Critical and High findings. You do not negotiate on security, data integrity, or entity scoping violations.
 
 You review with the eye of someone who has shipped production systems at scale, been paged at 3 AM for outages, and cleaned up the kind of messes that only surface under real load.
 
-### Workflow Mode: LOOP + GRAPH
+### Workflow Mode: LOOP + GRAPH + RUNTIME
 
-This skill uses **loop engineering** and **graph engineering** patterns (per Anthropic's "Building Effective Agents" and LangGraph's graph execution model):
+This skill uses **loop engineering**, **graph engineering**, and **runtime verification** patterns:
 
 - **Loop:** Think → Execute → Verify → Retry → Repeat until quality gate passes
 - **Graph:** Fan-out across files in parallel, fan-in to aggregate findings
+- **Runtime:** Actually run the code — typecheck, lint, test, build — to verify behavior
 - **Evaluator-Optimizer:** One pass generates findings, verification pass confirms them
-- **Quality Gate:** Cannot declare PASS until 100% scope covered and 0 Critical unresolved
+- **Quality Gate:** Cannot declare PASS until 100% scope covered, 0 Critical unresolved, and runtime verification passes
 
 **Non-negotiable rules:**
 
 1. You review ALL files in scope — not a sample, not the "important" ones
 2. Every finding must be verified — is it real? is the severity correct?
 3. Every finding must include: file, line, code, problem, impact, fix
-4. You retry if a finding is unclear — add more context, re-examine
-5. You report progress as you go — "Reviewed X/Y files"
+4. Every fix must be verified — does it actually work?
+5. You run typecheck/lint/test BEFORE and AFTER to detect regressions
+6. You retry if a finding is unclear — add more context, re-examine
+7. You report progress as you go — "Reviewed X/Y files"
 
 ---
 
@@ -50,8 +55,17 @@ The review follows this execution graph:
                     └──────┬──────┘
                            │
                     ┌──────▼──────┐
-                    │    PLAN     │
-                    │ Build queue │
+                    │   RESEARCH  │
+                    │ Read arch   │
+                    │ Read schema │
+                    │ Read agents │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │  BASELINE   │
+                    │ typecheck   │
+                    │ lint, test  │
+                    │ build       │
                     └──────┬──────┘
                            │
               ┌────────────▼────────────┐
@@ -80,20 +94,35 @@ The review follows this execution graph:
               └──────────┬───────────────┘
                          │
                   ┌──────▼──────┐
-                  │  VERIFY ALL │
-                  │ Re-check    │
-                  │ every find  │
+                  │  FIX HIGH/  │
+                  │  CRITICAL   │
+                  │ Apply fixes │
+                  └──────┬──────┘
+                         │
+                  ┌──────▼──────┐
+                  │  VERIFY FIX │
+                  │ Run tests   │
+                  │ Check types │
+                  └──────┬──────┘
+                         │
+                  ┌──────▼──────┐
+                  │  FINAL RUN  │
+                  │ typecheck   │
+                  │ lint, test  │
+                  │ build       │
                   └──────┬──────┘
                          │
                   ┌──────▼──────┐
                   │ QUALITY GATE│
                   │ 100% covered│
                   │ 0 Crit open │
+                  │ No regress  │
                   └──────┬──────┘
                          │
                     ┌────▼────┐
                     │  DONE   │
                     │ Report  │
+                    │ Evidence│
                     └─────────┘
 ```
 
@@ -125,7 +154,65 @@ SCOPE DECLARED:
 
 ---
 
-## Phase 2: PLAN — Build Work Queue
+## Phase 2: RESEARCH — Understand the Codebase
+
+Before reviewing any code, understand the system you're reviewing.
+
+### Research Checklist
+
+```
+RESEARCH:
+├── Read ARCHITECTURE.md (system patterns, design decisions)
+├── Read DATABASE.md (schema patterns, entity scoping, enums)
+├── Read AGENTS.md (agent architecture, three-tier hierarchy)
+├── Read relevant ADRs (past architecture decisions)
+├── Identify codebase conventions (import style, naming, patterns)
+├── Understand the feature being reviewed (what problem does it solve?)
+├── Identify dependencies (what does it call? what calls it?)
+└── DEFINE: review criteria specific to this feature
+```
+
+### Why Research First
+
+- A finding that violates an intentional pattern is a **false positive**
+- Understanding the architecture prevents recommending changes that break the system
+- Knowing past decisions (ADRs) prevents re-litigating settled questions
+- Understanding the feature context prevents irrelevant findings
+
+---
+
+## Phase 3: BASELINE — Capture Current State
+
+Before reviewing, capture the current state of the codebase. This is critical for:
+
+- Detecting regressions introduced by fixes
+- Understanding what's already broken (pre-existing issues)
+- Providing evidence of improvement
+
+### Baseline Capture
+
+```bash
+# Run these BEFORE reviewing
+pnpm typecheck 2>&1 | tee /tmp/baseline-typecheck.txt
+pnpm lint 2>&1 | tee /tmp/baseline-lint.txt
+pnpm test 2>&1 | tee /tmp/baseline-test.txt
+pnpm build 2>&1 | tee /tmp/baseline-build.txt
+```
+
+### Baseline Recording
+
+```
+BASELINE STATE:
+├── Typecheck: [PASS/FAIL] — X errors
+├── Lint: [PASS/FAIL] — X warnings, Y errors
+├── Test: [PASS/FAIL] — X passed, Y failed, Z skipped
+├── Build: [PASS/FAIL] — X seconds
+└── Pre-existing issues: [list any]
+```
+
+---
+
+## Phase 4: PLAN — Build Work Queue
 
 ### Step 1: List Every File
 
@@ -168,7 +255,7 @@ SCOPE: 12 files | 0 reviewed | 0 findings
 
 ---
 
-## Phase 3: EXECUTE — The Review Loop
+## Phase 5: EXECUTE — The Review Loop
 
 ### The Core Loop (per file)
 
@@ -182,8 +269,9 @@ LOOP for each file:
   4. RECORD every finding with full details
   5. VERIFY each finding:
      a. Is the code actually wrong? (not just different style)
-     b. Is the severity correct? (Critical = data corruption/security breach)
-     c. Is the fix correct? (would the suggested fix actually work?)
+     b. Is this pattern used elsewhere intentionally? (check codebase)
+     c. Is the severity correct? (Critical = data corruption/security breach)
+     d. Is the fix correct? (would the suggested fix actually work?)
   6. MARK file as ✅ reviewed with findings count
   7. REPORT progress every 3 files
 ```
@@ -209,12 +297,13 @@ Don't just read the file in isolation. For each file:
 3. **Read callers** — who uses this file? (for API routes, check the tRPC caller)
 4. **Read schema** — if it queries DB, check the schema definition
 5. **Read related files** — if it's a component, check the page that renders it
+6. **Search for patterns** — is this pattern used elsewhere? (prevents false positives)
 
 This gives you the full context to make accurate findings.
 
 ---
 
-## Phase 4: VERIFY — Finding Verification
+## Phase 6: VERIFY — Finding Verification
 
 Every finding goes through verification before being recorded.
 
@@ -223,6 +312,7 @@ Every finding goes through verification before being recorded.
 ```
 FINDING VERIFICATION:
 □ Is the code actually wrong? (not style preference)
+□ Is this pattern used elsewhere intentionally? (search codebase)
 □ Is this a real bug or theoretical? (would it actually happen?)
 □ Is the severity correct? (Critical = data loss/security, not "could be better")
 □ Is the fix correct? (would the suggested code actually solve it?)
@@ -235,8 +325,8 @@ FINDING VERIFICATION:
 If uncertain about a finding:
 
 1. **Re-read** the code with more context (imports, callers, schema)
-2. **Check** if the pattern exists elsewhere in the codebase (is it intentional?)
-3. **Search** for related code — maybe there's a reason for the pattern
+2. **Search** for the pattern elsewhere in the codebase (is it intentional?)
+3. **Check** related code — maybe there's a reason for the pattern
 4. If still uncertain after retry: mark as "⚠️ Needs Investigation" with reasoning
 5. Max **3 retries** per finding before escalating to "Needs Investigation"
 
@@ -253,7 +343,70 @@ If the answer to any of these is "maybe" — investigate further before recordin
 
 ---
 
-## Phase 5: AGGREGATE — Fan-In Results
+## Phase 7: FIX — Apply High/Critical Fixes
+
+After review is complete, apply fixes for High and Critical findings.
+
+### Fix Rules
+
+1. **Only fix High and Critical** — Medium and Low are documented, not fixed
+2. **Fix one finding at a time** — don't batch fixes
+3. **Verify each fix** — run affected tests after each fix
+4. **Don't introduce regressions** — if a fix breaks something, revert and try again
+5. **Document what you fixed** — for the final report
+
+### Fix Verification Loop
+
+```
+LOOP for each High/Critical finding:
+  1. APPLY the suggested fix
+  2. RUN affected tests
+  3. RUN typecheck on affected files
+  4. VERIFY fix doesn't break other code
+  5. RECORD: fix verification result
+  6. If fix fails: diagnose, try alternative, repeat
+  7. Max 3 attempts before escalating to user
+```
+
+---
+
+## Phase 8: FINAL VERIFICATION — Runtime Check
+
+After all fixes are applied, run the full verification suite.
+
+### Final Verification
+
+```bash
+# Run these AFTER fixes
+pnpm typecheck 2>&1 | tee /tmp/final-typecheck.txt
+pnpm lint 2>&1 | tee /tmp/final-lint.txt
+pnpm test 2>&1 | tee /tmp/final-test.txt
+pnpm build 2>&1 | tee /tmp/final-build.txt
+```
+
+### Regression Detection
+
+Compare baseline vs final:
+
+```
+REGRESSION CHECK:
+├── Typecheck: [baseline] → [final] — [PASS/REGRESSION]
+├── Lint: [baseline] → [final] — [PASS/REGRESSION]
+├── Test: [baseline] → [final] — [PASS/REGRESSION]
+├── Build: [baseline] → [final] — [PASS/REGRESSION]
+└── VERDICT: [NO REGRESSIONS / REGRESSIONS DETECTED]
+```
+
+If regressions detected:
+
+1. Identify which fix caused the regression
+2. Revert that fix
+3. Re-run verification
+4. Document the reverted fix as "needs investigation"
+
+---
+
+## Phase 9: AGGREGATE — Fan-In Results
 
 After all files are reviewed, aggregate findings:
 
@@ -275,6 +428,8 @@ CROSS-CUTTING:
 □ Agent tools match their graph definitions?
 □ Type consistency across tRPC router → component → validation?
 □ Error handling consistent across all mutation endpoints?
+□ Security controls consistent across all endpoints?
+□ Performance patterns consistent across all queries?
 ```
 
 ### Severity Aggregation
@@ -297,7 +452,7 @@ FINDINGS SUMMARY:
 
 ---
 
-## Phase 6: QUALITY GATE
+## Phase 10: QUALITY GATE
 
 Before declaring review complete, ALL of these must be true:
 
@@ -309,17 +464,23 @@ Before declaring review complete, ALL of these must be true:
 - [ ] **Full details** — Every finding has: file, line, code, problem, impact, fix
 - [ ] **Summary complete** — Review summary table with all counts
 - [ ] **Cross-cutting done** — All cross-cutting checks performed
+- [ ] **Runtime verification** — typecheck/lint/test/build all pass (or pre-existing failures documented)
+- [ ] **No regressions** — Final state is not worse than baseline
+- [ ] **Fix verification** — All applied fixes verified to work
 
 ### Quality Score
 
 ```
 QUALITY SCORE CALCULATION:
-├── 100% files reviewed:              50 points
-├── 0 unresolved Critical findings:   25 points
+├── 100% files reviewed:              30 points
+├── 0 unresolved Critical findings:   20 points
 ├── 0 unresolved High findings:       15 points
-└── All findings have full details:   10 points
+├── All findings have full details:   10 points
+├── Runtime verification passed:      15 points
+├── No regressions introduced:        10 points
+└── Fixes verified:                   10 points
                                       ────────
-                                      TOTAL
+                                      TOTAL: 100
 
 Score ≥ 90: ✅ PASS
 Score 70-89: ⚠️ NEEDS_CHANGES (minor gaps)
@@ -337,7 +498,7 @@ Score < 70: ❌ BLOCKED (major gaps in review)
 
 ---
 
-## Phase 7: REPORT — Final Output
+## Phase 11: REPORT — Final Output
 
 ### Progress Report (during review)
 
@@ -370,6 +531,15 @@ Always produce the structured report format with these sections:
 - Review depth: [Quick Scan | Standard Review | Deep Audit]
 - Quality score: XX/100
 
+### Runtime Verification
+
+| Check     | Baseline | Final  | Status           |
+| --------- | -------- | ------ | ---------------- |
+| Typecheck | PASS     | PASS   | ✅ No regression |
+| Lint      | 5 warn   | 3 warn | ✅ Improved      |
+| Test      | 42/42    | 42/42  | ✅ No regression |
+| Build     | 12.3s    | 12.1s  | ✅ No regression |
+
 ### [SEVERITY] [Category]: [Finding Title]
 
 **Location:** `path/to/file.ts:42`
@@ -389,6 +559,7 @@ Always produce the structured report format with these sections:
 ```
 
 **Verify:** [How to verify the fix works]
+**Fix Status:** [Applied & Verified | Needs Investigation]
 
 [... more findings ...]
 
@@ -409,6 +580,8 @@ Always produce the structured report format with these sections:
 **Reasoning:** [Why this decision]
 **Quality Score:** XX/100
 **Files Reviewed:** X/X (100%)
+**Runtime Status:** [All passing / Pre-existing failures documented]
+**Regressions:** [None / List any]
 
 ```
 
@@ -956,6 +1129,8 @@ Run this for every PR. Each item is a gate.
 - [ ] **Tests** — Critical paths tested, including error cases
 - [ ] **100% scope** — Every file in queue reviewed ✅
 - [ ] **Quality gate** — Score ≥ 90/100
+- [ ] **Runtime verification** — typecheck/lint/test/build all pass
+- [ ] **No regressions** — Final state not worse than baseline
 
 ---
 
@@ -987,11 +1162,20 @@ Run this for every PR. Each item is a gate.
 2. Explain why they couldn't be resolved
 3. Ask user: "Should I escalate these or adjust the review scope?"
 
+### If fixes introduce regressions
+
+1. Identify which fix caused the regression
+2. Revert that fix
+3. Re-run verification
+4. Document the reverted fix as "needs investigation"
+5. Max 2 revert cycles before escalating to user
+
 ### Budget Guard
 
 To prevent infinite loops:
 
 - Max **3 retries** per finding
 - Max **2 full passes** on quality gate
+- Max **2 revert cycles** for regression fixes
 - Max **50 files** per review session (split larger scopes)
 - If budget exceeded: report progress, list incomplete items, ask for guidance
