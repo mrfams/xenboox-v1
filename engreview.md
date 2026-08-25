@@ -1792,3 +1792,61 @@ Knowledge base with semantic search, document processing, and citation audit tra
 | --- | -------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------- | ------ |
 | 1   | **No search analytics** — can't track what users are searching for; the most valuable product feedback is invisible. | MEDIUM   | Track search queries with results count.      | ⬜     |
 | 2   | **No document processing metrics** — can't track success rate, avg processing time, or failure reasons.              | LOW      | Add processing success rate and avg duration. | ⬜     |
+
+# PAGE: /dashboard/knowledge-graph
+
+Interactive knowledge graph for visualizing entity relationships with AI-powered reasoning.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #                                                                                                                                           | Finding                                                                                                                                 | Severity                                       | Fix                                                    | Status |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------ | ------ |
+| 1                                                                                                                                           | **No error handling on queries** — graphData, stats, nodeRelationships queries don't handle errors; failed loads show empty state.      | HIGH                                           | Add error state with retry for each query.             | ⬜     |
+| 2                                                                                                                                           | **Build Graph has no confirmation** — clicking "Build Graph" immediately starts building without warning; could be expensive operation. | MEDIUM                                         | Add confirmation dialog with estimated scope.          | ⬜     |
+| 3 **Node details panel has no drill-down** — clicking a connected node in the panel doesn't navigate to it; user must find it in the graph. | MEDIUM                                                                                                                                  | Make connected nodes clickable to select them. | ⬜                                                     |
+| 4                                                                                                                                           | **Graph limit hardcoded to 200** — entities with many nodes get truncated without warning.                                              | MEDIUM                                         | Show "Showing 200 of N nodes" with option to increase. | ⬜     |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                    | Severity | Fix                                                               | Status |
+| --- | -------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------- | ------ |
+| 1   | **"Loading..." is generic** — doesn't tell users what's loading.           | LOW      | "Building your knowledge graph..." or "Loading relationships...". | ⬜     |
+| 2   | **"No outgoing/incoming relationships" is passive** — doesn't explain why. | LOW      | "This node has no outgoing relationships yet."                    | ⬜     |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                             | Severity | Fix                                        | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------ | ------ |
+| 1   | **Hardcoded light-mode colors** — bg-primary/10, bg-primary/5, etc. without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens. | ⬜     |
+| 2   | **Micro-typography persists** — 10px text throughout node details and legends.                                                      | LOW      | Minimum 12px for meaningful text.          | ⬜     |
+| 3   | **Close button has no focus-visible** — keyboard users can't see focus on close button.                                             | MEDIUM   | Add focus-visible:ring-2.                  | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                               | Severity | Fix                                  | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------ | ------ |
+| 1   | **Build Graph mutation has no error handling** — if build fails, user gets no feedback.                               | MEDIUM   | Add onError handler with toast.      | ⬜     |
+| 2   | **Node relationships query fires even when panel is closed** — selectedNode.id is checked but query still subscribes. | LOW      | Disable query when no node selected. | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                               | Severity | Fix                                  | Status |
+| --- | ----------------------------------------------------------------------------------------------------- | -------- | ------------------------------------ | ------ |
+| 1   | **No graph analytics** — can't track which nodes are most viewed, most connected, or most queried.    | MEDIUM   | Track node selection and AI queries. | ⬜     |
+| 2   | **No graph build metrics** — can't track build duration, success rate, or node/edge counts over time. | LOW      | Log build metrics for monitoring.    | ⬜     |

@@ -68,16 +68,20 @@ export default function KnowledgeGraphPage() {
   const {
     data: graphData,
     isLoading: isGraphLoading,
+    isError: isGraphError,
     refetch: refetchGraph,
   } = trpc.knowledgeGraph.getGraph.useQuery(
     { limit: 200 },
     { enabled: !!entityId },
   );
 
-  const { data: stats, isLoading: isStatsLoading } =
-    trpc.knowledgeGraph.getStats.useQuery(undefined, {
-      enabled: !!entityId,
-    });
+  const {
+    data: stats,
+    isLoading: isStatsLoading,
+    isError: isStatsError,
+  } = trpc.knowledgeGraph.getStats.useQuery(undefined, {
+    enabled: !!entityId,
+  });
 
   const buildGraphMutation = trpc.knowledgeGraph.buildGraph.useMutation({
     onSuccess: () => refetchGraph(),
@@ -134,6 +138,31 @@ export default function KnowledgeGraphPage() {
       ]}
     >
       <div className="space-y-6 p-3 pb-20 sm:p-6 md:pb-6">
+        {/* Error State */}
+        {(isGraphError || isStatsError) && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center">
+            <X
+              className="h-5 w-5 text-destructive mx-auto mb-2"
+              aria-hidden="true"
+            />
+            <p className="text-sm font-medium text-foreground">
+              Unable to load knowledge graph
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Check your connection and try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                refetchGraph();
+              }}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Stats bar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
