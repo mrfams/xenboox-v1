@@ -870,8 +870,8 @@ The human-in-the-loop queue. Every item here requires a human decision. The AI h
 
 | #   | Finding                                                                                                                                                             | Severity | Status |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
-| 1   | **Batch approve has no confirmation dialog** — batch reject does, but approve doesn't. Approving 50 items at once without confirmation is risky for financial data. | HIGH     | ⬜     |
-| 2   | **Undo only works for 2 seconds** — toast says "Undo" but state is already cleared after 2s. Server may have already committed the approval.                        | HIGH     | ⬜     |
+| 1   | **Batch approve has no confirmation dialog** — batch reject does, but approve doesn't. Approving 50 items at once without confirmation is risky for financial data. | HIGH     |        | ✅  |
+| 2   | **Undo only works for 2 seconds** — toast says "Undo" but state is already cleared after 2s. Server may have already committed the approval.                        | HIGH     |        | ✅  |
 | 3   | **Risk assessment labels misleading** — "Low Risk" means AI confidence (0.8+), not actual financial risk. Users may misunderstand.                                  | HIGH     | ⬜     |
 | 4   | **No time-based urgency indicators** — 2-hour-old approval looks same as 2-day-old. No visual urgency based on age.                                                 | HIGH     | ⬜     |
 | 5   | **Snooze is client-side only** — items reappear on refresh. No server-side persistence.                                                                             | MEDIUM   | ⬜     |
@@ -900,7 +900,7 @@ The human-in-the-loop queue. Every item here requires a human decision. The AI h
 | 4   | **No error boundary around ActivityItemCard or ItemDetailDrawer** — one bad item crashes entire page.                 | HIGH     | ⬜     |
 | 5   | **5 tRPC queries with polling (15s/30s)** — constant network traffic even when idle.                                  | MEDIUM   | ⬜     |
 | 6   | **Client-side snooze uses setTimeout** — doesn't survive page refresh, never cancelled on unmount.                    | MEDIUM   | ⬜     |
-| 7   | **Keyboard shortcut useEffect depends on frequently-changing values** — listener re-registered on every state change. | MEDIUM   | ⬜     |
+| 7   | **Keyboard shortcut useEffect depends on frequently-changing values** — listener re-registered on every state change. | MEDIUM   |        | ✅  |
 | 8   | **No optimistic updates for batch actions** — user waits for sequential server calls.                                 | MEDIUM   | ⬜     |
 | 9   | **`Math.round(item.confidence * 100)` assumes confidence is 0-1** — if already 0-100, shows 0%.                       | MEDIUM   | ⬜     |
 | 10  | **No loading skeleton** — blank area shown while 5 queries load.                                                      | MEDIUM   | ⬜     |
@@ -940,11 +940,11 @@ The human-in-the-loop queue. Every item here requires a human decision. The AI h
 | #   | Finding                                                                                                   | Severity | Status |
 | --- | --------------------------------------------------------------------------------------------------------- | -------- | ------ |
 | 1   | **Risk assessment labels misleading** — "Low Risk" means AI confidence, not financial risk.               | HIGH     | ⬜     |
-| 2   | **"Undo" toast says "Changes have been reverted"** — but undo only removes local state, not server state. | HIGH     | ⬜     |
+| 2   | **"Undo" toast says "Changes have been reverted"** — but undo only removes local state, not server state. | HIGH     |        | ✅  |
 | 3   | **Stats labels too brief** — "Urgent" doesn't explain what needs attention.                               | MEDIUM   | ⬜     |
 | 4   | **Filter tab labels generic** — "Info" doesn't tell user what's in that category.                         | MEDIUM   | ⬜     |
 | 5   | **Empty state "All caught up!" is generic** — no helpful next-action.                                     | MEDIUM   | ⬜     |
-| 6   | **"Processed" success message is vague** — doesn't say what was processed.                                | MEDIUM   | ⬜     |
+| 6   | **"Processed" success message is vague** — doesn't say what was processed.                                | MEDIUM   |        | ✅  |
 | 7   | **Detail drawer heading "Item Details" is generic** — should say what the item is.                        | MEDIUM   | ⬜     |
 | 8   | **Default recommendation text is unhelpful** — "Review and take appropriate action".                      | MEDIUM   | ⬜     |
 | 9   | **"Dismiss" action label is ambiguous** — mark as read, hide, or delete?                                  | MEDIUM   | ⬜     |
