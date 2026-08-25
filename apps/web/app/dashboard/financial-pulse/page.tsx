@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
   Globe,
+  Loader2,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -34,6 +35,8 @@ import {
   CashFlowChart,
   MarginTrendChart,
 } from "@/components/charts/financial-charts";
+import { LiveExchangeRates } from "@/components/financial/live-exchange-rates";
+import { DailyCloseStatus } from "@/components/financial/daily-close-status";
 import {
   AnomalyAlerts,
   type Anomaly,
@@ -353,11 +356,15 @@ function AiFinancialNarrative({
 
 function ScenarioPlanner({ onAskAi }: { onAskAi: (prompt: string) => void }) {
   const [query, setQuery] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = () => {
-    if (!query.trim()) return;
+    if (!query.trim() || isSubmitting) return;
+    setIsSubmitting(true);
     onAskAi(`Model this scenario: ${query}`);
     setQuery("");
+    // Reset after a brief delay since the AI processes asynchronously
+    setTimeout(() => setIsSubmitting(false), 2000);
   };
 
   return (
@@ -388,11 +395,15 @@ function ScenarioPlanner({ onAskAi }: { onAskAi: (prompt: string) => void }) {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!query.trim()}
+          disabled={!query.trim() || isSubmitting}
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
         >
-          <Sparkles className="h-3.5 w-3.5" />
-          Model
+          {isSubmitting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
+          )}
+          {isSubmitting ? "Processing..." : "Model"}
         </button>
       </div>
     </div>
@@ -694,260 +705,6 @@ const REPORTS = [
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function FinancialPulsePage() {
-  // ─── Live Exchange Rates ─────────────────────────────────────────────────
-
-  function LiveExchangeRates() {
-    const { entityId } = useEntity();
-    const { openWithFocus } = useModuleAi();
-
-    const { data: settings } = trpc.currency.getSettings.useQuery(undefined, {
-      enabled: !!entityId,
-    });
-
-    const { data: entityRates, isLoading: entityRatesLoading } =
-      trpc.currency.listRates.useQuery(undefined, {
-        enabled: !!entityId,
-      });
-
-    const baseCurrency = settings?.baseCurrency ?? "USD";
-
-    // Show key rates for The Gambia market
-    const keyPairs = [
-      { from: "USD", to: baseCurrency, label: "USD" },
-      { from: "EUR", to: baseCurrency, label: "EUR" },
-      { from: "GBP", to: baseCurrency, label: "GBP" },
-    ];
-
-    // Fetch global ECB-synced rates as fallback for any missing entity rates
-    const missingPairs = keyPairs.filter(
-      (pair) =>
-        !entityRates?.some(
-          (r) => r.fromCurrency === pair.from && r.toCurrency === pair.to,
-        ),
-    );
-
-    const { data: globalRates, isLoading: globalRatesLoading } =
-      trpc.currency.listGlobalRates.useQuery(
-        {
-          pairs: missingPairs.map((p) => ({ from: p.from, to: p.to })),
-        },
-        { enabled: missingPairs.length > 0 },
-      );
-
-    const isLoading = entityRatesLoading || globalRatesLoading;
-
-    // Merge: entity rates take precedence, fall back to global ECB rates
-    const displayRates = keyPairs.map((pair) => {
-      // 1. Try entity-scoped rate
-      const entityRate = entityRates?.find(
-        (r) => r.fromCurrency === pair.from && r.toCurrency === pair.to,
-      );
-      if (entityRate)
-        return {
-          ...pair,
-          rate: parseFloat(entityRate.rate),
-          source: entityRate.source ?? "entity",
-        };
-
-      // 2. Fall back to global ECB-synced rate
-      const globalRate = globalRates?.find(
-        (r) => r.fromCurrency === pair.from && r.toCurrency === pair.to,
-      );
-      if (globalRate)
-        return {
-          ...pair,
-          rate: parseFloat(globalRate.rate),
-          source: globalRate.source ?? "ecb",
-        };
-
-      // 3. No rate available
-      return { ...pair, rate: null, source: "ecb" };
-    });
-
-    if (isLoading) {
-      return (
-        <div className="rounded-xl border bg-card p-4 animate-pulse">
-          <div className="h-4 bg-muted rounded w-48 mb-2" />
-          <div className="h-3 bg-muted rounded w-32" />
-        </div>
-      );
-    }
-
-    return (
-      <div className="rounded-xl border border-border/50 bg-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10">
-              <Globe className="h-3.5 w-3.5 text-blue-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                Exchange Rates
-              </h3>
-              <p className="text-[10px] text-muted-foreground">
-                Base: {baseCurrency} · Updated daily from ECB
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              openWithFocus(
-                {
-                  kind: "Exchange Rates",
-                  name: "Currency Rates",
-                  fields: displayRates.map((r) => ({
-                    label: `${r.label}/${baseCurrency}`,
-                    value: r.rate ? r.rate.toFixed(4) : "N/A",
-                  })),
-                },
-                "Show me current exchange rates. Any significant movements I should know about?",
-              )
-            }
-            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-          >
-            Ask AI
-            <ChevronRight className="h-3 w-3" aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          {displayRates.map((r) => (
-            <div
-              key={r.label}
-              className="rounded-lg bg-background/50 p-3 text-center"
-            >
-              <p className="text-[10px] font-medium text-muted-foreground/70">
-                {r.label}/{baseCurrency}
-              </p>
-              <p className="mt-1 text-base font-bold text-foreground tabular-nums">
-                {r.rate ? r.rate.toFixed(4) : "—"}
-              </p>
-              <p className="text-[9px] text-muted-foreground/50 uppercase">
-                {r.source}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Daily Close Status Component ─────────────────────────────────────────
-  function DailyCloseStatus() {
-    const { entityId } = useEntity();
-    const [today, setToday] = useState(
-      () => new Date().toISOString().split("T")[0]!,
-    );
-
-    const { data: todayRun, isLoading: todayLoading } =
-      trpc.dailyClose.getToday.useQuery(
-        undefined,
-        { refetchInterval: 30_000 }, // Poll every 30s
-      );
-
-    const { data: stats, isLoading: statsLoading } =
-      trpc.dailyClose.getStats.useQuery();
-
-    if (todayLoading || statsLoading) {
-      return (
-        <div className="rounded-xl border bg-card p-4 animate-pulse">
-          <div className="h-4 bg-muted rounded w-48 mb-2" />
-          <div className="h-3 bg-muted rounded w-32" />
-        </div>
-      );
-    }
-
-    const statusColor = !todayRun
-      ? "text-muted-foreground"
-      : todayRun.status === "completed"
-        ? "text-emerald-500"
-        : todayRun.status === "exception"
-          ? "text-amber-500"
-          : todayRun.status === "failed"
-            ? "text-red-500"
-            : "text-blue-500";
-
-    const statusLabel = !todayRun
-      ? "Not yet run"
-      : todayRun.status === "completed"
-        ? "All clear"
-        : todayRun.status === "exception"
-          ? `${todayRun.exceptions?.length ?? 0} exception(s)`
-          : todayRun.status === "failed"
-            ? "Failed"
-            : "In progress";
-
-    return (
-      <div
-        className="rounded-xl border bg-card p-4"
-        role="region"
-        aria-label="Daily Close Status"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Bot className="h-4 w-4 text-primary" aria-hidden="true" />
-            <span className="text-sm font-medium">Daily Close</span>
-          </div>
-          <span
-            className={`text-xs font-medium ${statusColor}`}
-            aria-live="polite"
-          >
-            {statusLabel}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-4 gap-3 text-center">
-          <div>
-            <div className="text-lg font-bold">{stats?.completed ?? 0}</div>
-            <div className="text-[10px] text-muted-foreground">Completed</div>
-          </div>
-          <div>
-            <div className="text-lg font-bold text-amber-500">
-              {stats?.exceptions ?? 0}
-            </div>
-            <div className="text-[10px] text-muted-foreground">Exceptions</div>
-          </div>
-          <div>
-            <div className="text-lg font-bold">
-              {stats?.totalTransactions ?? 0}
-            </div>
-            <div className="text-[10px] text-muted-foreground">
-              Transactions
-            </div>
-          </div>
-          <div>
-            <div className="text-lg font-bold text-emerald-500">
-              {stats ? Math.round(stats.autoMatchRate * 100) : 0}%
-            </div>
-            <div className="group relative text-[10px] text-muted-foreground">
-              Auto-matched
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100">
-                Transactions automatically matched to bank statements by AI
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {todayRun && todayRun.status === "exception" && todayRun.exceptions && (
-          <div className="mt-3 space-y-1">
-            {(todayRun.exceptions as any[])
-              .slice(0, 3)
-              .map((ex: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 text-xs text-amber-600"
-                >
-                  <span>⚠️</span>
-                  <span className="truncate">{ex.description}</span>
-                </div>
-              ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
 
