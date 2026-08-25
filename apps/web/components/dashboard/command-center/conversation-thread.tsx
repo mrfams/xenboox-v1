@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc/client";
 import { ConfidenceBadge } from "@/components/shared/ai-native";
 import { ActorBadge } from "@/components/shared/ai-native";
 import {
@@ -236,9 +237,9 @@ export function ConversationThread({
   onSendMessage: (text: string) => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [processingApproval, setProcessingApproval] = useState<string | null>(
-    null,
-  );
+  const [processingApprovalIdx, setProcessingApprovalIdx] = useState<
+    number | null
+  >(null);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [messageReactions, setMessageReactions] = useState<
     Record<string, Reaction[]>
@@ -248,18 +249,61 @@ export function ConversationThread({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming, streamedContent]);
 
-  const handleApprovalAction = useCallback(
-    (action: "approve" | "reject" | "review", approvalTitle: string) => {
-      setProcessingApproval(approvalTitle);
-      const message =
-        action === "approve"
-          ? `Approved: ${approvalTitle}`
-          : action === "reject"
-            ? `Rejected: ${approvalTitle}`
-            : `Please review: ${approvalTitle}`;
-      onSendMessage(message);
+  const utils = trpc.useUtils();
+
+  const resolveApproval = trpc.approvals.resolve.useMutation({
+    onSuccess: () => {
+      setProcessingApprovalIdx(null);
+      void utils.approvals.getPendingCount.invalidate();
     },
-    [onSendMessage],
+    onError: () => {
+      setProcessingApprovalIdx(null);
+    },
+  });
+
+  const handleApprovalAction = useCallback(
+    (
+      action: "approve" | "reject" | "review",
+      approvalTitle: string,
+      idx: number,
+      itemId?: string,
+      itemType?: string,
+    ) => {
+      setProcessingApprovalIdx(idx);
+      // If we have a real item ID, use the server mutation (secure path)
+      if (itemId && itemType) {
+        resolveApproval.mutate({
+          itemId,
+          itemType: itemType as
+            | "agent_escalation"
+            | "journal_entry"
+            | "ingestion_review"
+            | "bank_reconciliation"
+            | "payroll_run"
+            | "imprest_retirement",
+          action:
+            action === "review"
+              ? "approved"
+              : action === "approve"
+                ? "approved"
+                : "rejected",
+          reason:
+            action === "review"
+              ? `User requested explanation for: ${approvalTitle}`
+              : undefined,
+        });
+      } else {
+        // Fallback: send as chat message (legacy path — less secure)
+        const message =
+          action === "approve"
+            ? `Approved: ${approvalTitle}`
+            : action === "reject"
+              ? `Rejected: ${approvalTitle}`
+              : `Please review: ${approvalTitle}`;
+        onSendMessage(message);
+      }
+    },
+    [onSendMessage, resolveApproval],
   );
 
   // Reaction handler
@@ -563,47 +607,6 @@ export function ConversationThread({
             </div>
           </div>
         )}{" "}
-        {/* Streaming data tables (shown while AI is still responding) */}
-        {isStreaming &&
-          dataTables.map((table, i) => (
-            <div key={`streaming-table-${i}`} className="flex gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-                <Bot className="h-4 w-4 text-primary/70" />
-              </div>
-              <div className="max-w-[90%]">
-                <DataTableInline
-                  title={table.title}
-                  columns={table.columns}
-                  rows={table.rows}
-                  summary={table.summary}
-                  currency={table.currency}
-                  selectable={table.rows.length > 1}
-                  expandable={table.rows.some((r) => r.detail)}
-                />
-              </div>
-            </div>
-          ))}
-        {/* Streaming charts (shown while AI is still responding) */}
-        {isStreaming &&
-          charts.map((chart, i) => (
-            <div key={`streaming-chart-${i}`} className="flex gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-                <Bot className="h-4 w-4 text-primary/70" />
-              </div>
-              <div className="max-w-[90%]">
-                <ChartInline
-                  type={chart.chartType}
-                  title={chart.title}
-                  data={chart.data}
-                  xKey={chart.xKey}
-                  yKey={chart.yKey}
-                  series={chart.series}
-                  currency={chart.currency}
-                  summary={chart.summary}
-                />
-              </div>
-            </div>
-          ))}
         {/* Inline approval cards from streaming */}
         {approvals.map((approval, i) => (
           <div key={`approval-${i}`} className="flex gap-3">
@@ -631,18 +634,24 @@ export function ConversationThread({
                 <button
                   type="button"
                   aria-label="Approve"
-                  disabled={processingApproval === approval.title}
+                  disabled={processingApprovalIdx === i}
                   onClick={() =>
-                    handleApprovalAction("approve", approval.title)
+                    handleApprovalAction(
+                      "approve",
+                      approval.title,
+                      i,
+                      approval.itemId,
+                      approval.itemType,
+                    )
                   }
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                    processingApproval === approval.title
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    processingApprovalIdx === i
                       ? "bg-emerald-500/20 text-emerald-700 cursor-wait"
                       : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20",
                   )}
                 >
-                  {processingApproval === approval.title ? (
+                  {processingApprovalIdx === i ? (
                     <RefreshCw
                       className="h-3.5 w-3.5 animate-spin"
                       aria-hidden="true"
@@ -650,33 +659,49 @@ export function ConversationThread({
                   ) : (
                     <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
                   )}
-                  {processingApproval === approval.title
+                  {processingApprovalIdx === i
                     ? "Processing..."
-                    : "Approve"}
+                    : "Approve & post"}
                 </button>
                 <button
                   type="button"
-                  aria-label="Review"
-                  disabled={processingApproval === approval.title}
-                  onClick={() => handleApprovalAction("review", approval.title)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                  aria-label="Explain first"
+                  disabled={processingApprovalIdx === i}
+                  onClick={() =>
+                    handleApprovalAction(
+                      "review",
+                      approval.title,
+                      i,
+                      approval.itemId,
+                      approval.itemType,
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                  Review
+                  Explain first
                 </button>
                 <button
                   type="button"
                   aria-label="Reject"
-                  disabled={processingApproval === approval.title}
-                  onClick={() => handleApprovalAction("reject", approval.title)}
+                  disabled={processingApprovalIdx === i}
+                  onClick={() =>
+                    handleApprovalAction(
+                      "reject",
+                      approval.title,
+                      i,
+                      approval.itemId,
+                      approval.itemType,
+                    )
+                  }
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                    processingApproval === approval.title
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    processingApprovalIdx === i
                       ? "bg-red-500/20 text-red-700 cursor-wait"
                       : "bg-red-500/10 text-red-600 hover:bg-red-500/20",
                   )}
                 >
-                  {processingApproval === approval.title ? (
+                  {processingApprovalIdx === i ? (
                     <RefreshCw
                       className="h-3.5 w-3.5 animate-spin"
                       aria-hidden="true"
@@ -684,15 +709,13 @@ export function ConversationThread({
                   ) : (
                     <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
                   )}
-                  {processingApproval === approval.title
-                    ? "Processing..."
-                    : "Reject"}
+                  {processingApprovalIdx === i ? "Processing..." : "Reject"}
                 </button>
               </div>
             </div>
           </div>
         ))}
-        {/* Interactive data tables from AI */}
+        {/* Data tables from AI (streaming and committed) — rendered once */}
         {dataTables.map((table, i) => (
           <div key={`table-${i}`} className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
@@ -711,6 +734,27 @@ export function ConversationThread({
             </div>
           </div>
         ))}
+        {/* Streaming charts (shown while AI is still responding) */}
+        {isStreaming &&
+          charts.map((chart, i) => (
+            <div key={`streaming-chart-${i}`} className="flex gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
+                <Bot className="h-4 w-4 text-primary/70" />
+              </div>
+              <div className="max-w-[90%]">
+                <ChartInline
+                  type={chart.chartType}
+                  title={chart.title}
+                  data={chart.data}
+                  xKey={chart.xKey}
+                  yKey={chart.yKey}
+                  series={chart.series}
+                  currency={chart.currency}
+                  summary={chart.summary}
+                />
+              </div>
+            </div>
+          ))}
         {/* Inline input form from AI */}
         {pendingInput && !isStreaming && (
           <InlineInputForm

@@ -175,12 +175,16 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
         {
           id: `assistant-error-${Date.now()}`,
           role: "assistant",
-          content: `Sorry, I ran into a problem: ${message}. Please try again.`,
+          content: `I couldn't finish that response. Your conversation is safe — try again.`,
           status: "error",
           activities: [],
           delegations: [],
           documents: [],
           approvals: [],
+          citations: [],
+          batchResults: [],
+          dataTables: [],
+          charts: [],
           createdAt: Date.now(),
         },
       ]);
@@ -201,6 +205,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     approvals,
     toolTraces,
     dataTables,
+    charts: streamingCharts,
   } = useStreamingChat({
     entityId: entityId ?? "",
     onConversationCreated: (id, title) => {
@@ -260,6 +265,10 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
           delegations: [],
           documents: [],
           approvals: [],
+          citations: [],
+          batchResults: [],
+          dataTables: [],
+          charts: [],
           createdAt: Date.now(),
         },
       ]);
@@ -344,7 +353,7 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     approvals,
     toolTraces,
     dataTables,
-    charts,
+    charts: streamingCharts,
     pendingInput,
     sendMessage,
     newChat,

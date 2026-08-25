@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Bot, PanelRightOpen } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 
 import { EntityProvider, useEntity } from "@/lib/entity-context";
@@ -51,25 +52,24 @@ function getPageTitle(pathname: string): string {
 function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
   const { entityRole, entityId } = useEntity();
   const pathname = usePathname();
+  const { data: session } = useSession();
   useActivationTracking();
   // Identify user with PostHog for analytics + feature adoption funnel
+  // Use session-derived userId (server-authenticated) instead of localStorage
   usePostHogIdentify(
-    typeof window !== "undefined"
-      ? (localStorage.getItem("userId") ?? undefined)
-      : undefined,
+    session?.user?.id,
     entityId ? { entityId, entityRole: entityRole ?? "" } : undefined,
   );
   useEffect(() => {
-    try {
-      const {
-        trackFeatureAdoption,
-        trackFunnel,
-      } = require("@/lib/analytics/feature-tracking");
-      if (pathname) {
+    if (!pathname) return;
+    import("@/lib/analytics/feature-tracking")
+      .then(({ trackFeatureAdoption, trackFunnel }) => {
         trackFeatureAdoption("dashboard_view", { surface: pathname, entityId });
         trackFunnel("dashboard_active", { surface: pathname, entityId });
-      }
-    } catch {}
+      })
+      .catch(() => {
+        // Analytics not loaded — silent fail, non-critical
+      });
   }, [pathname, entityId]);
   const { data: perms } = trpc.permissionsAdmin.myPermissions.useQuery(
     undefined,
@@ -97,6 +97,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { getAnnounceProps } = useRouteFocus();
   useSurfaceShortcuts();
@@ -172,16 +173,15 @@ export default function DashboardLayout({
   }, []);
 
   // Add global mouse events for dragging
-  useState(() => {
-    if (typeof window !== "undefined") {
-      window.addEventListener("mousemove", handleDragMove);
-      window.addEventListener("mouseup", handleDragEnd);
-      return () => {
-        window.removeEventListener("mousemove", handleDragMove);
-        window.removeEventListener("mouseup", handleDragEnd);
-      };
-    }
-  });
+  useEffect(() => {
+    if (!isDragging) return;
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("mouseup", handleDragEnd);
+    return () => {
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleDragEnd);
+    };
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
   return (
     <EntityProvider>
@@ -191,9 +191,11 @@ export default function DashboardLayout({
             {/* Data-aware context menu — appears on text selection across all pages */}
             <DataAwareContextMenu
               onOpenCopilot={(prompt) => {
-                // Navigate to chat page with the prompt as a search param.
-                // The chat page reads it and sends it to the AI.
-                window.location.href = `/dashboard?prompt=${encodeURIComponent(prompt)}`;
+                // Navigate to command center with the prompt as a search param.
+                // The page reads it and auto-sends to the AI.
+                router.replace(
+                  `/dashboard?prompt=${encodeURIComponent(prompt)}`,
+                );
               }}
             />
 

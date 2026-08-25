@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
 import { MessageSquare } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -43,10 +45,21 @@ import {
 //   components/dashboard/command-center/ai-input.tsx
 
 export default function CommandCenterPage() {
+  return (
+    <Suspense>
+      <CommandCenterInner />
+    </Suspense>
+  );
+}
+
+function CommandCenterInner() {
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(" ")[0];
   const { entityId } = useEntity();
   const { announce } = useSrAnnounce();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const promptSentRef = useRef(false);
 
   // ── Track first Command Center visit ─────────────────────────────────
   useEffect(() => {
@@ -87,6 +100,24 @@ export default function CommandCenterPage() {
       announce("AI is responding...");
     }
   }, [isStreaming, streamedContent, announce]);
+
+  // ── Auto-send prompt from URL param ──────────────────────────────────
+  // Other surfaces (context menu, command palette, help page) navigate to
+  // /dashboard?prompt=... expecting auto-send. Read once, send, strip param.
+  useEffect(() => {
+    const prompt = searchParams?.get("prompt");
+    if (prompt && entityId && !promptSentRef.current) {
+      promptSentRef.current = true;
+      // Strip param from URL without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete("prompt");
+      router.replace(url.pathname + url.search, { scroll: false });
+      // Send after a tick so chat state is initialized
+      setTimeout(() => {
+        sendMessage(prompt);
+      }, 100);
+    }
+  }, [searchParams, entityId, sendMessage, router]);
 
   const pageContext = usePageContext();
 
@@ -129,7 +160,7 @@ export default function CommandCenterPage() {
               <button
                 type="button"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="hidden md:inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/50 px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/50 px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 aria-label={
                   sidebarOpen
                     ? "Close conversation list"

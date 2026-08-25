@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   MessageSquare,
   Plus,
@@ -54,9 +54,11 @@ export function ConversationSidebar({
   const { data: conversations, isLoading } =
     trpc.chat.listConversations.useQuery(undefined, { enabled: isOpen });
 
+  const utils = trpc.useUtils();
+
   const deleteConversation = trpc.chat.deleteConversation.useMutation({
     onSuccess: () => {
-      // Refetch conversations
+      void utils.chat.listConversations.invalidate();
     },
   });
 
@@ -127,7 +129,7 @@ export function ConversationSidebar({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            className="rounded-lg p-1 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             aria-label="Close sidebar"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -139,7 +141,7 @@ export function ConversationSidebar({
           <button
             type="button"
             onClick={onNewChat}
-            className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border/60 bg-background/50 px-3 py-2.5 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/[0.02] transition-colors"
+            className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border/60 bg-background/50 px-3 py-2.5 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/[0.02] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             <Plus className="h-3.5 w-3.5" />
             New Chat
@@ -161,7 +163,7 @@ export function ConversationSidebar({
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -203,16 +205,23 @@ export function ConversationSidebar({
                     const isHovered = conv.id === hoveredId;
 
                     return (
-                      <button
+                      <div
                         key={conv.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         onClick={() =>
                           onSelectConversation(conv.id, conv.title)
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onSelectConversation(conv.id, conv.title);
+                          }
+                        }}
                         onMouseEnter={() => setHoveredId(conv.id)}
                         onMouseLeave={() => setHoveredId(null)}
                         className={cn(
-                          "flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors",
+                          "flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                           isActive
                             ? "bg-primary/10 text-primary"
                             : "text-foreground hover:bg-muted/50",
@@ -252,13 +261,13 @@ export function ConversationSidebar({
                               e.stopPropagation();
                               setDeleteConfirmId(conv.id);
                             }}
-                            className="shrink-0 rounded p-1 text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            className="shrink-0 rounded p-1 text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                             aria-label={`Delete conversation: ${conv.title || "Untitled"}`}
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -278,41 +287,92 @@ export function ConversationSidebar({
 
       {/* Delete Confirmation Dialog */}
       {deleteConfirmId && (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/50"
-            onClick={() => setDeleteConfirmId(null)}
-          />
-          <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm">
-            <div className="rounded-xl border bg-card p-6 shadow-lg">
-              <h3 className="text-sm font-semibold text-foreground mb-2">
-                Delete Conversation
-              </h3>
-              <p className="text-xs text-muted-foreground mb-4">
-                Are you sure you want to delete this conversation? This action
-                cannot be undone.
-              </p>
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmId(null)}
-                  className="rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(deleteConfirmId)}
-                  disabled={deleteConversation.isPending}
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  {deleteConversation.isPending ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        <DeleteDialog
+          conversationTitle={
+            conversations?.find((c) => c.id === deleteConfirmId)?.title
+          }
+          onDelete={() => handleDelete(deleteConfirmId)}
+          onCancel={() => setDeleteConfirmId(null)}
+          isPending={deleteConversation.isPending}
+        />
       )}
+    </>
+  );
+}
+
+// ─── Delete Confirmation Dialog ────────────────────────────────────────────
+
+function DeleteDialog({
+  conversationTitle,
+  onDelete,
+  onCancel,
+  isPending,
+}: {
+  conversationTitle?: string | null;
+  onDelete: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const title = conversationTitle || "Untitled conversation";
+
+  // Focus the dialog on mount
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
+
+  // ESC to close
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50" onClick={onCancel} />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-dialog-title"
+        tabIndex={-1}
+        className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm outline-none"
+      >
+        <div className="rounded-xl border bg-card p-6 shadow-lg">
+          <h3
+            id="delete-dialog-title"
+            className="text-sm font-semibold text-foreground mb-2"
+          >
+            Delete Conversation
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Delete &ldquo;{title}&rdquo;? This can&rsquo;t be undone.
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isPending}
+              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              {isPending ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

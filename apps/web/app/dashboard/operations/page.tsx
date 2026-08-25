@@ -102,7 +102,7 @@ function MoneyFlowSummary() {
                   value:
                     runway !== null && runway !== undefined
                       ? `${runway.toFixed(1)} months`
-                      : "Sustainable",
+                      : "Unknown",
                 },
               ],
             },
@@ -585,7 +585,8 @@ function PeopleGrid() {
             </>
           );
 
-          const className = "w-full text-left flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-all hover:bg-accent group";
+          const className =
+            "w-full text-left flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-all hover:bg-accent group";
 
           if (person.href) {
             return (
@@ -599,7 +600,12 @@ function PeopleGrid() {
             <button
               key={person.label}
               type="button"
-              onClick={() => openWithFocus({ kind: person.label, name: person.label }, person.prompt)}
+              onClick={() =>
+                openWithFocus(
+                  { kind: person.label, name: person.label },
+                  person.prompt,
+                )
+              }
               className={className}
             >
               {content}

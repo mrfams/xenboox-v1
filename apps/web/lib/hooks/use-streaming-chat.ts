@@ -54,6 +54,8 @@ export interface ApprovalEvent {
   title: string;
   description: string;
   amount?: string;
+  itemId?: string;
+  itemType?: string;
 }
 
 export interface NeedsInputField {

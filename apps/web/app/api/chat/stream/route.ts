@@ -724,6 +724,9 @@ export async function POST(req: NextRequest) {
               amount: item.amount
                 ? `GMD ${item.amount.toLocaleString()}`
                 : undefined,
+              itemId: item.id,
+              itemType:
+                (item.metadata?.itemType as string) ?? "agent_escalation",
             });
           }
         }

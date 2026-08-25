@@ -62,7 +62,8 @@ export function AiInput({
     const trimmed = (value ?? inputValue).trim();
     if ((!trimmed && uploadedFiles.length === 0) || isResponding) return;
     onSubmit(
-      trimmed || "Uploaded files",
+      trimmed ||
+        `Shared ${uploadedFiles.length} file${uploadedFiles.length !== 1 ? "s" : ""}`,
       uploadedFiles.length > 0 ? uploadedFiles : undefined,
     );
     setInputValue("");
@@ -161,7 +162,9 @@ export function AiInput({
             size="icon"
             aria-label="Send message"
             onClick={() => handleSubmit()}
-            disabled={!inputValue.trim() || isResponding}
+            disabled={
+              (!inputValue.trim() && uploadedFiles.length === 0) || isResponding
+            }
             className={cn(
               "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
               inputValue.trim()

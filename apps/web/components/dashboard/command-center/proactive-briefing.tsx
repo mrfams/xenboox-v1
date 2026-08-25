@@ -144,6 +144,15 @@ export function ProactiveBriefing() {
     isError: boolean;
   };
 
+  // Fallback dashboard data — MUST be called before any early returns (Rules of Hooks)
+  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
+    {},
+    { enabled: !!entityId },
+  );
+  const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
+    enabled: !!entityId,
+  });
+
   useEffect(() => {
     if (aiBriefing) {
       setBriefingText(aiBriefing.text);
@@ -210,14 +219,7 @@ export function ProactiveBriefing() {
     );
   }
 
-  // Fallback to count-based briefing (if AI fails)
-  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
-    {},
-    { enabled: !!entityId },
-  );
-  const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  // Fallback to count-based briefing (AI queries already declared above)
 
   const items: BriefingItem[] = [];
 
@@ -250,15 +252,24 @@ export function ProactiveBriefing() {
     }
 
     if (cashBalance !== undefined) {
+      // Derive sentiment from actual value — negative cash is bad news
+      const cashType: BriefingItem["type"] =
+        cashBalance < 0
+          ? "negative"
+          : runwayMonths !== null &&
+              runwayMonths !== undefined &&
+              runwayMonths < 3
+            ? "warning"
+            : "positive";
       items.push({
         id: "cash-position",
-        type: "positive",
+        type: cashType,
         title: "Cash position",
         value: formatCurrency(cashBalance),
         detail:
           runwayMonths !== null && runwayMonths !== undefined
             ? `${runwayMonths.toFixed(1)} months runway`
-            : "Cash-flow positive",
+            : "Runway unknown \u2014 connect accounts for accurate data",
         href: "/dashboard/operations",
         actionLabel: "Details",
       });
