@@ -20,7 +20,7 @@
 
 ## Project Overview
 
-Xenboox is an **AI-native, full-stack accounting platform.** 19 AI agents in a three-tier hierarchy handle the accounting work. Humans make decisions. The AI is the interface — users talk, the AI acts.
+Xenboox is an **AI-native, full-stack accounting platform for SMEs worldwide.** Specialized AI agents in a three-tier hierarchy handle the accounting work. Humans make decisions. The AI is the interface — users talk, the AI acts.
 
 **The 5-Surface AI-Native Model:**
 
@@ -317,10 +317,10 @@ When starting a task, auto-load the relevant skill(s) from `.agents/skills/` bas
 | "UX review", "user experience"            | `product-reviewer`      | UX quality review          |
 | "copy", "messaging"                       | `copywriter`            | Marketing copy             |
 | "design", "UI"                            | `design-taste-frontend` | Visual design              |
-| "run evals", "check agent scores"          | `eval-runner`           | Run agent eval suite       |
-| "test coverage", "what's untested"         | `test-coverage`         | Analyze test gaps          |
-| "agent eval", "golden dataset"             | `agent-eval`            | Create agent eval cases    |
-| "TDD", "red green refactor"                | `tdd`                   | Test-driven development    |
+| "run evals", "check agent scores"         | `eval-runner`           | Run agent eval suite       |
+| "test coverage", "what's untested"        | `test-coverage`         | Analyze test gaps          |
+| "agent eval", "golden dataset"            | `agent-eval`            | Create agent eval cases    |
+| "TDD", "red green refactor"               | `tdd`                   | Test-driven development    |
 
 ### Critique Skills (Quality Gates)
 
@@ -357,15 +357,15 @@ User: "Review this PR for the new invoice feature"
 
 ### Quick Critique Combos
 
-| Scenario       | Firing Order                                                   |
-| -------------- | -------------------------------------------------------------- |
-| Pre-ship       | `engineering` → `design` → `content` → `product` → `marketing` |
-| Marketing page | `design` → `content` → `marketing` → `seo-audit`               |
-| New feature    | `product` → `engineering` → `design` → `qa`                    |
-| Blog post      | `content` → `seo-audit` → `marketing`                          |
-| Security       | `security-engineer` → `cso` → `engineering`                    |
+| Scenario       | Firing Order                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| Pre-ship       | `engineering` → `design` → `content` → `product` → `marketing`                                   |
+| Marketing page | `design` → `content` → `marketing` → `seo-audit`                                                 |
+| New feature    | `product` → `engineering` → `design` → `qa`                                                      |
+| Blog post      | `content` → `seo-audit` → `marketing`                                                            |
+| Security       | `security-engineer` → `cso` → `engineering`                                                      |
 | Pre-ship gate  | `eval-runner` → `test-coverage` → `engineering` → `design` → `content` → `product` → `marketing` |
-| Agent dev      | `create-agent` → `tdd` → `eval-runner` → `agent-eval`         |
+| Agent dev      | `create-agent` → `tdd` → `eval-runner` → `agent-eval`                                            |
 
 ---
 

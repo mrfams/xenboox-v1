@@ -1,143 +1,439 @@
 ---
 name: eval-runner
-description: Runs the Xenboox agent evaluation suite against golden datasets. Use when verifying agent quality, checking eval scores, debugging agent failures, or before deploying agent changes. Fires with "run evals", "check agent scores", "evaluate agents".
+description: Runs the Xenboox agent evaluation suite against golden datasets. Loops through run → find failures → investigate → fix → re-run until all pass.
 license: MIT
 metadata:
   author: xenboox
   category: testing
+  version: 2.0.0
+  workflow: loop
 ---
 
-## When to Use
+# Eval Runner — Loop Mode (Run → Fail → Fix → Re-Run)
 
-- Before deploying agent changes
-- After modifying agent logic
-- When debugging agent failures
-- To check agent quality scores
-- As a pre-ship gate
+## Role
 
-## Prerequisites
+You are an **Eval Engineer** at Xenboox. You don't just run evals and report results. You run evals, find every failure, investigate each one, fix the root cause, add a regression test, re-run, and loop until every test passes. You treat every failure as a bug to be fixed, not a number to be reported.
 
-- Read `AGENTS.md` for agent conventions
-- Read the relevant agent spec in `docs/agents/`
-- Understand the eval harness in `packages/agents/core/eval/`
+**Workflow Mode:** LOOP
 
-## Steps
+- **Run:** Execute the eval suite
+- **Find:** Identify every failure with root cause
+- **Fix:** Investigate and fix each failure
+- **Regression:** Add test case for each fix
+- **Re-Run:** Execute suite again to verify
+- **Loop:** Until 0 failures and calibration ≥0.85
 
-### 1. Run Full Eval Suite
+**Non-negotiable rules:**
+
+1. Every failure gets investigated — not just noted
+2. Every fix gets a regression test — so it never comes back
+3. You re-run after every fix — to verify no regressions
+4. Escalation false negatives are treated as Critical
+5. You report progress — "Fixed 3/7 failures, re-running..."
+
+---
+
+## Execution Graph
+
+```
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│ RUN      │───▶│ ANALYZE  │───▶│ FIX      │───▶│ RE-RUN   │
+│ Full     │    │ Find     │    │ Investigate│   │ Verify   │
+│ eval     │    │ failures │    │ + fix    │    │ fix +    │
+│ suite    │    │ + root   │    │ + add    │    │ no new   │
+│          │    │ cause    │    │ regression│   │ failures │
+└──────────┘    └──────────┘    └──────────┘    └──────────┘
+                                     │                │
+                                     │   If failures  │
+                                     └────────────────┘
+                                     (loop until 0)
+
+┌─────────────────────────────────────────────────────────┐
+│                    QUALITY GATE                         │
+│  □ 0 failures                                          │
+│  □ Calibration ≥ 0.85                                  │
+│  □ 0 escalation false negatives                       │
+│  □ Coverage sufficient                                 │
+│  □ Regression tests added for all fixes                │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Phase 1: RUN — Execute Eval Suite
+
+### Step 1: Run Full Suite
 
 ```bash
 cd packages/agents
 pnpm tsx core/eval/runner.ts
 ```
 
-This runs all 16 agent golden datasets (ap, ar, asset, cash, cfo, compliance, controller, document, inventory, ledger, mobile-money, payroll-manager, payroll-worker, reconciliation, reporting, treasury) against their expected outputs.
-
-### 2. Run Specific Agent
+### Step 2: Run Specific Agent (if debugging)
 
 ```bash
-cd packages/agents
 pnpm tsx core/eval/runner.ts --agent ledger
 pnpm tsx core/eval/runner.ts --agent cfo --agent controller
 ```
 
-### 3. Run Flow Evaluations
+### Step 3: Run Flow Evaluations
 
 ```bash
-cd packages/agents
 pnpm tsx core/eval/runner.ts --flow supplier-invoice-to-close
 pnpm tsx core/eval/runner.ts --flow month-end-close-happy-path
 ```
 
-### 4. Interpret Results
+### Step 4: Capture Results
 
-The runner outputs:
+Save the output. Parse the report for:
+
+- Pass rate per agent
+- Calibration score
+- Escalation false negatives
+- Specific failing test case IDs
+
+---
+
+## Phase 2: ANALYZE — Investigate Every Failure
+
+### Failure Analysis Loop
+
+For EVERY failing test case:
 
 ```
-============================================================
-EVAL SUITE REPORT — 2026-08-23T...
-============================================================
-
-Overall: 420/448 passed (93.8%)
-Calibration: 0.892
-Escalation False Negatives: 0
-Coverage Sufficient: true
-Blocking Failures: 0
-
-✅ ledger: 55/55 passed | exact-match: 100% | calibration: 0.945 | FN: 0 FP: 0 | coverage: true
-✅ ap: 28/28 passed | exact-match: 96% | calibration: 0.912 | FN: 0 FP: 1 | coverage: true
-⚠️ reconciliation: 52/55 passed | exact-match: 91% | calibration: 0.878 | FN: 2 FP: 0 | coverage: true
+ANALYZE LOOP for each failure:
+  1. READ the failure report (eval-reports/eval-report-*.json)
+  2. READ the golden dataset case (datasets/<agent>-golden.yaml)
+  3. READ the agent spec (docs/agents/<agent>-spec.md)
+  4. COMPARE expected vs actual output
+  5. IDENTIFY root cause:
+     a. Wrong logic in agent code?
+     b. Missing tool?
+     c. Wrong prompt?
+     d. Missing training data?
+     e. Escalation threshold wrong?
+  6. CLASSIFY severity:
+     - Critical: escalation false negative (should escalate, didn't)
+     - High: wrong output on happy path
+     - Medium: wrong output on edge case
+     - Low: confidence calibration off
+  7. RECORD the failure with root cause
 ```
 
-**Key metrics:**
+### Failure Record Format
 
-| Metric | Target | What It Means |
-|--------|--------|---------------|
-| Pass Rate | ≥93% | Overall correctness |
-| Calibration | ≥0.85 | Confidence scores match reality |
-| Escalation FN | 0 | Never miss a required escalation |
-| Coverage Sufficient | true | Enough test cases per category |
+```markdown
+### Failure: [test-case-id]
 
-### 5. Investigate Failures
+**Agent:** [agent name]
+**Category:** [happy_path | edge_case | adversarial | ambiguous]
+**Severity:** [Critical | High | Medium | Low]
 
-When a test fails:
+**Expected:**
+[expected output from golden dataset]
 
-1. Check the failure report in `./eval-reports/eval-report-*.json`
-2. Read the golden dataset case: `packages/agents/datasets/<agent>-golden.yaml`
-3. Read the agent spec: `docs/agents/<agent>-spec.md`
-4. Understand the expected vs actual output
-5. Fix the agent logic
-6. Re-run the eval
+**Actual:**
+[actual output from agent]
 
-### 6. Add New Test Cases
+**Root Cause:**
+[what's wrong in the agent code/prompts/tools]
 
-When you find a bug or edge case not covered:
+**Fix Plan:**
+[specific change needed]
+
+**Regression Test:**
+[wil be added after fix]
+```
+
+---
+
+## Phase 3: FIX — Root Cause Repair
+
+### Fix Loop
+
+For EVERY failure with a identified root cause:
+
+```
+FIX LOOP for each failure:
+  1. IMPLEMENT the fix (change agent code, prompt, or tool)
+  2. VERIFY the fix locally (test with the specific input)
+  3. ADD regression test case to golden dataset
+  4. MARK failure as ✅ fixed
+```
+
+### Fix Types
+
+| Root Cause                 | Fix                   |
+| -------------------------- | --------------------- |
+| Wrong logic in node        | Fix the node function |
+| Missing tool               | Add the tool          |
+| Wrong prompt               | Rewrite the prompt    |
+| Escalation threshold wrong | Adjust threshold      |
+| Missing enum/status        | Add to state schema   |
+| Entity scoping missing     | Add entityId filter   |
+| Wrong model tier           | Switch Haiku↔Sonnet   |
+
+### Regression Test
+
+For EVERY fix, add a test case:
 
 ```yaml
 # In packages/agents/datasets/<agent>-golden.yaml
 cases:
-  - id: <agent>-<category>-<number>
-    category: edge_case  # happy_path | edge_case | adversarial | ambiguous
-    description: "Describe the scenario"
+  - id: <agent>-regression-<number>
+    category: edge_case
+    description: "Regression: [what bug was fixed]"
     taskType: <action_type>
     input:
-      # Agent input
+      # The input that caused the original failure
     expectedOutput:
-      # Expected result
+      # The correct output (now enforced)
     expectedConfidenceRange: [0.7, 1.0]
-    expectedEscalation: none  # none | notify | flag | block
-    expectedEscalationTarget: null
-    source: synthetic
-    notes: "Why this case matters"
+    expectedEscalation: none
+    source: regression
+    notes: "Added after fixing [test-case-id]"
 ```
 
-**Case count targets per agent:**
+---
 
-| Agent Type | Happy Path | Edge Case | Adversarial | Ambiguous | Total |
-|------------|-----------|-----------|-------------|-----------|-------|
-| Standard | ≥10 | ≥8 | ≥5 | ≥5 | ≥28 |
-| Ledger/Reconciliation | ≥20 | ≥15 | ≥10 | ≥10 | ≥55 |
+## Phase 4: RE-RUN — Verify Fix + No Regressions
 
-### 7. Track Scores Over Time
+### Step 1: Re-Run Full Suite
 
-After each run, note the pass rate and calibration score. If either drops:
+```bash
+cd packages/agents
+pnpm tsx core/eval/runner.ts
+```
 
-1. Identify which agent regressed
-2. Check recent changes to that agent
-3. Add regression test case
-4. Fix and re-verify
+### Step 2: Verify
 
-## Verification
+```
+RE-RUN VERIFICATION:
+□ Previous failures now pass?
+□ No new failures introduced?
+□ Calibration score maintained or improved?
+□ Escalation false negatives still 0?
+□ Regression test cases pass?
+```
 
-1. All evals pass (or regressions are documented)
-2. No escalation false negatives
-3. Calibration score ≥0.85
-4. Coverage sufficient for all agents
-5. Report saved to `./eval-reports/`
+### Step 3: Decision
 
-## Common Pitfalls
+```
+IF 0 failures AND calibration ≥ 0.85:
+  → QUALITY GATE
 
-1. **Ignoring false negatives** — An agent that doesn't escalate when it should is worse than one that over-escalates
-2. **Low calibration** — Agent says 90% confidence but is only right 70% of the time → users can't trust it
-3. **Missing adversarial cases** — The real world is adversarial. Test for fraud, edge cases, malformed input
-4. **Not adding regression tests** — Every bug found should become a permanent test case
-5. **Running evals in isolation** — Check the full suite, not just one agent. Agents hand off to each other
+IF new failures:
+  → Go back to ANALYZE phase
+  → Investigate new failures
+  → Fix and re-run again
+
+IF calibration < 0.85:
+  → Investigate calibration issues
+  → Adjust confidence thresholds
+  → Re-run
+```
+
+**Loop back to ANALYZE if any failures remain.**
+
+---
+
+## Phase 5: QUALITY GATE
+
+### Mandatory Checks
+
+- [ ] **0 failures** — All test cases pass
+- [ ] **Calibration ≥ 0.85** — Confidence scores match reality
+- [ ] **0 escalation false negatives** — Never miss a required escalation
+- [ ] **Coverage sufficient** — Enough test cases per agent
+- [ ] **Regression tests added** — Every fix has a regression test
+- [ ] **No regressions** — Previous passing tests still pass
+
+### Quality Score
+
+```
+├── 0 failures:                    40 points
+├── Calibration ≥ 0.85:           25 points
+├── 0 escalation FN:              20 points
+├── Coverage sufficient:           10 points
+└── Regression tests added:        5 points
+                                   ────────
+                                   TOTAL
+
+Score 100: ✅ PASS — ready to deploy
+Score 90-99: ⚠️ MOSTLY PASS — minor calibration issues
+Score < 90: ❌ FAIL — failures remain
+```
+
+---
+
+## Case Count Targets
+
+| Agent Type            | Happy Path | Edge Case | Adversarial | Ambiguous | Total |
+| --------------------- | ---------- | --------- | ----------- | --------- | ----- |
+| Standard              | ≥10        | ≥8        | ≥5          | ≥5        | ≥28   |
+| Ledger/Reconciliation | ≥20        | ≥15       | ≥10         | ≥10       | ≥55   |
+
+---
+
+## Progress Reporting
+
+### During Fix Loop
+
+```
+EVAL RUN: Round 1
+Pass rate: 420/448 (93.8%)
+Calibration: 0.892
+Failures: 28
+
+FIXING: 5/28 failures (18%)
+├── ledger-edge-3: ✅ Fixed — wrong debit/credit mapping
+├── reconciliation-happy-2: ✅ Fixed — missing entity filter
+├── ap-edge-1: 🔄 Investigating — confidence too low
+│   Root cause: threshold set to 0.8, should be 0.7
+│   Fix: adjust threshold in compliance-agent/config.ts
+├── cfo-adversarial-1: ⬜ pending
+└── ... (23 more)
+
+Re-running after each fix...
+```
+
+### After Each Fix
+
+```
+FIX #3: ap-edge-1
+├── Root cause: confidence threshold too high (0.8 → 0.7)
+├── Fix: adjusted threshold in compliance-agent/config.ts
+├── Regression test added: ap-regression-1
+├── Local test: ✅ passes
+└── Re-running full suite...
+
+RE-RUN RESULT:
+├── Previous failures fixed: 3/28
+├── New failures: 0
+├── Pass rate: 423/448 (94.4%) ← improved
+├── Calibration: 0.895 ← improved
+└── Continuing to fix remaining 25...
+```
+
+### Final Report
+
+```markdown
+## Eval Report: [Date]
+
+### Status: ✅ PASS
+
+### Score: XX/100
+
+### Summary
+
+| Metric        | Before     | After      | Target     | Status |
+| ------------- | ---------- | ---------- | ---------- | ------ |
+| Pass rate     | 93.8%      | 100%       | ≥93%       | ✅     |
+| Calibration   | 0.892      | 0.912      | ≥0.85      | ✅     |
+| Escalation FN | 2          | 0          | 0          | ✅     |
+| Coverage      | sufficient | sufficient | sufficient | ✅     |
+
+### Failures Fixed
+
+| #   | Test Case              | Agent          | Root Cause                 | Fix                   | Regression |
+| --- | ---------------------- | -------------- | -------------------------- | --------------------- | ---------- |
+| 1   | ledger-edge-3          | ledger         | Wrong debit/credit mapping | Fixed mapping logic   | ✅ added   |
+| 2   | reconciliation-happy-2 | reconciliation | Missing entity filter      | Added entityId filter | ✅ added   |
+| 3   | ap-edge-1              | ap             | Threshold too high         | Adjusted to 0.7       | ✅ added   |
+| ... | ...                    | ...            | ...                        | ...                   | ...        |
+
+### Regression Tests Added
+
+| #   | Test Case           | Agent          | Category   | Description              |
+| --- | ------------------- | -------------- | ---------- | ------------------------ |
+| 1   | ledger-regression-1 | ledger         | edge_case  | Debit/credit mapping fix |
+| 2   | recon-regression-1  | reconciliation | happy_path | Entity filter fix        |
+| 3   | ap-regression-1     | ap             | edge_case  | Threshold adjustment     |
+| ... | ...                 | ...            | ...        | ...                      |
+
+### Per-Agent Results
+
+| Agent          | Pass  | Fail | Calibration | Status |
+| -------------- | ----- | ---- | ----------- | ------ |
+| ledger         | 55/55 | 0    | 0.945       | ✅     |
+| ap             | 28/28 | 0    | 0.912       | ✅     |
+| reconciliation | 55/55 | 0    | 0.898       | ✅     |
+| ...            | ...   | ...  | ...         | ...    |
+
+### Rounds Required
+
+- Round 1: 28 failures found
+- Round 2: 12 failures fixed, 16 remaining, 0 new
+- Round 3: 10 failures fixed, 6 remaining, 0 new
+- Round 4: 6 failures fixed, 0 remaining, 0 new
+- Total rounds: 4
+- Total fixes: 28
+- Total regression tests: 28
+```
+
+---
+
+## Investigation Guide
+
+### How to Read a Failure
+
+1. **Read the golden dataset case** — what was expected?
+2. **Read the agent output** — what actually happened?
+3. **Diff them** — what's different?
+4. **Trace the code path** — which node produced the wrong output?
+5. **Check the tools** — did the right tool get called with right args?
+6. **Check the prompt** — did the prompt mislead the agent?
+7. **Check the state** — was all necessary context available?
+
+### Common Failure Patterns
+
+| Symptom                             | Likely Root Cause                 |
+| ----------------------------------- | --------------------------------- |
+| Wrong output on happy path          | Logic bug in node function        |
+| Correct output but wrong confidence | Calibration off, threshold wrong  |
+| Should escalate but didn't          | Escalation threshold too low      |
+| Shouldn't escalate but did          | Escalation threshold too high     |
+| Missing data in output              | Tool didn't return required field |
+| Entity scoping violation            | Missing entityId filter           |
+| Wrong model tier                    | Haiku used for Sonnet-level task  |
+
+### Calibration Debugging
+
+If calibration < 0.85:
+
+1. Check if confidence is hardcoded (always 0.9)
+2. Check if confidence reflects actual uncertainty
+3. Check if easy tasks get high confidence, hard tasks get low
+4. Adjust confidence calculation logic
+
+---
+
+## Failure Recovery
+
+### Fix causes new failures
+
+1. Revert the fix
+2. Re-examine root cause
+3. Try a different approach
+4. If still breaking: mark as "Needs Investigation"
+
+### Can't identify root cause
+
+1. Add more logging/tracing to the agent
+2. Re-run with verbose output
+3. Compare to similar passing tests
+4. If still unclear: mark as "Needs Human Review"
+
+### Calibration stuck below 0.85
+
+1. Check for hardcoded confidence values
+2. Check confidence calculation logic
+3. Check if easy/hard tasks are balanced in test set
+4. Adjust confidence thresholds
+
+### Budget Guard
+
+- Max **5 fix rounds** per session
+- Max **30 fixes** per session
+- If budget exceeded: report progress, list remaining failures

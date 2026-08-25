@@ -54,7 +54,7 @@ Xenboox is:
 
 **Tone:** Bold, aspirational, specific
 **Energy:** High
-**Example:** "Your books. On autopilot. 19 AI agents handle the accounting while you run the business."
+**Example:** "Your books. On autopilot. AI agents handle the accounting while you run the business."
 
 ### Product (Dashboard, In-App)
 
@@ -100,7 +100,7 @@ Xenboox is:
 
 ### Level 2: Elevator Pitch (1 paragraph)
 
-"Xenboox is an AI-native accounting platform where 19 specialized AI agents handle your books. The AI categorizes transactions, reconciles accounts, catches anomalies, and closes your month-end — you just approve decisions. It's not AI bolted onto old software. It's accounting rebuilt from scratch with AI at the core."
+"Xenboox is an AI-native accounting platform where specialized AI agents handle your books. The AI categorizes transactions, reconciles accounts, catches anomalies, and closes your month-end — you just approve decisions. It's not AI bolted onto old software. It's accounting rebuilt from scratch with AI at the core."
 
 ### Level 3: Feature Pillars (3-5 key messages)
 
@@ -108,7 +108,7 @@ Xenboox is:
 2. **Continuous Close** — Books are always audit-ready, not just at month-end
 3. **Human-in-the-Loop** — AI acts, you decide. Never guesswork.
 4. **AI-Native Architecture** — Not bolt-on AI. AI is the interface.
-5. **Agent Hierarchy** — CFO → Controllers → Workers. Like your finance team, but AI.
+5. **Agent Hierarchy** — Strategic → Management → Execution. Like your finance team, but AI.
 
 ### Level 4: Feature-Specific Messages
 

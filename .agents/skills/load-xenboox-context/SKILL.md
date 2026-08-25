@@ -9,11 +9,11 @@ metadata:
 
 ## What Xenboox Is
 
-Xenboox is an AI-native, full-stack accounting platform built for SMEs worldwide. A workforce of 19 AI agents — organized in a three-tier hierarchy — handles every accounting function autonomously. Humans manage and approve. Agents execute.
+Xenboox is an AI-native, full-stack accounting platform for SMEs worldwide. Specialized AI agents organized in a three-tier hierarchy handle every accounting function autonomously. Humans manage and approve. Agents execute.
 
 **Core promise:** "Your entire accounting department, running autonomously. Agents do the work. You make the decisions that matter."
 
-**Launch market:** The Gambia. Expansion: Nigeria, Ghana, Senegal, Kenya.
+**Markets:** Global platform. Tax compliance for multiple jurisdictions including Gambia, Senegal, US, Nigeria, Ghana, Kenya.
 
 **What makes it different:** Not a tool you operate — a workforce that operates itself. Built natively for SME needs: mobile money as first-class rail, cash/imprest management, local tax regimes. 20 modules covering every accounting function. Web, mobile, and desktop surfaces.
 
@@ -61,7 +61,7 @@ Ledger AP   Recon  Cash    Payroll      Tax   Audit
 Platform (report to CFO directly): Reporting, Budget, Analytics, Document
 ```
 
-**19 agents total. 11 built (Phase 5 complete). Phase 6 next: orchestration wiring.**
+**Agent system: three-tier hierarchy (Strategic → Management → Execution) with platform layer.**
 
 ---
 

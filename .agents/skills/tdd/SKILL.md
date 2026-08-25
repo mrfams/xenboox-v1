@@ -23,14 +23,14 @@ import { describe, it, expect } from "vitest";
 import { calculateVat } from "./vat";
 
 describe("calculateVat", () => {
-  it("calculates 15% VAT for standard rate in Gambia", () => {
-    const result = calculateVat(1000, "GMD");
+  it("calculates 15% VAT for standard rate", () => {
+    const result = calculateVat(1000, "USD");
     expect(result.amount).toBe(150);
     expect(result.rate).toBe(0.15);
   });
 
   it("returns zero for exempt items", () => {
-    const result = calculateVat(1000, "GMD", { exempt: true });
+    const result = calculateVat(1000, "USD", { exempt: true });
     expect(result.amount).toBe(0);
   });
 });

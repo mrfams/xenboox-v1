@@ -10,7 +10,7 @@
 
 ## 1. Vision
 
-Xenboox is the first AI-native, full-stack accounting platform built for SMEs worldwide. It combines everything QuickBooks, Xero, Digits, and Pilot do into one product — with an autonomous agent workforce that does the actual accounting work so your team doesn't have to.
+Xenboox is the first AI-native, full-stack accounting platform for SMEs globally. It combines everything QuickBooks, Xero, Digits, and Pilot do into one product — with an autonomous agent workforce that handles the accounting work so your team doesn't have to.
 
 **The core promise:**
 
@@ -19,9 +19,9 @@ Xenboox is the first AI-native, full-stack accounting platform built for SMEs wo
 **What makes Xenboox different:**
 
 - Not a tool you operate — a workforce that operates itself
-- Not built for Silicon Valley startups — built for real organizations doing real business
+- Not built for Silicon Valley startups — built for organizations doing real business
 - Not a narrow solution — a complete accounting platform covering every function
-- Not Western-first — built natively for SME needs, currencies, tax regimes, and payment rails
+- Not Western-first — built natively for how SMEs actually operate: local currencies, tax regimes, mobile money, and cash-heavy workflows
 - One surface for now — **web only** (mobile and desktop are postponed)
 
 ---
@@ -46,7 +46,7 @@ Organizations of every size need accounting. But the current solutions fail them
 - No platform has proper imprest and cash management for cash-heavy operations
 
 **The gap:**
-Every serious accounting platform was built for Western markets with Western assumptions. There are 40+ million SMEs and thousands of corporations operating with tools that don't fit how they actually work. Nobody has built the right thing for this market. Xenboox does.
+Every serious accounting platform was built for Western markets with Western assumptions. Millions of SMEs and thousands of corporations operate with tools that don't fit how they actually work. Nobody has built the right thing for this market. Xenboox does.
 
 ---
 
@@ -1320,10 +1320,10 @@ This directly informed the product: the Cash and Imprest module, mobile money as
 
 - LLM capability crossed a threshold in 2024-2025 making reliable autonomous multi-step financial workflows possible for the first time
 - Agent infrastructure matured — tool use, memory, multi-agent coordination production-ready
-- Cost of inference dropped — 19 agents per organization per month is economically viable at $19/month price points
-- Global formalization pressure is increasing — tax enforcement tightening, donor accountability requirements growing, bank loan requirements demanding proper financial statements
-- Mobile money infrastructure is mature across emerging markets — Wave alone has millions of users in Gambia, Senegal, Mali
-- No serious AI-native competitor is targeting SME accounting — the market is completely open
+- Inference costs have dropped — deploying a specialized agent workforce per organization is economically viable at $19/month price points
+- Formalization pressure is increasing globally — tax enforcement tightening, donor accountability requirements growing, bank loan requirements demanding proper financial statements
+- Mobile money infrastructure is mature across emerging markets — providers like Wave, M-Pesa, and MTN MoMo have tens of millions of users across Africa
+- No serious AI-native competitor is targeting SME accounting globally — the market is wide open
 - Bench shut down December 2024 — created massive trust damage in AI accounting broadly, opening for a reliability-first product that takes accuracy seriously
 
 ---

@@ -1,27 +1,116 @@
 ---
 name: create-api-route
-description: Creates or modifies tRPC API endpoints in the Xenboox platform with proper Zod validation, entity scoping, audit trail, and error handling. Use when adding new API endpoints, modifying existing procedures, or troubleshooting tRPC routes.
+description: Creates or modifies tRPC API endpoints in the Xenboox platform with proper Zod validation, entity scoping, audit trail, and error handling. Loops through create → validate → typecheck → test for each procedure.
 license: MIT
 metadata:
   author: xenboox
   category: api-infrastructure
+  version: 2.0.0
+  workflow: loop
 ---
 
-## Prerequisites
+# Create API Route — Loop Mode (Create → Validate → Typecheck → Test)
 
-- Read `AGENTS.md` for API conventions
-- Read `ARCHITECTURE.md` for tRPC patterns
-- Identify which domain the route belongs to (AP, AR, cash, etc.)
+## Role
 
-## Steps
+You are an **API Builder** at Xenboox. You don't just scaffold procedures and declare done. You create each procedure, validate input with zod, typecheck, verify entity scoping, test CRUD, and only move to the next procedure when the current one is solid.
 
-### 1. Define Zod Input Schema
+**Workflow Mode:** LOOP (per procedure)
 
-Every procedure MUST validate input with zod. No exceptions.
+- **Create:** Scaffold procedure with zod schema
+- **Typecheck:** Verify types align
+- **Verify:** Entity scoping, audit trail, error handling
+- **Test:** CRUD + auth + validation
+- **Loop:** Until all procedures pass
+
+**Non-negotiable rules:**
+
+1. Every procedure uses `protectedProcedure` with `entityScoped`
+2. Every input validated with zod (no raw strings)
+3. Every mutation creates audit trail entry
+4. Every query filters by `ctx.entityId`
+5. Full typecheck passes before declaring done
+
+---
+
+## Execution Graph
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  PROCEDURE LOOP                     │
+│                                                     │
+│  For each procedure (list, getById, create, update): │
+│    ┌──────────┐    ┌──────────┐    ┌──────────┐    │
+│    │ CREATE   │───▶│ TYPECHECK│───▶│ VERIFY   │    │
+│    │ Scaffold │    │ Fix type │    │ Entity   │    │
+│    │ + zod    │    │ errors   │    │ scoping  │    │
+│    └──────────┘    └──────────┘    │ Audit    │    │
+│                                    │ Error    │    │
+│                                    └──────────┘    │
+│                                                     │
+│  After all procedures:                              │
+│    ┌──────────┐    ┌──────────┐    ┌──────────┐    │
+│    │ REGISTER │───▶│ FULL     │───▶│ TEST     │    │
+│    │ Router   │    │ TYPECHECK│    │ CRUD     │    │
+│    │ + _app   │    │          │    │ + auth   │    │
+│    └──────────┘    └──────────┘    └──────────┘    │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Phase 0: Plan — Define the Router
+
+Before scaffolding, define what you're building:
+
+### Router Definition
+
+```markdown
+## Router: [domain]Router
+
+**Domain:** [Which accounting domain?]
+**Table:** [Which DB table?]
+**Procedures:**
+
+- list: [what it returns, filters]
+- getById: [what it returns]
+- create: [what it creates, journal entry?]
+- update: [what it updates]
+- delete: [soft delete?]
+
+**Zod schemas:**
+
+- listSchema: status, search, limit, offset, sortBy, sortOrder
+- createSchema: name, amount, date, lines (with debit=credit validation)
+- updateSchema: id + optional fields
+```
+
+### Work Queue
+
+```
+PROCEDURE QUEUE:
+┌────┬────────────┬──────────┬──────────┬──────────┐
+│ #  │ Procedure  │ Type     │ Status   │ Gate     │
+├────┼────────────┼──────────┼──────────┼──────────┤
+│ 1  │ list       │ query    │ ⬜       │ entity   │
+│ 2  │ getById    │ query    │ ⬜       │ entity   │
+│ 3  │ create     │ mutation │ ⬜       │ audit    │
+│ 4  │ update     │ mutation │ ⬜       │ audit    │
+│ 5  │ delete     │ mutation │ ⬜       │ audit    │
+└────┴────────────┴──────────┴──────────┴──────────┘
+
+ROUTER: [domain] | 0/5 procedures
+```
+
+---
+
+## The Procedure Loop
+
+For EVERY procedure in the queue:
+
+### Step 1: Define Zod Schema
 
 ```typescript
-import { z } from "zod";
-
 // List/query schema
 const listSchema = z.object({
   status: z.string().optional(),
@@ -37,8 +126,8 @@ const createSchema = z
   .object({
     name: z.string().min(1, "Name is required").max(255),
     amount: z.number().positive("Amount must be positive"),
-    currency: z.string().length(3).default("GMD"),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
+    currency: z.string().length(3).default("USD"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     accountId: z.string().uuid(),
     description: z.string().max(1000).optional(),
     lines: z
@@ -69,32 +158,19 @@ const updateSchema = z.object({
 });
 ```
 
-### 2. Create the Router File
+### Step 2: Create Procedure
 
 ```typescript
-// packages/api/routers/{domain}.ts
-import { router, protectedProcedure } from "../trpc"
-import { entityScoped } from "../middleware/entity-scoping"
-import { z } from "zod"
-import { db } from "@xenboox/db"
-import { eq, and, desc, like, sql } from "drizzle-orm"
-
+// In router file
 export const {domain}Router = router({
-  // ─── LIST ────────────────────────────────────
   list: protectedProcedure
     .use(entityScoped)
     .input(listSchema)
     .query(async ({ ctx, input }) => {
-      const conditions = [
-        eq(table.entityId, ctx.entityId)
-      ]
+      const conditions = [eq(table.entityId, ctx.entityId)];
 
-      if (input.status) {
-        conditions.push(eq(table.status, input.status))
-      }
-      if (input.search) {
-        conditions.push(like(table.name, `%${input.search}%`))
-      }
+      if (input.status) conditions.push(eq(table.status, input.status));
+      if (input.search) conditions.push(like(table.name, `%${input.search}%`));
 
       const data = await db.query.table.findMany({
         where: and(...conditions),
@@ -102,201 +178,233 @@ export const {domain}Router = router({
           ? desc(table[input.sortBy])
           : table[input.sortBy],
         limit: input.limit,
-        offset: input.offset
-      })
+        offset: input.offset,
+      });
 
       const total = await db.select({ count: sql<number>`count(*)` })
         .from(table)
-        .where(and(...conditions))
+        .where(and(...conditions));
 
-      return { data, total: total[0].count }
+      return { data, total: total[0].count };
     }),
 
-  // ─── GET BY ID ───────────────────────────────
   getById: protectedProcedure
     .use(entityScoped)
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const item = await db.query.table.findFirst({
-        where: and(
-          eq(table.id, input.id),
-          eq(table.entityId, ctx.entityId)
-        ),
-        with: { lines: true }
-      })
-
-      if (!item) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Item not found"
-        })
-      }
-
-      return item
+        where: and(eq(table.id, input.id), eq(table.entityId, ctx.entityId)),
+        with: { lines: true },
+      });
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
+      return item;
     }),
 
-  // ─── CREATE ──────────────────────────────────
   create: protectedProcedure
     .use(entityScoped)
     .input(createSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await db.transaction(async (tx) => {
-        // 1. Create main record
         const item = await tx.insert(table).values({
           entityId: ctx.entityId,
           name: input.name,
           amount: input.amount.toString(),
           date: input.date,
           accountId: input.accountId,
-          description: input.description
-        }).returning()
+          description: input.description,
+        }).returning();
 
-        // 2. Create line items
         await tx.insert(tableLines).values(
           input.lines.map(line => ({
             itemId: item[0].id,
             accountId: line.accountId,
             description: line.description,
             debit: line.debit.toString(),
-            credit: line.credit.toString()
+            credit: line.credit.toString(),
           }))
-        )
+        );
 
-        // 3. Post journal entry via Ledger Agent
-        await invokeLedgerAgent({
-          entityId: ctx.entityId,
-          action: "post_journal_entry",
-          data: {
-            description: `${input.name}`,
-            reference: item[0].id,
-            entries: input.lines.flatMap(l => [
-              ...(l.debit > 0 ? [{
-                accountId: l.accountId,
-                debit: l.debit,
-                credit: 0,
-                description: l.description
-              }] : []),
-              ...(l.credit > 0 ? [{
-                accountId: l.accountId,
-                debit: 0,
-                credit: l.credit,
-                description: l.description
-              }] : [])
-            ])
-          }
-        })
-
-        // 4. Audit trail
+        // Audit trail
         await tx.insert(auditLog).values({
           entityId: ctx.entityId,
           userId: ctx.session.user.id,
           action: "{domain}.created",
           entityType: "{domain}",
           entityIdRef: item[0].id,
-          changes: { after: input }
-        })
+          changes: { after: input },
+        });
 
-        return item[0]
-      })
-
-      return result
+        return item[0];
+      });
+      return result;
     }),
 
-  // ─── UPDATE ──────────────────────────────────
   update: protectedProcedure
     .use(entityScoped)
     .input(updateSchema)
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updates } = input
-
-      // Verify ownership
+      const { id, ...updates } = input;
       const existing = await db.query.table.findFirst({
-        where: and(
-          eq(table.id, id),
-          eq(table.entityId, ctx.entityId)
-        )
-      })
-
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Item not found"
-        })
-      }
+        where: and(eq(table.id, id), eq(table.entityId, ctx.entityId)),
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
 
       return db.update(table)
         .set(updates)
-        .where(and(
-          eq(table.id, id),
-          eq(table.entityId, ctx.entityId)
-        ))
+        .where(and(eq(table.id, id), eq(table.entityId, ctx.entityId)));
     }),
 
-  // ─── DELETE (soft delete) ────────────────────
   delete: protectedProcedure
     .use(entityScoped)
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return db.update(table)
         .set({ status: "voided" })
-        .where(and(
-          eq(table.id, input.id),
-          eq(table.entityId, ctx.entityId)
-        ))
-    })
-})
+        .where(and(eq(table.id, input.id), eq(table.entityId, ctx.entityId)));
+    }),
+});
 ```
 
-### 3. Register in App Router
+### Step 3: Procedure Quality Gate (per procedure)
+
+```
+□ Uses protectedProcedure?
+□ Uses entityScoped middleware?
+□ Input validated with zod?
+□ Query filters by ctx.entityId?
+□ Mutation creates audit trail entry?
+□ Multi-table writes wrapped in db.transaction()?
+□ Error handling with TRPCError (not thrown strings)?
+□ Returns structured response?
+```
+
+### Step 4: Typecheck This Procedure
+
+```bash
+pnpm typecheck --filter=web
+```
+
+```
+□ Typecheck passes for this procedure?
+□ Zod types align with DB schema types?
+□ Return types are correct?
+```
+
+**Gate:** Typecheck passes before moving to next procedure.
+
+---
+
+## After All Procedures: Register + Test
+
+### Register Router
 
 ```typescript
-// packages/api/routers/_app.ts
-import { {domain}Router } from "./{domain}"
+// apps/web/server/routers/_app.ts
+import { {domain}Router } from "./{domain}";
 
 export const appRouter = router({
   // ... existing
-  {domain}: {domain}Router
-})
-
-export type AppRouter = typeof appRouter
+  {domain}: {domain}Router,
+});
 ```
 
-### 4. Use in Frontend
+### Full Typecheck
 
-```typescript
-// apps/web/hooks/use-{domain}.ts
-import { trpc } from "@/lib/trpc/client"
-
-export function useModuleList(filters?: { status?: string }) {
-  const { entityId } = useEntity()
-
-  return trpc.{domain}.list.useQuery({
-    entityId,
-    ...filters
-  })
-}
-
-export function useCreateItem() {
-  const utils = trpc.useUtils()
-  const { entityId } = useEntity()
-
-  return trpc.{domain}.create.useMutation({
-    onSuccess: () => {
-      utils.{domain}.list.invalidate({ entityId })
-    }
-  })
-}
+```bash
+pnpm typecheck --filter=web
 ```
+
+- [ ] 0 errors across all files
+
+### Test CRUD
+
+```bash
+# Or write automated tests
+```
+
+```
+□ Create: valid input → 201, record in DB with correct entityId
+□ List: returns only records for current entity
+□ GetById: returns record with correct entity scoping
+□ Update: changes persist, audit trail created
+□ Delete: soft delete works (status → voided)
+```
+
+### Test Security
+
+```
+□ Unauthorized: request without auth → 401
+□ Cross-entity: request for wrong entity → empty/403
+□ Invalid input: bad data → descriptive error message
+□ Missing required field: → validation error
+□ Negative amount: → "Amount must be positive"
+```
+
+### Test Audit Trail
+
+```
+□ Create mutation → audit log entry exists
+□ Update mutation → audit log entry exists
+□ Audit entry: userId, action, entityType, entityIdRef, changes
+```
+
+---
+
+## Progress Reporting
+
+### During Build
+
+```
+API ROUTE: expensesRouter
+Procedure: 4/5 — update
+
+├── list:     ✅ — typecheck passed, entity scoping verified
+├── getById:  ✅ — typecheck passed, NOT_FOUND error handled
+├── create:   ✅ — typecheck passed, audit trail verified, transaction used
+├── update:   🔄 — typecheck: 1 error (wrong import path), fixing...
+├── delete:   ⬜ pending
+
+Register: ⬜ pending
+Full typecheck: ⬜ pending
+CRUD test: ⬜ pending
+```
+
+### Final Report
+
+```markdown
+## API Route: [domain]Router
+
+### Status: ✅ COMPLETE
+
+### Procedures
+
+| #   | Procedure | Type     | Typecheck | Entity Scoping | Audit | Status |
+| --- | --------- | -------- | --------- | -------------- | ----- | ------ |
+| 1   | list      | query    | ✅        | ✅             | —     | ✅     |
+| 2   | getById   | query    | ✅        | ✅             | —     | ✅     |
+| 3   | create    | mutation | ✅        | ✅             | ✅    | ✅     |
+| 4   | update    | mutation | ✅        | ✅             | ✅    | ✅     |
+| 5   | delete    | mutation | ✅        | ✅             | ✅    | ✅     |
+
+### Verification
+
+- pnpm typecheck: ✅ 0 errors
+- Entity scoping: ✅ All queries filter by ctx.entityId
+- Audit trail: ✅ All mutations logged
+- CRUD: ✅ Create, read, update, list, delete work
+- Auth: ✅ 401 on unauthorized
+- Cross-entity: ✅ Empty/403 on wrong entity
+- Validation: ✅ Invalid input rejected with clear error
+```
+
+---
 
 ## Code Patterns
 
 ### ProtectedProcedure with Entity Scoping
 
 ```typescript
-// ALWAYS use this pattern
 const protectedProcedure = t.procedure.use(authMiddleware).use(entityScoped);
-
-// The ctx will have:
 // ctx.session — user session
 // ctx.entityId — current entity (scoped)
 // ctx.entityRole — user's role in this entity
@@ -305,41 +413,25 @@ const protectedProcedure = t.procedure.use(authMiddleware).use(entityScoped);
 ### Error Handling
 
 ```typescript
-import { TRPCError } from "@trpc/server";
-
-// Not found
-throw new TRPCError({
-  code: "NOT_FOUND",
-  message: "Invoice not found",
-});
-
-// Forbidden (cross-entity access attempt)
-throw new TRPCError({
-  code: "FORBIDDEN",
-  message: "You do not have access to this entity",
-});
-
-// Bad input
+throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
+throw new TRPCError({ code: "FORBIDDEN", message: "No access to this entity" });
 throw new TRPCError({
   code: "BAD_REQUEST",
-  message: "Total debits must equal total credits",
+  message: "Debits must equal credits",
 });
 ```
 
 ### Pagination Pattern
 
 ```typescript
-// Cursor-based pagination for large datasets
 const data = await db.query.table.findMany({
   where: and(...conditions),
   orderBy: desc(table.createdAt),
-  limit: input.limit + 1, // fetch one extra to detect "has more"
+  limit: input.limit + 1,
   offset: input.offset,
 });
-
 const hasMore = data.length > input.limit;
 const items = hasMore ? data.slice(0, -1) : data;
-
 return {
   items,
   hasMore,
@@ -347,22 +439,45 @@ return {
 };
 ```
 
+---
+
 ## Common Pitfalls
 
-1. **Missing entity scoping** — Every query MUST filter by `ctx.entityId`.
-2. **No input validation** — Every procedure MUST use zod.
-3. **Hardcoded user ID** — Always use `ctx.session.user.id`.
-4. **No audit trail** — Every mutation MUST log to `audit_log`.
-5. **Direct DB access from frontend** — Always go through tRPC.
-6. **Forgetting to register router** — Add to `_app.ts`.
-7. **Not invalidating cache** — Use `trpc.useUtils()` to invalidate after mutations.
+1. **Missing entity scoping** — Every query MUST filter by `ctx.entityId`
+2. **No input validation** — Every procedure MUST use zod
+3. **Hardcoded user ID** — Always use `ctx.session.user.id`
+4. **No audit trail** — Every mutation MUST log to `audit_log`
+5. **Direct DB access from frontend** — Always go through tRPC
+6. **Forgetting to register router** — Add to `_app.ts`
+7. **Not invalidating cache** — Use `trpc.useUtils()` after mutations
+8. **No transaction on multi-table writes** — Use `db.transaction()`
 
-## Verification
+---
 
-1. `pnpm typecheck` — passes
-2. `pnpm lint` — passes
-3. Test with auth: request succeeds with valid session
-4. Test without auth: returns 401
-5. Test cross-entity: returns empty/403
-6. Test validation: invalid input returns descriptive error
-7. Verify audit log entries on mutations
+## Failure Recovery
+
+### Typecheck errors
+
+1. Read error message carefully
+2. Fix import paths (most common)
+3. Fix zod schema types vs DB schema types
+4. Re-run typecheck after each fix
+5. Max 5 fix attempts per procedure
+
+### Entity scoping verification fails
+
+1. Check every query has `eq(table.entityId, ctx.entityId)`
+2. Check `entityId` comes from session, not user input
+3. Check cross-entity queries return empty
+
+### Audit trail missing
+
+1. Check every mutation has `tx.insert(auditLog).values({...})`
+2. Check userId comes from `ctx.session.user.id`
+3. Check entityType and entityIdRef are correct
+
+### Budget Guard
+
+- Max **5 typecheck fix attempts** per procedure
+- Max **2 full passes** on integration gate
+- If budget exceeded: report progress, list remaining procedures

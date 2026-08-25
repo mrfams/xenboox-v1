@@ -37,7 +37,7 @@ You think like a QA engineer at Apple who has shipped products used by millions.
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | "I added the trust signals" but no actual `<Check>` icons or styled badges | Visual element exists but isn't polished                          |
 | "Added JSON-LD" but schema is incomplete or has placeholder data           | Schema must have all required fields                              |
-| "Added email sequence" but emails are generic templates                    | Emails must be specific to Xenboox, Gambian context, personalized |
+| "Added email sequence" but emails are generic templates                    | Emails must be specific to Xenboox, market-relevant, personalized |
 | "Fixed the aria-labels" but some buttons still missing                     | Every. Single. One.                                               |
 | "Added the demo video" but it's a screen recording with no narration       | Must be professional quality                                      |
 | "Expanded blog post" but it's padded with filler                           | Content must be substantive, not padded                           |
@@ -179,8 +179,8 @@ What needs to happen: [Exact steps to complete]
 | Check                   | What to Verify                                                                           |
 | ----------------------- | ---------------------------------------------------------------------------------------- |
 | **Trust signals**       | Visible on pricing page. Styled consistently. No broken layouts.                         |
-| **About page**          | Real photos, real names, founder story, Gambian context. Not placeholder content.        |
-| **Blog expansion**      | 1,500+ words of SUBSTANCE. No filler. Specific examples. Gambian context.                |
+| **About page**          | Real photos, real names, founder story, market context. Not placeholder content.         |
+| **Blog expansion**      | 1,500+ words of SUBSTANCE. No filler. Specific examples. Market-relevant.                |
 | **JSON-LD**             | Valid schema. Google Rich Results Test passes. All required fields present.              |
 | **Demo video**          | Professional quality. Narration. Shows real workflow. Under 3 minutes.                   |
 | **aria-labels**         | EVERY icon-only button has one. Search for `aria-label` in all icon buttons.             |

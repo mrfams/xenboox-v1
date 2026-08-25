@@ -4,6 +4,65 @@
 
 ---
 
+## 2026-08-25 — Skill Loop Engineering: engineering-critique v3.0
+
+**Scope:** Upgrade skills from one-shot fire-and-forget to loop+graph engineering patterns
+
+### What shipped
+
+| Change                          | Details                                                                                       |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| `engineering-critique` SKILL.md | Full rewrite: v2.0 → v3.0.0 with loop+graph workflow                                          |
+| Master plan                     | `docs/superpowers/plans/2026-08-25-skill-loop-engineering.md` — all 25 priority skills mapped |
+| Implementation plan             | `docs/superpowers/plans/2026-08-25-engineering-critique-loop.md` — detailed design            |
+
+### Architecture patterns applied (from Anthropic + LangGraph research)
+
+| Pattern              | Source      | How Applied                                             |
+| -------------------- | ----------- | ------------------------------------------------------- |
+| Prompt Chaining      | Anthropic   | Sequential phases with quality gates between them       |
+| Parallelization      | Anthropic   | Fan-out across files for large scopes (>10 files)       |
+| Evaluator-Optimizer  | Anthropic   | Findings generated → verification pass confirms them    |
+| Orchestrator-Workers | Anthrian    | Central coordinator delegates to per-file review loops  |
+| Graph Fan-Out/Fan-In | LangGraph   | Parallel file review → aggregate → cross-cutting checks |
+| Loop Engineering     | Claude Code | Think→Execute→Verify→Retry→Repeat until quality gate    |
+| Budget Guard         | Claude Code | Max retries (3), max passes (2), max files (50)         |
+| Work Queue           | Graph State | Track all items with ✅/🔄/⬜ status                    |
+
+### What engineering-critique v3.0 adds
+
+- **Work Queue** — lists every file, tracks review progress
+- **7-Phase Execution Graph** — Intake → Plan → Execute → Verify → Aggregate → Quality Gate → Report
+- **Finding Verification** — every finding checked: is it real? is severity correct? is fix correct?
+- **Retry Logic** — unclear findings get 3 retries with more context
+- **Quality Gate** — 100% files reviewed + 0 Critical unresolved = PASS (score ≥ 90/100)
+- **Graph Mode** — for >10 files, fan-out across directories, fan-in to aggregate
+- **Progress Reporting** — "Reviewed 7/12 files, 2 Critical found" every 3 files
+- **Failure Recovery** — can't read file? contradiction? scope unclear? handled
+- **Budget Guard** — prevents infinite loops (3 retries, 2 passes, 50 files max)
+
+### What was preserved
+
+All existing content kept intact:
+
+- 6 review categories (Correctness, Financial Integrity, Security, Performance, Architecture, Agent Integrity)
+- All detection patterns (grep patterns, code examples)
+- All stack-specific checks (Next.js 15, Drizzle, tRPC, LangGraph)
+- Severity classification tables
+- Output format templates
+- CI/CD gate integration
+- Escalation matrix
+- Review checklist
+
+### Verification
+
+- SKILL.md is 978 lines (was ~450 lines)
+- All existing sections preserved
+- New sections added: Work Queue, Execution Graph, 7 Phases, Verification, Quality Gate, Graph Mode, Progress Reporting, Failure Recovery, Budget Guard
+- Version bumped: 2.0.0 → 3.0.0, workflow: loop+graph
+
+---
+
 ## 2026-08-25 — empworks.md Final Items: Test Fixes + AI-First Creation
 
 **Commits:** 252f368, 36f25a0, 5adbde3, 21c71af, 1a945ae, 3dca7c0, b45a45f

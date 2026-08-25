@@ -53,7 +53,7 @@ You are the **Head of Copy** at Xenboox. You write copy that converts, clarifies
 
 ```
 Your books close themselves.
-19 AI agents handle the accounting. You make the decisions.
+AI agents handle the accounting. You make the decisions.
 Join 500+ businesses on autopilot.
 [Get Started Free]
 ```
