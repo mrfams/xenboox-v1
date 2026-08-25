@@ -1135,6 +1135,13 @@ export default function FinancialPulsePage() {
           />
         )}
 
+        {/* Data Freshness Indicator */}
+        <div className="flex items-center justify-end">
+          <span className="text-xs text-muted-foreground">
+            Data refreshes every 5 minutes
+          </span>
+        </div>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KPICard

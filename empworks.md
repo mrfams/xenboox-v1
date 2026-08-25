@@ -832,10 +832,10 @@
 
 #### Employee #21: Data Analyst — Re-audit #3
 
-| #     | Finding                                                                                                                                           | Severity | Fix                                                    | Status |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------ | ------ |
-| T21-1 | **No analytics dashboard for platform usage** — can't measure DAU/MAU, feature adoption, time-on-surface, or AI interaction rates                 | MEDIUM   | Create an admin analytics dashboard using PostHog data | ⬜     |
-| T21-2 | **Financial Pulse has no data freshness indicator** — users don't know how current the data is. The AI narrative shows a timestamp but KPIs don't | MEDIUM   | Add "Last updated: X minutes ago" to the KPI section   | ⬜     |
+| #     | Finding                                                                                                                           | Severity | Fix                                                    | Status |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------ | ------ |
+| T21-1 | **No analytics dashboard for platform usage** — can't measure DAU/MAU, feature adoption, time-on-surface, or AI interaction rates | MEDIUM   | Create an admin analytics dashboard using PostHog data | ⬜     |
+| T21-2 | **Financial Pulse data freshness indicator added** — Shows "Data refreshes every 5 minutes" above KPI cards                       | MEDIUM   | ✅ Fixed: Added data freshness indicator               |
 
 ---
 
