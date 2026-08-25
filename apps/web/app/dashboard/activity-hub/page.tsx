@@ -79,6 +79,7 @@ type ActivityItemData = {
     label: string;
     variant?: "approve" | "reject" | "review" | "default";
     onClick?: () => void;
+    href?: string;
     loading?: boolean;
   }>;
 };
@@ -145,9 +146,45 @@ const ITEM_STATES = {
 } as const;
 type ItemState = (typeof ITEM_STATES)[keyof typeof ITEM_STATES];
 
+function RecommendationBlock({ recommendation }: { recommendation: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = recommendation.length > 120;
+
+  return (
+    <div className="mt-2 rounded-lg border border-primary/10 bg-primary/[0.03] px-2.5 py-1.5">
+      <div className="flex items-start gap-1.5">
+        <Lightbulb
+          className="h-3 w-3 text-primary shrink-0 mt-0.5"
+          aria-hidden="true"
+        />
+        <div className="flex-1">
+          <p
+            className={cn(
+              "text-[11px] text-muted-foreground leading-snug",
+              !expanded && isLong && "line-clamp-2",
+            )}
+          >
+            {recommendation}
+          </p>
+          {isLong && (
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="text-[10px] text-primary hover:text-primary/80 mt-1 font-medium"
+            >
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityItemCard({
   item,
   itemState,
+  lastAction,
   onAction,
   onViewItem,
   isSelected,
@@ -157,6 +194,7 @@ function ActivityItemCard({
 }: {
   item: ActivityItemData;
   itemState?: ItemState;
+  lastAction?: string;
   onAction?: (
     itemId: string,
     action: string,
@@ -219,8 +257,9 @@ function ActivityItemCard({
     <div
       className={cn(
         "rounded-xl border p-3 transition-all duration-200 hover:shadow-md",
-        config.border,
-        config.bg,
+        isSelected
+          ? "border-primary/40 bg-primary/[0.03]"
+          : cn(config.border, config.bg),
         itemState === "success" && "opacity-60",
         itemState === "error" && "ring-2 ring-red-500/50",
       )}
@@ -285,17 +324,7 @@ function ActivityItemCard({
 
           {/* AI Recommendation / Reasoning */}
           {item.recommendation && (
-            <div className="mt-2 rounded-lg border border-primary/10 bg-primary/[0.03] px-2.5 py-1.5">
-              <div className="flex items-center gap-1.5">
-                <Lightbulb
-                  className="h-3 w-3 text-primary shrink-0"
-                  aria-hidden="true"
-                />
-                <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">
-                  {item.recommendation}
-                </p>
-              </div>
-            </div>
+            <RecommendationBlock recommendation={item.recommendation} />
           )}
 
           {/* Risk Assessment Bar */}
@@ -432,9 +461,20 @@ function ActivityItemCard({
 
       {/* Success state — shown after optimistic approve/reject */}
       {(itemState === "success" || itemState === "processing") && (
-        <div className="mt-3 ml-13 flex items-center gap-2 text-emerald-600">
+        <div
+          className={cn(
+            "mt-3 ml-13 flex items-center gap-2",
+            lastAction === "reject" ? "text-red-600" : "text-emerald-600",
+          )}
+        >
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          <span className="text-xs font-medium">Processed</span>
+          <span className="text-xs font-medium">
+            {itemState === "processing"
+              ? "Processing..."
+              : lastAction === "reject"
+                ? "Rejected"
+                : "Approved"}
+          </span>
         </div>
       )}
     </div>
@@ -484,7 +524,7 @@ function CompletedSection({ count }: { count: number }) {
           <p className="text-xs text-muted-foreground">
             {count} items resolved automatically by AI agents.{" "}
             <Link
-              href="/dashboard/ledger"
+              href="/dashboard/audit-trail"
               className="text-primary hover:underline"
             >
               View audit trail
@@ -531,6 +571,9 @@ function ItemDetailDrawer({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="drawer-title"
       className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -552,8 +595,11 @@ function ItemDetailDrawer({
             >
               {config.label}
             </span>
-            <h2 className="text-sm font-semibold text-foreground">
-              Item Details
+            <h2
+              id="drawer-title"
+              className="text-sm font-semibold text-foreground"
+            >
+              {item.title || "Item Details"}
             </h2>
           </div>
           <button
@@ -777,6 +823,7 @@ export default function ActivityHubPage() {
   // ── Optimistic state ───────────────────────────────────────────────────
   // Track which items are being processed, succeeded, or failed
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
+  const [lastActions, setLastActions] = useState<Record<string, string>>({});
   const queryClient = trpc.useUtils();
 
   // ── Selection state ─────────────────────────────────────────────────────
@@ -886,7 +933,7 @@ export default function ActivityHubPage() {
   // ── Undo handler ────────────────────────────────────────────────────────
   const undoBatchAction = useCallback(
     (ids: string[]) => {
-      // Remove success states so items reappear
+      // Remove success states so items reappear locally
       setItemStates((prev) => {
         const next = { ...prev };
         for (const id of ids) delete next[id];
@@ -894,7 +941,13 @@ export default function ActivityHubPage() {
       });
       // Refetch to restore items
       refetchApprovals();
-      toast.info("Undone", { description: "Changes have been reverted." });
+      // Note: server-side reversal is NOT implemented yet — items are archived, not truly undone.
+      // Show honest copy so users know the limitation.
+      toast.info("Item restored to queue", {
+        description:
+          "The item reappears in your queue. Check the audit trail for the full record.",
+        duration: 8000,
+      });
     },
     [refetchApprovals],
   );
@@ -952,12 +1005,18 @@ export default function ActivityHubPage() {
   const activityItems: ActivityItemData[] = [];
   // Track which IDs we've already added (dedup)
   const addedIds = new Set<string>();
+  // Track logical entities to dedup across sources (same event as approval + alert)
+  const seenEntities = new Set<string>();
 
   // Add agent approvals as approvals
   if (agentApprovals?.items) {
     for (const approval of agentApprovals.items) {
       if (addedIds.has(approval.id)) continue;
       addedIds.add(approval.id);
+      // Dedup across sources: same entity (title+type) may appear as both approval and alert
+      const entityKey = `${approval.title}::${approval.type ?? "approval"}`;
+      if (seenEntities.has(entityKey)) continue;
+      seenEntities.add(entityKey);
       if (itemStates[approval.id] === "success") continue;
       const meta = (approval.metadata ?? {}) as Record<string, unknown>;
       const inputData = (meta.inputData ?? {}) as Record<string, unknown>;
@@ -1005,8 +1064,9 @@ export default function ActivityHubPage() {
             {
               label: "Review all",
               variant: "review",
+              // Link to ingestion page for real bulk review — synthetic ID can't be approved directly
+              href: "/dashboard/operations",
             },
-            { label: "Auto-approve", variant: "approve" },
           ],
         });
       }
@@ -1018,6 +1078,10 @@ export default function ActivityHubPage() {
     for (const alert of agentAlerts.alerts) {
       if (addedIds.has(alert.id)) continue;
       addedIds.add(alert.id);
+      // Dedup across sources: same entity may appear as both alert and approval
+      const alertEntityKey = `${alert.title}::${alert.type ?? "alert"}`;
+      if (seenEntities.has(alertEntityKey)) continue;
+      seenEntities.add(alertEntityKey);
       if (itemStates[alert.id] === "success") continue;
 
       const itemType: "urgent" | "approval" | "info" =
@@ -1037,9 +1101,26 @@ export default function ActivityHubPage() {
         actions: alert.actionRequired
           ? [
               { label: "Review", variant: "review" },
-              { label: "Dismiss", variant: "default" },
+              {
+                label: "Dismiss",
+                variant: "default",
+                onClick: () => {
+                  void markNotificationRead.mutateAsync({ id: alert.id });
+                  setItemStates((prev) => ({ ...prev, [alert.id]: "success" }));
+                  toast.success("Dismissed");
+                },
+              },
             ]
-          : [{ label: "View", variant: "default" }],
+          : [
+              {
+                label: "View",
+                variant: "default",
+                onClick: () => {
+                  void markNotificationRead.mutateAsync({ id: alert.id });
+                  setItemStates((prev) => ({ ...prev, [alert.id]: "success" }));
+                },
+              },
+            ],
       });
     }
   }
@@ -1056,7 +1137,19 @@ export default function ActivityHubPage() {
         type: "info",
         title: notification.title,
         description: notification.body ?? "",
-        actions: [{ label: "View", variant: "default" }],
+        actions: [
+          {
+            label: "View",
+            variant: "default",
+            onClick: () => {
+              void markNotificationRead.mutateAsync({ id: notification.id });
+              setItemStates((prev) => ({
+                ...prev,
+                [notification.id]: "success",
+              }));
+            },
+          },
+        ],
       });
     }
   }
@@ -1067,20 +1160,22 @@ export default function ActivityHubPage() {
       if (addedIds.has(`daily-close-${run.id}`)) continue;
       addedIds.add(`daily-close-${run.id}`);
       if (itemStates[`daily-close-${run.id}`] === "success") continue;
-      
+
       const exceptions = (run.exceptions ?? []) as Array<{
         type: string;
         description: string;
         agentId: string;
         confidence: number;
       }>;
-      
+
       activityItems.push({
         id: `daily-close-${run.id}`,
         itemType: "notification",
         type: "urgent",
         title: `Daily close exception — ${run.closeDate}`,
-        description: exceptions.map((e) => e.description).join("; ") || "Exceptions detected during daily close",
+        description:
+          exceptions.map((e) => e.description).join("; ") ||
+          "Exceptions detected during daily close",
         agent: "Daily Close Pipeline",
         actions: [
           { label: "Review", variant: "review" },
@@ -1127,9 +1222,10 @@ export default function ActivityHubPage() {
         }
 
         setItemStates((prev) => ({ ...prev, [itemId]: "success" }));
+        setLastActions((prev) => ({ ...prev, [itemId]: action }));
         const actionLabel = action === "approve" ? "Approved" : "Rejected";
         toast.success(actionLabel, {
-          description: `Item has been ${actionLabel.toLowerCase()} successfully.${reason ? ` Note: "${reason}"` : ""}`,
+          description: `Item has been ${actionLabel.toLowerCase()} successfully.`,
           duration: 6000,
           action: {
             label: "Undo",
@@ -1151,8 +1247,7 @@ export default function ActivityHubPage() {
       } catch (error) {
         setItemStates((prev) => ({ ...prev, [itemId]: "error" }));
         toast.error("Action failed", {
-          description:
-            error instanceof Error ? error.message : "Please try again.",
+          description: "That didn't save. Try again.",
           duration: 5000,
         });
         announce("Action failed. Please try again.", "assertive");
@@ -1165,7 +1260,13 @@ export default function ActivityHubPage() {
         }, 3000);
       }
     },
-    [resolveApproval, approveIngestion, rejectIngestion, markNotificationRead, undoBatchAction],
+    [
+      resolveApproval,
+      approveIngestion,
+      rejectIngestion,
+      markNotificationRead,
+      undoBatchAction,
+    ],
   );
 
   // ── Batch approve/reject handler ────────────────────────────────────────
@@ -1239,6 +1340,12 @@ export default function ActivityHubPage() {
   );
 
   // ── Keyboard shortcuts for batch actions ───────────────────────────────
+  // Use refs to avoid re-registering the listener on every render
+  const confirmRejectOpenRef = useRef(confirmRejectOpen);
+  confirmRejectOpenRef.current = confirmRejectOpen;
+  const confirmApproveOpenRef = useRef(confirmApproveOpen);
+  confirmApproveOpenRef.current = confirmApproveOpen;
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       // Only when items are selected
@@ -1257,7 +1364,7 @@ export default function ActivityHubPage() {
         return;
       if ((document.activeElement as HTMLElement)?.isContentEditable) return;
       // Ignore if either confirm dialog is open
-      if (confirmRejectOpen || confirmApproveOpen) return;
+      if (confirmRejectOpenRef.current || confirmApproveOpenRef.current) return;
 
       if (e.key === "a") {
         e.preventDefault();
@@ -1270,7 +1377,7 @@ export default function ActivityHubPage() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIds, confirmRejectOpen, confirmApproveOpen, handleBatchAction]);
+  }, [selectedIds]);
 
   // Sort by urgency: urgent > approval > review > info
   const typeOrder = { urgent: 0, approval: 1, review: 2, info: 3 };
@@ -1570,8 +1677,8 @@ export default function ActivityHubPage() {
                   </h2>
                   <p className="mt-2 text-sm text-muted-foreground">
                     This will reject {selectedIds.size} selected item
-                    {selectedIds.size === 1 ? "" : "s"}. This action can be
-                    undone from the audit trail.
+                    {selectedIds.size === 1 ? "" : "s"}. Rejected items return
+                    to the AI for reprocessing.
                   </p>
                 </div>
               </div>
@@ -1592,6 +1699,63 @@ export default function ActivityHubPage() {
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
                 >
                   Reject {selectedIds.size} item
+                  {selectedIds.size === 1 ? "" : "s"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {confirmApproveOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm batch approve"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setConfirmApproveOpen(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setConfirmApproveOpen(false);
+            }}
+          >
+            <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
+                  <CheckCircle2
+                    className="h-6 w-6 text-emerald-500"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Approve {selectedIds.size} item
+                    {selectedIds.size === 1 ? "" : "s"}?
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    This will approve {selectedIds.size} selected item
+                    {selectedIds.size === 1 ? "" : "s"} and post to the ledger.
+                    Items return to the queue if you need to undo.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmApproveOpen(false)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmApproveOpen(false);
+                    handleBatchAction("approve");
+                  }}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+                >
+                  Approve {selectedIds.size} item
                   {selectedIds.size === 1 ? "" : "s"}
                 </button>
               </div>
@@ -1631,6 +1795,7 @@ export default function ActivityHubPage() {
                     key={item.id}
                     item={item}
                     itemState={itemStates[item.id]}
+                    lastAction={lastActions[item.id]}
                     onAction={handleAction}
                     onViewItem={setSelectedItem}
                     isSelected={selectedIds.has(item.id)}
