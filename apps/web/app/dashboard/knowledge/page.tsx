@@ -41,10 +41,14 @@ export default function KnowledgeBasePage() {
   const [activeTab, setActiveTab] = useState("search");
 
   // Fetch knowledge base stats
-  const { data: stats, isLoading: statsLoading } =
-    trpc.knowledgeRag.getStats.useQuery(undefined, {
-      enabled: !!entityId,
-    });
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError,
+    refetch,
+  } = trpc.knowledgeRag.getStats.useQuery(undefined, {
+    enabled: !!entityId,
+  });
 
   return (
     <ModulePageShell
@@ -65,10 +69,33 @@ export default function KnowledgeBasePage() {
       ]}
     >
       {/* Onboarding Banner — shown when no documents exist */}
-      {!statsLoading && (stats?.documentCount ?? 0) === 0 && (
+      {!statsLoading && !isError && (stats?.documentCount ?? 0) === 0 && (
         <KnowledgeBaseOnboarding
           onUploadClick={() => setActiveTab("process")}
         />
+      )}
+
+      {/* Error State */}
+      {isError && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center">
+          <X
+            className="h-5 w-5 text-destructive mx-auto mb-2"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-medium text-foreground">
+            Unable to load knowledge base stats
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       )}
 
       {/* Stats Overview */}
@@ -76,8 +103,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-500" />
+              <div className="p-2 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg">
+                <FileText className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -91,8 +118,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-lg">
-                <Database className="h-5 w-5 text-emerald-500" />
+              <div className="p-2 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg">
+                <Database className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -106,8 +133,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500/10 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-purple-500" />
+              <div className="p-2 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
+                <BarChart3 className="h-5 w-5 text-purple-500 dark:text-purple-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -123,8 +150,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 rounded-lg">
-                <Clock className="h-5 w-5 text-amber-500" />
+              <div className="p-2 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
+                <Clock className="h-5 w-5 text-amber-500 dark:text-amber-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">

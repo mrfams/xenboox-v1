@@ -1735,3 +1735,60 @@ Settings page with 20+ tabs organized into 4 groups: General, Security & Access,
 | --- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ |
 | 1   | **No error boundary for dynamic imports** — if any section component fails to load, the entire page crashes with no recovery. | HIGH     | Wrap ActiveComponent in ErrorBoundary with fallback UI. |        | ✅  |
 | 2   | **20+ dynamic imports in one file** — SECTION_COMPONENTS map is large; consider code-splitting by group rather than by tab.   | LOW      | Group-level code splitting.                             | ⬜     |
+
+# PAGE: /dashboard/knowledge
+
+Knowledge base with semantic search, document processing, and citation audit trail.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                     | Severity | Fix                                                  | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------- | ------ |
+| 1   | **No error handling on queries** — stats query doesn't handle errors; failed loads show "..." indefinitely.                                                 | HIGH     | Add error state with retry.                          | ⬜     |
+| 2   | **Audit trail has no pagination** — shows all recent citations without limit; entities with many searches get a long list.                                  | MEDIUM   | Add pagination or "Load more".                       | ⬜     |
+| 3   | **Onboarding banner doesn't track completion** — only tracks dismissal, not actual upload; user who uploads then dismisses still sees banner on next visit. | MEDIUM   | Track upload completion in localStorage.             | ⬜     |
+| 4   | **No file type validation visible** — DocumentProcessor may not validate file types client-side before upload.                                              | MEDIUM   | Show accepted file types and validate before upload. | ⬜     |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                      | Severity | Fix                                                              | Status |
+| --- | -------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------- | ------ |
+| 1   | **"No searches yet" copy is passive** — doesn't guide users on what to search for.           | LOW      | "Try searching for a vendor name, invoice number, or account."   | ⬜     |
+| 2   | **Stats labels are generic** — "Documents", "Chunks", "Tokens" don't explain value to users. | LOW      | "Documents processed", "Searchable sections", "Content indexed". | ⬜     |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                   | Severity | Fix                                        | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------ | ------ |
+| 1   | **Hardcoded light-mode colors** — bg-blue-500/10, bg-emerald-500/10, etc. without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens. | ⬜     |
+| 2   | **Onboarding banner has no focus-visible on dismiss button** — keyboard users can't dismiss without focus ring.                           | MEDIUM   | Add focus-visible:ring-2.                  | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                       | Severity | Fix                                          | Status |
+| --- | --------------------------------------------------------------------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | **No loading skeleton for stats** — shows "..." while loading; should match final layout.     | LOW      | Skeleton states matching final card heights. | ⬜     |
+| 2   | **Citation audit trail renders all items** — no virtualization or pagination for large lists. | LOW      | Add pagination or virtual scrolling.         | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                              | Severity | Fix                                           | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------- | ------ |
+| 1   | **No search analytics** — can't track what users are searching for; the most valuable product feedback is invisible. | MEDIUM   | Track search queries with results count.      | ⬜     |
+| 2   | **No document processing metrics** — can't track success rate, avg processing time, or failure reasons.              | LOW      | Add processing success rate and avg duration. | ⬜     |
