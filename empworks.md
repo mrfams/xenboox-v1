@@ -292,11 +292,11 @@
 
 ## Employee #24: Automation Specialist — Score: 8/10
 
-| #   | Finding                                                                                  | Severity | Fix                                                                       | Status |
-| --- | ---------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- | ------ |
-| 1   | Donor portal has 30s polling for live updates — reasonable for read-only portal          | —        | Production-grade                                                          | ⬜     |
-| 2   | **Donor portal polling doesn't back off** — continues at 30s even if API returns errors  | LOW      | Implement exponential backoff: double interval on error, reset on success | ⬜     |
-| 3   | **Help page AI assistant is a separate component** — verify it has proper error boundary | LOW      | Wrap in ErrorBoundary to prevent page crash on assistant failure          | ⬜     |
+| #   | Finding                                                                                 | Severity | Fix                                                                       | Status |
+| --- | --------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- | ------ |
+| 1   | Donor portal has 30s polling for live updates — reasonable for read-only portal         | —        | Production-grade                                                          | ⬜     |
+| 2   | **Donor portal polling doesn't back off** — continues at 30s even if API returns errors | LOW      | Implement exponential backoff: double interval on error, reset on success | ⬜     |
+| 3   | **Help page AI assistant error boundary** — same finding as S24-2, verified fixed       | LOW      | ✅ Fixed: Same as S24-2                                                   |
 
 ---
 
@@ -320,7 +320,7 @@
 
 | #    | Finding                                                                                                                                                                                                                       | Severity | Fix                                                                     | Status |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------- | ------ |
-| S2-1 | **Verify-email page has no card skeleton in Suspense fallback** — just a raw spinner with "Loading..." text, no Card wrapper for visual consistency                                                                           | LOW      | Match the success/error Card structure in the Suspense fallback         | ⬜     |
+| S2-1 | **Verify-email Suspense fallback already has Card wrapper** — Matches success/error structure                                                                                                                                 | LOW      | ✅ Verified: Card wrapper exists in Suspense fallback                   |
 | S2-2 | **MFA challenge backup code maxLength might be wrong** — `maxLength={10}` but backup codes from auth libraries are typically 8 chars (e.g., Auth.js uses 8-char codes). If codes are 8 chars, maxLength=10 allows extra input | LOW      | Verify backup code generation format and set maxLength to match exactly | ⬜     |
 
 ---
