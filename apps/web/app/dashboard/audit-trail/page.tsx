@@ -15,14 +15,11 @@ import {
   Search,
   ChevronDown,
   ChevronUp,
-  ArrowUpRight,
   CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Eye,
+  RefreshCw,
   BookOpen,
   Users,
-  RefreshCw,
+  Calendar,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
@@ -34,7 +31,7 @@ import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 // ─── Audit Trail ──────────────────────────────────────────────────────────
 //
 // Dedicated page showing all actions across every surface.
-// Replaces the buried Settings > Audit Log section with a first-class view.
+// Server-side pagination, search, and filtering for scale.
 
 type ActionCategory = {
   label: string;
@@ -118,6 +115,11 @@ const ACTION_CATEGORIES: Record<string, ActionCategory> = {
   },
 };
 
+const SURFACES = Object.values(ACTION_CATEGORIES)
+  .map((c) => c.surface)
+  .filter((v, i, a) => a.indexOf(v) === i)
+  .sort();
+
 function getCategoryForAction(action: string): ActionCategory {
   for (const [prefix, category] of Object.entries(ACTION_CATEGORIES)) {
     if (action.startsWith(prefix)) return category;
@@ -125,7 +127,7 @@ function getCategoryForAction(action: string): ActionCategory {
   return {
     label: "Other",
     icon: History,
-    color: "text-slate-600 bg-slate-50",
+    color: "text-muted-foreground bg-muted",
     surface: "Other",
   };
 }
@@ -169,7 +171,7 @@ function getActionVerb(action: string): { verb: string; color: string } {
   if (action.includes("login") || action.includes("auth")) {
     return { verb: "Authenticated", color: "text-amber-600" };
   }
-  return { verb: "Performed", color: "text-slate-600" };
+  return { verb: "Performed", color: "text-muted-foreground" };
 }
 
 function formatTimeAgo(date: Date): string {
@@ -186,78 +188,95 @@ function formatTimeAgo(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+/** Sanitize a CSV cell to prevent CSV injection */
+function sanitizeCell(val: unknown): string {
+  const str = String(val ?? "");
+  const escaped = str.replace(/"/g, '""');
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return "'" + escaped;
+  }
+  return '"' + escaped + '"';
+}
+
+/** Date range presets */
+type DateRangePreset = "all" | "today" | "week" | "month" | "custom";
+
+function getDateRange(preset: DateRangePreset): {
+  dateFrom?: string;
+  dateTo?: string;
+} {
+  const now = new Date();
+  switch (preset) {
+    case "today": {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      return { dateFrom: start.toISOString() };
+    }
+    case "week": {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 7);
+      return { dateFrom: start.toISOString() };
+    }
+    case "month": {
+      const start = new Date(now);
+      start.setMonth(start.getMonth() - 1);
+      return { dateFrom: start.toISOString() };
+    }
+    default:
+      return {};
+  }
+}
+
 export default function AuditTrailPage() {
   const { entityId } = useEntity();
-  const [limit, setLimit] = useState(50);
-
-  // ── Cross-surface sync ────────────────────────────────────────────────
-  // Listen for data_changed events from other surfaces and refetch
-  useSurfaceSync({ entityId, surfaces: ["all"] });
+  const [limit] = useState(50);
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
   const [surfaceFilter, setSurfaceFilter] = useState<string>("all");
+  const [datePreset, setDatePreset] = useState<DateRangePreset>("all");
+  const [customDateFrom, setCustomDateFrom] = useState("");
+  const [customDateTo, setCustomDateTo] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // ── Cross-surface sync ────────────────────────────────────────────────
+  useSurfaceSync({ entityId, surfaces: ["all"] });
+
+  // Compute date range
+  const dateRange = useMemo(() => {
+    if (datePreset === "custom") {
+      return {
+        dateFrom: customDateFrom || undefined,
+        dateTo: customDateTo || undefined,
+      };
+    }
+    return getDateRange(datePreset);
+  }, [datePreset, customDateFrom, customDateTo]);
+
+  // Server-side query with all filters
   const { data, isLoading } = trpc.settings.getAuditLogs.useQuery(
-    { limit: 200, offset: 0 },
+    {
+      limit,
+      offset,
+      search: search || undefined,
+      surface: surfaceFilter !== "all" ? surfaceFilter : undefined,
+      dateFrom: dateRange.dateFrom,
+      dateTo: dateRange.dateTo,
+    },
     { enabled: !!entityId },
   );
 
   const logs = data?.logs ?? [];
   const total = data?.total ?? 0;
 
-  // Filter logs
-  const filteredLogs = useMemo(() => {
-    let filtered = logs;
-
-    // Search filter
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(
-        (log) =>
-          log.action.toLowerCase().includes(q) ||
-          log.entityType?.toLowerCase().includes(q) ||
-          (log.newValues &&
-            JSON.stringify(log.newValues).toLowerCase().includes(q)),
-      );
-    }
-
-    // Surface filter
-    if (surfaceFilter !== "all") {
-      filtered = filtered.filter((log) => {
-        const category = getCategoryForAction(log.action);
-        return category.surface === surfaceFilter;
-      });
-    }
-
-    return filtered.slice(offset, offset + limit);
-  }, [logs, search, surfaceFilter, offset, limit]);
-
-  // Get unique surfaces for filter
-  const surfaces = useMemo(() => {
-    const surfaceSet = new Set<string>();
-    logs.forEach((log) => {
-      const category = getCategoryForAction(log.action);
-      surfaceSet.add(category.surface);
-    });
-    return Array.from(surfaceSet).sort();
-  }, [logs]);
-
-  // Stats
+  // Stats (use server-side counts for the date-filtered view)
   const stats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayLogs = logs.filter((log) => new Date(log.createdAt) >= today);
-    const thisWeek = new Date();
-    thisWeek.setDate(thisWeek.getDate() - 7);
-    const weekLogs = logs.filter((log) => new Date(log.createdAt) >= thisWeek);
-
+    // We don't have separate stat counts from server,
+    // but total already reflects current filters
     return {
-      total: logs.length,
-      today: todayLogs.length,
-      thisWeek: weekLogs.length,
+      total,
+      showing: logs.length,
     };
-  }, [logs]);
+  }, [total, logs.length]);
 
   return (
     <ModulePageShell
@@ -280,7 +299,9 @@ export default function AuditTrailPage() {
                 <p className="text-2xl font-bold text-foreground">
                   {stats.total}
                 </p>
-                <p className="text-xs text-muted-foreground">Total Actions</p>
+                <p className="text-xs text-muted-foreground">
+                  {datePreset === "all" ? "Total Actions" : "Matching Entries"}
+                </p>
               </div>
             </div>
           </div>
@@ -294,9 +315,9 @@ export default function AuditTrailPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {stats.today}
+                  {stats.showing}
                 </p>
-                <p className="text-xs text-muted-foreground">Today</p>
+                <p className="text-xs text-muted-foreground">On This Page</p>
               </div>
             </div>
           </div>
@@ -306,13 +327,21 @@ export default function AuditTrailPage() {
                 className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10"
                 aria-hidden="true"
               >
-                <Clock className="h-5 w-5 text-amber-500" />
+                <Calendar className="h-5 w-5 text-amber-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {stats.thisWeek}
+                  {datePreset === "all"
+                    ? "All Time"
+                    : datePreset === "today"
+                      ? "Today"
+                      : datePreset === "week"
+                        ? "7 Days"
+                        : datePreset === "month"
+                          ? "30 Days"
+                          : "Custom"}
                 </p>
-                <p className="text-xs text-muted-foreground">This Week</p>
+                <p className="text-xs text-muted-foreground">Date Range</p>
               </div>
             </div>
           </div>
@@ -320,7 +349,7 @@ export default function AuditTrailPage() {
 
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 sm:w-64">
               <Search
                 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -348,21 +377,63 @@ export default function AuditTrailPage() {
               className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="all">All Surfaces</option>
-              {surfaces.map((surface) => (
+              {SURFACES.map((surface) => (
                 <option key={surface} value={surface}>
                   {surface}
                 </option>
               ))}
             </select>
+            <select
+              value={datePreset}
+              onChange={(e) => {
+                setDatePreset(e.target.value as DateRangePreset);
+                setOffset(0);
+              }}
+              aria-label="Filter by date range"
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+              <option value="custom">Custom Range</option>
+            </select>
+            {datePreset === "custom" && (
+              <>
+                <input
+                  type="date"
+                  value={customDateFrom}
+                  onChange={(e) => {
+                    setCustomDateFrom(e.target.value);
+                    setOffset(0);
+                  }}
+                  aria-label="Start date"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <input
+                  type="date"
+                  value={customDateTo}
+                  onChange={(e) => {
+                    setCustomDateTo(e.target.value);
+                    setOffset(0);
+                  }}
+                  aria-label="End date"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
-              Showing {filteredLogs.length} of {total} entries
+              {search || surfaceFilter !== "all" || datePreset !== "all"
+                ? `${total} entries match your filters`
+                : `${total} total entries`}
             </span>
             <button
               type="button"
               onClick={() => {
-                // Export filtered audit logs as CSV
+                // Export current filtered logs as sanitized CSV
                 const headers = [
                   "Date",
                   "Action",
@@ -371,24 +442,18 @@ export default function AuditTrailPage() {
                   "User ID",
                   "Changes",
                 ];
-                const rows = filteredLogs.map((log) => [
+                const rows = logs.map((log) => [
                   new Date(log.createdAt).toISOString(),
                   log.action,
                   log.entityType ?? "",
-                  log.entityId ?? "",
+                  log.entityIdRef ?? "",
                   log.userId ?? "",
                   log.newValues ? JSON.stringify(log.newValues) : "",
                 ]);
-                const csv = [headers, ...rows]
-                  .map((row) =>
-                    row
-                      .map((cell) => {
-                        const escaped = String(cell).replace(/"/g, '""');
-                        return '"' + escaped + '"';
-                      })
-                      .join(","),
-                  )
-                  .join("\n");
+                const csv = [
+                  headers.join(","),
+                  ...rows.map((row) => row.map(sanitizeCell).join(",")),
+                ].join("\n");
                 const blob = new Blob([csv], {
                   type: "text/csv;charset=utf-8;",
                 });
@@ -414,7 +479,7 @@ export default function AuditTrailPage() {
               <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
             ))}
           </div>
-        ) : filteredLogs.length === 0 ? (
+        ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
             <div
               className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3"
@@ -428,12 +493,14 @@ export default function AuditTrailPage() {
             <p className="text-xs text-muted-foreground mt-1">
               {search
                 ? "Try a different search term"
-                : "Actions will appear here as they happen"}
+                : datePreset !== "all"
+                  ? "No entries in this date range"
+                  : "Actions will appear here as they happen"}
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredLogs.map((log) => {
+            {logs.map((log) => {
               const category = getCategoryForAction(log.action);
               const Icon = category.icon;
               const { verb, color } = getActionVerb(log.action);
@@ -564,7 +631,7 @@ export default function AuditTrailPage() {
         )}
 
         {/* Pagination */}
-        {filteredLogs.length > 0 && (
+        {total > 0 && (
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -575,13 +642,12 @@ export default function AuditTrailPage() {
               Previous
             </button>
             <span className="text-xs text-muted-foreground">
-              {offset + 1}–{Math.min(offset + limit, filteredLogs.length)} of{" "}
-              {filteredLogs.length}
+              {offset + 1}–{Math.min(offset + limit, total)} of {total}
             </span>
             <button
               type="button"
               onClick={() => setOffset(offset + limit)}
-              disabled={offset + limit >= filteredLogs.length}
+              disabled={offset + limit >= total}
               className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next

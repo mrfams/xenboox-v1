@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "crypto";
 
 import { z } from "zod";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, or, desc, like, gte, lte, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { entitySettings } from "@xenboox/db/schema/entity-settings";
 import { users } from "@xenboox/db/schema/auth";
@@ -638,19 +638,80 @@ export const settingsRouter = router({
       z.object({
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
+        search: z.string().optional(),
+        surface: z.string().optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        exportAll: z.boolean().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       if (!ctx.entityId) return { logs: [], total: 0 };
 
+      // Build where conditions
+      const conditions = [eq(auditLog.entityId, ctx.entityId)];
+
+      // Server-side search on action and entityType
+      if (input.search) {
+        const q = `%${input.search}%`;
+        conditions.push(
+          or(like(auditLog.action, q), like(auditLog.entityType, q))!,
+        );
+      }
+
+      // Server-side surface filter (match action prefix to surface)
+      if (input.surface && input.surface !== "all") {
+        const surfaceActionMap: Record<string, string[]> = {
+          Settings: ["settings."],
+          Auth: ["auth."],
+          Billing: ["billing."],
+          Documents: ["document."],
+          Agents: ["agent."],
+          Ledger: ["journal.", "coa."],
+          AR: ["invoice."],
+          Payroll: ["payroll."],
+          "Activity Hub": ["approvals."],
+          Team: ["invitations."],
+          Operations: ["reconciliation."],
+        };
+        const prefixes = surfaceActionMap[input.surface] ?? [];
+        if (prefixes.length > 0) {
+          conditions.push(
+            or(...prefixes.map((p) => like(auditLog.action, `${p}%`)))!,
+          );
+        }
+      }
+
+      // Server-side date range filter
+      if (input.dateFrom) {
+        conditions.push(gte(auditLog.createdAt, new Date(input.dateFrom)));
+      }
+      if (input.dateTo) {
+        // Include the entire end day
+        const endDate = new Date(input.dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        conditions.push(lte(auditLog.createdAt, endDate));
+      }
+
+      const where = and(...conditions);
+
+      // Get total count for pagination (before LIMIT)
+      const countResult = await db
+        .select({ count: auditLog.id })
+        .from(auditLog)
+        .where(where);
+      const total = countResult.length;
+
+      // If exportAll, return all matching logs (no limit)
       const logs = await db.query.auditLog.findMany({
-        where: eq(auditLog.entityId, ctx.entityId),
+        where,
         orderBy: [desc(auditLog.createdAt)],
-        limit: input.limit,
-        offset: input.offset,
+        ...(input.exportAll
+          ? {}
+          : { limit: input.limit, offset: input.offset }),
       });
 
-      return { logs, total: logs.length };
+      return { logs, total };
     }),
 
   // ─── DSAR: Data Export (§21.3 — GDPR right to portability) ────────────────
