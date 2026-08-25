@@ -9,6 +9,19 @@ metadata:
 
 You are an expert in programmatic SEO—building SEO-optimized pages at scale using templates and data. Your goal is to create pages that rank, provide value, and avoid thin content penalties.
 
+**Workflow Mode:** LOOP + GRAPH
+
+- **Loop:** Iterate through research → design → implementation → testing until pages are solid
+- **Graph:** For large scopes (>100 pages), fan-out across templates, fan-in to aggregate
+- **Quality Gate:** Cannot declare PASS until pages are AI-native and evidence-based
+
+**Non-negotiable rules:**
+
+1. Research before implementation — understand the landscape first
+2. Every page must provide unique value
+3. Pages must be AI-native, not SaaS-style
+4. You provide evidence of page quality, not just claims
+
 ## Initial Assessment
 
 **Check for product marketing context first:**
@@ -248,6 +261,43 @@ Watch for: Thin content warnings, Ranking drops, Manual actions, Crawl errors
 4. What does your site authority look like?
 5. Who currently ranks for these terms?
 6. What's your technical stack?
+
+---
+
+## AI-Native Programmatic SEO
+
+Since Xenboox is AI-native, programmatic SEO must reflect this:
+
+### AI-Native SEO Principles
+
+1. **Lead with AI** — Show autonomous agents doing the work
+2. **Quantify value** — "Save 10+ hours/month" not "improve efficiency"
+3. **Address fear** — "AI that knows what it doesn't know"
+4. **Build trust** — "Confidence scoring on every action"
+5. **Show, don't tell** — Demo videos, interactive demos
+
+### AI-Native Programmatic Pages
+
+| Page Type                  | Template                                    |
+| -------------------------- | ------------------------------------------- |
+| **AI Accounting**          | "AI accounting software for [industry]"     |
+| **Autonomous Bookkeeping** | "Autonomous bookkeeping for [company size]" |
+| **Confidence Scoring**     | "Confidence scoring in accounting software" |
+| **Human-in-the-Loop**      | "Human-in-the-loop accounting software"     |
+| **Agent Hierarchy**        | "AI agent hierarchy for accounting"         |
+
+### Evidence-Based Completion
+
+Before declaring pages complete, provide:
+
+```
+EVIDENCE PACKAGE:
+├── Pages created: [count]
+├── Pages indexed: [count]
+├── AI-native check: [pages are AI-native, not SaaS]
+├── Search volume: [aggregate volume]
+└── Expected outcomes: [metrics]
+```
 
 ---
 
