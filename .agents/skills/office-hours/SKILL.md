@@ -9,6 +9,19 @@ metadata:
 
 Run a structured product interrogation using these 6 forcing questions. Answer each rigorously before writing any code.
 
+**Workflow Mode:** LOOP + GRAPH
+
+- **Loop:** Iterate through questions → challenge → refine until answers are solid
+- **Graph:** For complex products, fan-out across user segments, fan-in to aggregate
+- **Quality Gate:** Cannot declare PASS until answers are evidence-based and AI-native
+
+**Non-negotiable rules:**
+
+1. Research before interrogation — understand the landscape first
+2. Every answer must be specific and evidence-based
+3. Product must be AI-native, not SaaS-style
+4. You provide evidence of product quality, not just claims
+
 ## The 6 Questions
 
 ### 1. Who is this for?
@@ -35,6 +48,26 @@ Strip to essentials. What's the smallest thing you can build that still delivers
 
 One metric. North star. What number goes up when this succeeds?
 
+## AI-Native Product Questions
+
+Since Xenboox is AI-native, add these questions:
+
+### 7. Is this AI-native or SaaS?
+
+Does this feature make the AI more capable, or does it add SaaS-style complexity?
+
+### 8. What would a human bookkeeper do?
+
+Teach an AI agent to do it. Keep human-in-the-loop for judgment.
+
+### 9. Can AI do this faster?
+
+Let AI do it. Humans approve.
+
+### 10. Does AI explain its reasoning?
+
+AI should explain what it's doing, not just show results.
+
 ## Process
 
 1. Present each question one at a time
@@ -42,3 +75,5 @@ One metric. North star. What number goes up when this succeeds?
 3. Challenge vague answers: "Can you be more specific?"
 4. If an answer contradicts a previous answer, flag the inconsistency
 5. After all 6, write a 3-sentence product brief synthesizing the answers
+6. Add AI-native questions (7-10) for Xenboox
+7. Provide evidence of product quality, not just claims

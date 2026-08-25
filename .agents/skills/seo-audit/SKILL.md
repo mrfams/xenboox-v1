@@ -567,6 +567,62 @@ Finding: Missing schema, thin content, no H1
 
 ---
 
+## AI-Native SEO
+
+Since Xenboox is AI-native, SEO must reflect this:
+
+### AI-Native SEO Principles
+
+1. **Lead with AI** — Show autonomous agents doing the work
+2. **Quantify value** — "Save 10+ hours/month" not "improve efficiency"
+3. **Address fear** — "AI that knows what it doesn't know"
+4. **Build trust** — "Confidence scoring on every action"
+5. **Show, don't tell** — Demo videos, interactive demos
+
+### AI-Native SEO Keywords
+
+| Keyword                           | Intent        |
+| --------------------------------- | ------------- |
+| **AI accounting software**        | Transactional |
+| **autonomous bookkeeping**        | Informational |
+| **AI invoice processing**         | Transactional |
+| **human-in-the-loop accounting**  | Informational |
+| **confidence scoring accounting** | Informational |
+
+### AI-Native Schema
+
+```json
+{
+  "@type": "SoftwareApplication",
+  "name": "Xenboox",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "description": "AI-native accounting platform with specialized agents",
+  "featureList": [
+    "Autonomous bookkeeping",
+    "AI invoice processing",
+    "Confidence scoring",
+    "Human-in-the-loop approvals"
+  ]
+}
+```
+
+### Evidence-Based Completion
+
+Before declaring audit complete, provide:
+
+```
+EVIDENCE PACKAGE:
+├── Pages audited: [list all pages]
+├── Issues found: [count by severity]
+├── Issues fixed: [list all fixes]
+├── AI-native check: [SEO is AI-native, not SaaS]
+├── Site-wide patterns: [list patterns]
+└── Action plan: [prioritized list]
+```
+
+---
+
 ## Related Skills
 
 - **ai-seo**: For optimizing content for AI search engines (AEO, GEO, LLMO)
