@@ -15,6 +15,10 @@ import {
   CheckCircle2,
   Sparkles,
   Star,
+  Newspaper,
+  Download,
+  Mail,
+  ExternalLink,
 } from "lucide-react";
 
 import { Button } from "@/components/ui";
@@ -275,6 +279,89 @@ export default function AboutPage() {
                 </FadeInUp>
               ))}
             </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Founder Story Section */}
+      <Section className="bg-paper">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid items-start gap-16 lg:grid-cols-5">
+            <FadeInUp className="lg:col-span-2">
+              <div className="sticky top-24">
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+                  <Heart className="h-3.5 w-3.5" />
+                  Founder&apos;s Note
+                </span>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                  Why we built Xenboox
+                </h2>
+                <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                  A personal note from the founder on the problem that started
+                  it all.
+                </p>
+              </div>
+            </FadeInUp>
+
+            <FadeInUp delay={0.1} className="lg:col-span-3">
+              <div className="space-y-6 text-base leading-relaxed text-muted-foreground">
+                <p>
+                  I spent years watching businesses — especially in emerging
+                  markets — struggle with accounting software that was never
+                  designed for them. Tools built in San Francisco for San
+                  Francisco businesses, then awkwardly adapted for everywhere
+                  else.
+                </p>
+                <p>
+                  Multi-currency was an afterthought. Mobile money didn&apos;t
+                  exist. Month-end close meant three days of manual work,
+                  spreadsheet wrangling, and hoping nothing was missed. And the
+                  "AI features" were just rule-based categorization with a fancy
+                  label.
+                </p>
+                <p className="text-foreground font-medium">
+                  I believed accounting could be fundamentally different.
+                </p>
+                <p>
+                  What if AI didn&apos;t just suggest what to do — but actually
+                  did the work? Categorized every transaction. Reconciled every
+                  account. Closed the month in minutes, not days. And explained
+                  every decision it made, in plain English, with a confidence
+                  score you could trust.
+                </p>
+                <p>
+                  That&apos;s why we built Xenboox. Not another SaaS tool with
+                  40 pages and a sidebar. An AI-native platform where the AI
+                  handles the work and humans make the decisions. A three-tier
+                  agent hierarchy — a CFO that talks to you, department heads
+                  that manage the work, and worker agents that execute. Every
+                  action auditable. Every decision explainable.
+                </p>
+                <p>
+                  We built for the world from day one. Multi-currency,
+                  multi-entity, multi-jurisdiction. Whether you&apos;re in The
+                  Gambia or New York, your books should work where you do
+                  business.
+                </p>
+                <p className="text-foreground font-medium">
+                  We&apos;re not done. But we&apos;re building something that
+                  matters — and we&apos;d love for you to try it.
+                </p>
+                <div className="flex items-center gap-4 pt-4 border-t border-border">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
+                    Founder
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      The Xenboox Team
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Building AI-native accounting for the world
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </FadeInUp>
           </div>
         </div>
       </Section>
