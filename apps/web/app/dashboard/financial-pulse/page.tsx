@@ -642,6 +642,13 @@ function BudgetVsActualSection({
             )}
           </tbody>
         </table>
+        {items.length > 8 && (
+          <div className="border-t border-border/50 px-3 py-2 text-center">
+            <span className="text-xs text-muted-foreground">
+              Showing 8 of {items.length} categories
+            </span>
+          </div>
+        )}
       </div>
     </section>
   );
