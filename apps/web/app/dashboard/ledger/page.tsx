@@ -18,6 +18,7 @@ import {
   X,
   Sparkles,
   Plus,
+  RotateCcw,
   type LucideIcon,
 } from "lucide-react";
 
@@ -65,6 +66,20 @@ function JournalEntryDrawer({
 }) {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
+  const [showReverseDialog, setShowReverseDialog] = useState(false);
+  const [reverseReason, setReverseReason] = useState("");
+
+  const reverseMutation = trpc.journal.reverse.useMutation({
+    onSuccess: () => {
+      toast.success("Journal entry reversed successfully");
+      setShowReverseDialog(false);
+      setReverseReason("");
+      onClose();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to reverse entry");
+    },
+  });
 
   const { data: entry, isLoading } = trpc.journal.getById.useQuery(
     { id: entryId },
@@ -428,11 +443,110 @@ function JournalEntryDrawer({
                   <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
                   Show audit trail
                 </button>
+
+                {/* Reverse Entry Button — only for posted entries */}
+                {entry.status === "posted" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowReverseDialog(true)}
+                    className="flex w-full items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reverse this entry
+                  </button>
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Reverse Confirmation Dialog */}
+      {showReverseDialog && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/20 backdrop-blur-sm"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowReverseDialog(false);
+              setReverseReason("");
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
+                <RotateCcw className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Reverse Journal Entry
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  This will create a new entry that cancels out this one.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4 rounded-lg bg-muted/50 p-3">
+              <p className="text-xs font-medium text-foreground">
+                {entry?.entryNumber
+                  ? `JE-${String(entry.entryNumber).padStart(4, "0")}`
+                  : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {entry?.description ?? "No description"}
+              </p>
+            </div>
+
+            <label className="block">
+              <span className="text-xs font-medium text-foreground">
+                Reason for reversal <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="text"
+                value={reverseReason}
+                onChange={(e) => setReverseReason(e.target.value)}
+                placeholder="e.g., Incorrect amounts, duplicate entry"
+                className="mt-1 block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                autoFocus
+              />
+            </label>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReverseDialog(false);
+                  setReverseReason("");
+                }}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (entry && reverseReason.trim()) {
+                    reverseMutation.mutate({
+                      id: entry.id,
+                      reason: reverseReason.trim(),
+                    });
+                  }
+                }}
+                disabled={!reverseReason.trim() || reverseMutation.isPending}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {reverseMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-4 w-4" />
+                )}
+                {reverseMutation.isPending ? "Reversing..." : "Reverse Entry"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
