@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 
+import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { TRPCProvider } from "@/lib/trpc/provider";
 import { PostHogProvider } from "@/components/layout/posthog-provider";
@@ -128,9 +129,11 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://lh3.googleusercontent.com" />
         <link rel="preconnect" href="https://r2.dev" />
         <ThemeProvider nonce={nonce}>
-          <TRPCProvider>
-            <PostHogProvider>{children}</PostHogProvider>
-          </TRPCProvider>
+          <SessionProvider>
+            <TRPCProvider>
+              <PostHogProvider>{children}</PostHogProvider>
+            </TRPCProvider>
+          </SessionProvider>
         </ThemeProvider>
         <script
           type="application/ld+json"
