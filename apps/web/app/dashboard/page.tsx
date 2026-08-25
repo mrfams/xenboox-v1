@@ -90,6 +90,7 @@ function CommandCenterInner() {
     sendMessage,
     loadConversation,
     newChat,
+    cancelStream,
   } = useDashboardChat({ entityId });
 
   // Announce streaming status to screen readers
@@ -211,6 +212,7 @@ function CommandCenterInner() {
             <AiInput
               onSubmit={handleSubmit}
               isResponding={isStreaming}
+              onStop={cancelStream}
               entityId={entityId ?? ""}
               uploadedFiles={uploadedFiles}
               onFilesUploaded={(files) =>

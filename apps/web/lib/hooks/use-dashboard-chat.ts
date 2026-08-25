@@ -359,5 +359,6 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
     newChat,
     exitChat,
     loadConversation,
+    cancelStream,
   };
 }

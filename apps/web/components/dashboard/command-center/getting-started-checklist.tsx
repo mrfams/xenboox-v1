@@ -28,7 +28,8 @@ import { cn } from "@/lib/utils";
 //
 // Dismissible. Progress tracked in localStorage.
 
-const STORAGE_KEY = "xenboox_getting_started_dismissed";
+const DISMISSED_KEY = "xenboox_getting_started_dismissed";
+const COMPLETED_KEY = "xenboox_getting_started_completed";
 
 type Step = {
   id: string;
@@ -115,8 +116,14 @@ export function GettingStartedChecklist({
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === "true") setDismissed(true);
+      const storedDismissed = localStorage.getItem(DISMISSED_KEY);
+      if (storedDismissed === "true") setDismissed(true);
+
+      const storedCompleted = localStorage.getItem(COMPLETED_KEY);
+      if (storedCompleted) {
+        const parsed = JSON.parse(storedCompleted);
+        if (Array.isArray(parsed)) setCompletedSteps(new Set(parsed));
+      }
     } catch {
       // SSR or localStorage unavailable
     }
@@ -125,7 +132,7 @@ export function GettingStartedChecklist({
   const handleDismiss = () => {
     setDismissed(true);
     try {
-      localStorage.setItem(STORAGE_KEY, "true");
+      localStorage.setItem(DISMISSED_KEY, "true");
     } catch {
       // ignore
     }
@@ -136,7 +143,16 @@ export function GettingStartedChecklist({
       onSendMessage(step.action.prompt);
     }
     // Mark as completed (for link actions, they navigate away)
-    setCompletedSteps((prev) => new Set(prev).add(step.id));
+    const newCompleted = new Set(completedSteps).add(step.id);
+    setCompletedSteps(newCompleted);
+    try {
+      localStorage.setItem(
+        COMPLETED_KEY,
+        JSON.stringify(Array.from(newCompleted)),
+      );
+    } catch {
+      // ignore
+    }
   };
 
   if (dismissed) return null;

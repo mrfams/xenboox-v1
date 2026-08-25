@@ -32,6 +32,7 @@ const COMPOSER_MAX_HEIGHT = 120;
 export function AiInput({
   onSubmit,
   isResponding,
+  onStop,
   entityId,
   uploadedFiles,
   onFilesUploaded,
@@ -40,6 +41,7 @@ export function AiInput({
 }: {
   onSubmit: (value: string, files?: UploadedFile[]) => void;
   isResponding: boolean;
+  onStop?: () => void;
   entityId: string;
   uploadedFiles: UploadedFile[];
   onFilesUploaded: (files: UploadedFile[]) => void;
@@ -160,20 +162,28 @@ export function AiInput({
           <Button
             type="button"
             size="icon"
-            aria-label="Send message"
-            onClick={() => handleSubmit()}
+            aria-label={isResponding ? "Stop generation" : "Send message"}
+            onClick={() => {
+              if (isResponding && onStop) {
+                onStop();
+              } else {
+                handleSubmit();
+              }
+            }}
             disabled={
-              (!inputValue.trim() && uploadedFiles.length === 0) || isResponding
+              !isResponding && !inputValue.trim() && uploadedFiles.length === 0
             }
             className={cn(
               "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
-              inputValue.trim()
-                ? "bg-primary hover:bg-primary/90 text-white shadow-sm"
-                : "bg-primary text-white",
+              isResponding
+                ? "bg-red-500 hover:bg-red-600 text-white shadow-sm"
+                : inputValue.trim()
+                  ? "bg-primary hover:bg-primary/90 text-white shadow-sm"
+                  : "bg-primary text-white",
             )}
           >
             {isResponding ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span className="h-3 w-3 rounded-sm bg-white" />
             ) : (
               <Send className="h-4 w-4" />
             )}
