@@ -13,6 +13,7 @@ import { InvoiceLinesEditor, type InvoiceLine } from "./invoice-lines-editor";
 
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
+import { dispatchActivationEvent } from "@/lib/hooks/use-activation-tracking";
 
 interface CreateInvoiceDialogProps {
   open: boolean;
@@ -53,6 +54,11 @@ export function CreateInvoiceDialog({
       utils.invoicing.invalidate();
       utils.ar.invalidate();
       utils.dashboard.invalidate();
+      dispatchActivationEvent("first_invoice", {
+        type: "sales",
+        amount: total,
+        currency,
+      });
       setCustomerId("");
       setInvoiceNumber(defaultInvoiceNumber());
       setInvoiceDate(today());

@@ -13,6 +13,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { cn, formatCurrency } from "@/lib/utils";
+import { dispatchActivationEvent } from "@/lib/hooks/use-activation-tracking";
 
 type Line = {
   accountId: string;
@@ -48,6 +49,10 @@ export function CreateJournalEntryForm({
 
   const createEntry = trpc.journal.create.useMutation({
     onSuccess: () => {
+      dispatchActivationEvent("first_journal_entry", {
+        lineCount: validLines.length,
+        source: "manual",
+      });
       onCreated?.();
       onClose();
     },

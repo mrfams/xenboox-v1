@@ -504,8 +504,8 @@
 
 | #     | Finding                                                                                              | Severity | Fix                                                                                                        | Status |
 | ----- | ---------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- | ------ |
-| S22-1 | **No activation funnel tracking** — can't measure signup → first transaction → first month-end close | MEDIUM   | Add PostHog events: `signup_completed`, `first_bank_connected`, `first_journal_entry`, `first_month_close` | ⬜     |
-| S22-2 | **No feature adoption metrics** — can't tell which features users actually use vs ignore             | MEDIUM   | Track feature usage: AR usage rate, payroll runs, reconciliation completions, report generation frequency  | ⬜     |
+| S22-1 | **No activation funnel tracking** — can't measure signup → first transaction → first month-end close | MEDIUM   | Add PostHog events: `signup_completed`, `first_bank_connected`, `first_journal_entry`, `first_month_close` | ✅     |
+| S22-2 | **No feature adoption metrics** — can't tell which features users actually use vs ignore             | MEDIUM   | Track feature usage: AR usage rate, payroll runs, reconciliation completions, report generation frequency  | ✅     |
 
 ---
 
@@ -684,7 +684,7 @@
 
 | #     | Finding                                                                                                                                                                                  | Severity | Fix                                                                                                                                                 | Status |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| T22-1 | **No PostHog events on Command Center** — the primary user surface has zero analytics events. Can't measure: messages sent, approvals acted on, documents generated, suggestions clicked | HIGH     | Add PostHog events: `message_sent`, `approval_approved`, `approval_rejected`, `document_generated`, `suggestion_clicked`, `briefing_action_clicked` | ⬜     |
+| T22-1 | **No PostHog events on Command Center** — the primary user surface has zero analytics events. Can't measure: messages sent, approvals acted on, documents generated, suggestions clicked | HIGH     | Add PostHog events: `message_sent`, `approval_approved`, `approval_rejected`, `document_generated`, `suggestion_clicked`, `briefing_action_clicked` | ✅     |
 | T22-2 | **No feature adoption tracking across dashboard surfaces** — can't tell which surfaces users actually use vs ignore                                                                      | MEDIUM   | Add `page_viewed` events with surface name: `command_center`, `financial_pulse`, `activity_hub`, `ledger`, `operations`                             | ⬜     |
 | T22-3 | **No conversion funnel from marketing to dashboard** — can't measure signup → first login → first AI interaction → first approval                                                        | MEDIUM   | Add funnel events: `signup_completed`, `first_login`, `first_ai_message`, `first_approval_action`, `first_month_close`                              | ⬜     |
 
@@ -915,7 +915,7 @@
 | #   | Finding                                        | Employee                    | Status |
 | --- | ---------------------------------------------- | --------------------------- | ------ |
 | 1   | Dashboard Command Center has no error boundary | PM (#1)                     | ✅     |
-| 2   | No PostHog events on Command Center            | Product Analyst (#22)       | ⬜     |
+| 2   | No PostHog events on Command Center            | Product Analyst (#22)       | ✅     |
 | 3   | Donor portal rate limiting still missing       | Security Engineer (#6)      | ⬜     |
 | 4   | Donor portal entity validation still missing   | Security Engineer (#6)      | ⬜     |
 | 5   | Donor portal rate limiting (enterprise)        | Enterprise Readiness (#17)  | ⬜     |

@@ -23,6 +23,7 @@ import { useSurfaceShortcuts } from "@/lib/hooks/use-surface-shortcuts";
 import { usePostHogIdentify } from "@/components/layout/posthog-provider";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { useActivationTracking } from "@/lib/hooks/use-activation-tracking";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
 import { KeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
 import {
@@ -51,6 +52,7 @@ function getPageTitle(pathname: string): string {
 function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
   const { entityRole, entityId } = useEntity();
   const pathname = usePathname();
+  useActivationTracking();
   // Identify user with PostHog for analytics + feature adoption funnel
   usePostHogIdentify(
     typeof window !== "undefined"

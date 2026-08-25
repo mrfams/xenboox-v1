@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { MessageSquare } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
+import { activationEvents } from "@/lib/analytics/feature-tracking";
 import { DashboardSkeleton } from "@/components/shared/skeletons";
 import { dashboardQueryOptions } from "@/lib/trpc/query-options";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
@@ -46,6 +47,13 @@ export default function CommandCenterPage() {
   const firstName = session?.user?.name?.split(" ")[0];
   const { entityId } = useEntity();
   const { announce } = useSrAnnounce();
+
+  // ── Track first Command Center visit ─────────────────────────────────
+  useEffect(() => {
+    if (entityId) {
+      activationEvents.commandCenterFirstVisit(entityId);
+    }
+  }, [entityId]);
 
   // ── Cross-surface sync ────────────────────────────────────────────────
   // Listen for data_changed events from other surfaces and refetch
