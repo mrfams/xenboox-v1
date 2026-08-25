@@ -45,7 +45,7 @@
 | #   | Finding                                                                                                                                                         | Severity | Fix                                                                                | Status                                                                       |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | 1   | Sticky CTA missing on all marketing pages                                                                                                                       | HIGH     | Floating CTA in marketing layout                                                   | ✅                                                                           |
-| 2   | Pricing page lacks trust signals                                                                                                                                | HIGH     | Add "No credit card", "Cancel anytime", guarantee                                  | ⬜                                                                           |
+| 2   | Pricing page lacks trust signals                                                                                                                                | HIGH     | Add "No credit card", "Cancel anytime", guarantee                                  | ✅                                                                           |
 | 3   | About page shows generic content                                                                                                                                | HIGH     | Real team photos, founder story, global context                                    | ⬜                                                                           |
 | 4   | Blog posts need 1,500+ words                                                                                                                                    | MEDIUM   | Expand remaining content                                                           | ⬜                                                                           |
 | 5   | Blog post missing author card, related posts                                                                                                                    | MEDIUM   | Add to template                                                                    | ✅ Fixed: Author card + related posts already implemented                    |
@@ -111,7 +111,7 @@
 | 1   | All marketing copy uses consistent voice — professional, confident, not salesy                                                                       | —        | Production-grade                                                       | ✅     |
 | 2   | Help page maintains brand voice — "Chat with the CFO agent — it knows your books"                                                                    | —        | Production-grade                                                       | ✅     |
 | 3   | **Pricing tier descriptions are inconsistent** — Free says "Start closing your books with AI", Starter says "Save 10+ hours/month with 19 AI agents" | MEDIUM   | Unify tone: all should lead with value, not mix "AI" and "hours saved" | ⬜     |
-| 4   | **OpenGraph title uses "19 Agents" count** — brand voice doc says to use "AI agents" generically in professional contexts                            | MEDIUM   | Align OG title with brand voice guidelines                             | ⬜     |
+| 4   | **OpenGraph title uses "19 Agents" count** — brand voice doc says to use "AI agents" generically in professional contexts                            | MEDIUM   | Align OG title with brand voice guidelines                             | ✅     |
 
 ---
 
@@ -133,8 +133,8 @@
 | --- | -------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------ |
 | 1   | Login page has open-redirect protection — `isSafeRedirect()` validates all redirect params                     | —        | Production-grade                                                                                                                     | ✅     |
 | 2   | MFA challenge validates `mfaToken` before submission                                                           | —        | Production-grade                                                                                                                     | ✅     |
-| 3   | **Donor portal API endpoint** (`/api/donor-portal/request`) — verify rate limiting exists on POST              | HIGH     | Ensure rate limit on donor portal request endpoint (magic link generation)                                                           | ⬜     |
-| 4   | **Donor portal projects API** — verify donor ID + entity ID are validated server-side, not just passed through | HIGH     | Server must verify donor belongs to entity, reject mismatched combinations                                                           | ⬜     |
+| 3   | **Donor portal API endpoint** (`/api/donor-portal/request`) — verify rate limiting exists on POST              | HIGH     | Ensure rate limit on donor portal request endpoint (magic link generation)                                                           | ✅     |
+| 4   | **Donor portal projects API** — verify donor ID + entity ID are validated server-side, not just passed through | HIGH     | Server must verify donor belongs to entity, reject mismatched combinations                                                           | ✅     |
 | 5   | **Donor portal search params** — `donor`, `entity`, `name` passed as URL query params                          | MEDIUM   | Donor ID and entity ID in URL are acceptable for magic-link portals, but ensure no PII in `name` param (currently uses it in header) | ⬜     |
 | 6   | **CSV export in audit trail** — potential CSV injection if malicious action names contain formulas             | MEDIUM   | Sanitize CSV cells: prefix `=`, `+`, `-`, `@` with single quote                                                                      | ⬜     |
 
@@ -159,8 +159,8 @@
 | --- | ------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------- | ------ |
 | 1   | Donor portal is properly isolated from main dashboard — no sidebar, no nav to internal pages                  | —        | Production-grade architecture                                                | ✅     |
 | 2   | Auth flow is well-structured — login → MFA challenge → dashboard, with proper redirects                       | —        | Production-grade architecture                                                | ✅     |
-| 3   | **Donor portal currency should be entity-configurable** — currently hardcoded in frontend                     | HIGH     | Backend should return currency per project, frontend reads from API response | ⬜     |
-| 4   | **Help page doesn't lazy-load HelpAssistant** — component is imported eagerly but only rendered in right rail | LOW      | Use `React.lazy()` with Suspense for the AI assistant component              | ⬜     |
+| 3   | **Donor portal currency should be entity-configurable** — currently hardcoded in frontend                     | HIGH     | Backend should return currency per project, frontend reads from API response | ✅     |
+| 4   | **Help page doesn't lazy-load HelpAssistant** — component is imported eagerly but only rendered in right rail | LOW      | Use `React.lazy()` with Suspense for the AI assistant component              | ✅     |
 
 ---
 
@@ -180,7 +180,7 @@
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------- | ------ |
 | 1   | Pricing page has 30-day money-back guarantee — trust signal for enterprise                                                                    | —        | Production-grade                                                | ✅     |
 | 2   | Help page has contact support email — support@xenboox.com                                                                                     | —        | Production-grade                                                | ✅     |
-| 3   | **Donor portal has no rate limiting visible in frontend** — if API isn't rate-limited, donors could spam magic link requests                  | HIGH     | Verify server-side rate limiting on `/api/donor-portal/request` | ⬜     |
+| 3   | **Donor portal has no rate limiting visible in frontend** — if API isn't rate-limited, donors could spam magic link requests                  | HIGH     | Verify server-side rate limiting on `/api/donor-portal/request` | ✅     |
 | 4   | **Audit trail export respects server-side filters** — CSV export uses the same query parameters as the UI, ensuring consistent access control | MEDIUM   | ✅ Fixed: Export uses same server-side filters as UI            |
 
 ---
@@ -192,7 +192,7 @@
 | 1   | Pricing page has ROI calculator — excellent for conversion                                                     | —        | Production-grade                                                         | ✅     |
 | 2   | Pricing page has comparison teaser — drives feature comparison                                                 | —        | Production-grade                                                         | ✅     |
 | 3   | Features page has JSON-LD and Breadcrumb schema                                                                | —        | Production-grade                                                         | ✅     |
-| 4   | **OpenGraph title "19 Agents, Zero Data Entry"** — strong but count-specific                                   | MEDIUM   | A/B test with "AI Agents, Zero Data Entry" for broader appeal            | ⬜     |
+| 4   | **OpenGraph title "19 Agents, Zero Data Entry"** — strong but count-specific                                   | MEDIUM   | A/B test with "AI Agents, Zero Data Entry" for broader appeal            | ✅     |
 | 5   | **Pricing page ProductJsonLd description** says "Full access to all 19 AI agents" — structured data with count | MEDIUM   | Align with marketing strategy — count in structured data is fine for SEO | ⬜     |
 
 ---
@@ -244,8 +244,8 @@
 | #   | Finding                                                                                    | Severity | Fix                                                                        | Status |
 | --- | ------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------- | ------ |
 | 1   | Audit trail now has server-side search, surface filter, date range, and CSV export         | —        | ✅ Fixed: Server-side filtering with sanitized CSV export                  |
-| 2   | **Audit trail shows "Showing X of Y entries"** but Y is total from API, not filtered count | MEDIUM   | Change to "Showing X of Y total entries" or "X entries match your filters" | ⬜     |
-| 3   | **Audit trail has no date range filter** — can only filter by surface, not time period     | MEDIUM   | Add date range picker (Today, This Week, This Month, Custom)               | ⬜     |
+| 2   | **Audit trail shows "Showing X of Y entries"** but Y is total from API, not filtered count | MEDIUM   | Change to "Showing X of Y total entries" or "X entries match your filters" | ✅     |
+| 3   | **Audit trail has no date range filter** — can only filter by surface, not time period     | MEDIUM   | Add date range picker (Today, This Week, This Month, Custom)               | ✅     |
 
 ---
 
@@ -255,7 +255,7 @@
 | --- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------- | ------ |
 | 1   | Auth flow is clear — login → register → forgot password → reset → verify email                                                  | —        | Production-grade                                                              | ✅     |
 | 2   | **Register page mentions verification email** — helper text says "We'll send you a verification email to activate your account" | MEDIUM   | ✅ Fixed: Added verification email note to register page                      |
-| 3   | **Dashboard has no first-time user guidance** — new users land on Command Center with no context                                | HIGH     | Add getting-started checklist or welcome banner for users with 0 transactions | ⬜     |
+| 3   | **Dashboard has no first-time user guidance** — new users land on Command Center with no context                                | HIGH     | Add getting-started checklist or welcome banner for users with 0 transactions | ✅     |
 | 4   | **Donor portal onboarding** — entity ID is required for magic-link auth, acceptable                                             | MEDIUM   | ✅ Accepted: Entity ID is required for magic-link auth                        |
 
 ---
@@ -450,7 +450,7 @@
 | #     | Finding                                                                                                                                                                                                                                                                               | Severity | Fix                                                                                     | Status |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------- | ------ |
 | S21-1 | **Audit trail "Showing X of Y entries"** — Y is `total` from API (total matching the base query), but X is `filteredLogs.length` (after client-side search/filter). The numbers are inconsistent: user sees "Showing 5 of 200 entries" when they searched for "invoice" and 5 matched | MEDIUM   | Change display to "Showing 5 entries (filtered from 200 total)" or "5 matching entries" | ⬜     |
-| S21-2 | **Audit trail has no date range filter** — can filter by surface and search text, but can't narrow to "Today" or "This Week" even though the stats cards show today/this-week counts                                                                                                  | MEDIUM   | Add date range dropdown: All, Today, This Week, This Month, Custom Range                | ⬜     |
+| S21-2 | **Audit trail has no date range filter** — can filter by surface and search text, but can't narrow to "Today" or "This Week" even though the stats cards show today/this-week counts                                                                                                  | MEDIUM   | Add date range dropdown: All, Today, This Week, This Month, Custom Range                | ✅     |
 
 ---
 
