@@ -50,6 +50,10 @@ For EACH section of the spec:
   → What are the success criteria?
   → What depends on what?
   → What's ambiguous?
+  → Is this AI-native or SaaS? (must be AI-native)
+  → Which surface does this belong to? (Command Center, Activity Hub, Financial Pulse, Ledger, Operations)
+  → Does this require human-in-the-loop approval?
+  → Does AI handle the work, or is this manual?
 ```
 
 ### Ambiguity Resolution

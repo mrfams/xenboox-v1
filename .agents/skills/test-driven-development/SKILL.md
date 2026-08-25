@@ -306,6 +306,10 @@ Before marking work complete:
 - [ ] Output pristine (no errors, warnings)
 - [ ] Tests use real code (mocks only if unavoidable)
 - [ ] Edge cases and errors covered
+- [ ] AI-native patterns tested (confidence, decision cards, narrative flow)
+- [ ] Agent workflows tested end-to-end
+- [ ] Human-in-the-loop flows tested
+- [ ] Confidence thresholds and escalation tested
 
 Can't check all boxes? You skipped TDD. Start over.
 

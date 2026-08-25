@@ -67,3 +67,8 @@ Ensure the fix doesn't break existing behavior:
 3. **Missing confidence score** — agent outputs without confidence field
 4. **Unbalanced journal entries** — debits ≠ credits
 5. **Missing await** — async operation not awaited before using result
+6. **SaaS anti-patterns** — Complex navigation, multi-step forms, manual workflows
+7. **Missing AI-native patterns** — Confidence indicators, decision cards, narrative flow
+8. **Agent workflow incomplete** — AI doesn't complete end-to-end
+9. **Human-in-the-loop broken** — Decision cards don't work, approval flow broken
+10. **Confidence thresholds wrong** — Escalation doesn't trigger at right levels

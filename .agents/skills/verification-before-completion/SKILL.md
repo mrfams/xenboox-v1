@@ -152,6 +152,25 @@ grep -rn "sk_\|pk_\|password" --include="*.ts"
 # Expect: no results
 ```
 
+### AI-Native Verification
+
+Before claiming AI-native features work:
+
+```
+AI-NATIVE VERIFICATION:
+├── Confidence indicators present and working?
+├── Decision cards present and functional?
+├── Narrative flow explains what AI is doing?
+├── Loading states show agent thinking?
+├── Error states explain what went wrong?
+├── Empty states suggest what to do next?
+├── Agent workflows complete end-to-end?
+├── Human-in-the-loop approval works?
+├── Confidence thresholds and escalation work?
+├── No SaaS anti-patterns (complex nav, multi-step forms)?
+└── 5-surface model followed?
+```
+
 ---
 
 ## Evidence Format

@@ -75,6 +75,7 @@ Before scaffolding anything, define what you're building:
 **Reports to:** [Which supervisor agent?]
 **Manages:** [Which worker agents? (if tier2)]
 **Model:** [haiku | sonnet — which model tier?]
+**Surface:** [Which of the 5 surfaces does this agent's output appear on?]
 
 ### State Fields
 

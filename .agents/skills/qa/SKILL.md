@@ -321,6 +321,19 @@ For each flow, check these dimensions:
 - Does the layout work on desktop (1024px+)?
 - Are touch targets 44px+ on mobile?
 
+#### 9. AI-Native Quality
+
+- No SaaS anti-patterns (complex nav, multi-step forms, manual workflows)
+- AI handles the work, not manual workflows
+- Confidence indicators present where needed
+- Decision cards present for human-in-the-loop
+- Narrative flow explains what AI is doing
+- Loading states show agent thinking
+- Error states explain what went wrong and next steps
+- Empty states suggest what to do next
+- Agent workflows complete end-to-end
+- Human-in-the-loop approval works correctly
+
 ### Bug Severity
 
 | Severity       | Criteria                                       | Examples                                         |

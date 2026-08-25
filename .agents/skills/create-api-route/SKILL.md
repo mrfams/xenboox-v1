@@ -451,6 +451,8 @@ return {
 6. **Forgetting to register router** — Add to `_app.ts`
 7. **Not invalidating cache** — Use `trpc.useUtils()` after mutations
 8. **No transaction on multi-table writes** — Use `db.transaction()`
+9. **SaaS anti-patterns** — Don't build APIs for manual workflows that AI should handle
+10. **Missing AI-native patterns** — Add confidence scoring, narrative responses where appropriate
 
 ---
 
@@ -481,3 +483,89 @@ return {
 - Max **5 typecheck fix attempts** per procedure
 - Max **2 full passes** on integration gate
 - If budget exceeded: report progress, list remaining procedures
+
+---
+
+## AI-Native API Patterns
+
+### When to Add AI-Native Patterns
+
+Not every API needs AI-native patterns. Add them when:
+
+- The API is consumed by an AI agent
+- The API returns decisions that need human approval
+- The API involves confidence scoring
+- The API is part of a workflow that AI manages
+
+### Confidence Scoring in Responses
+
+For APIs that return AI-generated results:
+
+```typescript
+// Add confidence to responses
+return {
+  data: results,
+  confidence: 0.94,
+  reasoning: "Based on transaction patterns and vendor history",
+  requiresApproval: true,
+};
+```
+
+### Narrative Responses
+
+For APIs that explain what AI did:
+
+```typescript
+// Add narrative to mutations
+return {
+  success: true,
+  narrative: "AI categorized 47 transactions. 3 need your review.",
+  actions: [
+    { type: "approve", label: "Approve all" },
+    { type: "review", label: "Review 3 flagged" },
+  ],
+};
+```
+
+### Decision Card Patterns
+
+For APIs that require human-in-the-loop:
+
+```typescript
+// Return decision cards
+return {
+  decisions: [
+    {
+      id: "dec_123",
+      type: "approval",
+      title: "Approve vendor payment?",
+      description: "AI recommends paying $1,250 to Acme Corp",
+      confidence: 0.92,
+      options: [
+        { label: "Approve", value: "approve" },
+        { label: "Reject", value: "reject" },
+        { label: "Defer", value: "defer" },
+      ],
+    },
+  ],
+};
+```
+
+### Agent Tool Integration
+
+For APIs consumed by LangGraph agents:
+
+```typescript
+// Return structured results for agent consumption
+return {
+  result: data,
+  confidence: 0.95,
+  reasoning: "Transaction matches vendor pattern with 95% confidence",
+  suggestedAction: "categorize_as_office_supplies",
+  evidence: [
+    "Vendor: Office Depot",
+    "Description: Paper and toner",
+    "Amount: $47.99 (within normal range)",
+  ],
+};
+```

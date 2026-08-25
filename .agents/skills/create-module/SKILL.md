@@ -72,6 +72,7 @@ Before scaffolding anything, define what you're building:
 **Entity:** [Which entity type does it belong to?]
 **Agent:** [Which agent owns it? (if any)]
 **Phase:** [Which MVP phase?]
+**Surface:** [Which of the 5 surfaces does this belong to?]
 
 ### Tables
 
@@ -94,6 +95,13 @@ Before scaffolding anything, define what you're building:
 ### Agent Tools (if applicable)
 
 - [tool_name]: [what it does]
+
+### AI-Native Patterns
+
+- [ ] Does this module use AI-native patterns? (confidence indicators, decision cards, narrative flow)
+- [ ] Which surface does this belong to? (Command Center, Activity Hub, Financial Pulse, Ledger, Operations)
+- [ ] Does this require human-in-the-loop approval?
+- [ ] Does AI handle the work, or is this manual?
 ```
 
 ### Work Queue
@@ -569,6 +577,19 @@ Manually verify or write tests for:
 □ Audit trail on all mutations?
 ```
 
+### AI-Native Quality Gate
+
+```
+□ AI-native patterns present? (confidence indicators, decision cards, narrative flow)
+□ Module belongs to correct surface? (Command Center, Activity Hub, Financial Pulse, Ledger, Operations)
+□ Human-in-the-loop approval present where needed?
+□ AI handles the work, not manual workflows?
+□ No SaaS anti-patterns? (complex nav, multi-step forms, dashboard overload)
+□ Loading states show agent thinking?
+□ Error states explain what went wrong and next steps?
+□ Empty states suggest what to do next?
+```
+
 ---
 
 ## Progress Reporting
@@ -688,6 +709,8 @@ const createSchema = z.object({
 7. **Not registering router** — Add to `_app.ts` after creating
 8. **Typecheck after each layer** — Don't build all layers then discover 50 errors
 9. **Missing loading/empty states** — Frontend must handle loading and empty
+10. **SaaS anti-patterns** — Don't build complex navigation, multi-step forms, or manual workflows
+11. **Missing AI-native patterns** — Add confidence indicators, decision cards, narrative flow where appropriate
 
 ---
 

@@ -177,6 +177,17 @@ Apply these to every production file:
 - No empty catch blocks
 - No `catch { return null }` patterns
 
+#### 7. AI-Native Quality
+
+- No SaaS anti-patterns (complex nav, multi-step forms, manual workflows)
+- AI handles the work, not manual workflows
+- Confidence indicators present where needed
+- Decision cards present for human-in-the-loop
+- Narrative flow explains what AI is doing
+- Loading states show agent thinking
+- Error states explain what went wrong and next steps
+- Empty states suggest what to do next
+
 ### Category Application by File Type
 
 | File Type       | Dimensions to Check                                                |
