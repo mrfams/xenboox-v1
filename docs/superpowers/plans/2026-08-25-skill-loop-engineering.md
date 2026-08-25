@@ -114,6 +114,7 @@ Every skill defines a quality gate that must pass before stopping:
 | 17  | `product-reviewer` | ✅ DONE    | v2.0.0 (loop) |
 | 18  | `grill-with-docs`  | ⬜ Pending | —             |
 | 19  | `office-hours`     | ⬜ Pending | —             |
+| 25  | `brainstorming`    | ✅ DONE    | v2.0.0 (loop) |
 
 ### Tier 5 — Operations & Meta
 
