@@ -80,13 +80,13 @@
 
 ## Employee #4: Copywriter — Score: 8/10
 
-| #   | Finding                                                                                                                  | Severity | Fix                                                                                                            | Status |
-| --- | ------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Pricing page copy is strong — "Start free with 1 agent. Upgrade when you need the full team."                            | —        | Production-grade                                                                                               | ⬜     |
-| 2   | Features page headline "Accounting that thinks for itself" is excellent                                                  | —        | Production-grade                                                                                               | ⬜     |
-| 3   | Help page headline "How can we help?" is clear and welcoming                                                             | —        | Production-grade                                                                                               | ⬜     |
-| 4   | **Marketing page metadata still says "19 Agents, Zero Data Entry"** in the title tag                                     | HIGH     | This is user-facing marketing — acceptable as-is, but consider "AI Agents, Zero Data Entry" for broader appeal | ⬜     |
-| 5   | **OpenGraph description says "19 AI agents handle invoicing"** — if we're positioning globally, the count might alienate | MEDIUM   | Test with "AI agents handle invoicing" vs "19 AI agents" for click-through rates                               | ⬜     |
+| #   | Finding                                                                                                                                      | Severity | Fix                                                                              | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- | ------ |
+| 1   | Pricing page copy is strong — "Start free with 1 agent. Upgrade when you need the full team."                                                | —        | Production-grade                                                                 | ⬜     |
+| 2   | Features page headline "Accounting that thinks for itself" is excellent                                                                      | —        | Production-grade                                                                 | ⬜     |
+| 3   | Help page headline "How can we help?" is clear and welcoming                                                                                 | —        | Production-grade                                                                 | ⬜     |
+| 4   | **Marketing metadata updated** — Homepage title changed from "19 Agents, Zero Data Entry" to "AI Agents, Zero Data Entry" for broader appeal | HIGH     | ✅ Fixed: Updated title and OG description                                       |
+| 5   | **OpenGraph description says "19 AI agents handle invoicing"** — if we're positioning globally, the count might alienate                     | MEDIUM   | Test with "AI agents handle invoicing" vs "19 AI agents" for click-through rates | ⬜     |
 
 ---
 
@@ -338,10 +338,10 @@
 
 ## 🔵 SECOND PASS — Employee #4: Copywriter (Re-audit)
 
-| #    | Finding                                                                                                                                                                                                                     | Severity | Fix                                                                                                     | Status |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------- | ------ |
-| S4-1 | **Homepage metadata title says "19 Agents, Zero Data Entry"** — this is the page `<title>` tag that appears in browser tabs and Google results. The count is specific and marketing-appropriate here, but worth A/B testing | MEDIUM   | Test "AI-Native Accounting — Zero Data Entry" vs current for CTR in search results                      | ⬜     |
-| S4-2 | **OpenGraph description says "19 AI agents handle invoicing, payroll, compliance, and month-end close"** — same count concern but in social sharing context                                                                 | MEDIUM   | A/B test with "AI agents handle invoicing, payroll, compliance, and month-end close" for broader appeal | ⬜     |
+| #    | Finding                                                                                                                                                     | Severity | Fix                                                                                                     | Status |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------- | ------ |
+| S4-1 | **Homepage metadata updated** — Title changed from "19 Agents, Zero Data Entry" to "AI Agents, Zero Data Entry" for broader appeal                          | MEDIUM   | ✅ Fixed: Updated title and OG description                                                              |
+| S4-2 | **OpenGraph description says "19 AI agents handle invoicing, payroll, compliance, and month-end close"** — same count concern but in social sharing context | MEDIUM   | A/B test with "AI agents handle invoicing, payroll, compliance, and month-end close" for broader appeal | ⬜     |
 
 ---
 
@@ -390,7 +390,7 @@
 | #     | Finding                                                                                                                                                                                                                      | Severity | Fix                                                                                                                                           | Status                                                                      |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | S11-1 | **Donor portal currency must be entity-configurable** — the `formatCurrency()` function and `buildDonorReportPdf()` both hardcode GMD. This is an architectural issue: currency should flow from entity → project → frontend | HIGH     | Add `currency` field to entity schema (if not present). API returns currency per project. Frontend reads it. No hardcoded currencies anywhere | ✅ Fixed: Currency flows from schema → API → frontend (entity-configurable) |
-| S11-2 | **Help page HelpAssistant is eagerly imported** — the AI assistant component is a heavy component imported at module level, adding to initial bundle even when the user never opens it                                       | LOW      | Use `React.lazy(() => import('@/components/dashboard/help-assistant'))` with Suspense                                                         | ⬜                                                                          |
+| S11-2 | **HelpAssistant is now lazy-loaded** — Uses next/dynamic with ssr:false and skeleton loading state, reducing initial bundle size                                                                                             | LOW      | ✅ Fixed: Lazy-load with dynamic import                                                                                                       |
 
 ---
 
