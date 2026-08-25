@@ -456,6 +456,11 @@ export function ConversationThread({
               {msg.role === "assistant" && msg.confidence !== undefined && (
                 <div className="mt-2">
                   <ConfidenceBadge score={msg.confidence / 100} />
+                  {msg.confidence < 40 && (
+                    <p className="mt-1 text-[10px] text-muted-foreground/70">
+                      Low confidence — consider flagging for human review.
+                    </p>
+                  )}
                 </div>
               )}
 

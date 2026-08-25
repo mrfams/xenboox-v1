@@ -145,13 +145,12 @@ export function ProactiveBriefing() {
   };
 
   // Fallback dashboard data — MUST be called before any early returns (Rules of Hooks)
-  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
-    {},
-    { enabled: !!entityId },
-  );
-  const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  const { data: dashboardData, isLoading: isDashboardLoading } =
+    trpc.dashboard.getDashboardData.useQuery({}, { enabled: !!entityId });
+  const { data: ingestionStats, isLoading: isIngestionLoading } =
+    trpc.ingestion.getStats.useQuery(undefined, {
+      enabled: !!entityId,
+    });
 
   useEffect(() => {
     if (aiBriefing) {
@@ -288,7 +287,30 @@ export function ProactiveBriefing() {
     });
   }
 
+  const isDataLoaded = !isDashboardLoading && !isIngestionLoading;
+
   if (items.length === 0) {
+    // Distinguish between "loaded, zero items" and "failed to load"
+    if (!isDataLoaded) {
+      return (
+        <div className="rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+              <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Loading your briefing...
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                Checking approvals, deadlines, and cash position.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.03] p-4 sm:p-5">
         <div className="flex items-center gap-3">
